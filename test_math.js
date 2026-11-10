@@ -1,0 +1,11 @@
+const assert=require('node:assert/strict');
+const C=require('./calibration.js');
+const zeros=Array(64).fill(0);assert.equal(C.crc16(zeros),0xD558);
+let ps=[];for(let t=0;t<3;t++)for(let p=0;p<4;p++)ps.push({adc_s:-21000+14000*p+100*t,adc_t:-12000+12000*t,pressure:10*p/3,temperature:0+50*t});
+const simple=C.fit(ps.slice(0,4),{pmin:0,pmax:10,orderS:1,orderT:0});assert(simple.stats.maxDigits<3,simple.stats.maxDigits);
+const temp=C.fit(ps,{pmin:0,pmax:10,orderS:1,orderT:1});assert(temp.stats.maxDigits<3,temp.stats.maxDigits);assert(temp.stats.maxTemperatureDigits<3,temp.stats.maxTemperatureDigits);
+const orig=Array(64).fill(0);orig[16]=0x12D6;orig[17]=0x6C06;orig[18]=0x4000;orig[19]=0x099F;orig[20]=0x100F;orig[22]=0x0880;orig[28]=0x0800;orig[15]=(C.crc8(orig)<<8);orig[63]=C.crc16(orig);
+let out=C.configFrom(orig,temp,0x0882);assert.equal(out.after[28],0x0882);assert.equal(out.after[17],0x6C06);assert.equal(out.after[19],0x099F);assert.equal(C.crc16(out.after),out.after[63]);assert(out.changes.every(c=>c.index>=28));
+assert.throws(()=>C.fit(ps.slice(0,3),{pmin:0,pmax:10,orderS:2,orderT:2}));
+assert.throws(()=>C.fit(ps.slice(0,2).map(p=>({...p,adc_s:3000})),{pmin:0,pmax:10}));
+console.log('OK tests: CRC16 known fixture, coefficients Q3.12/Q0.15, pressure+temperature fit, NVM mapping, protected boot regs, insufficient points');

@@ -1,0 +1,16 @@
+# Runtime, diagnostics and private lab data
+.DS_Store
+__pycache__/
+*.pyc
+*.log
+*.json
+!package.json
+*.dll
+*.exe
+*.so
+*.pdf
+*.zip
+.env
+.env.*
+node_modules/
+.cache/
