@@ -250,8 +250,20 @@ button.danger{background:#9e3e34;border-color:#9e3e34;color:#fff}button.danger:h
 .output-errors select{width:100%;margin-top:4px}
 .output-subheading{margin-top:15px}
 @media(max-width:700px){.output-grid,.output-grid-3,.output-errors{grid-template-columns:1fr}.output-heading{align-items:flex-start;flex-wrap:wrap}.output-endpoint-head,.output-endpoint-row{grid-template-columns:32px 1fr 1fr 1.4fr;gap:5px}.output-endpoint-row{padding:8px 4px}.output-endpoint-row input{padding:6px 4px}.output-section{padding:11px}}
+/* Expert workspace: always reachable after enabling, without the NVM step gate. */
+.expert-workspace[hidden],.expert-inline[hidden]{display:none!important}
+.expert-workspace{position:fixed;inset:0;z-index:90;display:grid;place-items:center;background:rgba(20,34,51,.48);padding:18px}
+.expert-workspace-content{width:min(970px,100%);max-height:calc(100vh - 36px);overflow:auto;background:#fff;border:1px solid #bfd1e2;border-radius:13px;box-shadow:0 25px 75px rgba(15,29,47,.28);padding:22px}
+.expert-workspace-head{gap:14px;align-items:flex-start}
+.expert-workspace-head h2{margin:3px 0 8px;font-size:22px}
+.expert-workspace-head p{max-width:670px}
+.expert-workspace-head button{flex-shrink:0;white-space:nowrap}
+.expert-workspace .expert-inline{border-top:0;margin-top:0}
+#settingsOpen.is-expert{background:#eaf3fe;border-color:#75a8d7;color:#164b81}
+#settingsOpen.is-expert::after{content:" · EXPERT";font-size:10px;font-weight:800}
+@media(max-width:620px){.expert-workspace{padding:7px}.expert-workspace-content{max-height:calc(100vh - 14px);padding:12px}.expert-workspace-head{flex-direction:column}#settingsOpen.is-expert::after{content:"★";font-size:12px}}
 </style></head><body><div class="wrap"><header class="top">
-<div class="brand"><div class="logo">E</div><div><div class="eyebrow">E703.11 · PSSC · v0.3.3</div><h1>Kalibrierassistent</h1></div></div>
+<div class="brand"><div class="logo">E</div><div><div class="eyebrow">E703.11 · PSSC · v0.3.4</div><h1>Kalibrierassistent</h1></div></div>
 <div class="live-overview" role="group" aria-label="Sensorwerte · laufende Anzeige">
   <div class="live-kpi" title="Unkompensierter Druck-ADC. Warnung bei Beträgen über 25’000 Digits."><span class="live-kpi-label">ADC_S <span id="liveAdcAlert" class="live-alert" hidden>!</span></span><span class="live-kpi-reading" id="liveAdcS">—</span><span class="live-kpi-unit">Digits</span></div>
   <div class="live-kpi" title="ADC_T · Temperatur-Rohwert, keine direkte Temperatur in °C."><span class="live-kpi-label">ADC_T</span><span class="live-kpi-reading" id="liveAdcT">—</span><span class="live-kpi-unit">Digits</span></div>
@@ -264,7 +276,7 @@ button.danger{background:#9e3e34;border-color:#9e3e34;color:#fff}button.danger:h
 <div class="settings-panel-head"><strong>App-Einstellungen</strong><button type="button" id="settingsClose" aria-label="Einstellungen schliessen">Schliessen ×</button></div>
 <div class="settings-body">
 <label class="toggle"><input id="expertMode" type="checkbox"> <strong>Expertenparameter freischalten</strong></label>
-<div id="expertPanel" class="settings-expert-hint" hidden><strong>Expertenmodus aktiv</strong><p>Die zusätzlichen Diagnoseoptionen erscheinen unter «NVM programmieren». Die Ausgangskonfiguration besitzt einen eigenen Schritt. Factory-Kalibrierung und Kommunikationsregister bleiben schreibgeschützt.</p></div>
+<div id="expertPanel" class="settings-expert-hint" hidden><strong>Expertenmodus aktiv</strong><p>Registerdiagnose, kompletter NVM-Leser und Chip-Backups sind jetzt unabhängig von den Kalibrierschritten verfügbar. Factory- und Kommunikationsregister bleiben schreibgeschützt.</p><button type="button" id="expertWorkspaceOpen" class="primary" style="margin-top:9px">Expertenwerkzeuge öffnen</button></div>
 <label class="toggle"><input id="tooltips" type="checkbox" checked> Hover-Erklärungen aktivieren</label>
 <div class="settings-fields">
 <label>Standard-Samples pro Messpunkt<input id="settingsSampleCount" type="number" min="1" max="100" value="12" step="1"></label>
@@ -671,8 +683,17 @@ button.danger{background:#9e3e34;border-color:#9e3e34;color:#fff}button.danger:h
   <label class="toggle"><input id="nvmRebootConfirm" type="checkbox"> Der Chip wurde nach dem Schreiben tatsächlich aus- und wieder eingeschaltet.</label>
   <button id="nvmPostBoot">NVM nach Neustart verifizieren</button>
 </div></details>
+
+<div class="nav"><button data-next="5">Zur Ausgangskonfiguration</button><button data-next="0">Zum USB-Start</button></div>
+</section>
+<section id="expertWorkspace" class="expert-workspace" role="dialog" aria-modal="true" aria-labelledby="expertWorkspaceTitle" hidden>
+<div class="expert-workspace-content">
+<div class="settings-panel-head expert-workspace-head">
+ <div><div class="eyebrow">EXPERTENMODUS</div><h2 id="expertWorkspaceTitle">Expertenwerkzeuge</h2><p class="muted small">Register und NVM lesen, Chip-UID prüfen sowie Backups vergleichen. Diese Ansicht ist unabhängig von den Kalibrierschritten. Eine Wiederherstellung bleibt weiterhin durch die NVM-Schutzprüfungen gesichert.</p></div>
+ <button type="button" id="expertWorkspaceClose">Schliessen ×</button>
+</div>
 <div class="expert-inline" data-expert-area hidden>
-<details><summary>Expertenparameter · NVM / EEPROM / Chip-Backups</summary>
+<details id="expertToolsDetails" open><summary>Register, NVM / EEPROM und Chip-Backups</summary>
 <div class="inner">
 <div class="callout warn"><b>Geschützt:</b> Factory-Wörter 0x00–0x1E und Kommunikations-/Bootregister sind nur lesbar. Eine Wiederherstellung darf keine Factory- oder Bootdaten ändern.</div>
 <h3>Chipkennung & gespeicherte Backups</h3>
@@ -695,7 +716,6 @@ button.danger{background:#9e3e34;border-color:#9e3e34;color:#fff}button.danger:h
 <pre id="expertNvmDump" class="monoarea">Noch kein komplettes EEPROM-Abbild gelesen.</pre>
 </div></details>
 </div>
-<div class="nav"><button data-next="5">Zur Ausgangskonfiguration</button><button data-next="0">Zum USB-Start</button></div>
-</section>
-<div class="foot"><b>Version v0.3.3</b> · <a href="CHANGELOG.md" target="_blank" rel="noopener">Änderungsverlauf</a> · ELMOS E703.11 · unabhängiger Kalibrierprototyp · Sicherheitsprinzip: Factory- und Kommunikations-Bootregister gesperrt; dokumentierte AODO-Ausgangsoptionen nur nach Prüfung im NVM-Plan; Wiederherstellung nur mit passender Chip-UID.</div>
+</div></section>
+<div class="foot"><b>Version v0.3.4</b> · <a href="CHANGELOG.md" target="_blank" rel="noopener">Änderungsverlauf</a> · ELMOS E703.11 · unabhängiger Kalibrierprototyp · Sicherheitsprinzip: Factory- und Kommunikations-Bootregister gesperrt; dokumentierte AODO-Ausgangsoptionen nur nach Prüfung im NVM-Plan; Wiederherstellung nur mit passender Chip-UID.</div>
 </main></div></div><div id="tip" class="tooltip"></div><script src="calibration.js?v=0.3.3"></script><script src="expert.js?v=0.3.3"></script><script src="app.js?v=0.3.3"></script></body></html>
