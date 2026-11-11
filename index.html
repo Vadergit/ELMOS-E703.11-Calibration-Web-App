@@ -311,8 +311,135 @@ button.danger{background:#9e3e34;border-color:#9e3e34;color:#fff}button.danger:h
 @media(max-width:800px){.eeprom-meta{grid-template-columns:repeat(2,minmax(0,1fr))}.eeprom-detail{padding:12px}}
 @media(max-width:500px){.eeprom-meta{grid-template-columns:1fr}.eeprom-detail{padding:10px}}
 
+
+/* Optional compact mode. All rules are isolated by .compact-mode / #compactWorkspace.
+   The seven-step normal layout is unchanged when the setting is off. */
+html.compact-mode body{overflow:hidden}
+html.compact-mode .wrap{max-width:none;padding:7px 12px}
+html.compact-mode .top{padding:3px 0 7px;gap:10px}
+html.compact-mode .brand h1{font-size:17px}
+html.compact-mode .brand .eyebrow{font-size:9px}
+html.compact-mode .brand .logo{width:29px;height:29px;font-size:16px;border-radius:7px}
+html.compact-mode .content{display:none!important}
+html.compact-mode .foot{display:none}
+html.compact-mode #demoPressurePanel{padding:4px 8px;margin:0 0 4px}
+#compactWorkspace[hidden]{display:none!important}
+#compactWorkspace{display:flex;flex-direction:column;gap:5px;min-height:390px;font-size:11px}
+.cp-heading{display:flex;align-items:center;justify-content:space-between;gap:9px;flex:0 0 29px}
+.cp-heading strong{font-size:14px}
+.cp-heading small,.cp-heading-right span{font-size:10px;color:#657c91;font-weight:450}
+.cp-heading-right{display:flex;align-items:center;gap:10px}
+.cp-heading button{font-size:11px;padding:4px 12px;color:#185b9a;border-color:#abcce4}
+.cp-board{flex:1;min-height:0;display:grid;grid-template-columns:minmax(0,1.12fr) minmax(0,.98fr) minmax(0,.98fr);grid-template-rows:minmax(0,.84fr) minmax(0,1.12fr) minmax(0,1.04fr);gap:6px}
+.cp-card{background:#fff;border:1px solid #d6e2ec;border-radius:8px;padding:7px 9px;min-width:0;min-height:0;overflow:auto;scrollbar-width:thin;scrollbar-color:#c4d5e5 transparent}
+.cp-card-heading{display:flex;align-items:center;justify-content:space-between;gap:6px;border-bottom:1px solid #e3ebf2;padding-bottom:3px;margin-bottom:5px;min-height:18px;color:#1b527f}
+.cp-card-heading strong{font-size:11px;letter-spacing:.012em}
+.cp-card label{font-size:10px;color:#49657e;font-weight:650;min-width:0}
+.cp-card label input,.cp-card label select{display:block;width:100%;min-width:0;height:24px;font-size:11px;border-radius:5px;padding:2px 5px;margin-top:1px}
+.cp-card label input[type=file]{height:26px;padding:2px;font-size:9px}
+.cp-card label input[type=checkbox]{display:inline-block;width:13px;height:13px;margin:0 3px 0 0;vertical-align:middle}
+.cp-card button:not(.eeprom-expand){border-radius:5px;padding:4px 7px;font-size:10px;line-height:1.2;min-height:24px}
+.cp-card .cp-actions{display:flex;gap:4px;align-items:center;flex-wrap:wrap;margin:5px 0}
+.cp-card .cp-actions button{flex:0 1 auto;white-space:normal}
+.cp-fields{display:grid;gap:4px 6px;min-width:0}
+.cp-cols-2{grid-template-columns:repeat(2,minmax(0,1fr))}
+.cp-cols-3{grid-template-columns:repeat(3,minmax(0,1fr))}
+.cp-card .callout{padding:3px 6px;font-size:10px;line-height:1.3;margin:3px 0;border-radius:5px}
+.cp-card .cp-status>.callout,.cp-card .cp-status>.muted,.cp-card .cp-status>#nvmUidHint{max-height:30px;overflow:hidden;text-overflow:ellipsis}
+.cp-card .cp-status>.callout:hover,.cp-card .cp-status>.muted:hover,.cp-card .cp-status>#nvmUidHint:hover{max-height:none;overflow:visible;position:relative;z-index:8;background:#f3f8fe;box-shadow:0 2px 12px #ccd8e5}
+.cp-card .cp-status>.warn:hover{background:#fffaf0}
+.cp-card .cp-status>.error:hover{background:#fff2f2}
+.cp-card .cp-status>.success:hover{background:#effaf5}
+.cp-card .cp-caption{font-size:10px;color:#506e86;line-height:1.2;max-height:20px;overflow:hidden}
+.cp-card .cp-caption:hover{max-height:none}
+.cp-fold{border-top:0;margin:3px 0 0;padding:0}
+.cp-fold>summary,.cp-card details>summary{font-size:10px;cursor:pointer;color:#2866a5}
+.cp-fold-body{display:flex;flex-wrap:wrap;gap:4px;padding-top:4px}
+.cp-card .monoarea{font-size:10px;line-height:1.35;max-height:120px;margin:3px 0;padding:7px}
+.cp-afe .afe-step-panel{border:0;margin:0;padding:0}
+.cp-afe .afe-step-row{display:grid;grid-template-columns:minmax(50px,1fr) minmax(130px,1.7fr);gap:4px;align-items:center;border:0;padding:1px 2px;min-height:28px}
+.cp-afe .afe-step-description{display:block}
+.cp-afe .afe-step-title{font-size:10px}
+.cp-afe .afe-step-subtitle{display:none}
+.cp-afe .afe-stepper{display:grid;grid-template-columns:23px minmax(60px,1fr) 23px;gap:3px;align-items:center}
+.cp-afe .afe-stepper .afe-step-btn{height:23px;width:23px;min-height:23px;padding:0!important;font-size:15px!important}
+.cp-afe .afe-step-value{font-size:11px;text-align:center;min-width:0}
+.cp-afe #configAfePending{margin:4px 0;padding:4px}
+.cp-afe #configAfePending p{margin:2px 0;font-size:10px}
+.cp-afe #configAfePending .between{display:none}
+.cp-points .cp-points-setup{grid-template-columns:repeat(5,minmax(0,1fr))}
+.cp-points .cp-point-toolbar{display:flex;gap:6px;align-items:end;justify-content:space-between;margin:5px 0}
+.cp-points .cp-point-toolbar>label{flex:1;min-width:0}
+.cp-points #cpPointProgress{font-size:10px;color:#34647c;flex:1;min-width:0}
+.cp-points .cal-sampling-progress{font-size:10px;padding:2px 3px;margin:0}
+.cp-point-edit .cal-point-row{display:none!important;border:1px solid #dbe7f1;border-radius:5px;margin:2px 0;padding:4px;min-height:0;background:#fafcff}
+.cp-point-edit .cal-point-row.cp-point-active:not([hidden]){display:block!important}
+.cp-point-edit .cal-point-row .between{margin-bottom:2px}
+.cp-point-edit .cal-point-row h3{font-size:10px;margin:0}
+.cp-point-edit .cal-point-status{font-size:9px;white-space:nowrap}
+.cp-point-edit .cal-point-row .fieldrow{display:grid;grid-template-columns:minmax(0,1.2fr) minmax(0,.8fr) minmax(0,.6fr) minmax(0,1.2fr);gap:4px;align-items:end}
+.cp-point-edit .cal-point-row label,.cp-point-edit .cal-point-row input,.cp-point-edit .cal-point-row strong{font-size:10px}
+.cp-point-edit .cal-point-row .cal-card-action button{width:100%;min-height:25px;padding:3px!important;font-size:9px!important}
+.cp-point-edit .cal-measure-result{font-size:10px;margin:3px 0;padding:3px}
+.cp-points .cp-actions button{font-size:9px}
+.cp-fit .cp-actions button,.cp-verify .cp-actions button{flex:1 1 auto}
+.cp-fit #calRamPrereq{max-height:22px}
+.cp-fit #cpFitDetails>details{margin:2px 0}
+.cp-verify #cpVerifyDetails details{margin:2px 0}
+.cp-verify .cp-fields{grid-template-columns:repeat(2,minmax(0,1fr))}
+.cp-output{grid-column:span 2}
+.cp-output-grid{display:grid;grid-template-columns:minmax(170px,1.2fr) minmax(0,1.6fr) minmax(0,1.1fr);gap:8px}
+.cp-output-grid .cp-output-controls,.cp-output-grid .cp-output-analog{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:4px}
+.cp-output-grid .cp-output-controls>label:first-child{grid-column:1/-1}
+.cp-output-grid .cp-output-advanced{grid-template-columns:1fr}
+.cp-output-grid .cp-output-advanced[hidden]{display:none}
+.cp-output-grid .cp-output-analog[hidden]{display:none}
+.cp-output #psscOneWireOnlyStatus[hidden]{display:none}
+.cp-output .cp-actions button{white-space:normal}
+.cp-output .cp-actions button:nth-child(3){flex:1 1 180px}
+.cp-output .cp-status{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:2px 6px}
+.cp-output .cp-status .callout{margin:1px 0}
+.cp-output #psscScalingPreview{font-size:10px;line-height:1.2;max-height:32px;overflow:hidden;padding:3px}
+.cp-nvm .cp-nvm-top{font-size:10px}
+.cp-nvm .cp-nvm-top label{font-size:10px;display:flex;gap:3px;align-items:center}
+.cp-nvm .cp-nvm-top .muted{display:none}
+.cp-nvm .cp-nvm-uid{grid-template-columns:1fr}
+.cp-nvm .cp-nvm-program button{width:100%;font-weight:800;min-height:28px;font-size:11px}
+.cp-nvm #nvmDiffDetails{margin:3px 0}
+.cp-nvm .cp-nvm-warning{color:#8b4142;font-size:9px;line-height:1.2;margin-top:3px}
+.cp-nvm #nvmProgress{font-size:10px;color:#506781;flex:1}
+.cp-nvm .cp-status>#nvmUidHint{font-size:10px}
+@media(max-height:760px){
+ #compactWorkspace{font-size:10px;gap:3px}
+ .cp-board{gap:4px}
+ .cp-card{padding:4px 6px}
+ .cp-card-heading{margin-bottom:2px}
+ .cp-card label input,.cp-card label select{height:21px;font-size:10px}
+ .cp-card button:not(.eeprom-expand){min-height:21px;padding:2px 5px}
+ .cp-card .cp-actions{margin:2px 0}
+ .cp-afe .afe-step-row{min-height:24px}
+ .cp-afe .afe-stepper .afe-step-btn{height:21px;min-height:21px}
+}
+@media(max-width:1180px){
+ .cp-heading-right span{display:none}
+ .cp-board{grid-template-columns:minmax(0,1fr) minmax(0,1fr);grid-template-rows:repeat(4,minmax(0,1fr))}
+ .cp-output{grid-column:span 1}
+ .cp-output-grid{grid-template-columns:1fr 1fr}
+ .cp-output-advanced{grid-column:1/-1}
+ .cp-output .cp-actions button{font-size:9px}
+ .cp-points .cp-points-setup{grid-template-columns:repeat(3,minmax(0,1fr))}
+}
+@media(max-width:720px){
+ html.compact-mode body{overflow:auto}
+ #compactWorkspace{height:auto!important;min-height:0;overflow:visible}
+ .cp-board{grid-template-columns:1fr;grid-template-rows:none}
+ .cp-card{overflow:visible}
+ .cp-output{grid-column:span 1}
+ .cp-output-grid{grid-template-columns:1fr 1fr}
+ .cp-points .cp-points-setup{grid-template-columns:repeat(3,minmax(0,1fr))}
+}
 </style></head><body><div class="wrap"><header class="top">
-<div class="brand"><div class="logo">E</div><div><div class="eyebrow">E703.11 · PSSC · v0.4.2</div><h1>Kalibrierassistent</h1></div></div>
+<div class="brand"><div class="logo">E</div><div><div class="eyebrow">E703.11 · PSSC · v0.5.0</div><h1>Kalibrierassistent</h1></div></div>
 <div class="live-overview" role="group" aria-label="Sensorwerte · laufende Anzeige">
   <div class="live-kpi" title="Unkompensierter Druck-ADC. Warnung bei Beträgen über 25’000 Digits."><span class="live-kpi-label">ADC_S <span id="liveAdcAlert" class="live-alert" hidden>!</span></span><span class="live-kpi-reading" id="liveAdcS">—</span><span class="live-kpi-unit">Digits</span></div>
   <div class="live-kpi" title="ADC_T · Temperatur-Rohwert, keine direkte Temperatur in °C."><span class="live-kpi-label">ADC_T</span><span class="live-kpi-reading" id="liveAdcT">—</span><span class="live-kpi-unit">Digits</span></div>
@@ -324,6 +451,8 @@ button.danger{background:#9e3e34;border-color:#9e3e34;color:#fff}button.danger:h
 <section class="settings-panel" id="settingsPanel" hidden aria-label="App-Einstellungen">
 <div class="settings-panel-head"><strong>App-Einstellungen</strong><button type="button" id="settingsClose" aria-label="Einstellungen schliessen">Schliessen ×</button></div>
 <div class="settings-body">
+<label class="toggle"><input id="compactMode" type="checkbox"> <strong>Kompaktmodus · One-Pager</strong></label>
+<p class="muted small" style="margin:2px 0 9px">Alle Hauptfunktionen zum Kalibrieren und Programmieren dicht nebeneinander. Die normale Ansicht bleibt unverändert. Für kleine Bildschirme werden einzelne Karten bei Bedarf intern scrollbar.</p>
 <label class="toggle"><input id="expertMode" type="checkbox"> <strong>Expertenparameter freischalten</strong></label>
 <div id="expertPanel" class="settings-expert-hint" hidden><strong>Expertenmodus aktiv</strong><p>Erweiterte Einstellungen erscheinen direkt im passenden Reiter: AFE, Ausgang und EEPROM Viewer. Es wird kein eigenes Fenster geöffnet und kein Register beschrieben.</p></div>
 <label class="toggle"><input id="tooltips" type="checkbox" checked> Hover-Erklärungen aktivieren</label>
@@ -335,6 +464,7 @@ button.danger{background:#9e3e34;border-color:#9e3e34;color:#fff}button.danger:h
 <details><summary>Technischer Status & Quellen</summary><div class="inner small muted">ELMOS E703.11, SSP3, Web Serial. Unterstützt: ADC/DSP-Livewerte, AFE-Abgleich, RAM-Prüfung, NVM-Diagnose, CRC und kontrollierte Schreibvorgänge. Factory- und Kommunikationsregister bleiben geschützt. Referenzen: AN 0204, AN 0203, E703.11 Datenblatt 25DS0170E.04. Kein Hardwarefreigabetest für permanente NVM-Programmierung.</div></details>
 </div></section>
 <div id="demoPressurePanel" class="callout warn" hidden><div class="between"><strong>DEMO – simulierter Druck</strong><span><b id="demoPressureVal">5.0</b> bar</span></div><input id="demoPressure" type="range" min="0" max="10" step="0.1" value="5" style="margin-top:10px"></div>
+<div id="compactWorkspace" hidden aria-label="Kompakter Kalibrierarbeitsplatz"></div>
 <div class="content"><aside class="side"><button class="stepBtn active" data-step="0"><span class="num">1</span><span>USB & Chip</span></button><button class="stepBtn" data-step="1"><span class="num">2</span><span>AFE optimieren</span></button><button class="stepBtn" data-step="2"><span class="num">3</span><span>Messpunkte</span></button><button class="stepBtn" data-step="3"><span class="num">4</span><span>Berechnen & RAM</span></button><button class="stepBtn" data-step="4"><span class="num">5</span><span>DSP prüfen</span></button><button class="stepBtn" data-step="5"><span class="num">6</span><span>Ausgang konfigurieren</span></button><button class="stepBtn" data-step="6"><span class="num">7</span><span>NVM programmieren</span></button><div class="side-separator"></div><button class="stepBtn viewer-nav" data-step="7"><span class="num">▤</span><span>EEPROM Viewer</span></button></aside>
 <main class="main"><div id="flowMsg" class="callout warn" hidden></div>
 <section class="card panel" data-panel="0"><div class="eyebrow">Schritt 1 · Verbindung</div><h2>Eval-Board anschliessen</h2><p class="muted">Chrome verbindet sich direkt über USB mit dem FTDI-Adapter des SSP3. Standard ist <b>1-Wire über AODO</b>.</p><div class="fieldrow"><label>Chip-Schnittstelle <span class="help" data-help="interface">?</span><select id="iface"><option value="plc">1-Wire · AODO (Standard)</option><option value="i2c">I²C · SCL / SDA</option><option value="spi">SPI · Testmodus</option></select></label><label>USB-Baudrate <span class="help" data-help="baud">?</span><select id="baud"><option>115200</option><option>57600</option><option>230400</option><option>460800</option><option>921600</option></select></label></div><div class="flex connectionActions"><button class="primary" id="choose">USB-Port auswählen</button><button id="auto">Bekannten Port verbinden</button><button id="disconnect" disabled>Trennen</button><button id="demo">Demo starten</button></div><div id="connMsg" class="callout">Noch nicht verbunden. Der erste USB-Zugriff erfordert eine einmalige Portfreigabe durch Chrome.</div><p class="small muted">COM-Port lässt sich nicht öffnen? <a href="usb-diagnose.html" target="_blank" rel="noopener">Isolierten USB-Test öffnen (ohne Chipzugriff)</a></p><div class="triple"><div class="stat"><small>SSP3-Firmware</small><strong id="fw" style="font-size:17px">—</strong></div><div class="stat"><small>Chip-Schnittstelle</small><strong id="ifaceLabel" style="font-size:19px">1-Wire</strong></div><div class="stat"><small>Chip-Register</small><strong id="chip" style="font-size:19px">—</strong></div></div><details><summary>Verkabelung und Startfenster</summary><div class="inner"><p><b>1-Wire:</b> VDD, GND, AODO. <b>I²C:</b> VDD, GND, SCL, SDA und korrekte SA0-/EOC-Beschaltung. Die App ändert mit IF_CFG nur den SSP3, nicht die Bootkonfiguration des Chips.</p><p>Einige 1-Wire-Konfigurationen reagieren nur kurz nach dem Einschalten. Falls der Chip nicht antwortet, Versorgung und Pin-Beschaltung prüfen. Die App führt <b>keinen automatischen Power-Cycle</b> durch.</p><p><b>USB-Port kann nicht geöffnet werden?</b> Zuerst die originale PSSC-GUI und andere COM-Port-Programme schliessen. Im Windows-Gerätemanager unter «Anschlüsse (COM & LPT)» muss ein «USB Serial Port (COMx)» ohne Warnsymbol angezeigt werden. Falls nötig das Eval-Board kurz neu einstecken und «Bekannten Port verbinden» erneut versuchen. Fehlender COM-Port: FTDI-VCP-Treiber prüfen (Details im README).</p></div></details><section class="profile-card" aria-labelledby="configTitle">
@@ -788,5 +918,5 @@ button.danger{background:#9e3e34;border-color:#9e3e34;color:#fff}button.danger:h
 </div>
 <div class="nav"><button data-next="0">Zur Verbindung</button><button data-next="6">Zum NVM-Schritt</button></div>
 </section>
-<div class="foot"><b>Version v0.4.2</b> · <a href="CHANGELOG.md" target="_blank" rel="noopener">Änderungsverlauf</a> · ELMOS E703.11 · unabhängiger Kalibrierprototyp · Sicherheitsprinzip: Factory- und Kommunikations-Bootregister gesperrt; dokumentierte AODO-Ausgangsoptionen nur nach Prüfung im NVM-Plan; Wiederherstellung nur mit passender Chip-UID.</div>
-</main></div></div><div id="tip" class="tooltip"></div><script src="calibration.js?v=0.4.2"></script><script src="eeprom-help.js?v=0.4.2"></script><script src="expert.js?v=0.4.2"></script><script src="config.js?v=0.4.2"></script><script src="app.js?v=0.4.2"></script></body></html>
+<div class="foot"><b>Version v0.5.0</b> · <a href="CHANGELOG.md" target="_blank" rel="noopener">Änderungsverlauf</a> · ELMOS E703.11 · unabhängiger Kalibrierprototyp · Sicherheitsprinzip: Factory- und Kommunikations-Bootregister gesperrt; dokumentierte AODO-Ausgangsoptionen nur nach Prüfung im NVM-Plan; Wiederherstellung nur mit passender Chip-UID.</div>
+</main></div></div><div id="tip" class="tooltip"></div><script src="calibration.js?v=0.5.0"></script><script src="eeprom-help.js?v=0.5.0"></script><script src="expert.js?v=0.5.0"></script><script src="config.js?v=0.5.0"></script><script src="app.js?v=0.5.0"></script><script src="compact.js?v=0.5.0"></script></body></html>
