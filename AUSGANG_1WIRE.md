@@ -1,6 +1,6 @@
 # Ausgang und 1-Wire – E703.11
 
-**Stand: v0.3.4 · 11.11.2026 · Laborprototyp (keine Hardwarefreigabe)**
+**Stand: v0.4.0 · 11.11.2026 · Laborprototyp (keine Hardwarefreigabe)**
 
 Dieses Dokument erklärt die Auswahl **«One Wire only»**, die AODO-Ausgangsarten und die Sicherheitsregeln im [Kalibrierassistenten](https://vadergit.github.io/ELMOS-E703.11-Calibration-Web-App/). Grundlage: **ELMOS E703.11, Production Data 25DS0170E.04 vom 16.11.2023**. Das vollständige Herstellerdatenblatt ist nicht im Repository enthalten.
 
@@ -121,3 +121,7 @@ Siehe auch [README](README.md), [Bedienungsanleitung](ANLEITUNG.md), [Testberich
 ## Expertenwerkzeuge (Version v0.3.4)
 
 Der Expertenmodus wird über das Zahnrad oben rechts und «Expertenparameter freischalten» aktiviert. Er öffnet ein eigenes Diagnosefenster für Register, EEPROM/NVM und Chip-Backups. Das Fenster ist von allen Kalibrierschritten aus erreichbar, auch ohne abgeschlossene DSP-Prüfung. Die Ausgangsarten und das Scaling bleiben dagegen im normalen Schritt 6. Die Aktivierung des Expertenmodus ändert keine Chipregister.
+
+## Einordnung ab v0.4.0
+
+Die Experteneinstellungen werden jetzt **im jeweiligen Reiter** eingeblendet, nicht in einem separaten Expertenfenster. Ausgangsmodi und S0/S1 bleiben normal sichtbar; zusätzliche AODO_F/O-Rohparameter und Digital-Interface-Diagnosen erscheinen nur bei aktiviertem Expertenmodus. EEPROM-Viewer und chipunabhängige Config-Vorlagen sind ohne Expertenmodus erreichbar. **Eine Config-Datei kann keine 1-Wire-Startregister übernehmen oder programmieren.** [Config-/EEPROM-Dokumentation](CONFIG_DATEIEN.md).
