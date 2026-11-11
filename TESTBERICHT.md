@@ -1,3 +1,13 @@
+## Konfigurierbare DSP-Prüfung – Änderungsprüfung 11.11.2026
+
+- Anzahl unabhängiger Prüfdrucke im UI auf 1–10 einstellbar; Standard 1
+- Bei gültiger DSP_S-Messung innerhalb der Toleranz wird die NVM-Navigation bei Anzahl 1 nach dem ersten Prüfpunkt freigeschaltet (sofern übrige Voraussetzungen wie NVM-Backup und gegebenenfalls Temperaturverifikation vorliegen)
+- Erhöhung der Prüfpunktanzahl verwirft bisherige Prüfergebnisse und sperrt NVM erneut
+- Ungültige Auswahl (0 oder mehr als 10) sperrt die Freigabe
+- Bei nur einem Prüfpunkt wird ausdrücklich vor der fehlenden Vollbereichsprüfung gewarnt
+- Die bestehenden Boot-/Werksregisterschutz-, Backup-, CRC-, Chip-ID- und manuellen NVM-Bestätigungen bleiben erhalten
+- Simulierter UI-Initialisierungstest und Freigabe-/Sperrlogik geprüft; echte DSP_S- und NVM-Hardwaretests stehen aus
+
 ## Geführter Kalibrierablauf – Änderungsprüfung 11.11.2026
 
 Der bisherige Pflichtschritt «Rohwert-Zwischenprüfung» vor der DSP-Berechnung wurde entfernt. Der optionale Rohwertvergleich ist nun unter Messpunkte eingeklappt und ist **nicht** als erfolgreiche Chip-Kalibrierung gekennzeichnet.
