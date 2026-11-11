@@ -96,9 +96,17 @@ In **Schritt 5** werden die im RAM wirksamen DSP-Koeffizienten anhand der **echt
 
 Erst nach der bestandenen Prüfung aller gewählten Prüfpunkte wird der normale permanente NVM-Ablauf freigeschaltet.
 
-## 7. NVM dauerhaft programmieren
+## 7. Ausgang konfigurieren
 
-In **Schritt 6** gibt es zwei Hauptaktionen:
+Im neuen **Schritt 6** folgen die Ausgangseinstellungen nach der DSP-Prüfung. Der AODO-Modus bestimmt die analoge, PWM-, FM- oder Alarm-Ausgabe; **1-Wire und I²C sind dagegen Kommunikationsschnittstellen**. AODO_F skaliert DSP_S, AODO_O verschiebt dessen Ausgangsbereich. Die beiden Werte sind unter «Erweiterte Ausgangsparameter» verborgen und können über «Passende Ausgangsskalierung berechnen» vorgeschlagen werden.
+
+Für einen bereits kalibrierten Sensor das Original-NVM (64 Wörter) im Ausgangsschritt lesen und überprüfen. Eine neue Kalibrierung ist nicht erforderlich, wenn nur der Ausgang geändert werden soll.
+
+**1-Wire-Startschutz:** Dauerhafte NVM-Programmierung nur bei realer Verbindung über 1-Wire. Kommunikations-/Bootwerte des NVM dürfen sich durch den geplanten Schreibvorgang nicht ändern. Nach dem Schreiben den Sensor aus- und wieder einschalten und den 1-Wire-Zugriff erneut prüfen. Ohne Hardwaretest ist eine absolute Startgarantie nicht nachgewiesen.
+
+## 8. NVM dauerhaft programmieren
+
+In **Schritt 7** gibt es zwei Hauptaktionen:
 
 **A. NVM lesen & Änderungen prüfen:** Die App liest **64 NVM-Wörter**, kontrolliert CRC8/CRC16 und die schreibgeschützten Bereiche und erstellt die Änderungsliste. Diese Vorschau programmiert **noch nichts**.
 
