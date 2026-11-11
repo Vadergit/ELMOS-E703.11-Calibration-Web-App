@@ -113,7 +113,14 @@ const ELMOS_GUIDED=(()=>{
   moveLabel('nvmRebootConfirm','gwPostBoot');moveId('nvmPostBoot','gwPostBoot');
   document.querySelectorAll('[data-gw-task]').forEach(button=>button.addEventListener('click',()=>{task=button.dataset.gwTask;render()}));
   document.querySelectorAll('[data-gw-preset]').forEach(button=>button.addEventListener('click',()=>preset(button.dataset.gwPreset)));
-  for(const id of ['gwPressureCount','gwTemperatureCount','gwComplexity','gwSOrder','gwTOrder'])$(id).addEventListener('change',renderPlan);
+  for(const id of ['gwPressureCount','gwTemperatureCount','gwSOrder','gwTOrder'])$(id).addEventListener('change',renderPlan);
+  $('gwComplexity').addEventListener('change',()=>{
+   if($('gwComplexity').value==='advanced'){
+    $('gwSOrder').value=String(Math.min(3,Number($('gwPressureCount').value)-1));
+    $('gwTOrder').value=String(Number($('gwTemperatureCount').value)-1);
+   }
+   renderPlan();
+  });
   $('gwNext').addEventListener('click',next);$('gwPrevious').addEventListener('click',previous);
   $('gwClassic').addEventListener('click',close);$('gwBackClassic').addEventListener('click',close);
   document.querySelectorAll('[data-gw-side]').forEach(button=>button.addEventListener('click',()=>{const index=Number(button.dataset.gwSide);if(visited.has(index)){stage=index;render()}}));
@@ -279,7 +286,7 @@ const ELMOS_GUIDED=(()=>{
    window.clearInterval(pendingCapture);pendingCapture=null;
    renderCapture();
    const nextIndex=plan.points.findIndex((p,i)=>i>target.index&&!pointRecord(p));
-   if(nextIndex>=0){selectedPoint=nextIndex;renderCapture()}
+   if(nextIndex>=0&&selectedPoint===target.index){selectedPoint=nextIndex;renderCapture()}
    else if(plan.points.every(p=>pointRecord(p)))msg('Alle Messpunkte sind aufgenommen. Weiter zur Koeffizientenberechnung.','success');
   },320);
  }
