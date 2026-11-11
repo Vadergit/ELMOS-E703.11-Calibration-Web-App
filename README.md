@@ -2,7 +2,7 @@
 
 **Ein geführter Kalibrierassistent für den ELMOS E703.11 und das SSP3-Eval-Board.** Ziel ist ein verständlicher Abgleich, der auch ohne tiefere Vorkenntnisse Schritt für Schritt funktioniert. Wer mehr benötigt, kann zusätzliche Messpunkte, DSP-Parameter und einen geschützten Expertenmodus verwenden.
 
-**Version: v0.4.2** · [Änderungsverlauf](CHANGELOG.md)
+**Version: v0.5.0** · [Änderungsverlauf](CHANGELOG.md)
 
 **[Web-App öffnen](https://vadergit.github.io/ELMOS-E703.11-Calibration-Web-App/)** · **[Bedienungsanleitung](ANLEITUNG.md)** · **[Config-Dateien & EEPROM Viewer](CONFIG_DATEIEN.md)** · **[Ausgang & 1-Wire erklärt](AUSGANG_1WIRE.md)** · **[Testbericht und Grenzen](TESTBERICHT.md)**
 
@@ -19,6 +19,7 @@
 
 | Bereich | Aktueller Stand |
 | --- | --- |
+| Kompaktmodus / One-Pager | **Opt-in unter Einstellungen:** Verbindung, AFE-RAM-Stufen, Config-Vorlagen, Messpunkte, Berechnung, DSP-Prüfung, Ausgang und geschützte NVM-Programmierung auf einer Bildschirmfläche. Originale UI-Steuerelemente und dieselben Sicherheitsprüfungen; Zusatz-Messpunkte per Punktauswahl, Detailinformationen eingeklappt. Die normale siebenstufige Ansicht bleibt bei deaktiviertem Modus unverändert | 
 | Verbindung | Browserbasiert über **Chrome / Web Serial**, FTDI / SSP3, standardmässig **1-Wire (AODO)**; I²C/SPI-Optionen |
 | Live-Werte | Obere Statusleiste mit **ADC_S**, **ADC_T**, **DSP_S** und umgerechnetem Sensorwert; Live-Status und letzter Messzeitpunkt in allen sieben Schritten |
 | AFE-Abgleich | Diskrete **− / +** Tasten in der Reihenfolge **PGA1 → Offset → PGA2**. Jeder Klick schreibt die neue Einstellung direkt ins **RAM** und liest sie zurück. Kein NVM-Schreiben |
@@ -34,7 +35,9 @@
 
 Antwortet das SSP3, aber die Chipprüfung schlägt beim ersten Versuch fehl, führt die App automatisch **genau einen** USB-Trenn-/Neuaufbau durch. Nach einem weiteren Misserfolg stoppt sie mit Warnung und lässt den SSP3-Port für die Diagnose geöffnet. Das ersetzt keinen Sensor-Power-Cycle bei einem begrenzten 1-Wire-Startfenster.
 
-Für Entwickler gibt es **28 Software-Regressionstests** (Stand v0.4.2) mit Node.js: `node --test tests/safety.test.cjs`. Geprüft werden Boot-/Kommunikationsschutz, One Wire only, S0/S1-Skalierung, die sieben Kalibrierschritte, der separate EEPROM-Reiter, das Einblenden der Expertenparameter und der sichere Config-Import/-Export. Die Tests ersetzen keine Browser- und Hardwareprüfung.
+**Kompaktmodus:** Über ⚙ Einstellungen → «Kompaktmodus · One-Pager» einschalten. Rechts oben «Normalansicht» schaltet zurück; die Auswahl wird im Browser gespeichert. Auf ausreichend grossen Desktop-Bildschirmen werden alle Hauptschritte ohne Seitenwechsel nebeneinander gezeigt. Bei kleineren Auflösungen oder vielen Details können einzelne Karten intern scrollen. Sämtliche Eingaben, Kalibrier- und NVM-Schutzabläufe bleiben unverändert; nicht benötigte Langtexte sind gekürzt oder aufklappbar. Für selten verwendete Experten- und Diagnosefunktionen steht weiterhin die vollständige Normalansicht zur Verfügung.
+
+Für Entwickler gibt es **31 Software-Regressionstests** (Stand v0.5.0) mit Node.js: `node --test tests/safety.test.cjs`. Geprüft werden Boot-/Kommunikationsschutz, One Wire only, S0/S1-Skalierung, die sieben Kalibrierschritte, der separate EEPROM-Reiter, das Einblenden der Expertenparameter und der sichere Config-Import/-Export. Die Tests ersetzen keine Browser- und Hardwareprüfung.
 
 Die Browser-App verwendet eine **eigene JavaScript-Koeffizientenberechnung**, nicht die originale Elmos-Kalibrier-DLL. Eine Übereinstimmung mit der Herstellersoftware muss auf der Zielhardware verifiziert werden.
 
@@ -104,4 +107,4 @@ Verwendet wurde **E703.11 25DS0170E.04, Production Data vom 16.11.2023**: §6.3.
 
 Der Assistent erfordert für NVM-Schreibvorgänge die im Original-NVM nachweisbare PLC-Startaktivierung, Downstream- und Upstream-Kommunikation und einen persistenten Register-Lese-/Schreibzugang. Sensoren, die nur über eine kurzzeitige Magic-Cookie-Freigabe kommunizieren, werden vorsorglich nicht dauerhaft programmiert. Die App ändert keine geschützten Startup-Register, um diese Situation zu umgehen. Ein Hardware-Kaltstarttest bleibt Pflicht.
 
-**Versions- und Cache-Hinweis:** Die Skript-Dateien (inklusive `config.js`) werden in v0.4.2 mit derselben Versionskennung wie die Web-App geladen. Für die Überprüfung im Browser gegebenenfalls mit `Ctrl + F5` neu laden.
+**Versions- und Cache-Hinweis:** Die Skript-Dateien (inklusive `config.js`) werden in v0.5.0 mit derselben Versionskennung wie die Web-App geladen. Für die Überprüfung im Browser gegebenenfalls mit `Ctrl + F5` neu laden.
