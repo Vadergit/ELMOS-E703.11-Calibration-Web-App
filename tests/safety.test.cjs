@@ -526,3 +526,71 @@ test('Imported AFE profile can be previewed in demo without any physical write',
  assert.ok(wizard.includes('id="gwDemoApplyAFE"'));
  assert.ok(wizard.includes('window.ELMOS_GUIDED_API.demoApplyAFEProfile()'));
 });
+
+test('Guided AFE uses the original ADC chart and live buttons, never a second hardware connection',()=>{
+ const html=read('index.html'),guide=read('guided.js'),app=read('app.js'),css=read('guided.css');
+ assert.equal(html.split('id="chart"').length-1,1);
+ assert.ok(guide.includes("moveId('chart','gwAfeChartHost')"));
+ assert.ok(guide.includes("for(const id of ['readNow','live','srcLabel'])moveId(id,'gwAfeLiveActions')"));
+ assert.ok(guide.includes("moveId('adcMsg','gwAfeMessage')"));
+ assert.ok(guide.includes("$('gwFinishChartHost').appendChild($('chart'))"));
+ assert.ok(guide.includes("$('gwAfeChartHost').appendChild($('chart'))"));
+ assert.ok(guide.includes("function updateAfeTelemetry()"));
+ assert.ok(app.includes("redraw:()=>draw()"));
+ assert.ok(css.includes("#guidedWorkspace .gw-afe-chart #chart"));
+ assert.ok(css.includes("#guidedWorkspace .gw-finish-chart #chart"));
+ assert.ok(!guide.includes('readReg('));
+ assert.ok(!guide.includes('writeReg('));
+});
+test('Guided AFE range tracker uses original samples and ignores older or changed-gain readings',()=>{
+ const app=read('app.js');
+ const segment=app.split(' function guidedAfeStats(since){')[1].split('\n }\n window.ELMOS_GUIDED_API')[0];
+ assert.ok(segment&&segment.includes('st.history.filter('));
+ const func='function guidedAfeStats(since){'+segment+'\n }';
+ const when=Date.parse('2026-11-11T18:00:00Z');
+ const gains={pga1:1,pga2:3,offset:0};
+ const rows=[
+  {time:'2026-11-11T17:59:59Z',source:'usb',adc_s:30000,gains},
+  {time:'2026-11-11T18:00:01Z',source:'usb',adc_s:-12000,gains},
+  {time:'2026-11-11T18:00:02Z',source:'usb',adc_s:8000,gains},
+  {time:'2026-11-11T18:00:03Z',source:'usb',adc_s:27000,gains:{pga1:2,pga2:3,offset:0}}
+ ];
+ const calculate=new Function('st','since','return ('+func+')(since)');
+ const result=calculate({mode:'usb',history:rows,staged:gains},when);
+ assert.equal(result.count,2);
+ assert.equal(result.min,-12000);
+ assert.equal(result.max,8000);
+ assert.equal(result.hub,20000);
+ assert.equal(result.limitExceeded,false);
+ const warning=calculate({mode:'usb',history:[...rows,{time:'2026-11-11T18:00:05Z',source:'usb',adc_s:25500,gains}],staged:gains},when);
+ assert.equal(warning.limitExceeded,true);
+ const empty=calculate({mode:'usb',history:rows,staged:gains},Date.parse('2026-11-11T18:01:00Z'));
+ assert.equal(empty.count,0);
+});
+test('Guided finish distinguishes measured DSP from requested output-voltage settings',()=>{
+ const guide=read('guided.js'),app=read('app.js'),css=read('guided.css');
+ for(const id of ['gwFinishSignalValue','gwFinishSignalUnit','gwFinishDsp','gwFinishAdc','gwFinishTemp','gwFinishTime','gwFinishBar','gwFinishStatus','gwFinishConfig'])
+  assert.equal(guide.split('id="'+id+'"').length-1,1);
+ assert.ok(guide.includes('function updateFinishTelemetry()'));
+ assert.ok(guide.includes("range.kind==='display'"));
+ assert.ok(guide.includes('t.dspRaw===null'));
+ assert.ok(guide.includes('Diese Spannungen wurden nicht am Pin gemessen.'));
+ assert.ok(guide.includes('Kaltstart und Ausgangsmessung stehen noch aus.'));
+ assert.ok(app.includes('telemetry:()=>guidedTelemetry()'));
+ assert.ok(app.includes("const adc=online&&st.adc&&nowMs-st.adc.time<5000"));
+ assert.ok(app.includes("const dsp=online&&st.dsp&&nowMs-st.dsp.time<5000&&!st.dspError"));
+ assert.ok(css.includes("#guidedWorkspace .gw-finish-number strong"));
+});
+test('Guided setup keeps reference and output fields aligned while restoring the classic UI',()=>{
+ const guide=read('guided.js'),css=read('guided.css');
+ assert.ok(guide.includes('id="gwS0Holder"'));
+ assert.ok(guide.includes('id="gwS1Holder"'));
+ assert.ok(guide.includes("moveLabel('psscS0','gwS0Holder')"));
+ assert.ok(guide.includes("moveLabel('psscS1','gwS1Holder')"));
+ assert.ok(guide.includes("rehome('psscS0','gwS0Holder')"));
+ assert.ok(guide.includes("rehome('psscS1','gwS1Holder')"));
+ assert.ok(guide.includes('node.parentNode.replaceChild(marker,node)'));
+ assert.ok(guide.includes('marker.parentNode.replaceChild(x.node,x.marker)'));
+ assert.ok(css.includes('#guidedWorkspace .gw-setup-grid'));
+ assert.ok(css.includes('#guidedWorkspace .gw-voltage-endpoints'));
+});
