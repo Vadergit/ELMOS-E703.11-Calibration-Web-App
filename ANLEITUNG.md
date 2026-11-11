@@ -1,12 +1,20 @@
 # Bedienungsanleitung – ELMOS E703.11
 
-**Dokumentationsstand v0.5.0** Kalibrierassistent
+**Dokumentationsstand v0.6.0-beta.1 (Testbranch)** Kalibrierassistent
 
 **[Web-App öffnen](https://vadergit.github.io/ELMOS-E703.11-Calibration-Web-App/)** · **[Projektübersicht](README.md)** · **[Config-Dateien & EEPROM Viewer](CONFIG_DATEIEN.md)** · **[Testbericht](TESTBERICHT.md)**
 
 Diese Anleitung beschreibt die derzeitige Benutzeroberfläche der browserbasierten App für den **ELMOS E703.11** mit **SSP3-Eval-Board**. Ziel ist ein geführter Abgleich mit möglichst wenig Vorwissen und optionalen Expertenfunktionen.
 
 > **Laborprototyp, keine Produktionsfreigabe.** Der vollständige Kalibrier- und NVM-Schreibablauf wurde noch nicht am realen E703.11 als Gesamtsystem validiert. Permanente Änderungen zunächst nur an einem entbehrlichen Testchip erproben.
+
+## Neue geführte Ansicht (Beta · nur im Testbranch)
+
+Nach der bisherigen USB-/SSP3-Verbindung startet auf Wunsch ein neuer Assistent mit einer übersichtlichen Schrittnavigation. Du definierst erst die Abgleichart (z. B. 2 Druckpunkte ohne Temperaturkorrektur oder 3 Druckpunkte bei 2 Temperaturstufen). Danach folgen Referenzbereich, Temperatur-Sollwerte, Ausgangsspannung, optionale Config-Datei, AFE, tatsächliche Messung, Berechnung/RAM, DSP-Prüfung, Ausgang und die sichere NVM-Programmierung.
+
+Unter **Einstellungen → Arbeitsansicht nach dem Verbinden** zwischen «Geführter Assistent» und «Klassische Ansicht» wählen. Im geführten Modus bleibt «Klassische Ansicht» jederzeit erreichbar. Alle Hardware-/NVM-Schreibvorgänge verwenden weiterhin die bestehenden, geschützten Buttons und die Original-Kalibrierlogik.
+
+Vollständige Beschreibung und Beta-Test: [Geführter Assistent](docs/GEFUEHRTER_ASSISTENT.md). Die experimentelle alternative USB-Bridge ist separat beschrieben: [ESP32/Arduino-Guide](docs/USB_BRIDGE_GUIDE.md).
 
 ## Kompaktmodus – One-Pager (optional)
 
