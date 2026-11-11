@@ -41,7 +41,7 @@ test('Seven steps and separate output section',()=>{
  assert.deepEqual(panels,[0,1,2,3,4,5,6]);
  assert.deepEqual(steps,[0,1,2,3,4,5,6]);
  assert.equal(html.split('id="expertOutputMode"').length-1,1);
- const output=html.split('data-panel="5" hidden>')[1].split('</section>')[0];
+ const output=html.split('data-panel="5" hidden>')[1].split('data-panel="6" hidden>')[0];
  assert.ok(output.includes('id="expertOutputMode"'));
  assert.ok(output.includes('id="outputNvmRead"'));
  assert.ok(output.includes('id="expertScaleGain"'));
