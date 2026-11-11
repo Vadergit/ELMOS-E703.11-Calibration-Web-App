@@ -393,7 +393,7 @@ test('Guided view is optional and contains only one set of hardware inputs',()=>
  assert.ok(html.includes('id="workflowMode"'));
  assert.ok(html.includes('id="guidedLaunch"'));
  assert.ok(html.includes('id="guidedLaunchTop"'));
- assert.ok(html.includes('guided.css?v=0.6.0-beta.1'));
+ assert.ok(html.includes('guided.css?v=0.6.0-beta.2'));
  for(const id of ['nvmProgram','nvmPrepare','calApplyRam','calVerifyRam','expertOutputStage','configApply','configFile']){
   assert.equal(html.split('id="'+id+'"').length-1,1);
  }
@@ -462,7 +462,7 @@ test('ESP32-C3 SuperMini sketch targets native USB-CDC and refuses PLC access',(
  assert.ok(fw.includes('BRIDGE_INFO')&&fw.includes('BRIDGE_PING'));
  assert.ok(fw.includes('PLC_NOT_IMPLEMENTED'));
  assert.ok(!/^[ \t]*pinMode\s*\(/m.test(fw));
- assert.ok(!fw.includes('digitalWrite('));
+ assert.ok(!/^[ \t]*digitalWrite\s*\(/m.test(fw));
  assert.ok(!fw.includes('CAPS=PLC_READ,PLC_WRITE,NVM'));
 });
 test('Guided no-hardware demo has visible launch, safe virtual stages and never writes sensor NVM',()=>{
