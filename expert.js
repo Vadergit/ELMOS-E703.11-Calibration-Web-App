@@ -86,22 +86,71 @@ const ELMOS_EXPERT=(()=>{
   }
   const outputValues=()=>({mode:$('expertOutputMode').value,scaleEnabled:$('expertScaleEnable').checked,
    gain:Number($('expertScaleGain').value),offset:Number($('expertScaleOffset').value),pwmPeriod:Number($('expertPwmPeriod').value)});
+
+  let manualScaling=false;
+  const isAnalog=mode=>['1','2','3'].includes(String(mode));
+  const currentLimit=()=>st.calfit?.outputLimit??Number($('dspDisplayLimit').value);
+  function invalidateOutputPlan(){
+   if(st.calImage===st.outputOnlyPlan||st.calImage?.outputOnly||st.expertOutputPlan)st.calImage=null;
+   st.outputOnlyPlan=null;st.expertOutputPlan=null;
+   show('expertOutputMsg','Ausgangseinstellungen geändert. Bitte erneut prüfen und vormerken. Am Chip wurde nichts geändert.','warn');
+   renderFlowState();
+  }
+  function refreshOutputReadOnly(){
+   $('psscDigitalType').value=!st.chip?'SSP3-Verbindung noch nicht bestätigt':st.iface==='plc'?'1-Wire über AODO (SSP3)':st.iface==='i2c'?'I²C (SSP3)':st.iface==='spi'?'SPI (SSP3)':'Nicht erkannt';
+   const words=st.nvmBackupVerified&&st.nvmBackup?.length===64?st.nvmBackup:null;
+   $('psscLimitLow').value=words?String(CAL.signed(words[59]))+' · Rohwert':'';
+   $('psscLimitHigh').value=words?String(CAL.signed(words[60]))+' · Rohwert':'';
+   $('psscErrorRaw').value=words?'0x'+hx(words[61])+' / 0x'+hx(words[62]):'NVM zuerst lesen';
+  }
+  function renderOutputPreview(){
+   const mode=$('expertOutputMode').value,limit=currentLimit();
+   $('psscOutputLimit').value=Number.isInteger(limit)?'±'+limit.toLocaleString('de-CH'):'Ungültig';
+   $('psscDspS0').textContent=Number.isInteger(limit)?'−'+limit.toLocaleString('de-CH'):'—';
+   $('psscDspS1').textContent=Number.isInteger(limit)?'+'+limit.toLocaleString('de-CH'):'—';
+   if(!isAnalog(mode))return;
+   const vdd=Number($('psscVdd').value);
+   const gain=$('expertScaleEnable').checked?Number($('expertScaleGain').value):1;
+   const offset=$('expertScaleEnable').checked?Number($('expertScaleOffset').value):0;
+   let msg,invalid=false;
+   if(!Number.isFinite(vdd)||vdd<2.7||vdd>5.5||!Number.isInteger(limit)||limit<1000||limit>32000||!Number.isFinite(gain)||!Number.isFinite(offset)){
+    msg='VDD oder DSP-Endwert ungültig.';invalid=true;
+   }else{
+    const lo=offset*32768-gain*limit,hi=offset*32768+gain*limit;
+    const v0=(lo/32768+1)*vdd/2,v1=(hi/32768+1)*vdd/2;
+    invalid=lo< -26214||hi>26214||lo>=hi;
+    msg='Berechnet nach Q3.12: S0 = '+v0.toFixed(5)+' V ('+(100*v0/vdd).toFixed(3)+' % VDD) · S1 = '+v1.toFixed(5)+' V ('+(100*v1/vdd).toFixed(3)+' % VDD). '+(invalid?'Ausserhalb des linearen 10–90-%-Bereichs; nicht freigegeben.':'Nur Vorschau, keine Chipprogrammierung.');
+   }
+   $('psscScalingPreview').textContent=msg;$('psscScalingPreview').classList.toggle('invalid',invalid);
+  }
+  function calculateAnalogScaling(){
+   if(!isAnalog($('expertOutputMode').value))throw Error('S0/S1 in Volt nur für Analog Ratiometric verfügbar');
+   for(const id of ['psscVdd','psscS0','psscS1'])if($(id).value.trim()==='')throw Error('Bitte S0, S1 und VDD vollständig eingeben');
+   const result=CAL.analogScaling(Number($('psscS0').value),Number($('psscS1').value),Number($('psscVdd').value),currentLimit());
+   $('expertScaleEnable').checked=true;
+   $('expertScaleGain').value=String(result.gain);$('expertScaleOffset').value=String(result.offset);
+   manualScaling=false;renderOutputPreview();return result;
+  }
   function preset(){
    try{
-    const mode=Number($('expertOutputMode').value),lim=(st.calfit?.outputLimit??Number($('dspDisplayLimit').value))||30000,period=Number($('expertPwmPeriod').value);
+    const mode=Number($('expertOutputMode').value),lim=currentLimit(),period=Number($('expertPwmPeriod').value);
+    if(isAnalog(mode)){
+     const result=calculateAnalogScaling();invalidateOutputPlan();
+     show('expertOutputMsg','Scaling: S0 = '+result.actualVolts[0].toFixed(5)+' V, S1 = '+result.actualVolts[1].toFixed(5)+' V. Bitte prüfen und vormerken.','success');return;
+    }
     let gain,offset;
-    if(mode>=1&&mode<=3){gain=0.94*26214/lim;offset=0}
-    else if(mode===4){if(period<2||period>32767)throw Error('PWM-Periode für Preset zwischen 2 und 32’767 wählen');gain=0.32*period/lim;offset=period*0.5/32768}
+    if(mode===4){if(!Number.isInteger(period)||period<2||period>32767)throw Error('PWM-Periode für Vorschlag zwischen 2 und 32’767 wählen');gain=0.32*period/lim;offset=period*0.5/32768;}
     else if(mode===5){gain=11000/lim;offset=14500/32768}
-    else throw Error('Preset für ratiometrisch, PWM oder FM wählen');
+    else throw Error('Scaling nur für Analog Ratiometric, PWM oder FM');
     $('expertScaleEnable').checked=true;$('expertScaleGain').value=String(Number(gain.toFixed(6)));$('expertScaleOffset').value=String(Number(offset.toFixed(6)));
-    show('expertOutputMsg','Sichere Skalierung vorgeschlagen. Bitte kontrollieren und vormerken.','warn')
-   }catch(e){show('expertOutputMsg',e.message,'error')}
+    manualScaling=false;invalidateOutputPlan();show('expertOutputMsg','Scaling für '+(mode===4?'PWM':'FM')+' vorgeschlagen. Bitte prüfen und vormerken.','warn');
+   }catch(e){show('expertOutputMsg',e.message,'error');if(isAnalog($('expertOutputMode').value)){$('psscScalingPreview').textContent=e.message;$('psscScalingPreview').classList.add('invalid')}}
   }
   function propose(){
    try{
     // Ausgangskonfiguration ist für alle Benutzer zugänglich.
-    const values=outputValues();
+    if(isAnalog($('expertOutputMode').value)&&!manualScaling)calculateAnalogScaling();
+   const values=outputValues();
     if(values.mode==='keep'){
      if(st.outputOnlyPlan&&st.calImage===st.outputOnlyPlan)st.calImage=null;
      st.outputOnlyPlan=null;st.expertOutputPlan=null;
