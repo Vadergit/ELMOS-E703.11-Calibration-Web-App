@@ -247,5 +247,54 @@ button.danger{background:#9e3e34;border-color:#9e3e34;color:#fff}button.danger:h
 <p class="small muted" style="margin-top:12px">Laborprototyp: Der vollständige NVM-Schreibpfad wurde noch nicht am physischen SSP3/E703.11 abgenommen. Nicht für die Serienproduktion einsetzen.</p>
 <div class="nav"><button data-next="4">Zurück zur DSP-Prüfung</button><button data-next="0">Zum USB-Start</button></div>
 </section>
+<section class="card" id="expertSection">
+<div class="between"><h3>Expertenmodus & Sensorkonfiguration</h3><span class="pill">Optional</span></div>
+<label class="toggle"><input id="expertMode" type="checkbox"> Expertenparameter anzeigen</label>
+<p class="muted small">Zusätzliche Register, Ausgangsarten und NVM-/EEPROM-Werkzeuge. Das Freischalten allein verändert keine Sensorwerte. <b>Factory-Werte, Seriennummer und Boot-/Kommunikationsregister dürfen nicht verändert werden.</b></p>
+<div id="expertPanel" hidden>
+<div class="callout warn"><b>Schutzklassen:</b> NVM 0x00–0x1E = <b>Factory, nur lesen</b>; 0x20–0x36 = <b>Boot-/Konfiguration, nur lesen</b> (Ausnahme: gezielt freigegebene AODO-Ausgangsbits im NVM-Programmierplan). Andere Anwenderparameter sind nur über überprüfte Funktionen beschreibbar. Kein freies Rohregister-Schreiben.</div>
+<h3>Chipkennung & gespeicherte Backups</h3>
+<p class="muted small">Die eindeutige 48-Bit-Kennung besteht aus VERSION + SER1 + SER0. Backups werden im Browser chipbezogen gespeichert und beim erneuten Anschliessen wiedererkannt. Lokal gespeicherte Browserdaten können beim Löschen von Website-Daten verloren gehen – eine JSON-Datei ist deshalb weiterhin sinnvoll.</p>
+<div class="flex"><button id="expertIdentify">Chip-UID lesen</button><button id="expertNvmRead">Komplettes NVM/EEPROM lesen (64 Wörter)</button><button id="expertNvmExport">Aktuelles NVM exportieren</button></div>
+<div class="callout" id="expertUidStatus">Noch keine 48-Bit-Chipkennung gelesen.</div>
+<div class="fieldrow" style="margin-top:10px">
+<label>Bekannte Backups dieses Chips<select id="expertBackupSelect"><option value="">Kein Backup ausgewählt</option></select></label>
+<label>JSON-Backup importieren<input type="file" accept=".json,application/json" id="expertBackupImport"></label>
+</div>
+<div class="flex"><button id="expertRestorePreview">Letztes/gewähltes Backup vergleichen</button></div>
+<div id="expertRestoreMsg" class="callout">Für eine Wiederherstellung muss die Chipkennung exakt passen. Factory- und Bootregister bleiben geschützt. Eine Wiederherstellung erfolgt niemals automatisch.</div>
+<pre id="expertRestoreDiff" class="monoarea">Noch kein Wiederherstellungsplan.</pre>
+<p class="muted small">Wiederherstellung: Erst den aktuellen Chip vollständig sichern und dann den Änderungsplan prüfen. Der Programmierknopf im NVM-Schritt verlangt Chip-ID und ausdrücklich «WIEDERHERSTELLEN».</p>
+<h3>Ausgangsart am AODO-Pin</h3>
+<p class="muted small">Die folgenden Einstellungen sind dokumentierte Benutzerfunktionen. Sie werden zunächst <b>nur als Vorschlag</b> übernommen und erst mit dem abschliessenden NVM-Vorgang nach bestandener DSP-Kalibrierprüfung programmiert. Während 1-Wire aktiv ist, kann der physische AODO-Ausgang von der Programmierschnittstelle übersteuert sein.</p>
+<div class="fieldrow">
+<label>Ausgangsmodus
+<select id="expertOutputMode">
+<option value="keep">Bestehenden Modus unverändert lassen</option>
+<option value="0">High-Z / deaktiviert</option>
+<option value="1">Ratiometrisch analog · DAC-Korrektur 0</option>
+<option value="2">Ratiometrisch analog · DAC-Korrektur 1</option>
+<option value="3">Ratiometrisch analog · DAC-Korrektur 2</option>
+<option value="4">PWM</option>
+<option value="5">FM / frequenzmoduliert</option>
+<option value="6">ALARM-Ausgang</option>
+</select></label>
+<label>PWM-Periode (2–65’535 Takte)<input id="expertPwmPeriod" type="number" min="2" max="65535" step="1" value="16384"></label>
+</div>
+<div class="fieldrow" style="margin-top:12px">
+<label><input id="expertScaleEnable" type="checkbox"> AODO-Skalierung aktivieren (CFG_EN.scale_en)</label>
+<label>AODO_F · Gain (Q3.12)<input id="expertScaleGain" type="number" min="-7.9" max="7.9" step="0.0001" value="1"></label>
+<label>AODO_O · Offset (Q3.12)<input id="expertScaleOffset" type="number" min="-7.9" max="7.9" step="0.0001" value="0"></label>
+</div>
+<p class="muted small">PWM und FM benötigen ausschliesslich <b>positive DSP_AODO-Ausgangswerte</b>. Für PWM empfiehlt das Datenblatt 10–90 % der gewählten Periode. Die App prüft dies vor der Übernahme. Ratiometrisch analog ist laut Datenblatt im linearen Bereich 10–90 % VDD spezifiziert.</p>
+<div class="flex"><button class="primary" id="expertOutputStage">Geprüfte Ausgangskonfiguration für NVM vormerken</button><button id="expertOutputDiscard">Ausgangsänderungen verwerfen</button></div>
+<div id="expertOutputMsg" class="callout">Bisher keine Ausgangsänderungen vorgemerkt.</div>
+<h3>Register- und EEPROM-Übersicht</h3>
+<p class="muted small">Dokumentierte Hauptregister können direkt aus dem Chip gelesen werden. Nach einer kompletten EEPROM-Lesung werden alle 64 NVM-Wörter mit Adresse, Funktion und Schutzstatus aufgelistet. <b>Factory-Daten bleiben immer nur lesbar.</b></p>
+<div class="flex"><button id="expertRegistersRead">Dokumentierte Hauptregister lesen</button></div>
+<pre id="expertRegisterDump" class="monoarea">Noch keine Register gelesen.</pre>
+<pre id="expertNvmDump" class="monoarea">Noch kein komplettes EEPROM-Abbild gelesen.</pre>
+</div>
+</section>
 <section class="card"><div class="between"><h3>App-Einstellungen</h3><span class="pill">Lokal gespeichert</span></div><label class="toggle"><input id="tooltips" type="checkbox" checked> Hover-Erklärungen aktivieren</label><p class="muted small">Über ? erscheint eine Erklärung zur jeweiligen Funktion. Die Auswahl bleibt im Browser erhalten.</p><details><summary>Technischer Status und Quellen</summary><div class="inner"><p><b>Implementiert:</b> NVM-Backup, unabhängiger Polynom-Fit, Q-Formate, RAM-DSP-Prüfung, NVM-Programmierworkflow und CRC16; Web Serial, `.VERSION`, SSP3 `IF_CFG`, 1-Wire `PLC`-Lesetelegramme, I²C- und SPI-Lesetelegramme, AFE-RAM-Schreiben nach Freigabe mit Rückleseprüfung, ADC-Live-Messungen, geführte 2-Punkt-Aufnahme und Messprotokoll.</p><p><b>Getestet:</b> Firmwarebefehle, CRC4 und Schreib-CRC8 anhand der Herstellerbeispiele sowie Browserlogik im Simulator. <b>Nicht nachgewiesen:</b> USB-Antworten, Timing, CRC8 der Antwort und RAM-Gain-Änderung am physischen Board. NVM-Programmierung ist als ausdrücklich zu bestätigender Labor-Test implementiert, aber nicht am echten Board validiert.</p><p>Referenzen: AN 0204 (12.02.2019), AN 0203 (06.02.2020), E703.11 Datenblatt 25DS0170E.04 (16.11.2023) und API-Header aus `pssc_mc_dev_2024_07_12.zip`.</p></div></details></section><div class="foot">ELMOS E703.11 · unabhängiger Kalibrierprototyp · Sicherheitsprinzip: keine werksseitigen oder Boot-/Schnittstellen-NVM-Änderungen; NVM-Schreiben nur nach Backup, RAM-Verifikation und Doppelbestätigung.</div>
-</main></div></div><div id="tip" class="tooltip"></div><script src="calibration.js?v=dsp-target-20261111-2"></script><script src="app.js?v=workflow-20261111-1"></script></body></html>
+</main></div></div><div id="tip" class="tooltip"></div><script src="calibration.js?v=dsp-target-20261111-2"></script><script src="app.js?v=expert-20261111-1"></script></body></html>
