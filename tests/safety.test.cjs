@@ -162,3 +162,21 @@ test('One Wire only: read-only status and protected mode selection in UI',()=>{
  assert.ok(src.includes('st.expertOutputPlan={mode:\'onewire\'}'));
  assert.ok(src.includes("$('psscScalingSection').hidden=mode==='onewire'"));
 });
+
+test('Expert workspace is independently accessible from every calibration step',()=>{
+ const html=read('index.html'),src=read('expert.js');
+ for(const id of ['expertWorkspace','expertWorkspaceOpen','expertWorkspaceClose','expertToolsDetails','expertNvmDump','expertRegistersRead']){
+  assert.equal(html.split('id="'+id+'"').length-1,1);
+ }
+ assert.ok(html.includes('class="expert-workspace"'));
+ assert.ok(html.includes('role="dialog"'));
+ assert.ok(html.includes('id="expertToolsDetails" open'));
+ const workspace=html.indexOf('id="expertWorkspace"');
+ const lastPanel=html.indexOf('data-panel="6" hidden');
+ assert.ok(workspace>lastPanel);
+ assert.ok(src.includes('function showExpertWorkspace(open)'));
+ assert.ok(src.includes("showExpertWorkspace(true);"));
+ assert.ok(src.includes("showExpertWorkspace(false);"));
+ assert.ok(src.includes("classList.toggle('is-expert',enabled)"));
+ for(const file of ['calibration','expert','app'])assert.ok(html.includes(file+'.js?v=0.3.4'));
+});
