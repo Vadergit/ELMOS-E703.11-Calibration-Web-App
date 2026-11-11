@@ -34,17 +34,20 @@ test('AODO mode preparation preserves communication',()=>{
  assert.notEqual(after[16],before[16]);
  for(let i=0;i<28;i++)if(i!==16&&i!==22)assert.equal(after[i],before[i]);
 });
-test('Seven steps and separate output section',()=>{
+test('Seven calibration steps plus an independent EEPROM viewer',()=>{
  const html=read('index.html');
  const panels=Array.from(html.matchAll(/<section[^>]*data-panel="([0-9]+)"/g),m=>Number(m[1]));
  const steps=Array.from(html.matchAll(/<button class="stepBtn[^"]*" data-step="([0-9]+)"/g),m=>Number(m[1]));
- assert.deepEqual(panels,[0,1,2,3,4,5,6]);
- assert.deepEqual(steps,[0,1,2,3,4,5,6]);
+ assert.deepEqual(panels,[0,1,2,3,4,5,6,7]);
+ assert.deepEqual(steps,[0,1,2,3,4,5,6,7]);
  assert.equal(html.split('id="expertOutputMode"').length-1,1);
  const output=html.split('data-panel="5" hidden>')[1].split('data-panel="6" hidden>')[0];
  assert.ok(output.includes('id="expertOutputMode"'));
  assert.ok(output.includes('id="outputNvmRead"'));
  assert.ok(output.includes('id="expertScaleGain"'));
+ const viewer=html.split('data-panel="7" hidden>')[1].split('</section>')[0];
+ assert.ok(viewer.includes('id="eepromRead"'));
+ assert.ok(viewer.includes('id="eepromRows"'));
 });
 test('NVM write path requires one-wire + preservation check',()=>{
  const src=read('app.js');
@@ -163,20 +166,67 @@ test('One Wire only: read-only status and protected mode selection in UI',()=>{
  assert.ok(src.includes("$('psscScalingSection').hidden=mode==='onewire'"));
 });
 
-test('Expert workspace is independently accessible from every calibration step',()=>{
+test('Expert mode shows contextual settings and no modal',()=>{
  const html=read('index.html'),src=read('expert.js');
- for(const id of ['expertWorkspace','expertWorkspaceOpen','expertWorkspaceClose','expertToolsDetails','expertNvmDump','expertRegistersRead']){
+ for(const id of ['expertToolsDetails','expertNvmDump','expertRegistersRead','expertMode','expertPanel']){
   assert.equal(html.split('id="'+id+'"').length-1,1);
  }
- assert.ok(html.includes('class="expert-workspace"'));
- assert.ok(html.includes('role="dialog"'));
- assert.ok(html.includes('id="expertToolsDetails" open'));
- const workspace=html.indexOf('id="expertWorkspace"');
- const lastPanel=html.indexOf('data-panel="6" hidden');
- assert.ok(workspace>lastPanel);
- assert.ok(src.includes('function showExpertWorkspace(open)'));
- assert.ok(src.includes("showExpertWorkspace(true);"));
- assert.ok(src.includes("showExpertWorkspace(false);"));
+ assert.ok(!html.includes('id="expertWorkspace"'));
+ assert.ok(!html.includes('id="expertWorkspaceOpen"'));
+ assert.ok(!src.includes('showExpertWorkspace('));
+ assert.ok(src.includes("document.querySelectorAll('[data-expert-area]')"));
+ assert.ok(html.includes('aria-labelledby="digitalTitle" data-expert-area hidden'));
+ assert.ok(html.includes('aria-labelledby="limitingTitle" data-expert-area hidden'));
+ assert.ok(html.includes('data-expert-area hidden><summary>Erweitert · AODO_F'));
  assert.ok(src.includes("classList.toggle('is-expert',enabled)"));
- for(const file of ['calibration','expert','app'])assert.ok(html.includes(file+'.js?v=0.3.4'));
+ const scripts=Array.from(html.matchAll(/<script src="([^"]+)"/g),m=>m[1]);
+ assert.deepEqual(scripts,['calibration.js?v=0.4.0','expert.js?v=0.4.0','config.js?v=0.4.0','app.js?v=0.4.0']);
+});
+
+test('EEPROM viewer reads only via the established CRC-tested NVM path',()=>{
+ const html=read('index.html'),app=read('app.js'),expert=read('expert.js');
+ assert.ok(html.includes('id="eepromSearch"'));
+ assert.ok(html.includes('id="eepromExport"'));
+ assert.ok(app.includes("if(n===7)return ''"));
+ assert.ok(app.includes('expert.refreshEEPROMViewer()'));
+ assert.ok(expert.includes('async function readNvm()'));
+ assert.ok(expert.includes('await nvmScan({expertRead:true})'));
+ assert.ok(expert.includes('for(let i=0;i<64;i++)'));
+ assert.ok(!expert.includes('eepromWrite'));
+});
+const CFG=require('../config.js');
+const example=()=>CFG.create({
+ label:'Druck 0-10 bar',afe:{pga1:1,pga2:3,offset:-2},
+ calibration:{sOrder:1,tOrder:0,dspLimit:25000,pointCount:2,samples:12,
+  reference:{min:0,max:10,unit:'bar',customUnit:''}},
+ output:{mode:'1',scaleEnabled:true,vdd:5,s0:0.5,s1:4.5,gain:0,offset:0,pwmPeriod:16384}
+},CAL);
+test('Config roundtrip contains only sensor-independent target values',()=>{
+ const profile=example(),round=CFG.validate(JSON.parse(JSON.stringify(profile)),CAL);
+ assert.equal(round.afe.pga1,1);
+ assert.equal(round.afe.offset,-2);
+ assert.equal(round.calibration.dspLimit,25000);
+ assert.equal(round.output.mode,'1');
+ assert.ok(round.output.gain>1);
+ const txt=JSON.stringify(round);
+ for(const term of ['nvmBackup','words','uid','SER0','SER1','coeffs','calfit','CRC16','boot'])assert.ok(!txt.includes('"'+term+'"'));
+});
+test('Config importer rejects NVM backups, foreign keys and unsafe modes',()=>{
+ const p=example();
+ assert.throws(()=>CFG.validate({format:'E70311-CM64-v2',uid:'000011112222',words:Array(64).fill(0)},CAL));
+ assert.throws(()=>CFG.validate({...p,uid:'000011112222'},CAL),/unerlaubtes Feld/);
+ assert.throws(()=>CFG.validate({...p,output:{...p.output,mode:'6'}},CAL),/nicht unterstützt/);
+ assert.throws(()=>CFG.validate({...p,afe:{...p.afe,pga1:10}},CAL),/ungültiger Wert/);
+ assert.throws(()=>CFG.validate({...p,output:{...p.output,s0:0.0,s1:4.5}},CAL));
+});
+test('Profile only stages AFE, never automatically writes hardware or EEPROM',()=>{
+ const app=read('app.js');
+ assert.ok(app.includes('st.profilePendingAFE={...selectedConfig.afe}'));
+ assert.ok(app.includes("$('configAfeApplyRam').addEventListener('click',async()=>"));
+ assert.ok(app.includes('await commitGain({...target})'));
+ assert.ok(app.includes('invalidateCalculation('));
+ assert.ok(app.includes("if(st.writing||st.nvmWorking||st.calTask||st.afeWriteActive)"));
+ const html=read('index.html');
+ for(const id of ['configSave','configFile','configApply','configLabel','configPreview','configAfeApplyRam'])
+  assert.equal(html.split('id="'+id+'"').length-1,1);
 });
