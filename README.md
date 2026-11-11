@@ -1,5 +1,11 @@
 # ELMOS E703.11 – Chrome-Kalibrierassistent
 
+## Diskrete AFE-Stufeneinstellung (11.11.2026)
+
+Unter **AFE optimieren → Verstärkung und Offset** werden drei diskrete Steuerelemente mit **− / +** statt Schiebereglern angezeigt. Eine Betätigung ändert jeweils genau einen gültigen Registercode: **PGA1 = 0–3** (4 Verstärkungsstufen), **PGA2 = 0–8** (9 Verstärkungsstufen), **Offset = −8 bis +8**. Neben dem Stufencode wird die jeweilige physikalische Verstärkung beziehungsweise der DAC-Offset in mV/V dargestellt. An den Grenzen oder bei laufenden Kalibrier-/NVM-Transaktionen sind die entsprechenden Tasten deaktiviert.
+
+Die Buttons verändern **nur die Vorschau** und machen bereits erfasste Kalibrierpunkte ungültig, genau wie zuvor die Schieberegler. Der eigentliche Chip-RAM-Schreibvorgang bleibt separat und benötigt den Knopf **«AFE-Einstellungen ins RAM übernehmen»**. Factory-/Bootregister und NVM werden von den Pfeiltasten nicht beschrieben.
+
 Browserbasierter Kalibrierassistent für den **ELMOS E703.11** mit **SSP3-Eval-Board**. Die App läuft lokal im Chrome-Browser über **Web Serial**; als Standard ist **1-Wire (AODO)** eingestellt. I²C und SPI können je nach Hardwarekonfiguration gewählt werden.
 
 > **Status: experimenteller Laborprototyp (v8).** Die Kommunikation, der Koeffizientenabgleich und die NVM-Programmierung wurden mit einem simulierten SSP3-Gerät getestet, **nicht** an echter Hardware vollständig verifiziert. **Nicht für Serienproduktion oder unersetzliche Chips einsetzen.** Ein fehlerhafter NVM-Schreibvorgang kann den Chip unbrauchbar machen.
