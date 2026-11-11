@@ -77,25 +77,30 @@ Die Elmos-Bezeichnung ist **AODO**, nicht «A0D0». Am Mikrocontroller ist «AOD
 
 ## 4. Physischer Anschluss: noch nicht direkt am E703.11!
 
-**Ein vorgeschlagener GPIO bedeutet ausdrücklich nicht, dass du AODO daran direkt anschliessen darfst.** Die künftig zu entwickelnde Verbindung sieht prinzipiell so aus:
+**AODO / 1-Wire und I²C verwenden unterschiedliche Sensoranschlüsse.** Das folgende Beispiel zeigt die mögliche spätere Anordnung, **keine bereits freigegebene Verdrahtung**:
 
 ~~~text
 PC / Chrome / Web Serial
-          │ USB (native USB oder USB-UART)
+          │ USB
           ▼
-ESP32 / Arduino / RP2040
-          │ vorgeschlagener PLC-GPIO, z. B. C3 GPIO4
-          │ optional separater RX-GPIO, z. B. C3 GPIO5
-          ▼
-[ Geprüfte bidirektionale PLC-Schnittstelle:
-  Pegelanpassung, sichere Richtung, Schutz und Timing ]
+ESP32-C3 SuperMini (Beispiel)
+          ├── GPIO4: AODO / 1-Wire (MCU-Steuersignal)
+          │          ▼ geprüfte bidirektionale Pegel-/Schutzstufe
+          │          E703.11 AODO
           │
-          ▼
-E703.11 AODO/PLC
-(separate, zum Datenblatt passende Sensorversorgung)
+          ├── GPIO6: I²C SDA
+          │          ▼ geprüfte I²C-Pegel und Pull-ups
+          │          E703.11 MISO/SDA
+          │
+          └── GPIO7: I²C SCL
+                     ▼ geprüfte I²C-Pegel und Pull-ups
+                     E703.11 SCK/SCL
+
+E703.11 NCS/SA0: Adress-/Modusbeschaltung prüfen
+E703.11 VDD/VSS: geeignete Versorgung / Bezugspotenzial
 ~~~
 
-Für die Freigabe dieser Schnittstelle sind insbesondere die **AODO-Signalrichtung**, der **Ruhepegel**, der **zulässige Pin-Strom**, **Schutz-/Pegelwandler**, **Startfenster**, **Telegramm-Timing**, **CRC**, **Readback** und ein **Kaltstarttest** zu klären. 3,3-V-ESP-/RP2040-GPIOs sind nicht 5-V-tolerant. Auch 5-V-Arduinos dürfen nicht gegen einen aktiv getriebenen Ausgang des Sensors arbeiten.
+Für die Freigabe sind insbesondere die **AODO-Signalrichtung**, der **Ruhepegel**, der **zulässige Pin-Strom**, die **Schutz-/Pegelwandler**, **Startfenster**, **Telegramm-Timing**, **I²C-Adresse/NCS/SA0**, **I²C-Pull-ups**, **CRC**, **Readback** und ein **Kaltstarttest** zu klären. 3,3-V-ESP-/RP2040-GPIOs sind nicht 5-V-tolerant. Auch 5-V-Arduinos dürfen nicht gegen einen aktiv getriebenen Ausgang des Sensors arbeiten.
 
 ## 5. Was du bereits mit dem ESP32-C3 SuperMini testen kannst
 
@@ -114,12 +119,15 @@ Die aktuelle Test-Firmware ist [**esp32c3_supermini.ino**](../firmware/esp32c3_s
 5. Serial Monitor schliessen. In der [Web-App](https://vadergit.github.io/ELMOS-E703.11-Calibration-Web-App/) unter **USB & Chip → Programmieradapter** die experimentelle USB-Bridge auswählen.
 6. Die Diagnose **CDC_ONLY** bedeutet: **USB-Verbindung zum SuperMini funktioniert, aber noch keine Kommunikation mit dem E703.11**.
 
-**Keinen E703.11 an GPIO4/5 anschliessen, solange die externe Treiberschaltung und das Protokoll nicht vorliegen.** Die Firmware konfiguriert bewusst **keinen** dieser Pins.
+**Keinen E703.11 an GPIO4/5/6/7 anschliessen, solange die externen Schnittstellen und Protokolle nicht verifiziert sind.** Der USB-Test-Sketch konfiguriert bewusst **keinen** dieser Pins.
 
 ## 6. Herstellerquellen für die Pinbelegung
 
 Die Original-Pinouts haben stets Vorrang vor Angaben für ähnlich aussehende Boards. Besonders bei **SuperMini-Nachbauten** die tatsächlichen Aufdrucke und Platinenrevision prüfen.
 
+- [Elmos – E703.11 mit AODO, MISO/SDA und SCK/SCL (Produktkatalog, Seite 12)](https://www.elmos.com/fileadmin/elmos-website/about-us/company/mediathek/produktpublicationen/elmos-product-catalog_2021_2022_web_v1.pdf)
+- [Espressif – Arduino-ESP32 I²C und frei wählbare Pins](https://docs.espressif.com/projects/arduino-esp32/en/latest/api/i2c.html)
+- [Arduino – I²C-Standardbelegungen verschiedener Boards](https://github.com/arduino/reference-en/blob/master/Language/Functions/Communication/Wire.adoc)
 - [Espressif – ESP32-C3 USB und Boot](https://docs.espressif.com/projects/esp-idf/en/stable/esp32c3/get-started/establish-serial-connection.html)
 - [Espressif – ESP32 DevKitC](https://documentation.espressif.com/api/resource/path/docs/projects/esp-dev-kits/en/latest/esp32/esp32-devkitc/user_guide.html)
 - [Espressif – ESP32-S3 DevKitC-1](https://docs.espressif.com/projects/esp-dev-kits/en/latest/esp32s3/esp32-s3-devkitc-1/user_guide_v1.0.html)
@@ -134,5 +142,7 @@ Die Original-Pinouts haben stets Vorrang vor Angaben für ähnlich aussehende Bo
 - [Arduino – Nano-Familie: Logikpegel](https://docs.arduino.cc/learn/hardware/nano-pcb-guide/)
 - [Arduino – Nano RP2040 Connect](https://docs.arduino.cc/hardware/nano-rp2040-connect/)
 - [Arduino – Leonardo / native USB](https://docs.arduino.cc/hardware/leonardo/)
+- [Arduino – Nano ESP32 Pinout (I²C A4/GPIO11 und A5/GPIO12)](https://docs.arduino.cc/resources/pinouts/ABX00083-full-pinout.pdf)
+- [Arduino – Nano RP2040 Connect Pinout (I²C A4/GPIO12 und A5/GPIO13)](https://docs.arduino.cc/resources/pinouts/ABX00053-full-pinout.pdf)
 - [Seeed – XIAO RP2040](https://wiki.seeedstudio.com/XIAO-RP2040/)
 - [Raspberry Pi – Pico-Familie](https://www.raspberrypi.com/documentation/microcontrollers/pico-series.html)
