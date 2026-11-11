@@ -102,11 +102,11 @@ Im neuen **Schritt 6** folgen die Ausgangseinstellungen nach der DSP-Prüfung. S
 
 **DSP-Zielbereich:** Wenn «Berechnen & RAM» für die neue Kalibrierung ±25’000 Digits verwendet, müssen auch die Scaling-Punkte S0/S1 −25’000/+25’000 verwenden. Der Assistent übernimmt das automatisch. Eine reine AFE-Empfehlung «ADC_S innerhalb ±25’000» ist dagegen keine DSP-Skalierung und darf nicht damit gleichgesetzt werden.
 
-**Analog Ratiometric:** Bei VDD = 5 V kannst du beispielsweise S0 = 0.5 V und S1 = 4.5 V wählen. AODO_F und AODO_O werden in Q3.12 berechnet und als Vorschau angezeigt. Vor permanenter Programmierung an einem Testchip prüfen.
+**Analog Ratiometric:** Die **Zielwerte** sind standardmässig S0 = 0.5 V und S1 = 4.5 V bei VDD = 5 V (10–90 % VDD). Das Auslesen aktueller AODO-Register ändert diese Zielwerte nicht mehr; die momentane Chipkonfiguration wird separat angezeigt. Mit «Standard 10–90 % VDD einsetzen» kann die Vorgabe jederzeit wiederhergestellt werden. AODO_F und AODO_O werden in Q3.12 berechnet und als Vorschau angezeigt. Vor permanenter Programmierung an einem Testchip prüfen.
 
 Für einen bereits kalibrierten Sensor das Original-NVM (64 Wörter) im Ausgangsschritt lesen und überprüfen. Eine neue Kalibrierung ist nicht erforderlich, wenn nur der Ausgang geändert werden soll.
 
-**1-Wire-Startschutz:** Dauerhafte NVM-Programmierung nur bei realer Verbindung über 1-Wire. Kommunikations-/Bootwerte des NVM dürfen sich durch den geplanten Schreibvorgang nicht ändern. Nach dem Schreiben den Sensor aus- und wieder einschalten und den 1-Wire-Zugriff erneut prüfen. Ohne Hardwaretest ist eine absolute Startgarantie nicht nachgewiesen.
+**1-Wire-Startschutz:** Dauerhafte NVM-Programmierung nur bei echter 1-Wire-Verbindung **und** mit einer zum Datenblatt passenden NVM-Startkonfiguration. AODO-Modus 1–5 ist Pflicht (Analog, PWM, FM); High-Z und Alarm bleiben gesperrt. Die PLC-Startzeit beziehungsweise permanente PLC-Freigabe sowie Downstream-, Upstream- und persistenter Lese-/Schreibzugriff werden im NVM geprüft. Wenn das ursprüngliche NVM diese Bedingung nicht erfüllt, wird kein NVM-Schreiben gestartet. Kommunikations-/Bootwerte des NVM dürfen sich durch den geplanten Schreibvorgang nicht ändern. Nach dem Schreiben den Sensor aus- und wieder einschalten und den 1-Wire-Zugriff erneut prüfen. Ohne Hardwaretest ist eine absolute Startgarantie nicht nachgewiesen.
 
 ## 8. NVM dauerhaft programmieren
 
@@ -149,3 +149,5 @@ Die lokale Browser-Backup-Historie kann beim Löschen von Website-Daten verloren
 - **Keine Garantie:** Selbst korrekt bestandene Software-Simulationen können das Verhalten von SSP3, AODO-Ausgängen, NVM oder Bootsequenzen auf echter Hardware nicht garantieren.
 
 **Web-Dateien:** `index.html` (UI), `app.js` (Web Serial und Ablauf), `calibration.js` (Koeffizienten/CRC/NVM-Plan), `expert.js` (Expertenparameter und Backups) und `usb-diagnose.html` (isolierte USB-Diagnose im Browser). Es gibt keine lokale Startanwendung und keinen Node-Teststarter. Dokumentierte Simulationen und offene Hardwareprüfungen: [TESTBERICHT.md](TESTBERICHT.md).
+
+**Datenblatt-Referenz:** E703.11, 25DS0170E.04, Production Data 16.11.2023, §6.3.2.6 / §6.4.1.1 / §6.4.5.7–8 / §6.5.1.1–2 / §6.5.7.2. Eine reine Softwareprüfung kann eine tatsächliche Kaltstartprüfung nicht ersetzen.
