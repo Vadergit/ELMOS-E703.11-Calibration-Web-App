@@ -159,6 +159,8 @@ const ELMOS_COMPACT=(()=>{
   root.style.height=Math.max(390,available)+'px';
  }
  function set(on){
+  // Never relocate the same original controls from two workspaces simultaneously.
+  if(on&&window.ELMOS_GUIDED?.isOpen?.())window.ELMOS_GUIDED.close();
   if(on===active)return;
   const root=$('compactWorkspace');
   if(on){
