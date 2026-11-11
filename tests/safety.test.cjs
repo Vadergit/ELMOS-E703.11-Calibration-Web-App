@@ -180,7 +180,7 @@ test('Expert mode shows contextual settings and no modal',()=>{
  assert.ok(html.includes('data-expert-area hidden><summary>Erweitert · AODO_F'));
  assert.ok(src.includes("classList.toggle('is-expert',enabled)"));
  const scripts=Array.from(html.matchAll(/<script src="([^"]+)"/g),m=>m[1]);
- assert.deepEqual(scripts,['calibration.js?v=0.6.0-beta.1','eeprom-help.js?v=0.6.0-beta.1','expert.js?v=0.6.0-beta.1','config.js?v=0.6.0-beta.1','guided-plan.js?v=0.6.0-beta.1','app.js?v=0.6.0-beta.1','compact.js?v=0.6.0-beta.1','guided.js?v=0.6.0-beta.1']);
+ assert.deepEqual(scripts,['calibration.js?v=0.6.0-beta.2','eeprom-help.js?v=0.6.0-beta.2','expert.js?v=0.6.0-beta.2','config.js?v=0.6.0-beta.2','guided-plan.js?v=0.6.0-beta.2','app.js?v=0.6.0-beta.2','compact.js?v=0.6.0-beta.2','guided.js?v=0.6.0-beta.2']);
 });
 
 test('Failed E703.11 probe reconnects SSP3 at most once, without NVM writes',()=>{
@@ -450,4 +450,65 @@ test('Experimental bridge never initiates PLC traffic, even with advertised full
  assert.ok(app.includes("if(!advertised||!BRIDGE_SENSOR_IO_VALIDATED)"));
  assert.ok(app.includes("if(!bridgeReady)return;"));
  assert.ok(app.includes("if(st.adapterKind==='bridge')throw Error('USB-Bridge ist nicht für dauerhaftes NVM-Schreiben"));
+});
+
+
+test('ESP32-C3 SuperMini sketch targets native USB-CDC and refuses PLC access',()=>{
+ const fw=read('firmware/esp32c3_supermini/esp32c3_supermini.ino');
+ assert.ok(fw.includes('CONFIG_IDF_TARGET_ESP32C3'));
+ assert.ok(fw.includes('ARDUINO_USB_CDC_ON_BOOT'));
+ assert.ok(fw.includes('GPIO18')&&fw.includes('GPIO19'));
+ assert.ok(fw.includes('CAPS=CDC_ONLY'));
+ assert.ok(fw.includes('BRIDGE_INFO')&&fw.includes('BRIDGE_PING'));
+ assert.ok(fw.includes('PLC_NOT_IMPLEMENTED'));
+ assert.ok(!/^[ \t]*pinMode\s*\(/m.test(fw));
+ assert.ok(!fw.includes('digitalWrite('));
+ assert.ok(!fw.includes('CAPS=PLC_READ,PLC_WRITE,NVM'));
+});
+test('Guided no-hardware demo has visible launch, safe virtual stages and never writes sensor NVM',()=>{
+ const app=read('app.js'),guide=read('guided.js'),html=read('index.html'),css=read('guided.css');
+ for(const id of ['guidedDemoTop','guidedDemoLaunch'])assert.equal(html.split('id="'+id+'"').length-1,1);
+ for(const method of ['startDemo','demoSetpoint','demoStageCalibration','demoVerifyCalibration','demoCompleteWizard'])
+  assert.ok(app.includes(method));
+ for(const id of ['gwDemoBanner','gwDemoRam','gwDemoVerify','gwDemoNvm'])assert.ok(guide.includes('id="'+id+'"'));
+ assert.ok(app.includes("if(st.mode!=='demo'||st.port)throw"));
+ assert.ok(app.includes('demoValidation.push('));
+ assert.ok(app.includes('demoCompleted=true'));
+ assert.ok(!guide.includes('maintWrite('));
+ assert.ok(!guide.includes('nvmProgram('));
+ assert.ok(css.includes('html.guided-active.guided-demo #guidedWorkspace #nvmProgram'));
+ assert.ok(css.includes('html.guided-active.guided-demo #guidedWorkspace #calApplyRam'));
+});
+test('Demo completion and real NVM programming have independent safety gates',()=>{
+ const app=read('app.js');
+ const demoFn=app.split('function demoCompleteWizard(outputOnly=false)')[1].split('function exitDemo()')[0];
+ assert.ok(demoFn.includes("st.mode!=='demo'||st.port"));
+ assert.ok(demoFn.includes('demoVerified'));
+ assert.ok(!demoFn.includes('maintWrite('));
+ assert.ok(!demoFn.includes('nvmProgram('));
+ const nvmFunc=app.split('async function nvmProgram()')[1].split('function postBootCheck()')[0];
+ assert.ok(nvmFunc.includes("if(st.mode!=='usb'||!st.chip||!st.port"));
+ assert.ok(nvmFunc.includes("if(st.adapterKind==='bridge')throw Error"));
+ assert.ok(app.includes("demoCompleted:st.mode==='demo'&&demoCompleted"));
+});
+test('Mathematical fit works with representative simulated pressure-temperature demo grids',()=>{
+ for(const [pCount,tCount,temperatures] of [[2,1,[25]],[2,3,[-10,25,65]],[3,2,[10,60]],[3,3,[-10,25,65]],[5,2,[10,60]]]){
+  const p=GUIDED_PLAN.create({pCount,tCount,temperatures,pmin:0,pmax:10,outputLimit:25000});
+  const points=p.points.map((v,i)=>({
+   pressure:v.pressure,temperature:v.temperature,
+   adc_s:Math.round(((v.pressure/10)-.5)*9000*(6/3.5)*(2.86/2)+(v.temperature-25)*11+(i%2?2:-2)),
+   adc_t:Math.round((v.temperature-25)*180)
+  }));
+  const fit=CAL.fit(points,{pmin:0,pmax:10,orderS:p.orderS,orderT:p.orderT,outputLimit:25000});
+  assert.ok(fit.stats.maxDigits<100);
+  assert.ok(Number.isFinite(fit.stats.rmsDigits));
+ }
+});
+test('Board shortlist, flash guide and pure-USB safety instructions are included',()=>{
+ const boards=read('docs/ESP_BOARD_OPTIONS.md'),guide=read('docs/USB_BRIDGE_GUIDE.md');
+ for(const name of ['ESP32-C3 SuperMini','XIAO ESP32C3','ESP32-S3-DevKitC-1','Nano ESP32','ESP32-C6'])
+  assert.ok(boards.includes(name),name);
+ for(const term of ['ESP32C3 Dev Module','USB CDC On Boot','BRIDGE_INFO','CDC_ONLY','GPIO18','GPIO19','esp32c3_supermini.ino'])
+  assert.ok(boards.includes(term),term);
+ assert.ok(guide.includes('ESP_BOARD_OPTIONS.md'));
 });
