@@ -2,6 +2,8 @@
 
 **Ein geführter Kalibrierassistent für den ELMOS E703.11 und das SSP3-Eval-Board.** Ziel ist ein verständlicher Abgleich, der auch ohne tiefere Vorkenntnisse Schritt für Schritt funktioniert. Wer mehr benötigt, kann zusätzliche Messpunkte, DSP-Parameter und einen geschützten Expertenmodus verwenden.
 
+**Version: v0.1.0** · [Änderungsverlauf](CHANGELOG.md)
+
 **[Web-App öffnen](https://vadergit.github.io/ELMOS-E703.11-Calibration-Web-App/)** · **[Bedienungsanleitung](ANLEITUNG.md)** · **[Testbericht und Grenzen](TESTBERICHT.md)**
 
 > **Entwicklungsstand: Laborprototyp.** Die vollständige Kalibrierung einschliesslich dauerhafter NVM-Programmierung ist **noch nicht mit einem echten E703.11 als Gesamtablauf freigegeben**. Hardwareverhalten, AODO-Ausgangsmodi und NVM-Wiederherstellung müssen am Testchip geprüft werden. Nicht für die Serienproduktion oder unersetzliche Sensoren einsetzen.
@@ -24,7 +26,8 @@
 | Koeffizienten | Berechnung im Browser, einstellbare Polynomordnungen und symmetrischer DSP-Zielbereich **±1’000 bis ±32’000 Digits** |
 | RAM & DSP | Berechnete Koeffizienten ins RAM schreiben, rücklesen und DSP_S gegen Referenz/Toleranz prüfen; **1–10 Prüfpunkte** (Standard 1) |
 | NVM | Vor dem permanenten Schreiben vollständige **64-Wort-Lesung**, CRC-/Schutzprüfung und Änderungsliste; optionales Backup; 48-Bit-Chip-UID wird automatisch eingetragen und beim Schreiben geprüft |
-| Expertenmodus | Über **⚙ Einstellungen** aktivieren. Zusätzliche AODO-Ausgangsparameter unter **AFE**, NVM-/EEPROM-Leser und chipbezogene Backups unter **NVM** |
+| Ausgangskonfiguration | Unter **AFE**: AODO High-Z, ratiometrisch, PWM, FM und Alarm; 1-Wire/I²C/SPI sind separate Kommunikationsschnittstellen |
+| Expertenmodus | Über **⚙ Einstellungen** aktivieren. NVM-/EEPROM-Leser und chipbezogene Backups unter **NVM** |
 | Diagnose | Register-/Chipanzeige, technisches Log, Demo-Modus und Dokumentation |
 
 Die Browser-App verwendet eine **eigene JavaScript-Koeffizientenberechnung**, nicht die originale Elmos-Kalibrier-DLL. Eine Übereinstimmung mit der Herstellersoftware muss auf der Zielhardware verifiziert werden.
@@ -44,9 +47,11 @@ Die Browser-App verwendet eine **eigene JavaScript-Koeffizientenberechnung**, ni
 
 Das **Zahnrad oben rechts** öffnet die App-Einstellungen. Hier lassen sich Expertenparameter, Hover-Hilfen, die Standard-Sample-Anzahl und das Live-Abfrageintervall einstellen.
 
-Mit aktivem **Expertenmodus** erscheinen erweiterte Felder direkt dort, wo sie benötigt werden:
+Die **Ausgangskonfiguration** ist in Schritt 2 regulär zugänglich. AODO-Ausgangsmodi sind nicht dasselbe wie 1-Wire-/I²C-/SPI-Kommunikationsschnittstellen. Ein Wechsel am SSP3 programmiert nicht die Boot-/Kommunikationsregister des Sensors.
 
-- **AFE:** AODO-Ausgangsarten **High-Z, ratiometrisch analog, PWM, FM, Alarm**, einschliesslich unterstützter Skalierungsparameter. Änderungen werden zuerst als Vorschlag geprüft; auch eine reine Ausgangsänderung bei bereits kalibriertem Sensor ist vorgesehen.
+Mit aktivem **Expertenmodus** erscheinen weitere Funktionen:
+
+- **AFE (für alle sichtbar):** AODO-Ausgangsarten **High-Z, ratiometrisch analog, PWM, FM, Alarm**, einschliesslich unterstützter Skalierungsparameter. Änderungen werden zuerst als Vorschlag geprüft; auch eine reine Ausgangsänderung bei bereits kalibriertem Sensor ist vorgesehen.
 - **NVM:** Dokumentierte Hauptregister und vollständige EEPROM-/NVM-Ansicht, 48-Bit-UID (**VERSION + SER1 + SER0**), lokale Backup-Historie und Import/Vergleich eines passenden Backups.
 - **Schutz:** Factory-Wörter werden nicht frei beschrieben. Kommunikations-/Bootwerte bleiben gesperrt; nur gezielt freigegebene AODO-Felder sind über den validierten Schreibplan veränderbar. Keine allgemeinen Rohregister-Schreibbefehle.
 
