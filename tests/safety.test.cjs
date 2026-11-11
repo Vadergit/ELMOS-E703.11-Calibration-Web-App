@@ -180,7 +180,7 @@ test('Expert mode shows contextual settings and no modal',()=>{
  assert.ok(html.includes('data-expert-area hidden><summary>Erweitert · AODO_F'));
  assert.ok(src.includes("classList.toggle('is-expert',enabled)"));
  const scripts=Array.from(html.matchAll(/<script src="([^"]+)"/g),m=>m[1]);
- assert.deepEqual(scripts,['calibration.js?v=0.6.0','eeprom-help.js?v=0.6.0','expert.js?v=0.6.0','config.js?v=0.6.0','guided-plan.js?v=0.6.0','app.js?v=0.6.0-plc.1','compact.js?v=0.6.0','guided.js?v=0.6.0']);
+ assert.deepEqual(scripts,['calibration.js?v=0.6.1','eeprom-help.js?v=0.6.1','expert.js?v=0.6.1','config.js?v=0.6.1','guided-plan.js?v=0.6.1','app.js?v=0.6.1','compact.js?v=0.6.1','guided.js?v=0.6.1']);
 });
 
 test('Failed E703.11 probe reconnects SSP3 at most once, without NVM writes',()=>{
@@ -393,7 +393,7 @@ test('Guided view is optional and contains only one set of hardware inputs',()=>
  assert.ok(html.includes('id="workflowMode"'));
  assert.ok(html.includes('id="guidedLaunch"'));
  assert.ok(html.includes('id="guidedLaunchTop"'));
- assert.ok(html.includes('guided.css?v=0.6.0'));
+ assert.ok(html.includes('guided.css?v=0.6.1'));
  for(const id of ['nvmProgram','nvmPrepare','calApplyRam','calVerifyRam','expertOutputStage','configApply','configFile']){
   assert.equal(html.split('id="'+id+'"').length-1,1);
  }

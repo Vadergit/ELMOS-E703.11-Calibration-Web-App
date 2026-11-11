@@ -2,6 +2,12 @@
 
 Versionierung nach `MAJOR.MINOR.PATCH`: Kleine Anpassungen erhöhen PATCH, neue Funktionen MINOR, inkompatible Änderungen MAJOR. Jede Änderung erhält eine neue Nummer und einen Eintrag.
 
+## v0.6.1 – 11.11.2026
+
+- ESP32-C3 PLC-Bridge für den Test am E703.11 integriert.
+- «Trennen» gibt den USB-Port frei und meldet den Abschluss.
+- Die App zeigt fehlende Sensorantworten und Timeouts der ESP32-Bridge getrennt an.
+
 ## v0.6.0 – 11.11.2026 · ZUSAMMENGEFÜHRT NACH MAIN
 
 - Geführter Kalibrierassistent mit Aufgabe, Druck-/Temperaturplan, Sensor-Vorgaben, AFE, echter Referenzmessung, DSP-Berechnung, unabhängiger Verifikation, Ausgang und NVM; die klassischen und kompakten Ansichten bleiben erhalten.
