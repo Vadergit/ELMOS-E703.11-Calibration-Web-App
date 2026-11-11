@@ -105,3 +105,13 @@ html.guided-active #guidedWorkspace [hidden]{display:none!important}
 @media(max-width:1120px){.gw-shell{grid-template-columns:170px minmax(0,1fr)}.gw-main{padding:25px 25px 18px}.gw-sidebar{padding:20px 10px}.gw-fields.gw-4{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media(max-width:790px){.gw-shell{grid-template-columns:1fr}.gw-sidebar{padding:12px;display:block}.gw-backlogo,.gw-sidebar-footer{display:none}.gw-sideitems{display:flex;gap:6px;overflow:auto}.gw-sideitem{min-width:100px;padding:7px}.gw-main{padding:22px 17px}.gw-title{font-size:22px}.gw-columns,.gw-columns.gw-three,.gw-preset-grid{grid-template-columns:1fr}.gw-points-layout{grid-template-columns:1fr}.gw-point-nav{display:flex;overflow:auto}.gw-point-nav button{min-width:140px}.gw-control .cal-point-row .fieldrow{grid-template-columns:repeat(2,minmax(0,1fr))}.gw-control .cal-point-row .cal-card-action{grid-column:1/-1}}
 @media(max-width:520px){.gw-fields,.gw-fields.gw-3,.gw-fields.gw-4{grid-template-columns:1fr}.gw-main{padding:17px 12px}.gw-footer{flex-direction:column;align-items:stretch}.gw-footer .gw-actions{justify-content:space-between}.gw-topline .gw-chipstatus{display:none}}
+
+/* Hardware-free wizard demo: deliberately distinct from real hardware operation. */
+.gw-demo-banner{margin:10px 0 4px;background:#fff4dc;border:1px solid #efd295;color:#81531c;border-radius:10px;padding:9px 12px;font-size:12px;font-weight:700;line-height:1.4}
+.gw-demo-action{display:block;width:100%;border:1px solid #d6b46b;border-radius:10px;background:#fff0cf;color:#7b4d13;padding:11px 15px;font-size:13px;font-weight:750;cursor:pointer;margin:10px 0}
+.gw-demo-action:hover{background:#fce8b9}
+.gw-demo-action[hidden],.gw-demo-banner[hidden]{display:none!important}
+.gw-control .gw-demo-action{width:100%}
+html.guided-active #demoPressurePanel{max-width:1220px;margin:8px auto;font-size:12px;padding:7px 10px}
+#guidedDemoTop{color:#975c11;background:#fff4e6;border-color:#e7cc9d}
+@media(max-width:800px){#guidedDemoTop{font-size:10px;padding:4px 7px}.gw-demo-banner{font-size:11px}}
