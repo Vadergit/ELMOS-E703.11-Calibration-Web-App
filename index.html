@@ -236,10 +236,10 @@ button.danger{background:#9e3e34;border-color:#9e3e34;color:#fff}button.danger:h
 <p class="muted small">Das Schreiben kann bei Stromunterbruch oder Protokollproblemen den Chip unbrauchbar machen. Bitte kontrolliere die Änderungsliste und die Chipkennung. Für die endgültige Programmierung sind Chip-ID und das Bestätigungswort erforderlich.</p>
 <div class="fieldrow" style="margin-top:12px">
 <label>Chip-UID (VERSION + SER1 + SER0, 12 Hex-Ziffern)<input id="nvmConfirmId" type="text" placeholder="z. B. 00205678ABCD" autocomplete="off"></label>
-<label>Bestätigungswort<input id="nvmConfirmWord" type="text" placeholder="PROGRAMMIEREN oder WIEDERHERSTELLEN" autocomplete="off"></label>
+<label>Bestätigungswort<input id="nvmConfirmWord" type="text" placeholder="PROGRAMMIEREN / AUSGANG SPEICHERN / WIEDERHERSTELLEN" autocomplete="off"></label>
 </div>
 <div class="flex" style="margin-top:12px"><button class="danger" id="nvmProgram">Kalibrierung dauerhaft ins NVM schreiben</button></div>
-<p class="small muted">Keine automatische Programmierung: Der Knopf startet erst nach erfolgreichem Backup, DSP-Prüfung und bewusster Eingabe der beiden Bestätigungsfelder.</p>
+<p class="small muted">Keine automatische Programmierung. Der normale Kalibrierablauf verlangt eine bestandene DSP-Prüfung. Separate Ausgangsänderungen und Backups werden nur über den aktiven Expertenmodus, ein aktuelles geprüftes NVM-Backup und die bewusste Eingabe von Chip-UID und Bestätigungswort zugelassen.</p>
 <div class="mutedline"></div>
 <h3>Nach dem Neustart</h3>
 <label class="toggle"><input id="nvmRebootConfirm" type="checkbox"> Der Chip wurde nach dem Schreiben tatsächlich aus- und wieder eingeschaltet.</label>
@@ -266,7 +266,7 @@ button.danger{background:#9e3e34;border-color:#9e3e34;color:#fff}button.danger:h
 <pre id="expertRestoreDiff" class="monoarea">Noch kein Wiederherstellungsplan.</pre>
 <p class="muted small">Wiederherstellung: Erst den aktuellen Chip vollständig sichern und dann den Änderungsplan prüfen. Der Programmierknopf im NVM-Schritt verlangt Chip-ID und ausdrücklich «WIEDERHERSTELLEN».</p>
 <h3>Ausgangsart am AODO-Pin</h3>
-<p class="muted small">Die folgenden Einstellungen sind dokumentierte Benutzerfunktionen. Sie werden zunächst <b>nur als Vorschlag</b> übernommen und erst mit dem abschliessenden NVM-Vorgang nach bestandener DSP-Kalibrierprüfung programmiert. Während 1-Wire aktiv ist, kann der physische AODO-Ausgang von der Programmierschnittstelle übersteuert sein.</p>
+<p class="muted small">Die folgenden Einstellungen sind dokumentierte Benutzerfunktionen. Sie werden zuerst <b>nur als geprüfter Vorschlag</b> übernommen. Bei einer neuen Kalibrierung kommen sie in den finalen NVM-Plan nach der DSP-Prüfung. Bei einem <b>bereits kalibrierten Sensor</b> kannst du den Ausgang auch separat ändern, nachdem du das vollständige Original-NVM mit 48-Bit-UID gelesen und gesichert hast. Während 1-Wire aktiv ist, kann die Schnittstelle den physischen AODO-Ausgang übersteuern.</p>
 <div class="fieldrow">
 <label>Ausgangsmodus
 <select id="expertOutputMode">
@@ -297,4 +297,4 @@ button.danger{background:#9e3e34;border-color:#9e3e34;color:#fff}button.danger:h
 </div>
 </section>
 <section class="card"><div class="between"><h3>App-Einstellungen</h3><span class="pill">Lokal gespeichert</span></div><label class="toggle"><input id="tooltips" type="checkbox" checked> Hover-Erklärungen aktivieren</label><p class="muted small">Über ? erscheint eine Erklärung zur jeweiligen Funktion. Die Auswahl bleibt im Browser erhalten.</p><details><summary>Technischer Status und Quellen</summary><div class="inner"><p><b>Implementiert:</b> NVM-Backup, unabhängiger Polynom-Fit, Q-Formate, RAM-DSP-Prüfung, NVM-Programmierworkflow und CRC16; Web Serial, `.VERSION`, SSP3 `IF_CFG`, 1-Wire `PLC`-Lesetelegramme, I²C- und SPI-Lesetelegramme, AFE-RAM-Schreiben per Übernehmen-Button mit Rückleseprüfung, ADC-Live-Messungen, geführte Aufnahme von 2–10 Kalibrierpunkten und Messprotokoll.</p><p><b>Getestet:</b> Firmwarebefehle, CRC4 und Schreib-CRC8 anhand der Herstellerbeispiele sowie Browserlogik im Simulator. <b>Nicht nachgewiesen:</b> USB-Antworten, Timing, CRC8 der Antwort und RAM-Gain-Änderung am physischen Board. NVM-Programmierung ist als ausdrücklich zu bestätigender Labor-Test implementiert, aber nicht am echten Board validiert.</p><p>Referenzen: AN 0204 (12.02.2019), AN 0203 (06.02.2020), E703.11 Datenblatt 25DS0170E.04 (16.11.2023) und API-Header aus `pssc_mc_dev_2024_07_12.zip`.</p></div></details></section><div class="foot">ELMOS E703.11 · unabhängiger Kalibrierprototyp · Sicherheitsprinzip: Factory- und Kommunikations-Bootregister gesperrt; dokumentierte AODO-Ausgangsoptionen nur nach Prüfung im NVM-Plan; Wiederherstellung nur mit passender Chip-UID.</div>
-</main></div></div><div id="tip" class="tooltip"></div><script src="calibration.js?v=expert-20261111-3"></script><script src="expert.js?v=expert-20261111-3"></script><script src="app.js?v=expert-20261111-3"></script></body></html>
+</main></div></div><div id="tip" class="tooltip"></div><script src="calibration.js?v=expert-20261111-4"></script><script src="expert.js?v=expert-20261111-4"></script><script src="app.js?v=expert-20261111-4"></script></body></html>
