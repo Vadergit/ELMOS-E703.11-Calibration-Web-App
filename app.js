@@ -339,7 +339,20 @@ if(typeof document!=='undefined') (function UI(){
   else if(!/^[0-9A-Fa-f]{12}$/.test($('nvmConfirmId').value.trim()))nvmReason='Chip-UID muss genau 12 Hex-Ziffern enthalten.';
   else if($('nvmConfirmId').value.trim().toUpperCase()!==recognizedUid)nvmReason='Die editierte UID stimmt nicht mit dem aktuell verbundenen Chip überein. Programmierung gesperrt.';
   const outputStatus=$('outputOneWireStatus');
-  if(outputStatus){const connected=st.mode==='usb'&&st.iface==='plc'&&st.chip;outputStatus.textContent=connected?'1-Wire-Kommunikation zum Chip aktuell erfolgreich. Für die Startgarantie ist zusätzlich eine Prüfung nach echtem Aus-/Einschalten nötig.':st.iface==='plc'?'1-Wire ausgewählt, aber noch kein echter Chipzugriff bestätigt.':'I²C/SPI ist nur für die Kommunikation am SSP3 gewählt; NVM-Schreiben bleibt gesperrt, bis der Chip über 1-Wire erreichbar ist.';outputStatus.className='callout '+(connected?'success':'warn')}
+  if(outputStatus){
+   const connected=st.mode==='usb'&&st.iface==='plc'&&st.chip;
+   const saved=st.nvmBackupVerified&&st.nvmBackup?.length===64?CAL.oneWireStartupStatus(st.nvmBackup):null;
+   const safeSaved=!!saved?.ok;
+   outputStatus.textContent=!connected?
+    '1-Wire-Verbindung zum Chip nicht bestätigt. Dauerhaftes NVM-Schreiben gesperrt.':
+    saved?
+     safeSaved?'1-Wire aktuell verbunden. NVM-Startup geprüft: AODO-Modus '+saved.mode+
+      ', PLC-Zeitfenster '+saved.windowLabel+', Downstream/Upstream und persistenter Registerzugriff aktiv. Nach NVM-Schreiben trotzdem Kaltstart am Testchip prüfen.':
+      '1-Wire aktuell verbunden, aber das gesicherte NVM erfüllt den Datenblatt-Startschutz nicht: '+saved.errors.join('; ')+'. NVM-Schreiben gesperrt.':
+     '1-Wire aktuell verbunden. Für die Startschutz-Prüfung zuerst das Original-NVM vollständig auslesen. Das momentane Erreichen des Chips garantiert keinen Zugriff nach Neustart.';
+   outputStatus.className='callout '+(connected&&safeSaved?'success':'warn');
+   if(saved&&!safeSaved&&!nvmReason)nvmReason='1-Wire-Startschutz: '+saved.errors.join('; ')+'. NVM-Schreiben gesperrt.';
+  }
   const outputNvmRead=$('outputNvmRead');if(outputNvmRead)outputNvmRead.disabled=!st.port||!st.chip||st.writing||st.calTask||st.nvmWorking;
   const approvalGranted=nvmReason==='';
   $('nvmProgram').disabled=!approvalGranted;
