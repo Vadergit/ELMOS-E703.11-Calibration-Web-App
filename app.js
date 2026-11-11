@@ -511,20 +511,26 @@ if(typeof document!=='undefined') (function UI(){
   if(st.iface==='plc')return; // No documented PLC relock shortcut; power cycle restores authorization
   try{await maintWrite(0x22,0x62A2)}catch(e){logging('RAM-Sperre: '+e.message)}
  }
- async function nvmWaitIdle(max=12000){
-  const start=Date.now();await sleep(25);let stable=0;while(Date.now()-start<max){const flags=await readReg(0x46);if((flags&7)===0){if(++stable>=2)return flags}else stable=0;await sleep(80)}throw Error('NVM-Controller reagiert nicht / Timeout');
+ async function nvmWaitIdle(max=12000,initialDelay=25,pollDelay=80){
+  const start=Date.now();await sleep(initialDelay);let stable=0;
+  while(Date.now()-start<max){
+   const flags=await readReg(0x46);
+   if((flags&7)===0){if(++stable>=2)return flags}else stable=0;
+   await sleep(pollDelay)
+  }
+  throw Error('NVM-Controller reagiert nicht / Timeout')
  }
  async function nvmReadWord(addr){
-  await maintWrite(0x4E,0x4C00|addr);await nvmWaitIdle();return await readReg(0x48);
+  await maintWrite(0x4E,0x4C00|addr);await nvmWaitIdle(12000,12,15);return await readReg(0x48);
  }
- async function nvmScan(){
+ async function nvmScan(options={}){
   let started=false;
+  const postBoot=options?.postBoot===true;
   try{
-   if(!coefficientSettingsCurrent())throw Error('Zuerst Koeffizienten mit dem aktuell eingestellten DSP-Endwert berechnen');
+   if(!postBoot&&!verificationComplete())throw Error('Zuerst DSP-Kalibrierung im RAM erfolgreich prüfen');
    if(!st.port||!st.chip||st.mode==='demo')throw Error('Ein echter Chip muss verbunden sein');
-   if(!$('allowRam').checked)throw Error('RAM-Schreibfreigabe oben im Schritt 4 aktivieren');
    if(st.writing||st.calTask||st.nvmWorking)throw Error('Ein anderer Vorgang läuft');
-   st.calTask=true;st.writing=true;started=true;stopLive();
+   st.calTask=true;st.writing=true;st.ramWriteScope='backup';started=true;stopLive();
    ca('backupMsg','Original-NVM wird gelesen und geprüft …','warn');
    ca('nvmMsg','NVM wird vollständig gelesen …','warn');
    const before=await bootSnapshot();await ramGrant();const words=[];
@@ -535,7 +541,7 @@ if(typeof document!=='undefined') (function UI(){
    if(factoryCRC!==factoryHigh)throw Error(`Werks-CRC8 stimmt nicht: 0x${h(factoryCRC)} statt 0x${h(factoryHigh)}. Programmierung gesperrt.`);
    for(const index of [0,1,15,16,17,18,19,20,22,27,28,63])if(await nvmReadWord(index*2)!==words[index])throw Error('NVM bei Wiederholungslesung unstabil (Wort '+index+')');
    const after=await bootSnapshot();if(!sameBoot(before,after))throw Error('Bootregister haben sich beim NVM-Lesen verändert');
-   st.nvmBackup=words;st.nvmBackupVerified=true;st.calImage=null;st.calVerified=false;ca('backupMsg','Backup vollständig gelesen und geprüft: 64 NVM-Wörter, CRC8 und CRC16 bestätigt. Du kannst das Backup jetzt herunterladen und danach die Koeffizienten ins RAM schreiben.','success');$('backupProgress').textContent='64 / 64 Wörter – Prüfung erfolgreich.';
+   st.nvmBackup=words;st.nvmBackupVerified=true;st.calImage=null;ca('backupMsg','Original-NVM vollständig gelesen und geprüft: 64 Wörter, CRC8 und CRC16 bestätigt. Backup herunterladen und danach NVM-Änderungen kontrollieren.','success');$('backupProgress').textContent='64 / 64 Wörter – Prüfung erfolgreich.';
    ca('nvmMsg',`Vollständiges 64-Wort-Backup gelesen, CRC8 und CRC16 bestätigt. Chipkennung SER0/SER1: ${h(words[1],2)}${h(words[0],2)}. Backup jetzt herunterladen.`,'success');
   }catch(e){
    logging('NVM-Backup: '+e.message);
@@ -543,16 +549,14 @@ if(typeof document!=='undefined') (function UI(){
    ca('nvmMsg','NVM-Backup fehlgeschlagen: '+e.message,'error');
    ca('backupMsg','NVM-Backup fehlgeschlagen: '+e.message,'error');
   }
-  finally{if(started){await ramLock();st.calTask=false;st.writing=false}renderStatus()}
+  finally{if(started){await ramLock();st.ramWriteScope=null;st.calTask=false;st.writing=false}renderStatus()}
  }
  async function applyCalRam(){
   try{
    if(!coefficientSettingsCurrent())throw Error('Zuerst Koeffizienten für den aktuellen DSP-Endwert berechnen');
    if(!st.port||!st.chip)throw Error('USB-Verbindung zum Chip fehlt');
-   if(!$('allowRam').checked)throw Error('RAM-Schreibzugriff im Schritt 4 aktivieren');
-   if(!st.nvmBackupVerified)throw Error('Zuerst Original-NVM in Schritt 4 lesen und prüfen');
    if(st.writing||st.calTask||st.nvmWorking)throw Error('Ein anderer Vorgang läuft');
-   st.calTask=true;st.writing=true;stopLive();
+   st.calTask=true;st.writing=true;st.ramWriteScope='calibration';stopLive();
    ca('calRamStageMsg','Berechnete DSP-Koeffizienten werden ins RAM übertragen und rückgelesen …','warn');
    const before=await bootSnapshot();await ramGrant();
    const r=st.calfit.registers;
@@ -568,7 +572,7 @@ if(typeof document!=='undefined') (function UI(){
    logging('DSP-RAM-Übernahme: '+e.message);
    ca('calRamStageMsg','RAM-Übernahme fehlgeschlagen: '+e.message,'error');
   }
-  finally{if(st.calTask){await ramLock();st.calTask=false;st.writing=false}renderStatus()}
+  finally{if(st.calTask){await ramLock();st.ramWriteScope=null;st.calTask=false;st.writing=false}renderStatus()}
  }
  async function verifyCalRam(){
   let isChecking=false;
@@ -622,8 +626,7 @@ if(typeof document!=='undefined') (function UI(){
   if(st.nvmWorking||st.writing)return;
   let chipProgrammingStarted=false;
   try{
-   if(st.mode!=='usb'||!st.chip||!st.port||!$('allowRam').checked||!st.nvmBackupVerified||!st.calImage||!verificationComplete())throw Error('Hardware, Sicherungen oder Kalibrierverifikation fehlen');
-   if(!$('nvmConfirm').checked)throw Error('Risikohinweis muss ausdrücklich bestätigt sein');
+   if(st.mode!=='usb'||!st.chip||!st.port||!st.nvmBackupVerified||!st.calImage||!verificationComplete())throw Error('Hardware, Sicherungen oder Kalibrierverifikation fehlen');
    const id=h(st.nvmBackup[1],2)+h(st.nvmBackup[0],2);
    if($('nvmConfirmId').value.trim().toUpperCase()!==id)throw Error('Chipkennung stimmt nicht');
    if($('nvmConfirmWord').value.trim()!=='PROGRAMMIEREN')throw Error('Bestätigungswort fehlt');
@@ -631,7 +634,7 @@ if(typeof document!=='undefined') (function UI(){
    if(CAL.crc16(initial)!==initial[63]||CAL.crc16(modified)!==modified[63])throw Error('CRC16-Prüfung fehlgeschlagen');
    if(st.calfit.stats.maxDigits>100)throw Error('Fitfehler zu gross (>100 Digits)');
    if(st.calImage.changes.some(c=>c.index<28||![28,33,34,35,36,37,38,39,40,41,42,43,44,45,46,47,48,49,50,31,32,51,52,53,54,63].includes(c.index)))throw Error('Unzulässige NVM-Änderung');
-   st.nvmWorking=true;st.calTask=true;st.writing=true;stopLive();lsSet('elmos8-prewrite-backup',JSON.stringify({id,words:initial,ts:new Date().toISOString()}));
+   st.nvmWorking=true;st.calTask=true;st.writing=true;st.ramWriteScope='nvm';stopLive();lsSet('elmos8-prewrite-backup',JSON.stringify({id,words:initial,ts:new Date().toISOString()}));
    ca('nvmMsg','NVM wird programmiert. USB-Verbindung nicht trennen, Versorgung stabil halten.','warn');
    const beforeBoot=await bootSnapshot();await ramGrant();
    for(const i of [0,1,16,17,18,19,20,21,22,23,27,28,63]){const check=await nvmReadWord(i*2);if(check!==initial[i])throw Error(`Chip-NVM hat sich seit dem Backup verändert (Index ${i})`)}
@@ -657,14 +660,14 @@ if(typeof document!=='undefined') (function UI(){
    st.nvmDone=true;st.nvmBackup=after;st.nvmBackupVerified=true;st.calImage=null;lsSet('elmos8-last-program',JSON.stringify({id,words:after,ts:new Date().toISOString()}));
    ca('nvmMsg',`NVM-Programmierung, vollständiges Rücklesen und CRC16 erfolgreich. Jetzt Versorgung kontrolliert neu starten und Schnittstellen erneut prüfen.`,`success`);
   }catch(e){ca('nvmMsg',`NVM-Vorgang fehlgeschlagen: ${e.message}.${chipProgrammingStarted?' NVM-Schreibversuch wurde bereits begonnen: Chip nicht unkontrolliert neu starten, Backup und Diagnose sichern!':' Es wurden keine NVM-Schreibbefehle gestartet.'}`,'error');logging('NVM FEHLER: '+e.message)}
-  finally{if(st.calTask){try{await maintWrite(0x4E,0x0000)}catch(e){logging('NVM-Zugriffssperre: '+e.message)}await ramLock()};st.nvmWorking=false;st.calTask=false;st.writing=false;$('nvmConfirm').checked=false;$('nvmConfirmWord').value='';renderStatus()}
+  finally{if(st.calTask){try{await maintWrite(0x4E,0x0000)}catch(e){logging('NVM-Zugriffssperre: '+e.message)}await ramLock()};st.ramWriteScope=null;st.nvmWorking=false;st.calTask=false;st.writing=false;$('nvmConfirmWord').value='';renderStatus()}
  }
  async function postBootCheck(){try{
    if(!$('nvmRebootConfirm').checked)throw Error('Zuerst bestätigen, dass der Chip tatsächlich neu gestartet wurde');
-   if(!st.chip||st.mode==='demo'||!$('allowRam').checked)throw Error('Erneut verbinden und RAM-Freigabe aktivieren');
+   if(!st.chip||st.mode==='demo')throw Error('Erneut mit dem Sensor verbinden');
    const saved=lsGet('elmos8-last-program');if(!saved)throw Error('Kein erfolgreiches früheres NVM-Programmierprotokoll im Browser');
    const expected=JSON.parse(saved);if(!expected.words||expected.words.length!==64)throw Error('Vorheriges NVM-Backup ungültig');
-   await nvmScan();if(!st.nvmBackupVerified)throw Error('NVM nach Neustart nicht lesbar');
+   await nvmScan({postBoot:true});if(!st.nvmBackupVerified)throw Error('NVM nach Neustart nicht lesbar');
    const nowId=h(st.nvmBackup[1],2)+h(st.nvmBackup[0],2);
    if(nowId!==expected.id)throw Error('Anderer Chip angeschlossen');
    if(st.nvmBackup.some((v,i)=>expected.words[i]!==v))throw Error('NVM nach Neustart weicht vom programmierten Abbild ab');
