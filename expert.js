@@ -283,13 +283,40 @@ const ELMOS_EXPERT=(()=>{
    const entry={format:'E70311-CM64-v2',uid:st.uid.hex,created,source:'Manueller Export',words:st.nvmBackup.slice(),version:st.uid.version};
    download('ELMOS_E70311_UID_'+st.uid.hex+'_'+created.replace(/[:.]/g,'-')+'.json',JSON.stringify(entry,null,2));
   }
+  function showExpertWorkspace(open){
+   if(open&&!$('expertMode').checked)return;
+   $('expertWorkspace').hidden=!open;
+   if(open){
+    $('settingsPanel').hidden=true;
+    $('settingsOpen').setAttribute('aria-expanded','false');
+    $('expertToolsDetails').open=true;
+    $('expertWorkspaceClose').focus();
+   }else if($('expertMode').checked){
+    $('settingsOpen').focus();
+   }
+  }
+  $('expertWorkspaceOpen').addEventListener('click',()=>showExpertWorkspace(true));
+  $('expertWorkspaceClose').addEventListener('click',()=>showExpertWorkspace(false));
+  document.addEventListener('keydown',event=>{
+   if(event.key==='Escape'&&!$('expertWorkspace').hidden)showExpertWorkspace(false);
+  });
   $('expertMode').addEventListener('change',()=>{
    const enabled=$('expertMode').checked;
    $('expertPanel').hidden=!enabled;
    document.querySelectorAll('[data-expert-area]').forEach(section=>{section.hidden=!enabled});
-   if(enabled)renderBackups();
-   else {if(st.restorePlan&&st.calImage===st.restorePlan)st.calImage=null;st.restorePlan=null;}
-   renderFlowState()
+   $('settingsOpen').classList.toggle('is-expert',enabled);
+   $('settingsMsg').textContent=enabled?
+    'Expertenmodus aktiv: Register, NVM und Backups sind in einem eigenen Fenster zugänglich. Aktivieren schreibt keine Werte in den Chip.':
+    'Expertenmodus deaktiviert. Die Kalibrierung und die Chipwerte wurden dadurch nicht verändert.';
+   if(enabled){
+    renderBackups();
+    showExpertWorkspace(true);
+   }else{
+    showExpertWorkspace(false);
+    if(st.restorePlan&&st.calImage===st.restorePlan)st.calImage=null;
+    st.restorePlan=null;
+   }
+   renderFlowState();
   });
   function renderOutputMode(){
    const mode=$('expertOutputMode').value;
