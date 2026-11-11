@@ -598,25 +598,31 @@ if(typeof document!=='undefined') (function UI(){
  }
  async function nvmScan(options={}){
   let started=false;
-  const postBoot=options?.postBoot===true,expertRead=options?.expertRead===true&&$('expertMode').checked;
+  const postBoot=options?.postBoot===true,expertRead=options?.expertRead===true&&$('expertMode').checked,preview=options?.preview===true;
   const backupStarted=Date.now();
   try{
    if(!postBoot&&!expertRead&&!verificationComplete())throw Error('Zuerst DSP-Kalibrierung im RAM erfolgreich prüfen (oder im Expertenmodus nur auslesen)');
    if(!st.port||!st.chip||st.mode==='demo')throw Error('Ein echter Chip muss verbunden sein');
    if(st.writing||st.calTask||st.nvmWorking)throw Error('Ein anderer Vorgang läuft');
    st.calTask=true;st.writing=true;st.ramWriteScope='backup';started=true;stopLive();
-   ca('backupMsg','Original-NVM wird gelesen und geprüft …','warn');
+   ca('backupMsg',preview?'NVM wird für die Änderungsvorschau gelesen und mit CRC geprüft …':'Original-NVM wird gelesen und geprüft …','warn');
    ca('nvmMsg','NVM wird vollständig gelesen …','warn');
    const before=await bootSnapshot();await ramGrant();const words=[];
-   for(let i=0;i<64;i++){words.push(await nvmReadWord(i*2));$('nvmProgress').textContent=`NVM Backup ${i+1}/64`;$('backupProgress').textContent=`NVM-Backup: ${i+1} / 64 Wörter`}
+   for(let i=0;i<64;i++){words.push(await nvmReadWord(i*2));$('nvmProgress').textContent=`NVM lesen: ${i+1}/64`;$('backupProgress').textContent=`NVM: ${i+1} / 64 Wörter`}
    const crc=CAL.crc16(words);
    if(crc!==words[63])throw Error(`CRC16 im bestehenden NVM ungültig: berechnet 0x${h(crc,2)}, gelesen 0x${h(words[63],2)}. Programmierung nicht zulässig.`);
    const factoryCRC=CAL.crc8(words),factoryHigh=(words[15]>>>8);
    if(factoryCRC!==factoryHigh)throw Error(`Werks-CRC8 stimmt nicht: 0x${h(factoryCRC)} statt 0x${h(factoryHigh)}. Programmierung gesperrt.`);
    for(const index of [0,1,15,16,17,18,19,20,22,27,28,63])if(await nvmReadWord(index*2)!==words[index])throw Error('NVM bei Wiederholungslesung unstabil (Wort '+index+')');
    const after=await bootSnapshot();if(!sameBoot(before,after))throw Error('Bootregister haben sich beim NVM-Lesen verändert');
-   st.nvmBackup=words;st.nvmBackupVerified=true;st.calImage=null;expert.afterNvmScan();ca('backupMsg','Original-NVM vollständig gelesen und geprüft: 64 Wörter, CRC8 und CRC16 bestätigt. Backup herunterladen und danach NVM-Änderungen kontrollieren.','success');$('backupProgress').textContent='64 / 64 Wörter – Prüfung erfolgreich in '+((Date.now()-backupStarted)/1000).toFixed(1)+' s.';
-   ca('nvmMsg',`Vollständiges 64-Wort-Backup gelesen, CRC8 und CRC16 bestätigt. Chipkennung SER0/SER1: ${h(words[1],2)}${h(words[0],2)}. Backup jetzt herunterladen.`,'success');
+   st.nvmBackup=words;st.nvmBackupVerified=true;st.calImage=null;
+   const shouldArchive=expertRead||(!preview&&$('nvmAutoBackup').checked);
+   if(shouldArchive)expert.afterNvmScan();
+   ca('backupMsg','NVM vollständig gelesen: 64 Wörter, CRC8 und CRC16 geprüft.'+
+    (preview?' Noch kein dauerhaftes Backup angelegt; das geschieht bei der endgültigen Programmierung nur auf Wunsch.':
+     shouldArchive?' Chipbezogene Backup-Historie aktualisiert.':' Kein dauerhaftes Backup angelegt.'),'success');
+   $('backupProgress').textContent='64 / 64 Wörter – Prüfung erfolgreich in '+((Date.now()-backupStarted)/1000).toFixed(1)+' s.';
+   ca('nvmMsg',`Aktuelles NVM gelesen und CRC8/CRC16 geprüft. Chipkennung SER1/SER0: ${h(words[1],2)}${h(words[0],2)}. ${preview?'Änderungsplan wird berechnet.':'NVM-Lesung erfolgreich.'}`,'success');
   }catch(e){
    logging('NVM-Backup: '+e.message);
    st.nvmBackup=null;st.nvmBackupVerified=false;
@@ -624,6 +630,7 @@ if(typeof document!=='undefined') (function UI(){
    ca('backupMsg','NVM-Backup fehlgeschlagen: '+e.message,'error');
   }
   finally{if(started){await ramLock();st.ramWriteScope=null;st.calTask=false;st.writing=false}renderStatus()}
+  return !!st.nvmBackupVerified
  }
  async function applyCalRam(){
   try{
@@ -687,15 +694,26 @@ if(typeof document!=='undefined') (function UI(){
   }catch(e){st.calVerified=false;st.calImage=null;ca('calRamMsg','DSP-Verifikation: '+e.message,'error')}
   finally{if(isChecking)st.calTask=false;renderFlowState()}
  }
- function prepareNvm(){try{if(st.calTask||st.writing)throw Error('Wartungsvorgang läuft');
-  if(!st.nvmBackupVerified||!coefficientSettingsCurrent()||!verificationComplete()||!st.calStaged)throw Error('NVM-Backup, berechnete Koeffizienten und bestandene DSP-RAM-Verifikation für die gewählte Anzahl Prüfpunkte nötig');
-  const image=CAL.configFrom(st.nvmBackup,st.calfit,st.afe??0x800,{output:st.expertOutputPlan});
-  if(image.changes.some(c=>(c.index<28&&![16,22].includes(c.index))||c.index===29||c.index===30))throw Error('Unzulässiges NVM-Register im Änderungsplan');
-  if(image.changes.length===0)throw Error('Keine NVM-Änderungen nötig');
-  st.calImage=image;$('nvmDiff').textContent=image.changes.map(c=>`NVM 0x${h(c.address)} [${c.index}] 0x${h(c.from,2)} → 0x${h(c.to,2)}`).join('\n');
-  ca('nvmMsg',`${image.changes.length} von 64 Wörtern werden geändert (CRC16 zuletzt). Werksbereich 0x00–0x1E und Boot-/Kommunikationsregister ausser freigegebenen AODO-Bits bleiben unverändert.${verificationRequiredCount()===1?' ACHTUNG: Nur ein Prüfpunkt bestanden – der restliche Druckbereich ist ungeprüft.':''}`,`warn`);
- }catch(e){st.calImage=null;ca('nvmMsg','Vorbereitung: '+e.message,'error')}
-  finally{renderFlowState()}
+ async function prepareNvm(){
+  try{
+   if(st.calTask||st.writing||st.nvmWorking)throw Error('Anderer Chipvorgang läuft');
+   if(!coefficientSettingsCurrent()||!verificationComplete()||!st.calStaged)throw Error('Zuerst DSP-RAM-Kalibrierung mit allen gewählten Prüfpunkten erfolgreich abschliessen');
+   // Lesen ist für den Vergleich immer erforderlich. Ein dauerhaftes Backup wird hier NICHT gespeichert.
+   const readOK=await nvmScan({preview:true});
+   if(!readOK||!st.nvmBackupVerified||!st.nvmBackup)throw Error('NVM konnte nicht vollständig und CRC-geprüft gelesen werden');
+   if(!st.uid||st.uid.ser0!==st.nvmBackup[0]||st.uid.ser1!==st.nvmBackup[1])throw Error('Chip-UID kann dem aktuellen NVM nicht eindeutig zugeordnet werden');
+   const image=CAL.configFrom(st.nvmBackup,st.calfit,st.afe??0x800,{output:st.expertOutputPlan});
+   if(image.changes.some(c=>(c.index<28&&![16,22].includes(c.index))||c.index===29||c.index===30))throw Error('Unzulässiges NVM-Register im Änderungsplan');
+   if(!image.changes.length)throw Error('Keine NVM-Änderungen nötig');
+   st.calImage=image;
+   $('nvmDiff').textContent=image.changes.map(c=>`NVM 0x${h(c.address)} [${c.index}] 0x${h(c.from,2)} → 0x${h(c.to,2)}`).join('\n');
+   ca('nvmMsg',image.changes.length+' von 64 NVM-Wörtern werden verändert (CRC16 zuletzt). Factory-/Bootschutz geprüft.'+
+     (verificationRequiredCount()===1?' Nur ein unabhängiger DSP-Prüfpunkt wurde verifiziert.':''),'warn');
+   $('nvmProgress').textContent='NVM gelesen · Änderungsliste bereit';
+  }catch(e){
+   st.calImage=null;
+   ca('nvmMsg','Vorbereitung fehlgeschlagen: '+e.message,'error');
+  }finally{renderFlowState()}
  }
  async function nvmProgram(){
   if(st.nvmWorking||st.writing)return;
