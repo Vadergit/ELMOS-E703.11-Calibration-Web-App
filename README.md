@@ -2,7 +2,7 @@
 
 **Ein geführter Kalibrierassistent für den ELMOS E703.11 und das SSP3-Eval-Board.** Ziel ist ein verständlicher Abgleich, der auch ohne tiefere Vorkenntnisse Schritt für Schritt funktioniert. Wer mehr benötigt, kann zusätzliche Messpunkte, DSP-Parameter und einen geschützten Expertenmodus verwenden.
 
-**Version: v0.3.3** · [Änderungsverlauf](CHANGELOG.md)
+**Version: v0.3.4** · [Änderungsverlauf](CHANGELOG.md)
 
 **[Web-App öffnen](https://vadergit.github.io/ELMOS-E703.11-Calibration-Web-App/)** · **[Bedienungsanleitung](ANLEITUNG.md)** · **[Ausgang & 1-Wire erklärt](AUSGANG_1WIRE.md)** · **[Testbericht und Grenzen](TESTBERICHT.md)**
 
@@ -28,7 +28,7 @@
 | NVM | Vor dem permanenten Schreiben vollständige **64-Wort-Lesung**, CRC-/Schutzprüfung und Änderungsliste; optionales Backup; 48-Bit-Chip-UID wird automatisch eingetragen und beim Schreiben geprüft |
 | Ausgangskonfiguration | Eigener **Schritt 6**, PSSC-orientiert mit Digital Interface, AODO pin, Scaling, Limiting, Error Signaling und Error Values. **«One Wire only»** als bedingt wählbarer Betriebszustand mit Prüfung des Original-NVM. Nicht validierte Registeroptionen bleiben nur lesbar |
 | 1-Wire-Startschutz | Vor NVM-Schreiben Prüfung von AODO-Modus 1–5, PLC-Startup, Downstream/Upstream und persistentem Registerzugriff. **One Wire only benötigt bereits plc_en=1 im Original-NVM**; der Assistent ändert keine Bootregister. Kaltstarttest weiter nötig |
-| Expertenmodus | Über **⚙ Einstellungen** aktivieren. NVM-/EEPROM-Leser und chipbezogene Backups unter **NVM** |
+| Expertenmodus | Über **⚙ Einstellungen → Expertenparameter freischalten** aktivieren. Öffnet sofort ein eigenes Diagnosefenster mit Registerleser, NVM-/EEPROM-Übersicht, Chip-UID und Backups; unabhängig von den Kalibrierschritten |
 | Diagnose | Register-/Chipanzeige, technisches Log, Demo-Modus und Dokumentation |
 
 Für Entwickler gibt es **18 Software-Regressionstests** (Stand v0.3.3) mit Node.js: `node --test tests/safety.test.cjs`. Die Prüfungen umfassen unveränderte Boot-/Kommunikationswörter, One-Wire-only-Bedingungen, S0/S1-Skalierung und die sieben Schritte. Die Tests ersetzen keine echte Hardwareprüfung.
@@ -49,14 +49,14 @@ Die Browser-App verwendet eine **eigene JavaScript-Koeffizientenberechnung**, ni
 
 ## Einstellungen und Expertenfunktionen
 
-Das **Zahnrad oben rechts** öffnet die App-Einstellungen. Hier lassen sich Expertenparameter, Hover-Hilfen, die Standard-Sample-Anzahl und das Live-Abfrageintervall einstellen.
+Das **Zahnrad oben rechts** öffnet die App-Einstellungen. Hier lassen sich Expertenwerkzeuge, Hover-Hilfen, die Standard-Sample-Anzahl und das Live-Abfrageintervall einstellen. **Der Expertenmodus öffnet sofort das separate Diagnosefenster**, ohne dass die DSP-Prüfung abgeschlossen sein muss. Das Fenster kann geschlossen und über «Expertenwerkzeuge öffnen» erneut angezeigt werden. Das Zahnrad zeigt im aktivierten Zustand «EXPERT» an.
 
 Die **Ausgangskonfiguration** besitzt Schritt 6 nach «DSP prüfen» und vor «NVM programmieren». «One Wire only» ist **kein eigener CFG_EN.aodo_en-Wert**, sondern die Anzeige einer bereits permanent aktiven 1-Wire-Schnittstelle, bei der AODO für Kommunikation belegt ist. Die Wahl ändert **keine** Bootregister und ist gesperrt, wenn das Original-NVM keine dauerhafte 1-Wire-Aktivierung aufweist. [Details und Register](AUSGANG_1WIRE.md). **S0/S1 sind Zielspannungen**, bei 5 V standardmässig 0.5 / 4.5 V. Die aktuelle Chipkonfiguration erscheint separat und kann diese Vorgabe nicht mehr überschreiben. Der Knopf «Standard 10–90 % VDD einsetzen» stellt plausible Ausgangswerte wieder her. AODO-Ausgangsmodi sind nicht dasselbe wie 1-Wire-/I²C-/SPI-Kommunikationsschnittstellen. Ein Wechsel am SSP3 programmiert nicht die Boot-/Kommunikationsregister des Sensors.
 
-Mit aktivem **Expertenmodus** erscheinen weitere Funktionen:
+Mit aktivem **Expertenmodus** sind in einem separaten, jederzeit erreichbaren Fenster folgende Funktionen verfügbar (kein NVM-Schreiben durch Aktivieren):
 
 - **Ausgang konfigurieren (für alle sichtbar):** PSSC-Bezeichnungen für Analog Ratiometric 0..5 V, PWM, FM und bedingt **One Wire only** (permanenter PLC-Betrieb muss im Original-NVM bereits bestehen); High-Z und Alarm werden wegen des geforderten 1-Wire-Starts nur als gesperrte Optionen angezeigt; automatische S0/S1-Spannungs-zu-AODO_F/AODO_O-Berechnung mit Q3.12-Quantisierung und Vorschau. Absolute 0..10 V und 4..20 mA sind für den E703.11 nicht freigeschaltet. Limiting, Error Signaling und digitale Boot-Einstellungen werden nur als geschützte Diagnosefelder gezeigt. Änderungen werden zuerst als Vorschlag geprüft; auch eine reine Ausgangsänderung bei bereits kalibriertem Sensor ist vorgesehen.
-- **NVM:** Dokumentierte Hauptregister und vollständige EEPROM-/NVM-Ansicht, 48-Bit-UID (**VERSION + SER1 + SER0**), lokale Backup-Historie und Import/Vergleich eines passenden Backups.
+- **Expertenfenster:** Dokumentierte Hauptregister und vollständige EEPROM-/NVM-Ansicht, 48-Bit-UID (**VERSION + SER1 + SER0**), lokale Backup-Historie und Import/Vergleich eines passenden Backups.
 - **Schutz:** Factory-Wörter werden nicht frei beschrieben. Kommunikations-/Bootwerte bleiben gesperrt; nur gezielt freigegebene AODO-Felder sind über den validierten Schreibplan veränderbar. Keine allgemeinen Rohregister-Schreibbefehle.
 
 **Backups:** Die Option **«Altes NVM automatisch sichern»** ist standardmässig aktiv, aber abwählbar. Auch ohne dauerhafte Sicherung wird das Original-NVM zum Schutzvergleich vollständig gelesen. Lokale Browserdaten sind kein verlässliches Langzeitarchiv; wichtige JSON-Backups zusätzlich auf dem PC aufbewahren. Eine Wiederherstellung erfolgt nie automatisch.
@@ -95,4 +95,4 @@ Verwendet wurde **E703.11 25DS0170E.04, Production Data vom 16.11.2023**: §6.3.
 
 Der Assistent erfordert für NVM-Schreibvorgänge die im Original-NVM nachweisbare PLC-Startaktivierung, Downstream- und Upstream-Kommunikation und einen persistenten Register-Lese-/Schreibzugang. Sensoren, die nur über eine kurzzeitige Magic-Cookie-Freigabe kommunizieren, werden vorsorglich nicht dauerhaft programmiert. Die App ändert keine geschützten Startup-Register, um diese Situation zu umgehen. Ein Hardware-Kaltstarttest bleibt Pflicht.
 
-**Versions- und Cache-Hinweis:** Die Skript-Dateien werden in v0.3.3 mit derselben Versionskennung wie die Web-App geladen. Für die Überprüfung im Browser gegebenenfalls mit `Ctrl + F5` neu laden.
+**Versions- und Cache-Hinweis:** Die Skript-Dateien werden in v0.3.4 mit derselben Versionskennung wie die Web-App geladen. Für die Überprüfung im Browser gegebenenfalls mit `Ctrl + F5` neu laden.
