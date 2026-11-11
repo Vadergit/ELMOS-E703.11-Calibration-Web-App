@@ -2,7 +2,7 @@
 
 **Ein geführter Kalibrierassistent für den ELMOS E703.11 und das SSP3-Eval-Board.** Ziel ist ein verständlicher Abgleich, der auch ohne tiefere Vorkenntnisse Schritt für Schritt funktioniert. Wer mehr benötigt, kann zusätzliche Messpunkte, DSP-Parameter und einen geschützten Expertenmodus verwenden.
 
-**Version: v0.2.0** · [Änderungsverlauf](CHANGELOG.md)
+**Version: v0.2.1** · [Änderungsverlauf](CHANGELOG.md)
 
 **[Web-App öffnen](https://vadergit.github.io/ELMOS-E703.11-Calibration-Web-App/)** · **[Bedienungsanleitung](ANLEITUNG.md)** · **[Testbericht und Grenzen](TESTBERICHT.md)**
 
@@ -20,7 +20,7 @@
 | Bereich | Aktueller Stand |
 | --- | --- |
 | Verbindung | Browserbasiert über **Chrome / Web Serial**, FTDI / SSP3, standardmässig **1-Wire (AODO)**; I²C/SPI-Optionen |
-| Live-Werte | Obere Statusleiste mit **ADC_S**, **ADC_T**, **DSP_S** und umgerechnetem Sensorwert; Live-Status und letzter Messzeitpunkt in allen sechs Schritten |
+| Live-Werte | Obere Statusleiste mit **ADC_S**, **ADC_T**, **DSP_S** und umgerechnetem Sensorwert; Live-Status und letzter Messzeitpunkt in allen sieben Schritten |
 | AFE-Abgleich | Diskrete **− / +** Tasten in der Reihenfolge **PGA1 → Offset → PGA2**. Jeder Klick schreibt die neue Einstellung direkt ins **RAM** und liest sie zurück. Kein NVM-Schreiben |
 | Messpunkte | **2–10 Kalibrierpunkte** (Standard 2), eigene Namen, Referenzen und Temperaturen; **1–100 Samples** pro Punkt (Standard 12), Median und Streuungsprüfung |
 | Koeffizienten | Berechnung im Browser, einstellbare Polynomordnungen und symmetrischer DSP-Zielbereich **±1’000 bis ±32’000 Digits** |
@@ -30,6 +30,8 @@
 | 1-Wire-Startschutz | NVM-Programmierung nur über bestätigte 1-Wire-Sitzung; Factory- und Boot-/Kommunikationswerte unverändert. Echte Startprüfung nach Neustart weiterhin nötig |
 | Expertenmodus | Über **⚙ Einstellungen** aktivieren. NVM-/EEPROM-Leser und chipbezogene Backups unter **NVM** |
 | Diagnose | Register-/Chipanzeige, technisches Log, Demo-Modus und Dokumentation |
+
+Für Entwickler gibt es einfache Regressionstests mit Node.js: `node --test tests/safety.test.cjs`. Die Tests prüfen die unveränderten Boot-/Kommunikationswörter und die sieben Schritte, ersetzen aber keine echte Hardwareprüfung.
 
 Die Browser-App verwendet eine **eigene JavaScript-Koeffizientenberechnung**, nicht die originale Elmos-Kalibrier-DLL. Eine Übereinstimmung mit der Herstellersoftware muss auf der Zielhardware verifiziert werden.
 
