@@ -30,9 +30,9 @@ if(typeof document!=='undefined') (function UI(){
  const LOCKED=[4,6,8,10,12,16],R_AFE=0x1C;
  const CAL=ELMOS_CAL; const CAL_REGS=[0x6C,0x6E,0x70,0x72,...Array.from({length:16},(_,i)=>0x74+2*i),0x94,0x96,0x98,0x9A];
  const REG_NAMES={4:'CFG_EN',6:'CFG_SPI_I2C',8:'CFG_PADS0',10:'CFG_PADS1',12:'CFG_PADS2',16:'CFG_AODO',0x14:'CFG_ADC',0x16:'CFG_LP0',0x18:'CFG_LP1',0x1A:'CFG_AFE0',0x1C:'CFG_AFE1',0x1E:'CFG_AFE2',0x26:'ADC_TC',0x28:'ADC_T',0x2A:'ADC_S'};
- const st={mode:'offline',port:null,reader:null,readerPromise:null,cmdQueue:Promise.resolve(),replyBuffer:'',responseWait:null,iface:'plc',firmware:'',chip:false,boot:null,afe:null,staged:{pga1:0,pga2:0,offset:0},adc:null,trend:[],history:[],log:[],regs:{},points:{lo:null,hi:null},verify:null,live:false,timeout:null,consecutiveErrors:0,writing:false,pressure:5,calpoints:[],calfit:null,calImage:null,nvmBackup:null,nvmBackupVerified:false,calStaged:false,calVerified:false,calValidation:[],calTask:false,nvmWorking:false,nvmDone:false};
+ const st={mode:'offline',port:null,reader:null,readerPromise:null,cmdQueue:Promise.resolve(),replyBuffer:'',responseWait:null,iface:'plc',firmware:'',chip:false,boot:null,afe:null,staged:{pga1:0,pga2:0,offset:0},adc:null,dsp:null,liveReadPromise:null,trend:[],history:[],log:[],regs:{},points:{lo:null,hi:null},verify:null,live:false,timeout:null,consecutiveErrors:0,writing:false,pressure:5,calpoints:[],calfit:null,calImage:null,nvmBackup:null,nvmBackupVerified:false,calStaged:false,calVerified:false,calValidation:[],calTask:false,nvmWorking:false,nvmDone:false};
  let currentStep=0,pendingGain=null,writeTimer=null;let tipEnabled=true;
- const HELP={interface:'Schnittstelle zwischen SSP3-Board und Sensorchip. 1-Wire nutzt AODO (VDD, GND und AODO). Die Einstellung IF_CFG ändert die Programmer-Pins, nicht die NVM-Konfiguration des Sensors.',baud:'Baudrate des USB-UART zwischen Chrome und dem SSP3. Die Herstellersoftware verwendet 115200 Baud als Standard.',adcs:'ADC_S ist der unkompensierte 16-Bit-Druck-ADC. ±25000 Digits ist ein vorsichtiges Ziel für den manuellen Abgleich, keine garantierte Hardwaregrenze.',pga1:'Erste Druckverstärkungsstufe: 3.5×, 6×, 8.5× oder 11× (typische Werte laut Datenblatt 2023). Für gutes SNR möglichst hoch ohne Übersteuerung.',pga2:'Zweite Verstärkungsstufe: typische Faktoren 2× bis 10×. Der Gesamtfaktor ist PGA1 × PGA2.',offset:'17 DAC-Stufen von −400 bis +400 mV/V bezogen auf die Brückenspannung. Die Verschiebung liegt zwischen PGA1 und PGA2.',pressureunit:'Einheit für die Referenz- und Prüfdruckwerte. Für relative Kalibrierungen kann beispielsweise % mit 0 bis 100 gewählt werden. Referenzwerte müssen zum tatsächlichen Prüfstand passen. Einheitenwechsel erfordert neue Messpunkte.',ram:'Schreibt nach manueller Freigabe ausschliesslich die Gain-/Offset-Bits in CFG_AFE1 0x1C im RAM. Kein NVM-/EEPROM-Schreiben. Vorher und nachher liest die App sämtliche Boot-/Kommunikationsregister.',};
+ const HELP={interface:'Schnittstelle zwischen SSP3-Board und Sensorchip. 1-Wire nutzt AODO (VDD, GND und AODO). Die Einstellung IF_CFG ändert die Programmer-Pins, nicht die NVM-Konfiguration des Sensors.',baud:'Baudrate des USB-UART zwischen Chrome und dem SSP3. Die Herstellersoftware verwendet 115200 Baud als Standard.',adcs:'ADC_S ist der unkompensierte 16-Bit-Druck-ADC. ±25000 Digits ist ein vorsichtiges Ziel für den manuellen Abgleich, keine garantierte Hardwaregrenze.',dsp_live:'DSP_S (Register 0x30) ist der skalierte DSP-Sensorausgang. Die Anzeige liest den realen Chipwert wiederholt und bildet -32000 bis +32000 Digits auf 0 bis 100 % ab. Ein vorhandener Kalibrierbereich kann für die Anzeige manuell gesetzt werden. Ein DSP-Wert allein belegt keine gültige Kalibrierung.',pga1:'Erste Druckverstärkungsstufe: 3.5×, 6×, 8.5× oder 11× (typische Werte laut Datenblatt 2023). Für gutes SNR möglichst hoch ohne Übersteuerung.',pga2:'Zweite Verstärkungsstufe: typische Faktoren 2× bis 10×. Der Gesamtfaktor ist PGA1 × PGA2.',offset:'17 DAC-Stufen von −400 bis +400 mV/V bezogen auf die Brückenspannung. Die Verschiebung liegt zwischen PGA1 und PGA2.',pressureunit:'Einheit für die Referenz- und Prüfdruckwerte. Für relative Kalibrierungen kann beispielsweise % mit 0 bis 100 gewählt werden. Referenzwerte müssen zum tatsächlichen Prüfstand passen. Einheitenwechsel erfordert neue Messpunkte.',ram:'Schreibt nach manueller Freigabe ausschliesslich die Gain-/Offset-Bits in CFG_AFE1 0x1C im RAM. Kein NVM-/EEPROM-Schreiben. Vorher und nachher liest die App sämtliche Boot-/Kommunikationsregister.',};
  const h=P.hx;
  const fmt=n=>n===null||n===undefined||!Number.isFinite(n)?'—':Math.round(n).toLocaleString('de-CH');
  const now=()=>new Date().toLocaleTimeString('de-CH',{hour12:false});
@@ -41,10 +41,61 @@ if(typeof document!=='undefined') (function UI(){
  const hexWords=arr=>arr.map(x=>P.hx(x,2)).join(' ');
  const sleep=ms=>new Promise(r=>setTimeout(r,ms));
  const sameBoot=(a,b)=>!!a&&!!b&&LOCKED.every(k=>a[k]===b[k]);
- function renderStatus(){let connected=!!st.port, demo=st.mode==='demo';$('status').textContent=demo?'DEMO · simuliert':st.chip?'Chip-Leseantwort plausibel':connected?'USB verbunden · Chipprüfung offen':'Nicht verbunden';$('statusDot').className='dot'+(demo?' demo':st.chip?' active':'');$('fw').textContent=st.firmware?st.firmware.slice(0,19):'—';$('chip').textContent=st.chip?'Antwort erhalten':'—';$('ifaceLabel').textContent=st.iface==='plc'?'1-Wire':st.iface==='i2c'?'I²C':'SPI';$('srcLabel').textContent=demo?'DEMO':st.adc?.source==='usb'?'USB / Chip':'Keine Messdaten';$('choose').disabled=connected;$('auto').disabled=connected;$('disconnect').disabled=!connected;$('readNow').disabled=!connected&&!demo;$('live').disabled=!connected&&!demo;$('live').textContent=st.live?'Live-Messung stoppen':'Live-Messung starten';$('readBoot').disabled=!st.chip;$('readRegs').disabled=!st.chip;$('allowRam').disabled=!st.chip||demo;if(!st.chip)$('allowRam').checked=false;$('calRamEnable').checked=$('allowRam').checked;$('afeWord').textContent=st.afe===null?'CFG_AFE1: —':'CFG_AFE1: 0x'+h(st.afe,2);renderFlowState()};
+ function renderStatus(){let connected=!!st.port, demo=st.mode==='demo';$('status').textContent=demo?'DEMO · simuliert':st.chip?'Chip-Leseantwort plausibel':connected?'USB verbunden · Chipprüfung offen':'Nicht verbunden';$('statusDot').className='dot'+(demo?' demo':st.chip?' active':'');$('fw').textContent=st.firmware?st.firmware.slice(0,19):'—';$('chip').textContent=st.chip?'Antwort erhalten':'—';$('ifaceLabel').textContent=st.iface==='plc'?'1-Wire':st.iface==='i2c'?'I²C':'SPI';$('srcLabel').textContent=demo?'DEMO':st.adc?.source==='usb'?'USB / Chip':'Keine Messdaten';$('choose').disabled=connected;$('auto').disabled=connected;$('disconnect').disabled=!connected;$('readNow').disabled=!connected&&!demo;$('live').disabled=!connected&&!demo;$('live').textContent=st.live?'Live-Messung stoppen':'Live-Messung starten';$('readBoot').disabled=!st.chip;$('readRegs').disabled=!st.chip;$('allowRam').disabled=!st.chip||demo;if(!st.chip)$('allowRam').checked=false;$('calRamEnable').checked=$('allowRam').checked;$('afeWord').textContent=st.afe===null?'CFG_AFE1: —':'CFG_AFE1: 0x'+h(st.afe,2);renderFlowState();renderDSPLive()};
  function gainSummary(){for(let k of ['pga1','pga2','offset']){$(k).value=st.staged[k];$(k+'val').textContent=(st.staged[k]>0&&k==='offset'?'+':'')+st.staged[k]}let g=st.staged;$('gainInfo').textContent=`PGA1 ${GAINS1[g.pga1]}× · PGA2 ${GAINS2[g.pga2]}× · Gesamt ${(GAINS1[g.pga1]*GAINS2[g.pga2]).toFixed(2)}× · Offset-DAC ${g.offset*50} mV/V`;renderStatus()}
  
- function pressureUnit(){const opt=$('calUnit').value;return opt==='custom'?($('calUnitOther').value.trim()||'Einheit'):opt}
+
+ function getManualDSPRange(){
+  const min=Number($('dspDisplayMin').value),max=Number($('dspDisplayMax').value);
+  const unit=$('dspDisplayUnit').value;
+  return Number.isFinite(min)&&Number.isFinite(max)&&max>min&&['%','bar','mbar','kPa','psi'].includes(unit)?{min,max,unit,kind:'display'}:null
+ }
+ function getActiveDSPRange(){
+  if(st.calStaged&&st.calfit){
+   const min=Number($('pmin').value),max=Number($('pmax').value);
+   if(Number.isFinite(min)&&Number.isFinite(max)&&max>min)return {min,max,unit:pressureUnit(),kind:'ram'}
+  }
+  return getManualDSPRange()
+ }
+ function dspNumber(n){return Number.isFinite(n)?n.toLocaleString('de-CH',{minimumFractionDigits:2,maximumFractionDigits:2}):'—'}
+ function renderDSPLive(){
+  const connected=!!st.port&&st.chip||st.mode==='demo';
+  const fresh=connected&&st.dsp&&Number.isInteger(st.dsp.raw);
+  const range=getActiveDSPRange();
+  const val=fresh&&range?range.min+(st.dsp.raw+32000)/64000*(range.max-range.min):NaN;
+  const source=st.mode==='demo'?'DEMO – simuliert':st.nvmDone?'Neue Kennlinie in NVM, Neustart noch prüfen':st.calStaged?'Neue Koeffizienten im RAM':st.chip?'DSP-Ausgabe des Chips – Kalibrierung nicht automatisch bestätigt':'Kein Chip verbunden';
+  const time=fresh?new Date(st.dsp.time).toLocaleTimeString('de-CH'):'Noch keine DSP-Messung';
+  for(const prefix of ['afe','verify']){
+   $(prefix+'DspValue').textContent=dspNumber(val);
+   $(prefix+'DspUnit').textContent=range?.unit||'—';
+   $(prefix+'DspRaw').textContent=fresh?'DSP_S: '+fmt(st.dsp.raw)+' Digits':'DSP_S: — Digits';
+   $(prefix+'DspSeen').textContent=range?'Letzte Messung: '+time:'Anzeigebereich ungültig';
+   $(prefix+'DspMode').textContent=source;
+  }
+  const note=$('dspDisplayHint');
+  note.textContent=range?.kind==='ram'?
+   'Die Anzeige verwendet gerade den Referenzbereich aus der aktuellen RAM-Kalibrierung ('+range.min+' bis '+range.max+' '+range.unit+'). Die manuellen Werte werden erst bei bereits kalibrierten Sensoren ohne neue RAM-Kalibrierung verwendet.':
+   range?'Manuelle Zuordnung: DSP_S −32’000 bis +32’000 Digits entspricht '+range.min+' bis '+range.max+' '+range.unit+'. Nur Anzeige; keine Sensorregister verändert.':
+   'Ungültiger Anzeigebereich: Maximum muss grösser als Minimum sein.'
+ }
+ function updateDSP(raw,source){
+  if(!Number.isInteger(raw)||raw<-32768||raw>32767)throw Error('Ungültiger DSP_S-Wert');
+  st.dsp={raw,source,time:Date.now()};renderDSPLive()
+ }
+ function loadDSPDisplay(){
+  const saved=lsGet('elmos-dsp-output-range-v1');if(!saved)return;
+  try{
+   const x=JSON.parse(saved);
+   if(!Number.isFinite(x.min)||!Number.isFinite(x.max)||x.max<=x.min||!['%','bar','mbar','kPa','psi'].includes(x.unit))return;
+   $('dspDisplayMin').value=String(x.min);$('dspDisplayMax').value=String(x.max);$('dspDisplayUnit').value=x.unit;
+  }catch(_){}
+ }
+ function saveDSPDisplay(){
+  const range=getManualDSPRange();
+  if(range)lsSet('elmos-dsp-output-range-v1',JSON.stringify({min:range.min,max:range.max,unit:range.unit}));
+  renderDSPLive()
+ }
+  function pressureUnit(){const opt=$('calUnit').value;return opt==='custom'?($('calUnitOther').value.trim()||'Einheit'):opt}
  function pointName(which){return ($((which==='lo'?'pointLoName':'pointHiName')).value.trim()||('Messpunkt '+(which==='lo'?'1':'2')))}
  function calEndpointsReady(){const a=st.points.lo,b=st.points.hi;return !!a&&!!b&&Number.isFinite(a.v)&&Number.isFinite(b.v)&&Math.abs(a.v-b.v)>=10&&JSON.stringify(a.gains)===JSON.stringify(b.gains)&&JSON.stringify(a.gains)===JSON.stringify(st.staged)&&st.calpoints.some(x=>x.kind==='lo')&&st.calpoints.some(x=>x.kind==='hi')}
  function verificationRequiredCount(){
@@ -102,7 +153,7 @@ if(typeof document!=='undefined') (function UI(){
   currentStep=next;$('flowMsg').hidden=true;
   document.querySelectorAll('.panel').forEach(x=>x.hidden=Number(x.dataset.panel)!==next);
   document.querySelectorAll('[data-step]').forEach(x=>x.classList.toggle('active',Number(x.dataset.step)===next));
-  renderFlowState();draw()
+  renderFlowState();draw();if((next===1||next===4)&&(st.chip||st.mode==='demo'))startLive()
  }
  function invalidateCalculation(reason){
   st.calfit=null;st.calImage=null;st.calStaged=false;st.calVerified=false;st.calValidation=[];
