@@ -32,7 +32,7 @@
 | EEPROM Viewer | **Eigenständiger Navigationstab** ausserhalb des siebenschrittigen Abgleichs. 64 NVM-/EEPROM-Wörter mit Wortadresse, Bitfield, Hex/Dezimalwert und Schutzstatus; Suche und chipgebundener Backup-Export; Tabelle nur lesbar |
 | Config-Vorlagen | **JSON speichern/laden:** AFE-Gains und Offset, DSP- und Messvorgaben, Ausgang und S0/S1. Keine Seriennummern, Werksregister, EEPROM-Abbilder oder sensorspezifischen Koeffizienten. AFE-Übernahme erst nach separatem RAM-Klick |\n| Diagnose | Register-/Chipanzeige, technisches Log, Demo-Modus und Dokumentation |
 
-Für Entwickler gibt es **23 Software-Regressionstests** (Stand v0.4.0) mit Node.js: `node --test tests/safety.test.cjs`. Geprüft werden Boot-/Kommunikationsschutz, One Wire only, S0/S1-Skalierung, die sieben Kalibrierschritte, der separate EEPROM-Reiter, das Einblenden der Expertenparameter und der sichere Config-Import/-Export. Die Tests ersetzen keine Browser- und Hardwareprüfung.
+Für Entwickler gibt es **24 Software-Regressionstests** (Stand v0.4.0) mit Node.js: `node --test tests/safety.test.cjs`. Geprüft werden Boot-/Kommunikationsschutz, One Wire only, S0/S1-Skalierung, die sieben Kalibrierschritte, der separate EEPROM-Reiter, das Einblenden der Expertenparameter und der sichere Config-Import/-Export. Die Tests ersetzen keine Browser- und Hardwareprüfung.
 
 Die Browser-App verwendet eine **eigene JavaScript-Koeffizientenberechnung**, nicht die originale Elmos-Kalibrier-DLL. Eine Übereinstimmung mit der Herstellersoftware muss auf der Zielhardware verifiziert werden.
 
