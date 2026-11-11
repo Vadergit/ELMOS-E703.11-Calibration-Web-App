@@ -252,9 +252,25 @@ if(typeof document!=='undefined') (function UI(){
   $('nvmBackupRead').disabled=!verificationComplete()||!st.port||!st.chip||st.nvmWorking||st.writing||st.calTask;
   $('nvmBackupDownload').disabled=!st.nvmBackupVerified||!st.nvmBackup;
   $('nvmPrepare').disabled=!verificationComplete()||!st.nvmBackupVerified||!!st.restorePlan||!!st.outputOnlyPlan;
-  $('nvmProgram').disabled=!verified||!st.nvmBackupVerified||!st.calImage;
-  $('nvmProgram').textContent=expert.restoreReady()?'Backup auf diesem Chip wiederherstellen':expert.outputReady()?'AODO-Ausgangseinstellungen im NVM speichern':'Kalibrierung dauerhaft ins NVM schreiben';
-  $('nvmConfirmWord').placeholder=expert.restoreReady()?'WIEDERHERSTELLEN':expert.outputReady()?'AUSGANG SPEICHERN':'PROGRAMMIEREN';
+  const restoring=expert.restoreReady(),outputOnly=expert.outputReady();
+  $('nvmProgram').textContent=restoring?'Backup auf diesem Chip wiederherstellen':outputOnly?'AODO-Ausgangseinstellungen im NVM speichern':'Kalibrierung dauerhaft ins NVM schreiben';
+  const requiredWord=restoring?'WIEDERHERSTELLEN':outputOnly?'AUSGANG SPEICHERN':'PROGRAMMIEREN';
+  $('nvmConfirmWord').placeholder=requiredWord;
+  const recognizedUid=st.uid?.hex||'';
+  $('nvmUidHint').textContent=recognizedUid?'Erkannte Chip-UID: '+recognizedUid+' · Diese UID zur Bestätigung selbst eingeben.':'Chip-UID noch nicht erkannt – bitte Chip verbinden und UID auslesen.';
+  let nvmReason='';
+  if(!verified||st.mode!=='usb')nvmReason='Zuerst die DSP-Prüfung abschliessen und sicherstellen, dass der echte Chip verbunden ist.';
+  else if(!st.nvmBackupVerified||!st.nvmBackup)nvmReason='Zuerst Original-NVM vollständig lesen und prüfen.';
+  else if(!st.calImage)nvmReason='Zuerst «Änderungsliste erstellen» drücken. Danach werden die Bestätigungsfelder freigegeben.';
+  else if(!recognizedUid||st.uid.ser0!==st.nvmBackup[0]||st.uid.ser1!==st.nvmBackup[1])nvmReason='Chip-UID wurde nicht vollständig mit dem NVM-Backup abgeglichen.';
+  else if(!$('nvmConfirmId').value.trim())nvmReason='Änderungsplan bereit. Bitte die 12-stellige Chip-UID tatsächlich ins linke Feld eingeben.';
+  else if($('nvmConfirmId').value.trim().toUpperCase()!==recognizedUid)nvmReason='Die eingegebene Chip-UID stimmt nicht mit dem verbundenen Sensor überein.';
+  else if(!$('nvmConfirmWord').value.trim())nvmReason='Chip-UID stimmt. Bitte rechts das Bestätigungswort '+requiredWord+' eingeben.';
+  else if($('nvmConfirmWord').value.trim()!==requiredWord)nvmReason='Das Bestätigungswort muss exakt '+requiredWord+' lauten.';
+  const approvalGranted=nvmReason==='';
+  $('nvmProgram').disabled=!approvalGranted;
+  $('nvmWritePrereq').textContent=approvalGranted?'Freigabe bereit: Chip-UID und Bestätigungswort stimmen. Der nächste Klick startet die endgültige NVM-Programmierung. Bitte Versorgung und Änderungsliste nochmals kontrollieren.':nvmReason;
+  $('nvmWritePrereq').className='callout '+(approvalGranted?'success':'warn');
   const unlocked=[true,true,true,calEndpointsReady(),ready&&st.calStaged,!workflowGate(5)];
   document.querySelectorAll('[data-step]').forEach(b=>{
    const index=Number(b.dataset.step);b.classList.toggle('locked',!unlocked[index]);
@@ -679,6 +695,7 @@ if(typeof document!=='undefined') (function UI(){
   st.calImage=image;$('nvmDiff').textContent=image.changes.map(c=>`NVM 0x${h(c.address)} [${c.index}] 0x${h(c.from,2)} → 0x${h(c.to,2)}`).join('\n');
   ca('nvmMsg',`${image.changes.length} von 64 Wörtern werden geändert (CRC16 zuletzt). Werksbereich 0x00–0x1E und Boot-/Kommunikationsregister ausser freigegebenen AODO-Bits bleiben unverändert.${verificationRequiredCount()===1?' ACHTUNG: Nur ein Prüfpunkt bestanden – der restliche Druckbereich ist ungeprüft.':''}`,`warn`);
  }catch(e){st.calImage=null;ca('nvmMsg','Vorbereitung: '+e.message,'error')}
+  finally{renderFlowState()}
  }
  async function nvmProgram(){
   if(st.nvmWorking||st.writing)return;
@@ -848,6 +865,7 @@ if(typeof document!=='undefined') (function UI(){
  }
   $('nvmBackupDownload').addEventListener('click',downloadNvmBackup);
  $('nvmPrepare').addEventListener('click',prepareNvm);
+ for(const id of ['nvmConfirmId','nvmConfirmWord'])$(id).addEventListener('input',renderFlowState);
  $('nvmProgram').addEventListener('click',nvmProgram);
  $('nvmPostBoot').addEventListener('click',postBootCheck);
  renderCalPoints();
