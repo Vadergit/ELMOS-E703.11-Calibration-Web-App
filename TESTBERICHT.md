@@ -51,6 +51,8 @@ Dieser Bericht trennt den **im Code beziehungsweise mit simulierten Chipantworte
 
 Die Tests waren **Simulationen oder lokale JavaScript-Prüfungen**. Das Repository enthält inzwischen automatisierte Node-Regressionstests unter `tests/safety.test.cjs`, startbar mit `node --test tests/safety.test.cjs`. Der Code selbst wird ohne Buildprozess direkt durch GitHub Pages ausgeliefert. Die Tests ersetzen keine echte Hardwareprüfung.
 
+Die automatisierten Software-Regressionstests umfassen in **v0.3.4 insgesamt 19 Fälle**. Zusätzlich wurden vorhandene HTML-IDs, die Referenzen aus den JavaScript-Dateien und einheitliche Browser-Skriptversionen geprüft. Ein vollwertiger Browser-End-to-End-Test und reale Sensorhardware stehen weiterhin aus.
+
 ## Offene Prüfungen vor produktivem Einsatz
 
 - **Original PSSC-GUI vergleichen:** Gleiche Referenzdrücke, Temperaturpunkte, Koeffizienten und DSP-Ausgabe mit der Herstellerlösung vergleichen.
