@@ -1,12 +1,22 @@
 # Bedienungsanleitung – ELMOS E703.11
 
-**Dokumentationsstand v0.4.2** Kalibrierassistent
+**Dokumentationsstand v0.5.0** Kalibrierassistent
 
 **[Web-App öffnen](https://vadergit.github.io/ELMOS-E703.11-Calibration-Web-App/)** · **[Projektübersicht](README.md)** · **[Config-Dateien & EEPROM Viewer](CONFIG_DATEIEN.md)** · **[Testbericht](TESTBERICHT.md)**
 
 Diese Anleitung beschreibt die derzeitige Benutzeroberfläche der browserbasierten App für den **ELMOS E703.11** mit **SSP3-Eval-Board**. Ziel ist ein geführter Abgleich mit möglichst wenig Vorwissen und optionalen Expertenfunktionen.
 
 > **Laborprototyp, keine Produktionsfreigabe.** Der vollständige Kalibrier- und NVM-Schreibablauf wurde noch nicht am realen E703.11 als Gesamtsystem validiert. Permanente Änderungen zunächst nur an einem entbehrlichen Testchip erproben.
+
+## Kompaktmodus – One-Pager (optional)
+
+Über **⚙ Einstellungen → «Kompaktmodus · One-Pager»** werden die **originalen Bedienelemente** in einem platzsparenden Arbeitsbereich angezeigt. Standardmässig bleibt die bisherige siebenstufige Normalansicht aktiv. Die Option wird lokal im Browser gespeichert und kann mit «Normalansicht» jederzeit wieder ausgeschaltet werden.
+
+In der Kompaktansicht stehen die Hauptfunktionen gleichzeitig bereit: USB/SSP3 verbinden, PGA1/Offset/PGA2 (mit sofortiger RAM-Übernahme), Config-Vorlagen laden/speichern, Kalibrierpunkte aufnehmen, DSP-Koeffizienten berechnen und ins RAM übertragen, unabhängige DSP-Prüfpunkte messen, AODO-Ausgang wählen und die sichere NVM-Programmierung vorbereiten/ausführen. Die NVM-Freigabe verlangt **unverändert** einen echten Chip, verifizierte Werte, gültige CRC/UID, den geprüften Änderungsplan und die bestehenden Startup-Schutzbedingungen.
+
+Bei **2–10 Kalibrierpunkten** wählt man im Feld «Messpunkt bearbeiten» den gewünschten Punkt; dadurch bleiben die Eingaben auf der Seite kompakt. Zusatzdetails wie Koeffizienten und NVM-Änderungsliste können aufgeklappt werden. Der Expertenmodus erweitert den Ausgangsbereich um die zugehörigen Parameter. Diagnosefunktionen und die vollständigen Erläuterungen sind in der Normalansicht weiterhin zugänglich.
+
+**Bildschirmgrenze:** Der One-Pager ist für Desktop-Monitore ausgelegt. Bei sehr kleinen Auflösungen, vielen geöffneten Detailfeldern oder längeren Rückmeldungen können einzelne Karten intern scrollen; Sicherheitsmeldungen dürfen nicht abgeschnitten oder umgangen werden. Der Kompaktmodus garantiert keine vollständig scrollfreie Darstellung auf jeder Bildschirmgrösse.
 
 ## 1. Start und Verbindung
 
