@@ -100,7 +100,7 @@ const ELMOS_EXPERT=(()=>{
   }
   function propose(){
    try{
-    if(!$('expertMode').checked)throw Error('Expertenmodus ist ausgeschaltet');
+    // Ausgangskonfiguration ist für alle Benutzer zugänglich.
     const values=outputValues();
     if(values.mode==='keep'){
      if(st.outputOnlyPlan&&st.calImage===st.outputOnlyPlan)st.calImage=null;
@@ -130,7 +130,7 @@ const ELMOS_EXPERT=(()=>{
    renderFlowState()
   }
   function outputReady(){
-   return !!($('expertMode').checked&&st.outputOnlyPlan&&st.calImage===st.outputOnlyPlan&&st.nvmBackupVerified&&st.nvmBackup&&st.uid&&
+   return !!(st.outputOnlyPlan&&st.calImage===st.outputOnlyPlan&&st.nvmBackupVerified&&st.nvmBackup&&st.uid&&
     st.outputOnlyPlan.uid===st.uid.hex&&st.outputOnlyPlan.before.every((v,i)=>v===st.nvmBackup[i]))
   }
   function restoreReady(){
@@ -178,9 +178,17 @@ const ELMOS_EXPERT=(()=>{
    $('expertPanel').hidden=!enabled;
    document.querySelectorAll('[data-expert-area]').forEach(section=>{section.hidden=!enabled});
    if(enabled)renderBackups();
-   else {if((st.restorePlan&&st.calImage===st.restorePlan)||(st.outputOnlyPlan&&st.calImage===st.outputOnlyPlan)||st.expertOutputPlan)st.calImage=null;st.restorePlan=null;st.outputOnlyPlan=null;st.expertOutputPlan=null;}
+   else {if(st.restorePlan&&st.calImage===st.restorePlan)st.calImage=null;st.restorePlan=null;}
    renderFlowState()
   });
+  function renderOutputMode(){
+   const mode=$('expertOutputMode').value;
+   $('expertPwmPeriodField').hidden=mode!=='4';
+   const hints={keep:'Bestehende Einstellung bleibt erhalten.',0:'High-Z: AODO deaktiviert.',1:'Ratiometrisch analog · DAC-Korrektur 0 · linear 10–90 % VDD.',2:'Ratiometrisch analog · DAC-Korrektur 1 · linear 10–90 % VDD.',3:'Ratiometrisch analog · DAC-Korrektur 2 · linear 10–90 % VDD.',4:'PWM: Periode und positiven DSP_AODO-Bereich kontrollieren.',5:'FM: positiven DSP_AODO-Bereich kontrollieren.',6:'Alarm-Ausgang: Grenzwerte separat kontrollieren.'};
+   $('outputModeHint').textContent=(hints[mode]||'Unbekannter Modus')+' Änderungen werden nur vorgemerkt und erst im geschützten NVM-Schritt gespeichert.';
+  }
+  $('expertOutputMode').addEventListener('change',renderOutputMode);
+  renderOutputMode();
   for(const id of ['expertOutputMode','expertPwmPeriod','expertScaleEnable','expertScaleGain','expertScaleOffset']){
    $(id).addEventListener('change',()=>{
     if(st.outputOnlyPlan&&st.calImage===st.outputOnlyPlan)st.calImage=null;
