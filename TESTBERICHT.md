@@ -1,3 +1,13 @@
+## AFE-Schrittsteuerung und Grenzen – UI-Test 11.11.2026
+
+- Diskrete Stufen PGA1 (0–3), PGA2 (0–8), Offset (−8 bis +8) statt Slider
+- Simulierte Klicks auf alle sechs ±-Tasten: PGA1 0→1, PGA2 0→1 und Offset 0→2 zeigen richtige physikalische Werte (6×, 2.22×, +100 mV/V)
+- Grenzfälle: Weitere Klicks bei PGA1=3, PGA2=8, Offset=+8 oder −8 werden blockiert
+- Laufender Schreibvorgang: Alle sechs Tasten deaktiviert
+- Keine Änderung der eigentlichen AFE-RAM-/NVM-Schreibfunktionen; Pfeile aktualisieren nur die Vorschau
+- Komplette Web-App-JavaScript-Initialisierung sowie alle erforderlichen DOM-IDs erfolgreich getestet
+- Hardwaretest am echten SSP3/E703.11 steht noch aus
+
 ## NVM-Finalschritt: automatische Sicherung beim Schreiben / optional ohne Backup – Simulation (11.11.2026)
 
 - Neue Oberfläche: kompakte Eingabefelder, zusammengefasste NVM-Lesung und Änderungsvorschau, einklappbare Änderungsliste und manuelles Leseprotokoll
