@@ -98,7 +98,11 @@ Erst nach der bestandenen Prüfung aller gewählten Prüfpunkte wird der normale
 
 ## 7. Ausgang konfigurieren
 
-Im neuen **Schritt 6** folgen die Ausgangseinstellungen nach der DSP-Prüfung. Der AODO-Modus bestimmt die analoge, PWM-, FM- oder Alarm-Ausgabe; **1-Wire und I²C sind dagegen Kommunikationsschnittstellen**. AODO_F skaliert DSP_S, AODO_O verschiebt dessen Ausgangsbereich. Die beiden Werte sind unter «Erweiterte Ausgangsparameter» verborgen und können über «Passende Ausgangsskalierung berechnen» vorgeschlagen werden.
+Im neuen **Schritt 6** folgen die Ausgangseinstellungen nach der DSP-Prüfung. Sie sind nach den PSSC-Bereichen **Digital Interface**, **AODO pin**, **Scaling**, **Limiting**, **Error Signaling** und **Error Values** gegliedert. Nicht bestätigte Hardwareoptionen sind nur lesbar oder deaktiviert. Der AODO-Modus bestimmt die analoge, PWM-, FM- oder Alarm-Ausgabe; **1-Wire und I²C sind dagegen Kommunikationsschnittstellen**. AODO_F skaliert DSP_S, AODO_O verschiebt dessen Ausgangsbereich. Die beiden Werte sind unter «Erweiterte Ausgangsparameter» verborgen und können über «Passende Ausgangsskalierung berechnen» vorgeschlagen werden.
+
+**DSP-Zielbereich:** Wenn «Berechnen & RAM» für die neue Kalibrierung ±25’000 Digits verwendet, müssen auch die Scaling-Punkte S0/S1 −25’000/+25’000 verwenden. Der Assistent übernimmt das automatisch. Eine reine AFE-Empfehlung «ADC_S innerhalb ±25’000» ist dagegen keine DSP-Skalierung und darf nicht damit gleichgesetzt werden.
+
+**Analog Ratiometric:** Bei VDD = 5 V kannst du beispielsweise S0 = 0.5 V und S1 = 4.5 V wählen. AODO_F und AODO_O werden in Q3.12 berechnet und als Vorschau angezeigt. Vor permanenter Programmierung an einem Testchip prüfen.
 
 Für einen bereits kalibrierten Sensor das Original-NVM (64 Wörter) im Ausgangsschritt lesen und überprüfen. Eine neue Kalibrierung ist nicht erforderlich, wenn nur der Ausgang geändert werden soll.
 
