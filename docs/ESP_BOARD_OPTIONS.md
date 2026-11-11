@@ -47,7 +47,7 @@ Dieser Guide umfasst die gängigen ESP32-, Arduino-, RP2040- und weiteren Arduin
 | **ESP32 DevKit V1 / DevKitC / WROOM-32** | USB-UART, kein natives USB im klassischen ESP32 | **GPIO25** | GPIO21 | GPIO22 | 3,3 V | GPIO6–11 für Flash, GPIO34–39 nur Eingang; GPIO0/2/5/12/15 für Boot |
 | **ESP8266 NodeMCU / Wemos D1 mini** | USB-UART | **D5 / GPIO14** | D2 / GPIO4 | D1 / GPIO5 | 3,3 V | D3/GPIO0, D4/GPIO2, D8/GPIO15 beeinflussen Boot; D1/D2 für I²C reserviert |
 
-**Für deinen ESP32-C3 SuperMini:** **GPIO4 für AODO / 1-Wire** sowie **GPIO6 für I²C SDA** und **GPIO7 für I²C SCL** reservieren. **GPIO18 und GPIO19 bleiben für USB.** Im aktuellen USB-Test-Sketch werden GPIO4/6/7 **nicht** angesteuert oder initialisiert.
+**ESP32-C3 SuperMini mit PLC-Firmware v0.4:** GPIO4 ist TX, GPIO5 ist OE, GPIO6 ist RX und GPIO10 schaltet den externen Lastschalter. Beim alternativen I²C-Aufbau sind GPIO6 für SDA und GPIO7 für SCL vorgesehen. GPIO18 und GPIO19 bleiben für USB. Weitere Vorschläge für Lastschalter-Pins stehen in der [USB-Bridge-Tabelle](USB_BRIDGE_GUIDE.md).
 
 ## 2. Gängige originale Arduino-Boards
 

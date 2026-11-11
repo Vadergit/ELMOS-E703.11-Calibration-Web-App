@@ -443,8 +443,8 @@ html.compact-mode .foot{display:none}
  .cp-output-grid{grid-template-columns:1fr 1fr}
  .cp-points .cp-points-setup{grid-template-columns:repeat(3,minmax(0,1fr))}
 }
-</style><link rel="stylesheet" href="guided.css?v=0.6.6"><link rel="stylesheet" href="interface.css?v=0.6.6"></head><body><div class="wrap"><header class="top">
-<div class="brand"><div class="logo" aria-hidden="true">E</div><div><div class="eyebrow">E703.11 · PSSC · v0.6.6</div><h1>Kalibrierassistent</h1></div></div>
+</style><link rel="stylesheet" href="guided.css?v=0.6.7"><link rel="stylesheet" href="interface.css?v=0.6.7"></head><body><div class="wrap"><header class="top">
+<div class="brand"><div class="logo" aria-hidden="true">E</div><div><div class="eyebrow">E703.11 · PSSC · v0.6.7</div><h1>Kalibrierassistent</h1></div></div>
 <div class="live-overview" role="group" aria-label="Sensorwerte · laufende Anzeige">
   <div class="live-kpi" title="Unkompensierter Druck-ADC. Warnung bei Beträgen über 25’000 Digits."><span class="live-kpi-label">ADC_S <span id="liveAdcAlert" class="live-alert" hidden>!</span></span><span class="live-kpi-reading" id="liveAdcS">—</span><span class="live-kpi-unit">Digits</span></div>
   <div class="live-kpi" title="ADC_T · Temperatur-Rohwert, keine direkte Temperatur in °C."><span class="live-kpi-label">ADC_T</span><span class="live-kpi-reading" id="liveAdcT">—</span><span class="live-kpi-unit">Digits</span></div>
@@ -487,7 +487,7 @@ html.compact-mode .foot{display:none}
     <label>Programmieradapter<select id="adapterType"><option value="ssp3">ELMOS SSP3 Evaluation Board · Standard</option><option value="bridge">ESP32 / Arduino USB-Bridge</option></select></label>
     <label>Chip-Schnittstelle <span class="help" data-help="interface">?</span><select id="iface"><option value="plc">1-Wire · AODO (Standard)</option><option value="i2c">I²C · SCL / SDA</option><option value="spi">SPI · Testmodus</option></select></label>
   </div>
-  <div class="fieldrow" id="plcOptions" hidden><label>ESP32 PLC-Baudrate<select id="plcBaud"><option value="100000">100 kBd</option><option value="25000">25 kBd</option></select></label><label class="toggle"><input type="checkbox" id="plcPowerCycle"> Sensorversorgung über GPIO7 steuern</label></div>
+  <div class="fieldrow" id="plcOptions" hidden><label>ESP32 PLC-Baudrate<select id="plcBaud"><option value="100000">100 kBd</option><option value="25000">25 kBd</option></select></label><label class="toggle"><input type="checkbox" id="plcPowerCycle"> Sensorversorgung steuern<span id="sensorPowerPin"></span></label></div>
   <div class="flex connectionActions"><button class="primary" id="choose">USB-Port auswählen</button><button class="connection-link" id="auto">Bekannten Port verbinden</button><button id="disconnect" disabled>Trennen</button><button id="guidedLaunch" type="button" disabled>Geführten Abgleich starten</button></div>
   <div id="connMsg" class="callout" role="status">Wähle den USB-Port deines Adapters. Chrome fragt beim ersten Verbinden nach der Freigabe.</div>
   <dl class="connection-summary">
@@ -506,7 +506,7 @@ html.compact-mode .foot{display:none}
     </div>
   </div>
 </details>
-<details><summary>Verkabelung und Startfenster</summary><div class="inner"><p><b>1-Wire:</b> VDD, GND, AODO. <b>I²C:</b> VDD, GND, SCL, SDA und korrekte SA0-/EOC-Beschaltung. Die App ändert mit IF_CFG nur den SSP3, nicht die Bootkonfiguration des Chips.</p><p>Einige 1-Wire-Konfigurationen reagieren nur kurz nach dem Einschalten. Falls der Chip nicht antwortet, Versorgung und Pin-Beschaltung prüfen. Mit der ESP32-Bridge kann GPIO7 beim Verbindungsaufbau einen externen Lastschalter steuern.</p><p><b>USB-Port kann nicht geöffnet werden?</b> Zuerst die originale PSSC-GUI und andere COM-Port-Programme schliessen. Im Windows-Gerätemanager unter «Anschlüsse (COM & LPT)» muss ein «USB Serial Port (COMx)» ohne Warnsymbol angezeigt werden. Falls nötig das Eval-Board kurz neu einstecken und «Bekannten Port verbinden» erneut versuchen. Fehlender COM-Port: FTDI-VCP-Treiber prüfen (Details im README).</p></div></details>
+<details><summary>Verkabelung und Startfenster</summary><div class="inner"><p><b>1-Wire:</b> VDD, GND, AODO. <b>I²C:</b> VDD, GND, SCL, SDA und korrekte SA0-/EOC-Beschaltung. Die App ändert mit IF_CFG nur den SSP3, nicht die Bootkonfiguration des Chips.</p><p>Einige 1-Wire-Konfigurationen reagieren nur kurz nach dem Einschalten. Falls der Chip nicht antwortet, Versorgung und Pin-Beschaltung prüfen. Mit der ESP32-Bridge kann die Firmware beim Verbindungsaufbau einen externen Lastschalter steuern.</p><p><b>USB-Port kann nicht geöffnet werden?</b> Zuerst die originale PSSC-GUI und andere COM-Port-Programme schliessen. Im Windows-Gerätemanager unter «Anschlüsse (COM & LPT)» muss ein «USB Serial Port (COMx)» ohne Warnsymbol angezeigt werden. Falls nötig das Eval-Board kurz neu einstecken und «Bekannten Port verbinden» erneut versuchen. Fehlender COM-Port: FTDI-VCP-Treiber prüfen (Details im README).</p></div></details>
 <section class="profile-card" aria-labelledby="configTitle">
 <div class="between"><h3 id="configTitle">Config-Vorlagen</h3><span class="pill">Chipunabhängig</span></div>
 <p class="muted small">AFE-Gains/Offset, Mess- und DSP-Einstellungen sowie Ausgangsart/Scaling für weitere Sensoren wiederverwenden. <b>Keine</b> Chip-ID, Werksdaten, DSP-Koeffizienten oder EEPROM-Register werden kopiert. Laden ändert zunächst <b>nur die Vorgaben im Assistenten</b>.</p>
@@ -962,5 +962,5 @@ html.compact-mode .foot{display:none}
 </div>
 <div class="nav"><button data-next="0">Zur Verbindung</button><button data-next="6">Zum NVM-Schritt</button></div>
 </section>
-<div class="foot"><b>Version v0.6.6</b> · <a href="CHANGELOG.md" target="_blank" rel="noopener">Änderungsverlauf</a> · ELMOS E703.11 · unabhängiger Kalibrierprototyp · Sicherheitsprinzip: Factory- und Kommunikations-Bootregister gesperrt; dokumentierte AODO-Ausgangsoptionen nur nach Prüfung im NVM-Plan; Wiederherstellung nur mit passender Chip-UID.</div>
-</main></div></div><div id="tip" class="tooltip"></div><script src="calibration.js?v=0.6.6"></script><script src="eeprom-help.js?v=0.6.6"></script><script src="expert.js?v=0.6.6"></script><script src="config.js?v=0.6.6"></script><script src="guided-plan.js?v=0.6.6"></script><script src="demo.js?v=0.6.6"></script><script src="app.js?v=0.6.6"></script><script src="compact.js?v=0.6.6"></script><script src="guided.js?v=0.6.6"></script></body></html>
+<div class="foot"><b>Version v0.6.7</b> · <a href="CHANGELOG.md" target="_blank" rel="noopener">Änderungsverlauf</a> · ELMOS E703.11 · unabhängiger Kalibrierprototyp · Sicherheitsprinzip: Factory- und Kommunikations-Bootregister gesperrt; dokumentierte AODO-Ausgangsoptionen nur nach Prüfung im NVM-Plan; Wiederherstellung nur mit passender Chip-UID.</div>
+</main></div></div><div id="tip" class="tooltip"></div><script src="calibration.js?v=0.6.7"></script><script src="eeprom-help.js?v=0.6.7"></script><script src="expert.js?v=0.6.7"></script><script src="config.js?v=0.6.7"></script><script src="guided-plan.js?v=0.6.7"></script><script src="demo.js?v=0.6.7"></script><script src="app.js?v=0.6.7"></script><script src="compact.js?v=0.6.7"></script><script src="guided.js?v=0.6.7"></script></body></html>

@@ -10,7 +10,7 @@
 
   Connect GPIO 4/5/6 through an external AODO transceiver.
   A pull-down on its active-high OE keeps it off during reset.
-  GPIO18/19 are reserved for USB. Optional GPIO7 controls a sensor load switch.
+  GPIO18/19 are reserved for USB. Optional GPIO10 controls a sensor load switch.
 */
 #include <Arduino.h>
 #include <string.h>
@@ -132,9 +132,9 @@ static void establishAccess(bool powerCycle) {
 static void onCommand(const char *command) {
   ++requests;
   if (strcmp(command, "BRIDGE_INFO") == 0) {
-    answer("# E70311-BRIDGE V1 CAPS=PLC_UID,PLC_READ,PLC_WRITE,NVM");
+    answer("# E70311-BRIDGE V1 CAPS=PLC_UID,PLC_READ,PLC_WRITE,NVM,POWER_GPIO_10");
   } else if (strcmp(command, ".VERSION") == 0) {
-    answer("# ESP32-C3 SuperMini ELMOS PLC bridge v0.3");
+    answer("# ESP32-C3 SuperMini ELMOS PLC bridge v0.4");
   } else if (strcmp(command, "BRIDGE_PING") == 0) {
     answer("# PONG ESP32-C3 SUPERMini PLC_UID");
   } else if (strcmp(command, "BRIDGE_STATS") == 0) {

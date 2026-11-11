@@ -13,7 +13,7 @@ namespace plc {
 constexpr gpio_num_t Tx = GPIO_NUM_4;
 constexpr gpio_num_t Enable = GPIO_NUM_5;
 constexpr gpio_num_t Rx = GPIO_NUM_6;
-constexpr gpio_num_t Power = GPIO_NUM_7;
+constexpr gpio_num_t Power = GPIO_NUM_10;
 constexpr uint32_t TxMask = 1u << Tx;
 constexpr uint32_t EnableMask = 1u << Enable;
 constexpr uint32_t RxMask = 1u << Rx;

@@ -19,7 +19,7 @@ Der Kalibrierassistent nutzt standardmässig weiterhin das **ELMOS SSP3**. In de
 
 Die [vollständige ESP32-/Arduino-Boardliste](ESP_BOARD_OPTIONS.md) enthält die Belegung für AODO / 1-Wire **und** I²C, I/O-Spannungen und Hersteller-Pinouts.
 
-**Für den bereits vorhandenen ESP32-C3 SuperMini:** Statt des allgemeinen Arduino-Beispiels die neue [C3-SuperMini-Firmware](../firmware/esp32c3_supermini/esp32c3_supermini.ino) verwenden. Arduino IDE → Board **ESP32C3 Dev Module**, **USB CDC On Boot: Enabled**. Nach dem Flashen `BRIDGE_INFO` senden. Die SuperMini-PLC-Firmware meldet `CAPS=PLC_UID,PLC_READ,PLC_WRITE,NVM`.
+**Für den bereits vorhandenen ESP32-C3 SuperMini:** Statt des allgemeinen Arduino-Beispiels die neue [C3-SuperMini-Firmware](../firmware/esp32c3_supermini/esp32c3_supermini.ino) verwenden. Arduino IDE → Board **ESP32C3 Dev Module**, **USB CDC On Boot: Enabled**. Nach dem Flashen `BRIDGE_INFO` senden. Die SuperMini-PLC-Firmware meldet `CAPS=PLC_UID,PLC_READ,PLC_WRITE,NVM,POWER_GPIO_10`.
 
 ## 2. AODO / 1-Wire und I²C – passende MCU-Pins
 
@@ -33,17 +33,17 @@ Die **vollständige Liste aller 27 Boards** mit AODO-/1-Wire-GPIO, USB-Pins, Boa
 
 | Board | AODO / 1-Wire (MCU) | I²C SDA (MCU) | I²C SCL (MCU) | USB zum PC | Sensorversorgung / Neustart |
 | --- | --- | --- | --- | --- | --- |
-| **ESP32-C3 SuperMini** | **GPIO4** (TX) | GPIO6 (alternativ) | GPIO7 (alternativ) | Native USB Serial/JTAG | **GPIO7** (Lastschalter) |
-| **XIAO ESP32C3** | **D2 / GPIO4** | D4 / GPIO6 | D5 / GPIO7 | Nativ | — |
-| ESP32-C3 DevKit / DevKitM | **GPIO4** | GPIO6 | GPIO7 | Nativ oder USB-UART | — |
-| ESP32-S3 DevKitC-1 | **GPIO4** | GPIO8 | GPIO9 | Nativ oder USB-UART | — |
-| XIAO ESP32S3 | **D3 / GPIO4** | D4 / GPIO5 | D5 / GPIO6 | Nativ | — |
-| Arduino Nano ESP32 | **D2 / GPIO5** | A4 / GPIO11 | A5 / GPIO12 | Nativ | — |
-| ESP32-S2 Saola-1 | **GPIO4** | GPIO8 | GPIO9 | Nativ | — |
-| ESP32-C6 DevKitC-1 | **GPIO10** | GPIO6 | GPIO7 | Nativ oder USB-UART | — |
-| XIAO ESP32C6 | **D3 / GPIO21** | D4 / GPIO22 | D5 / GPIO23 | Nativ | — |
-| ESP32 DevKit / WROOM-32 | **GPIO25** | GPIO21 | GPIO22 | USB-UART | — |
-| ESP8266 NodeMCU / Wemos D1 mini | **D5 / GPIO14** | D2 / GPIO4 | D1 / GPIO5 | USB-UART | — |
+| **ESP32-C3 SuperMini** | **GPIO4** (TX) | GPIO6 (alternativ) | GPIO7 (alternativ) | Native USB Serial/JTAG | **GPIO10** (Firmware v0.4) |
+| **XIAO ESP32C3** | **D2 / GPIO4** | D4 / GPIO6 | D5 / GPIO7 | Nativ | D1 / GPIO3 |
+| ESP32-C3 DevKit / DevKitM | **GPIO4** | GPIO6 | GPIO7 | Nativ oder USB-UART | GPIO10 |
+| ESP32-S3 DevKitC-1 | **GPIO4** | GPIO8 | GPIO9 | Nativ oder USB-UART | GPIO10 |
+| XIAO ESP32S3 | **D3 / GPIO4** | D4 / GPIO5 | D5 / GPIO6 | Nativ | D0 / GPIO1 |
+| Arduino Nano ESP32 | **D2 / GPIO5** | A4 / GPIO11 | A5 / GPIO12 | Nativ | D4 / GPIO7 |
+| ESP32-S2 Saola-1 | **GPIO4** | GPIO8 | GPIO9 | Nativ | GPIO10 |
+| ESP32-C6 DevKitC-1 | **GPIO10** | GPIO6 | GPIO7 | Nativ oder USB-UART | GPIO3 |
+| XIAO ESP32C6 | **D3 / GPIO21** | D4 / GPIO22 | D5 / GPIO23 | Nativ | D1 / GPIO1 |
+| ESP32 DevKit / WROOM-32 | **GPIO25** | GPIO21 | GPIO22 | USB-UART | GPIO26 |
+| ESP8266 NodeMCU / Wemos D1 mini | **D5 / GPIO14** | D2 / GPIO4 | D1 / GPIO5 | USB-UART | D6 / GPIO12 |
 
 **ESP32-C3 SuperMini mit PLC-Firmware**
 
@@ -52,29 +52,31 @@ Die **vollständige Liste aller 27 Boards** mit AODO-/1-Wire-GPIO, USB-Pins, Boa
 | GPIO4 | TX zur externen AODO-Treiberstufe |
 | GPIO5 | Aktives High-OE der Treiberstufe |
 | GPIO6 | RX von der Treiberstufe zum ESP32 |
-| GPIO7 | Aktives High-Enable für den externen Lastschalter der Sensorversorgung. Dient zum Einschalten und zum Neustart nach dem NVM-Schreiben |
+| GPIO10 | Aktives High-Enable für den externen Lastschalter der Sensorversorgung. Dient zum Einschalten und zum Neustart nach dem NVM-Schreiben |
 | GND | Gemeinsame Masse von ESP32, Treiberstufe und Sensor |
 
-GPIO6 und GPIO7 sind im PLC-Aufbau für RX und den Lastschalter belegt. Die I²C-Belegung in der Tabelle gilt für einen alternativen Aufbau. In der Web-App vor dem Verbinden **«Sensorversorgung über GPIO7 steuern»** aktivieren, wenn der Lastschalter angeschlossen ist. Der Strich in den übrigen Boardzeilen bedeutet, dass die Firmware dort keinen Pin für die Sensorversorgung festlegt. [Anschluss und Testablauf](ESP32_C3_PLC_TEST.md)
+**Firmware v0.4 verwendet GPIO10.** Bei v0.3 lag der Lastschalter an GPIO7. Nach dem Update die EN-Leitung auf GPIO10 umstecken. GPIO7 bleibt für I²C-SCL frei. GPIO6 ist im PLC-Aufbau RX und im alternativen I²C-Aufbau SDA.
+
+Die Neustart-Pins der übrigen Boards sind Vorschläge für eine eigene Firmware. Sie sind jeweils zusätzlich zu den angegebenen I²C-Pins gewählt. Die Web-App verwendet den Neustartbefehl mit der SuperMini-Firmware und angeschlossenem Lastschalter. [Anschluss und Testablauf](ESP32_C3_PLC_TEST.md)
 
 ### Arduino und weitere kompatible Mikrocontroller
 
-| Board | AODO / 1-Wire (MCU) | I²C SDA (MCU) | I²C SCL (MCU) | I/O |
-| --- | --- | --- | --- | --- |
-| UNO R3, Nano Classic, Nano Every | **D2** | A4 | A5 | 5 V |
-| Mega 2560 | **D2** | D20 | D21 | 5 V |
-| UNO R4 Minima / UNO R4 WiFi (RA4M1-Header) | **D2** | A4 | A5 | 5 V |
-| Leonardo, Micro, Pro Micro | **D4** | D2 | D3 | 5 V oder 3,3 V (Variante beachten) |
-| Nano 33 IoT / Nano 33 BLE | **D2** | A4 | A5 | 3,3 V |
-| Nano RP2040 Connect | **D2 / GPIO25** | A4 / GPIO12 | A5 / GPIO13 | 3,3 V |
-| Raspberry Pi Pico / Pico W / Pico 2 | **GP2** | GP4 | GP5 | 3,3 V |
-| XIAO RP2040 | **D2 / GPIO28** | D4 / GPIO6 | D5 / GPIO7 | 3,3 V |
-| Teensy 4.0 | **D2** | D18 | D19 | 3,3 V |
-| STM32 Blue Pill | **PA1** | PB7 | PB6 | 3,3 V |
+| Board | AODO / 1-Wire (MCU) | I²C SDA (MCU) | I²C SCL (MCU) | I/O | Sensorversorgung / Neustart |
+| --- | --- | --- | --- | --- | --- |
+| UNO R3, Nano Classic, Nano Every | **D2** | A4 | A5 | 5 V | D5 |
+| Mega 2560 | **D2** | D20 | D21 | 5 V | D5 |
+| UNO R4 Minima / UNO R4 WiFi (RA4M1-Header) | **D2** | A4 | A5 | 5 V | D5 |
+| Leonardo, Micro, Pro Micro | **D4** | D2 | D3 | 5 V oder 3,3 V (Variante beachten) | D5 |
+| Nano 33 IoT / Nano 33 BLE | **D2** | A4 | A5 | 3,3 V | D5 |
+| Nano RP2040 Connect | **D2 / GPIO25** | A4 / GPIO12 | A5 / GPIO13 | 3,3 V | D5 |
+| Raspberry Pi Pico / Pico W / Pico 2 | **GP2** | GP4 | GP5 | 3,3 V | GP3 |
+| XIAO RP2040 | **D2 / GPIO28** | D4 / GPIO6 | D5 / GPIO7 | 3,3 V | D1 |
+| Teensy 4.0 | **D2** | D18 | D19 | 3,3 V | D5 |
+| STM32 Blue Pill | **PA1** | PB7 | PB6 | 3,3 V | PB0 |
 
 **Pin-Hinweise:** Die ESP32-I²C-Pins sind teils **bewusst anders als die jeweiligen Arduino-Defaults** gewählt und müssen in der zukünftigen Firmware konfiguriert werden. Beim ESP32-C3 SuperMini bleiben **GPIO18/19 für USB** reserviert. Die früheren Überschneidungen beim XIAO ESP32S3, XIAO ESP32C6 und ESP8266 wurden vermieden. Auf dem **Arduino Nano ESP32 ist D2 = GPIO5, aber SDA = A4/GPIO11**.
 
-**Momentaner Funktionsumfang:** Die USB-Test-Firmware meldet ausschliesslich **CAPS=CDC_ONLY**. Weder AODO / 1-Wire noch I²C zum E703.11 sind momentan als Sensor-Bridge implementiert oder freigegeben. Für einen echten Anschluss sind geeignete Pegel, Schutzschaltung, I²C-Pull-ups, Adresse/NCS/SA0, Telegramm-/CRC-Verhalten und die Pinbelegung der realen Leiterplatte abzuklären.
+**Momentaner Funktionsumfang:** Die USB-Test-Firmware meldet ausschliesslich **CAPS=CDC_ONLY**. Die separate SuperMini-PLC-Firmware unterstützt AODO über die externe Treiberstufe. Für einen echten Anschluss sind geeignete Pegel, Schutzschaltung, I²C-Pull-ups, Adresse/NCS/SA0, Telegramm-/CRC-Verhalten und die Pinbelegung der realen Leiterplatte abzuklären.
 
 ## 3. Arduino IDE – Test-Firmware flashen
 

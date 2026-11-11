@@ -2,6 +2,10 @@
 
 Versionierung nach `MAJOR.MINOR.PATCH`: Kleine Anpassungen erhöhen PATCH, neue Funktionen MINOR, inkompatible Änderungen MAJOR. Jede Änderung erhält eine neue Nummer und einen Eintrag.
 
+## v0.6.7 – 11.11.2026
+
+- Die SuperMini-Firmware v0.4 verwendet GPIO10 für den Lastschalter. Die Web-App zeigt nach dem Verbinden den von der Firmware verwendeten Pin an.
+
 ## v0.6.6 – 11.11.2026
 
 - Nach erfolgreichem NVM-Schreiben kann die ESP32-Bridge den Sensor über GPIO7 neu starten und Chip-ID, NVM und Bootregister prüfen.
