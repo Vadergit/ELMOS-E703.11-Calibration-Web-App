@@ -632,9 +632,9 @@ if(typeof document!=='undefined') (function UI(){
  });
  $('calUnitOther').addEventListener('change',handleReferenceChange);
  for(const id of ['pmin','pmax'])$(id).addEventListener('change',handleReferenceChange);
- for(const id of ['pointLoName','pointHiName'])$(id).addEventListener('change',syncPointNames);
+ for(const id of ['pointLoName','pointHiName'])$(id).addEventListener('change',()=>{$(id).dataset.userEdited='1';syncPointNames()});
  for(const id of ['calSOrder','calTOrder'])$(id).addEventListener('change',()=>invalidateCalculation('Polynomordnung verändert. Neu berechnen und anschliessend neu ins RAM übertragen.'));
- refreshUnitLabels();
+ fillIntermediateReferences();refreshUnitLabels();
  // Anzeigeeinstellungen sind rein lokal und schreiben keine Sensorregister.
  loadDSPDisplay();
  for(const id of ['dspDisplayMin','dspDisplayMax','dspDisplayUnit']){
@@ -643,7 +643,41 @@ if(typeof document!=='undefined') (function UI(){
  }
  renderDSPLive();
  // controls
- $('calPointCapture').addEventListener('click',captureCalPoint);
+ $('calPointCount').addEventListener('change',()=>{
+  if(st.calTask||st.writing||st.nvmWorking){show('calPointPlanMsg','Anzahl während laufender Wartung nicht ändern.','error');return}
+  erasePoints();
+  $('pointHiName').dataset.userEdited='';
+  for(let k=1;k<=8;k++){$('calExtra'+k+'Name').dataset.userEdited='';$('calExtra'+k+'Pressure').dataset.userEdited=''}
+  fillIntermediateReferences();refreshUnitLabels();
+  show('calPointsMsg','Anzahl geändert. Die vorherigen Messwerte wurden verworfen, damit sie nicht versehentlich für den neuen Abgleich verwendet werden.','warn')
+ });
+ for(let k=1;k<=8;k++){
+  $('calExtra'+k+'Capture').addEventListener('click',()=>captureCalPoint(k));
+  $('calExtra'+k+'Pressure').addEventListener('change',()=>{
+   $('calExtra'+k+'Pressure').dataset.userEdited='1';
+   if(st.calpoints.some(x=>x.kind==='extra'&&x.slot===k)){
+    st.calpoints=st.calpoints.filter(x=>!(x.kind==='extra'&&x.slot===k));
+    invalidateCalculation('Referenzwert geändert. Messpunkt '+(k+1)+' neu aufnehmen.');
+    refreshPoints()
+   }
+  });
+  $('calExtra'+k+'Temp').addEventListener('change',()=>{
+   if(st.calpoints.some(x=>x.kind==='extra'&&x.slot===k)){
+    st.calpoints=st.calpoints.filter(x=>!(x.kind==='extra'&&x.slot===k));
+    invalidateCalculation('Temperatur geändert. Messpunkt '+(k+1)+' neu aufnehmen.');
+    refreshPoints()
+   }
+  });
+  $('calExtra'+k+'Name').addEventListener('change',()=>{
+   $('calExtra'+k+'Name').dataset.userEdited='1';
+   const x=st.calpoints.find(x=>x.kind==='extra'&&x.slot===k);
+   if(x)x.name=$('calExtra'+k+'Name').value.trim()||'Messpunkt '+(k+1);
+   renderCalPoints()
+  })
+ }
+ for(const id of ['calLoTemp','calHiTemp'])$(id).addEventListener('change',()=>{
+  erasePoints();show('calPointsMsg','Referenztemperatur eines Endpunkts geändert. Die Messpunkte neu aufnehmen.','warn')
+ });
  $('calPointClear').addEventListener('click',()=>{erasePoints();ca('calPointsMsg','Alle Kalibriermesspunkte verworfen.');});
  $('calCalculate').addEventListener('click',calcCoefficients);
  $('calApplyRam').addEventListener('click',applyCalRam);
