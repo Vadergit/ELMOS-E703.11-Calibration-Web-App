@@ -261,35 +261,35 @@ button.danger{background:#9e3e34;border-color:#9e3e34;color:#fff}button.danger:h
 </div>
 <div class="small muted" id="dspDisplayHint">Standard 0–100 %. Nach einer neuen RAM-Kalibrierung wird stattdessen deren gewählter Referenzbereich verwendet.</div>
 </div></details>
-<canvas id="chart" width="1000" height="230" aria-label="ADC-Verlauf"></canvas><div class="flex" style="margin:13px 0"><button id="readNow">ADC jetzt lesen</button><button id="live">Live-Messung starten</button><span class="pill" id="srcLabel">Keine Messdaten</span></div><div class="mutedline"></div><div class="between"><h3>Verstärkung und Offset</h3><span class="pill" id="afeWord">CFG_AFE1: —</span></div><div class="afe-step-panel" aria-label="Diskrete AFE-Stufeneinstellungen">
+<canvas id="chart" width="1000" height="230" aria-label="ADC-Verlauf"></canvas><div class="flex" style="margin:13px 0"><button id="readNow">ADC jetzt lesen</button><button id="live">Live-Messung starten</button><span class="pill" id="srcLabel">Keine Messdaten</span></div><div class="mutedline"></div><div class="between"><h3>Verstärkung und Offset</h3><span class="pill" id="afeWord">CFG_AFE1: —</span></div><div class="afe-step-panel" aria-label="Diskrete AFE-Verstärkungs- und Offseteinstellung">
 <div class="afe-step-row">
-  <div class="afe-step-description"><div class="afe-step-title">PGA1 <span class="help" data-help="pga1">?</span></div><span class="afe-step-subtitle">Vorverstärkung · 4 Stufen</span></div>
+  <div class="afe-step-description"><div class="afe-step-title">PGA1 <span class="help" data-help="pga1">?</span></div><span class="afe-step-subtitle">Vorverstärkung</span></div>
   <div class="afe-stepper" role="group" aria-label="PGA1-Verstärkung in diskreten Stufen einstellen">
     <button type="button" class="afe-step-btn" id="pga1Down" aria-label="PGA1 um eine Stufe verringern" title="PGA1 −1 Stufe">−</button>
-    <output id="pga1val" class="afe-step-value" aria-live="polite">Stufe 0 · 3.5×</output>
+    <output id="pga1val" class="afe-step-value" aria-live="polite">3.5×</output>
     <button type="button" class="afe-step-btn" id="pga1Up" aria-label="PGA1 um eine Stufe erhöhen" title="PGA1 +1 Stufe">+</button>
   </div>
   <input id="pga1" type="hidden" value="0">
 </div>
 <div class="afe-step-row">
-  <div class="afe-step-description"><div class="afe-step-title">PGA2 <span class="help" data-help="pga2">?</span></div><span class="afe-step-subtitle">Nachverstärkung · 9 Stufen</span></div>
-  <div class="afe-stepper" role="group" aria-label="PGA2-Verstärkung in diskreten Stufen einstellen">
-    <button type="button" class="afe-step-btn" id="pga2Down" aria-label="PGA2 um eine Stufe verringern" title="PGA2 −1 Stufe">−</button>
-    <output id="pga2val" class="afe-step-value" aria-live="polite">Stufe 0 · 2×</output>
-    <button type="button" class="afe-step-btn" id="pga2Up" aria-label="PGA2 um eine Stufe erhöhen" title="PGA2 +1 Stufe">+</button>
-  </div>
-  <input id="pga2" type="hidden" value="0">
-</div>
-<div class="afe-step-row">
-  <div class="afe-step-description"><div class="afe-step-title">Offset <span class="help" data-help="offset">?</span></div><span class="afe-step-subtitle">Offset-DAC · −8 bis +8</span></div>
+  <div class="afe-step-description"><div class="afe-step-title">Offset <span class="help" data-help="offset">?</span></div><span class="afe-step-subtitle">Offset-DAC</span></div>
   <div class="afe-stepper" role="group" aria-label="Offset in diskreten Stufen einstellen">
     <button type="button" class="afe-step-btn" id="offsetDown" aria-label="Offset um eine Stufe verringern" title="Offset −1 Stufe">−</button>
-    <output id="offsetval" class="afe-step-value" aria-live="polite">Stufe 0 · 0 mV/V</output>
+    <output id="offsetval" class="afe-step-value" aria-live="polite">0 mV/V</output>
     <button type="button" class="afe-step-btn" id="offsetUp" aria-label="Offset um eine Stufe erhöhen" title="Offset +1 Stufe">+</button>
   </div>
   <input id="offset" type="hidden" value="0">
 </div>
-</div><div class="kpiNote" id="gainInfo">PGA1 3.5× · PGA2 2× · Gesamt 7× · DAC 0 mV/V</div><div class="flex" style="margin-top:12px"><button class="primary" id="afeApplyRam">AFE-Einstellungen ins RAM übernehmen</button><span class="muted small">Pfeiltasten ändern jeweils eine gültige Stufe als Vorschau. Erst dieser Knopf schreibt die Einstellungen ins RAM und liest sie zurück.</span></div><div id="writeMsg" class="callout">Die Pfeiltasten ändern nur die Vorschau. Zum Schreiben ins Chip-RAM den Übernehmen-Knopf drücken.</div><details><summary>Geschützte Register & Diagnose</summary><div class="inner"><div class="flex"><button id="readBoot">Boot-Register prüfen</button><button id="readRegs">Diagnoseregister lesen</button><button id="exportDiag">USB-Diagnose exportieren</button></div><div id="bootMsg" class="callout">Bootregister noch nicht geprüft. Schreibzugriff gesperrt.</div><pre id="regdump" class="monoarea">Noch keine Register gelesen.</pre><details><summary>USB-Rohprotokoll</summary><pre class="monoarea" id="usbLog"></pre></details></div></details><div class="nav"><button data-next="0">Zurück</button><button class="primary" data-next="2">Weiter zu Messpunkten</button></div><div class="expert-inline" data-expert-area hidden>
+<div class="afe-step-row">
+  <div class="afe-step-description"><div class="afe-step-title">PGA2 <span class="help" data-help="pga2">?</span></div><span class="afe-step-subtitle">Nachverstärkung</span></div>
+  <div class="afe-stepper" role="group" aria-label="PGA2-Verstärkung in diskreten Stufen einstellen">
+    <button type="button" class="afe-step-btn" id="pga2Down" aria-label="PGA2 um eine Stufe verringern" title="PGA2 −1 Stufe">−</button>
+    <output id="pga2val" class="afe-step-value" aria-live="polite">2×</output>
+    <button type="button" class="afe-step-btn" id="pga2Up" aria-label="PGA2 um eine Stufe erhöhen" title="PGA2 +1 Stufe">+</button>
+  </div>
+  <input id="pga2" type="hidden" value="0">
+</div>
+</div><div class="kpiNote" id="gainInfo">PGA1 3.5× · Offset 0 mV/V · PGA2 2× · Gesamt 7×</div><div class="flex" style="margin-top:12px"><button class="primary" id="afeApplyRam">AFE-Einstellungen ins RAM übernehmen</button><span class="muted small">Pfeiltasten ändern jeweils eine gültige Stufe als Vorschau. Erst dieser Knopf schreibt die Einstellungen ins RAM und liest sie zurück.</span></div><div id="writeMsg" class="callout">Die Pfeiltasten ändern nur die Vorschau. Zum Schreiben ins Chip-RAM den Übernehmen-Knopf drücken.</div><details><summary>Geschützte Register & Diagnose</summary><div class="inner"><div class="flex"><button id="readBoot">Boot-Register prüfen</button><button id="readRegs">Diagnoseregister lesen</button><button id="exportDiag">USB-Diagnose exportieren</button></div><div id="bootMsg" class="callout">Bootregister noch nicht geprüft. Schreibzugriff gesperrt.</div><pre id="regdump" class="monoarea">Noch keine Register gelesen.</pre><details><summary>USB-Rohprotokoll</summary><pre class="monoarea" id="usbLog"></pre></details></div></details><div class="nav"><button data-next="0">Zurück</button><button class="primary" data-next="2">Weiter zu Messpunkten</button></div><div class="expert-inline" data-expert-area hidden>
 <details open><summary>Expertenparameter · AODO-Ausgang (ratiometrisch, PWM, FM, Alarm)</summary>
 <div class="inner"><p class="muted small">Factory- und Boot-/Kommunikationsregister sind schreibgeschützt. Änderungen werden erst nach geprüfter Vorbereitung im NVM-Schritt programmiert.</p>
 <h3>Ausgangsart am AODO-Pin</h3>
@@ -577,4 +577,4 @@ button.danger{background:#9e3e34;border-color:#9e3e34;color:#fff}button.danger:h
 <div class="nav"><button data-next="4">Zurück zur DSP-Prüfung</button><button data-next="0">Zum USB-Start</button></div>
 </section>
 <div class="foot">ELMOS E703.11 · unabhängiger Kalibrierprototyp · Sicherheitsprinzip: Factory- und Kommunikations-Bootregister gesperrt; dokumentierte AODO-Ausgangsoptionen nur nach Prüfung im NVM-Plan; Wiederherstellung nur mit passender Chip-UID.</div>
-</main></div></div><div id="tip" class="tooltip"></div><script src="calibration.js?v=fix-init-20261111-3"></script><script src="expert.js?v=fix-init-20261111-3"></script><script src="app.js?v=afe-stepper-20261111-1"></script></body></html>
+</main></div></div><div id="tip" class="tooltip"></div><script src="calibration.js?v=fix-init-20261111-3"></script><script src="expert.js?v=fix-init-20261111-3"></script><script src="app.js?v=afe-order-20261111-1"></script></body></html>
