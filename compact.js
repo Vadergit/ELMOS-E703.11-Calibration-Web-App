@@ -113,8 +113,8 @@ const ELMOS_COMPACT=(()=>{
   moveId('nvmDiffDetails','cpNvmDetails');
   const backup=document.createElement('details');backup.className='cp-fold';backup.innerHTML='<summary>Backup / Kontrolle nach Neustart</summary><div class="cp-fold-body" id="cpNvmMore"></div>';
   $('cpNvmDetails').appendChild(backup);
-  actions(['nvmBackupRead','nvmBackupDownload','nvmPostBoot'],'cpNvmMore');
-  label('nvmRebootConfirm','cpNvmMore');
+  actions(['nvmBackupRead','nvmBackupDownload'],'cpNvmMore');
+  moveId('nvmRestartControls','cpNvmMore');
 
   $('cpExit').addEventListener('click',() => { $('compactMode').checked=false;set(false) });
   $('cpPointSelect').addEventListener('change',e=>{pointSelection=e.target.value;updatePoint()});

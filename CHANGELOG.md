@@ -2,6 +2,10 @@
 
 Versionierung nach `MAJOR.MINOR.PATCH`: Kleine Anpassungen erhöhen PATCH, neue Funktionen MINOR, inkompatible Änderungen MAJOR. Jede Änderung erhält eine neue Nummer und einen Eintrag.
 
+## v0.6.6 – 11.11.2026
+
+- Nach erfolgreichem NVM-Schreiben kann die ESP32-Bridge den Sensor über GPIO7 neu starten und Chip-ID, NVM und Bootregister prüfen.
+
 ## v0.6.5 – 11.11.2026
 
 - Überarbeitete Oberfläche und geführter Assistent veröffentlicht.

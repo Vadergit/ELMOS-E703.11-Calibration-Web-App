@@ -443,8 +443,8 @@ html.compact-mode .foot{display:none}
  .cp-output-grid{grid-template-columns:1fr 1fr}
  .cp-points .cp-points-setup{grid-template-columns:repeat(3,minmax(0,1fr))}
 }
-</style><link rel="stylesheet" href="guided.css?v=0.6.5"><link rel="stylesheet" href="interface.css?v=0.6.5"></head><body><div class="wrap"><header class="top">
-<div class="brand"><div class="logo" aria-hidden="true">E</div><div><div class="eyebrow">E703.11 · PSSC · v0.6.5</div><h1>Kalibrierassistent</h1></div></div>
+</style><link rel="stylesheet" href="guided.css?v=0.6.6"><link rel="stylesheet" href="interface.css?v=0.6.6"></head><body><div class="wrap"><header class="top">
+<div class="brand"><div class="logo" aria-hidden="true">E</div><div><div class="eyebrow">E703.11 · PSSC · v0.6.6</div><h1>Kalibrierassistent</h1></div></div>
 <div class="live-overview" role="group" aria-label="Sensorwerte · laufende Anzeige">
   <div class="live-kpi" title="Unkompensierter Druck-ADC. Warnung bei Beträgen über 25’000 Digits."><span class="live-kpi-label">ADC_S <span id="liveAdcAlert" class="live-alert" hidden>!</span></span><span class="live-kpi-reading" id="liveAdcS">—</span><span class="live-kpi-unit">Digits</span></div>
   <div class="live-kpi" title="ADC_T · Temperatur-Rohwert, keine direkte Temperatur in °C."><span class="live-kpi-label">ADC_T</span><span class="live-kpi-reading" id="liveAdcT">—</span><span class="live-kpi-unit">Digits</span></div>
@@ -487,7 +487,7 @@ html.compact-mode .foot{display:none}
     <label>Programmieradapter<select id="adapterType"><option value="ssp3">ELMOS SSP3 Evaluation Board · Standard</option><option value="bridge">ESP32 / Arduino USB-Bridge</option></select></label>
     <label>Chip-Schnittstelle <span class="help" data-help="interface">?</span><select id="iface"><option value="plc">1-Wire · AODO (Standard)</option><option value="i2c">I²C · SCL / SDA</option><option value="spi">SPI · Testmodus</option></select></label>
   </div>
-  <div class="fieldrow" id="plcOptions" hidden><label>ESP32 PLC-Baudrate<select id="plcBaud"><option value="100000">100 kBd</option><option value="25000">25 kBd</option></select></label><label class="toggle"><input type="checkbox" id="plcPowerCycle"> Sensor beim Verbinden über GPIO7 einschalten</label></div>
+  <div class="fieldrow" id="plcOptions" hidden><label>ESP32 PLC-Baudrate<select id="plcBaud"><option value="100000">100 kBd</option><option value="25000">25 kBd</option></select></label><label class="toggle"><input type="checkbox" id="plcPowerCycle"> Sensorversorgung über GPIO7 steuern</label></div>
   <div class="flex connectionActions"><button class="primary" id="choose">USB-Port auswählen</button><button class="connection-link" id="auto">Bekannten Port verbinden</button><button id="disconnect" disabled>Trennen</button><button id="guidedLaunch" type="button" disabled>Geführten Abgleich starten</button></div>
   <div id="connMsg" class="callout" role="status">Wähle den USB-Port deines Adapters. Chrome fragt beim ersten Verbinden nach der Freigabe.</div>
   <dl class="connection-summary">
@@ -913,10 +913,14 @@ html.compact-mode .foot{display:none}
   <button class="danger" id="nvmProgram" disabled>Kalibrierung dauerhaft ins NVM schreiben</button>
   <p class="muted small nvm-risk">Achtung: Stromunterbruch oder Protokollfehler können den Sensor unbrauchbar machen. Factory-/Bootregister bleiben geschützt. Der echte NVM-Schreibpfad ist noch nicht hardwarevalidiert.</p>
 </div>
-<details class="nvm-advanced"><summary>Kontrolle nach Neustart</summary><div class="inner">
-  <label class="toggle"><input id="nvmRebootConfirm" type="checkbox"> Der Chip wurde nach dem Schreiben tatsächlich aus- und wieder eingeschaltet.</label>
-  <button id="nvmPostBoot">NVM nach Neustart verifizieren</button>
-</div></details>
+<div id="nvmRestartControls">
+  <button id="nvmRestart" class="primary" type="button" hidden disabled>Sensor neu starten und NVM prüfen</button>
+  <div id="nvmRestartStatus" class="callout" role="status" hidden></div>
+  <details class="nvm-advanced"><summary>Manueller Neustart und Kontrolle</summary><div class="inner">
+    <label class="toggle"><input id="nvmRebootConfirm" type="checkbox"> Der Chip wurde nach dem Schreiben tatsächlich aus- und wieder eingeschaltet.</label>
+    <button id="nvmPostBoot" type="button">NVM nach Neustart verifizieren</button>
+  </div></details>
+</div>
 
 <div class="nav"><button data-next="5">Zur Ausgangskonfiguration</button><button data-next="0">Zum USB-Start</button></div>
 </section>
@@ -958,5 +962,5 @@ html.compact-mode .foot{display:none}
 </div>
 <div class="nav"><button data-next="0">Zur Verbindung</button><button data-next="6">Zum NVM-Schritt</button></div>
 </section>
-<div class="foot"><b>Version v0.6.5</b> · <a href="CHANGELOG.md" target="_blank" rel="noopener">Änderungsverlauf</a> · ELMOS E703.11 · unabhängiger Kalibrierprototyp · Sicherheitsprinzip: Factory- und Kommunikations-Bootregister gesperrt; dokumentierte AODO-Ausgangsoptionen nur nach Prüfung im NVM-Plan; Wiederherstellung nur mit passender Chip-UID.</div>
-</main></div></div><div id="tip" class="tooltip"></div><script src="calibration.js?v=0.6.5"></script><script src="eeprom-help.js?v=0.6.5"></script><script src="expert.js?v=0.6.5"></script><script src="config.js?v=0.6.5"></script><script src="guided-plan.js?v=0.6.5"></script><script src="demo.js?v=0.6.5"></script><script src="app.js?v=0.6.5"></script><script src="compact.js?v=0.6.5"></script><script src="guided.js?v=0.6.5"></script></body></html>
+<div class="foot"><b>Version v0.6.6</b> · <a href="CHANGELOG.md" target="_blank" rel="noopener">Änderungsverlauf</a> · ELMOS E703.11 · unabhängiger Kalibrierprototyp · Sicherheitsprinzip: Factory- und Kommunikations-Bootregister gesperrt; dokumentierte AODO-Ausgangsoptionen nur nach Prüfung im NVM-Plan; Wiederherstellung nur mit passender Chip-UID.</div>
+</main></div></div><div id="tip" class="tooltip"></div><script src="calibration.js?v=0.6.6"></script><script src="eeprom-help.js?v=0.6.6"></script><script src="expert.js?v=0.6.6"></script><script src="config.js?v=0.6.6"></script><script src="guided-plan.js?v=0.6.6"></script><script src="demo.js?v=0.6.6"></script><script src="app.js?v=0.6.6"></script><script src="compact.js?v=0.6.6"></script><script src="guided.js?v=0.6.6"></script></body></html>

@@ -151,7 +151,7 @@ const ELMOS_GUIDED=(()=>{
   for(const id of ['nvmMsg','nvmUidHint','nvmWritePrereq'])moveId(id,'gwNvmMessages');
   moveLabel('nvmConfirmId','gwNvmUID');moveId('nvmProgram','gwNvmWrite');
   moveId('nvmDiffDetails','gwNvmDetails');
-  moveLabel('nvmRebootConfirm','gwPostBoot');moveId('nvmPostBoot','gwPostBoot');
+  moveId('nvmRestartControls','gwPostBoot');
   document.querySelectorAll('[data-gw-task]').forEach(button=>button.addEventListener('click',()=>{task=button.dataset.gwTask;render()}));
   document.querySelectorAll('[data-gw-preset]').forEach(button=>button.addEventListener('click',()=>preset(button.dataset.gwPreset)));
   for(const id of ['gwPressureCount','gwTemperatureCount','gwSOrder','gwTOrder'])$(id).addEventListener('change',renderPlan);

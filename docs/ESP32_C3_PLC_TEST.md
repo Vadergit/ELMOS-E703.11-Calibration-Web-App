@@ -24,4 +24,6 @@ Für einen bestätigten 3,3-V-Sensoraufbau eignet sich als Ausgangspunkt ein [SN
 4. Chip-ID und Live-Werte kontrollieren. Falls ein Sensor antwortet, aber CRC- oder Framefehler auftreten, AODO und OE mit dem Oszilloskop prüfen.
 5. Original-NVM lesen und exportieren. Danach AFE und DSP im RAM testen und die rückgelesenen Werte kontrollieren. Permanentes Speichern verwendet den vorhandenen Ablauf mit Chip-ID, Änderungsprüfung, CRC und Rücklesekontrolle.
 
+Wenn GPIO7 den externen Lastschalter steuert, aktiviere vor dem Verbinden **Sensorversorgung über GPIO7 steuern**. Nach erfolgreichem NVM-Schreiben startet **Sensor neu starten und NVM prüfen** den E703.11 bei bestehender USB-Verbindung neu. Die Web-App prüft die Chip-ID, liest alle 64 NVM-Wörter mit CRC-Prüfung zurück und vergleicht die Bootregister. Bei separater Sensorversorgung steht die manuelle Neustartprüfung zur Verfügung.
+
 Ohne Web-App kann im seriellen Monitor mit 115200 Baud und Zeilenende `Newline` die Firmware per `BRIDGE_INFO` geprüft werden. Ein Sensor mit bereits aktivem PLC-Registerzugriff lässt sich mit `PLC_UID 100000` oder `PLC_UID 25000` identifizieren.

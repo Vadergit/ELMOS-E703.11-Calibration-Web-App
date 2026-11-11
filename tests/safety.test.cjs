@@ -180,7 +180,7 @@ test('Expert mode shows contextual settings and no modal',()=>{
  assert.ok(html.includes('data-expert-area hidden><summary>Erweitert · AODO_F'));
  assert.ok(src.includes("classList.toggle('is-expert',enabled)"));
  const scripts=Array.from(html.matchAll(/<script src="([^"]+)"/g),m=>m[1]);
- assert.deepEqual(scripts,['calibration.js?v=0.6.5','eeprom-help.js?v=0.6.5','expert.js?v=0.6.5','config.js?v=0.6.5','guided-plan.js?v=0.6.5','demo.js?v=0.6.5','app.js?v=0.6.5','compact.js?v=0.6.5','guided.js?v=0.6.5']);
+ assert.deepEqual(scripts,['calibration.js?v=0.6.6','eeprom-help.js?v=0.6.6','expert.js?v=0.6.6','config.js?v=0.6.6','guided-plan.js?v=0.6.6','demo.js?v=0.6.6','app.js?v=0.6.6','compact.js?v=0.6.6','guided.js?v=0.6.6']);
 });
 
 test('Failed E703.11 probe reconnects SSP3 at most once, without NVM writes',()=>{
@@ -393,7 +393,7 @@ test('Guided view is optional and contains only one set of hardware inputs',()=>
  assert.ok(html.includes('id="workflowMode"'));
  assert.ok(html.includes('id="guidedLaunch"'));
  assert.ok(html.includes('id="guidedLaunchTop"'));
- assert.ok(html.includes('guided.css?v=0.6.5'));
+ assert.ok(html.includes('guided.css?v=0.6.6'));
  for(const id of ['nvmProgram','nvmPrepare','calApplyRam','calVerifyRam','expertOutputStage','configApply','configFile']){
   assert.equal(html.split('id="'+id+'"').length-1,1);
  }
@@ -447,7 +447,7 @@ test('Guided and compact modes restore the original controls before switching',(
 test('ESP32-C3 bridge verifies capabilities and establishes PLC access before detection',()=>{
  const app=read('app.js'),fw=read('firmware/esp32c3_supermini/esp32c3_supermini.ino');
  assert.ok(app.indexOf('if(!bridgeReady)return;')<app.indexOf("await exchange('PLC_BAUD '"));
- assert.ok(app.includes("checked?'PLC START':'PLC ACCESS'"));
+ assert.ok(app.includes("st.gpio7Enabled?'PLC START':'PLC ACCESS'"));
  assert.ok(fw.includes('CAPS=PLC_UID,PLC_READ,PLC_WRITE,NVM'));
  assert.ok(fw.includes('CONFIG_IDF_TARGET_ESP32C3'));
  assert.ok(fw.includes('ARDUINO_USB_CDC_ON_BOOT'));
