@@ -32,7 +32,7 @@ if(typeof document!=='undefined') (function UI(){
  const REG_NAMES={4:'CFG_EN',6:'CFG_SPI_I2C',8:'CFG_PADS0',10:'CFG_PADS1',12:'CFG_PADS2',16:'CFG_AODO',0x14:'CFG_ADC',0x16:'CFG_LP0',0x18:'CFG_LP1',0x1A:'CFG_AFE0',0x1C:'CFG_AFE1',0x1E:'CFG_AFE2',0x26:'ADC_TC',0x28:'ADC_T',0x2A:'ADC_S'};
  const st={mode:'offline',port:null,reader:null,readerPromise:null,cmdQueue:Promise.resolve(),replyBuffer:'',responseWait:null,iface:'plc',firmware:'',chip:false,boot:null,afe:null,staged:{pga1:0,pga2:0,offset:0},adc:null,dsp:null,dspError:null,liveReadPromise:null,trend:[],history:[],log:[],regs:{},points:{lo:null,hi:null},verify:null,live:false,manualLivePause:false,timeout:null,consecutiveErrors:0,writing:false,pressure:5,calpoints:[],calfit:null,calImage:null,nvmBackup:null,nvmBackupVerified:false,calStaged:false,calVerified:false,calValidation:[],calTask:false,nvmWorking:false,nvmDone:false,afeWriteActive:false,ramWriteScope:null,uid:null,expertOutputPlan:null,restorePlan:null,outputOnlyPlan:null,uidShownForInput:null};
  let currentStep=0,pendingGain=null,writeTimer=null;let tipEnabled=true,liveIntervalMs=650;
- const HELP={interface:'Schnittstelle zwischen SSP3-Board und Sensorchip. 1-Wire nutzt AODO (VDD, GND und AODO). Die Einstellung IF_CFG ändert die Programmer-Pins, nicht die NVM-Konfiguration des Sensors.',baud:'Baudrate des USB-UART zwischen Chrome und dem SSP3. Die Herstellersoftware verwendet 115200 Baud als Standard.',adcs:'ADC_S ist der unkompensierte 16-Bit-Druck-ADC. ±25000 Digits ist ein vorsichtiges Ziel für den manuellen Abgleich, keine garantierte Hardwaregrenze.',dsp_live:'DSP_S (Register 0x30) ist der skalierte DSP-Sensorausgang. Die Anzeige liest den Chipwert wiederholt und rechnet ihn mit dem konfigurierten DSP-Endwert (standardmässig ±32’000 Digits) in den gewählten Anzeigebereich um. Ein DSP-Wert allein belegt keine gültige Kalibrierung.',pga1:'Erste Druckverstärkungsstufe: 3.5×, 6×, 8.5× oder 11× (typische Werte laut Datenblatt 2023). Für gutes SNR möglichst hoch ohne Übersteuerung.',pga2:'Zweite Verstärkungsstufe: typische Faktoren 2× bis 10×. Der Gesamtfaktor ist PGA1 × PGA2.',offset:'17 DAC-Stufen von −400 bis +400 mV/V bezogen auf die Brückenspannung. Die Verschiebung liegt zwischen PGA1 und PGA2.',pressureunit:'Einheit für die Referenz- und Prüfdruckwerte. Für relative Kalibrierungen kann beispielsweise % mit 0 bis 100 gewählt werden. Referenzwerte müssen zum tatsächlichen Prüfstand passen. Einheitenwechsel erfordert neue Messpunkte.',dsp_limit:'Symmetrischer DSP-Endwert für die neue Kalibrierung. Standard ±32’000 Digits. ±30’000 lässt zusätzlich Reserve. Der Wert verändert die berechneten Koeffizienten sowie DSP-Soll und Fehlerumrechnung; er ist keine Hardware-Clipping-Grenze.',ram:'Schreibt nach manueller Freigabe ausschliesslich die Gain-/Offset-Bits in CFG_AFE1 0x1C im RAM. Kein NVM-/EEPROM-Schreiben. Vorher und nachher liest die App sämtliche Boot-/Kommunikationsregister.',};
+ const HELP={interface:'Schnittstelle zwischen SSP3-Board und Sensorchip. 1-Wire nutzt AODO (VDD, GND und AODO). Die Einstellung IF_CFG ändert die Programmer-Pins, nicht die NVM-Konfiguration des Sensors.',baud:'Baudrate des USB-UART zwischen Chrome und dem SSP3. Die Herstellersoftware verwendet 115200 Baud als Standard.',adcs:'ADC_S ist der unkompensierte 16-Bit-Druck-ADC. ±25000 Digits ist ein vorsichtiges Ziel für den manuellen Abgleich, keine garantierte Hardwaregrenze.',dsp_live:'DSP_S (Register 0x30) ist der skalierte DSP-Sensorausgang. Die Anzeige liest den Chipwert wiederholt und rechnet ihn mit dem konfigurierten DSP-Endwert (standardmässig ±32’000 Digits) in den gewählten Anzeigebereich um. Ein DSP-Wert allein belegt keine gültige Kalibrierung.',pga1:'Erste Druckverstärkungsstufe: 3.5×, 6×, 8.5× oder 11× (typische Werte laut Datenblatt 2023). Für gutes SNR möglichst hoch ohne Übersteuerung.',pga2:'Zweite Verstärkungsstufe: typische Faktoren 2× bis 10×. Der Gesamtfaktor ist PGA1 × PGA2.',offset:'17 DAC-Stufen von −400 bis +400 mV/V bezogen auf die Brückenspannung. Die Verschiebung liegt zwischen PGA1 und PGA2.',pressureunit:'Einheit für die Referenz- und Prüfdruckwerte. Für relative Kalibrierungen kann beispielsweise % mit 0 bis 100 gewählt werden. Referenzwerte müssen zum tatsächlichen Prüfstand passen. Einheitenwechsel erfordert neue Messpunkte.',dsp_limit:'Symmetrischer DSP-Endwert für die neue Kalibrierung. Standard ±32’000 Digits. ±30’000 lässt zusätzlich Reserve. Der Wert verändert die berechneten Koeffizienten sowie DSP-Soll und Fehlerumrechnung; er ist keine Hardware-Clipping-Grenze.',ram:'PGA1, Offset und PGA2 werden mit jeder Pfeiltaste sofort ausschliesslich in CFG_AFE1 0x1C im RAM geändert und rückgelesen. Kein NVM-/EEPROM-Schreiben. Boot-/Kommunikationsregister werden kontrolliert.',};
  const h=P.hx;
  const fmt=n=>n===null||n===undefined||!Number.isFinite(n)?'—':Math.round(n).toLocaleString('de-CH');
  const now=()=>new Date().toLocaleTimeString('de-CH',{hour12:false});
@@ -41,7 +41,7 @@ if(typeof document!=='undefined') (function UI(){
  const hexWords=arr=>arr.map(x=>P.hx(x,2)).join(' ');
  const sleep=ms=>new Promise(r=>setTimeout(r,ms));
  const sameBoot=(a,b)=>!!a&&!!b&&LOCKED.every(k=>a[k]===b[k]);
- function renderStatus(){let connected=!!st.port, demo=st.mode==='demo';$('status').textContent=demo?'DEMO · simuliert':st.chip?'Chip-Leseantwort plausibel':connected?'USB verbunden · Chipprüfung offen':'Nicht verbunden';$('statusDot').className='dot'+(demo?' demo':st.chip?' active':'');$('fw').textContent=st.firmware?st.firmware.slice(0,19):'—';$('chip').textContent=st.chip?'Antwort erhalten':'—';$('ifaceLabel').textContent=st.iface==='plc'?'1-Wire':st.iface==='i2c'?'I²C':'SPI';$('srcLabel').textContent=demo?'DEMO':st.adc?.source==='usb'?'USB / Chip':'Keine Messdaten';$('choose').disabled=connected;$('auto').disabled=connected;$('disconnect').disabled=!connected;$('readNow').disabled=!connected&&!demo;$('live').disabled=!connected&&!demo;$('live').textContent=st.live?'Live-Messung stoppen':'Live-Messung starten';$('readBoot').disabled=!st.chip;$('readRegs').disabled=!st.chip;$('afeApplyRam').disabled=!st.chip||demo||st.calTask||st.writing||st.nvmWorking;$('afeWord').textContent=st.afe===null?'CFG_AFE1: —':'CFG_AFE1: 0x'+h(st.afe,2);renderAFEStepperState();renderFlowState();renderDSPLive()};
+ function renderStatus(){let connected=!!st.port, demo=st.mode==='demo';$('status').textContent=demo?'DEMO · simuliert':st.chip?'Chip-Leseantwort plausibel':connected?'USB verbunden · Chipprüfung offen':'Nicht verbunden';$('statusDot').className='dot'+(demo?' demo':st.chip?' active':'');$('fw').textContent=st.firmware?st.firmware.slice(0,19):'—';$('chip').textContent=st.chip?'Antwort erhalten':'—';$('ifaceLabel').textContent=st.iface==='plc'?'1-Wire':st.iface==='i2c'?'I²C':'SPI';$('srcLabel').textContent=demo?'DEMO':st.adc?.source==='usb'?'USB / Chip':'Keine Messdaten';$('choose').disabled=connected;$('auto').disabled=connected;$('disconnect').disabled=!connected;$('readNow').disabled=!connected&&!demo;$('live').disabled=!connected&&!demo;$('live').textContent=st.live?'Live-Messung stoppen':'Live-Messung starten';$('readBoot').disabled=!st.chip;$('readRegs').disabled=!st.chip;$('afeWord').textContent=st.afe===null?'CFG_AFE1: —':'CFG_AFE1: 0x'+h(st.afe,2);renderAFEStepperState();renderFlowState();renderDSPLive()};
  function gainSummary(){
   const g=st.staged;
   for(const k of ['pga1','pga2','offset'])$(k).value=String(g[k]);
@@ -59,13 +59,30 @@ if(typeof document!=='undefined') (function UI(){
   }
  }
  function stepAFE(k,increment){
-  if(st.calTask||st.writing||st.nvmWorking){gainSummary();show('writeMsg','Während einer Kalibrier- oder NVM-Transaktion sind AFE-Änderungen gesperrt.','warn');return}
+  if(st.calTask||st.writing||st.nvmWorking){
+   show('writeMsg','Ein Kalibrier-, AFE- oder NVM-Vorgang läuft. Bitte zuerst abschliessen.','warn');
+   return
+  }
   const limits={pga1:[0,3],pga2:[0,8],offset:[-8,8]};
   const [min,max]=limits[k];
   const next=Math.max(min,Math.min(max,st.staged[k]+increment));
   if(next===st.staged[k])return;
-  $(k).value=String(next);
-  gainChange()
+  const target={...st.staged,[k]:next};
+  if(st.mode==='demo'){
+   st.staged=target;
+   erasePoints();
+   gainSummary();
+   updateADC({s:demoADC(),t:10755,tc:9902},'demo');
+   show('writeMsg','DEMO: '+k.toUpperCase()+' angepasst. Simulierter ADC_S sofort aktualisiert; keine Hardwarebefehle.','warn');
+   return
+  }
+  if(!st.port||!st.chip){
+   show('writeMsg','Für die direkte RAM-Übernahme zuerst den Sensor verbinden.','warn');
+   return
+  }
+  // Jede Pfeiltaste schreibt sofort genau eine gültige Stufe ins Chip-RAM.
+  // Weitere Pfeiltasten bleiben bis zum bestätigten Rücklesen gesperrt.
+  void commitGain(target)
  }
  
 
@@ -478,42 +495,82 @@ if(typeof document!=='undefined') (function UI(){
  async function unlockRAM(){if(st.iface==='plc'){await exchange('PLC P',3500);await exchange('PLC T',3500)}else {for(const w of [0xF75A,0x0CC7,0xD21E])await lowLevelWrite(0x22,w,true)}}
  async function lowLevelWrite(addr,word,forUnlock=false){if(!st.port||!st.afeWriteActive||!st.chip)throw Error('AFE-Schreibzugriff nur während expliziter RAM-Übernahme zulässig');if(addr!==R_AFE&&!(forUnlock&&addr===0x22))throw Error('Nur CFG_AFE1 und dokumentierte RAM-Freigabecookies zulässig');if(addr===0x22&&!([0xF75A,0x0CC7,0xD21E].includes(word)))throw Error('Nicht erlaubtes CMD-Cookie');let cmd;if(st.iface==='plc'){if(addr!==R_AFE)throw Error('PLC nutzt PLC P / PLC T für RAM-Freigabe');cmd=P.plcWrite(addr,word)}else if(st.iface==='i2c'){cmd=P.i2cWrite(addr,word)}else{cmd=P.spiWrite(addr,word)}await exchange(cmd,2300)}
  async function commitGain(target){
-  if(st.writing||st.calTask||st.nvmWorking){show('writeMsg','Ein anderer Schreib- oder Kalibriervorgang läuft.','warn');return}
-  st.writing=true;st.afeWriteActive=true;
+  if(st.writing||st.calTask||st.nvmWorking){
+   show('writeMsg','Ein anderer Schreib- oder Kalibriervorgang läuft.','warn');
+   return
+  }
+  if(!st.port||!st.chip||st.mode!=='usb'){
+   show('writeMsg','Keine bestätigte Chipverbindung – AFE-Einstellung nicht verändert.','error');
+   return
+  }
+  if(!P.goodG(target)){
+   show('writeMsg','Ungültiger AFE-Stufencode.','error');
+   return
+  }
+  const resumeLive=st.live&&!st.manualLivePause;
+  let writeAttempted=false;
+  st.writing=true;
+  st.afeWriteActive=true;
+  stopLive();
+  renderStatus();
+  show('writeMsg','AFE wird direkt ins Sensor-RAM übertragen und rückgelesen …','warn');
   try{
-   if(!st.port||!st.chip||st.mode!=='usb')throw Error('Chip nicht verbunden');
-   if(!P.goodG(target))throw Error('AFE-Werte ausserhalb des zulässigen Bereichs');
+   // Keine gleichzeitigen SSP3-Kommandos mit einer noch laufenden Live-Messung.
+   if(st.liveReadPromise)await st.liveReadPromise.catch(()=>{});
    const beforeBoot=await bootSnapshot();
    if(st.boot&&!sameBoot(st.boot,beforeBoot))throw Error('Bootregister seit der letzten Prüfung verändert');
-   const w=await readReg(R_AFE),original=decodeSafeAFE(w),next=P.encAFE(w,target);
+   const originalWord=await readReg(R_AFE);
+   const original=decodeSafeAFE(originalWord);
+   const next=P.encAFE(originalWord,target);
    if(st.iface!=='plc'&&(beforeBoot[6]&0x8000))throw Error('CRC-geschützte I²C/SPI-Verbindung: RAM-Schreiben gesperrt');
-   if(next===w){
-    st.staged={...original};gainSummary();show('writeMsg','AFE-Werte sind bereits im Chip gespeichert.','success');return
+   if(next===originalWord){
+    st.afe=originalWord;
+    st.staged={...original};
+    gainSummary();
+    show('writeMsg','AFE-Einstellung ist im Chip-RAM bereits aktiv.','success');
+    return
    }
    const adcBefore=P.sign16(await readReg(0x2A));
    await unlockRAM();
+   writeAttempted=true;
    await lowLevelWrite(R_AFE,next);
    const actual=await readReg(R_AFE);
    if(actual!==next)throw Error('AFE-Rücklesefehler: Soll 0x'+h(next,2)+' Ist 0x'+h(actual,2));
    if(!sameBoot(beforeBoot,await bootSnapshot()))throw Error('Bootregister nach AFE-Übernahme verändert');
-   const adcAfter=P.sign16(await readReg(0x2A));
-   st.afe=actual;st.staged={...target};erasePoints();
-   show('writeMsg','AFE ins RAM übertragen und rückgelesen. ADC_S: '+fmt(adcBefore)+' → '+fmt(adcAfter)+' Digits. Alle Kalibrierpunkte neu aufnehmen.','success');
-   gainSummary()
+   st.afe=actual;
+   st.staged={...target};
+   erasePoints();
+   gainSummary();
+   let adcAfter=null;
+   try{adcAfter=await readADC()}catch(e){logging('ADC-Lesung nach AFE-RAM-Änderung: '+e.message)}
+   show('writeMsg','AFE automatisch ins RAM geschrieben und bestätigt. '+
+    (Number.isFinite(adcAfter)?'ADC_S: '+fmt(adcBefore)+' → '+fmt(adcAfter)+' Digits. ':'')+
+    'Weitere Stufen können direkt eingestellt werden. Bereits aufgenommene Kalibrierpunkte wurden zurückgesetzt.','success')
   }catch(e){
-   st.boot=null;show('writeMsg','AFE-Übernahme fehlgeschlagen: '+e.message,'error');
-   logging('AFE-Schreibfehler: '+e.message);
-   try{if(st.port&&st.chip){const r=await readReg(R_AFE);st.afe=r;st.staged=decodeSafeAFE(r);gainSummary()}}catch(_){}
-  }finally{st.afeWriteActive=false;st.writing=false;renderStatus()}
+   st.boot=null;
+   logging('AFE-RAM-Schreibfehler: '+e.message);
+   if(writeAttempted)erasePoints(); // Unklarer Zustand: alte Kalibrierpunkte niemals weiterverwenden.
+   try{
+    if(st.port&&st.chip){
+     const actual=await readReg(R_AFE);
+     st.afe=actual;
+     st.staged=decodeSafeAFE(actual);
+     gainSummary()
+    }
+   }catch(readError){
+    st.afe=null;
+    logging('AFE-Rücklesung nach Fehler: '+readError.message)
+   }
+   show('writeMsg','AFE-RAM-Übernahme fehlgeschlagen: '+e.message+
+    '. '+(writeAttempted?'Messpunkte vorsorglich verworfen.':'Keine AFE-Schreibbestätigung.')+
+    ' Bitte Chipzustand kontrollieren.','error')
+  }finally{
+   st.afeWriteActive=false;
+   st.writing=false;
+   renderStatus();
+   if(resumeLive&&st.port&&st.chip)startLive()
+  }
  }
- async function gainChange(){
-  if(st.calTask||st.nvmWorking||st.writing){gainSummary();show('writeMsg','Während der Kalibrier-/NVM-Transaktion können Gains nicht verändert werden.','warn');return}
-  st.staged={pga1:+$('pga1').value,pga2:+$('pga2').value,offset:+$('offset').value};
-  gainSummary();erasePoints();
-  if(st.mode==='demo'){updateADC({s:demoADC(),t:10755,tc:9902},'demo');show('writeMsg','DEMO: AFE-Werte nur simuliert.','warn');return}
-  show('writeMsg','Vorschau geändert. Zum Schreiben ins Chip-RAM «AFE-Einstellungen ins RAM übernehmen» drücken.','warn')
- }
- 
  async function sample(){if(st.mode==='demo'){const v=demoADC();return v}if(!st.chip)throw Error('Keine bestätigte Chip-Leseverbindung');return P.sign16(await readReg(0x2A))}
  
  async function capture(which){
@@ -995,7 +1052,6 @@ if(typeof document!=='undefined') (function UI(){
   $(k+'Down').addEventListener('click',()=>stepAFE(k,-1));
   $(k+'Up').addEventListener('click',()=>stepAFE(k,1))
  }
- $('afeApplyRam').addEventListener('click',()=>commitGain({...st.staged}));
   $('readBoot').addEventListener('click',()=>readBoot().catch(e=>logging('Boot-Prüfung: '+e.message)));$('readRegs').addEventListener('click',()=>registerDump());
  $('demoPressure').addEventListener('input',()=>{st.pressure=Number($('demoPressure').value);$('demoPressureVal').textContent=st.pressure.toFixed(1);if(st.mode==='demo')updateADC({s:demoADC(),t:10755,tc:9902},'demo')});$('capLo').addEventListener('click',()=>capture('lo'));$('capHi').addEventListener('click',()=>capture('hi'));$('verify').addEventListener('click',()=>verify());
  $('exportJSON').addEventListener('click',()=>download('ELMOS_Kalibrierprotokoll_'+Date.now()+'.json',JSON.stringify(report(),null,2)));
