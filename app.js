@@ -30,8 +30,8 @@ if(typeof document!=='undefined') (function UI(){
  const LOCKED=[4,6,8,10,12,16],R_AFE=0x1C;
  const CAL=ELMOS_CAL; const CAL_REGS=[0x6C,0x6E,0x70,0x72,...Array.from({length:16},(_,i)=>0x74+2*i),0x94,0x96,0x98,0x9A];
  const REG_NAMES={4:'CFG_EN',6:'CFG_SPI_I2C',8:'CFG_PADS0',10:'CFG_PADS1',12:'CFG_PADS2',16:'CFG_AODO',0x14:'CFG_ADC',0x16:'CFG_LP0',0x18:'CFG_LP1',0x1A:'CFG_AFE0',0x1C:'CFG_AFE1',0x1E:'CFG_AFE2',0x26:'ADC_TC',0x28:'ADC_T',0x2A:'ADC_S'};
- const st={mode:'offline',port:null,reader:null,readerPromise:null,cmdQueue:Promise.resolve(),replyBuffer:'',responseWait:null,iface:'plc',firmware:'',chip:false,boot:null,afe:null,staged:{pga1:0,pga2:0,offset:0},adc:null,dsp:null,dspError:null,liveReadPromise:null,trend:[],history:[],log:[],regs:{},points:{lo:null,hi:null},verify:null,live:false,manualLivePause:false,timeout:null,consecutiveErrors:0,writing:false,pressure:5,calpoints:[],calfit:null,calImage:null,nvmBackup:null,nvmBackupVerified:false,calStaged:false,calVerified:false,calValidation:[],calTask:false,nvmWorking:false,nvmDone:false,afeWriteActive:false,ramWriteScope:null,uid:null,expertOutputPlan:null,restorePlan:null,outputOnlyPlan:null};
- let currentStep=0,pendingGain=null,writeTimer=null;let tipEnabled=true;
+ const st={mode:'offline',port:null,reader:null,readerPromise:null,cmdQueue:Promise.resolve(),replyBuffer:'',responseWait:null,iface:'plc',firmware:'',chip:false,boot:null,afe:null,staged:{pga1:0,pga2:0,offset:0},adc:null,dsp:null,dspError:null,liveReadPromise:null,trend:[],history:[],log:[],regs:{},points:{lo:null,hi:null},verify:null,live:false,manualLivePause:false,timeout:null,consecutiveErrors:0,writing:false,pressure:5,calpoints:[],calfit:null,calImage:null,nvmBackup:null,nvmBackupVerified:false,calStaged:false,calVerified:false,calValidation:[],calTask:false,nvmWorking:false,nvmDone:false,afeWriteActive:false,ramWriteScope:null,uid:null,expertOutputPlan:null,restorePlan:null,outputOnlyPlan:null,uidShownForInput:null};
+ let currentStep=0,pendingGain=null,writeTimer=null;let tipEnabled=true,liveIntervalMs=650;
  const HELP={interface:'Schnittstelle zwischen SSP3-Board und Sensorchip. 1-Wire nutzt AODO (VDD, GND und AODO). Die Einstellung IF_CFG ändert die Programmer-Pins, nicht die NVM-Konfiguration des Sensors.',baud:'Baudrate des USB-UART zwischen Chrome und dem SSP3. Die Herstellersoftware verwendet 115200 Baud als Standard.',adcs:'ADC_S ist der unkompensierte 16-Bit-Druck-ADC. ±25000 Digits ist ein vorsichtiges Ziel für den manuellen Abgleich, keine garantierte Hardwaregrenze.',dsp_live:'DSP_S (Register 0x30) ist der skalierte DSP-Sensorausgang. Die Anzeige liest den Chipwert wiederholt und rechnet ihn mit dem konfigurierten DSP-Endwert (standardmässig ±32’000 Digits) in den gewählten Anzeigebereich um. Ein DSP-Wert allein belegt keine gültige Kalibrierung.',pga1:'Erste Druckverstärkungsstufe: 3.5×, 6×, 8.5× oder 11× (typische Werte laut Datenblatt 2023). Für gutes SNR möglichst hoch ohne Übersteuerung.',pga2:'Zweite Verstärkungsstufe: typische Faktoren 2× bis 10×. Der Gesamtfaktor ist PGA1 × PGA2.',offset:'17 DAC-Stufen von −400 bis +400 mV/V bezogen auf die Brückenspannung. Die Verschiebung liegt zwischen PGA1 und PGA2.',pressureunit:'Einheit für die Referenz- und Prüfdruckwerte. Für relative Kalibrierungen kann beispielsweise % mit 0 bis 100 gewählt werden. Referenzwerte müssen zum tatsächlichen Prüfstand passen. Einheitenwechsel erfordert neue Messpunkte.',dsp_limit:'Symmetrischer DSP-Endwert für die neue Kalibrierung. Standard ±32’000 Digits. ±30’000 lässt zusätzlich Reserve. Der Wert verändert die berechneten Koeffizienten sowie DSP-Soll und Fehlerumrechnung; er ist keine Hardware-Clipping-Grenze.',ram:'Schreibt nach manueller Freigabe ausschliesslich die Gain-/Offset-Bits in CFG_AFE1 0x1C im RAM. Kein NVM-/EEPROM-Schreiben. Vorher und nachher liest die App sämtliche Boot-/Kommunikationsregister.',};
  const h=P.hx;
  const fmt=n=>n===null||n===undefined||!Number.isFinite(n)?'—':Math.round(n).toLocaleString('de-CH');
@@ -277,26 +277,28 @@ if(typeof document!=='undefined') (function UI(){
   $('nvmBackupRead').disabled=!verificationComplete()||!st.port||!st.chip||st.nvmWorking||st.writing||st.calTask;
   $('nvmBackupDownload').disabled=!st.nvmBackupVerified||!st.nvmBackup;
   $('nvmAutoBackup').disabled=st.nvmWorking||st.writing||st.calTask;
-  $('nvmPrepare').disabled=!verificationComplete()||!st.nvmBackupVerified||!!st.restorePlan||!!st.outputOnlyPlan;
+  $('nvmPrepare').disabled=!verificationComplete()||!st.port||!st.chip||st.writing||st.calTask||st.nvmWorking||!!st.restorePlan||!!st.outputOnlyPlan;
   const restoring=expert.restoreReady(),outputOnly=expert.outputReady();
   $('nvmProgram').textContent=restoring?'Backup auf diesem Chip wiederherstellen':outputOnly?'AODO-Ausgangseinstellungen im NVM speichern':'Kalibrierung dauerhaft ins NVM schreiben';
-  const requiredWord=restoring?'WIEDERHERSTELLEN':outputOnly?'AUSGANG SPEICHERN':'PROGRAMMIEREN';
-  $('nvmConfirmWord').placeholder=requiredWord;
   const recognizedUid=st.uid?.hex||'';
-  $('nvmUidHint').textContent=recognizedUid?'Erkannte Chip-UID: '+recognizedUid+' · Diese UID zur Bestätigung selbst eingeben.':'Chip-UID noch nicht erkannt – bitte Chip verbinden und UID auslesen.';
+  if(st.uidShownForInput!==recognizedUid){
+   $('nvmConfirmId').value=recognizedUid;
+   st.uidShownForInput=recognizedUid;
+  }
+  $('nvmUidHint').textContent=recognizedUid?
+   'Aus dem Chip gelesen: '+recognizedUid+' · Feld automatisch ausgefüllt; eine Änderung wird vor dem Schreiben mit dem Sensor abgeglichen.':
+   'Chip-UID wird nach erfolgreicher Sensorverbindung automatisch eingetragen.';
   let nvmReason='';
   if(!verified||st.mode!=='usb')nvmReason='Zuerst die DSP-Prüfung abschliessen und sicherstellen, dass der echte Chip verbunden ist.';
   else if(!st.nvmBackupVerified||!st.nvmBackup)nvmReason='Zuerst Original-NVM vollständig lesen und prüfen.';
-  else if(!st.calImage)nvmReason='Zuerst «Änderungsliste erstellen» drücken. Danach werden die Bestätigungsfelder freigegeben.';
+  else if(!st.calImage)nvmReason='Zuerst «NVM lesen & Änderungen prüfen» drücken. Anschliessend kann gespeichert werden.';
   else if(!recognizedUid||st.uid.ser0!==st.nvmBackup[0]||st.uid.ser1!==st.nvmBackup[1])nvmReason='Chip-UID wurde nicht vollständig mit dem NVM-Backup abgeglichen.';
-  else if(!$('nvmConfirmId').value.trim())nvmReason='Änderungsplan bereit. Bitte die 12-stellige Chip-UID tatsächlich ins linke Feld eingeben.';
-  else if($('nvmConfirmId').value.trim().toUpperCase()!==recognizedUid)nvmReason='Die eingegebene Chip-UID stimmt nicht mit dem verbundenen Sensor überein.';
-  else if(!$('nvmConfirmWord').value.trim())nvmReason='Chip-UID stimmt. Bitte rechts das Bestätigungswort '+requiredWord+' eingeben.';
-  else if($('nvmConfirmWord').value.trim()!==requiredWord)nvmReason='Das Bestätigungswort muss exakt '+requiredWord+' lauten.';
+  else if(!/^[0-9A-Fa-f]{12}$/.test($('nvmConfirmId').value.trim()))nvmReason='Chip-UID muss genau 12 Hex-Ziffern enthalten.';
+  else if($('nvmConfirmId').value.trim().toUpperCase()!==recognizedUid)nvmReason='Die editierte UID stimmt nicht mit dem aktuell verbundenen Chip überein. Programmierung gesperrt.';
   const approvalGranted=nvmReason==='';
   $('nvmProgram').disabled=!approvalGranted;
   $('nvmWritePrereq').textContent=approvalGranted?
-   'Bereit: UID und Bestätigungswort stimmen. Beim Schreiben wird '+($('nvmAutoBackup').checked?'zuerst das alte NVM automatisch unter dieser UID gesichert, danach':'ohne dauerhaftes Backup direkt')+' programmiert.':
+   'Bereit: Chip-UID stimmt, NVM-Änderungsplan und CRC sind geprüft. Beim Klick wird '+($('nvmAutoBackup').checked?'das alte NVM vor dem Schreiben automatisch gesichert und danach':'ohne zusätzliches Backup')+' programmiert.':
    nvmReason;
   $('nvmWritePrereq').className='callout '+(approvalGranted?'success':'warn');
   const unlocked=[true,true,true,calEndpointsReady(),ready&&st.calStaged,!workflowGate(5)];
@@ -372,8 +374,8 @@ if(typeof document!=='undefined') (function UI(){
  }
  function decodeSafeAFE(w){if(!(w&0x800))throw Error('CFG_AFE1 Bit 11 unerwartet 0; keine Schreibfreigabe');const g=P.decAFE(w);if(!P.goodG(g))throw Error('AFE-Codes unbekannt: 0x'+h(w,2));return g}
  async function detect(){const w=await readReg(R_AFE);const g=decodeSafeAFE(w);const a=await readReg(0x2A);st.afe=w;st.staged={...g};st.chip=true;gainSummary();logging(`Chip-Leseantwort: AFE=0x${h(w,2)} ADC_S=${P.sign16(a)}`);await readADC();await expert.onDetect();renderStatus();show('connMsg','Chip-Register über '+(st.iface==='plc'?'1-Wire':st.iface.toUpperCase())+' lesbar. Antworten sind plausibel; ein physischer Hardware-Abnahmetest steht noch aus.','success');step(1);startLive()}
- async function connect(port){if(st.port)throw Error('Es ist bereits ein Port offen');if(st.mode==='demo')exitDemo();if(!navigator.serial||!window.isSecureContext)throw Error('Chrome benötigt Web Serial über HTTPS oder localhost');await port.open({baudRate:Number($('baud').value)});st.port=port;st.mode='usb';st.firmware='';st.chip=false;st.afe=null;st.boot=null;st.regs={};st.dsp=null;st.dspError=null;st.calStaged=false;st.calVerified=false;st.nvmDone=false;st.adc=null;st.manualLivePause=false;st.afeWriteActive=false;st.ramWriteScope=null;st.uid=null;st.restorePlan=null;st.expertOutputPlan=null;st.outputOnlyPlan=null;st.iface=$('iface').value;st.readerPromise=readerLoop(port);renderStatus();show('connMsg','USB offen. Firmware und Chip werden geprüft …');try{await firmware();await selectChipInterface();try{await detect()}catch(e){st.chip=false;logging('Chiptest: '+e.message);show('connMsg','SSP3 erreichbar, aber kein Chipzugriff bestätigt: '+e.message+'. Prüfe Startfenster, Verdrahtung und Schnittstellenwahl.','warn');renderStatus()}}catch(e){logging('Handshake: '+e.message);show('connMsg','USB offen, aber SSP3 antwortet noch nicht korrekt: '+e.message,'warn')};renderStatus()}
- async function disconnect(){if(st.nvmWorking||st.calTask||st.writing){show('connMsg','USB-Trennung während laufender RAM-/NVM-Arbeit gesperrt. Bitte Vorgang beenden.','error');return}stopLive();const p=st.port;if(!p){if(st.mode==='demo')exitDemo();return}st.port=null;st.chip=false;st.mode='offline';st.boot=null;st.afe=null;st.nvmBackup=null;st.nvmBackupVerified=false;st.calImage=null;st.calVerified=false;st.calStaged=false;st.nvmDone=false;st.dsp=null;st.adc=null;st.dspError=null;st.manualLivePause=false;st.afeWriteActive=false;st.ramWriteScope=null;st.uid=null;st.restorePlan=null;st.outputOnlyPlan=null;if(st.responseWait){clearTimeout(st.responseWait.timer);st.responseWait.reject(Error('Port getrennt'));st.responseWait=null}try{await st.reader?.cancel();await st.readerPromise?.catch(()=>{});await p.close()}catch(e){logging('Trennen: '+e.message)}renderStatus()}
+ async function connect(port){if(st.port)throw Error('Es ist bereits ein Port offen');if(st.mode==='demo')exitDemo();if(!navigator.serial||!window.isSecureContext)throw Error('Chrome benötigt Web Serial über HTTPS oder localhost');await port.open({baudRate:Number($('baud').value)});st.port=port;st.mode='usb';st.firmware='';st.chip=false;st.afe=null;st.boot=null;st.regs={};st.dsp=null;st.dspError=null;st.calStaged=false;st.calVerified=false;st.nvmDone=false;st.adc=null;st.manualLivePause=false;st.afeWriteActive=false;st.ramWriteScope=null;st.uid=null;st.uidShownForInput=null;st.restorePlan=null;st.expertOutputPlan=null;st.outputOnlyPlan=null;st.iface=$('iface').value;st.readerPromise=readerLoop(port);renderStatus();show('connMsg','USB offen. Firmware und Chip werden geprüft …');try{await firmware();await selectChipInterface();try{await detect()}catch(e){st.chip=false;logging('Chiptest: '+e.message);show('connMsg','SSP3 erreichbar, aber kein Chipzugriff bestätigt: '+e.message+'. Prüfe Startfenster, Verdrahtung und Schnittstellenwahl.','warn');renderStatus()}}catch(e){logging('Handshake: '+e.message);show('connMsg','USB offen, aber SSP3 antwortet noch nicht korrekt: '+e.message,'warn')};renderStatus()}
+ async function disconnect(){if(st.nvmWorking||st.calTask||st.writing){show('connMsg','USB-Trennung während laufender RAM-/NVM-Arbeit gesperrt. Bitte Vorgang beenden.','error');return}stopLive();const p=st.port;if(!p){if(st.mode==='demo')exitDemo();return}st.port=null;st.chip=false;st.mode='offline';st.boot=null;st.afe=null;st.nvmBackup=null;st.nvmBackupVerified=false;st.calImage=null;st.calVerified=false;st.calStaged=false;st.nvmDone=false;st.dsp=null;st.adc=null;st.dspError=null;st.manualLivePause=false;st.afeWriteActive=false;st.ramWriteScope=null;st.uid=null;st.uidShownForInput=null;st.restorePlan=null;st.outputOnlyPlan=null;if(st.responseWait){clearTimeout(st.responseWait.timer);st.responseWait.reject(Error('Port getrennt'));st.responseWait=null}try{await st.reader?.cancel();await st.readerPromise?.catch(()=>{});await p.close()}catch(e){logging('Trennen: '+e.message)}renderStatus()}
  function serialPortInfo(port){
   let i={};try{i=port?.getInfo?.()||{}}catch(_){}
   const hex=n=>Number(n).toString(16).padStart(4,'0').toUpperCase();
@@ -437,7 +439,7 @@ if(typeof document!=='undefined') (function UI(){
    }catch(e){
     st.consecutiveErrors++;logging('ADC-/DSP-Livefehler: '+e.message);
     if(st.consecutiveErrors>=3){stopLive();show('adcMsg','Live-Messung gestoppt: '+e.message,'error');return}
-   }finally{if(st.live)st.timeout=setTimeout(loop,650)}
+   }finally{if(st.live)st.timeout=setTimeout(loop,liveIntervalMs)}
   })()
  }
  function stopLive(){st.live=false;clearTimeout(st.timeout);st.timeout=null;renderStatus()}
@@ -752,8 +754,6 @@ if(typeof document!=='undefined') (function UI(){
    const id=st.uid?.hex;
    if(!id||st.uid.ser0!==st.nvmBackup[0]||st.uid.ser1!==st.nvmBackup[1])throw Error('48-Bit-Chip-UID muss vor dem Schreiben verifiziert werden');
    if($('nvmConfirmId').value.trim().toUpperCase()!==id)throw Error('48-Bit-Chip-UID stimmt nicht');
-   const requiredWord=restoring?'WIEDERHERSTELLEN':outputOnly?'AUSGANG SPEICHERN':'PROGRAMMIEREN';
-   if($('nvmConfirmWord').value.trim()!==requiredWord)throw Error('Bestätigungswort '+requiredWord+' fehlt');
    const initial=st.calImage.before,modified=st.calImage.after;
    if(CAL.crc16(initial)!==initial[63]||CAL.crc16(modified)!==modified[63])throw Error('CRC16-Prüfung fehlgeschlagen');
    if(!restoring&&!outputOnly&&st.calfit.stats.maxDigits>100)throw Error('Fitfehler zu gross (>100 Digits)');
@@ -802,7 +802,7 @@ if(typeof document!=='undefined') (function UI(){
    st.nvmDone=true;st.nvmBackup=after;st.nvmBackupVerified=true;st.calImage=null;st.restorePlan=null;st.outputOnlyPlan=null;if(saveOldNvm)expert.afterNvmScan();lsSet('elmos8-last-program',JSON.stringify({id,words:after,ts:new Date().toISOString(),restore:restoring}));
    ca('nvmMsg',restoring?'Backup-Wiederherstellung abgeschlossen, NVM rückgelesen und CRC16 bestätigt. Sensor neu starten und erneut prüfen.':outputOnly?'AODO-Ausgangseinstellungen dauerhaft gespeichert, NVM rückgelesen und CRC16 bestätigt. Sensor neu starten und Ausgabefunktion prüfen.':'NVM-Programmierung und vollständiges Rücklesen/CRC16 erfolgreich. Sensor neu starten und Schnittstelle erneut prüfen.','success');
   }catch(e){ca('nvmMsg',`NVM-Vorgang fehlgeschlagen: ${e.message}.${chipProgrammingStarted?' NVM-Schreibversuch wurde bereits begonnen: Chip nicht unkontrolliert neu starten, Backup und Diagnose sichern!':' Es wurden keine NVM-Schreibbefehle gestartet.'}`,'error');logging('NVM FEHLER: '+e.message)}
-  finally{if(st.calTask){try{await maintWrite(0x4E,0x0000)}catch(e){logging('NVM-Zugriffssperre: '+e.message)}await ramLock()};st.ramWriteScope=null;st.nvmWorking=false;st.calTask=false;st.writing=false;$('nvmConfirmWord').value='';renderStatus()}
+  finally{if(st.calTask){try{await maintWrite(0x4E,0x0000)}catch(e){logging('NVM-Zugriffssperre: '+e.message)}await ramLock()};st.ramWriteScope=null;st.nvmWorking=false;st.calTask=false;st.writing=false;renderStatus()}
  }
  async function postBootCheck(){try{
    if(!$('nvmRebootConfirm').checked)throw Error('Zuerst bestätigen, dass der Chip tatsächlich neu gestartet wurde');
@@ -858,9 +858,11 @@ if(typeof document!=='undefined') (function UI(){
  // controls
  const savedSampleCount=Number(lsGet('elmos-cal-sample-count-v1'));
  if(Number.isInteger(savedSampleCount)&&savedSampleCount>=1&&savedSampleCount<=100)$('calSampleCount').value=String(savedSampleCount);
+ $('settingsSampleCount').value=$('calSampleCount').value;
  $('calSampleCount').addEventListener('change',()=>{
   try{
    const count=chosenCalibrationSamples();
+   $('settingsSampleCount').value=String(count);
    lsSet('elmos-cal-sample-count-v1',String(count));
    ca('calPointsMsg','Ab der nächsten Aufnahme werden '+count+' Samples pro Messpunkt erfasst. Bereits aufgenommene Messpunkte bleiben unverändert.','success')
   }catch(e){
@@ -924,7 +926,7 @@ if(typeof document!=='undefined') (function UI(){
  // Backup ist aus Sicherheitsgründen bei jedem neuen Browserdurchlauf standardmässig aktiviert.
  $('nvmAutoBackup').checked=true;
  $('nvmAutoBackup').addEventListener('change',renderFlowState);
- for(const id of ['nvmConfirmId','nvmConfirmWord'])$(id).addEventListener('input',renderFlowState);
+ $('nvmConfirmId').addEventListener('input',renderFlowState);
  $('nvmProgram').addEventListener('click',nvmProgram);
  $('nvmPostBoot').addEventListener('click',postBootCheck);
  renderCalPoints();
@@ -935,6 +937,33 @@ if(typeof document!=='undefined') (function UI(){
  $('iface').value=lsGet('elmos8-iface')||'plc';if(!ifcfg[$('iface').value])$('iface').value='plc';st.iface=$('iface').value;
  $('tooltips').checked=(lsGet('elmos7-tooltips')??'1')==='1';tipEnabled=$('tooltips').checked;
  $('tooltips').addEventListener('change',()=>{tipEnabled=$('tooltips').checked;lsSet('elmos7-tooltips',tipEnabled?'1':'0');tip.classList.remove('visible')});
+ function toggleSettings(open){
+  $('settingsPanel').hidden=!open;
+  $('settingsOpen').setAttribute('aria-expanded',String(open));
+  if(open)$('settingsSampleCount').value=$('calSampleCount').value;
+ }
+ $('settingsOpen').addEventListener('click',()=>toggleSettings($('settingsPanel').hidden));
+ $('settingsClose').addEventListener('click',()=>toggleSettings(false));
+ $('settingsSampleCount').addEventListener('change',()=>{
+  const n=Number($('settingsSampleCount').value);
+  if(!Number.isInteger(n)||n<1||n>100){
+   $('settingsMsg').textContent='Sample-Anzahl muss zwischen 1 und 100 liegen.';
+   return
+  }
+  $('calSampleCount').value=String(n);
+  lsSet('elmos-cal-sample-count-v1',String(n));
+  $('settingsMsg').textContent='Standard-Sample-Anzahl: '+n+'. Gilt für neue Messpunkte.';
+ });
+ const intervalStored=Number(lsGet('elmos-live-interval-v1'));
+ if([400,650,1000,1500,2000].includes(intervalStored))liveIntervalMs=intervalStored;
+ $('settingsLiveInterval').value=String(liveIntervalMs);
+ $('settingsLiveInterval').addEventListener('change',()=>{
+  const n=Number($('settingsLiveInterval').value);
+  if(![400,650,1000,1500,2000].includes(n))return;
+  liveIntervalMs=n;
+  lsSet('elmos-live-interval-v1',String(n));
+  $('settingsMsg').textContent='Live-Abfrageintervall auf '+n+' ms eingestellt. Der nächste Lesezyklus verwendet diesen Wert.';
+ });
  $('iface').addEventListener('change',()=>{if(st.port){$('iface').value=st.iface;show('connMsg','Zur Schnittstellenänderung zuerst USB trennen.','warn');return}st.iface=$('iface').value;lsSet('elmos8-iface',st.iface);renderStatus()});
  $('choose').addEventListener('click',()=>choose());$('auto').addEventListener('click',()=>auto());$('disconnect').addEventListener('click',()=>disconnect());$('demo').addEventListener('click',()=>demo());
  $('readNow').addEventListener('click',()=>readADC().catch(e=>show('adcMsg','ADC: '+e.message,'error')));$('live').addEventListener('click',()=>{if(st.live){st.manualLivePause=true;stopLive()}else{st.manualLivePause=false;startLive()}});
