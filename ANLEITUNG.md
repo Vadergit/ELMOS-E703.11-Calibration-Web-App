@@ -21,7 +21,7 @@ In **Schritt 1 – Verbindung**:
 
 **Wenn sich COM öffnen nicht lässt:** Die Auswahl eines FTDI-Adapters bedeutet noch nicht, dass Chrome den Port öffnen kann. Zum Beispiel andere serielle Programme schliessen, COM-Zuordnung und VCP-Treiber prüfen; eine Fehlermeldung bei `SerialPort.open()` entsteht vor einer eigentlichen E703.11-Protokollprüfung. Der technische Diagnosemodus kann helfen.
 
-## 2. Live-Werte – in allen sechs Schritten sichtbar
+## 2. Live-Werte – in allen sieben Schritten sichtbar
 
 Oben in der App befindet sich eine dauerhaft sichtbare Statusleiste:
 
@@ -118,7 +118,7 @@ Die Änderungsliste, das separate Leseprotokoll und die Kontrolle nach einem phy
 
 **Achtung:** Ein Stromunterbruch oder Protokollfehler beim NVM-Schreiben kann den Sensor beschädigen. Die Hardwareverträglichkeit der aktuellen Implementierung ist nicht vollständig validiert.
 
-## 8. ⚙ Einstellungen und Expertenmodus
+## 9. ⚙ Einstellungen und Expertenmodus
 
 Das **Zahnrad oben rechts** öffnet die Einstellungen. Dort lassen sich folgende Optionen bedienen:
 
@@ -129,7 +129,7 @@ Das **Zahnrad oben rechts** öffnet die Einstellungen. Dort lassen sich folgende
 
 Nach Aktivierung erscheinen die erweiterten Eingabefelder **im zugehörigen Arbeitsschritt**:
 
-**Unter AFE optimieren:** AODO-Ausgangsmodus (High-Z, ratiometrisch analog mit drei DAC-Korrekturstufen, PWM, FM, Alarm), PWM-Periode und unterstützte AODO-Skalierung. Die App prüft die Vorschläge; die eigentliche dauerhafte Änderung erfolgt über den geschützten NVM-Schreibablauf. Eine reine Ausgangsänderung an einem schon kalibrierten Sensor ist vorgesehen und benötigt zunächst ein vollständiges geprüftes NVM-Abbild.
+**Unter Ausgang konfigurieren:** AODO-Ausgangsmodus (High-Z, ratiometrisch analog mit drei DAC-Korrekturstufen, PWM, FM, Alarm), PWM-Periode und unterstützte AODO-Skalierung. Die App prüft die Vorschläge; die eigentliche dauerhafte Änderung erfolgt über den geschützten NVM-Schreibablauf. Eine reine Ausgangsänderung an einem schon kalibrierten Sensor ist vorgesehen und benötigt zunächst ein vollständiges geprüftes NVM-Abbild.
 
 **Unter NVM speichern:** Hauptregister lesen, komplettes EEPROM-/NVM-Abbild anzeigen, nach UID gespeicherte Backups auswählen, importieren, exportieren und einen Restore-Plan erstellen. Die Backup-Dateinamen enthalten die **12-stellige UID**.
 
@@ -137,7 +137,7 @@ Nach Aktivierung erscheinen die erweiterten Eingabefelder **im zugehörigen Arbe
 
 Die lokale Browser-Backup-Historie kann beim Löschen von Website-Daten verloren gehen. **JSON-Backups zusätzlich extern aufbewahren.**
 
-## 9. Sicherheit, technische Grundlage und Grenzen
+## 10. Sicherheit, technische Grundlage und Grenzen
 
 - **Vor echten Schreibtests:** Zuerst nur lesen; anschliessend RAM-Funktionen; permanente NVM-Schreibvorgänge erst an einem entbehrlichen Testchip.
 - **Eigene Berechnung:** Die Software verwendet einen unabhängigen numerischen JavaScript-Fit, **nicht** `pssc_cal_lib.dll`. Der resultierende DSP-Abgleich muss an echten Sensoren und möglichst mit der Originalsoftware verglichen werden.
