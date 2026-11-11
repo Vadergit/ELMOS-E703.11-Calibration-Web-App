@@ -256,8 +256,8 @@ if(typeof document!=='undefined') (function UI(){
  }
  function decodeSafeAFE(w){if(!(w&0x800))throw Error('CFG_AFE1 Bit 11 unerwartet 0; keine Schreibfreigabe');const g=P.decAFE(w);if(!P.goodG(g))throw Error('AFE-Codes unbekannt: 0x'+h(w,2));return g}
  async function detect(){const w=await readReg(R_AFE);const g=decodeSafeAFE(w);const a=await readReg(0x2A);st.afe=w;st.staged={...g};st.chip=true;gainSummary();logging(`Chip-Leseantwort: AFE=0x${h(w,2)} ADC_S=${P.sign16(a)}`);await readADC();renderStatus();show('connMsg','Chip-Register über '+(st.iface==='plc'?'1-Wire':st.iface.toUpperCase())+' lesbar. Antworten sind plausibel; ein physischer Hardware-Abnahmetest steht noch aus.','success');step(1);startLive()}
- async function connect(port){if(st.port)throw Error('Es ist bereits ein Port offen');if(st.mode==='demo')exitDemo();if(!navigator.serial||!window.isSecureContext)throw Error('Chrome benötigt Web Serial über HTTPS oder localhost');await port.open({baudRate:Number($('baud').value)});st.port=port;st.mode='usb';st.firmware='';st.chip=false;st.afe=null;st.boot=null;st.regs={};st.dsp=null;st.dspError=null;st.calStaged=false;st.calVerified=false;st.nvmDone=false;$('allowRam').checked=false;st.iface=$('iface').value;st.readerPromise=readerLoop(port);renderStatus();show('connMsg','USB offen. Firmware und Chip werden geprüft …');try{await firmware();await selectChipInterface();try{await detect()}catch(e){st.chip=false;logging('Chiptest: '+e.message);show('connMsg','SSP3 erreichbar, aber kein Chipzugriff bestätigt: '+e.message+'. Prüfe Startfenster, Verdrahtung und Schnittstellenwahl.','warn');renderStatus()}}catch(e){logging('Handshake: '+e.message);show('connMsg','USB offen, aber SSP3 antwortet noch nicht korrekt: '+e.message,'warn')};renderStatus()}
- async function disconnect(){if(st.nvmWorking||st.calTask||st.writing){show('connMsg','USB-Trennung während laufender RAM-/NVM-Arbeit gesperrt. Bitte Vorgang beenden.','error');return}stopLive();const p=st.port;if(!p){if(st.mode==='demo')exitDemo();return}st.port=null;st.chip=false;st.mode='offline';st.boot=null;st.afe=null;st.nvmBackup=null;st.nvmBackupVerified=false;st.calImage=null;st.calVerified=false;st.calStaged=false;st.nvmDone=false;st.dsp=null;st.dspError=null;$('allowRam').checked=false;if(st.responseWait){clearTimeout(st.responseWait.timer);st.responseWait.reject(Error('Port getrennt'));st.responseWait=null}try{await st.reader?.cancel();await st.readerPromise?.catch(()=>{});await p.close()}catch(e){logging('Trennen: '+e.message)}renderStatus()}
+ async function connect(port){if(st.port)throw Error('Es ist bereits ein Port offen');if(st.mode==='demo')exitDemo();if(!navigator.serial||!window.isSecureContext)throw Error('Chrome benötigt Web Serial über HTTPS oder localhost');await port.open({baudRate:Number($('baud').value)});st.port=port;st.mode='usb';st.firmware='';st.chip=false;st.afe=null;st.boot=null;st.regs={};st.dsp=null;st.dspError=null;st.calStaged=false;st.calVerified=false;st.nvmDone=false;st.afeWriteActive=false;st.ramWriteScope=null;st.iface=$('iface').value;st.readerPromise=readerLoop(port);renderStatus();show('connMsg','USB offen. Firmware und Chip werden geprüft …');try{await firmware();await selectChipInterface();try{await detect()}catch(e){st.chip=false;logging('Chiptest: '+e.message);show('connMsg','SSP3 erreichbar, aber kein Chipzugriff bestätigt: '+e.message+'. Prüfe Startfenster, Verdrahtung und Schnittstellenwahl.','warn');renderStatus()}}catch(e){logging('Handshake: '+e.message);show('connMsg','USB offen, aber SSP3 antwortet noch nicht korrekt: '+e.message,'warn')};renderStatus()}
+ async function disconnect(){if(st.nvmWorking||st.calTask||st.writing){show('connMsg','USB-Trennung während laufender RAM-/NVM-Arbeit gesperrt. Bitte Vorgang beenden.','error');return}stopLive();const p=st.port;if(!p){if(st.mode==='demo')exitDemo();return}st.port=null;st.chip=false;st.mode='offline';st.boot=null;st.afe=null;st.nvmBackup=null;st.nvmBackupVerified=false;st.calImage=null;st.calVerified=false;st.calStaged=false;st.nvmDone=false;st.dsp=null;st.dspError=null;st.afeWriteActive=false;st.ramWriteScope=null;if(st.responseWait){clearTimeout(st.responseWait.timer);st.responseWait.reject(Error('Port getrennt'));st.responseWait=null}try{await st.reader?.cancel();await st.readerPromise?.catch(()=>{});await p.close()}catch(e){logging('Trennen: '+e.message)}renderStatus()}
  function serialPortInfo(port){
   let i={};try{i=port?.getInfo?.()||{}}catch(_){}
   const hex=n=>Number(n).toString(16).padStart(4,'0').toUpperCase();
@@ -327,16 +327,51 @@ if(typeof document!=='undefined') (function UI(){
  function stopLive(){st.live=false;clearTimeout(st.timeout);st.timeout=null;renderStatus()}
  function demoADC(){const g=st.staged;return Math.max(-32768,Math.min(32767,Math.round((st.pressure-5)*750*(GAINS1[g.pga1]/3.5)*(GAINS2[g.pga2]/2)+g.offset*950+(Math.random()-.5)*28)))}
  function demoRead(addr){if(addr===0x1C)return P.encAFE(0x0800,st.staged);if(addr===0x2A)return demoADC()&65535;if(addr===0x28)return 10755;if(addr===0x26)return 9902;if(addr===0x30){const lim=getActiveDSPRange()?.limit??32000;return Math.max(-32768,Math.min(32767,Math.round((st.pressure/10)*2*lim-lim)))&65535;}const fixed={4:0x0200,6:0x0006,8:0x0100,10:0x0980,12:0,16:0};return fixed[addr]??0}
- function exitDemo(){stopLive();st.mode='offline';st.chip=false;st.afe=null;st.boot=null;st.regs={};$('allowRam').checked=false;st.points={lo:null,hi:null};st.calpoints=[];st.calfit=null;st.calImage=null;st.nvmBackup=null;st.dsp=null;st.calStaged=false;st.nvmDone=false;$('demo').textContent='Demo starten';$('demoPressurePanel').hidden=true;renderStatus()}
+ function exitDemo(){stopLive();st.mode='offline';st.chip=false;st.afe=null;st.boot=null;st.regs={};st.afeWriteActive=false;st.ramWriteScope=null;st.points={lo:null,hi:null};st.calpoints=[];st.calfit=null;st.calImage=null;st.nvmBackup=null;st.dsp=null;st.calStaged=false;st.nvmDone=false;$('demo').textContent='Demo starten';$('demoPressurePanel').hidden=true;renderStatus()}
  function demo(){if(st.port)return show('connMsg','USB zuerst trennen, um die Demo zu starten.','warn');if(st.mode==='demo'){exitDemo();return}st.mode='demo';st.firmware='DEMO';st.chip=false;st.staged={pga1:1,pga2:3,offset:0};st.pressure=5;st.points={lo:null,hi:null};st.calpoints=[];st.calfit=null;st.calImage=null;st.nvmBackup=null;st.dsp=null;st.calStaged=false;st.nvmDone=false;gainSummary();$('demo').textContent='Demo beenden';$('demoPressurePanel').hidden=false;show('connMsg','DEMO aktiv: alle ADC-Werte sind simuliert. Es werden keine Hardwarebefehle gesendet.','warn');step(1);startLive();renderStatus()}
  async function bootSnapshot(){if(!(st.chip||st.mode==='demo'))throw Error('Chip nicht verbunden');const out={};for(const a of LOCKED)out[a]=await readReg(a);return out}
  function bootString(b){return LOCKED.map(a=>`${REG_NAMES[a]} 0x${h(a)} = 0x${h(b[a],2)} · gesperrt`).join('\n')}
- async function readBoot(){try{const a=await bootSnapshot(),b=await bootSnapshot();if(!sameBoot(a,b))throw Error('Bootregister nicht stabil');st.boot=a;$('regdump').textContent=bootString(a);show('bootMsg','Bootregister zweifach gelesen. Boot-/Schnittstellenregister schreibgeschützt; NVM-Bereich nur im gesicherten Kalibrierablauf programmierbar.','success');return a}catch(e){st.boot=null;$('allowRam').checked=false;show('bootMsg','Bootregister-Prüfung fehlgeschlagen: '+e.message,'error');throw e}finally{renderStatus()}}
+ async function readBoot(){try{const a=await bootSnapshot(),b=await bootSnapshot();if(!sameBoot(a,b))throw Error('Bootregister nicht stabil');st.boot=a;$('regdump').textContent=bootString(a);show('bootMsg','Bootregister zweifach gelesen. Boot-/Schnittstellenregister schreibgeschützt; NVM-Bereich nur im gesicherten Kalibrierablauf programmierbar.','success');return a}catch(e){st.boot=null;show('bootMsg','Bootregister-Prüfung fehlgeschlagen: '+e.message,'error');throw e}finally{renderStatus()}}
  async function registerDump(){try{if(!st.chip)throw Error('Chip-Lesezugriff nicht bestätigt');const regs=[...LOCKED,0x14,0x16,0x18,0x1A,0x1C,0x1E,0x26,0x28,0x2A];for(const a of regs)st.regs[a]=await readReg(a);$('regdump').textContent=regs.map(a=>`0x${h(a)}  ${REG_NAMES[a]||'Register'}  0x${h(st.regs[a],2)} ${LOCKED.includes(a)?'GESCHÜTZT':''}`).join('\n');show('bootMsg','Diagnoseregister gelesen. Bootregister bleiben schreibgeschützt.','success')}catch(e){show('bootMsg','Registerlesen: '+e.message,'error')}}
  async function unlockRAM(){if(st.iface==='plc'){await exchange('PLC P',3500);await exchange('PLC T',3500)}else {for(const w of [0xF75A,0x0CC7,0xD21E])await lowLevelWrite(0x22,w,true)}}
- async function lowLevelWrite(addr,word,forUnlock=false){if(!st.port||!$('allowRam').checked||!st.chip)throw Error('RAM-Schreibzugriff gesperrt');if(addr!==R_AFE&&!(forUnlock&&addr===0x22))throw Error('Nur CFG_AFE1 und dokumentierte RAM-Freigabecookies zulässig');if(addr===0x22&&!([0xF75A,0x0CC7,0xD21E].includes(word)))throw Error('Nicht erlaubtes CMD-Cookie');let cmd;if(st.iface==='plc'){if(addr!==R_AFE)throw Error('PLC nutzt PLC P / PLC T für RAM-Freigabe');cmd=P.plcWrite(addr,word)}else if(st.iface==='i2c'){cmd=P.i2cWrite(addr,word)}else{cmd=P.spiWrite(addr,word)}await exchange(cmd,2300)}
- async function commitGain(target){if(st.writing){pendingGain=target;return}st.writing=true;try{if(!st.port||!st.chip||!$('allowRam').checked)throw Error('Chip nicht bereit oder RAM nicht freigegeben');if(!P.goodG(target))throw Error('Unzulässige Gain-Werte');const baseline=st.boot??await bootSnapshot();const beforeBoot=await bootSnapshot();if(!sameBoot(baseline,beforeBoot))throw Error('Bootregister seit der ersten Prüfung geändert');const w=await readReg(R_AFE);const old=decodeSafeAFE(w);const next=P.encAFE(w,target);if(st.iface!=='plc'&&(beforeBoot[6]&0x8000))throw Error('Chip verlangt CRC-geschützte I²C/SPI-Kommunikation; ungeschützte RAM-Änderung gesperrt');if(next===w){show('writeMsg','AFE-Einstellungen sind bereits identisch. Kein Schreibbefehl gesendet.','success');return}const adcBefore=await readReg(0x2A);await unlockRAM();await lowLevelWrite(R_AFE,next);const reread=await readReg(R_AFE);if(reread!==next)throw Error('AFE-Rücklesefehler: Soll 0x'+h(next,2)+' Ist 0x'+h(reread,2));const afterBoot=await bootSnapshot();if(!sameBoot(beforeBoot,afterBoot))throw Error('Bootregister nach AFE-Schreiben verändert – sofortige Sperre');const adcAfter=await readReg(0x2A);st.afe=reread;st.staged={...target};erasePoints();show('writeMsg',`RAM bestätigt: 0x${h(w,2)} → 0x${h(next,2)}, Rücklesen korrekt. ADC_S am aktuellen Druck: ${fmt(P.sign16(adcBefore))} → ${fmt(P.sign16(adcAfter))} Digits. Für die Hubbewertung beide Druckpunkte neu aufnehmen.`,'success');logging('AFE-RAM schreiben und rücklesen OK. Keine NVM-Änderung.');gainSummary()}catch(e){st.boot=null;$('allowRam').checked=false;show('writeMsg','AFE-Schreiben abgebrochen: '+e.message+'. Schreibfreigabe wurde deaktiviert.','error');logging('AFE-Schreibfehler: '+e.message);try{if(st.port&&st.chip){let r=await readReg(R_AFE);st.afe=r;st.staged=decodeSafeAFE(r);gainSummary()}}catch{} }finally{st.writing=false;renderStatus();if(pendingGain&&st.port&&st.chip&&$('allowRam').checked){const nextTarget=pendingGain;pendingGain=null;writeTimer=setTimeout(()=>commitGain(nextTarget),125)}}}
- async function gainChange(){if(st.calTask||st.nvmWorking){gainSummary();show('writeMsg','Während NVM-/Kalibrier-Wartung sind Gain-Änderungen gesperrt.','warn');return}let target={pga1:+$('pga1').value,pga2:+$('pga2').value,offset:+$('offset').value};st.staged={...target};gainSummary();erasePoints();if(st.mode==='demo'){updateADC({s:demoADC(),t:10755,tc:9902},'demo');show('writeMsg','DEMO: Gain-Änderung ist nur simuliert.','warn');return}if(!st.port||!st.chip||!$('allowRam').checked){show('writeMsg','Vorschau geändert. Für eine echte RAM-Änderung zuerst die bewusste Freigabe aktivieren.','warn');return}pendingGain=target;clearTimeout(writeTimer);writeTimer=setTimeout(()=>{const v=pendingGain;pendingGain=null;commitGain(v)},340)}
+ async function lowLevelWrite(addr,word,forUnlock=false){if(!st.port||!st.afeWriteActive||!st.chip)throw Error('AFE-Schreibzugriff nur während expliziter RAM-Übernahme zulässig');if(addr!==R_AFE&&!(forUnlock&&addr===0x22))throw Error('Nur CFG_AFE1 und dokumentierte RAM-Freigabecookies zulässig');if(addr===0x22&&!([0xF75A,0x0CC7,0xD21E].includes(word)))throw Error('Nicht erlaubtes CMD-Cookie');let cmd;if(st.iface==='plc'){if(addr!==R_AFE)throw Error('PLC nutzt PLC P / PLC T für RAM-Freigabe');cmd=P.plcWrite(addr,word)}else if(st.iface==='i2c'){cmd=P.i2cWrite(addr,word)}else{cmd=P.spiWrite(addr,word)}await exchange(cmd,2300)}
+ async function commitGain(target){
+  if(st.writing||st.calTask||st.nvmWorking){show('writeMsg','Ein anderer Schreib- oder Kalibriervorgang läuft.','warn');return}
+  st.writing=true;st.afeWriteActive=true;
+  try{
+   if(!st.port||!st.chip||st.mode!=='usb')throw Error('Chip nicht verbunden');
+   if(!P.goodG(target))throw Error('AFE-Werte ausserhalb des zulässigen Bereichs');
+   const beforeBoot=await bootSnapshot();
+   if(st.boot&&!sameBoot(st.boot,beforeBoot))throw Error('Bootregister seit der letzten Prüfung verändert');
+   const w=await readReg(R_AFE),original=decodeSafeAFE(w),next=P.encAFE(w,target);
+   if(st.iface!=='plc'&&(beforeBoot[6]&0x8000))throw Error('CRC-geschützte I²C/SPI-Verbindung: RAM-Schreiben gesperrt');
+   if(next===w){
+    st.staged={...original};gainSummary();show('writeMsg','AFE-Werte sind bereits im Chip gespeichert.','success');return
+   }
+   const adcBefore=P.sign16(await readReg(0x2A));
+   await unlockRAM();
+   await lowLevelWrite(R_AFE,next);
+   const actual=await readReg(R_AFE);
+   if(actual!==next)throw Error('AFE-Rücklesefehler: Soll 0x'+h(next,2)+' Ist 0x'+h(actual,2));
+   if(!sameBoot(beforeBoot,await bootSnapshot()))throw Error('Bootregister nach AFE-Übernahme verändert');
+   const adcAfter=P.sign16(await readReg(0x2A));
+   st.afe=actual;st.staged={...target};erasePoints();
+   show('writeMsg','AFE ins RAM übertragen und rückgelesen. ADC_S: '+fmt(adcBefore)+' → '+fmt(adcAfter)+' Digits. Alle Kalibrierpunkte neu aufnehmen.','success');
+   gainSummary()
+  }catch(e){
+   st.boot=null;show('writeMsg','AFE-Übernahme fehlgeschlagen: '+e.message,'error');
+   logging('AFE-Schreibfehler: '+e.message);
+   try{if(st.port&&st.chip){const r=await readReg(R_AFE);st.afe=r;st.staged=decodeSafeAFE(r);gainSummary()}}catch(_){}
+  }finally{st.afeWriteActive=false;st.writing=false;renderStatus()}
+ }
+ async function gainChange(){
+  if(st.calTask||st.nvmWorking||st.writing){gainSummary();show('writeMsg','Während der Kalibrier-/NVM-Transaktion können Gains nicht verändert werden.','warn');return}
+  st.staged={pga1:+$('pga1').value,pga2:+$('pga2').value,offset:+$('offset').value};
+  gainSummary();erasePoints();
+  if(st.mode==='demo'){updateADC({s:demoADC(),t:10755,tc:9902},'demo');show('writeMsg','DEMO: AFE-Werte nur simuliert.','warn');return}
+  show('writeMsg','Vorschau geändert. Zum Schreiben ins Chip-RAM «AFE-Einstellungen ins RAM übernehmen» drücken.','warn')
+ }
+ 
  async function sample(){if(st.mode==='demo'){const v=demoADC();return v}if(!st.chip)throw Error('Keine bestätigte Chip-Leseverbindung');return P.sign16(await readReg(0x2A))}
  
  async function capture(which){
@@ -391,7 +426,7 @@ if(typeof document!=='undefined') (function UI(){
 
  function draw(){const c=$('chart');if(!c||c.closest('[hidden]'))return;const d=window.devicePixelRatio||1,w=Math.round(c.clientWidth*d),h=Math.round(c.clientHeight*d);if(w<20)return;if(c.width!==w||c.height!==h){c.width=w;c.height=h}const g=c.getContext('2d');g.clearRect(0,0,w,h);const x0=55*d,y0=10*d,yh=h-20*d,y=v=>y0+(32768-v)/65536*(yh-y0);g.font=`${11*d}px sans-serif`;for(const v of [25000,0,-25000]){g.beginPath();g.strokeStyle=v?'#e3c9aa':'#d7e4ef';g.setLineDash(v?[5*d,4*d]:[]);g.moveTo(x0,y(v));g.lineTo(w-8*d,y(v));g.stroke();g.setLineDash([]);g.fillStyle='#74849a';g.fillText((v>0?'+':'')+v,5*d,y(v)+4*d)}if(st.trend.length<1)return;const left=Date.now()-60000,x=t=>x0+(w-x0-10*d)*Math.max(0,Math.min(1,(t-left)/60000));g.beginPath();g.strokeStyle='#2867a6';g.lineWidth=2*d;st.trend.forEach((p,i)=>i?g.lineTo(x(p.x),y(p.y)):g.moveTo(x(p.x),y(p.y)));g.stroke()}
  function download(name,txt,mime='application/json'){let b=new Blob([txt],{type:mime}),u=URL.createObjectURL(b),a=document.createElement('a');a.href=u;a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(u),2000)}
- const report=()=>({tool:'ELMOS E703.11 Chrome v8 / SSP3 Zelos Protocol',created:new Date().toISOString(),connection:st.port?'USB':'offline/demo',hardwareValidated:false,unit:pressureUnit(),pointNames:{lower:pointName('lo'),upper:pointName('hi')},interface:st.iface,firmware:st.firmware,bootProtection:'Boot-/Werks-NVM-Schreiben gesperrt; kalibrierungsbezogenes User-NVM mit Bestätigung freigegeben',ramUnlocked:$('allowRam').checked,registers:st.regs,bootSnapshot:st.boot,AFE:st.afe,gains:st.staged,low:st.points.lo,high:st.points.hi,verification:st.verify,calibrationPoints:st.calpoints,plannedCalibrationPointCount:calibrationPointCount(),requestedDSPOutputLimit:Number($('calDspLimit').value),coefficientFit:st.calfit,calRamVerified:st.calVerified,lastDSP:st.dsp,displayRange:getActiveDSPRange(),nvmState:{backupVerified:st.nvmBackupVerified,programmed:st.nvmDone},samples:st.history.slice(-1500),trace:st.log});
+ const report=()=>({tool:'ELMOS E703.11 Chrome v8 / SSP3 Zelos Protocol',created:new Date().toISOString(),connection:st.port?'USB':'offline/demo',hardwareValidated:false,unit:pressureUnit(),pointNames:{lower:pointName('lo'),upper:pointName('hi')},interface:st.iface,firmware:st.firmware,bootProtection:'Boot-/Werks-NVM-Schreiben gesperrt; kalibrierungsbezogenes User-NVM mit Bestätigung freigegeben',ramWriteActive:!!st.ramWriteScope,registers:st.regs,bootSnapshot:st.boot,AFE:st.afe,gains:st.staged,low:st.points.lo,high:st.points.hi,verification:st.verify,calibrationPoints:st.calpoints,plannedCalibrationPointCount:calibrationPointCount(),requestedDSPOutputLimit:Number($('calDspLimit').value),coefficientFit:st.calfit,calRamVerified:st.calVerified,lastDSP:st.dsp,displayRange:getActiveDSPRange(),nvmState:{backupVerified:st.nvmBackupVerified,programmed:st.nvmDone},samples:st.history.slice(-1500),trace:st.log});
 
  // ============ Kalibrierung + NVM (AN0203 / AN0204 / Datasheet 2023) ============
  const ca=(id,msg,type='')=>show(id,msg,type);
@@ -454,7 +489,7 @@ if(typeof document!=='undefined') (function UI(){
 
  async function maintWrite(addr,word){
   // Restricted, never public raw-register interface. Only for controlled calibration/NVM transaction.
-  if(!st.calTask||!st.port||!st.chip||!$('allowRam').checked)throw Error('Technischer Wartungszugriff gesperrt');
+  if(!st.calTask||!st.port||!st.chip||!st.ramWriteScope)throw Error('Technischer Wartungszugriff nur während gewählter Schreib-/Backup-Aktion erlaubt');
   if(!Number.isInteger(word)||word<0||word>65535||!Number.isInteger(addr)||addr%2)throw Error('Ungültige Registerdaten');
   const permitted=CAL_REGS.includes(addr)||addr===0x4A||addr===0x4E||addr===0x22;
   if(!permitted)throw Error(`Schreibzugriff 0x${h(addr)} ist gesperrt`);
@@ -751,29 +786,7 @@ if(typeof document!=='undefined') (function UI(){
  $('choose').addEventListener('click',()=>choose());$('auto').addEventListener('click',()=>auto());$('disconnect').addEventListener('click',()=>disconnect());$('demo').addEventListener('click',()=>demo());
  $('readNow').addEventListener('click',()=>readADC().catch(e=>show('adcMsg','ADC: '+e.message,'error')));$('live').addEventListener('click',()=>st.live?stopLive():startLive());
  for(let k of ['pga1','pga2','offset'])$(k).addEventListener('input',()=>gainChange());
- async function setRamWriteAccess(allowed){
-  $('allowRam').checked=!!allowed;$('calRamEnable').checked=!!allowed;
-  if(allowed){
-   try{
-    if(!st.port||!st.chip)throw Error('Nur bei einer echten Chipverbindung freischaltbar');
-    await readBoot();
-    if(!$('allowRam').checked)throw Error('Bootregister-Prüfung konnte die Schreibfreigabe nicht bestätigen');
-    show('writeMsg','RAM-Schreibzugriff freigegeben. AFE-Gain-Änderungen und berechnete DSP-Koeffizienten können nach ihren jeweiligen Sicherheitsprüfungen ins RAM geschrieben werden.','warn');
-    show('calRamStageMsg','RAM-Schreibzugriff freigegeben. Als Nächstes Original-NVM lesen und prüfen.','warn');
-   }catch(e){
-    $('allowRam').checked=false;$('calRamEnable').checked=false;
-    show('writeMsg','RAM-Freigabe verweigert: '+e.message,'error');
-    show('calRamStageMsg','RAM-Freigabe verweigert: '+e.message,'error');
-   }
-  }else{
-   pendingGain=null;clearTimeout(writeTimer);
-   show('writeMsg','RAM-Schreibfreigabe ausgeschaltet.');
-   show('calRamStageMsg','RAM-Schreibfreigabe ausgeschaltet. Für RAM-Übernahme erneut freigeben.','warn');
-  }
-  renderStatus()
- }
- $('allowRam').addEventListener('change',()=>setRamWriteAccess($('allowRam').checked));
- $('calRamEnable').addEventListener('change',()=>setRamWriteAccess($('calRamEnable').checked));
+ $('afeApplyRam').addEventListener('click',()=>commitGain({...st.staged}));
   $('readBoot').addEventListener('click',()=>readBoot().catch(e=>logging('Boot-Prüfung: '+e.message)));$('readRegs').addEventListener('click',()=>registerDump());
  $('demoPressure').addEventListener('input',()=>{st.pressure=Number($('demoPressure').value);$('demoPressureVal').textContent=st.pressure.toFixed(1);if(st.mode==='demo')updateADC({s:demoADC(),t:10755,tc:9902},'demo')});$('capLo').addEventListener('click',()=>capture('lo'));$('capHi').addEventListener('click',()=>capture('hi'));$('verify').addEventListener('click',()=>verify());
  $('exportJSON').addEventListener('click',()=>download('ELMOS_Kalibrierprotokoll_'+Date.now()+'.json',JSON.stringify(report(),null,2)));
