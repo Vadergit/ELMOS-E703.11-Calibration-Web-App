@@ -121,7 +121,7 @@ const ELMOS_EXPERT=(()=>{
      const plan={uid:st.uid.hex,outputOnly:true,limit,before:before.slice(),after,changes};
      st.outputOnlyPlan=plan;st.restorePlan=null;st.calImage=plan;
      st.expertOutputPlan=values;
-     show('expertOutputMsg','Ausgangsänderung ohne neuen Druckabgleich vorbereitet: '+changes.length+' NVM-Wörter. Im letzten Schritt UID und AUSGANG SPEICHERN eingeben. Noch nichts am Sensor geändert.','warn')
+     show('expertOutputMsg','Ausgangsänderung ohne neuen Druckabgleich vorbereitet: '+changes.length+' NVM-Wörter. Im NVM-Schritt die automatisch übernommene Chip-UID prüfen und danach den Schreibknopf betätigen. Noch nichts am Sensor geändert.','warn')
     }else{
      st.outputOnlyPlan=null;st.restorePlan=null;st.calImage=null;st.expertOutputPlan=values;
      show('expertOutputMsg','Ausgangseinstellung geprüft und in den normalen finalen Kalibrier-NVM-Plan vorgemerkt. Noch nichts am Sensor geändert.','success')
@@ -152,7 +152,7 @@ const ELMOS_EXPERT=(()=>{
     const plan={uid:st.uid.hex,restore:true,before:before.slice(),after,changes,created:chosen.created};
     st.restorePlan=plan;st.outputOnlyPlan=null;st.expertOutputPlan=null;st.calImage=plan;
     $('expertRestoreDiff').textContent=changes.map(x=>'CM 0x'+hx(x.address)+' 0x'+hx(x.from)+' → 0x'+hx(x.to)).join('\n');
-    show('expertRestoreMsg',changes.length+' User-NVM-Wörter aus Backup '+new Date(chosen.created).toLocaleString('de-CH')+' zur Wiederherstellung vorgemerkt. Noch nichts geschrieben. Zum NVM-Schritt wechseln, UID + WIEDERHERSTELLEN eingeben.','warn')
+    show('expertRestoreMsg',changes.length+' User-NVM-Wörter aus Backup '+new Date(chosen.created).toLocaleString('de-CH')+' zur Wiederherstellung vorgemerkt. Noch nichts geschrieben. Zum NVM-Schritt wechseln, Chip-UID prüfen und die Wiederherstellung starten.','warn')
    }catch(e){st.restorePlan=null;if(st.calImage?.restore)st.calImage=null;show('expertRestoreMsg','Wiederherstellung abgelehnt: '+e.message,'error')}
    renderFlowState()
   }
@@ -174,8 +174,10 @@ const ELMOS_EXPERT=(()=>{
    download('ELMOS_E70311_UID_'+st.uid.hex+'_'+created.replace(/[:.]/g,'-')+'.json',JSON.stringify(entry,null,2));
   }
   $('expertMode').addEventListener('change',()=>{
-   $('expertPanel').hidden=!$('expertMode').checked;
-   if($('expertMode').checked)renderBackups();
+   const enabled=$('expertMode').checked;
+   $('expertPanel').hidden=!enabled;
+   document.querySelectorAll('[data-expert-area]').forEach(section=>{section.hidden=!enabled});
+   if(enabled)renderBackups();
    else {if((st.restorePlan&&st.calImage===st.restorePlan)||(st.outputOnlyPlan&&st.calImage===st.outputOnlyPlan)||st.expertOutputPlan)st.calImage=null;st.restorePlan=null;st.outputOnlyPlan=null;st.expertOutputPlan=null;}
    renderFlowState()
   });
