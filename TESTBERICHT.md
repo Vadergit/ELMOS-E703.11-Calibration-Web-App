@@ -1,3 +1,21 @@
+## Geführter Kalibrierablauf – Änderungsprüfung 11.11.2026
+
+Der bisherige Pflichtschritt «Rohwert-Zwischenprüfung» vor der DSP-Berechnung wurde entfernt. Der optionale Rohwertvergleich ist nun unter Messpunkte eingeklappt und ist **nicht** als erfolgreiche Chip-Kalibrierung gekennzeichnet.
+
+Neue Reihenfolge: **Messpunkte → Koeffizienten berechnen → NVM-Backup → DSP in RAM schreiben und rücklesen → unabhängige DSP_S-Verifikation → bewusstes NVM-Programmieren**.
+
+**Prüfungen ohne Hardware:**
+
+- JavaScript-Syntax und UI-Initialisierung geprüft; alle im Skript referenzierten HTML-IDs vorhanden
+- Handler für USB-Portauswahl, zwei Referenzpunkte, Berechnung, RAM, DSP-Verifikation und Einheitsauswahl vorhanden
+- Umstellung der Einheit auf Prozent setzt bei leerem Standardbereich den Bereich auf 0–100 und bezeichnet die Punkte mit 0 % / 100 %
+- Demo-Aufnahme von zwei Referenzpunkten speichert jeweils ADC_S, ADC_T und ADC_TC mit derselben AFE-Einstellung
+- Lineare Browser-Koeffizientenberechnung mit zwei simulierten Endpunkten und geeignetem Hub erfolgreich
+- Schritt «DSP prüfen» wird ohne RAM-Übernahme gesperrt; «NVM» wird ohne erfolgreiche DSP-Verifikation gesperrt
+- Nach simulierten Statusänderungen in RAM und Verifikation werden die nächsten Schritte freigegeben
+
+**Nicht getestet:** Tatsächliche SSP3-Kommunikation, korrekte Koeffizientenübernahme in echten E703.11-RAM-Speicher, reale DSP_S-Messung, NVM-Programmierung und physischer Neustart. Die Bedienlogik-Tests ersetzen keine Hardwarefreigabe.
+
 # ELMOS Chrome v8 – Prüfbericht (10.11.2026)
 
 ## Erreicht / geprüft
