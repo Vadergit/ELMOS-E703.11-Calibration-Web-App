@@ -4,6 +4,14 @@ Browserbasierter Kalibrierassistent für den **ELMOS E703.11** mit **SSP3-Eval-B
 
 > **Status: experimenteller Laborprototyp (v8).** Die Kommunikation, der Koeffizientenabgleich und die NVM-Programmierung wurden mit einem simulierten SSP3-Gerät getestet, **nicht** an echter Hardware vollständig verifiziert. **Nicht für Serienproduktion oder unersetzliche Chips einsetzen.** Ein fehlerhafter NVM-Schreibvorgang kann den Chip unbrauchbar machen.
 
+## Messpunktaufnahme: Anzahl Samples und Ergebnisanzeige
+
+In **Schritt 3** kannst du die **Samples pro Messpunkt** unabhängig von der Anzahl der Kalibrierpunkte auf **1–100** einstellen (Standard **12**). Die Einstellung gilt gleichermassen für den unteren Endpunkt, alle Zwischenpunkte und den oberen Endpunkt. Sie wird lokal im Browser gespeichert. Bereits erfasste Messpunkte behalten ihre ursprünglichen Werte und die damals verwendete Sample-Anzahl; eine Änderung wirkt erst bei der nächsten Aufnahme.
+
+Pro Sample liest die Web-App `ADC_S`, `ADC_T` und `ADC_TC`. Als gespeicherte Werte verwendet sie jeweils den **Median** der ausgewählten Samples (bei gerader Anzahl den Mittelwert der beiden mittleren Werte). Die **Streuung** ist die Differenz zwischen maximalem und minimalem `ADC_S`-Wert. Bei einer Streuung über 350 Digits wird die Aufnahme wie bisher abgelehnt. **Ein einzelnes Sample erlaubt keine Streuungsprüfung.**
+
+Nach erfolgreicher Aufnahme erscheint direkt unter dem jeweiligen Aufnahmeknopf eine kontrastreiche **grüne Ergebnisfläche** mit ADC_S, ADC_T, Streuung, Sample-Anzahl, Referenzwert und Temperatur. Im Kopf der Messpunktkarte erscheint zudem «✓ Aufgenommen». Beim Löschen oder erneuten Aufnehmen werden die Anzeigen entsprechend aktualisiert. Während einer Aufnahme zeigt die App den Fortschritt (z. B. «8 / 20 Samples») an.
+
 ## Kalibrier-Messpunkte und DSP-Reserve
 
 In **Schritt 3 (Messpunkte)** wird **vor** der Messung die Anzahl Kalibrier-Messpunkte gewählt: **2–10, Standard 2**. Die Oberfläche zeigt anschliessend genau die gewählten Messpunkt-Karten. Jeder Punkt hat eine eigene Bezeichnung, einen Referenzwert und eine Temperatur. Die beiden Endpunkte entsprechen dem unteren und oberen Kalibrierbereich; Zwischenpunkte werden vorgeschlagen, können aber angepasst werden. Die Berechnung wird erst nach der vollständigen Aufnahme aller gewählten Punkte freigeschaltet. Die Anzahl der späteren **DSP-Prüfpunkte** wird separat in Schritt 5 festgelegt.
