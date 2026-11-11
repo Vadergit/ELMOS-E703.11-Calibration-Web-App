@@ -44,3 +44,37 @@ test('NVM write path requires one-wire + preservation check',()=>{
  assert.ok(src.includes("st.iface!=='plc')throw Error('1-Wire-Startschutz"));
  assert.ok(src.includes('CAL.protectStartupCommunication(initial,modified)'));
 });
+
+test('PSSC S0/S1 quantization stays inside analog range',()=>{
+ const result=CAL.analogScaling(0.5,4.5,5,32000);
+ assert.ok(result.gain>0);
+ assert.ok(result.outputDigits[0]>=-26214);
+ assert.ok(result.outputDigits[1]<=26214);
+ assert.ok(Math.abs(result.actualVolts[0]-0.5)<0.005);
+ assert.ok(Math.abs(result.actualVolts[1]-4.5)<0.005);
+ const before=empty();
+ const after=CAL.prepareOutputConfig(before,{mode:'1',...result,pwmPeriod:16384},32000);
+ for(let i=0;i<28;i++)if(i!==16&&i!==22)assert.equal(after[i],before[i]);
+});
+test('PSSC scaling rejects out-of-range voltages',()=>{
+ for(const values of [[0,5,5,32000],[4.5,0.5,5,32000],[0.5,4.5,12,32000],[0.5,4.5,5,33000]]){
+  assert.throws(()=>CAL.analogScaling(...values));
+ }
+});
+test('PSSC UI separates supported and unsupported output modes',()=>{
+ const html=read('index.html');
+ for(const token of ['Digital Interface','AODO pin','Scaling','Limiting','Error Signaling','Error Values'])assert.ok(html.includes(token));
+ assert.ok(html.includes('Analog Ratiometric 0..5 V'));
+ assert.ok(html.includes('Analog Absolute 0..10 V · nicht E703.11'));
+ assert.ok(html.includes('value="abs10" disabled'));
+ assert.ok(html.includes('value="loop420" disabled'));
+ assert.ok(html.includes('value="onewire" disabled'));
+ assert.equal(html.split('id="expertScaleGain"').length-1,1);
+ assert.equal(html.split('id="expertScaleOffset"').length-1,1);
+});
+test('Output edits invalidate the previously prepared NVM plan',()=>{
+ const src=read('expert.js');
+ assert.ok(src.includes('st.calImage=null;st.restorePlan=null;st.outputOnlyPlan=null;st.expertOutputPlan=null;'));
+ assert.ok(src.includes('function calculateAnalogScaling()'));
+ assert.ok(src.includes("const result=CAL.analogScaling("));
+});
