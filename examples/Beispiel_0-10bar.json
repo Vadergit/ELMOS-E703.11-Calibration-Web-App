@@ -1,0 +1,34 @@
+{
+  "format": "ELMOS-E70311-CONFIG",
+  "version": 1,
+  "label": "Beispiel 0–10 bar (nur Vorlage)",
+  "createdAt": "2026-11-11T00:00:00.000Z",
+  "afe": {
+    "pga1": 1,
+    "pga2": 3,
+    "offset": 0
+  },
+  "calibration": {
+    "sOrder": 1,
+    "tOrder": 0,
+    "dspLimit": 25000,
+    "pointCount": 2,
+    "samples": 12,
+    "reference": {
+      "min": 0,
+      "max": 10,
+      "unit": "bar",
+      "customUnit": ""
+    }
+  },
+  "output": {
+    "mode": "1",
+    "scaleEnabled": true,
+    "vdd": 5,
+    "s0": 0.5,
+    "s1": 4.5,
+    "gain": 1.04833984375,
+    "offset": 0,
+    "pwmPeriod": 16384
+  }
+}
