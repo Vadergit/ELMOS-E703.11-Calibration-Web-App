@@ -1,3 +1,16 @@
+## Messpunktplanung und einstellbarer DSP-Endwert – Änderungen 11.11.2026
+
+- 2–10 Kalibrier-Messpunkte vor der Aufnahme auswählbar (Standard 2), für alle aktivierten Punkte individuelle Referenz-/Temperaturfelder und Aufnahmeknöpfe
+- Automatische Vorschläge für Zwischenwerte, frei änderbar; beim Ändern der Punktanzahl werden alte Messwerte ungültig, damit keine fremden Punkte in die Koeffizientenberechnung gelangen
+- JavaScript-UI mit vier simulierten Punkten und linearem Fit getestet: vollständiger Datensatz schaltet Berechnung frei
+- DSP-Endwert ist nun ±1’000 bis ±32’000 Digits; bei ±30’000 sind die Koeffizienten gegenüber ±32’000 tatsächlich anders, nicht nur die Anzeige
+- Algorithmus-Regression: bei Referenzbereich 0–10 und ±30’000 Digits bleibt der Fitfehler im simulierten Test unter 3 Digits; unzulässige Grenzen werden abgewiesen
+- Live-Skalierung der neuen RAM-Kalibrierung: ±30’000 Digits entsprechen korrekt dem gesamten gewählten Referenzbereich
+- Nach Änderung des DSP-Endwerts blockiert die NVM-Freigabe, bis die neu berechneten Koeffizienten erneut ins RAM übertragen und geprüft sind
+- Bestehende NVM-Backup-, CRC-, Bootregister- und explizite Programmierfreigaben unverändert
+
+**Noch nicht getestet:** Messpunktaufnahme, RAM-Übertragung und NVM-Programmierung mit den neuen Einstellungen am physischen E703.11.
+
 ## DSP_S-Live-Anzeige – UI- und Logiktests (11.11.2026)
 
 - Bei bereits kalibriertem Sensor ohne neuen Fit: gelesener DSP_S=0 ergibt auf beiden Seiten 50.00 % (voreingestellter Bereich 0–100 %)
