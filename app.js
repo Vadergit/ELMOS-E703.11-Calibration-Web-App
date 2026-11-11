@@ -337,7 +337,7 @@ if(typeof document!=='undefined') (function UI(){
    const got=P.sign16(await readReg(0x30)),target=64000*(p-pmin)/(pmax-pmin)-32000;
    const stat=await readReg(0x32),delta=got-target,errorBar=delta/64000*(pmax-pmin);
    if(stat&(1<<10))throw Error('DSP-Sättigung erkannt (STATUS_SYNC.dsp_sat). Programmierung gesperrt.');
-   if(Math.abs(errorBar)>tol){st.calValidation=[];st.calVerified=false;throw Error(`DSP_S ${got}: Abweichung ${errorBar.toFixed(4)} '+pressureUnit()+' über Toleranz ${tol} ${pressureUnit()}`)}
+   if(Math.abs(errorBar)>tol){st.calValidation=[];st.calVerified=false;throw Error(`DSP_S ${got}: Abweichung ${errorBar.toFixed(4)} ${pressureUnit()} über Toleranz ${tol} ${pressureUnit()}`)}
    st.calValidation=st.calValidation.filter(x=>Math.abs(x.pressure-p)>(pmax-pmin)*0.10);
    st.calValidation.push({pressure:p,actual:got,expected:target,errorBar,temperature:Number($('calVerifyTemperature').value),measuredTemp:P.sign16(await readReg(0x2E))});
    const distinct=st.calValidation.length>=2;
