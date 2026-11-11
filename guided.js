@@ -128,7 +128,10 @@ const ELMOS_GUIDED=(()=>{
  function preset(name){
   const p=ELMOS_GUIDED_PLAN.presets[name];if(!p)return;
   $('gwPressureCount').value=String(p.pCount);$('gwTemperatureCount').value=String(p.tCount);
-  $('gwComplexity').value=p.complex?'advanced':'simple';setTemperatureInputs(p.tCount);
+  $('gwComplexity').value=p.complex?'advanced':'simple';
+  $('gwSOrder').value=String(Math.min(3,p.pCount-1));
+  $('gwTOrder').value=String(p.tCount-1);
+  setTemperatureInputs(p.tCount);
   renderPlan();
  }
  function defaultTemperatures(n){return n===1?[25]:n===2?[10,60]:[-10,25,65]}
