@@ -8,7 +8,7 @@ Dieser Guide umfasst die gängigen ESP32-, Arduino-, RP2040- und weiteren Arduin
 
 ## E703.11: korrekte Signalnamen
 
-Die Elmos-Bezeichnung ist **AODO**, nicht «A0D0». Am Mikrocontroller ist «AODO» **kein spezieller Pin**: Der Sensoranschluss könnte später über eine passende externe Treiberschaltung mit einem frei gewählten GPIO verbunden werden.
+
 
 | Signal am E703.11 | Funktion | MCU-Seite |
 | --- | --- | --- |
