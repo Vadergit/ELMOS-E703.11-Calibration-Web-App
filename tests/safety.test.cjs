@@ -7,23 +7,30 @@ const fs=require('node:fs');
 const path=require('node:path');
 const CAL=require('../calibration.js');
 const read=file=>fs.readFileSync(path.join(__dirname,'..',file),'utf8');
-const empty=()=>Array(64).fill(0);
+const safeNvm=()=>{
+ const words=Array(64).fill(0);
+ words[16]=1<<9;                         // AODO analog; valid 1-Wire mode
+ words[17]=1<<2;                         // CFG_SPI_I2C.plc_en, permanent PLC
+ words[18]=2<<12;                        // CFG_PADS0.startup_plc 200 ms
+ words[19]=(1<<11)|(1<<8)|(1<<7);        // downstream, persistent R/W, upstream
+ return words;
+};
 test('Communication/boot/factory words cannot be modified',()=>{
  for(const index of [0,1,15,17,18,19,20,21,23,27]){
-  const before=empty(),after=before.slice();after[index]=1;
+  const before=safeNvm(),after=before.slice();after[index]=1;
   assert.throws(()=>CAL.protectStartupCommunication(before,after),/1-Wire-Startschutz/);
  }
 });
 test('Other CFG_EN bits cannot change',()=>{
- const before=empty(),after=before.slice();after[16]=1;
+ const before=safeNvm(),after=before.slice();after[16]=1;
  assert.throws(()=>CAL.protectStartupCommunication(before,after),/1-Wire-Startschutz/);
 });
 test('Only AODO settings may change inside boot area',()=>{
- const before=empty(),after=before.slice();after[16]=(1<<9)|(1<<6);after[22]=16384;
+ const before=safeNvm(),after=before.slice();after[16]=(1<<9)|(1<<6);after[22]=16384;
  assert.equal(CAL.protectStartupCommunication(before,after),true);
 });
 test('AODO mode preparation preserves communication',()=>{
- const before=empty(),after=CAL.prepareOutputConfig(before,{mode:'1',scaleEnabled:true,gain:0.7,offset:0,pwmPeriod:16384},30000);
+ const before=safeNvm(),after=CAL.prepareOutputConfig(before,{mode:'1',scaleEnabled:true,gain:0.7,offset:0,pwmPeriod:16384},30000);
  assert.notEqual(after[16],before[16]);
  for(let i=0;i<28;i++)if(i!==16&&i!==22)assert.equal(after[i],before[i]);
 });
@@ -52,7 +59,7 @@ test('PSSC S0/S1 quantization stays inside analog range',()=>{
  assert.ok(result.outputDigits[1]<=26214);
  assert.ok(Math.abs(result.actualVolts[0]-0.5)<0.005);
  assert.ok(Math.abs(result.actualVolts[1]-4.5)<0.005);
- const before=empty();
+ const before=safeNvm();
  const after=CAL.prepareOutputConfig(before,{mode:'1',...result,pwmPeriod:16384},32000);
  for(let i=0;i<28;i++)if(i!==16&&i!==22)assert.equal(after[i],before[i]);
 });
@@ -95,4 +102,38 @@ test('Scaling UI shows automatically chosen DSP range and ADC distinction',()=>{
  assert.ok(expert.includes("$('calDspLimit').dataset.userEdited"));
  assert.ok(expert.includes("$('dspDisplayLimit').value"));
  assert.ok(app.includes("$('calDspLimit').dataset.userEdited='1'"));
+});
+
+test('Datasheet 6.4.5.7: 1-Wire startup prerequisites are mandatory',()=>{
+ const valid=safeNvm();
+ assert.equal(CAL.oneWireStartupStatus(valid).ok,true);
+ for(const change of [
+  w=>{w[16]=0},                       // high-Z
+  w=>{w[16]=6<<9},                    // ALARM
+  w=>{w[17]=0;w[18]=3<<12},          // no PLC / no startup window
+  w=>{w[19]&=~(1<<11)},              // downstream disabled
+  w=>{w[19]&=~(1<<8)},               // write/read only via magic cookie
+  w=>{w[19]&=~(1<<7)}                // no upstream
+ ]){
+  const broken=valid.slice();change(broken);
+  assert.equal(CAL.oneWireStartupStatus(broken).ok,false);
+  assert.throws(()=>CAL.protectStartupCommunication(broken,broken.slice()),/1-Wire-Startschutz/);
+ }
+});
+test('Datasheet: do not allow AODO High-Z or ALARM programming',()=>{
+ const before=safeNvm();
+ for(const mode of ['0','6']){
+  assert.throws(()=>CAL.prepareOutputConfig(before,{mode,scaleEnabled:false,gain:0,offset:0,pwmPeriod:16384},25000),/1-Wire-Startschutz/);
+ }
+});
+test('5V standard target 0.5 to 4.5 V stays independent of chip readback',()=>{
+ const html=read('index.html'),expert=read('expert.js');
+ assert.match(html,/id="psscS0"[^>]*value="0.5"/);
+ assert.match(html,/id="psscS1"[^>]*value="4.5"/);
+ assert.ok(html.includes('id="psscCurrentOutputStatus"'));
+ assert.ok(html.includes('id="psscDefaultScaling"'));
+ const identify=expert.split('async function identify(){')[1].split('function save(words')[0];
+ assert.ok(identify.includes('refreshOutputReadOnly()'));
+ assert.ok(!identify.includes("$('psscS0').value="));
+ assert.ok(!identify.includes("$('psscS1').value="));
 });
