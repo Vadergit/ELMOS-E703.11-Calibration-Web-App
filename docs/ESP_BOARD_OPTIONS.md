@@ -2,7 +2,7 @@
 
 **Stand: v0.6.0 · Referenz für die zukünftige E703.11-PLC-Bridge**
 
-Dieser Guide umfasst die gängigen ESP32-, Arduino-, RP2040- und weiteren Arduino-kompatiblen Boards. Er dokumentiert **beide E703.11-Kommunikationswege**: einen vorgeschlagenen MCU-GPIO für **AODO / 1-Wire** sowie separate MCU-Pins für **I²C SDA und SCL**. Ein optionaler RX-GPIO ist für eine mögliche externe 1-Wire-Treiberstufe mit getrenntem Empfangssignal angegeben.
+Dieser Guide umfasst die gängigen ESP32-, Arduino-, RP2040- und weiteren Arduino-kompatiblen Boards. Er dokumentiert **beide E703.11-Kommunikationswege**: einen vorgeschlagenen MCU-GPIO für **AODO / 1-Wire** sowie separate MCU-Pins für **I²C SDA und SCL**.
 
 > **Sicherheitsgrenze:** Die hier genannten GPIOs sind **Planungsvorschläge, keine heute funktionierende E703.11-Anschlussbelegung**. Die vorhandenen Arduino-Sketches implementieren ausschliesslich **USB-/Seriell-Kommunikation (CAPS=CDC_ONLY)**. Sie steuern weder AODO noch die I²C-Anschlüsse des Sensors an. **E703.11 AODO niemals direkt an einen MCU-GPIO anschliessen!** Für 1-Wire und I²C müssen elektrische Schnittstelle, Buspegel, Schutzbeschaltung, I²C-Adresse, CRC und Firmware geprüft beziehungsweise implementiert werden.
 
@@ -23,7 +23,7 @@ Dieser Guide umfasst die gängigen ESP32-, Arduino-, RP2040- und weiteren Arduin
 
 - **D2, D3 usw.** sind die aufgedruckten Board- beziehungsweise Arduino-Pinnamen. Auf dem Nano ESP32 ist beispielsweise D2 **nicht** GPIO2.
 - **GPIO4, GP2, PA1 usw.** sind die tatsächlichen Controller-GPIOs. Bei XIAO-Boards werden die Board- und GPIO-Namen gemeinsam aufgeführt.
-- **AODO / 1-Wire (MCU-GPIO)** bezeichnet die MCU-Seite für die spätere **externe bidirektionale 1-Wire-Treiberstufe**. **RX optional** ist nur für eine Treiberarchitektur mit separatem Empfangssignal nötig.
+- **AODO / 1-Wire (MCU-GPIO)** bezeichnet die MCU-Seite für die spätere **externe bidirektionale 1-Wire-Treiberstufe**. Senden und Empfangen erfolgen über denselben 1-Wire-GPIO.
 - **I²C SDA (MCU)** wäre über eine elektrisch geeignete Schnittstelle mit **E703.11 MISO/SDA** verbunden. **I²C SCL (MCU)** entsprechend mit **E703.11 SCK/SCL**. Pull-ups und Pegel müssen zur vollständigen Schaltung passen.
 - **ESP32-SDA/SCL sind oft flexibel wählbar.** Die Tabelle enthält dann **ausgewählte konfliktarme Pins, nicht zwingend die Arduino-Board-Defaults**. Diese sind in der späteren Firmware explizit zu konfigurieren. Klassische Arduino-Boards verwenden ihre üblichen SDA-/SCL-Pins.
 - **USB nativ / USB-UART** beschreibt nur den PC-Anschluss, nicht das Sensorprotokoll. Der vorhandene Test-Sketch meldet weiterhin ausschliesslich **CAPS=CDC_ONLY**.
@@ -31,49 +31,49 @@ Dieser Guide umfasst die gängigen ESP32-, Arduino-, RP2040- und weiteren Arduin
 
 ## 1. ESP32-Familie
 
-| Board | PC-Verbindung | AODO / 1-Wire (MCU-GPIO) | RX optional | I²C SDA (MCU) | I²C SCL (MCU) | I/O | Nicht verwenden / Hinweise |
-| --- | --- | --- | --- | --- | --- | --- | --- |
-| **ESP32-C3 SuperMini** | Natives USB Serial/JTAG via USB-C (sofern direkt verdrahtet) | **GPIO4** | GPIO5 | GPIO6 | GPIO7 | 3,3 V | **GPIO18 = USB D−, GPIO19 = USB D+**; GPIO2/8/9 sind Strapping-Pins. SuperMini-Nachbauten unterscheiden sich |
-| **Seeed XIAO ESP32C3** | Native USB | **D2 / GPIO4** | D3 / GPIO5 | D4 / GPIO6 | D5 / GPIO7 | 3,3 V | D0/GPIO2 und GPIO8/9 sind Strapping-Pins; D9/GPIO9 = BOOT |
-| ESP32-C3 DevKit / DevKitM-1 | Native USB oder USB-UART, je nach Board | **GPIO4** | GPIO5 | GPIO6 | GPIO7 | 3,3 V | GPIO18/19 für native USB, GPIO2/8/9 für Boot. Pinheader kontrollieren |
-| **ESP32-S3 DevKitC-1** | Native USB oder separater USB-UART | **GPIO4** | GPIO5 | GPIO8 | GPIO9 | 3,3 V | GPIO19/20 = native USB D−/D+; GPIO0/3/45/46 beeinflussen Boot; Flash/PSRAM-Varianten beachten |
-| **Seeed XIAO ESP32S3** | Native USB | **D3 / GPIO4** | D1 / GPIO2 | D4 / GPIO5 | D5 / GPIO6 | 3,3 V | D4/D5 für I²C reserviert. Bei Sense/Plus Kamera, SD und Sonderpins prüfen; GPIO0 = BOOT |
-| **Arduino Nano ESP32** (ESP32-S3) | Native USB | **D2 / GPIO5** | D3 / GPIO6 | A4 / GPIO11 | A5 / GPIO12 | 3,3 V | **D2 ist GPIO5, nicht GPIO2**. In Arduino IDE vorzugsweise die Pin-Symbole D2/D3 verwenden |
-| **ESP32-S2 Saola-1** | Native USB, abhängig von Board-/Portausführung | **GPIO4** | GPIO5 | GPIO8 | GPIO9 | 3,3 V | GPIO19/20 = native USB, GPIO0 = BOOT |
-| **ESP32-C6 DevKitC-1** | Native USB Serial/JTAG oder USB-UART | **GPIO10** | GPIO11 | GPIO6 | GPIO7 | 3,3 V | GPIO12/13 = USB D−/D+; GPIO4/5/8/9/15 sind Strapping-Pins |
-| **Seeed XIAO ESP32C6** | Native USB Serial/JTAG | **D3 / GPIO21** | D2 / GPIO2 | D4 / GPIO22 | D5 / GPIO23 | 3,3 V | D4/D5 für I²C reserviert; GPIO9 = BOOT, GPIO3/14 dienen der Antennensteuerung |
-| **ESP32 DevKit V1 / DevKitC / WROOM-32** | USB-UART, kein natives USB im klassischen ESP32 | **GPIO25** | GPIO26 | GPIO21 | GPIO22 | 3,3 V | GPIO6–11 für Flash, GPIO34–39 nur Eingang; GPIO0/2/5/12/15 für Boot |
-| **ESP8266 NodeMCU / Wemos D1 mini** | USB-UART | **D5 / GPIO14** | D6 / GPIO12 | D2 / GPIO4 | D1 / GPIO5 | 3,3 V | D3/GPIO0, D4/GPIO2, D8/GPIO15 beeinflussen Boot; D1/D2 für I²C reserviert |
+| Board | PC-Verbindung | AODO / 1-Wire (MCU-GPIO) | I²C SDA (MCU) | I²C SCL (MCU) | I/O | Nicht verwenden / Hinweise |
+| --- | --- | --- | --- | --- | --- | --- |
+| **ESP32-C3 SuperMini** | Natives USB Serial/JTAG via USB-C (sofern direkt verdrahtet) | **GPIO4** | GPIO6 | GPIO7 | 3,3 V | **GPIO18 = USB D−, GPIO19 = USB D+**; GPIO2/8/9 sind Strapping-Pins. SuperMini-Nachbauten unterscheiden sich |
+| **Seeed XIAO ESP32C3** | Native USB | **D2 / GPIO4** | D4 / GPIO6 | D5 / GPIO7 | 3,3 V | D0/GPIO2 und GPIO8/9 sind Strapping-Pins; D9/GPIO9 = BOOT |
+| ESP32-C3 DevKit / DevKitM-1 | Native USB oder USB-UART, je nach Board | **GPIO4** | GPIO6 | GPIO7 | 3,3 V | GPIO18/19 für native USB, GPIO2/8/9 für Boot. Pinheader kontrollieren |
+| **ESP32-S3 DevKitC-1** | Native USB oder separater USB-UART | **GPIO4** | GPIO8 | GPIO9 | 3,3 V | GPIO19/20 = native USB D−/D+; GPIO0/3/45/46 beeinflussen Boot; Flash/PSRAM-Varianten beachten |
+| **Seeed XIAO ESP32S3** | Native USB | **D3 / GPIO4** | D4 / GPIO5 | D5 / GPIO6 | 3,3 V | D4/D5 für I²C reserviert. Bei Sense/Plus Kamera, SD und Sonderpins prüfen; GPIO0 = BOOT |
+| **Arduino Nano ESP32** (ESP32-S3) | Native USB | **D2 / GPIO5** | A4 / GPIO11 | A5 / GPIO12 | 3,3 V | **D2 ist GPIO5, nicht GPIO2**. In Arduino IDE vorzugsweise die Pin-Symbole D2/D3 verwenden |
+| **ESP32-S2 Saola-1** | Native USB, abhängig von Board-/Portausführung | **GPIO4** | GPIO8 | GPIO9 | 3,3 V | GPIO19/20 = native USB, GPIO0 = BOOT |
+| **ESP32-C6 DevKitC-1** | Native USB Serial/JTAG oder USB-UART | **GPIO10** | GPIO6 | GPIO7 | 3,3 V | GPIO12/13 = USB D−/D+; GPIO4/5/8/9/15 sind Strapping-Pins |
+| **Seeed XIAO ESP32C6** | Native USB Serial/JTAG | **D3 / GPIO21** | D4 / GPIO22 | D5 / GPIO23 | 3,3 V | D4/D5 für I²C reserviert; GPIO9 = BOOT, GPIO3/14 dienen der Antennensteuerung |
+| **ESP32 DevKit V1 / DevKitC / WROOM-32** | USB-UART, kein natives USB im klassischen ESP32 | **GPIO25** | GPIO21 | GPIO22 | 3,3 V | GPIO6–11 für Flash, GPIO34–39 nur Eingang; GPIO0/2/5/12/15 für Boot |
+| **ESP8266 NodeMCU / Wemos D1 mini** | USB-UART | **D5 / GPIO14** | D2 / GPIO4 | D1 / GPIO5 | 3,3 V | D3/GPIO0, D4/GPIO2, D8/GPIO15 beeinflussen Boot; D1/D2 für I²C reserviert |
 
-**Für deinen ESP32-C3 SuperMini:** **GPIO4 für AODO / 1-Wire**, bei Bedarf **GPIO5 als RX**, sowie **GPIO6 für I²C SDA** und **GPIO7 für I²C SCL** reservieren. **GPIO18 und GPIO19 bleiben für USB.** Im aktuellen USB-Test-Sketch werden GPIO4/5/6/7 **nicht** angesteuert oder initialisiert.
+**Für deinen ESP32-C3 SuperMini:** **GPIO4 für AODO / 1-Wire** sowie **GPIO6 für I²C SDA** und **GPIO7 für I²C SCL** reservieren. **GPIO18 und GPIO19 bleiben für USB.** Im aktuellen USB-Test-Sketch werden GPIO4/6/7 **nicht** angesteuert oder initialisiert.
 
 ## 2. Gängige originale Arduino-Boards
 
-| Board / MCU | PC-Verbindung | AODO / 1-Wire (MCU-GPIO) | RX optional | I²C SDA (MCU) | I²C SCL (MCU) | I/O | Wichtiger Hinweis |
-| --- | --- | --- | --- | --- | --- | --- | --- |
-| **UNO R3** / ATmega328P | USB-UART/USB-Bridge | **D2** | D3 | A4 | A5 | 5 V | USB gehört nicht zum ATmega328P; sehr kleiner RAM |
-| **Nano Classic / Nano V3** / ATmega328P | USB-UART/USB-Bridge | **D2** | D3 | A4 | A5 | 5 V | Gleiche MCU-Grundlage wie UNO R3 |
-| **Nano Every** / ATmega4809 | USB-Bridge | **D2** | D3 | A4 | A5 | 5 V | Nano-Every-Arduino-Core verwenden |
-| **Mega 2560** / ATmega2560 | USB-Bridge | **D2** | D3 | D20 | D21 | 5 V | Viele I/Os, aber 8-Bit-MCU |
-| **UNO R4 Minima** / Renesas RA4M1 | Natives USB | **D2** | D3 | A4 | A5 | 5 V | 32 Bit, USB-C |
-| **UNO R4 WiFi** / RA4M1 + ESP32-S3 | USB über Boardelektronik | **D2 am UNO-Header (RA4M1)** | D3 | A4 | A5 | 5 V am UNO-Header | **ESP32-S3-Header ist separat und 3,3 V!** Nicht verwechseln |
-| **Leonardo / Micro** / ATmega32U4 | Natives USB-CDC | **D4** | D5 | D2 | D3 | 5 V | D2/D3 sind häufig I²C SDA/SCL; deshalb D4/D5 vorgeschlagen |
-| **Pro Micro** / ATmega32U4 | Natives USB-CDC | **D4** | D5 | D2 | D3 | 5 V oder 3,3 V | Beim Kauf die tatsächlich vorliegende 5-V-/3,3-V-Variante prüfen |
-| **Nano 33 IoT** / SAMD21 | Natives USB | **D2** | D3 | A4 | A5 | 3,3 V | Keine 5 V an GPIO anlegen |
-| **Nano 33 BLE / BLE Sense** / nRF52840 | Natives USB | **D2** | D3 | A4 | A5 | 3,3 V | Ältere Ausführungen teils abgekündigt |
-| **Nano RP2040 Connect** / RP2040 | Natives USB | **D2 / GPIO25** | D3 / GPIO15 | A4 / GPIO12 | A5 / GPIO13 | 3,3 V | GPIO-Headerzuordnung **anders als beim Raspberry Pi Pico** |
+| Board / MCU | PC-Verbindung | AODO / 1-Wire (MCU-GPIO) | I²C SDA (MCU) | I²C SCL (MCU) | I/O | Wichtiger Hinweis |
+| --- | --- | --- | --- | --- | --- | --- |
+| **UNO R3** / ATmega328P | USB-UART/USB-Bridge | **D2** | A4 | A5 | 5 V | USB gehört nicht zum ATmega328P; sehr kleiner RAM |
+| **Nano Classic / Nano V3** / ATmega328P | USB-UART/USB-Bridge | **D2** | A4 | A5 | 5 V | Gleiche MCU-Grundlage wie UNO R3 |
+| **Nano Every** / ATmega4809 | USB-Bridge | **D2** | A4 | A5 | 5 V | Nano-Every-Arduino-Core verwenden |
+| **Mega 2560** / ATmega2560 | USB-Bridge | **D2** | D20 | D21 | 5 V | Viele I/Os, aber 8-Bit-MCU |
+| **UNO R4 Minima** / Renesas RA4M1 | Natives USB | **D2** | A4 | A5 | 5 V | 32 Bit, USB-C |
+| **UNO R4 WiFi** / RA4M1 + ESP32-S3 | USB über Boardelektronik | **D2 am UNO-Header (RA4M1)** | A4 | A5 | 5 V am UNO-Header | **ESP32-S3-Header ist separat und 3,3 V!** Nicht verwechseln |
+| **Leonardo / Micro** / ATmega32U4 | Natives USB-CDC | **D4** | D2 | D3 | 5 V | D2/D3 sind häufig I²C SDA/SCL; deshalb D4/D5 vorgeschlagen |
+| **Pro Micro** / ATmega32U4 | Natives USB-CDC | **D4** | D2 | D3 | 5 V oder 3,3 V | Beim Kauf die tatsächlich vorliegende 5-V-/3,3-V-Variante prüfen |
+| **Nano 33 IoT** / SAMD21 | Natives USB | **D2** | A4 | A5 | 3,3 V | Keine 5 V an GPIO anlegen |
+| **Nano 33 BLE / BLE Sense** / nRF52840 | Natives USB | **D2** | A4 | A5 | 3,3 V | Ältere Ausführungen teils abgekündigt |
+| **Nano RP2040 Connect** / RP2040 | Natives USB | **D2 / GPIO25** | A4 / GPIO12 | A5 / GPIO13 | 3,3 V | GPIO-Headerzuordnung **anders als beim Raspberry Pi Pico** |
 
 **Hinweis:** Arduino UNO R3, Classic Nano, Mega und Nano Every sind für einen Seriell-/USB-Test verwendbar. Für zeitkritische E703.11-PLC-Telegramme müssen Timing, freie GPIOs und Ressourcen gesondert geprüft werden. Ein Board mit 5-V-I/O ersetzt keine abgesicherte Analog-/PLC-Treiberschaltung.
 
 ## 3. Weitere Arduino-kompatible Mikrocontrollerboards
 
-| Board / MCU | PC-Verbindung | AODO / 1-Wire (MCU-GPIO) | RX optional | I²C SDA (MCU) | I²C SCL (MCU) | I/O | Besonderheit |
-| --- | --- | --- | --- | --- | --- | --- | --- |
-| **Raspberry Pi Pico / Pico W** / RP2040 | Natives USB | **GP2 / GPIO2** | GP3 / GPIO3 | GP4 / GPIO4 | GP5 / GPIO5 | 3,3 V | **PIO** ist für zeitkritische Signalfolgen interessant |
-| **Raspberry Pi Pico 2 / Pico 2 W** / RP2350 | Natives USB | **GP2 / GPIO2** | GP3 / GPIO3 | GP4 / GPIO4 | GP5 / GPIO5 | 3,3 V | RP2350-Datenblatt und GPIO-Eigenschaften prüfen |
-| **Seeed XIAO RP2040** | Natives USB | **D2 / GPIO28** | D1 / GPIO27 | D4 / GPIO6 | D5 / GPIO7 | 3,3 V | XIAO-D2 ist nicht Pico-GP2 |
-| **Teensy 4.0** / i.MX RT1062 | Natives USB | **D2** | D3 | D18 | D19 | 3,3 V | Sehr schnelle MCU; eigene Firmware nötig |
-| **STM32 Blue Pill** / STM32F103 | USB-FS im Chip, CDC je nach Core/Board | **PA1** | PA2 | PB7 | PB6 | 3,3 V | USB-CDC und USB-Pull-up-Beschaltung der Variante prüfen |
+| Board / MCU | PC-Verbindung | AODO / 1-Wire (MCU-GPIO) | I²C SDA (MCU) | I²C SCL (MCU) | I/O | Besonderheit |
+| --- | --- | --- | --- | --- | --- | --- |
+| **Raspberry Pi Pico / Pico W** / RP2040 | Natives USB | **GP2 / GPIO2** | GP4 / GPIO4 | GP5 / GPIO5 | 3,3 V | **PIO** ist für zeitkritische Signalfolgen interessant |
+| **Raspberry Pi Pico 2 / Pico 2 W** / RP2350 | Natives USB | **GP2 / GPIO2** | GP4 / GPIO4 | GP5 / GPIO5 | 3,3 V | RP2350-Datenblatt und GPIO-Eigenschaften prüfen |
+| **Seeed XIAO RP2040** | Natives USB | **D2 / GPIO28** | D4 / GPIO6 | D5 / GPIO7 | 3,3 V | XIAO-D2 ist nicht Pico-GP2 |
+| **Teensy 4.0** / i.MX RT1062 | Natives USB | **D2** | D18 | D19 | 3,3 V | Sehr schnelle MCU; eigene Firmware nötig |
+| **STM32 Blue Pill** / STM32F103 | USB-FS im Chip, CDC je nach Core/Board | **PA1** | PB7 | PB6 | 3,3 V | USB-CDC und USB-Pull-up-Beschaltung der Variante prüfen |
 
 ## 4. Physischer Anschluss: noch nicht direkt am E703.11!
 
@@ -119,7 +119,7 @@ Die aktuelle Test-Firmware ist [**esp32c3_supermini.ino**](../firmware/esp32c3_s
 5. Serial Monitor schliessen. In der [Web-App](https://vadergit.github.io/ELMOS-E703.11-Calibration-Web-App/) unter **USB & Chip → Programmieradapter** die experimentelle USB-Bridge auswählen.
 6. Die Diagnose **CDC_ONLY** bedeutet: **USB-Verbindung zum SuperMini funktioniert, aber noch keine Kommunikation mit dem E703.11**.
 
-**Keinen E703.11 an GPIO4/5/6/7 anschliessen, solange die externen Schnittstellen und Protokolle nicht verifiziert sind.** Der USB-Test-Sketch konfiguriert bewusst **keinen** dieser Pins.
+**Keinen E703.11 an GPIO4/6/7 anschliessen, solange die externen Schnittstellen und Protokolle nicht verifiziert sind.** Der USB-Test-Sketch konfiguriert bewusst **keinen** dieser Pins.
 
 ## 6. Herstellerquellen für die Pinbelegung
 
