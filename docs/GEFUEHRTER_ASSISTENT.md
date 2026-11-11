@@ -1,11 +1,11 @@
 # Geführter Kalibrierassistent – Beta
 
-**Branch:** \`feature/guided-calibration-and-usb-bridges\`  
-**Version:** v0.6.0-beta.1. **Kein Merge nach \`main\`** und keine Änderung der bestehenden GitHub-Pages-Veröffentlichung.
+**Branch:** `feature/guided-calibration-and-usb-bridges`  
+**Version:** v0.6.0-beta.1. **Kein Merge nach `main`** und keine Änderung der bestehenden GitHub-Pages-Veröffentlichung.
 
 ## Wozu der neue Modus?
 
-Die bisherige Oberfläche ist funktional, aber für neue Benutzer komplex. Der neue Modus erklärt jeden Schritt in der richtigen Reihenfolge. **Alle Hardwareaktionen bleiben in \`app.js\`**: Die neue UI verschiebt die bereits vorhandenen, mit der Original-Logik verknüpften Eingaben und Schaltflächen in eine separate Assistentenansicht.
+Die bisherige Oberfläche ist funktional, aber für neue Benutzer komplex. Der neue Modus erklärt jeden Schritt in der richtigen Reihenfolge. **Alle Hardwareaktionen bleiben in `app.js`**: Die neue UI verschiebt die bereits vorhandenen, mit der Original-Logik verknüpften Eingaben und Schaltflächen in eine separate Assistentenansicht.
 
 Der bisherige siebenstufige Ablauf, der Expertenmodus, der EEPROM-Viewer und der One-Pager bleiben im Code bestehen und sind weiterhin erreichbar.
 
@@ -39,7 +39,7 @@ Die vorhandene Kalibrier-Engine unterstützt maximal **10 Messpunkte**. Kombinat
 
 **Temperaturbedingung bedeutet Referenztemperatur am realen Sensor.** Eine Einstellung von z. B. 60 °C in der UI verändert nicht die tatsächliche Sensortemperatur. Für eine reale Temperaturkompensation müssen sich auch die gemessenen Temperatur-ADC-Werte ausreichend unterscheiden.
 
-Bei 1 Temperaturstufe wird die bereits vorhandene Temperaturkorrektur im Chip nicht automatisch neu berechnet (\`calTOrder=0\`). Bei 2 bzw. 3 Temperaturstufen wird standardmässig eine lineare bzw. quadratische Temperaturkorrektur vorbereitet. Im Expertenmodus können niedrigere Ordnungen gewählt werden.
+Bei 1 Temperaturstufe wird die bereits vorhandene Temperaturkorrektur im Chip nicht automatisch neu berechnet (`calTOrder=0`). Bei 2 bzw. 3 Temperaturstufen wird standardmässig eine lineare bzw. quadratische Temperaturkorrektur vorbereitet. Im Expertenmodus können niedrigere Ordnungen gewählt werden.
 
 ## Config-Datei
 
@@ -48,17 +48,17 @@ Die Config-Vorlage ist **keine Kopie eines kalibrierten Sensors**. Sie enthält 
 ## Bestehende Oberfläche und Sicherheit
 
 - Die neue UI wird allein auf dem Testbranch geladen. Ein Knopf «Klassische Ansicht» stellt alle originalen Elemente an ihren vorherigen Platz zurück.
-- Hardware-/USB-Kommandos werden ausschliesslich über den bestehenden \`app.js\`-Pfad abgewickelt.
-- Die neue UI erhält einen **nur lesenden** Status-Adapter \`window.ELMOS_GUIDED_API\`. Sie kann dadurch eine NVM-Freigabe nicht selber setzen.
-- Sie verwendet die originalen Buttons \`calApplyRam\`, \`calVerifyRam\`, \`expertOutputStage\`, \`nvmPrepare\`, \`nvmProgram\` mit bestehenden Sperren und Sicherheitsabfragen.
+- Hardware-/USB-Kommandos werden ausschliesslich über den bestehenden `app.js`-Pfad abgewickelt.
+- Die neue UI erhält einen **nur lesenden** Status-Adapter `window.ELMOS_GUIDED_API`. Sie kann dadurch eine NVM-Freigabe nicht selber setzen.
+- Sie verwendet die originalen Buttons `calApplyRam`, `calVerifyRam`, `expertOutputStage`, `nvmPrepare`, `nvmProgram` mit bestehenden Sperren und Sicherheitsabfragen.
 - Nicht alle Kombinationen und Hardwarebedingungen wurden im Browser und am Sensor geprüft. Das Produkt bleibt **Laborprototyp**; keine Produktionsfreigabe.
 
 ## Beta lokal testen – sicherster Weg
 
-1. Auf GitHub den Branch \`feature/guided-calibration-and-usb-bridges\` auswählen.
+1. Auf GitHub den Branch `feature/guided-calibration-and-usb-bridges` auswählen.
 2. «Code → Download ZIP» benutzen, ZIP entpacken.
-3. Im entpackten Ordner ein Terminal öffnen und \`python3 -m http.server 8000\` ausführen (auf Windows je nach Installation \`py -m http.server 8000\`).
-4. Chrome öffnen: **http://localhost:8000/**. \`localhost\` gilt für Web Serial als sicherer Kontext.
+3. Im entpackten Ordner ein Terminal öffnen und **`python3 scripts/preview.py`** ausführen (auf Windows je nach Installation **`py scripts/preview.py`**). Dafür sind keine zusätzlichen Python-Pakete nötig.
+4. Die angezeigte Adresse **http://localhost:8000/** (oder den im Terminal angegebenen anderen Port) in **Chrome** öffnen. `localhost` gilt für Web Serial als sicherer Kontext.
 5. SSP3 anschliessen, Testversion prüfen. Im normalen Betrieb die bestehende GitHub-Pages-Webseite verwenden.
 6. Zwischen der neuen Führung und «Klassische Ansicht» wechseln und die gleichen Werte kontrollieren. **NVM vor der Hardwarevalidierung nur am entbehrlichen Testchip.**
 
@@ -74,4 +74,4 @@ GitHub Pages veröffentlicht bei der bisherigen Repository-Konfiguration nicht a
 - Nutzertests mit unerfahrenen Anwendern, insbesondere Meldungen, Rücksprünge und Fehlerfälle.
 - Die eigene USB-Bridge: zunächst nur CDC-Handshaketest, **keine ungeprüfte PLC/NVM-Programmierung**. Siehe [USB-Bridge-Anleitung](USB_BRIDGE_GUIDE.md).
 
-**Erst nach bestandenen Tests** ist ein Merge in \`main\` sinnvoll. Der Branch wird nicht automatisch gemergt.
+**Erst nach bestandenen Tests** ist ein Merge in `main` sinnvoll. Der Branch wird nicht automatisch gemergt.
