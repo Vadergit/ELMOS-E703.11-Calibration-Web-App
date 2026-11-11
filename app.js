@@ -82,7 +82,7 @@ if(typeof document!=='undefined') (function UI(){
   }
   // Jede Pfeiltaste schreibt sofort genau eine gültige Stufe ins Chip-RAM.
   // Weitere Pfeiltasten bleiben bis zum bestätigten Rücklesen gesperrt.
-  void commitGain(target)
+  return commitGain(target)
  }
  
 
