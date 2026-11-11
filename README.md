@@ -4,12 +4,23 @@ Browserbasierter Kalibrierassistent für den **ELMOS E703.11** mit **SSP3-Eval-B
 
 > **Status: experimenteller Laborprototyp (v8).** Die Kommunikation, der Koeffizientenabgleich und die NVM-Programmierung wurden mit einem simulierten SSP3-Gerät getestet, **nicht** an echter Hardware vollständig verifiziert. **Nicht für Serienproduktion oder unersetzliche Chips einsetzen.** Ein fehlerhafter NVM-Schreibvorgang kann den Chip unbrauchbar machen.
 
+## Kalibrier-Messpunkte und DSP-Reserve
+
+In **Schritt 3 (Messpunkte)** wird **vor** der Messung die Anzahl Kalibrier-Messpunkte gewählt: **2–10, Standard 2**. Die Oberfläche zeigt anschliessend genau die gewählten Messpunkt-Karten. Jeder Punkt hat eine eigene Bezeichnung, einen Referenzwert und eine Temperatur. Die beiden Endpunkte entsprechen dem unteren und oberen Kalibrierbereich; Zwischenpunkte werden vorgeschlagen, können aber angepasst werden. Die Berechnung wird erst nach der vollständigen Aufnahme aller gewählten Punkte freigeschaltet. Die Anzahl der späteren **DSP-Prüfpunkte** wird separat in Schritt 5 festgelegt.
+
+In **Schritt 4 (Berechnen & RAM)** kann der symmetrische **DSP-Endwert** zwischen **±1’000 und ±32’000 Digits** eingestellt werden. Standard bleibt **±32’000 Digits**; **±30’000** ergibt beispielsweise eine zusätzliche Reserve von 2’000 Digits gegenüber der alten Zielspanne, beziehungsweise 2’767 Digits bis zur positiven Grenze eines vorzeichenbehafteten 16-Bit-Ausgangs (+32’767). Dieser Wert ist ein **Sollwert für die Koeffizientenberechnung**, keine hardwareseitige Sättigungsgrenze:
+
+- Der untere Referenzpunkt wird auf −Endwert und der obere auf +Endwert abgebildet
+- Die späteren **DSP-Prüf-Sollwerte**, die **Fehlerumrechnung** sowie die Live-Umrechnung der neuen RAM-Kalibrierung verwenden denselben Endwert
+- Ändert sich die DSP-Zielspanne nach der Berechnung, sind Berechnung, RAM-Übernahme und Prüfung zu wiederholen; die NVM-Freigabe bleibt solange gesperrt
+- Für bereits früher kalibrierte Sensoren lässt sich die **DSP-Ausgangsspanne der bestehenden Kalibrierung** separat und rein für die Anzeige unter «AFE optimieren» einstellen
+
 ## DSP_S-Live-Anzeige
 
 Die Web-App zeigt in **AFE optimieren** und **DSP prüfen** den tatsächlichen DSP-Ausgang aus **Chip-Register 0x30 (DSP_S)**. Die Live-Messung liest zusätzlich zu ADC_S/ADC_T/ADC_TC regelmässig DSP_S (nur lesend). Der aktuelle DSP-Wert wird auf beiden Seiten zeitgleich angezeigt.
 
 - **Neu im RAM kalibriert:** Anzeige mit dem Referenzbereich und der Einheit der aktuellen Kalibrierung (z. B. 0–100 %).
-- **Bereits früher kalibrierter Sensor:** Der Chip-DSP-Ausgang wird ohne erneuten Abgleich angezeigt. Die Zuordnung von DSP_S −32’000 bis +32’000 Digits zu 0–100 % ist voreingestellt. Den physikalischen Anzeigebereich (z. B. 0–10 bar) kann man in «AFE optimieren» ausschliesslich für die Anzeige anpassen und lokal im Browser speichern.
+- **Bereits früher kalibrierter Sensor:** Der Chip-DSP-Ausgang wird ohne erneuten Abgleich angezeigt. Die Zuordnung von DSP_S −32’000 bis +32’000 Digits zu 0–100 % ist voreingestellt; auch der DSP-Endwert für bereits kalibrierte Sensoren ist in der reinen Anzeige einstellbar. Den physikalischen Anzeigebereich (z. B. 0–10 bar) kann man in «AFE optimieren» ausschliesslich für die Anzeige anpassen und lokal im Browser speichern.
 - **Sicherheitsgrenze:** Aus der DSP-Ausgabe allein kann die Software nicht feststellen, ob die vorhandene Kalibrierung gültig ist oder welcher physikalische Messbereich im Chip verwendet wurde. Die manuelle Anzeigeskalierung muss zum Sensor passen und ist nicht automatisch chipbezogen. Nur die explizite Prüfpunkterfassung zählt für die NVM-Freigabe, nie die laufende Live-Anzeige.
 - **Lesefehler:** Ein nicht lesbares DSP_S wird gesondert angezeigt; die ADC-Messung kann trotzdem fortgesetzt werden.
 - **Nach RAM-Schreibvorgängen:** Die Live-Anzeige wird beim Öffnen der DSP-Prüfseite wieder aktiviert. Während Schreib- und Wartungstransaktionen pausiert sie.
