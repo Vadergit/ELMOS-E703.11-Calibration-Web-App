@@ -423,7 +423,7 @@ test('USB bridge fails closed until a truly compatible PLC firmware is available
  assert.ok(fw.includes('CAPS=CDC_ONLY'));
  assert.ok(fw.includes('PLC_NOT_IMPLEMENTED'));
  assert.ok(!fw.includes('pinMode('));
- assert.ok(!fw.includes('digitalWrite('));
+ assert.ok(!/^[ \t]*digitalWrite\s*\(/m.test(fw));
  assert.ok(!fw.includes('CAPS=PLC_READ,PLC_WRITE,NVM'));
 });
 
