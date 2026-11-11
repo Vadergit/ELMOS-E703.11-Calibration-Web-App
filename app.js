@@ -627,19 +627,30 @@ if(typeof document!=='undefined') (function UI(){
   if(st.nvmWorking||st.writing)return;
   let chipProgrammingStarted=false;
   try{
-   if(st.mode!=='usb'||!st.chip||!st.port||!st.nvmBackupVerified||!st.calImage||!verificationComplete())throw Error('Hardware, Sicherungen oder Kalibrierverifikation fehlen');
-   const id=h(st.nvmBackup[1],2)+h(st.nvmBackup[0],2);
-   if($('nvmConfirmId').value.trim().toUpperCase()!==id)throw Error('Chipkennung stimmt nicht');
-   if($('nvmConfirmWord').value.trim()!=='PROGRAMMIEREN')throw Error('Bestätigungswort fehlt');
+   const restoring=!!(expert.restoreReady()&&st.calImage===st.restorePlan);
+   if(st.mode!=='usb'||!st.chip||!st.port||!st.nvmBackupVerified||!st.calImage||(!restoring&&!verificationComplete()))throw Error('Hardware, Sicherungen oder Kalibrierverifikation fehlen');
+   const id=st.uid?.hex;
+   if(!id||st.uid.ser0!==st.nvmBackup[0]||st.uid.ser1!==st.nvmBackup[1])throw Error('48-Bit-Chip-UID muss vor dem Schreiben verifiziert werden');
+   if($('nvmConfirmId').value.trim().toUpperCase()!==id)throw Error('48-Bit-Chip-UID stimmt nicht');
+   const requiredWord=restoring?'WIEDERHERSTELLEN':'PROGRAMMIEREN';
+   if($('nvmConfirmWord').value.trim()!==requiredWord)throw Error('Bestätigungswort '+requiredWord+' fehlt');
    const initial=st.calImage.before,modified=st.calImage.after;
    if(CAL.crc16(initial)!==initial[63]||CAL.crc16(modified)!==modified[63])throw Error('CRC16-Prüfung fehlgeschlagen');
-   if(st.calfit.stats.maxDigits>100)throw Error('Fitfehler zu gross (>100 Digits)');
-   if(st.calImage.changes.some(c=>c.index<28||![28,33,34,35,36,37,38,39,40,41,42,43,44,45,46,47,48,49,50,31,32,51,52,53,54,63].includes(c.index)))throw Error('Unzulässige NVM-Änderung');
-   st.nvmWorking=true;st.calTask=true;st.writing=true;st.ramWriteScope='nvm';stopLive();lsSet('elmos8-prewrite-backup',JSON.stringify({id,words:initial,ts:new Date().toISOString()}));
+   if(!restoring&&st.calfit.stats.maxDigits>100)throw Error('Fitfehler zu gross (>100 Digits)');
+   const allowedNormal=new Set([16,22,28,31,32,33,34,...Array.from({length:16},(_,i)=>35+i),51,52,53,54,57,58,63]);
+   if(st.calImage.changes.some(c=>restoring?(c.index<28||c.index>63):!allowedNormal.has(c.index)))throw Error('Unzulässige NVM-Änderung');
+   if(restoring){
+    for(let i=0;i<28;i++)if(modified[i]!==initial[i])throw Error('Factory-/Bootbereich weicht beim Restore ab');
+   }else if(st.calImage.changes.some(c=>c.index===16||c.index===22||c.index===57||c.index===58)){
+    if(!st.expertOutputPlan)throw Error('AODO-NVM-Änderung ohne geprüften Expertenvorschlag');
+    const expected=CAL.prepareOutputConfig(initial,st.expertOutputPlan,st.calfit.outputLimit);
+    for(const i of [16,22,57,58])if(modified[i]!==expected[i])throw Error('Ausgangsregister entspricht nicht dem geprüften Vorschlag');
+   }
+   st.nvmWorking=true;st.calTask=true;st.writing=true;st.ramWriteScope='nvm';stopLive();lsSet('elmos8-prewrite-backup',JSON.stringify({id,words:initial,ts:new Date().toISOString(),restore:restoring}));
    ca('nvmMsg','NVM wird programmiert. USB-Verbindung nicht trennen, Versorgung stabil halten.','warn');
    const beforeBoot=await bootSnapshot();await ramGrant();
    for(const i of [0,1,16,17,18,19,20,21,22,23,27,28,63]){const check=await nvmReadWord(i*2);if(check!==initial[i])throw Error(`Chip-NVM hat sich seit dem Backup verändert (Index ${i})`)}
-   for(let i=0;i<28;i++)if(modified[i]!==initial[i])throw Error('Boot-/Werksbereich verändert');
+   for(let i=0;i<28;i++)if(modified[i]!==initial[i]&&(restoring||![16,22].includes(i)))throw Error('Boot-/Werksbereich verändert');
    // Only USER region access is authorized; NEVER unlock factory calibration area.
    for(const x of [0x98BD,0x25BF,0x36D8])await maintWrite(0x4E,x);
    const status=await readReg(0x46);if(!(status&8))throw Error('NVM User-Bereich nicht freigegeben (CM_STATUS.ep_en=0)');
@@ -658,8 +669,8 @@ if(typeof document!=='undefined') (function UI(){
    if(CAL.crc16(after)!==after[63])throw Error('Abschliessende NVM-CRC16-Prüfung fehlgeschlagen');
    const cm=await readReg(0x46);if(cm&(1<<6))throw Error('Chip meldet CM CRC Fehler');
    if(!sameBoot(beforeBoot,await bootSnapshot()))throw Error('Bootregister nach Programmierung abweichend');
-   st.nvmDone=true;st.nvmBackup=after;st.nvmBackupVerified=true;st.calImage=null;lsSet('elmos8-last-program',JSON.stringify({id,words:after,ts:new Date().toISOString()}));
-   ca('nvmMsg',`NVM-Programmierung, vollständiges Rücklesen und CRC16 erfolgreich. Jetzt Versorgung kontrolliert neu starten und Schnittstellen erneut prüfen.`,`success`);
+   st.nvmDone=true;st.nvmBackup=after;st.nvmBackupVerified=true;st.calImage=null;st.restorePlan=null;expert.afterNvmScan();lsSet('elmos8-last-program',JSON.stringify({id,words:after,ts:new Date().toISOString(),restore:restoring}));
+   ca('nvmMsg',restoring?'Backup-Wiederherstellung abgeschlossen, NVM rückgelesen und CRC16 bestätigt. Sensor neu starten und erneut prüfen.':'NVM-Programmierung und vollständiges Rücklesen/CRC16 erfolgreich. Sensor neu starten und Schnittstelle erneut prüfen.','success');
   }catch(e){ca('nvmMsg',`NVM-Vorgang fehlgeschlagen: ${e.message}.${chipProgrammingStarted?' NVM-Schreibversuch wurde bereits begonnen: Chip nicht unkontrolliert neu starten, Backup und Diagnose sichern!':' Es wurden keine NVM-Schreibbefehle gestartet.'}`,'error');logging('NVM FEHLER: '+e.message)}
   finally{if(st.calTask){try{await maintWrite(0x4E,0x0000)}catch(e){logging('NVM-Zugriffssperre: '+e.message)}await ramLock()};st.ramWriteScope=null;st.nvmWorking=false;st.calTask=false;st.writing=false;$('nvmConfirmWord').value='';renderStatus()}
  }
@@ -669,7 +680,7 @@ if(typeof document!=='undefined') (function UI(){
    const saved=lsGet('elmos8-last-program');if(!saved)throw Error('Kein erfolgreiches früheres NVM-Programmierprotokoll im Browser');
    const expected=JSON.parse(saved);if(!expected.words||expected.words.length!==64)throw Error('Vorheriges NVM-Backup ungültig');
    await nvmScan({postBoot:true});if(!st.nvmBackupVerified)throw Error('NVM nach Neustart nicht lesbar');
-   const nowId=h(st.nvmBackup[1],2)+h(st.nvmBackup[0],2);
+   const nowId=st.uid?.hex;
    if(nowId!==expected.id)throw Error('Anderer Chip angeschlossen');
    if(st.nvmBackup.some((v,i)=>expected.words[i]!==v))throw Error('NVM nach Neustart weicht vom programmierten Abbild ab');
    const boot=await bootSnapshot();for(const [index,addr] of [[16,4],[17,6],[18,8],[19,10],[20,12],[22,16]])if(boot[addr]!==st.nvmBackup[index])throw Error('RAM-Bootregister 0x'+h(addr)+' weicht vom NVM-Backup ab');
