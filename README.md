@@ -2,9 +2,9 @@
 
 ## Diskrete AFE-Stufeneinstellung (11.11.2026)
 
-Unter **AFE optimieren → Verstärkung und Offset** werden drei diskrete Steuerelemente mit **− / +** statt Schiebereglern angezeigt. Eine Betätigung ändert jeweils genau einen gültigen Registercode: **PGA1 = 0–3** (4 Verstärkungsstufen), **PGA2 = 0–8** (9 Verstärkungsstufen), **Offset = −8 bis +8**. Neben dem Stufencode wird die jeweilige physikalische Verstärkung beziehungsweise der DAC-Offset in mV/V dargestellt. An den Grenzen oder bei laufenden Kalibrier-/NVM-Transaktionen sind die entsprechenden Tasten deaktiviert.
+Unter **AFE optimieren → Verstärkung und Offset** werden die diskreten Steuerelemente in der Reihenfolge **PGA1 → Offset → PGA2** mit **− / +** angezeigt. Eine Betätigung ändert jeweils genau einen zulässigen Registercode: **PGA1 = 0–3** (4 Stufen), **Offset = −8 bis +8** und **PGA2 = 0–8** (9 Stufen). Sichtbar sind nur die tatsächlichen Verstärkungen und der DAC-Offset in mV/V, nicht die Stufencodes. An den Grenzen sowie während einer RAM-/NVM-Transaktion sind die Tasten deaktiviert.
 
-Die Buttons verändern **nur die Vorschau** und machen bereits erfasste Kalibrierpunkte ungültig, genau wie zuvor die Schieberegler. Der eigentliche Chip-RAM-Schreibvorgang bleibt separat und benötigt den Knopf **«AFE-Einstellungen ins RAM übernehmen»**. Factory-/Bootregister und NVM werden von den Pfeiltasten nicht beschrieben.
+**Jeder Pfeilklick überträgt die neue Einstellung unmittelbar ins RAM des verbundenen Sensors** (CFG_AFE1, 0x1C). Die App pausiert dafür eine laufende Live-Lesung, prüft die Bootregister, schreibt genau die AFE-Bits, liest die Einstellung zur Kontrolle zurück und aktualisiert den ADC_S-Wert. Bis zum Abschluss sind weitere Pfeilklicks gesperrt. Bereits erfasste Kalibrierpunkte werden nach erfolgreicher Änderung verworfen; bei unsicherem Schreiben vorsorglich ebenfalls. Im Demo-Modus wird nur simuliert. **NVM und Factory-/Bootregister werden nicht programmiert.**
 
 Browserbasierter Kalibrierassistent für den **ELMOS E703.11** mit **SSP3-Eval-Board**. Die App läuft lokal im Chrome-Browser über **Web Serial**; als Standard ist **1-Wire (AODO)** eingestellt. I²C und SPI können je nach Hardwarekonfiguration gewählt werden.
 
@@ -78,7 +78,7 @@ Die lokale Browser-Historie ist kein dauerhaft garantiertes Archiv: Website-Date
 
 ## Geführter Ablauf
 
-1. **USB & AFE:** SSP3 verbinden, ADC_S kontrollieren und PGA1/PGA2/Offset optimieren. Gains/Offset werden mit dem Knopf «AFE-Einstellungen ins RAM übernehmen» kontrolliert geschrieben; die Slider sind eine Vorschau.
+1. **USB & AFE:** SSP3 verbinden, ADC_S kontrollieren und PGA1/PGA2/Offset optimieren. PGA1, Offset und PGA2 werden mit jedem Pfeilklick sofort ins RAM geschrieben und zurückgelesen; die Live-Anzeige zeigt die Wirkung.
 2. **Zwei Referenzpunkte:** Bezeichnungen frei wählen (z. B. **0 %** und **100 %**) und die Anzeigeeinheit zwischen bar, %, mbar, kPa, psi oder einer eigenen Einheit umstellen. Beide Endpunkte erfassen; ADC_S, ADC_T und ADC_TC werden gemeinsam aufgenommen. Zusätzliche Punkte sind für höhere Polynomordnungen möglich.
 3. **Berechnen & RAM:** DSP-Koeffizienten berechnen und ohne vorgeschaltetes vollständiges NVM-Backup oder Scharfschalt-Checkbox **direkt ins RAM** übertragen und rücklesen. Erst nach erfolgreicher DSP-Prüfung geht es weiter.
 4. **DSP prüfen:** Anzahl Prüfpunkte **1–10** einstellbar, **Standard ist 1**. Die tatsächliche Chip-Ausgabe DSP_S wird gegen die Referenz und die gewählte Toleranz verglichen. Mehrere Punkte prüfen unterschiedliche Stellen innerhalb des Druckbereichs. Bei Temperaturkompensation können zusätzliche Temperaturprüfungen erforderlich sein. Eine optionale lineare Rohwertprüfung ist **kein** Ersatz. **Ein einzelner Prüfpunkt ist keine Überprüfung der gesamten Kennlinie.**
