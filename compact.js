@@ -6,6 +6,7 @@ const ELMOS_COMPACT=(()=>{
  const $=id=>document.getElementById(id);
  let active=false;
  let original=[];
+ const activeListeners=[];
  let pointSelection='lo';
  function makeCard(title,id,content){
   return '<section class="cp-card cp-'+id+'"><div class="cp-card-heading"><strong>'+title+'</strong></div>'+content+'</section>';
@@ -92,7 +93,9 @@ const ELMOS_COMPACT=(()=>{
   label('expertOutputMode','cpOutputFields');
   moveId('expertPwmPeriodField','cpOutputFields');
   label('expertScaleEnable','cpOutputFields');
-  for(const id of ['psscVdd','psscS0','psscS1'])label(id,'cpOutputAnalog');
+  label('psscVdd','cpOutputAnalog');
+  label('psscS0','cpOutputAnalog').classList.add('cp-s0');
+  label('psscS1','cpOutputAnalog').classList.add('cp-s1');
   for(const id of ['expertScaleGain','expertScaleOffset'])label(id,'cpOutputExpert');
   actions(['psscDefaultScaling','expertOutputPreset','expertOutputStage','expertOutputDiscard','outputNvmRead'],'cpOutputActions');
   for(const id of ['outputOneWireStatus','psscScalingPreview','expertOutputMsg','psscOneWireOnlyStatus'])moveId(id,'cpOutputStatus');
@@ -111,11 +114,15 @@ const ELMOS_COMPACT=(()=>{
 
   $('cpExit').addEventListener('click',() => { $('compactMode').checked=false;set(false) });
   $('cpPointSelect').addEventListener('change',e=>{pointSelection=e.target.value;updatePoint()});
-  $('calPointCount').addEventListener('change',()=>{pointSelection='lo';updatePoint()});
-  $('expertOutputMode').addEventListener('change',updateOutput);
-  $('expertMode').addEventListener('change',updateOutput);
+  listen($('calPointCount'),'change',()=>{pointSelection='lo';updatePoint()});
+  listen($('expertOutputMode'),'change',updateOutput);
+  listen($('expertMode'),'change',updateOutput);
   updatePoint();
   updateOutput();
+ }
+ function listen(element,event,callback){
+  element.addEventListener(event,callback);
+  activeListeners.push({element,event,callback});
  }
  function updatePoint(){
   if(!active)return;
@@ -160,6 +167,8 @@ const ELMOS_COMPACT=(()=>{
    fitScreen();
   }else{
    active=false;
+   for(const {element,event,callback} of activeListeners)element.removeEventListener(event,callback);
+   activeListeners.length=0;
    for(const {node,placeholder} of original){
     if(placeholder.parentNode)placeholder.parentNode.replaceChild(node,placeholder);
    }
