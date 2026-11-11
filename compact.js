@@ -8,6 +8,7 @@ const ELMOS_COMPACT=(()=>{
  let original=[];
  const activeListeners=[];
  let pointSelection='lo';
+ let lastPointCount=null,lastOutputMode=null,compactTimer=null;
  function makeCard(title,id,content){
   return '<section class="cp-card cp-'+id+'"><div class="cp-card-heading"><strong>'+title+'</strong></div>'+content+'</section>';
  }
@@ -115,6 +116,7 @@ const ELMOS_COMPACT=(()=>{
   $('cpExit').addEventListener('click',() => { $('compactMode').checked=false;set(false) });
   $('cpPointSelect').addEventListener('change',e=>{pointSelection=e.target.value;updatePoint()});
   listen($('calPointCount'),'change',()=>{pointSelection='lo';updatePoint()});
+  listen($('configApply'),'click',()=>{pointSelection='lo';updatePoint();updateOutput()});
   listen($('expertOutputMode'),'change',updateOutput);
   listen($('expertMode'),'change',updateOutput);
   updatePoint();
@@ -127,6 +129,7 @@ const ELMOS_COMPACT=(()=>{
  function updatePoint(){
   if(!active)return;
   const count=Number($('calPointCount').value)||2;
+  lastPointCount=count;
   const input=$('cpPointSelect'),old=pointSelection;
   input.replaceChildren();
   const add=(value,label)=>{const option=document.createElement('option');option.value=value;option.textContent=label;input.appendChild(option)};
@@ -142,6 +145,7 @@ const ELMOS_COMPACT=(()=>{
  function updateOutput(){
   if(!active)return;
   const mode=$('expertOutputMode').value;
+  lastOutputMode=mode;
   const analog=['1','2','3','keep'].includes(mode);
   $('cpOutputAnalog').hidden=!analog;
   $('cpOutputExpert').hidden=!$('expertMode').checked;
@@ -165,8 +169,16 @@ const ELMOS_COMPACT=(()=>{
    document.documentElement.classList.add('compact-mode');
    root.hidden=false;
    fitScreen();
+   // Chip detection and imported configs can set .value without firing 'change'.
+   // Reconcile only these two inexpensive UI selectors while compact mode is active.
+   compactTimer=window.setInterval(()=>{
+    if(!active)return;
+    if(Number($('calPointCount').value)!==lastPointCount){pointSelection='lo';updatePoint()}
+    if($('expertOutputMode').value!==lastOutputMode)updateOutput();
+   },500);
   }else{
    active=false;
+   if(compactTimer!==null){window.clearInterval(compactTimer);compactTimer=null}
    for(const {element,event,callback} of activeListeners)element.removeEventListener(event,callback);
    activeListeners.length=0;
    for(const {node,placeholder} of original){
