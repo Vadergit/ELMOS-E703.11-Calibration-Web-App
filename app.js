@@ -41,10 +41,67 @@ if(typeof document!=='undefined') (function UI(){
  const hexWords=arr=>arr.map(x=>P.hx(x,2)).join(' ');
  const sleep=ms=>new Promise(r=>setTimeout(r,ms));
  const sameBoot=(a,b)=>!!a&&!!b&&LOCKED.every(k=>a[k]===b[k]);
- function renderStatus(){let connected=!!st.port, demo=st.mode==='demo';$('status').textContent=demo?'DEMO · simuliert':st.chip?'Chip-Leseantwort plausibel':connected?'USB verbunden · Chipprüfung offen':'Nicht verbunden';$('statusDot').className='dot'+(demo?' demo':st.chip?' active':'');$('fw').textContent=st.firmware?st.firmware.slice(0,19):'—';$('chip').textContent=st.chip?'Antwort erhalten':'—';$('ifaceLabel').textContent=st.iface==='plc'?'1-Wire':st.iface==='i2c'?'I²C':'SPI';$('srcLabel').textContent=demo?'DEMO':st.adc?.source==='usb'?'USB / Chip':'Keine Messdaten';$('choose').disabled=connected;$('auto').disabled=connected;$('disconnect').disabled=!connected;$('readNow').disabled=!connected&&!demo;$('live').disabled=!connected&&!demo;$('live').textContent=st.live?'Live-Messung stoppen':'Live-Messung starten';$('readBoot').disabled=!st.chip;$('readRegs').disabled=!st.chip;$('allowRam').disabled=!st.chip||demo;if(!st.chip)$('allowRam').checked=false;$('afeWord').textContent=st.afe===null?'CFG_AFE1: —':'CFG_AFE1: 0x'+h(st.afe,2)};
+ function renderStatus(){let connected=!!st.port, demo=st.mode==='demo';$('status').textContent=demo?'DEMO · simuliert':st.chip?'Chip-Leseantwort plausibel':connected?'USB verbunden · Chipprüfung offen':'Nicht verbunden';$('statusDot').className='dot'+(demo?' demo':st.chip?' active':'');$('fw').textContent=st.firmware?st.firmware.slice(0,19):'—';$('chip').textContent=st.chip?'Antwort erhalten':'—';$('ifaceLabel').textContent=st.iface==='plc'?'1-Wire':st.iface==='i2c'?'I²C':'SPI';$('srcLabel').textContent=demo?'DEMO':st.adc?.source==='usb'?'USB / Chip':'Keine Messdaten';$('choose').disabled=connected;$('auto').disabled=connected;$('disconnect').disabled=!connected;$('readNow').disabled=!connected&&!demo;$('live').disabled=!connected&&!demo;$('live').textContent=st.live?'Live-Messung stoppen':'Live-Messung starten';$('readBoot').disabled=!st.chip;$('readRegs').disabled=!st.chip;$('allowRam').disabled=!st.chip||demo;if(!st.chip)$('allowRam').checked=false;$('afeWord').textContent=st.afe===null?'CFG_AFE1: —':'CFG_AFE1: 0x'+h(st.afe,2);renderFlowState()};
  function gainSummary(){for(let k of ['pga1','pga2','offset']){$(k).value=st.staged[k];$(k+'val').textContent=(st.staged[k]>0&&k==='offset'?'+':'')+st.staged[k]}let g=st.staged;$('gainInfo').textContent=`PGA1 ${GAINS1[g.pga1]}× · PGA2 ${GAINS2[g.pga2]}× · Gesamt ${(GAINS1[g.pga1]*GAINS2[g.pga2]).toFixed(2)}× · Offset-DAC ${g.offset*50} mV/V`;renderStatus()}
- function step(n){currentStep=Math.max(0,Math.min(5,Number(n)));document.querySelectorAll('.panel').forEach(x=>x.hidden=Number(x.dataset.panel)!==currentStep);document.querySelectorAll('[data-step]').forEach(x=>x.classList.toggle('active',Number(x.dataset.step)===currentStep));draw()}
- const erasePoints=()=>{st.points={lo:null,hi:null};st.verify=null;st.calpoints=[];st.calfit=null;st.calImage=null;st.calStaged=false;st.calVerified=false;st.calValidation=[];renderCalPoints();$('lowVal').textContent='Noch nicht erfasst';$('highVal').textContent='Noch nicht erfasst';$('hub').textContent='—';$('middle').textContent='—';$('usage').textContent='—';show('calMsg','Beide Messpunkte müssen nach einer Gain-Änderung neu aufgenommen werden.')};
+ 
+ function pressureUnit(){const opt=$('calUnit').value;return opt==='custom'?($('calUnitOther').value.trim()||'Einheit'):opt}
+ function pointName(which){return ($((which==='lo'?'pointLoName':'pointHiName')).value.trim()||('Messpunkt '+(which==='lo'?'1':'2')))}
+ function calEndpointsReady(){const a=st.points.lo,b=st.points.hi;return !!a&&!!b&&Number.isFinite(a.v)&&Number.isFinite(b.v)&&Math.abs(a.v-b.v)>=10&&JSON.stringify(a.gains)===JSON.stringify(b.gains)&&JSON.stringify(a.gains)===JSON.stringify(st.staged)&&st.calpoints.some(x=>x.kind==='lo')&&st.calpoints.some(x=>x.kind==='hi')}
+ function workflowGate(n){
+  if(n>=3&&!calEndpointsReady())return 'Zuerst beide Referenzpunkte mit derselben AFE-Einstellung aufnehmen. Dann kann gerechnet werden.';
+  if(n>=4&&(!st.calfit||!st.calStaged))return 'Zuerst die DSP-Koeffizienten berechnen und ins Chip-RAM übertragen. Eine Rechnung allein reicht für die DSP-Prüfung nicht.';
+  if(n>=5&&!st.calVerified)return 'NVM bleibt gesperrt: Zuerst mindestens zwei unabhängige Prüfpunkte über DSP_S im RAM erfolgreich verifizieren.';
+  return ''
+ }
+ function renderFlowState(){
+  const unlocked=[true,true,true,calEndpointsReady(),!!st.calfit&&st.calStaged,!!st.calVerified];
+  document.querySelectorAll('[data-step]').forEach(b=>{const index=Number(b.dataset.step);b.classList.toggle('locked',!unlocked[index]);b.setAttribute('aria-disabled',String(!unlocked[index]));b.title=unlocked[index]?'':workflowGate(index)});
+  for(const btn of document.querySelectorAll('[data-next]')){const index=Number(btn.dataset.next);if(index>2){btn.disabled=!unlocked[index];btn.title=unlocked[index]?'':workflowGate(index)}else btn.disabled=false}
+ }
+ function refreshUnitLabels(){
+  const unit=pressureUnit(),lo=Number($('pmin').value),hi=Number($('pmax').value);
+  document.querySelectorAll('[data-cal-unit]').forEach(el=>{el.textContent=unit});
+  $('pointLoDisplay').textContent=Number.isFinite(lo)?lo+' '+unit:'—';
+  $('pointHiDisplay').textContent=Number.isFinite(hi)?hi+' '+unit:'—';
+  $('customUnitLabel').hidden=$('calUnit').value!=='custom';
+  renderCalPoints();
+ }
+ function step(n){
+  const next=Math.max(0,Math.min(5,Number(n)));
+  const blocked=workflowGate(next);
+  if(blocked){show('flowMsg',blocked,'warn');$('flowMsg').hidden=false;renderFlowState();return}
+  currentStep=next;$('flowMsg').hidden=true;
+  document.querySelectorAll('.panel').forEach(x=>x.hidden=Number(x.dataset.panel)!==next);
+  document.querySelectorAll('[data-step]').forEach(x=>x.classList.toggle('active',Number(x.dataset.step)===next));
+  renderFlowState();draw()
+ }
+ function invalidateCalculation(reason){
+  st.calfit=null;st.calImage=null;st.calStaged=false;st.calVerified=false;st.calValidation=[];
+  $('calCoeffList').textContent='Noch nicht berechnet.';
+  $('calVerifyList').textContent='Noch keine unabhängigen Prüfpunkte.';
+  show('calFitMsg',reason||'Koeffizienten müssen neu berechnet werden.','warn');
+  show('calRamMsg','Keine gültige RAM-Verifikation. Zuerst neu rechnen und ins RAM übertragen.','warn');
+  renderFlowState()
+ }
+ function handleReferenceChange(){
+  if(st.points.lo||st.points.hi||st.calpoints.length)erasePoints();
+  invalidateCalculation('Referenzbereich oder Einheit geändert. Bitte die Messpunkte neu aufnehmen.');
+  const pmin=Number($('pmin').value),pmax=Number($('pmax').value);
+  if(Number.isFinite(pmin)&&Number.isFinite(pmax)&&pmax>pmin){
+   const m=(pmin+pmax)/2;
+   for(const id of ['ptest','calPressure','calVerifyPressure'])$(id).value=m;
+  }
+  refreshUnitLabels()
+ }
+
+ 
+ const erasePoints=()=>{
+  st.points={lo:null,hi:null};st.verify=null;st.calpoints=[];st.calfit=null;st.calImage=null;st.calStaged=false;st.calVerified=false;st.calValidation=[];
+  renderCalPoints();$('lowVal').textContent='Noch nicht erfasst';$('highVal').textContent='Noch nicht erfasst';$('hub').textContent='—';$('middle').textContent='—';$('usage').textContent='—';
+  $('calCoeffList').textContent='Noch nicht berechnet.';$('calVerifyList').textContent='Noch keine unabhängigen Prüfpunkte.';
+  show('calMsg','Beide Messpunkte nach einer Änderung erneut aufnehmen.');renderFlowState()
+ };
+
  const rawLine=s=>{st.log.push(now()+'  '+s);if(st.log.length>500)st.log.shift();$('usbLog').textContent=st.log.slice(-90).join('\n')};
  async function readerLoop(port){try{let r=port.readable.getReader();st.reader=r;try{while(st.port===port){const{value,done}=await r.read();if(done)break;if(!value)continue;let txt=new TextDecoder().decode(value);rawLine('RX '+txt.replace(/\r/g,'\\r').replace(/\n/g,'\\n'));if(st.responseWait){st.replyBuffer+=txt;const colon=st.replyBuffer.match(/(?:^|[\r\n])\s*:\s*(?:\r|\n|$)/);if(colon){const waiter=st.responseWait;st.responseWait=null;clearTimeout(waiter.timer);const out=st.replyBuffer;st.replyBuffer='';waiter.resolve(out)}else if(st.replyBuffer.length>16000){const waiter=st.responseWait;st.responseWait=null;clearTimeout(waiter.timer);waiter.reject(Error('SSP3-Antwort zu lang'))}}}}finally{r.releaseLock();if(st.reader===r)st.reader=null}}catch(e){if(st.port===port){logging('USB-Lesefehler: '+e.message);st.chip=false;stopLive();renderStatus();show('connMsg','USB-Lesefehler: '+e.message,'error')}}}
  function serialize(fn){const run=st.cmdQueue.then(fn,fn);st.cmdQueue=run.catch(()=>{});return run}
@@ -109,17 +166,81 @@ if(typeof document!=='undefined') (function UI(){
  async function commitGain(target){if(st.writing){pendingGain=target;return}st.writing=true;try{if(!st.port||!st.chip||!$('allowRam').checked)throw Error('Chip nicht bereit oder RAM nicht freigegeben');if(!P.goodG(target))throw Error('Unzulässige Gain-Werte');const baseline=st.boot??await bootSnapshot();const beforeBoot=await bootSnapshot();if(!sameBoot(baseline,beforeBoot))throw Error('Bootregister seit der ersten Prüfung geändert');const w=await readReg(R_AFE);const old=decodeSafeAFE(w);const next=P.encAFE(w,target);if(st.iface!=='plc'&&(beforeBoot[6]&0x8000))throw Error('Chip verlangt CRC-geschützte I²C/SPI-Kommunikation; ungeschützte RAM-Änderung gesperrt');if(next===w){show('writeMsg','AFE-Einstellungen sind bereits identisch. Kein Schreibbefehl gesendet.','success');return}const adcBefore=await readReg(0x2A);await unlockRAM();await lowLevelWrite(R_AFE,next);const reread=await readReg(R_AFE);if(reread!==next)throw Error('AFE-Rücklesefehler: Soll 0x'+h(next,2)+' Ist 0x'+h(reread,2));const afterBoot=await bootSnapshot();if(!sameBoot(beforeBoot,afterBoot))throw Error('Bootregister nach AFE-Schreiben verändert – sofortige Sperre');const adcAfter=await readReg(0x2A);st.afe=reread;st.staged={...target};erasePoints();show('writeMsg',`RAM bestätigt: 0x${h(w,2)} → 0x${h(next,2)}, Rücklesen korrekt. ADC_S am aktuellen Druck: ${fmt(P.sign16(adcBefore))} → ${fmt(P.sign16(adcAfter))} Digits. Für die Hubbewertung beide Druckpunkte neu aufnehmen.`,'success');logging('AFE-RAM schreiben und rücklesen OK. Keine NVM-Änderung.');gainSummary()}catch(e){st.boot=null;$('allowRam').checked=false;show('writeMsg','AFE-Schreiben abgebrochen: '+e.message+'. Schreibfreigabe wurde deaktiviert.','error');logging('AFE-Schreibfehler: '+e.message);try{if(st.port&&st.chip){let r=await readReg(R_AFE);st.afe=r;st.staged=decodeSafeAFE(r);gainSummary()}}catch{} }finally{st.writing=false;renderStatus();if(pendingGain&&st.port&&st.chip&&$('allowRam').checked){const nextTarget=pendingGain;pendingGain=null;writeTimer=setTimeout(()=>commitGain(nextTarget),125)}}}
  async function gainChange(){if(st.calTask||st.nvmWorking){gainSummary();show('writeMsg','Während NVM-/Kalibrier-Wartung sind Gain-Änderungen gesperrt.','warn');return}let target={pga1:+$('pga1').value,pga2:+$('pga2').value,offset:+$('offset').value};st.staged={...target};gainSummary();erasePoints();if(st.mode==='demo'){updateADC({s:demoADC(),t:10755,tc:9902},'demo');show('writeMsg','DEMO: Gain-Änderung ist nur simuliert.','warn');return}if(!st.port||!st.chip||!$('allowRam').checked){show('writeMsg','Vorschau geändert. Für eine echte RAM-Änderung zuerst die bewusste Freigabe aktivieren.','warn');return}pendingGain=target;clearTimeout(writeTimer);writeTimer=setTimeout(()=>{const v=pendingGain;pendingGain=null;commitGain(v)},340)}
  async function sample(){if(st.mode==='demo'){const v=demoADC();return v}if(!st.chip)throw Error('Keine bestätigte Chip-Leseverbindung');return P.sign16(await readReg(0x2A))}
- async function capture(which){try{if(st.calTask||st.writing)throw Error('Wartungsvorgang läuft');const pmin=Number($('pmin').value),pmax=Number($('pmax').value);if(!(pmax>pmin))throw Error('Maximaldruck muss grösser sein als Minimaldruck');const vals=[];for(let i=0;i<8;i++){vals.push(await sample());await sleep(75)}vals.sort((a,b)=>a-b);const med=(vals[3]+vals[4])/2;const obj={v:med,min:vals[0],max:vals[7],pressure:which==='lo'?pmin:pmax,gains:{...st.staged},at:new Date().toISOString()};st.points[which]=obj;addCalPoint({pressure:obj.pressure,temperature:Number($('calTemp').value),adc_s:med,adc_t:st.adc?.t,adc_tc:st.adc?.tc,at:obj.at,gains:obj.gains});$(which==='lo'?'lowVal':'highVal').textContent=`ADC_S ${fmt(med)} Digits · Streuung ${fmt(vals[7]-vals[0])}`;refreshPoints()}catch(e){show('calMsg','Messung nicht möglich: '+e.message,'error')}}
- function refreshPoints(){const a=st.points.lo,b=st.points.hi;if(!a||!b)return;if(JSON.stringify(a.gains)!==JSON.stringify(b.gains))return show('calMsg','AFE-Einstellungen der Punkte sind verschieden. Beide Punkte erneut aufnehmen.','error');let span=Math.abs(b.v-a.v),mid=(a.v+b.v)/2,max=Math.max(Math.abs(a.v),Math.abs(b.v)),use=max/25000;$('hub').textContent=fmt(span);$('middle').textContent=fmt(mid);$('usage').textContent=(use*100).toFixed(1)+' %';show('calMsg',`Beide Messpunkte erfasst. Signalhub ${fmt(span)} Digits, Extremwert ${fmt(max)} Digits.`,`success`);let advise;if(max>25000){advise='Aussteuerung zu hoch: zunächst PGA2 reduzieren und beide Punkte wiederholen.'}else if(span<18000){advise='Signalhub noch klein: PGA1 schrittweise erhöhen (wenn Vorverstärker nicht übersteuert), danach PGA2 anpassen. Zwischen jeder Änderung beide Punkte neu messen.'}else if(Math.abs(mid)>7000){advise='Signalmitte deutlich verschoben: Offset-DAC um eine Stufe ausprobieren und beide Endpunkte erneut aufnehmen.'}else{advise='Signalbereich grundsätzlich gut genutzt. Kein Gain-Schritt ohne weiteren Gewinn nötig. Rauschen und Verifikation prüfen.'}show('recommendation',advise,'success')}
- async function verify(){try{const a=st.points.lo,b=st.points.hi;if(!a||!b)throw Error('Zuerst beide Messpunkte aufnehmen');if(JSON.stringify(a.gains)!==JSON.stringify(b.gains)||JSON.stringify(a.gains)!==JSON.stringify(st.staged))throw Error('Gain-Einstellung seit der Messung verändert');if(Math.abs(b.v-a.v)<10)throw Error('Signalhub zu klein');const val=await sample(),pred=a.pressure+(val-a.v)*(b.pressure-a.pressure)/(b.v-a.v),set=Number($('ptest').value),tol=Number($('tol').value),err=pred-set;if(!Number.isFinite(tol)||tol<0)throw Error('Toleranz ungültig');st.verify={adc:val,calculated:pred,expected:set,error:err,tolerance:tol,pass:Math.abs(err)<=tol};show('verifyMsg',`ADC_S ${fmt(val)} · berechnet ${pred.toFixed(4)} bar · Referenz ${set.toFixed(4)} bar · Abweichung ${err>=0?'+':''}${err.toFixed(4)} bar · ${st.verify.pass?'innerhalb Toleranz':'ausserhalb Toleranz'}. (Nur lineare Rohwertprüfung, kein DSP/NVM-Abgleich.)`,st.verify.pass?'success':'warn')}catch(e){show('verifyMsg','Verifikation nicht möglich: '+e.message,'error')}}
+ 
+ async function capture(which){
+  try{
+   if(st.calTask||st.writing||st.nvmWorking)throw Error('Wartungsvorgang läuft');
+   const pmin=Number($('pmin').value),pmax=Number($('pmax').value);
+   if(!Number.isFinite(pmin)||!Number.isFinite(pmax)||!(pmax>pmin))throw Error('Unterer und oberer Referenzwert sind ungültig');
+   if(st.mode!=='demo'&&!st.chip)throw Error('Keine aktive Chipverbindung');
+   const vals=[];
+   for(let i=0;i<8;i++){
+    if(st.mode==='demo')vals.push({s:demoADC(),t:10755,tc:9902});
+    else vals.push({s:P.sign16(await readReg(0x2A)),t:P.sign16(await readReg(0x28)),tc:P.sign16(await readReg(0x26))});
+    await sleep(65)
+   }
+   const ordered=k=>vals.map(x=>x[k]).sort((a,b)=>a-b);
+   const sortedS=ordered('s'),sortedT=ordered('t'),sortedTC=ordered('tc');
+   const med=x=>(x[3]+x[4])/2,sp=sortedS[7]-sortedS[0];
+   if(sp>350)throw Error('ADC_S streut zu stark ('+sp+' Digits). Druck stabilisieren und erneut messen');
+   const p=which==='lo'?pmin:pmax,name=pointName(which),at=new Date().toISOString(),temperature=Number($('calTemp').value);
+   if(!Number.isFinite(temperature))throw Error('Referenztemperatur fehlt');
+   const record={kind:which,name,pressure:p,temperature,adc_s:med(sortedS),adc_t:med(sortedT),adc_tc:med(sortedTC),at,gains:{...st.staged},spread:sp,unit:pressureUnit()};
+   st.points[which]={v:record.adc_s,pressure:p,unit:record.unit,name,gains:{...st.staged},at};
+   addCalPoint(record);
+   $(which==='lo'?'lowVal':'highVal').textContent=name+' · ADC_S '+fmt(record.adc_s)+' · ADC_T '+fmt(record.adc_t)+' · Streuung '+sp;
+   refreshPoints()
+  }catch(e){show('calMsg','Messung fehlgeschlagen: '+e.message,'error')}
+ }
+
+ 
+ function refreshPoints(){
+  const a=st.points.lo,b=st.points.hi;
+  renderFlowState();
+  if(!a||!b)return show('calMsg','Messpunkt erfasst. Bitte auch den zweiten Referenzpunkt messen.');
+  if(!calEndpointsReady())return show('calMsg','Punkte haben unterschiedliche Gains oder zu wenig ADC-Hub. Beide neu messen.','error');
+  const span=Math.abs(b.v-a.v),mid=(a.v+b.v)/2,max=Math.max(Math.abs(a.v),Math.abs(b.v)),use=max/25000;
+  $('hub').textContent=fmt(span);$('middle').textContent=fmt(mid);$('usage').textContent=(use*100).toFixed(1)+' %';
+  show('calMsg','Beide Punkte ('+a.name+' / '+b.name+') erfasst. Signalhub '+fmt(span)+' Digits. Jetzt Koeffizienten berechnen.','success');
+  let advise;
+  if(max>25000)advise='Zu hoch ausgesteuert: PGA2 reduzieren und beide Punkte erneut aufnehmen.';
+  else if(span<18000)advise='Signalhub klein: PGA1 schrittweise erhöhen, sofern der Vorverstärker nicht übersteuert. Dann PGA2 optimieren; beide Punkte neu messen.';
+  else if(Math.abs(mid)>7000)advise='Signalmitte verschoben: Offset-DAC schrittweise testen und beide Referenzpunkte erneut aufnehmen.';
+  else advise='AFE-Hub grundsätzlich geeignet. Als Nächstes die DSP-Koeffizienten berechnen, dann ins RAM schreiben und prüfen.';
+  show('recommendation',advise,'success')
+ }
+
+ 
+ async function verify(){
+  try{
+   if(!calEndpointsReady())throw Error('Zuerst beide Referenzpunkte aufnehmen');
+   const a=st.points.lo,b=st.points.hi,val=await sample();
+   const pred=a.pressure+(val-a.v)*(b.pressure-a.pressure)/(b.v-a.v);
+   const set=Number($('ptest').value),tol=Number($('tol').value),err=pred-set;
+   if(!Number.isFinite(set)||!Number.isFinite(tol)||tol<=0)throw Error('Prüfwert oder Toleranz ungültig');
+   st.verify={adc:val,calculated:pred,expected:set,error:err,tolerance:tol,unit:pressureUnit(),pass:Math.abs(err)<=tol,kind:'optional-raw-only'};
+   show('verifyMsg','Optionale Rohwert-Vorprüfung: ADC_S '+fmt(val)+' · berechnet '+pred.toFixed(4)+' '+pressureUnit()+' · Referenz '+set.toFixed(4)+' '+pressureUnit()+' · Abweichung '+err.toFixed(4)+' '+pressureUnit()+'. KEINE DSP- oder NVM-Verifikation.',st.verify.pass?'success':'warn')
+  }catch(e){show('verifyMsg','Optionale Rohwert-Prüfung fehlgeschlagen: '+e.message,'error')}
+ }
+
  function draw(){const c=$('chart');if(!c||c.closest('[hidden]'))return;const d=window.devicePixelRatio||1,w=Math.round(c.clientWidth*d),h=Math.round(c.clientHeight*d);if(w<20)return;if(c.width!==w||c.height!==h){c.width=w;c.height=h}const g=c.getContext('2d');g.clearRect(0,0,w,h);const x0=55*d,y0=10*d,yh=h-20*d,y=v=>y0+(32768-v)/65536*(yh-y0);g.font=`${11*d}px sans-serif`;for(const v of [25000,0,-25000]){g.beginPath();g.strokeStyle=v?'#e3c9aa':'#d7e4ef';g.setLineDash(v?[5*d,4*d]:[]);g.moveTo(x0,y(v));g.lineTo(w-8*d,y(v));g.stroke();g.setLineDash([]);g.fillStyle='#74849a';g.fillText((v>0?'+':'')+v,5*d,y(v)+4*d)}if(st.trend.length<1)return;const left=Date.now()-60000,x=t=>x0+(w-x0-10*d)*Math.max(0,Math.min(1,(t-left)/60000));g.beginPath();g.strokeStyle='#2867a6';g.lineWidth=2*d;st.trend.forEach((p,i)=>i?g.lineTo(x(p.x),y(p.y)):g.moveTo(x(p.x),y(p.y)));g.stroke()}
  function download(name,txt,mime='application/json'){let b=new Blob([txt],{type:mime}),u=URL.createObjectURL(b),a=document.createElement('a');a.href=u;a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(u),2000)}
- const report=()=>({tool:'ELMOS E703.11 Chrome v8 / SSP3 Zelos Protocol',created:new Date().toISOString(),connection:st.port?'USB':'offline/demo',hardwareValidated:false,interface:st.iface,firmware:st.firmware,bootProtection:'Boot-/Werks-NVM-Schreiben gesperrt; kalibrierungsbezogenes User-NVM mit Bestätigung freigegeben',ramUnlocked:$('allowRam').checked,registers:st.regs,bootSnapshot:st.boot,AFE:st.afe,gains:st.staged,low:st.points.lo,high:st.points.hi,verification:st.verify,calibrationPoints:st.calpoints,coefficientFit:st.calfit,calRamVerified:st.calVerified,nvmState:{backupVerified:st.nvmBackupVerified,programmed:st.nvmDone},samples:st.history.slice(-1500),trace:st.log});
+ const report=()=>({tool:'ELMOS E703.11 Chrome v8 / SSP3 Zelos Protocol',created:new Date().toISOString(),connection:st.port?'USB':'offline/demo',hardwareValidated:false,unit:pressureUnit(),pointNames:{lower:pointName('lo'),upper:pointName('hi')},interface:st.iface,firmware:st.firmware,bootProtection:'Boot-/Werks-NVM-Schreiben gesperrt; kalibrierungsbezogenes User-NVM mit Bestätigung freigegeben',ramUnlocked:$('allowRam').checked,registers:st.regs,bootSnapshot:st.boot,AFE:st.afe,gains:st.staged,low:st.points.lo,high:st.points.hi,verification:st.verify,calibrationPoints:st.calpoints,coefficientFit:st.calfit,calRamVerified:st.calVerified,nvmState:{backupVerified:st.nvmBackupVerified,programmed:st.nvmDone},samples:st.history.slice(-1500),trace:st.log});
 
  // ============ Kalibrierung + NVM (AN0203 / AN0204 / Datasheet 2023) ============
  const ca=(id,msg,type='')=>show(id,msg,type);
- function renderCalPoints(){const out=$('calPointsList');if(!out)return;out.textContent=st.calpoints.length?st.calpoints.map((x,i)=>`${i+1}. ${x.pressure.toFixed(3)} bar · ${Number(x.temperature).toFixed(1)} °C · ADC_S ${fmt(x.adc_s)} · ADC_T ${fmt(x.adc_t)}`).join('\n'):'Noch keine Messpunkte. Erfasse mindestens zwei verschiedene Drücke.';}
- function addCalPoint(x){if(!Number.isFinite(x.adc_s)||!Number.isFinite(x.adc_t)||!Number.isFinite(x.pressure)||!Number.isFinite(x.temperature))return;st.calpoints.push(x);st.calfit=null;st.calImage=null;st.calVerified=false;st.calValidation=[];st.calStaged=false;renderCalPoints();}
+ 
+ function renderCalPoints(){
+  const out=$('calPointsList');if(!out)return;
+  out.textContent=st.calpoints.length?st.calpoints.map((x,i)=>(i+1)+'. '+(x.name||'Zusatzpunkt')+' · '+Number(x.pressure).toFixed(3)+' '+pressureUnit()+' · '+Number(x.temperature).toFixed(1)+' °C · ADC_S '+fmt(x.adc_s)+' · ADC_T '+fmt(x.adc_t)).join('\n'):'Noch keine Messpunkte. Zuerst die zwei Referenzpunkte aufnehmen.';
+ }
+ function addCalPoint(x){
+  if(!Number.isFinite(x.adc_s)||!Number.isFinite(x.adc_t)||!Number.isFinite(x.pressure)||!Number.isFinite(x.temperature))throw Error('ADC_S/ADC_T oder Referenz fehlt');
+  if(x.kind==='lo'||x.kind==='hi')st.calpoints=st.calpoints.filter(p=>p.kind!==x.kind);
+  st.calpoints.push(x);invalidateCalculation('Messpunkte geändert. DSP-Koeffizienten erneut berechnen.');
+  renderCalPoints()
+ }
+
  async function captureCalPoint(){try{if(st.calTask||st.writing)throw Error('Wartungsvorgang läuft');
   const pr=Number($('calPressure').value),t=Number($('calTemp').value);
   if(!Number.isFinite(pr)||!Number.isFinite(t)||t< -40||t>125)throw Error('Druck / Temperatur ungültig');
@@ -128,19 +249,26 @@ if(typeof document!=='undefined') (function UI(){
   const median=k=>samples.map(x=>x[k]).sort((a,b)=>a-b)[5];
   const spread=k=>Math.max(...samples.map(x=>x[k]))-Math.min(...samples.map(x=>x[k]));
   if(spread('s')>350)throw Error('ADC_S streut über 350 Digits – Druck stabilisieren');
-  const a={pressure:pr,temperature:t,adc_s:median('s'),adc_t:median('t'),adc_tc:median('tc'),at:new Date().toISOString(),gains:{...st.staged},spread:spread('s')};
+  const a={kind:'extra',name:'Zusatzpunkt '+(st.calpoints.filter(x=>x.kind==='extra').length+1),pressure:pr,unit:pressureUnit(),temperature:t,adc_s:median('s'),adc_t:median('t'),adc_tc:median('tc'),at:new Date().toISOString(),gains:{...st.staged},spread:spread('s')};
   addCalPoint(a);ca('calPointsMsg',`Messpunkt ${st.calpoints.length} gespeichert (Streuung ${a.spread} Digits).`,'success');
  }catch(e){ca('calPointsMsg',e.message,'error')}}
- function calcCoefficients(){try{if(st.calTask||st.writing)throw Error('Wartungsvorgang läuft');
-  const pmin=Number($('pmin').value),pmax=Number($('pmax').value);
-  if(st.calpoints.some(p=>JSON.stringify(p.gains)!==JSON.stringify(st.staged)))throw Error('Gain wurde geändert. Alte Messpunkte löschen und neu aufnehmen.');
-  const solution=CAL.fit(st.calpoints,{pmin,pmax,orderS:Number($('calSOrder').value),orderT:Number($('calTOrder').value)});
-  st.calfit=solution;st.calImage=null;st.calStaged=false;st.calVerified=false;st.calValidation=[];
-  const r=solution.registers;
-  $('calCoeffList').textContent=`S_O 0x${h(r.so,2)} (Q3.12)  S_F 0x${h(r.sf,2)} (Q3.12)\n`+r.coeffs.map((x,i)=>`S${i.toString().padEnd(2)} 0x${h(x,2)}    ${(CAL.fromQ(x,15)).toFixed(7)}`).join('\n')+(r.tcoeffs?'\nT_O '+h(r.to,2)+'  T_F '+h(r.tf,2)+'\n'+r.tcoeffs.map((x,i)=>`T${i}: 0x${h(x,2)}`).join('\n'):'\nTemperaturpfad bleibt unverändert (keine Temperaturkorrektur berechnet).');
-  const tail=`Max. Fitfehler ${solution.stats.maxDigits.toFixed(2)} Digits; RMS ${solution.stats.rmsDigits.toFixed(2)} Digits; normierter ADC-Höchstwert ${(solution.stats.maxNormalized*100).toFixed(2)} %. `;
-  ca('calFitMsg',`Koeffizienten berechnet: ${tail}JavaScript-Fit, nicht identisch mit der Hersteller-DLL. Zuerst im RAM verifizieren.`,solution.stats.maxDigits>100?'warn':'success');
- }catch(e){st.calfit=null;ca('calFitMsg','Berechnung fehlgeschlagen: '+e.message,'error')}}
+ 
+ function calcCoefficients(){
+  try{
+   if(st.calTask||st.writing||st.nvmWorking)throw Error('Es läuft ein anderer Vorgang');
+   if(!calEndpointsReady())throw Error('Zuerst die beiden Referenzpunkte mit gleicher AFE-Einstellung aufnehmen');
+   const pmin=Number($('pmin').value),pmax=Number($('pmax').value);
+   if(st.calpoints.some(p=>JSON.stringify(p.gains)!==JSON.stringify(st.staged)))throw Error('Gain wurde nach der Aufnahme geändert. Messpunkte erneut erfassen');
+   const solution=CAL.fit(st.calpoints,{pmin,pmax,orderS:Number($('calSOrder').value),orderT:Number($('calTOrder').value)});
+   st.calfit=solution;st.calImage=null;st.calStaged=false;st.calVerified=false;st.calValidation=[];
+   const r=solution.registers;
+   $('calCoeffList').textContent='S_O 0x'+h(r.so,2)+' (Q3.12)  S_F 0x'+h(r.sf,2)+' (Q3.12)\n'+r.coeffs.map((x,i)=>'S'+String(i).padEnd(2)+' 0x'+h(x,2)+'    '+CAL.fromQ(x,15).toFixed(7)).join('\n')+(r.tcoeffs?'\nT_O '+h(r.to,2)+' T_F '+h(r.tf,2)+'\n'+r.tcoeffs.map((x,i)=>'T'+i+': 0x'+h(x,2)).join('\n'):'\nTemperaturpfad bleibt unverändert.');
+   const note='Max. Fitfehler '+solution.stats.maxDigits.toFixed(2)+' Digits · RMS '+solution.stats.rmsDigits.toFixed(2)+' Digits.';
+   show('calFitMsg','Berechnung erfolgreich ('+st.calpoints.length+' Punkte). '+note+' Jetzt Original-NVM sichern und berechnete Koeffizienten ins RAM übernehmen. Die JavaScript-Berechnung ist noch nicht als identisch mit der Hersteller-DLL bestätigt.',solution.stats.maxDigits>100?'warn':'success');
+   renderFlowState()
+  }catch(e){invalidateCalculation('Berechnung fehlgeschlagen: '+e.message);show('calFitMsg','Berechnung fehlgeschlagen: '+e.message,'error')}
+ }
+
  async function maintWrite(addr,word){
   // Restricted, never public raw-register interface. Only for controlled calibration/NVM transaction.
   if(!st.calTask||!st.port||!st.chip||!$('allowRam').checked)throw Error('Technischer Wartungszugriff gesperrt');
@@ -183,9 +311,9 @@ if(typeof document!=='undefined') (function UI(){
    if(factoryCRC!==factoryHigh)throw Error(`Werks-CRC8 stimmt nicht: 0x${h(factoryCRC)} statt 0x${h(factoryHigh)}. Programmierung gesperrt.`);
    for(const index of [0,1,15,16,17,18,19,20,22,27,28,63])if(await nvmReadWord(index*2)!==words[index])throw Error('NVM bei Wiederholungslesung unstabil (Wort '+index+')');
    const after=await bootSnapshot();if(!sameBoot(before,after))throw Error('Bootregister haben sich beim NVM-Lesen verändert');
-   st.nvmBackup=words;st.nvmBackupVerified=true;st.calImage=null;st.calVerified=false;
+   st.nvmBackup=words;st.nvmBackupVerified=true;st.calImage=null;st.calVerified=false;ca('backupMsg','Backup vollständig gelesen: 64 NVM-Wörter, CRC8 und CRC16 bestätigt. Jetzt RAM-Koeffizienten übertragen.','success');
    ca('nvmMsg',`Vollständiges 64-Wort-Backup gelesen, CRC8 und CRC16 bestätigt. Chipkennung SER0/SER1: ${h(words[1],2)}${h(words[0],2)}. Backup jetzt herunterladen.`,'success');
-  }catch(e){st.nvmBackup=null;st.nvmBackupVerified=false;ca('nvmMsg','NVM-Backup fehlgeschlagen: '+e.message,'error')}
+  }catch(e){st.nvmBackup=null;st.nvmBackupVerified=false;ca('nvmMsg','NVM-Backup fehlgeschlagen: '+e.message,'error');ca('backupMsg','NVM-Backup fehlgeschlagen: '+e.message,'error')}
   finally{await ramLock();st.calTask=false;st.writing=false;renderStatus();}
  }
  async function applyCalRam(){
@@ -209,16 +337,16 @@ if(typeof document!=='undefined') (function UI(){
    const got=P.sign16(await readReg(0x30)),target=64000*(p-pmin)/(pmax-pmin)-32000;
    const stat=await readReg(0x32),delta=got-target,errorBar=delta/64000*(pmax-pmin);
    if(stat&(1<<10))throw Error('DSP-Sättigung erkannt (STATUS_SYNC.dsp_sat). Programmierung gesperrt.');
-   if(Math.abs(errorBar)>tol){st.calValidation=[];st.calVerified=false;throw Error(`DSP_S ${got}: Abweichung ${errorBar.toFixed(4)} bar über Toleranz ${tol} bar`)}
+   if(Math.abs(errorBar)>tol){st.calValidation=[];st.calVerified=false;throw Error(`DSP_S ${got}: Abweichung ${errorBar.toFixed(4)} '+pressureUnit()+' über Toleranz ${tol} ${pressureUnit()}`)}
    st.calValidation=st.calValidation.filter(x=>Math.abs(x.pressure-p)>(pmax-pmin)*0.10);
    st.calValidation.push({pressure:p,actual:got,expected:target,errorBar,temperature:Number($('calVerifyTemperature').value),measuredTemp:P.sign16(await readReg(0x2E))});
    const distinct=st.calValidation.length>=2;
    const temperatureValidation=st.calfit.orderT===0||((Math.max(...st.calValidation.map(x=>x.temperature))-Math.min(...st.calValidation.map(x=>x.temperature)))>=10 && st.calValidation.every(x=>Number.isFinite(x.temperature)&&Math.abs(x.measuredTemp-(387.88*x.temperature-16485))<=Math.max(100,tol*64000/(pmax-pmin))));
    st.calVerified=distinct&&temperatureValidation;
-   ca('calRamMsg',`DSP_S ${got} · Soll ${target.toFixed(1)} Digits · Fehler ${errorBar.toFixed(5)} bar · ${st.calValidation.length} unabhängige Prüfpunkte. ${st.calVerified?'RAM-Verifikation bestanden':'Weitere unabhängige Prüfpunkte erforderlich'}`,st.calVerified?'success':'warn');
+   $('calVerifyList').textContent=st.calValidation.map((v,i)=>(i+1)+'. '+v.pressure+' '+pressureUnit()+' · DSP_S '+v.actual+' · Abweichung '+v.errorBar.toFixed(5)+' '+pressureUnit()).join('\n');ca('calRamMsg',`DSP_S ${got} · Soll ${target.toFixed(1)} Digits · Fehler ${errorBar.toFixed(5)} ${pressureUnit()} · ${st.calValidation.length} unabhängige Prüfpunkte. ${st.calVerified?'RAM-Verifikation bestanden':'Weitere unabhängige Prüfpunkte erforderlich'}`,st.calVerified?'success':'warn');
   }catch(e){st.calVerified=false;ca('calRamMsg','DSP-Verifikation: '+e.message,'error')}
- }
- function prepareNvm(){try{if(st.calTask||st.writing)throw Error('Wartungsvorgang läuft');
+  finally{renderFlowState()}
+ }function prepareNvm(){try{if(st.calTask||st.writing)throw Error('Wartungsvorgang läuft');
   if(!st.nvmBackupVerified||!st.calfit||!st.calVerified||!st.calStaged)throw Error('NVM-Backup, berechnete Koeffizienten und bestandene echte DSP-RAM-Verifikation nötig');
   const image=CAL.configFrom(st.nvmBackup,st.calfit,st.afe??0x800);
   if(image.changes.some(c=>c.index<28||c.index===29||c.index===30))throw Error('Unerlaubtes NVM-Register im Änderungsplan');
@@ -281,9 +409,28 @@ if(typeof document!=='undefined') (function UI(){
    await readADC();ca('nvmMsg','NVM nach Neustart vollständig rückgelesen: CRC8, CRC16, Bootregister und ADC erfolgreich geprüft.','success');
  }catch(e){ca('nvmMsg','Neustart-Verifikation: '+e.message,'error')}
  }
+
+ function syncPointNames(){
+  for(const kind of ['lo','hi']){
+   if(st.points[kind])st.points[kind].name=pointName(kind);
+   const stored=st.calpoints.find(p=>p.kind===kind);
+   if(stored)stored.name=pointName(kind)
+  }
+  refreshUnitLabels()
+ }
+ $('calUnit').addEventListener('change',()=>{
+  const next=$('calUnit').value;
+  if(next==='%'&&!st.points.lo&&!st.points.hi&&Number($('pmin').value)===0&&Number($('pmax').value)===10){$('pmax').value='100';$('pointLoName').value='0 %';$('pointHiName').value='100 %'}
+  handleReferenceChange()
+ });
+ $('calUnitOther').addEventListener('change',handleReferenceChange);
+ for(const id of ['pmin','pmax'])$(id).addEventListener('change',handleReferenceChange);
+ for(const id of ['pointLoName','pointHiName'])$(id).addEventListener('change',syncPointNames);
+ for(const id of ['calSOrder','calTOrder'])$(id).addEventListener('change',()=>invalidateCalculation('Polynomordnung verändert. Neu berechnen und anschliessend neu ins RAM übertragen.'));
+ refreshUnitLabels();
  // controls
  $('calPointCapture').addEventListener('click',captureCalPoint);
- $('calPointClear').addEventListener('click',()=>{st.calpoints=[];st.calfit=null;st.calImage=null;st.calVerified=false;st.calValidation=[];renderCalPoints();ca('calPointsMsg','Alle Kalibriermesspunkte verworfen.');});
+ $('calPointClear').addEventListener('click',()=>{erasePoints();ca('calPointsMsg','Alle Kalibriermesspunkte verworfen.');});
  $('calCalculate').addEventListener('click',calcCoefficients);
  $('calApplyRam').addEventListener('click',applyCalRam);
  $('calVerifyRam').addEventListener('click',verifyCalRam);
