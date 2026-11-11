@@ -21,7 +21,7 @@ Dieser Bericht trennt den **im Code beziehungsweise mit simulierten Chipantworte
 | AODO analog / PWM / FM | Modus-/Grenzprüfungen und S0/S1-Q3.12-Skalierung simuliert | Physische Ausgangssignale messen |
 | «One Wire only» | Nur bereits permanentes PLC im Original-NVM akzeptiert; keine Bootregisteränderungen | Kaltstart und One-Wire-Kommunikation am Testchip prüfen |
 | Kontextbezogener Expertenmodus | Zusatzeinstellungen erscheinen direkt in AFE, Ausgang und EEPROM Viewer; kein Popup | Bedienung mit realem Sensor prüfen |
-| EEPROM Viewer | Eigener Reiter, 64 Zeilen, Suchfeld, Hex/Dezimalwerte und Schutzanzeige; bestehender CRC-geprüfter Lesepfad | Vollständiges EEPROM am Testchip lesen und mit PSSC vergleichen |\n| Config-Vorlagen | Strikte JSON-Prüfung, Datei mit nur AFE/DSP/Mess-/Ausgangsparametern; staged AFE-RAM-Anwendung nach Benutzerklick | Import, AFE-Rücklesung und neue Sensor-Kalibrierung praktisch prüfen |
+| EEPROM Viewer | Eigener Reiter, 64 Zeilen, Suchfeld, Hex/Dezimalwerte und Schutzanzeige; bestehender CRC-geprüfter Lesepfad | Vollständiges EEPROM am Testchip lesen und mit PSSC vergleichen; angezeigte Werte müssen zur aktuell verbundenen UID gehören |\n| Config-Vorlagen | Strikte JSON-Prüfung, Datei mit nur AFE/DSP/Mess-/Ausgangsparametern; staged AFE-RAM-Anwendung nach Benutzerklick | Import, AFE-Rücklesung und neue Sensor-Kalibrierung praktisch prüfen |
 | Chip-UID / Backup / Wiederherstellung | UID-Zuordnung, CRC und Restore-Plan simuliert | Echter Restore auf Testchip fehlt |
 
 ## Aktuelle Oberfläche und Bedienung
@@ -54,7 +54,7 @@ Dieser Bericht trennt den **im Code beziehungsweise mit simulierten Chipantworte
 
 Die Tests waren **Simulationen oder lokale JavaScript-Prüfungen**. Das Repository enthält inzwischen automatisierte Node-Regressionstests unter `tests/safety.test.cjs`, startbar mit `node --test tests/safety.test.cjs`. Der Code selbst wird ohne Buildprozess direkt durch GitHub Pages ausgeliefert. Die Tests ersetzen keine echte Hardwareprüfung.
 
-Die automatisierten Software-Regressionstests umfassen in **v0.4.0 insgesamt 23 Fälle**. Zusätzlich wurden vorhandene HTML-IDs, die Referenzen aus den JavaScript-Dateien und einheitliche Browser-Skriptversionen geprüft. Ein vollwertiger Browser-End-to-End-Test und reale Sensorhardware stehen weiterhin aus. Die neue Datei-API, das Speichern im Browser und echte SSP3-EEPROM-Lesungen wurden noch nicht mit angeschlossenem Sensor als vollständige End-to-End-Kette verifiziert.
+Die automatisierten Software-Regressionstests umfassen in **v0.4.0 insgesamt 24 Fälle**. Zusätzlich wurden vorhandene HTML-IDs, die Referenzen aus den JavaScript-Dateien und einheitliche Browser-Skriptversionen geprüft. Ein vollwertiger Browser-End-to-End-Test und reale Sensorhardware stehen weiterhin aus. Die neue Datei-API, das Speichern im Browser und echte SSP3-EEPROM-Lesungen wurden noch nicht mit angeschlossenem Sensor als vollständige End-to-End-Kette verifiziert.
 
 ## Offene Prüfungen vor produktivem Einsatz
 
