@@ -1,3 +1,14 @@
+## NVM-Finalschritt: automatische Sicherung beim Schreiben / optional ohne Backup – Simulation (11.11.2026)
+
+- Neue Oberfläche: kompakte Eingabefelder, zusammengefasste NVM-Lesung und Änderungsvorschau, einklappbare Änderungsliste und manuelles Leseprotokoll
+- `nvmPrepare` liest automatisch 64 NVM-Wörter samt Factory-CRC8/CRC16 und zweiter Prüfung kritischer Wörter; kein persistentes Backup beim reinen Vorschau-Klick
+- Nach der Vorschau wird der Programmierknopf erst bei gültiger UID und richtigem Bestätigungswort aktiviert (vorheriger Buttonfehler behoben)
+- **Backup aktiv:** Vor dem ersten NVM-Schreibbefehl wird die UID-gebundene NVM-Sicherung lokal geprüft gespeichert, JSON-Download gestartet und anschliessend mit Rücklesen/CRC programmiert. Im Simulator Historie und Download verifiziert.
+- **Backup aus:** Bei unverändert vollständiger NVM-Sicherheitslesung und CRC-Kontrolle wird kein ursprüngliches NVM archiviert und kein JSON heruntergeladen. Die NVM-Programmierung und anschliessende CRC-Prüfung bestanden den Test ebenfalls.
+- Factory-Wörter in beiden Durchläufen unverändert; nur zugelassene Anwender-/CRC-Wörter geschrieben
+- Backup standardmässig bei jeder neu geöffneten Seite aktiviert, Checkbox während NVM-Wartung/Programmierung gesperrt
+- **Nicht getestet am echten Chip:** Hardware-Timing, tatsächliche SSP3-NVM-Programmierung, automatische Download-Freigabe in Chrome und physischer Neustart
+
 ## Samples und Messwertdarstellung – UI-Regression 11.11.2026
 
 - Gemeinsamer Messpfad für untere/obere Endpunkte und Zwischenpunkte; bisherige feste **8** bzw. **12** Samples durch den wählbaren Wert **1–100** ersetzt
