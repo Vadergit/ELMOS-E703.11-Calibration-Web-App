@@ -1,18 +1,33 @@
-# ESP32- und Arduino-kompatible Boards: USB und GPIO-Pinbelegung
+# ESP32- und Arduino-kompatible Boards: AODO / 1-Wire und I²C-Pinbelegung
 
 **Stand: v0.6.0 · Referenz für die zukünftige E703.11-PLC-Bridge**
 
-Dieser Guide umfasst die gängigen **ESP32-, Arduino-, RP2040- und anderen Arduino-kompatiblen Mikrocontrollerboards**. Die Tabelle nennt je Board einen vorgeschlagenen Digitalpin für die **zukünftige PLC-Steuerleitung** und, falls der Treiber getrennte Leitungen verwendet, einen **optionalen Empfangspin**.
+Dieser Guide umfasst die gängigen ESP32-, Arduino-, RP2040- und weiteren Arduino-kompatiblen Boards. Er dokumentiert **beide E703.11-Kommunikationswege**: einen vorgeschlagenen MCU-GPIO für **AODO / 1-Wire** sowie separate MCU-Pins für **I²C SDA und SCL**. Ein optionaler RX-GPIO ist für eine mögliche externe 1-Wire-Treiberstufe mit getrenntem Empfangssignal angegeben.
 
-> **Sicherheitsgrenze:** Die hier genannten GPIOs sind **Planungsvorschläge, keine heute funktionierende E703.11-Anschlussbelegung**. Die vorhandenen Arduino-Sketches implementieren ausschliesslich **USB-/Seriell-Kommunikation (CAPS=CDC_ONLY)**. Sie steuern keinerlei Sensorpins an. **E703.11 AODO niemals direkt mit einem GPIO verbinden.** Eine elektrische, bidirektionale und pegelgerechte PLC-Treiberschaltung sowie das Sensorprotokoll sind noch zu entwickeln und zu prüfen.
+> **Sicherheitsgrenze:** Die hier genannten GPIOs sind **Planungsvorschläge, keine heute funktionierende E703.11-Anschlussbelegung**. Die vorhandenen Arduino-Sketches implementieren ausschliesslich **USB-/Seriell-Kommunikation (CAPS=CDC_ONLY)**. Sie steuern weder AODO noch die I²C-Anschlüsse des Sensors an. **E703.11 AODO niemals direkt an einen MCU-GPIO anschliessen!** Für 1-Wire und I²C müssen elektrische Schnittstelle, Buspegel, Schutzbeschaltung, I²C-Adresse, CRC und Firmware geprüft beziehungsweise implementiert werden.
+
+## E703.11: korrekte Signalnamen
+
+Die Elmos-Bezeichnung ist **AODO**, nicht «A0D0». Am Mikrocontroller ist «AODO» **kein spezieller Pin**: Der Sensoranschluss könnte später über eine passende externe Treiberschaltung mit einem frei gewählten GPIO verbunden werden.
+
+| Signal am E703.11 | Funktion | MCU-Seite |
+| --- | --- | --- |
+| **AODO** | **1-Wire / PLC über die Ausgangsleitung** | AODO-/1-Wire-GPIO aus der Boardtabelle, **nur über geprüften bidirektionalen Treiber** |
+| **MISO/SDA** | **I²C SDA** (Datenleitung) | SDA-Spalte der Boardtabelle |
+| **SCK/SCL** | **I²C SCL** (Taktleitung) | SCL-Spalte der Boardtabelle |
+| **NCS/SA0** | Chip-/Adressfunktion (abhängig vom Modus) | Konkrete Beschaltung gemäss vollständigem E703.11-Datenblatt |
+
+**1-Wire und I²C sind unterschiedliche Schnittstellen.** Die Pinvorschläge sind absichtlich **kollisionsfrei**, damit ein späteres Interface beide Wege vorsehen kann. Das bedeutet weder, dass beide gleichzeitig aktiv sein dürfen, noch dass die aktuelle Firmware sie bereits unterstützt.
 
 ## Pinbezeichnungen verstehen
 
-- **D2, D3 usw.** sind die **aufgedruckten Board-Pinnamen beziehungsweise Arduino-Digitalpinbezeichnungen**. Auf manchen Boards, besonders dem **Nano ESP32**, stimmt D2 ausdrücklich **nicht** mit Chip-GPIO2 überein.
-- **GPIO4, GP2, PA1 usw.** sind die **tatsächlichen Mikrocontroller-Anschlüsse**. Bei XIAO-Boards sind beide Namen angegeben, damit der Anschluss am Header eindeutig ist.
-- **PLC-Pin (Vorschlag)**: I/O zur späteren externen, abgesicherten PLC-Schnittstelle. **RX optional**: nur bei einem Hardwaredesign mit getrenntem Lesen/Ansteuern erforderlich. Ein geeigneter bidirektionaler Ein-Pin-Treiber kann stattdessen ausreichen; die endgültige Architektur steht noch nicht fest.
-- **USB nativ**: der Mikrocontroller hat selbst einen USB-Controller. **USB-UART**: ein Chip wie CH340/CP210x/FTDI vermittelt. Beide können im Browser als serieller Port funktionieren; keine Variante erzeugt dadurch automatisch E703.11-PLC-Signale.
-- **3,3 V / 5 V** ist die **MCU-GPIO-Logikspannung**, nicht eine geprüfte Versorgung für den Sensor. Jede Boardrevision und jede Spezialbeschaltung muss vor einem realen Aufbau geprüft werden.
+- **D2, D3 usw.** sind die aufgedruckten Board- beziehungsweise Arduino-Pinnamen. Auf dem Nano ESP32 ist beispielsweise D2 **nicht** GPIO2.
+- **GPIO4, GP2, PA1 usw.** sind die tatsächlichen Controller-GPIOs. Bei XIAO-Boards werden die Board- und GPIO-Namen gemeinsam aufgeführt.
+- **AODO / 1-Wire (MCU-GPIO)** bezeichnet die MCU-Seite für die spätere **externe bidirektionale 1-Wire-Treiberstufe**. **RX optional** ist nur für eine Treiberarchitektur mit separatem Empfangssignal nötig.
+- **I²C SDA (MCU)** wäre über eine elektrisch geeignete Schnittstelle mit **E703.11 MISO/SDA** verbunden. **I²C SCL (MCU)** entsprechend mit **E703.11 SCK/SCL**. Pull-ups und Pegel müssen zur vollständigen Schaltung passen.
+- **ESP32-SDA/SCL sind oft flexibel wählbar.** Die Tabelle enthält dann **ausgewählte konfliktarme Pins, nicht zwingend die Arduino-Board-Defaults**. Diese sind in der späteren Firmware explizit zu konfigurieren. Klassische Arduino-Boards verwenden ihre üblichen SDA-/SCL-Pins.
+- **USB nativ / USB-UART** beschreibt nur den PC-Anschluss, nicht das Sensorprotokoll. Der vorhandene Test-Sketch meldet weiterhin ausschliesslich **CAPS=CDC_ONLY**.
+- **3,3 V / 5 V** bezeichnet die MCU-I/O-Logikspannung, **nicht** eine sichere Spannung am Sensoranschluss. Insbesondere I²C-Pull-ups müssen zu den zugelassenen GPIO-Spannungen passen.
 
 ## 1. ESP32-Familie
 
@@ -30,7 +45,7 @@ Dieser Guide umfasst die gängigen **ESP32-, Arduino-, RP2040- und anderen Ardui
 | **ESP32 DevKit V1 / DevKitC / WROOM-32** | USB-UART, kein natives USB im klassischen ESP32 | **GPIO25** | GPIO26 | GPIO21 | GPIO22 | 3,3 V | GPIO6–11 für Flash, GPIO34–39 nur Eingang; GPIO0/2/5/12/15 für Boot |
 | **ESP8266 NodeMCU / Wemos D1 mini** | USB-UART | **D5 / GPIO14** | D6 / GPIO12 | D2 / GPIO4 | D1 / GPIO5 | 3,3 V | D3/GPIO0, D4/GPIO2, D8/GPIO15 beeinflussen Boot; D1/D2 für I²C reserviert |
 
-**Für deinen ESP32-C3 SuperMini:** **GPIO4 für die künftige PLC-Treiberstufe reservieren, gegebenenfalls GPIO5 für das Empfangssignal.** Die native USB-Verbindung verwendet weiterhin **GPIO18/19**. Im vorhandenen Sketch sind GPIO4/5 **nicht aktiv** und brauchen für den reinen USB-Handshake nicht angeschlossen zu werden.
+**Für deinen ESP32-C3 SuperMini:** **GPIO4 für AODO / 1-Wire**, bei Bedarf **GPIO5 als RX**, sowie **GPIO6 für I²C SDA** und **GPIO7 für I²C SCL** reservieren. **GPIO18 und GPIO19 bleiben für USB.** Im aktuellen USB-Test-Sketch werden GPIO4/5/6/7 **nicht** angesteuert oder initialisiert.
 
 ## 2. Gängige originale Arduino-Boards
 
