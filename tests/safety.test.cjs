@@ -180,7 +180,7 @@ test('Expert mode shows contextual settings and no modal',()=>{
  assert.ok(html.includes('data-expert-area hidden><summary>Erweitert · AODO_F'));
  assert.ok(src.includes("classList.toggle('is-expert',enabled)"));
  const scripts=Array.from(html.matchAll(/<script src="([^"]+)"/g),m=>m[1]);
- assert.deepEqual(scripts,['calibration.js?v=0.4.1','expert.js?v=0.4.1','config.js?v=0.4.1','app.js?v=0.4.1']);
+ assert.deepEqual(scripts,['calibration.js?v=0.4.2','eeprom-help.js?v=0.4.2','expert.js?v=0.4.2','config.js?v=0.4.2','app.js?v=0.4.2']);
 });
 
 test('Failed E703.11 probe reconnects SSP3 at most once, without NVM writes',()=>{
@@ -210,6 +210,58 @@ test('EEPROM viewer reads only via the established CRC-tested NVM path',()=>{
  assert.ok(expert.includes('for(let i=0;i<64;i++)'));
  assert.ok(!expert.includes('eepromWrite'));
 });
+
+const EEPROM_HELP=require('../eeprom-help.js');
+test('Every EEPROM word has a safe description and distinct word/byte address',()=>{
+ const words=Array.from({length:64},(_,i)=>EEPROM_HELP.describe(i,0));
+ assert.equal(words.length,64);
+ for(let i=0;i<64;i++){
+  const w=words[i];
+  assert.equal(w.index,i);
+  assert.equal(parseInt(w.wordHex.slice(2),16),i);
+  assert.equal(parseInt(w.byteHex.slice(2),16),i*2);
+  assert.ok(w.name&&w.short&&w.description);
+  assert.ok(w.protection);
+ }
+ assert.equal(words[35].name,'S0');
+ assert.equal(words[50].name,'S15');
+ assert.equal(words[51].name,'T0');
+ assert.equal(words[58].name,'AODO_F');
+ assert.equal(words[58].ramHex,'0xA2');
+ assert.equal(words[58].byteHex,'0x74');
+ assert.equal(words[35].ramHex,'0x74');
+ assert.equal(words[35].byteHex,'0x46');
+ assert.equal(words[23].ramHex,null);
+});
+test('EEPROM fixed-point conversion, signed values, search and documented bit decoding',()=>{
+ assert.equal(EEPROM_HELP.describe(58,0x1000).interpreted,'1.0000000');
+ assert.equal(EEPROM_HELP.describe(57,0xF000).interpreted,'-1.0000000');
+ assert.equal(EEPROM_HELP.describe(35,0x4000).interpreted,'0.5000000');
+ assert.equal(EEPROM_HELP.describe(55,0xFFFF).interpreted,null);
+ assert.equal(EEPROM_HELP.describe(17,4).fields[0].meaning,'1-Wire dauerhaft aktiviert');
+ assert.equal(EEPROM_HELP.describe(18,2<<12).fields[0].meaning,'200 ms');
+ assert.equal(EEPROM_HELP.describe(28,0x0800).fields.length,4);
+ assert.ok(EEPROM_HELP.describe(28,0x0800).search.includes('offset'));
+ assert.ok(EEPROM_HELP.describe(35,0).search.includes('druckkalibrierung'));
+ assert.throws(()=>EEPROM_HELP.describe(64,0));
+ assert.throws(()=>EEPROM_HELP.describe(2,-1));
+});
+test('EEPROM explanations remain read-only, chip verified and contextual',()=>{
+ const html=read('index.html'),expert=read('expert.js'),helper=read('eeprom-help.js');
+ assert.ok(html.includes('id="eepromTableScroll"'));
+ assert.ok(html.includes('<th>Funktion</th><th>Schutz</th>'));
+ assert.ok(html.includes('colspan="6"'));
+ assert.ok(expert.includes('ELMOS_EEPROM_HELP.describe(i,value)'));
+ assert.ok(expert.includes('st.uid.ser0===st.nvmBackup[0]'));
+ assert.ok(expert.includes('st.uid.ser1===st.nvmBackup[1]'));
+ assert.ok(expert.includes('word.search.includes(filter)'));
+ assert.ok(expert.includes("const expertDetails=$('expertMode').checked"));
+ assert.ok(expert.includes('expandedEEPROM.clear()'));
+ assert.ok(!helper.includes('writeReg('));
+ assert.ok(!helper.includes('maintWrite('));
+ assert.ok(!helper.includes('nvmWrite('));
+});
+
 const CFG=require('../config.js');
 const example=()=>CFG.create({
  label:'Druck 0-10 bar',afe:{pga1:1,pga2:3,offset:-2},
