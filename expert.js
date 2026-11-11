@@ -20,7 +20,7 @@ const ELMOS_EXPERT=(()=>{
   const forChip=()=>st.uid?all().filter(b=>b.uid===st.uid.hex):[];
   function renderBackups(){
    const s=$('expertBackupSelect'),backups=forChip(),was=s.value;s.replaceChildren();
-   const o=document.createElement('option');o.value='';o.textContent=backups.length?'Letztes Backup automatisch wählen':'Kein Backup zu diesem Chip';s.appendChild(o);
+   const o=document.createElement('option');o.value='';o.textContent=backups.length?'Letztes abweichendes Backup automatisch wählen':'Kein Backup zu diesem Chip';s.appendChild(o);
    backups.forEach((b,i)=>{const x=document.createElement('option');x.value=String(i);x.textContent=new Date(b.created).toLocaleString('de-CH')+' · '+b.uid+' · '+(b.source||'NVM');s.appendChild(x)});
    if(backups.some((_,i)=>String(i)===was))s.value=was;
    $('expertUidStatus').textContent=st.uid?'Chip-UID: '+st.uid.hex+' · VERSION 0x'+hx(st.uid.version)+' · '+backups.length+' Backup(s) lokal vorhanden':'48-Bit-Chipkennung noch nicht gelesen.';
@@ -41,7 +41,7 @@ const ELMOS_EXPERT=(()=>{
   }
   function dump(){
    $('expertNvmDump').textContent=st.nvmBackupVerified&&st.nvmBackup?
-    st.nvmBackup.map((v,i)=>'CM 0x'+hx(2*i)+'  0x'+hx(v)+'  '+(i<16?'FACTORY · NUR LESEN':i<28?'BOOT/KONFIG · GESCHÜTZT':i===63?'CRC16':'USER · DOKUMENTIERTE FUNKTIONEN')+'  '+(names[i]||i>=35&&i<=50?'S'+(i-35):i>=51&&i<=54?'T'+(i-51):names[i]||'')).join('\n'):
+    st.nvmBackup.map((v,i)=>'CM 0x'+hx(2*i)+'  0x'+hx(v)+'  '+(i<16?'FACTORY · NUR LESEN':i<28?'BOOT/KONFIG · GESCHÜTZT':i===63?'CRC16':'USER · DOKUMENTIERTE FUNKTIONEN')+'  '+(names[i]||(i>=35&&i<=50?'S'+(i-35):i>=51&&i<=54?'T'+(i-51):''))).join('\n'):
     'Noch kein vollständiges NVM-Abbild vorhanden.';
   }
   function afterNvmScan(){
@@ -100,7 +100,7 @@ const ELMOS_EXPERT=(()=>{
   function prepareRestore(){
    try{
     if(!st.uid||!st.nvmBackupVerified||!st.nvmBackup)throw Error('Zuerst den aktuellen Chip vollständig auslesen und sichern');
-    const backups=forChip(),selection=$('expertBackupSelect').value,chosen=backups[selection===''?0:Number(selection)];
+    const backups=forChip(),selection=$('expertBackupSelect').value,chosen=selection===''?backups.find(x=>!st.nvmBackup||x.words.some((v,i)=>v!==st.nvmBackup[i])):backups[Number(selection)];
     if(!chosen||!valid(chosen)||chosen.uid!==st.uid.hex)throw Error('Kein gültiges Backup dieser UID');
     const before=st.nvmBackup;
     for(let i=0;i<28;i++)if(before[i]!==chosen.words[i])throw Error('Factory-/Boot-Einstellung 0x'+hx(i*2)+' weicht ab – Wiederherstellung gesperrt');
