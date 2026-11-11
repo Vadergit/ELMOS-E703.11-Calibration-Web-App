@@ -2,6 +2,11 @@
 
 Versionierung nach `MAJOR.MINOR.PATCH`: Kleine Anpassungen erhöhen PATCH, neue Funktionen MINOR, inkompatible Änderungen MAJOR. Jede Änderung erhält eine neue Nummer und einen Eintrag.
 
+## v0.2.1 – 11.11.2026
+
+- Automatisierte Regressionstests für die Unveränderlichkeit der Kommunikations-/Bootregister und die sieben Schritte hinzugefügt (`node --test tests/safety.test.cjs`).
+- Versionsanzeige und Dokumentation synchronisiert; Kapitelnummern korrigiert.
+
 ## v0.2.0 – 11.11.2026
 
 - Ausgangskonfiguration in einen eigenen Schritt **nach DSP prüfen** und vor NVM verschoben (sieben Schritte).
