@@ -1,6 +1,6 @@
 # Bedienungsanleitung – ELMOS E703.11
 
-**Dokumentationsstand v0.6.0-beta.2 (Testbranch)** Kalibrierassistent
+**Dokumentationsstand v0.6.0** Kalibrierassistent
 
 **[Web-App öffnen](https://vadergit.github.io/ELMOS-E703.11-Calibration-Web-App/)** · **[Projektübersicht](README.md)** · **[Config-Dateien & EEPROM Viewer](CONFIG_DATEIEN.md)** · **[Testbericht](TESTBERICHT.md)**
 
@@ -8,15 +8,15 @@ Diese Anleitung beschreibt die derzeitige Benutzeroberfläche der browserbasiert
 
 > **Laborprototyp, keine Produktionsfreigabe.** Der vollständige Kalibrier- und NVM-Schreibablauf wurde noch nicht am realen E703.11 als Gesamtsystem validiert. Permanente Änderungen zunächst nur an einem entbehrlichen Testchip erproben.
 
-## Neue geführte Ansicht (Beta · nur im Testbranch)
+## Neue geführte Ansicht
 
 Nach der bisherigen USB-/SSP3-Verbindung startet auf Wunsch ein neuer Assistent mit einer übersichtlichen Schrittnavigation. Du definierst erst die Abgleichart (z. B. 2 Druckpunkte ohne Temperaturkorrektur oder 3 Druckpunkte bei 2 Temperaturstufen). Danach folgen Referenzbereich, Temperatur-Sollwerte, Ausgangsspannung, optionale Config-Datei, AFE, tatsächliche Messung, Berechnung/RAM, DSP-Prüfung, Ausgang und die sichere NVM-Programmierung.
 
 Unter **Einstellungen → Arbeitsansicht nach dem Verbinden** zwischen «Geführter Assistent» und «Klassische Ansicht» wählen. Im geführten Modus bleibt «Klassische Ansicht» jederzeit erreichbar. Alle Hardware-/NVM-Schreibvorgänge verwenden weiterhin die bestehenden, geschützten Buttons und die Original-Kalibrierlogik.
 
-**Ohne Hardware:** Über den Button «◈ Demo-Wizard» kann der komplette geführte Ablauf mit synthetischem Druck/Temperatur, virtueller RAM-/DSP-Prüfung und rein simuliertem NVM-Endschritt ausprobiert werden. Auch dabei wird kein echtes Sensor-NVM beschrieben.
+**Für den geführten Abgleich ist ein über SSP3 erkannter E703.11 erforderlich.** Die Oberfläche verwendet dieselben abgesicherten RAM-/NVM-Funktionen wie die klassische Ansicht.
 
-Vollständige Beschreibung und Beta-Test: [Geführter Assistent](docs/GEFUEHRTER_ASSISTENT.md). Die experimentelle alternative USB-Bridge ist separat beschrieben: [ESP32/Arduino-Guide](docs/USB_BRIDGE_GUIDE.md).
+Vollständige Beschreibung: [Geführter Assistent](docs/GEFUEHRTER_ASSISTENT.md). Die experimentelle alternative USB-Bridge ist separat beschrieben: [ESP32/Arduino-Guide](docs/USB_BRIDGE_GUIDE.md).
 
 ## Kompaktmodus – One-Pager (optional)
 
