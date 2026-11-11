@@ -4,6 +4,17 @@ Browserbasierter Kalibrierassistent für den **ELMOS E703.11** mit **SSP3-Eval-B
 
 > **Status: experimenteller Laborprototyp (v8).** Die Kommunikation, der Koeffizientenabgleich und die NVM-Programmierung wurden mit einem simulierten SSP3-Gerät getestet, **nicht** an echter Hardware vollständig verifiziert. **Nicht für Serienproduktion oder unersetzliche Chips einsetzen.** Ein fehlerhafter NVM-Schreibvorgang kann den Chip unbrauchbar machen.
 
+## Kompakter NVM-Abschluss mit optionalem Backup (11.11.2026)
+
+Der letzte Kalibrierschritt ist auf **zwei Aktionen** vereinfacht:
+
+1. **«NVM lesen & Änderungen prüfen»** liest das aktuelle NVM vollständig (64 Wörter), prüft Factory-CRC8, CRC16, Stabilität und Bootregister und erstellt direkt die geschützte Änderungsliste. Diese muss vor der permanenten Programmierung überprüfbar sein. Die reine Vorschau erstellt **noch keine dauerhafte Sicherung**.
+2. **«Kalibrierung dauerhaft ins NVM schreiben»** ist nach korrekter 48-Bit-Chip-UID und dem Bestätigungswort `PROGRAMMIEREN` verfügbar. Der Klick speichert **unmittelbar vor dem ersten NVM-Schreibbefehl** auf Wunsch die zuvor geprüfte ursprüngliche Konfiguration in der lokalen UID-Historie und startet den Download einer JSON-Datei. Anschliessend werden nur die vorgesehenen Register und CRC16 programmiert, rückgelesen und geprüft. Bei Restore bzw. AODO-only gelten ihre eigenen Bestätigungswörter.
+
+Die Option **«Altes NVM automatisch sichern»** ist bei jedem neuen Seitenaufruf standardmässig aktiviert, lässt sich aber vor dem Schreiben abwählen. Ohne Backup wird **kein altes NVM in der Backup-Historie archiviert oder als Datei heruntergeladen**. Das vollständige NVM muss aus Sicherheitsgründen trotzdem gelesen und geprüft werden. Das erfolgreiche neue Programmi­erabbild wird weiterhin zur Kontrolle nach einem Neustart protokolliert. Ohne Originalbackup kann eine Wiederherstellung des bisherigen Zustands später unmöglich sein.
+
+Die Oberfläche zeigt die NVM-Änderungsliste und die manuelle NVM-Lesung standardmässig in einklappbaren Bereichen; die Kalibrierkarten, die Seitennavigation und die Statusmeldungen sind etwas kompakter. Die Schaltfläche wird nach der Änderungsvorschau und gültigen Bestätigungsfeldern aktiv. **Keine automatische Programmierung ohne bewusste Freigabe.**
+
 ## Messpunktaufnahme: Anzahl Samples und Ergebnisanzeige
 
 In **Schritt 3** kannst du die **Samples pro Messpunkt** unabhängig von der Anzahl der Kalibrierpunkte auf **1–100** einstellen (Standard **12**). Die Einstellung gilt gleichermassen für den unteren Endpunkt, alle Zwischenpunkte und den oberen Endpunkt. Sie wird lokal im Browser gespeichert. Bereits erfasste Messpunkte behalten ihre ursprünglichen Werte und die damals verwendete Sample-Anzahl; eine Änderung wirkt erst bei der nächsten Aufnahme.
@@ -65,7 +76,7 @@ Die lokale Browser-Historie ist kein dauerhaft garantiertes Archiv: Website-Date
 2. **Zwei Referenzpunkte:** Bezeichnungen frei wählen (z. B. **0 %** und **100 %**) und die Anzeigeeinheit zwischen bar, %, mbar, kPa, psi oder einer eigenen Einheit umstellen. Beide Endpunkte erfassen; ADC_S, ADC_T und ADC_TC werden gemeinsam aufgenommen. Zusätzliche Punkte sind für höhere Polynomordnungen möglich.
 3. **Berechnen & RAM:** DSP-Koeffizienten berechnen und ohne vorgeschaltetes vollständiges NVM-Backup oder Scharfschalt-Checkbox **direkt ins RAM** übertragen und rücklesen. Erst nach erfolgreicher DSP-Prüfung geht es weiter.
 4. **DSP prüfen:** Anzahl Prüfpunkte **1–10** einstellbar, **Standard ist 1**. Die tatsächliche Chip-Ausgabe DSP_S wird gegen die Referenz und die gewählte Toleranz verglichen. Mehrere Punkte prüfen unterschiedliche Stellen innerhalb des Druckbereichs. Bei Temperaturkompensation können zusätzliche Temperaturprüfungen erforderlich sein. Eine optionale lineare Rohwertprüfung ist **kein** Ersatz. **Ein einzelner Prüfpunkt ist keine Überprüfung der gesamten Kennlinie.**
-5. **NVM:** Nach bestandener DSP-Prüfung **jetzt** das Original-NVM lesen (CRC8/CRC16, 64 Wörter), Sicherung mit 48-Bit-UID exportieren, Änderungsliste prüfen und mit Chip-UID sowie «PROGRAMMIEREN» permanent schreiben. Danach neu starten und das NVM nochmals kontrollieren.
+5. **NVM:** «NVM lesen & Änderungen prüfen» prüft automatisch 64 Wörter samt CRC und erstellt den Änderungsplan. Nach Eingabe der 48-Bit-UID und «PROGRAMMIEREN» werden beim finalen Klick das alte NVM auf Wunsch automatisch gespeichert/heruntergeladen und danach die Änderungen programmiert. Backup ist optional; die Sicherheitslesung bleibt Pflicht. Nach Neustart erneut kontrollieren.
 
 Die Navigation sperrt Schritte, deren Voraussetzungen noch nicht erfüllt sind. Änderungen an Einheit, Bereich, Gains oder Polynomordnung machen abhängige Berechnungs- und Prüfzustände ungültig.
 
