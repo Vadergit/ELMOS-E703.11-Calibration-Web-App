@@ -2,11 +2,15 @@
 
 **Ein geführter Kalibrierassistent für den ELMOS E703.11 und das SSP3-Eval-Board.** Ziel ist ein verständlicher Abgleich, der auch ohne tiefere Vorkenntnisse Schritt für Schritt funktioniert. Wer mehr benötigt, kann zusätzliche Messpunkte, DSP-Parameter und einen geschützten Expertenmodus verwenden.
 
-**Version: v0.5.0** · [Änderungsverlauf](CHANGELOG.md)
+**Testversion: v0.6.0-beta.1 · separater Branch (nicht main)** · [Änderungsverlauf](CHANGELOG.md)
 
 **[Web-App öffnen](https://vadergit.github.io/ELMOS-E703.11-Calibration-Web-App/)** · **[Bedienungsanleitung](ANLEITUNG.md)** · **[Config-Dateien & EEPROM Viewer](CONFIG_DATEIEN.md)** · **[Ausgang & 1-Wire erklärt](AUSGANG_1WIRE.md)** · **[Testbericht und Grenzen](TESTBERICHT.md)**
 
 > **Entwicklungsstand: Laborprototyp.** Die vollständige Kalibrierung einschliesslich dauerhafter NVM-Programmierung ist **noch nicht mit einem echten E703.11 als Gesamtablauf freigegeben**. Hardwareverhalten, AODO-Ausgangsmodi und NVM-Wiederherstellung müssen am Testchip geprüft werden. Nicht für die Serienproduktion oder unersetzliche Sensoren einsetzen.
+
+> **Betaversion – die produktive Hauptversion bleibt unverändert.** Diese Version ist ausschliesslich im Branch `feature/guided-calibration-and-usb-bridges` vorhanden. Bitte nicht versehentlich über die produktive [GitHub-Pages-Webseite](https://vadergit.github.io/ELMOS-E703.11-Calibration-Web-App/) testen: Diese zeigt weiterhin die Main-Version.
+>
+> [Geführten Assistenten testen](docs/GEFUEHRTER_ASSISTENT.md) · [USB-Bridge / ESP32-S3 / Arduino einrichten](docs/USB_BRIDGE_GUIDE.md) · [Arduino-Beispiel-Firmware](firmware/usb_bridge_cdc/usb_bridge_cdc.ino)
 
 ## Projektziel
 
@@ -20,6 +24,8 @@
 | Bereich | Aktueller Stand |
 | --- | --- |
 | Kompaktmodus / One-Pager | **Opt-in unter Einstellungen:** Verbindung, AFE-RAM-Stufen, Config-Vorlagen, Messpunkte, Berechnung, DSP-Prüfung, Ausgang und geschützte NVM-Programmierung auf einer Bildschirmfläche. Originale UI-Steuerelemente und dieselben Sicherheitsprüfungen; Zusatz-Messpunkte per Punktauswahl, Detailinformationen eingeklappt. Die normale siebenstufige Ansicht bleibt bei deaktiviertem Modus unverändert | 
+| **Geführter Assistent (Beta)** | Neue Oberfläche nach SSP3-Verbindung: Aufgabe, Druck-/Temperaturmatrix, Config-Vorlage, AFE, Messpunkte, DSP-Fit/RAM, unabhängige Verifikation, Ausgang und geschützte NVM-Programmierung. Originalfunktionen und klassische Ansicht bleiben erhalten |
+| **USB-Bridge (experimentell)** | Adapterwahl für ESP32-S3/Arduino-USB-CDC vorbereitet; Beispiel-Firmware meldet sich nur als CDC und besitzt noch **keine** geprüfte PLC-Kommunikation. NVM-Schreiben für Bridge gesperrt |
 | Verbindung | Browserbasiert über **Chrome / Web Serial**, FTDI / SSP3, standardmässig **1-Wire (AODO)**; I²C/SPI-Optionen |
 | Live-Werte | Obere Statusleiste mit **ADC_S**, **ADC_T**, **DSP_S** und umgerechnetem Sensorwert; Live-Status und letzter Messzeitpunkt in allen sieben Schritten |
 | AFE-Abgleich | Diskrete **− / +** Tasten in der Reihenfolge **PGA1 → Offset → PGA2**. Jeder Klick schreibt die neue Einstellung direkt ins **RAM** und liest sie zurück. Kein NVM-Schreiben |
@@ -37,7 +43,7 @@ Antwortet das SSP3, aber die Chipprüfung schlägt beim ersten Versuch fehl, fü
 
 **Kompaktmodus:** Über ⚙ Einstellungen → «Kompaktmodus · One-Pager» einschalten. Rechts oben «Normalansicht» schaltet zurück; die Auswahl wird im Browser gespeichert. Auf ausreichend grossen Desktop-Bildschirmen werden alle Hauptschritte ohne Seitenwechsel nebeneinander gezeigt. Bei kleineren Auflösungen oder vielen Details können einzelne Karten intern scrollen. Sämtliche Eingaben, Kalibrier- und NVM-Schutzabläufe bleiben unverändert; nicht benötigte Langtexte sind gekürzt oder aufklappbar. Für selten verwendete Experten- und Diagnosefunktionen steht weiterhin die vollständige Normalansicht zur Verfügung.
 
-Für Entwickler gibt es **31 Software-Regressionstests** (Stand v0.5.0) mit Node.js: `node --test tests/safety.test.cjs`. Geprüft werden Boot-/Kommunikationsschutz, One Wire only, S0/S1-Skalierung, die sieben Kalibrierschritte, der separate EEPROM-Reiter, das Einblenden der Expertenparameter und der sichere Config-Import/-Export. Die Tests ersetzen keine Browser- und Hardwareprüfung.
+Für Entwickler gibt es **38 Software-Regressionstests** (Stand v0.5.0) mit Node.js: `node --test tests/safety.test.cjs`. Geprüft werden Boot-/Kommunikationsschutz, One Wire only, S0/S1-Skalierung, die sieben Kalibrierschritte, der separate EEPROM-Reiter, das Einblenden der Expertenparameter und der sichere Config-Import/-Export. Die Tests ersetzen keine Browser- und Hardwareprüfung.
 
 Die Browser-App verwendet eine **eigene JavaScript-Koeffizientenberechnung**, nicht die originale Elmos-Kalibrier-DLL. Eine Übereinstimmung mit der Herstellersoftware muss auf der Zielhardware verifiziert werden.
 
@@ -107,4 +113,4 @@ Verwendet wurde **E703.11 25DS0170E.04, Production Data vom 16.11.2023**: §6.3.
 
 Der Assistent erfordert für NVM-Schreibvorgänge die im Original-NVM nachweisbare PLC-Startaktivierung, Downstream- und Upstream-Kommunikation und einen persistenten Register-Lese-/Schreibzugang. Sensoren, die nur über eine kurzzeitige Magic-Cookie-Freigabe kommunizieren, werden vorsorglich nicht dauerhaft programmiert. Die App ändert keine geschützten Startup-Register, um diese Situation zu umgehen. Ein Hardware-Kaltstarttest bleibt Pflicht.
 
-**Versions- und Cache-Hinweis:** Die Skript-Dateien (inklusive `config.js`) werden in v0.5.0 mit derselben Versionskennung wie die Web-App geladen. Für die Überprüfung im Browser gegebenenfalls mit `Ctrl + F5` neu laden.
+**Versions- und Cache-Hinweis:** Die Skript-Dateien (inklusive `config.js`) werden in v0.6.0-beta.1 mit derselben Versionskennung wie die Web-App geladen. Für die Überprüfung im Browser gegebenenfalls mit `Ctrl + F5` neu laden.
