@@ -1,3 +1,14 @@
+## DSP_S-Live-Anzeige – UI- und Logiktests (11.11.2026)
+
+- Bei bereits kalibriertem Sensor ohne neuen Fit: gelesener DSP_S=0 ergibt auf beiden Seiten 50.00 % (voreingestellter Bereich 0–100 %)
+- Manueller Anzeigebereich 1–5 bar: DSP_S=0 ergibt 3.00 bar; die Anzeigeeinstellung wird lokal gespeichert, ohne Registerzugriff
+- Nach RAM-Kalibrierung mit Referenzbereich −20 bis 80 kPa: DSP_S=−16’000 ergibt 5.00 kPa und überschreibt nur vorübergehend den manuellen Anzeigebereich
+- Die DSP-Anzeige lässt sich ohne erneuten Fit nach dem Neustart als bestehender Sensor-DSP-Ausgang darstellen; der Kalibrierstatus bleibt dabei ausdrücklich unbestätigt
+- Ohne DSP-Lesedaten wird «—» statt eines alten Livewerts angezeigt
+- JavaScript-Initialisierung, DOM-ID-Vollständigkeit und die oben genannten Skalierungen simuliert und geprüft
+
+**Nicht geprüft:** Reales Polling von DSP_S am physischen E703.11 / SSP3, tatsächliche Regler- und RAM-Schreibinteraktion, Antwort-Timing unter Dauerbetrieb. Die automatische Verifikation / NVM-Freigabe bleibt auf den separaten Prüfknopf beschränkt.
+
 ## RAM-Übernahme – Bedienungsfehler korrigiert (11.11.2026)
 
 - Fehlende RAM-Schreibfreigabe wird nun direkt in Schritt 4 angezeigt statt nur in der AFE-Ansicht
