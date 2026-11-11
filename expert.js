@@ -171,8 +171,24 @@ const ELMOS_EXPERT=(()=>{
   $('expertMode').addEventListener('change',()=>{
    $('expertPanel').hidden=!$('expertMode').checked;
    if($('expertMode').checked)renderBackups();
-   else {if((st.restorePlan&&st.calImage===st.restorePlan)||(st.outputOnlyPlan&&st.calImage===st.outputOnlyPlan))st.calImage=null;st.restorePlan=null;st.outputOnlyPlan=null;}
+   else {if((st.restorePlan&&st.calImage===st.restorePlan)||(st.outputOnlyPlan&&st.calImage===st.outputOnlyPlan)||st.expertOutputPlan)st.calImage=null;st.restorePlan=null;st.outputOnlyPlan=null;st.expertOutputPlan=null;}
    renderFlowState()
+  });
+  for(const id of ['expertOutputMode','expertPwmPeriod','expertScaleEnable','expertScaleGain','expertScaleOffset']){
+   $(id).addEventListener('change',()=>{
+    if(st.outputOnlyPlan&&st.calImage===st.outputOnlyPlan)st.calImage=null;
+    if(st.expertOutputPlan||st.outputOnlyPlan){
+     st.outputOnlyPlan=null;st.expertOutputPlan=null;
+     show('expertOutputMsg','Ausgangseinstellungen verändert. Bitte die neue Konfiguration erneut prüfen und vormerken.','warn');
+     renderFlowState()
+    }
+   })
+  }
+  $('expertBackupSelect').addEventListener('change',()=>{
+   if(st.restorePlan){
+    if(st.calImage===st.restorePlan)st.calImage=null;
+    st.restorePlan=null;show('expertRestoreMsg','Backup-Auswahl geändert. Vor einer Wiederherstellung den neuen Stand erneut vergleichen.','warn');renderFlowState()
+   }
   });
   $('expertIdentify').addEventListener('click',()=>identify().catch(e=>show('expertUidStatus',e.message,'error')));
   $('expertNvmRead').addEventListener('click',readNvm);
