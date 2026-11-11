@@ -52,13 +52,15 @@ Mit aktivem **Expertenmodus** erscheinen erweiterte Felder direkt dort, wo sie b
 
 **Backups:** Die Option **«Altes NVM automatisch sichern»** ist standardmässig aktiv, aber abwählbar. Auch ohne dauerhafte Sicherung wird das Original-NVM zum Schutzvergleich vollständig gelesen. Lokale Browserdaten sind kein verlässliches Langzeitarchiv; wichtige JSON-Backups zusätzlich auf dem PC aufbewahren. Eine Wiederherstellung erfolgt nie automatisch.
 
-## Starten
+## Starten – ausschliesslich im Browser
 
-**Direkt im Browser:** [ELMOS E703.11 Kalibrierassistent](https://vadergit.github.io/ELMOS-E703.11-Calibration-Web-App/) – mit Chrome auf einem Rechner mit Web-Serial-Unterstützung.
+Die App wird direkt über **GitHub Pages** gestartet:
 
-**Lokal:** Die enthaltenen Startskripte `STARTEN_Windows.bat` beziehungsweise `STARTEN_macOS.command` starten den lokalen Webserver (Python 3 erforderlich). Anschliessend `http://localhost:8765` in Chrome öffnen.
+**[ELMOS E703.11 – Web-App öffnen](https://vadergit.github.io/ELMOS-E703.11-Calibration-Web-App/)**
 
-Wenn Chrome den FTDI-Port zwar auswählen, aber nicht öffnen kann, ist dies zunächst ein **COM-/Web-Serial-Problem**, kein Nachweis für einen Fehler in der E703.11-Kommunikation. Siehe die Fehlerhilfe in der [Anleitung](ANLEITUNG.md).
+Erforderlich sind ein geeigneter Chromium-Browser (getestet mit Chrome), ein USB-/FTDI-Anschluss und die Browserfreigabe für den seriellen Port. **Keine Installation, kein Python, kein lokaler Webserver und keine Startskripte.**
+
+Für USB-Probleme steht die ebenfalls browserbasierte [SSP3-USB-Diagnose](usb-diagnose.html) zur Verfügung. Wenn Chrome den FTDI-Port zwar auswählen, aber nicht öffnen kann, ist dies zunächst ein **COM-/Web-Serial-Problem**, kein Nachweis für einen Fehler in der E703.11-Kommunikation. Weitere Hinweise stehen in der [Anleitung](ANLEITUNG.md).
 
 ## Test- und Sicherheitsstatus
 
@@ -66,14 +68,7 @@ Wenn Chrome den FTDI-Port zwar auswählen, aber nicht öffnen kann, ist dies zun
 - **Noch offen:** Vollständiger SSP3-Hardwaretest, Vergleich der DSP-Koeffizienten mit der Originalsoftware, reale AODO-Ausgänge und ein sicherer vollständiger NVM-Schreib-/Restore-Test.
 - **Niemals blind programmieren:** Ein fehlerhafter NVM-Vorgang oder Stromunterbruch kann den Sensor unbrauchbar machen. Zuerst an einem entbehrlichen Testchip prüfen.
 
-Lokale Syntax- und Rechentests:
-
-```bash
-node --check app.js
-node --check expert.js
-node --check calibration.js
-node test_math.js
-```
+Der aktuelle Code wird als **statische Web-App ohne Buildprozess** ausgeliefert. Frühere Syntax-, UI- und Rechentests sowie die weiterhin offenen Hardwareprüfungen sind im [Testbericht](TESTBERICHT.md) beschrieben. Der alte Node-Teststarter wurde im Zuge der Bereinigung entfernt; die Prüfungen sind deshalb keine automatisierte CI-Abnahme.
 
 ## Feedback willkommen
 
