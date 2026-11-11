@@ -1,3 +1,16 @@
+## Samples und Messwertdarstellung – UI-Regression 11.11.2026
+
+- Gemeinsamer Messpfad für untere/obere Endpunkte und Zwischenpunkte; bisherige feste **8** bzw. **12** Samples durch den wählbaren Wert **1–100** ersetzt
+- Speicherung des Medians aller ADC_S/ADC_T/ADC_TC-Samples; bei gerader Anzahl Mittelwert der beiden mittleren Messwerte
+- Bei mehr als einem Sample wird die ADC_S-Spreizung (Max − Min) kontrolliert; Grenze wie bisher 350 Digits. Bei einem Sample wird darauf hingewiesen, dass eine Streuungsprüfung nicht möglich ist
+- Für jede Aufnahme Live-Fortschritt; während der Aufnahme pausiert das parallele Live-Polling, danach Wiederaufnahme, falls zuvor aktiv
+- Hoher Kontrast: grün umrahmte Ergebnisflächen mit ADC_S, ADC_T, Spreizung, Sample-Anzahl, Referenz und Temperatur, statt kleiner transparenter Textanzeigen
+- Simulierter UI-Test: 3 Samples am unteren Endpunkt, 6 am oberen Endpunkt, 1 am Zwischenpunkt; alle drei Ergebnisflächen korrekt sichtbar; Punktanzahl vollständig und Fit-Freigabe korrekt
+- Beim Löschen aller Punkte verschwinden alle Ergebniskarten und Statusanzeigen wechseln zurück auf «Noch nicht aufgenommen»
+- Ungültige Anzahl (101) wird zurückgewiesen; gültige Einstellung im Browser gespeichert
+
+**Hardwaretest ausstehend:** Das Zeitverhalten und die tatsächliche ADC-Streuung über 1–100 Samples am SSP3/E703.11 wurden noch nicht physisch überprüft.
+
 ## Separate Ausgangsänderung eines bereits kalibrierten Sensors (11.11.2026)
 
 - Simulierter E703.11 mit vollständigem CRC8/CRC16-geprüftem NVM und erkannter UID `002056781234`
