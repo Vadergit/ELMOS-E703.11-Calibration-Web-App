@@ -18,7 +18,7 @@ const ELMOS_GUIDED=(()=>{
   ['Fertig','Sensor abgeschlossen','Der Schreibvorgang wurde bestätigt. Für die Freigabe unbedingt einen echten Kaltstarttest durchführen.']
  ];
  let stage=0,task='calibration',root=null,original=[],mode=false,plan=null,signature=null;
- let selectedPoint=0,visited=new Set([0]),poll=null,pendingCapture=null,lastDemoPointKey=null,afeStatsStart=0,afeGainSignature='';
+ let selectedPoint=0,visited=new Set([0]),poll=null,pendingCapture=null,afeStatsStart=0,afeGainSignature='';
  const subscriptions=[];
  const subscribe=(el,type,handler)=>{el.addEventListener(type,handler);subscriptions.push({el,type,handler})};
  const defaults={pCount:2,tCount:1,temps:[25],pmin:0,pmax:10,samples:12,outputLimit:25000,orderS:1,orderT:0};
@@ -46,7 +46,7 @@ const ELMOS_GUIDED=(()=>{
  }
  function UI(){
   const sides=steps.map((v,i)=>'<button type="button" class="gw-sideitem" data-gw-side="'+i+'"><span class="gw-no">'+(i+1)+'</span><span>'+v[0]+'</span></button>').join('');
-  return '<div class="gw-shell"><aside class="gw-sidebar"><div class="gw-backlogo"><span>◆</span> E703.11 · Guided Beta</div><nav class="gw-sideitems">'+sides+'</nav><div class="gw-sidebar-footer">Die Originalsoftware bleibt jederzeit über «Klassisch» erreichbar.<div style="margin-top:9px">Laborversion · keine Hardwarefreigabe für NVM</div></div></aside><main class="gw-main"><div class="gw-topline"><span id="gwKicker" class="gw-kicker">Schritt 1</span><span id="gwChipStatus" class="gw-chipstatus"></span></div><div id="gwDemoBanner" class="gw-demo-banner" hidden>◈ Demo ohne Hardware – alle Sensordaten sind simuliert, es wird niemals ein EEPROM beschrieben.</div><div class="gw-progressbar"><span id="gwProgress"></span></div><h2 class="gw-title" id="gwTitle"></h2><p class="gw-desc" id="gwDesc"></p>'+
+  return '<div class="gw-shell"><aside class="gw-sidebar"><div class="gw-backlogo"><span>◆</span> E703.11 · Guided Beta</div><nav class="gw-sideitems">'+sides+'</nav><div class="gw-sidebar-footer">Die Originalsoftware bleibt jederzeit über «Klassisch» erreichbar.<div style="margin-top:9px">Laborversion · keine Hardwarefreigabe für NVM</div></div></aside><main class="gw-main"><div class="gw-topline"><span id="gwKicker" class="gw-kicker">Schritt 1</span><span id="gwChipStatus" class="gw-chipstatus"></span></div><div class="gw-progressbar"><span id="gwProgress"></span></div><h2 class="gw-title" id="gwTitle"></h2><p class="gw-desc" id="gwDesc"></p>'+
    '<div id="gwPage0" class="gw-page"><div class="gw-columns gw-three">'+
     '<button class="gw-choice" data-gw-task="calibration"><span class="gw-choice-icon">◉</span><strong>Sensor neu abgleichen</strong><small>Von der Messung über die DSP-Prüfung bis zur sicheren NVM-Programmierung.</small></button>'+
     '<button class="gw-choice" data-gw-task="output"><span class="gw-choice-icon">↗</span><strong>Nur Ausgang ändern</strong><small>Bereits kalibrierten Sensor prüfen und AODO-Ausgang neu konfigurieren.</small></button>'+
@@ -68,15 +68,15 @@ const ELMOS_GUIDED=(()=>{
     '<section class="gw-tile gw-setup-tile"><div class="gw-section-head"><span class="gw-section-no">02</span><div><h3>Versorgung und Ausgang</h3><p>Ausgangs-Sollwerte und DSP-Bereich</p></div></div><div class="gw-fields gw-setup-vdd" id="gwVoltageFields"></div><div class="gw-subheading">Spannungsendpunkte · Sollwerte</div><div class="gw-voltage-endpoints"><div class="gw-voltage-endpoint"><span class="gw-voltage-label">S0 · untere Spannung</span><div id="gwS0Holder"></div></div><div class="gw-voltage-endpoint"><span class="gw-voltage-label">S1 · obere Spannung</span><div id="gwS1Holder"></div></div></div><p class="gw-setup-hint">Bei 5 V sind 0,5 bis 4,5 V ein typischer ratiometrischer Bereich. Hier werden Sollwerte definiert – keine gemessene Ausgangsspannung.</p></section></div>'+
     '<details class="gw-tile gw-config-details" id="gwConfigDetails"><summary><strong>Config-Vorlage übernehmen</strong> <span>Optional · Einstellungen eines ähnlichen Sensors</span></summary><p>Die Vorlage übernimmt nur Einstellungen. Messpunkte, Chip-UID, Werksdaten und EEPROM werden niemals importiert.</p><div class="gw-fields gw-3" id="gwConfigFields"></div><div class="gw-panel-actions" id="gwConfigActions"></div><div id="gwConfigStatus"></div></details><div id="gwSetupPreview" class="gw-summary gw-setup-summary"></div></div>'+
    '<div id="gwPage3" class="gw-page gw-afe-page" hidden><div class="gw-columns gw-afe-layout">'+
-    '<section class="gw-tile gw-control gw-afe-controls"><div class="gw-section-head"><span class="gw-section-no">01</span><div><h3>Verstärkung und Offset</h3><p>Änderungen werden direkt ins Chip-RAM übernommen</p></div></div><div id="gwAFEPanel"></div><div id="gwGain"></div><div id="gwAFEMsg"></div><div id="gwConfigAFE"></div><button type="button" id="gwDemoApplyAFE" class="gw-demo-action" hidden>Demo: geladene AFE-Config virtuell übernehmen</button><div class="gw-afe-guide"><strong>AFE richtig einstellen</strong><ol><li>Minimalen und maximalen Referenzdruck anlegen.</li><li>PGA1, Offset und PGA2 anpassen. Ziel: grosser Hub ohne Übersteuerung.</li><li>Die rote Grenze bei ±25’000 Digits nicht überschreiten.</li></ol><small>Änderst du die AFE nach einer Messung, müssen bereits erfasste Messpunkte neu aufgenommen werden.</small></div></section>'+
+    '<section class="gw-tile gw-control gw-afe-controls"><div class="gw-section-head"><span class="gw-section-no">01</span><div><h3>Verstärkung und Offset</h3><p>Änderungen werden direkt ins Chip-RAM übernommen</p></div></div><div id="gwAFEPanel"></div><div id="gwGain"></div><div id="gwAFEMsg"></div><div id="gwConfigAFE"></div><div class="gw-afe-guide"><strong>AFE richtig einstellen</strong><ol><li>Minimalen und maximalen Referenzdruck anlegen.</li><li>PGA1, Offset und PGA2 anpassen. Ziel: grosser Hub ohne Übersteuerung.</li><li>Die rote Grenze bei ±25’000 Digits nicht überschreiten.</li></ol><small>Änderst du die AFE nach einer Messung, müssen bereits erfasste Messpunkte neu aufgenommen werden.</small></div></section>'+
     '<section class="gw-tile gw-afe-monitor"><div class="gw-monitor-head"><div><h3>ADC_S · Live-Verlauf</h3><p>Rohsignal der Druckmesskette · letzte 60 Sekunden</p></div><span id="gwAfeLiveBadge" class="gw-live-badge">Warte auf Werte</span></div><div class="gw-afe-current"><strong id="gwAfeAdcValue" aria-live="off">—</strong><span>Digits</span></div><div class="gw-afe-chart" id="gwAfeChartHost"></div><div class="gw-chart-legend"><span class="gw-legend-limit">Grenzen ±25’000</span><span class="gw-legend-zero">Nulllinie</span><span class="gw-legend-line">ADC_S live</span></div>'+
     '<div class="gw-afe-kpis"><div><span>Minimum</span><strong id="gwAfeMin">—</strong></div><div><span>Maximum</span><strong id="gwAfeMax">—</strong></div><div><span>Hub (Max − Min)</span><strong id="gwAfeHub">—</strong></div></div>'+
     '<div class="gw-monitor-actions"><div id="gwAfeLiveActions"></div><button type="button" id="gwAfeReset" class="gw-secondary-btn">Min/Max zurücksetzen</button></div><div id="gwAfeQuality" class="gw-afe-quality" role="status">Min/Max werden ab dem Start dieses AFE-Schritts erfasst.</div><div id="gwAfeMessage"></div></section></div></div>'+
    '<div id="gwPage4" class="gw-page" hidden><div class="gw-points-layout"><div class="gw-point-nav" id="gwPointNav"></div><div class="gw-tile gw-control"><div id="gwCurrentSetpoint" class="gw-summary"></div><div id="gwPointHost"></div><div id="gwSampleStatus"></div><div id="gwPointMessages"></div></div></div><div class="gw-alert">Der angezeigte Druck und die Temperatur sind <b>Referenz-Sollwerte</b>. Sie werden nicht automatisch erzeugt. Wähle den tatsächlichen Sollwert am Druckkalibrator und stelle die Temperaturkammer stabil ein, bevor du auf «aufnehmen» klickst.</div></div>'+
-   '<div id="gwPage5" class="gw-page" hidden><div class="gw-columns"><div class="gw-tile gw-control"><h3>Polynom und DSP-Ziel</h3><div class="gw-fields gw-3" id="gwFitFields"></div><div class="gw-panel-actions" id="gwFitActions"></div><button type="button" id="gwDemoRam" class="gw-demo-action" hidden>Demo: RAM-Übernahme simulieren</button><div id="gwFitStatuses"></div><div id="gwFitDetails"></div></div><div class="gw-tile is-soft"><h3>Sicherer Ablauf</h3><p>1. Koeffizienten aus den gemessenen Punkten berechnen.</p><p>2. Zahlenbereich und Fehler kontrollieren.</p><p>3. Berechnete Werte nur ins RAM übertragen und rücklesen.</p><div class="gw-alert">Der berechnete Fit ist noch keine Hardware-Verifikation. Im nächsten Schritt wird DSP_S an unabhängigen Punkten geprüft.</div></div></div></div>'+
-   '<div id="gwPage6" class="gw-page" hidden><div class="gw-columns"><div class="gw-tile gw-control"><h3>Unabhängige Prüfpunkte</h3><div class="gw-fields gw-3" id="gwVerifyFields"></div><div class="gw-panel-actions" id="gwVerifyActions"></div><button type="button" id="gwDemoVerify" class="gw-demo-action" hidden>Demo: unabhängigen Prüfpunkt simulieren</button><div id="gwVerifyStatuses"></div><details><summary>Prüfprotokoll</summary><div id="gwVerifyDetails"></div></details></div><div class="gw-tile is-soft"><h3>Was prüfe ich hier?</h3><p>Stelle einen neuen Druck ein, der nicht bloss eine Wiederholung der Kalibrierpunkte ist. Bei Temperaturkompensation sind zusätzliche Prüftemperaturen wichtig.</p><div class="gw-alert warn">Die Live-Anzeige allein zählt nicht als Prüfung. Verwende «Prüfwert aus DSP_S lesen» und kontrolliere die tatsächliche Abweichung.</div></div></div></div>'+
+   '<div id="gwPage5" class="gw-page" hidden><div class="gw-columns"><div class="gw-tile gw-control"><h3>Polynom und DSP-Ziel</h3><div class="gw-fields gw-3" id="gwFitFields"></div><div class="gw-panel-actions" id="gwFitActions"></div><div id="gwFitStatuses"></div><div id="gwFitDetails"></div></div><div class="gw-tile is-soft"><h3>Sicherer Ablauf</h3><p>1. Koeffizienten aus den gemessenen Punkten berechnen.</p><p>2. Zahlenbereich und Fehler kontrollieren.</p><p>3. Berechnete Werte nur ins RAM übertragen und rücklesen.</p><div class="gw-alert">Der berechnete Fit ist noch keine Hardware-Verifikation. Im nächsten Schritt wird DSP_S an unabhängigen Punkten geprüft.</div></div></div></div>'+
+   '<div id="gwPage6" class="gw-page" hidden><div class="gw-columns"><div class="gw-tile gw-control"><h3>Unabhängige Prüfpunkte</h3><div class="gw-fields gw-3" id="gwVerifyFields"></div><div class="gw-panel-actions" id="gwVerifyActions"></div><div id="gwVerifyStatuses"></div><details><summary>Prüfprotokoll</summary><div id="gwVerifyDetails"></div></details></div><div class="gw-tile is-soft"><h3>Was prüfe ich hier?</h3><p>Stelle einen neuen Druck ein, der nicht bloss eine Wiederholung der Kalibrierpunkte ist. Bei Temperaturkompensation sind zusätzliche Prüftemperaturen wichtig.</p><div class="gw-alert warn">Die Live-Anzeige allein zählt nicht als Prüfung. Verwende «Prüfwert aus DSP_S lesen» und kontrolliere die tatsächliche Abweichung.</div></div></div></div>'+
    '<div id="gwPage7" class="gw-page" hidden><div class="gw-columns"><div class="gw-tile gw-control"><h3>Ausgangsart und Zielwerte</h3><div class="gw-fields" id="gwOutputFields"></div><div class="gw-fields gw-3" id="gwOutputVoltage"></div><div class="gw-advanced" id="gwAdvancedOutput" hidden><details><summary>Expertenparameter · AODO Gain/Offset</summary><div class="gw-fields" id="gwExpertOutputFields"></div></details></div><div class="gw-panel-actions" id="gwOutputActions"></div><div id="gwOutputStatuses"></div></div><div class="gw-tile is-soft"><h3>Vor dem Speichern</h3><p>Bei 5 V: 0.5–4.5 V für den normalen ratiometrischen Analogausgang. Bei anderer VDD entsprechend 10–90 % einstellen.</p><p>Für reine Ausgangsänderungen zunächst das Original-NVM mit CRC und Chip-UID lesen.</p><div class="gw-alert warn">One Wire only ist nur möglich, wenn dauerhafter PLC-Zugriff bereits im Original-NVM vorhanden ist. Boot-/Kommunikationsregister werden nicht automatisch verändert.</div></div></div></div>'+
-   '<div id="gwPage8" class="gw-page" hidden><div class="gw-columns"><div class="gw-tile gw-control"><h3>Änderungen prüfen und bestätigen</h3><div id="gwNvmBackup"></div><div class="gw-panel-actions" id="gwNvmPrepare"></div><div id="gwNvmMessages"></div><div class="gw-fields" id="gwNvmUID"></div><div class="gw-panel-actions" id="gwNvmWrite"></div><button type="button" id="gwDemoNvm" class="gw-demo-action" hidden>Demo: NVM-Abschluss ohne Schreibvorgang simulieren</button><div id="gwNvmDetails"></div></div><div class="gw-tile is-warning"><h3>Wichtig vor dem NVM-Schreiben</h3><p>Ein Stromunterbruch während der Programmierung kann den Sensor unbrauchbar machen.</p><p>Prüfe Chip-UID und die Änderungsübersicht. Zuerst an einem entbehrlichen Testchip validieren.</p><p>Der Button ist nur freigegeben, wenn die bestehende Sicherheitslogik alle Voraussetzungen bestätigt.</p></div></div></div>'+
+   '<div id="gwPage8" class="gw-page" hidden><div class="gw-columns"><div class="gw-tile gw-control"><h3>Änderungen prüfen und bestätigen</h3><div id="gwNvmBackup"></div><div class="gw-panel-actions" id="gwNvmPrepare"></div><div id="gwNvmMessages"></div><div class="gw-fields" id="gwNvmUID"></div><div class="gw-panel-actions" id="gwNvmWrite"></div><div id="gwNvmDetails"></div></div><div class="gw-tile is-warning"><h3>Wichtig vor dem NVM-Schreiben</h3><p>Ein Stromunterbruch während der Programmierung kann den Sensor unbrauchbar machen.</p><p>Prüfe Chip-UID und die Änderungsübersicht. Zuerst an einem entbehrlichen Testchip validieren.</p><p>Der Button ist nur freigegeben, wenn die bestehende Sicherheitslogik alle Voraussetzungen bestätigt.</p></div></div></div>'+
    '<div id="gwPage9" class="gw-page gw-finish-page" hidden><section class="gw-finish-signal"><div class="gw-finish-top"><div><span class="gw-kicker">Live-Sensorsignal</span><h3>Aktueller Sensorausgang</h3></div><span id="gwFinishStatus" class="gw-live-badge">Warte auf Chipwerte</span></div><div class="gw-finish-number" aria-live="off"><strong id="gwFinishSignalValue">—</strong><span id="gwFinishSignalUnit">—</span></div><div id="gwFinishSource" class="gw-finish-caption">DSP_S wird vom Chip gelesen und auf den eingestellten Anzeigebereich bezogen.</div><div class="gw-finish-bar"><span id="gwFinishBar"></span></div><div class="gw-finish-limits"><span id="gwFinishRangeMin">—</span><span id="gwFinishRangeMax">—</span></div><div class="gw-finish-kpis"><div><span>DSP_S</span><strong id="gwFinishDsp">—</strong><small>Digits</small></div><div><span>ADC_S</span><strong id="gwFinishAdc">—</strong><small>Digits</small></div><div><span>ADC_T</span><strong id="gwFinishTemp">—</strong><small>Digits</small></div><div><span>Letzte Messung</span><strong id="gwFinishTime">—</strong></div></div></section>'+
     '<div class="gw-columns gw-finish-bottom"><section class="gw-tile"><div class="gw-section-head"><div><h3>Signalverlauf</h3><p>ADC_S im Zeitverlauf · letzte 60 Sekunden</p></div></div><div id="gwFinishChartHost" class="gw-finish-chart"></div></section><section class="gw-tile gw-finish-checklist"><h3>Abgleich und Freigabe</h3><div id="gwFinishCompletion" class="gw-alert">NVM-Status prüfen.</div><p id="gwFinishConfig">Gewünschte Ausgangseinstellungen werden hier als Sollwerte dargestellt.</p><p class="gw-finish-warning">Vor der Freigabe den Sensor stromlos machen und den Ausgang nach dem Neustart mit einem Messgerät prüfen. Die Anzeige ersetzt keinen Hardwaretest.</p><div class="gw-panel-actions" id="gwPostBoot"></div><button class="gw-secondary-link" id="gwBackClassic" type="button">Zur vollständigen Expertenansicht wechseln</button></section></div></div>'+
    '<div id="gwMessage" class="gw-alert" hidden></div><footer class="gw-footer"><small id="gwFooterHint">E703.11 · Beta · Nur über den Testbranch</small><div class="gw-actions"><button id="gwClassic" type="button">Klassische Ansicht</button><button id="gwPrevious" type="button">Zurück</button><button id="gwNext" class="primary" type="button">Weiter</button></div></footer></main></div>';
@@ -131,36 +131,9 @@ const ELMOS_GUIDED=(()=>{
    renderPlan();
   });
   $('gwNext').addEventListener('click',next);$('gwPrevious').addEventListener('click',previous);
-  $('gwDemoApplyAFE').addEventListener('click',()=>{
-   try{window.ELMOS_GUIDED_API.demoApplyAFEProfile();msg('DEMO: Die AFE-Config wurde virtuell übernommen. Keine RAM-/EEPROM-Schreiboperation.','success');updateUI()}
-   catch(e){msg(e.message,'error')}
-  });
-  $('gwDemoRam').addEventListener('click',()=>{
-   try{window.ELMOS_GUIDED_API.demoStageCalibration();msg('DEMO: Koeffizienten nur virtuell ins RAM übernommen. Kein Sensor verbunden.','success');updateUI()}
-   catch(e){msg(e.message,'error')}
-  });
-  $('gwDemoVerify').addEventListener('click',()=>{
-   try{
-    const api=window.ELMOS_GUIDED_API,sim=state();
-    const count=Number($('calVerifyCount').value)||2,done=(sim.demoValidation||[]).length;
-    if(done>=count){msg('Alle '+count+' Demo-Prüfpunkte bereits simuliert.','success');return}
-    const p=plan||makePlan();
-    const pressure=p.pmin+(p.pmax-p.pmin)*(done+1)/(count+1);
-    const temperature=p.temperatures[Math.min(done,p.temperatures.length-1)];
-    $('calVerifyPressure').value=String(Number(pressure.toFixed(5)));
-    $('calVerifyTemperature').value=String(temperature);
-    const result=api.demoVerifyCalibration(pressure,temperature);
-    msg('DEMO: Prüfpunkt '+result.done+' von '+result.required+' simuliert. '+(result.verified?'Virtuelle DSP-Prüfung abgeschlossen.':'Weitere Prüfpunkte hinzufügen.'),'success');
-    updateUI();
-   }catch(e){msg(e.message,'error')}
-  });
   $('gwAfeReset').addEventListener('click',()=>{
    afeStatsStart=Date.now();afeGainSignature='';
    updateUI();
-  });
-  $('gwDemoNvm').addEventListener('click',()=>{
-   try{window.ELMOS_GUIDED_API.demoCompleteWizard({outputOnly:task==='output'});msg('DEMO: NVM-Ablauf simuliert; es wurde kein Speicher programmiert.','success');updateUI()}
-   catch(e){msg(e.message,'error')}
   });
   $('gwClassic').addEventListener('click',close);$('gwBackClassic').addEventListener('click',close);
   document.querySelectorAll('[data-gw-side]').forEach(button=>button.addEventListener('click',()=>{const index=Number(button.dataset.gwSide);if(visited.has(index)){stage=index;render()}}));
@@ -318,13 +291,6 @@ const ELMOS_GUIDED=(()=>{
    if(row)row.classList.toggle('gw-point-active',index===selectedPoint);
   });
   const current=plan.points[selectedPoint],record=pointRecord(current),done=plan.points.filter(p=>pointRecord(p)).length;
-  if(state().mode==='demo'){
-   const key=current.pressure+'|'+current.temperature;
-   if(lastDemoPointKey!==key){
-    try{window.ELMOS_GUIDED_API.demoSetpoint(current.pressure,current.temperature);lastDemoPointKey=key}
-    catch(e){msg('Demo-Sollwert: '+e.message,'warn')}
-   }
-  }
   $('gwCurrentSetpoint').textContent='Punkt '+(selectedPoint+1)+' / '+plan.total+' · Stelle '+current.pressure+' '+plan.unit+' und '+current.temperature+' °C ein. '+(record?'✓ Bereits aufgenommen; bei Bedarf wiederholen.':'Noch nicht gemessen.');
   setText('gwFooterHint',done+' / '+plan.total+' Messpunkte erfolgreich aufgenommen');
  }
@@ -347,7 +313,6 @@ const ELMOS_GUIDED=(()=>{
  }
  function statusText(){
   const s=state();
-  if(s.mode==='demo')return 'DEMO · ohne Hardware';
   if(!s.chip)return 'Kein E703.11 erkannt';
   return 'E703.11 verbunden · '+(s.uid||'Chip gelesen');
  }
@@ -372,8 +337,8 @@ const ELMOS_GUIDED=(()=>{
   setText('gwAfeMax',measurementNumber(stats.max));
   setText('gwAfeHub',measurementNumber(stats.hub));
   const badge=$('gwAfeLiveBadge');
-  badge.textContent=!t.online?'Nicht verbunden':t.mode==='demo'?'DEMO · simuliert':t.adcS===null?'Warte auf ADC':t.live?'Live':'Messung pausiert';
-  badge.className='gw-live-badge'+(t.adcS!==null?' is-live':'')+(t.mode==='demo'?' is-demo':'');
+  badge.textContent=!t.online?'Nicht verbunden':t.adcS===null?'Warte auf ADC':t.live?'Live':'Messung pausiert';
+  badge.className='gw-live-badge'+(t.adcS!==null?' is-live':'');
   const quality=$('gwAfeQuality');
   quality.className='gw-afe-quality';
   if(!stats.count){
@@ -404,12 +369,10 @@ const ELMOS_GUIDED=(()=>{
   setText('gwFinishTemp',measurementNumber(t.adcT));
   setText('gwFinishTime',t.dspTime?new Date(t.dspTime).toLocaleTimeString('de-CH',{hour12:false}):'—');
   const badge=$('gwFinishStatus');
-  badge.textContent=t.mode==='demo'?'DEMO · simuliert':!t.online?'Nicht verbunden':t.dspRaw===null?'Warte auf DSP':t.live?'Live':'Letzter Messwert';
-  badge.className='gw-live-badge'+(t.dspRaw!==null?' is-live':'')+(t.mode==='demo'?' is-demo':'');
+  badge.textContent=!t.online?'Nicht verbunden':t.dspRaw===null?'Warte auf DSP':t.live?'Live':'Letzter Messwert';
+  badge.className='gw-live-badge'+(t.dspRaw!==null?' is-live':'');
   const source=$('gwFinishSource');
-  source.textContent=t.mode==='demo'?
-   'Simulierter Druck für den Funktionstest des Wizards. Kein Hardwaremesswert.':
-   t.dspRaw===null?'Kein aktueller DSP_S-Wert verfügbar. Bitte Verbindung und Live-Messung prüfen.':
+  source.textContent=t.dspRaw===null?'Kein aktueller DSP_S-Wert verfügbar. Bitte Verbindung und Live-Messung prüfen.':
    !range?'DSP_S direkt aus Register 0x30. Druckwert erst mit korrekt bekanntem Anzeigebereich möglich.':
    range.kind==='display'?'Manuelle Zuordnung des DSP_S auf einen Anzeigebereich; keine unabhängig bestätigte Kalibrierung.':
    'Live-Wert aus DSP_S (Register 0x30) und dem aktuellen Kalibrierbereich.';
@@ -424,25 +387,16 @@ const ELMOS_GUIDED=(()=>{
    'Ausgangs-Sollwerte: S0 '+measurementNumber(v.s0,3)+' V · S1 '+measurementNumber(v.s1,3)+' V · VDD '+measurementNumber(v.vdd,2)+' V. Diese Spannungen wurden nicht am Pin gemessen.':
    'Ausgangs-Sollwerte nicht verfügbar.');
   const completion=$('gwFinishCompletion');
-  completion.className='gw-alert '+(t.mode==='demo'?'warn':s.nvmDone?'success':'warn');
-  completion.textContent=t.mode==='demo'?
-   (s.demoCompleted?'Demo abgeschlossen – es wurde kein echtes NVM/EEPROM beschrieben.':'Virtuelle NVM-Bestätigung ausstehend.'):
-   s.nvmDone?'NVM-Schreibvorgang bestätigt. Kaltstart und Ausgangsmessung stehen noch aus.':
+  completion.className='gw-alert '+(s.nvmDone?'success':'warn');
+  completion.textContent=s.nvmDone?'NVM-Schreibvorgang bestätigt. Kaltstart und Ausgangsmessung stehen noch aus.':
    'NVM-Schreibbestätigung fehlt. Keine Hardwarefreigabe.';
  }
 
  function updateUI(){
   if(!mode)return;
   const s=state();
-  document.documentElement.classList.toggle('guided-demo',s.mode==='demo');
-  $('gwDemoBanner').hidden=s.mode!=='demo';
-  $('gwDemoApplyAFE').hidden=s.mode!=='demo'||$('configAfePending').hidden;
-  $('gwDemoRam').hidden=s.mode!=='demo';
-  $('gwDemoVerify').hidden=s.mode!=='demo';
-  $('gwDemoNvm').hidden=s.mode!=='demo';
-  if(s.mode==='demo')$('gwDemoVerify').textContent='Demo: Prüfpunkt '+((s.demoValidation||[]).length+1)+'/'+($('calVerifyCount').value||2)+' simulieren';
   $('gwChipStatus').textContent=statusText();
-  $('gwChipStatus').classList.toggle('is-offline',!s.chip||s.mode==='demo');
+  $('gwChipStatus').classList.toggle('is-offline',!s.chip);
   const completed=s.points?.length||0;
   if(stage===4&&plan){renderCapture();if(completed===plan.total)$('gwNext').disabled=false}
   if(stage===5||stage===6||stage===8){
@@ -450,7 +404,7 @@ const ELMOS_GUIDED=(()=>{
    const text=stage===5?s.calStaged?'Koeffizienten im RAM bestätigt':'Noch keine bestätigte RAM-Übernahme':stage===6?s.calVerified?'DSP-Prüfung abgeschlossen':'DSP-Prüfung ausstehend':s.nvmDone?'NVM-Schreiben bestätigt':'NVM-Schreiben noch nicht bestätigt';
    setText('gwFooterHint',text);
   }
-  const ready=stage===4?!!plan&&plan.points.every(p=>pointRecord(p)):stage===5?!!s.calStaged:stage===6?!!s.calVerified:stage===8?(s.mode==='demo'?!!s.demoCompleted:!!s.nvmDone):true;
+  const ready=stage===4?!!plan&&plan.points.every(p=>pointRecord(p)):stage===5?!!s.calStaged:stage===6?!!s.calVerified:stage===8?!!s.nvmDone:true;
   $('gwNext').disabled=!ready||stage===9;
   if(stage===3)updateAfeTelemetry();
   if(stage===9)updateFinishTelemetry();
@@ -472,15 +426,12 @@ const ELMOS_GUIDED=(()=>{
   $('gwTitle').textContent=steps[stage][1];$('gwDesc').textContent=steps[stage][2];
   $('gwProgress').style.width=((stage+1)/steps.length*100).toFixed(1)+'%';
   $('gwPrevious').disabled=stage===0;
-  $('gwTitle').textContent=stage===9&&state().mode==='demo'?'Demo-Wizard vollständig durchgespielt':steps[stage][1];
-  $('gwPostBoot').hidden=state().mode==='demo';
   $('gwNext').textContent=stage===8?'Abschluss prüfen':stage===9?'Fertig':'Weiter';
   if(stage===0)document.querySelectorAll('[data-gw-task]').forEach(x=>x.setAttribute('aria-pressed',String(x.dataset.gwTask===task)));
   if(stage===1)renderPlan();
   if(stage===2){rehome('psscVdd','gwVoltageFields');rehome('psscS0','gwS0Holder');rehome('psscS1','gwS1Holder');renderPlan()}
   if(stage===3){$('gwAfeChartHost').appendChild($('chart'));startAfeWindow()}
   if(stage===9){$('gwFinishChartHost').appendChild($('chart'))}
-  if(stage===4)lastDemoPointKey=null;
   if(stage===4)renderCapture();
   if(stage===7){for(const id of ['psscVdd','psscS0','psscS1'])rehome(id,'gwOutputVoltage');renderOutputOptions()}
   msg('');
@@ -492,7 +443,7 @@ const ELMOS_GUIDED=(()=>{
  }
  function next(){
   const s=state();
-  if(!s.chip&&s.mode!=='demo'){msg('Zuerst den E703.11 über USB verbinden. Eine reine USB-CDC-Verbindung ohne Chipzugriff genügt nicht.','warn');return}
+  if(!s.chip){msg('Zuerst den E703.11 über USB verbinden. Eine reine USB-CDC-Verbindung ohne Chipzugriff genügt nicht.','warn');return}
   if(stage===0){
    if(task==='inspect'){close();window.ELMOS_GUIDED_API?.navigate?.(7);return}
    if(task==='output'){goto(2);return}
@@ -512,7 +463,7 @@ const ELMOS_GUIDED=(()=>{
   if(stage===5){if(!s.calStaged){msg('Bitte die Koeffizienten zuerst berechnen und ins RAM übertragen.','warn');return}goto(6);return}
   if(stage===6){if(!s.calVerified){msg('Die unabhängige DSP-Prüfung muss erfolgreich abgeschlossen sein.','warn');return}goto(7);return}
   if(stage===7){goto(8);return}
-  if(stage===8){if(s.mode==='demo'? !s.demoCompleted:!s.nvmDone){msg(s.mode==='demo'?'Bitte zuerst den simulierten NVM-Abschluss bestätigen.':'Noch kein erfolgreicher NVM-Schreibvorgang bestätigt.','warn');return}goto(9);return}
+  if(stage===8){if(!s.nvmDone){msg('Noch kein erfolgreicher NVM-Schreibvorgang bestätigt.','warn');return}goto(9);return}
  }
  function previous(){
   if(stage===0)return;
@@ -523,10 +474,10 @@ const ELMOS_GUIDED=(()=>{
  function open(){
   if(mode)return;
   const s=state();
-  if(!s.chip&&s.mode!=='demo'){const panel=$('connMsg');if(panel){panel.textContent='Bitte zuerst das SSP3 und den E703.11 verbinden oder den Demo-Modus zur reinen UI-Vorschau starten.';panel.className='callout warn'};return}
+  if(!s.chip){const panel=$('connMsg');if(panel){panel.textContent='Bitte zuerst das SSP3 und den E703.11 verbinden starten.';panel.className='callout warn'};return}
   if(typeof ELMOS_COMPACT!=='undefined')ELMOS_COMPACT.set(false);
   if($('compactMode'))$('compactMode').checked=false;
-  mode=true;stage=0;task='calibration';visited=new Set([0]);selectedPoint=0;lastDemoPointKey=null;
+  mode=true;stage=0;task='calibration';visited=new Set([0]);selectedPoint=0;
   try{build()}catch(e){
    console.error(e);
    for(const {el,type,handler} of subscriptions)el.removeEventListener(type,handler);
@@ -546,7 +497,7 @@ const ELMOS_GUIDED=(()=>{
   if(pendingCapture){window.clearInterval(pendingCapture);pendingCapture=null}
   for(const {el,type,handler} of subscriptions)el.removeEventListener(type,handler);
   subscriptions.length=0;
-  restore();root.hidden=true;root.replaceChildren();document.documentElement.classList.remove('guided-active','guided-demo');
+  restore();root.hidden=true;root.replaceChildren();document.documentElement.classList.remove('guided-active');
   window.ELMOS_GUIDED_API?.refresh?.();
  }
  function onConnected(){
@@ -566,15 +517,6 @@ const ELMOS_GUIDED=(()=>{
   }
   $('guidedLaunch')?.addEventListener('click',open);
   $('guidedLaunchTop')?.addEventListener('click',open);
-  const beginDemo=()=>{
-   try{window.ELMOS_GUIDED_API?.startDemo?.()}
-   catch(e){
-    const box=$('connMsg');
-    if(box){box.textContent='Demo-Wizard: '+e.message;box.className='callout warn'}
-   }
-  };
-  $('guidedDemoTop')?.addEventListener('click',beginDemo);
-  $('guidedDemoLaunch')?.addEventListener('click',beginDemo);
   // A previously saved recipe is intentionally not applied to chip automatically.
  }
  return {init,open,close,onConnected,makePlan,isOpen:()=>mode};
