@@ -167,6 +167,36 @@ button.danger{background:#9e3e34;border-color:#9e3e34;color:#fff}button.danger:h
  .panel[data-panel="2"] .cal-card-action{grid-column:1}
 }
 
+
+/* Eigenständige, kompakte App-Einstellungen rechts oben. */
+.connection-actions{display:flex;align-items:center;gap:9px}
+.settings-gear{border:1px solid #c9d7e6;border-radius:8px;background:#fff;color:#23496c;padding:6px 10px;font-weight:750;font-size:12px;min-height:31px}
+.settings-gear:hover:not(:disabled),.settings-gear:focus-visible{background:#eaf3fe;color:#17426b;border-color:#86add3}
+.settings-panel{position:fixed;z-index:60;top:72px;right:max(18px,calc((100vw - 1450px)/2));width:min(410px,calc(100vw - 25px));max-height:calc(100vh - 90px);overflow:auto;background:#fff;border:1px solid #c8d6e6;border-radius:12px;box-shadow:0 14px 45px rgba(21,40,65,.19);padding:14px 16px}
+.settings-panel-head{display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid #d6e2ed;padding-bottom:9px;margin-bottom:12px}
+.settings-panel-head strong{font-size:15px}
+.settings-panel-head button{font-size:11px;padding:6px 9px}
+.settings-panel .settings-body{display:grid;gap:13px}
+.settings-panel .toggle{font-size:13px}
+.settings-panel .settings-fields{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.settings-panel .settings-fields label{display:block;min-width:0;font-size:11px;font-weight:650;color:#53667b}
+.settings-panel .settings-fields input,.settings-panel .settings-fields select{margin-top:5px;min-height:34px;padding:6px 8px;width:100%;font-size:12px}
+.settings-panel .settings-note{font-size:11px;color:#53708b;background:#f4f8fc;padding:8px 10px;border-radius:7px}
+.settings-expert-hint{padding:9px 10px;background:#fff7eb;border:1px solid #e6cda7;border-radius:8px;font-size:11px;color:#66491a}
+.settings-expert-hint p{margin:5px 0 0}
+.expert-inline{margin:16px 0 6px;border-top:1px solid #d6e2ed;padding-top:11px}
+.expert-inline>details{margin:0;padding:0}
+.expert-inline h3{font-size:14px;margin:15px 0 8px}
+.expert-inline p{font-size:12px}
+.expert-inline .monoarea{max-height:210px;overflow:auto}
+@media(max-width:620px){
+ .connection-actions{gap:4px}
+ .settings-gear{font-size:0;padding:5px 7px}
+ .settings-gear::first-letter{font-size:18px}
+ .settings-panel{top:100px;right:10px;width:calc(100vw - 20px)}
+ .settings-panel .settings-fields{grid-template-columns:1fr}
+}
+
 </style></head><body><div class="wrap"><header class="top">
 <div class="brand"><div class="logo">E</div><div><div class="eyebrow">E703.11 · PSSC</div><h1>Kalibrierassistent</h1></div></div>
 <div class="live-overview" role="group" aria-label="Sensorwerte · laufende Anzeige">
@@ -175,8 +205,21 @@ button.danger{background:#9e3e34;border-color:#9e3e34;color:#fff}button.danger:h
   <div class="live-kpi" title="DSP_S · kalibrierter digitaler Ausgang in Digits."><span class="live-kpi-label">DSP_S</span><span class="live-kpi-reading" id="liveDspS">—</span><span class="live-kpi-unit">Digits</span></div>
   <div class="live-kpi live-kpi-primary" title="DSP_S auf den eingestellten Druck- oder Prozentbereich umgerechnet. Der Wert ersetzt keine DSP-Verifikation."><span class="live-kpi-label">Sensorwert</span><span class="live-kpi-reading" id="livePressure">—</span><span class="live-kpi-unit" id="livePressureUnit">%</span></div>
 </div>
-<div class="live-connection"><span class="chip"><span class="dot" id="statusDot"></span><span id="status">Nicht verbunden</span></span><span class="live-meta"><span class="live-meta-dot" id="liveStateDot"></span><span id="liveState">Keine Live-Messung</span><span aria-hidden="true">·</span><span id="liveLastRead">—</span></span></div>
+<div class="live-connection"><div class="connection-actions"><button type="button" id="settingsOpen" class="settings-gear" aria-expanded="false" aria-controls="settingsPanel" title="App-Einstellungen öffnen">⚙ Einstellungen</button><span class="chip"><span class="dot" id="statusDot"></span><span id="status">Nicht verbunden</span></span><span class="live-meta"><span class="live-meta-dot" id="liveStateDot"></span><span id="liveState">Keine Live-Messung</span><span aria-hidden="true">·</span><span id="liveLastRead">—</span></span></div></div>
 </header>
+<section class="settings-panel" id="settingsPanel" hidden aria-label="App-Einstellungen">
+<div class="settings-panel-head"><strong>App-Einstellungen</strong><button type="button" id="settingsClose" aria-label="Einstellungen schliessen">Schliessen ×</button></div>
+<div class="settings-body">
+<label class="toggle"><input id="expertMode" type="checkbox"> <strong>Expertenparameter freischalten</strong></label>
+<div id="expertPanel" class="settings-expert-hint" hidden><strong>Expertenmodus aktiv</strong><p>Die passenden Optionen erscheinen direkt unter «AFE optimieren» und «NVM programmieren». Factory-Kalibrierung und Kommunikationsregister bleiben schreibgeschützt.</p></div>
+<label class="toggle"><input id="tooltips" type="checkbox" checked> Hover-Erklärungen aktivieren</label>
+<div class="settings-fields">
+<label>Standard-Samples pro Messpunkt<input id="settingsSampleCount" type="number" min="1" max="100" value="12" step="1"></label>
+<label>Live-Abfrageintervall<select id="settingsLiveInterval"><option value="400">400 ms · Schnell</option><option value="650" selected>650 ms · Standard</option><option value="1000">1’000 ms</option><option value="1500">1’500 ms</option><option value="2000">2’000 ms</option></select></label>
+</div>
+<div id="settingsMsg" class="settings-note">Einstellungen werden lokal im Browser gespeichert. Der Expertenmodus verändert allein noch keine Sensorwerte.</div>
+<details><summary>Technischer Status & Quellen</summary><div class="inner small muted">ELMOS E703.11, SSP3, Web Serial. Unterstützt: ADC/DSP-Livewerte, AFE-Abgleich, RAM-Prüfung, NVM-Diagnose, CRC und kontrollierte Schreibvorgänge. Factory- und Kommunikationsregister bleiben geschützt. Referenzen: AN 0204, AN 0203, E703.11 Datenblatt 25DS0170E.04. Kein Hardwarefreigabetest für permanente NVM-Programmierung.</div></details>
+</div></section>
 <div id="demoPressurePanel" class="callout warn" hidden><div class="between"><strong>DEMO – simulierter Druck</strong><span><b id="demoPressureVal">5.0</b> bar</span></div><input id="demoPressure" type="range" min="0" max="10" step="0.1" value="5" style="margin-top:10px"></div>
 <div class="content"><aside class="side"><button class="stepBtn active" data-step="0"><span class="num">1</span><span>USB & Chip</span></button><button class="stepBtn" data-step="1"><span class="num">2</span><span>AFE optimieren</span></button><button class="stepBtn" data-step="2"><span class="num">3</span><span>Messpunkte</span></button><button class="stepBtn" data-step="3"><span class="num">4</span><span>Berechnen & RAM</span></button><button class="stepBtn" data-step="4"><span class="num">5</span><span>DSP prüfen</span></button><button class="stepBtn" data-step="5"><span class="num">6</span><span>NVM programmieren</span></button></aside>
 <main class="main"><div id="flowMsg" class="callout warn" hidden></div>
@@ -197,8 +240,37 @@ button.danger{background:#9e3e34;border-color:#9e3e34;color:#fff}button.danger:h
 </div>
 <div class="small muted" id="dspDisplayHint">Standard 0–100 %. Nach einer neuen RAM-Kalibrierung wird stattdessen deren gewählter Referenzbereich verwendet.</div>
 </div></details>
-<canvas id="chart" width="1000" height="230" aria-label="ADC-Verlauf"></canvas><div class="flex" style="margin:13px 0"><button id="readNow">ADC jetzt lesen</button><button id="live">Live-Messung starten</button><span class="pill" id="srcLabel">Keine Messdaten</span></div><div class="mutedline"></div><div class="between"><h3>Verstärkung und Offset</h3><span class="pill" id="afeWord">CFG_AFE1: —</span></div><div class="sliderrow"><span>PGA1 <span class="help" data-help="pga1">?</span></span><input id="pga1" type="range" min="0" max="3" step="1" value="0"><output id="pga1val">0</output></div><div class="sliderrow"><span>PGA2 <span class="help" data-help="pga2">?</span></span><input id="pga2" type="range" min="0" max="8" step="1" value="0"><output id="pga2val">0</output></div><div class="sliderrow"><span>Offset <span class="help" data-help="offset">?</span></span><input id="offset" type="range" min="-8" max="8" step="1" value="0"><output id="offsetval">0</output></div><div class="kpiNote" id="gainInfo">PGA1 3.5× · PGA2 2× · Gesamt 7× · DAC 0 mV/V</div><div class="flex" style="margin-top:12px"><button class="primary" id="afeApplyRam">AFE-Einstellungen ins RAM übernehmen</button><span class="muted small">Regler ändern zunächst nur die Vorschau. Dieser Button schreibt die gewählten Gains ins RAM und liest sie zur Kontrolle zurück.</span></div><div id="writeMsg" class="callout">Änderungen an den Reglern sind zunächst nur eine Vorschau. Nach bewusster Freigabe werden sie direkt gesendet.</div><details><summary>Geschützte Register & Diagnose</summary><div class="inner"><div class="flex"><button id="readBoot">Boot-Register prüfen</button><button id="readRegs">Diagnoseregister lesen</button><button id="exportDiag">USB-Diagnose exportieren</button></div><div id="bootMsg" class="callout">Bootregister noch nicht geprüft. Schreibzugriff gesperrt.</div><pre id="regdump" class="monoarea">Noch keine Register gelesen.</pre><details><summary>USB-Rohprotokoll</summary><pre class="monoarea" id="usbLog"></pre></details></div></details><div class="nav"><button data-next="0">Zurück</button><button class="primary" data-next="2">Weiter zu Messpunkten</button></div></section>
+<canvas id="chart" width="1000" height="230" aria-label="ADC-Verlauf"></canvas><div class="flex" style="margin:13px 0"><button id="readNow">ADC jetzt lesen</button><button id="live">Live-Messung starten</button><span class="pill" id="srcLabel">Keine Messdaten</span></div><div class="mutedline"></div><div class="between"><h3>Verstärkung und Offset</h3><span class="pill" id="afeWord">CFG_AFE1: —</span></div><div class="sliderrow"><span>PGA1 <span class="help" data-help="pga1">?</span></span><input id="pga1" type="range" min="0" max="3" step="1" value="0"><output id="pga1val">0</output></div><div class="sliderrow"><span>PGA2 <span class="help" data-help="pga2">?</span></span><input id="pga2" type="range" min="0" max="8" step="1" value="0"><output id="pga2val">0</output></div><div class="sliderrow"><span>Offset <span class="help" data-help="offset">?</span></span><input id="offset" type="range" min="-8" max="8" step="1" value="0"><output id="offsetval">0</output></div><div class="kpiNote" id="gainInfo">PGA1 3.5× · PGA2 2× · Gesamt 7× · DAC 0 mV/V</div><div class="flex" style="margin-top:12px"><button class="primary" id="afeApplyRam">AFE-Einstellungen ins RAM übernehmen</button><span class="muted small">Regler ändern zunächst nur die Vorschau. Dieser Button schreibt die gewählten Gains ins RAM und liest sie zur Kontrolle zurück.</span></div><div id="writeMsg" class="callout">Änderungen an den Reglern sind zunächst nur eine Vorschau. Nach bewusster Freigabe werden sie direkt gesendet.</div><details><summary>Geschützte Register & Diagnose</summary><div class="inner"><div class="flex"><button id="readBoot">Boot-Register prüfen</button><button id="readRegs">Diagnoseregister lesen</button><button id="exportDiag">USB-Diagnose exportieren</button></div><div id="bootMsg" class="callout">Bootregister noch nicht geprüft. Schreibzugriff gesperrt.</div><pre id="regdump" class="monoarea">Noch keine Register gelesen.</pre><details><summary>USB-Rohprotokoll</summary><pre class="monoarea" id="usbLog"></pre></details></div></details><div class="nav"><button data-next="0">Zurück</button><button class="primary" data-next="2">Weiter zu Messpunkten</button></div><div class="expert-inline" data-expert-area hidden>
+<details open><summary>Expertenparameter · AODO-Ausgang (ratiometrisch, PWM, FM, Alarm)</summary>
+<div class="inner"><p class="muted small">Factory- und Boot-/Kommunikationsregister sind schreibgeschützt. Änderungen werden erst nach geprüfter Vorbereitung im NVM-Schritt programmiert.</p>
+<h3>Ausgangsart am AODO-Pin</h3>
+<p class="muted small">Die folgenden Einstellungen sind dokumentierte Benutzerfunktionen. Sie werden zuerst <b>nur als geprüfter Vorschlag</b> übernommen. Bei einer neuen Kalibrierung kommen sie in den finalen NVM-Plan nach der DSP-Prüfung. Bei einem <b>bereits kalibrierten Sensor</b> kannst du den Ausgang auch separat ändern, nachdem du das vollständige Original-NVM mit 48-Bit-UID gelesen und gesichert hast. Während 1-Wire aktiv ist, kann die Schnittstelle den physischen AODO-Ausgang übersteuern.</p>
+<div class="fieldrow">
+<label>Ausgangsmodus
+<select id="expertOutputMode">
+<option value="keep">Bestehenden Modus unverändert lassen</option>
+<option value="0">High-Z / deaktiviert</option>
+<option value="1">Ratiometrisch analog · DAC-Korrektur 0</option>
+<option value="2">Ratiometrisch analog · DAC-Korrektur 1</option>
+<option value="3">Ratiometrisch analog · DAC-Korrektur 2</option>
+<option value="4">PWM</option>
+<option value="5">FM / frequenzmoduliert</option>
+<option value="6">ALARM-Ausgang</option>
+</select></label>
+<label>PWM-Periode (2–65’535 Takte)<input id="expertPwmPeriod" type="number" min="2" max="65535" step="1" value="16384"></label>
+</div>
+<div class="fieldrow" style="margin-top:12px">
+<label><input id="expertScaleEnable" type="checkbox"> AODO-Skalierung aktivieren (CFG_EN.scale_en)</label>
+<label>AODO_F · Gain (Q3.12)<input id="expertScaleGain" type="number" min="-7.9" max="7.9" step="0.0001" value="1"></label>
+<label>AODO_O · Offset (Q3.12)<input id="expertScaleOffset" type="number" min="-7.9" max="7.9" step="0.0001" value="0"></label>
+</div>
+<p class="muted small">PWM und FM benötigen ausschliesslich <b>positive DSP_AODO-Ausgangswerte</b>. Für PWM empfiehlt das Datenblatt 10–90 % der gewählten Periode. Die App prüft dies vor der Übernahme. Ratiometrisch analog ist laut Datenblatt im linearen Bereich 10–90 % VDD spezifiziert.</p>
+<div class="flex"><button id="expertOutputPreset">Sichere Ausgangsskalierung vorschlagen</button><button class="primary" id="expertOutputStage">Geprüfte Ausgangskonfiguration für NVM vormerken</button><button id="expertOutputDiscard">Ausgangsänderungen verwerfen</button></div>
+<div id="expertOutputMsg" class="callout">Bisher keine Ausgangsänderungen vorgemerkt.</div>
 
+</div></details>
+</div>
+</section>
 <section class="card panel" data-panel="2" hidden>
 <div class="eyebrow">Schritt 3 · Kalibrierwerte aufnehmen</div>
 <h2>Kalibrier-Messpunkte festlegen und aufnehmen</h2>
@@ -429,14 +501,10 @@ button.danger{background:#9e3e34;border-color:#9e3e34;color:#fff}button.danger:h
   <label class="toggle"><input id="nvmRebootConfirm" type="checkbox"> Der Chip wurde nach dem Schreiben tatsächlich aus- und wieder eingeschaltet.</label>
   <button id="nvmPostBoot">NVM nach Neustart verifizieren</button>
 </div></details>
-<div class="nav"><button data-next="4">Zurück zur DSP-Prüfung</button><button data-next="0">Zum USB-Start</button></div>
-</section>
-<section class="card" id="expertSection">
-<div class="between"><h3>Expertenmodus & Sensorkonfiguration</h3><span class="pill">Optional</span></div>
-<label class="toggle"><input id="expertMode" type="checkbox"> Expertenparameter anzeigen</label>
-<p class="muted small">Zusätzliche Register, Ausgangsarten und NVM-/EEPROM-Werkzeuge. Das Freischalten allein verändert keine Sensorwerte. <b>Factory-Werte, Seriennummer und Boot-/Kommunikationsregister dürfen nicht verändert werden.</b></p>
-<div id="expertPanel" hidden>
-<div class="callout warn"><b>Schutzklassen:</b> NVM 0x00–0x1E = <b>Factory, nur lesen</b>; 0x20–0x36 = <b>Boot-/Konfiguration, nur lesen</b> (Ausnahme: gezielt freigegebene AODO-Ausgangsbits im NVM-Programmierplan). Andere Anwenderparameter sind nur über überprüfte Funktionen beschreibbar. Kein freies Rohregister-Schreiben.</div>
+<div class="expert-inline" data-expert-area hidden>
+<details><summary>Expertenparameter · NVM / EEPROM / Chip-Backups</summary>
+<div class="inner">
+<div class="callout warn"><b>Geschützt:</b> Factory-Wörter 0x00–0x1E und Kommunikations-/Bootregister sind nur lesbar. Eine Wiederherstellung darf keine Factory- oder Bootdaten ändern.</div>
 <h3>Chipkennung & gespeicherte Backups</h3>
 <p class="muted small">Die eindeutige 48-Bit-Kennung besteht aus VERSION + SER1 + SER0. Backups werden im Browser chipbezogen gespeichert und beim erneuten Anschliessen wiedererkannt. Lokal gespeicherte Browserdaten können beim Löschen von Website-Daten verloren gehen – eine JSON-Datei ist deshalb weiterhin sinnvoll.</p>
 <div class="flex"><button id="expertIdentify">Chip-UID lesen</button><button id="expertNvmRead">Komplettes NVM/EEPROM lesen (64 Wörter)</button><button id="expertNvmExport">Aktuelles NVM exportieren</button></div>
@@ -448,37 +516,16 @@ button.danger{background:#9e3e34;border-color:#9e3e34;color:#fff}button.danger:h
 <div class="flex"><button id="expertRestorePreview">Letztes/gewähltes Backup vergleichen</button></div>
 <div id="expertRestoreMsg" class="callout">Für eine Wiederherstellung muss die Chipkennung exakt passen. Factory- und Bootregister bleiben geschützt. Eine Wiederherstellung erfolgt niemals automatisch.</div>
 <pre id="expertRestoreDiff" class="monoarea">Noch kein Wiederherstellungsplan.</pre>
-<p class="muted small">Wiederherstellung: Erst den aktuellen Chip vollständig sichern und dann den Änderungsplan prüfen. Der Programmierknopf im NVM-Schritt verlangt Chip-ID und ausdrücklich «WIEDERHERSTELLEN».</p>
-<h3>Ausgangsart am AODO-Pin</h3>
-<p class="muted small">Die folgenden Einstellungen sind dokumentierte Benutzerfunktionen. Sie werden zuerst <b>nur als geprüfter Vorschlag</b> übernommen. Bei einer neuen Kalibrierung kommen sie in den finalen NVM-Plan nach der DSP-Prüfung. Bei einem <b>bereits kalibrierten Sensor</b> kannst du den Ausgang auch separat ändern, nachdem du das vollständige Original-NVM mit 48-Bit-UID gelesen und gesichert hast. Während 1-Wire aktiv ist, kann die Schnittstelle den physischen AODO-Ausgang übersteuern.</p>
-<div class="fieldrow">
-<label>Ausgangsmodus
-<select id="expertOutputMode">
-<option value="keep">Bestehenden Modus unverändert lassen</option>
-<option value="0">High-Z / deaktiviert</option>
-<option value="1">Ratiometrisch analog · DAC-Korrektur 0</option>
-<option value="2">Ratiometrisch analog · DAC-Korrektur 1</option>
-<option value="3">Ratiometrisch analog · DAC-Korrektur 2</option>
-<option value="4">PWM</option>
-<option value="5">FM / frequenzmoduliert</option>
-<option value="6">ALARM-Ausgang</option>
-</select></label>
-<label>PWM-Periode (2–65’535 Takte)<input id="expertPwmPeriod" type="number" min="2" max="65535" step="1" value="16384"></label>
-</div>
-<div class="fieldrow" style="margin-top:12px">
-<label><input id="expertScaleEnable" type="checkbox"> AODO-Skalierung aktivieren (CFG_EN.scale_en)</label>
-<label>AODO_F · Gain (Q3.12)<input id="expertScaleGain" type="number" min="-7.9" max="7.9" step="0.0001" value="1"></label>
-<label>AODO_O · Offset (Q3.12)<input id="expertScaleOffset" type="number" min="-7.9" max="7.9" step="0.0001" value="0"></label>
-</div>
-<p class="muted small">PWM und FM benötigen ausschliesslich <b>positive DSP_AODO-Ausgangswerte</b>. Für PWM empfiehlt das Datenblatt 10–90 % der gewählten Periode. Die App prüft dies vor der Übernahme. Ratiometrisch analog ist laut Datenblatt im linearen Bereich 10–90 % VDD spezifiziert.</p>
-<div class="flex"><button id="expertOutputPreset">Sichere Ausgangsskalierung vorschlagen</button><button class="primary" id="expertOutputStage">Geprüfte Ausgangskonfiguration für NVM vormerken</button><button id="expertOutputDiscard">Ausgangsänderungen verwerfen</button></div>
-<div id="expertOutputMsg" class="callout">Bisher keine Ausgangsänderungen vorgemerkt.</div>
+<p class="muted small">Wiederherstellung: Erst den aktuellen Chip vollständig sichern und dann den Änderungsplan prüfen. Eine Wiederherstellung wird im NVM-Schritt über die passende Chip-UID und den finalen Schreibknopf gestartet.</p>
+
 <h3>Register- und EEPROM-Übersicht</h3>
 <p class="muted small">Dokumentierte Hauptregister können direkt aus dem Chip gelesen werden. Nach einer kompletten EEPROM-Lesung werden alle 64 NVM-Wörter mit Adresse, Funktion und Schutzstatus aufgelistet. <b>Factory-Daten bleiben immer nur lesbar.</b></p>
 <div class="flex"><button id="expertRegistersRead">Dokumentierte Hauptregister lesen</button></div>
 <pre id="expertRegisterDump" class="monoarea">Noch keine Register gelesen.</pre>
 <pre id="expertNvmDump" class="monoarea">Noch kein komplettes EEPROM-Abbild gelesen.</pre>
+</div></details>
 </div>
+<div class="nav"><button data-next="4">Zurück zur DSP-Prüfung</button><button data-next="0">Zum USB-Start</button></div>
 </section>
-<section class="card"><div class="between"><h3>App-Einstellungen</h3><span class="pill">Lokal gespeichert</span></div><label class="toggle"><input id="tooltips" type="checkbox" checked> Hover-Erklärungen aktivieren</label><p class="muted small">Über ? erscheint eine Erklärung zur jeweiligen Funktion. Die Auswahl bleibt im Browser erhalten.</p><details><summary>Technischer Status und Quellen</summary><div class="inner"><p><b>Implementiert:</b> NVM-Backup, unabhängiger Polynom-Fit, Q-Formate, RAM-DSP-Prüfung, NVM-Programmierworkflow und CRC16; Web Serial, `.VERSION`, SSP3 `IF_CFG`, 1-Wire `PLC`-Lesetelegramme, I²C- und SPI-Lesetelegramme, AFE-RAM-Schreiben per Übernehmen-Button mit Rückleseprüfung, ADC-Live-Messungen, geführte Aufnahme von 2–10 Kalibrierpunkten und Messprotokoll.</p><p><b>Getestet:</b> Firmwarebefehle, CRC4 und Schreib-CRC8 anhand der Herstellerbeispiele sowie Browserlogik im Simulator. <b>Nicht nachgewiesen:</b> USB-Antworten, Timing, CRC8 der Antwort und RAM-Gain-Änderung am physischen Board. NVM-Programmierung ist als ausdrücklich zu bestätigender Labor-Test implementiert, aber nicht am echten Board validiert.</p><p>Referenzen: AN 0204 (12.02.2019), AN 0203 (06.02.2020), E703.11 Datenblatt 25DS0170E.04 (16.11.2023) und API-Header aus `pssc_mc_dev_2024_07_12.zip`.</p></div></details></section><div class="foot">ELMOS E703.11 · unabhängiger Kalibrierprototyp · Sicherheitsprinzip: Factory- und Kommunikations-Bootregister gesperrt; dokumentierte AODO-Ausgangsoptionen nur nach Prüfung im NVM-Plan; Wiederherstellung nur mit passender Chip-UID.</div>
+<div class="foot">ELMOS E703.11 · unabhängiger Kalibrierprototyp · Sicherheitsprinzip: Factory- und Kommunikations-Bootregister gesperrt; dokumentierte AODO-Ausgangsoptionen nur nach Prüfung im NVM-Plan; Wiederherstellung nur mit passender Chip-UID.</div>
 </main></div></div><div id="tip" class="tooltip"></div><script src="calibration.js?v=expert-20261111-5"></script><script src="expert.js?v=nvm-final-20261111-1"></script><script src="app.js?v=live-header-20261111-1"></script></body></html>
