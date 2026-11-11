@@ -94,6 +94,31 @@ const ELMOS_CAL = (() => {
   }
   return true;
  }
+ /** Convert PSSC-style analog endpoints to validated E703.11 Q3.12 AODO scaling.
+  * This calculates a proposal only; it does not write RAM or NVM.
+  * A small inward trim avoids the DAC's 10..90% linearity boundary after quantization.
+  */
+ function analogScaling(s0Volts,s1Volts,vddVolts=5,outputLimit=32000){
+  const [v0,v1,vdd,limit]=[s0Volts,s1Volts,vddVolts,outputLimit].map(Number);
+  if(![v0,v1,vdd,limit].every(Number.isFinite))throw Error('Scaling: Ungültige Eingabewerte');
+  if(vdd<2.7||vdd>5.5)throw Error('VDD zur Vorschau muss zwischen 2.7 und 5.5 V liegen');
+  if(!Number.isInteger(limit)||limit<1000||limit>32000)throw Error('DSP-Endwert muss 1’000 bis 32’000 Digits betragen');
+  if(!(v0>=vdd*0.1-1e-9&&v1<=vdd*0.9+1e-9&&v1>v0))throw Error('Analog Ratiometric 0..5 V: S0/S1 müssen aufsteigend im linearen Bereich 10–90 % VDD liegen');
+  const target0=32768*(2*v0/vdd-1),target1=32768*(2*v1/vdd-1);
+  const midpoint=(target0+target1)/2;
+  const offsetQ=Math.round(midpoint/8); // AODO_O is Q3.12: offset*32768 = Q-code*8
+  const off=offsetQ/4096,base=off*32768;
+  const maxRange=Math.min(26214-base,26214+base);
+  if(maxRange<=0)throw Error('Scaling: Offset ausserhalb des zulässigen Ausgangsbereichs');
+  let gainQ=Math.floor(Math.min((target1-target0)/2,maxRange)/limit*4096);
+  if(gainQ<1)throw Error('Scaling: Ausgabespanne zu klein');
+  while(gainQ>0&&Math.max(Math.abs(base-gainQ*limit/4096),Math.abs(base+gainQ*limit/4096))>26214)gainQ--;
+  if(gainQ<1)throw Error('Scaling: Kein gültiger Gain für den gewünschten Bereich');
+  const gain=gainQ/4096,offset=off;
+  const actual0=base-gain*limit,actual1=base+gain*limit;
+  return {gain,offset,scaleEnabled:true,requested:[v0,v1],actualVolts:[(actual0/32768+1)*vdd/2,(actual1/32768+1)*vdd/2],
+   outputDigits:[actual0,actual1],vdd,limit};
+ }
  function prepareOutputConfig(original,settings,outputLimit=32000){
   if(!Array.isArray(original)||original.length!==64)throw Error('Vollständiges NVM-Abbild erforderlich');
   const out=original.slice();
@@ -140,6 +165,6 @@ const ELMOS_CAL = (() => {
   protectStartupCommunication(original,cfg);
   return {before:original.slice(),after:cfg,changes:cfg.map((v,i)=>v!==original[i]?{index:i,address:i*2,from:original[i],to:v}:null).filter(Boolean)};
  }
- return {fit,solveFit,crc16,crc8,configFrom,prepareOutputConfig,protectStartupCommunication,fromQ,q,signed};
+ return {fit,solveFit,crc16,crc8,configFrom,prepareOutputConfig,protectStartupCommunication,analogScaling,fromQ,q,signed};
 })();
 if(typeof module!=='undefined'&&module.exports)module.exports=ELMOS_CAL;
