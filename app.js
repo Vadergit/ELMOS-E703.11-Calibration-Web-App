@@ -374,7 +374,7 @@ if(typeof document!=='undefined') (function UI(){
    const pmin=Number($('pmin').value),pmax=Number($('pmax').value);
    if(st.calpoints.some(p=>JSON.stringify(p.gains)!==JSON.stringify(st.staged)))throw Error('Gain wurde nach der Aufnahme geändert. Messpunkte erneut erfassen');
    const solution=CAL.fit(st.calpoints,{pmin,pmax,orderS:Number($('calSOrder').value),orderT:Number($('calTOrder').value)});
-   st.calfit=solution;st.calImage=null;st.calStaged=false;st.calVerified=false;st.calValidation=[];
+   st.calfit=solution;st.calImage=null;st.calStaged=false;st.calVerified=false;st.calValidation=[];renderDSPLive();
    const r=solution.registers;
    $('calCoeffList').textContent='S_O 0x'+h(r.so,2)+' (Q3.12)  S_F 0x'+h(r.sf,2)+' (Q3.12)\n'+r.coeffs.map((x,i)=>'S'+String(i).padEnd(2)+' 0x'+h(x,2)+'    '+CAL.fromQ(x,15).toFixed(7)).join('\n')+(r.tcoeffs?'\nT_O '+h(r.to,2)+' T_F '+h(r.tf,2)+'\n'+r.tcoeffs.map((x,i)=>'T'+i+': 0x'+h(x,2)).join('\n'):'\nTemperaturpfad bleibt unverändert.');
    const note='Max. Fitfehler '+solution.stats.maxDigits.toFixed(2)+' Digits · RMS '+solution.stats.rmsDigits.toFixed(2)+' Digits.';
@@ -457,7 +457,7 @@ if(typeof document!=='undefined') (function UI(){
    if(r.tcoeffs)changes.push([0x6C,r.to],[0x6E,r.tf],...r.tcoeffs.map((v,i)=>[0x94+2*i,v]));
    for(const [addr,value] of changes){await maintWrite(addr,value);const actual=await readReg(addr);if(actual!==value)throw Error(`DSP-RAM Rücklesefehler 0x${h(addr)}: 0x${h(actual,2)} statt 0x${h(value,2)}`)}
    if(!sameBoot(before,await bootSnapshot()))throw Error('Bootregister nach Kalibrier-RAM-Schreiben verändert');
-   st.calStaged=true;st.calVerified=false;st.calValidation=[];st.calImage=null;
+   st.calStaged=true;st.calVerified=false;st.calValidation=[];st.calImage=null;st.dsp=null;renderDSPLive();
    ca('calRamStageMsg',`${changes.length} DSP-Wörter ins RAM geschrieben und einzeln erfolgreich rückgelesen. Jetzt im nächsten Schritt DSP_S unabhängig prüfen.`,'success');
    ca('calRamMsg','DSP-Koeffizienten ins RAM übertragen. Bitte Prüfdruck einstellen und DSP_S kontrollieren.','warn');
   }catch(e){
@@ -468,13 +468,17 @@ if(typeof document!=='undefined') (function UI(){
   finally{if(st.calTask){await ramLock();st.calTask=false;st.writing=false}renderStatus()}
  }
  async function verifyCalRam(){
+  let isChecking=false;
   try{
-   if(!st.calStaged||!st.calfit||!st.chip||st.calTask)throw Error('Koeffizienten zuerst im RAM übernehmen / anderer Vorgang läuft');
+   if(!st.calStaged||!st.calfit||!st.chip||st.calTask||st.writing)throw Error('Koeffizienten zuerst im RAM übernehmen / anderer Vorgang läuft');
    const required=verificationRequiredCount();
    if(!Number.isFinite(required))throw Error('Anzahl Prüfpunkte: Bitte eine ganze Zahl zwischen 1 und 10 eingeben');
    const p=Number($('calVerifyPressure').value),pmin=Number($('pmin').value),pmax=Number($('pmax').value),tol=Number($('calVerifyTolerance').value);
    if(!Number.isFinite(p)||!(p>pmin&&p<pmax)||!Number.isFinite(tol)||tol<=0)throw Error('Prüfdruck innerhalb des Kalibrierbereichs und positive Toleranz eingeben');
+   st.calTask=true;isChecking=true;
+   if(st.liveReadPromise)await st.liveReadPromise.catch(()=>{});
    const got=P.sign16(await readReg(0x30)),target=64000*(p-pmin)/(pmax-pmin)-32000;
+   updateDSP(got,'usb');
    const stat=await readReg(0x32),delta=got-target,errorBar=delta/64000*(pmax-pmin);
    if(stat&(1<<10))throw Error('DSP-Sättigung erkannt (STATUS_SYNC.dsp_sat). Programmierung gesperrt.');
    if(Math.abs(errorBar)>tol){
@@ -499,7 +503,7 @@ if(typeof document!=='undefined') (function UI(){
     (remaining>0?'Noch '+remaining+' unabhängige Prüfpunkte erforderlich.':'Die Prüfpunkte sind erfasst, aber die Temperaturverifikation ist noch nicht vollständig.');
    ca('calRamMsg',`DSP_S ${got} · Soll ${target.toFixed(1)} Digits · Fehler ${errorBar.toFixed(5)} ${pressureUnit()} · ${st.calValidation.length}/${required} Prüfpunkte. ${info}`,st.calVerified&&required>1?'success':'warn');
   }catch(e){st.calVerified=false;st.calImage=null;ca('calRamMsg','DSP-Verifikation: '+e.message,'error')}
-  finally{renderFlowState()}
+  finally{if(isChecking)st.calTask=false;renderFlowState()}
  }
  function prepareNvm(){try{if(st.calTask||st.writing)throw Error('Wartungsvorgang läuft');
   if(!st.nvmBackupVerified||!st.calfit||!verificationComplete()||!st.calStaged)throw Error('NVM-Backup, berechnete Koeffizienten und bestandene DSP-RAM-Verifikation für die gewählte Anzahl Prüfpunkte nötig');
@@ -583,6 +587,13 @@ if(typeof document!=='undefined') (function UI(){
  for(const id of ['pointLoName','pointHiName'])$(id).addEventListener('change',syncPointNames);
  for(const id of ['calSOrder','calTOrder'])$(id).addEventListener('change',()=>invalidateCalculation('Polynomordnung verändert. Neu berechnen und anschliessend neu ins RAM übertragen.'));
  refreshUnitLabels();
+ // Anzeigeeinstellungen sind rein lokal und schreiben keine Sensorregister.
+ loadDSPDisplay();
+ for(const id of ['dspDisplayMin','dspDisplayMax','dspDisplayUnit']){
+  $(id).addEventListener('change',saveDSPDisplay);
+  $(id).addEventListener('input',renderDSPLive);
+ }
+ renderDSPLive();
  // controls
  $('calPointCapture').addEventListener('click',captureCalPoint);
  $('calPointClear').addEventListener('click',()=>{erasePoints();ca('calPointsMsg','Alle Kalibriermesspunkte verworfen.');});
