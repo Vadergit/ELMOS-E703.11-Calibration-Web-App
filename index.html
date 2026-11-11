@@ -16,6 +16,18 @@ button.danger{background:#9e3e34;border-color:#9e3e34;color:#fff}button.danger:h
 .cal-point-row h3{margin:0}
 .cal-point-row .fieldrow{align-items:end}
 .reference-value{display:block;margin:8px 0 4px;font-size:17px;color:var(--ink)}
+.cal-point-status{display:inline-flex;align-items:center;justify-content:center;padding:7px 12px;border-radius:8px;border:1px solid #cdd7e2;background:#eff3f7;color:#475569;font-size:12px;font-weight:750;line-height:1.3}
+.cal-point-status.is-captured{background:#1e694d;border-color:#1e694d;color:#fff}
+.cal-measure-result{margin-top:13px;padding:15px 17px;border:2px solid #26785b;border-left:6px solid #26785b;background:#edf8f2;border-radius:10px;color:#164731}
+.cal-measure-heading{font-size:14px;font-weight:800;color:#13573c;margin-bottom:11px}
+.cal-measure-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(115px,1fr));gap:11px}
+.cal-measure-cell{padding:9px 12px;background:#fff;border:1px solid #c2dfd0;border-radius:8px}
+.cal-measure-label{display:block;font-size:11px;font-weight:650;color:#45695a}
+.cal-measure-value{display:block;font-weight:790;font-size:19px;line-height:1.35;color:#164f39;font-variant-numeric:tabular-nums;overflow-wrap:anywhere}
+.cal-measure-note{margin-top:10px;font-size:12px;color:#325945}
+.cal-point-row.is-captured{border-color:#7db9a0;background:#fbfefd}
+.cal-sampling-progress{margin-top:10px;padding:9px 12px;border-radius:8px;border:1px solid #b8cfea;background:#eaf3fc;color:#194f80;font-size:13px;font-weight:700}
+
 </style></head><body><div class="wrap"><header class="top"><div class="brand"><div class="logo">E</div><div><div class="eyebrow">E703.11 · PSSC</div><h1>Kalibrierassistent</h1></div></div><span class="chip"><span class="dot" id="statusDot"></span><span id="status">Nicht verbunden</span></span></header>
 <div id="demoPressurePanel" class="callout warn" hidden><div class="between"><strong>DEMO – simulierter Druck</strong><span><b id="demoPressureVal">5.0</b> bar</span></div><input id="demoPressure" type="range" min="0" max="10" step="0.1" value="5" style="margin-top:10px"></div>
 <div class="content"><aside class="side"><button class="stepBtn active" data-step="0"><span class="num">1</span><span>USB & Chip</span></button><button class="stepBtn" data-step="1"><span class="num">2</span><span>AFE optimieren</span></button><button class="stepBtn" data-step="2"><span class="num">3</span><span>Messpunkte</span></button><button class="stepBtn" data-step="3"><span class="num">4</span><span>Berechnen & RAM</span></button><button class="stepBtn" data-step="4"><span class="num">5</span><span>DSP prüfen</span></button><button class="stepBtn" data-step="5"><span class="num">6</span><span>NVM programmieren</span></button></aside>
@@ -48,105 +60,120 @@ button.danger{background:#9e3e34;border-color:#9e3e34;color:#fff}button.danger:h
 <select id="calPointCount">
 <option value="2" selected>2 · Linear (Standard)</option><option value="3">3 Punkte</option><option value="4">4 Punkte</option><option value="5">5 Punkte</option><option value="6">6 Punkte</option><option value="7">7 Punkte</option><option value="8">8 Punkte</option><option value="9">9 Punkte</option><option value="10">10 Punkte</option>
 </select></label>
+<label>Samples pro Messpunkt
+<input type="number" id="calSampleCount" min="1" max="100" step="1" value="12">
+</label>
 <label>Einheit <span class="help" data-help="pressureunit">?</span>
 <select id="calUnit"><option value="bar">bar</option><option value="%">%</option><option value="mbar">mbar</option><option value="kPa">kPa</option><option value="psi">psi</option><option value="custom">Andere Einheit</option></select>
 </label>
 <label id="customUnitLabel" hidden>Eigene Einheit<input id="calUnitOther" type="text" maxlength="14" placeholder="z. B. mmH₂O"></label>
 </div>
+<p class="muted small">Pro Messpunkt werden 1–100 Samples aufgenommen (Standard 12). Der Median wird als ADC-Wert verwendet; die Streuung zeigt die Stabilität der Messung. Die Einstellung gilt für neue Aufnahmen.</p>
+<div id="calSampleProgress" class="cal-sampling-progress" role="status" aria-live="polite" hidden>Bereit für die Messung.</div>
 <div class="fieldrow" style="margin-top:12px">
 <label>Unterer Referenzwert (<span data-cal-unit>bar</span>)<input type="number" step="any" id="pmin" value="0"></label>
 <label>Oberer Referenzwert (<span data-cal-unit>bar</span>)<input type="number" step="any" id="pmax" value="10"></label>
 </div>
 <div id="calPointPlanMsg" class="callout">2 Messpunkte gewählt. Beide Endpunkte messen und anschliessend Koeffizienten berechnen.</div>
 <div class="cal-point-row">
-<div class="between"><h3>Messpunkt 1 · Unterer Endpunkt</h3><span class="pill" id="lowVal">Noch nicht aufgenommen</span></div>
+<div class="between"><h3>Messpunkt 1 · Unterer Endpunkt</h3><span class="cal-point-status" id="lowVal">Noch nicht aufgenommen</span></div>
 <div class="fieldrow">
 <label>Bezeichnung<input type="text" id="pointLoName" maxlength="45" value="Messpunkt 1"></label>
 <label>Referenzwert (<span data-cal-unit>bar</span>)<strong class="reference-value" id="pointLoDisplay">0 bar</strong></label>
 <label>Temperatur (°C)<input id="calLoTemp" type="number" step="any" min="-40" max="125" value="25"></label>
 </div>
 <div class="flex" style="margin-top:11px"><button id="capLo" class="primary">Messpunkt 1 aufnehmen</button></div>
+<div id="calLoResult" class="cal-measure-result" hidden></div>
 </div>
 <div class="cal-point-row" id="calExtra1Row" data-cal-extra="1" hidden>
-<div class="between"><h3 id="calExtra1Heading">Messpunkt 2 · Zwischenpunkt</h3><span class="pill" id="calExtra1State">Noch nicht aufgenommen</span></div>
+<div class="between"><h3 id="calExtra1Heading">Messpunkt 2 · Zwischenpunkt</h3><span class="cal-point-status" id="calExtra1State">Noch nicht aufgenommen</span></div>
 <div class="fieldrow">
 <label>Bezeichnung<input type="text" id="calExtra1Name" maxlength="45" value="Messpunkt 2"></label>
 <label>Referenzwert (<span data-cal-unit>bar</span>)<input type="number" id="calExtra1Pressure" step="any" value="5"></label>
 <label>Temperatur (°C)<input type="number" id="calExtra1Temp" step="any" min="-40" max="125" value="25"></label>
 </div>
-<div class="flex" style="margin-top:11px"><button id="calExtra1Capture" class="primary">Messpunkt 2 aufnehmen</button><span class="muted small" id="calExtra1Value">Noch keine Messwerte.</span></div>
+<div class="flex" style="margin-top:11px"><button id="calExtra1Capture" class="primary">Messpunkt 2 aufnehmen</button></div>
+<div id="calExtra1Value" class="cal-measure-result" hidden></div>
 </div>
 <div class="cal-point-row" id="calExtra2Row" data-cal-extra="2" hidden>
-<div class="between"><h3 id="calExtra2Heading">Messpunkt 3 · Zwischenpunkt</h3><span class="pill" id="calExtra2State">Noch nicht aufgenommen</span></div>
+<div class="between"><h3 id="calExtra2Heading">Messpunkt 3 · Zwischenpunkt</h3><span class="cal-point-status" id="calExtra2State">Noch nicht aufgenommen</span></div>
 <div class="fieldrow">
 <label>Bezeichnung<input type="text" id="calExtra2Name" maxlength="45" value="Messpunkt 3"></label>
 <label>Referenzwert (<span data-cal-unit>bar</span>)<input type="number" id="calExtra2Pressure" step="any" value="5"></label>
 <label>Temperatur (°C)<input type="number" id="calExtra2Temp" step="any" min="-40" max="125" value="25"></label>
 </div>
-<div class="flex" style="margin-top:11px"><button id="calExtra2Capture" class="primary">Messpunkt 3 aufnehmen</button><span class="muted small" id="calExtra2Value">Noch keine Messwerte.</span></div>
+<div class="flex" style="margin-top:11px"><button id="calExtra2Capture" class="primary">Messpunkt 3 aufnehmen</button></div>
+<div id="calExtra2Value" class="cal-measure-result" hidden></div>
 </div>
 <div class="cal-point-row" id="calExtra3Row" data-cal-extra="3" hidden>
-<div class="between"><h3 id="calExtra3Heading">Messpunkt 4 · Zwischenpunkt</h3><span class="pill" id="calExtra3State">Noch nicht aufgenommen</span></div>
+<div class="between"><h3 id="calExtra3Heading">Messpunkt 4 · Zwischenpunkt</h3><span class="cal-point-status" id="calExtra3State">Noch nicht aufgenommen</span></div>
 <div class="fieldrow">
 <label>Bezeichnung<input type="text" id="calExtra3Name" maxlength="45" value="Messpunkt 4"></label>
 <label>Referenzwert (<span data-cal-unit>bar</span>)<input type="number" id="calExtra3Pressure" step="any" value="5"></label>
 <label>Temperatur (°C)<input type="number" id="calExtra3Temp" step="any" min="-40" max="125" value="25"></label>
 </div>
-<div class="flex" style="margin-top:11px"><button id="calExtra3Capture" class="primary">Messpunkt 4 aufnehmen</button><span class="muted small" id="calExtra3Value">Noch keine Messwerte.</span></div>
+<div class="flex" style="margin-top:11px"><button id="calExtra3Capture" class="primary">Messpunkt 4 aufnehmen</button></div>
+<div id="calExtra3Value" class="cal-measure-result" hidden></div>
 </div>
 <div class="cal-point-row" id="calExtra4Row" data-cal-extra="4" hidden>
-<div class="between"><h3 id="calExtra4Heading">Messpunkt 5 · Zwischenpunkt</h3><span class="pill" id="calExtra4State">Noch nicht aufgenommen</span></div>
+<div class="between"><h3 id="calExtra4Heading">Messpunkt 5 · Zwischenpunkt</h3><span class="cal-point-status" id="calExtra4State">Noch nicht aufgenommen</span></div>
 <div class="fieldrow">
 <label>Bezeichnung<input type="text" id="calExtra4Name" maxlength="45" value="Messpunkt 5"></label>
 <label>Referenzwert (<span data-cal-unit>bar</span>)<input type="number" id="calExtra4Pressure" step="any" value="5"></label>
 <label>Temperatur (°C)<input type="number" id="calExtra4Temp" step="any" min="-40" max="125" value="25"></label>
 </div>
-<div class="flex" style="margin-top:11px"><button id="calExtra4Capture" class="primary">Messpunkt 5 aufnehmen</button><span class="muted small" id="calExtra4Value">Noch keine Messwerte.</span></div>
+<div class="flex" style="margin-top:11px"><button id="calExtra4Capture" class="primary">Messpunkt 5 aufnehmen</button></div>
+<div id="calExtra4Value" class="cal-measure-result" hidden></div>
 </div>
 <div class="cal-point-row" id="calExtra5Row" data-cal-extra="5" hidden>
-<div class="between"><h3 id="calExtra5Heading">Messpunkt 6 · Zwischenpunkt</h3><span class="pill" id="calExtra5State">Noch nicht aufgenommen</span></div>
+<div class="between"><h3 id="calExtra5Heading">Messpunkt 6 · Zwischenpunkt</h3><span class="cal-point-status" id="calExtra5State">Noch nicht aufgenommen</span></div>
 <div class="fieldrow">
 <label>Bezeichnung<input type="text" id="calExtra5Name" maxlength="45" value="Messpunkt 6"></label>
 <label>Referenzwert (<span data-cal-unit>bar</span>)<input type="number" id="calExtra5Pressure" step="any" value="5"></label>
 <label>Temperatur (°C)<input type="number" id="calExtra5Temp" step="any" min="-40" max="125" value="25"></label>
 </div>
-<div class="flex" style="margin-top:11px"><button id="calExtra5Capture" class="primary">Messpunkt 6 aufnehmen</button><span class="muted small" id="calExtra5Value">Noch keine Messwerte.</span></div>
+<div class="flex" style="margin-top:11px"><button id="calExtra5Capture" class="primary">Messpunkt 6 aufnehmen</button></div>
+<div id="calExtra5Value" class="cal-measure-result" hidden></div>
 </div>
 <div class="cal-point-row" id="calExtra6Row" data-cal-extra="6" hidden>
-<div class="between"><h3 id="calExtra6Heading">Messpunkt 7 · Zwischenpunkt</h3><span class="pill" id="calExtra6State">Noch nicht aufgenommen</span></div>
+<div class="between"><h3 id="calExtra6Heading">Messpunkt 7 · Zwischenpunkt</h3><span class="cal-point-status" id="calExtra6State">Noch nicht aufgenommen</span></div>
 <div class="fieldrow">
 <label>Bezeichnung<input type="text" id="calExtra6Name" maxlength="45" value="Messpunkt 7"></label>
 <label>Referenzwert (<span data-cal-unit>bar</span>)<input type="number" id="calExtra6Pressure" step="any" value="5"></label>
 <label>Temperatur (°C)<input type="number" id="calExtra6Temp" step="any" min="-40" max="125" value="25"></label>
 </div>
-<div class="flex" style="margin-top:11px"><button id="calExtra6Capture" class="primary">Messpunkt 7 aufnehmen</button><span class="muted small" id="calExtra6Value">Noch keine Messwerte.</span></div>
+<div class="flex" style="margin-top:11px"><button id="calExtra6Capture" class="primary">Messpunkt 7 aufnehmen</button></div>
+<div id="calExtra6Value" class="cal-measure-result" hidden></div>
 </div>
 <div class="cal-point-row" id="calExtra7Row" data-cal-extra="7" hidden>
-<div class="between"><h3 id="calExtra7Heading">Messpunkt 8 · Zwischenpunkt</h3><span class="pill" id="calExtra7State">Noch nicht aufgenommen</span></div>
+<div class="between"><h3 id="calExtra7Heading">Messpunkt 8 · Zwischenpunkt</h3><span class="cal-point-status" id="calExtra7State">Noch nicht aufgenommen</span></div>
 <div class="fieldrow">
 <label>Bezeichnung<input type="text" id="calExtra7Name" maxlength="45" value="Messpunkt 8"></label>
 <label>Referenzwert (<span data-cal-unit>bar</span>)<input type="number" id="calExtra7Pressure" step="any" value="5"></label>
 <label>Temperatur (°C)<input type="number" id="calExtra7Temp" step="any" min="-40" max="125" value="25"></label>
 </div>
-<div class="flex" style="margin-top:11px"><button id="calExtra7Capture" class="primary">Messpunkt 8 aufnehmen</button><span class="muted small" id="calExtra7Value">Noch keine Messwerte.</span></div>
+<div class="flex" style="margin-top:11px"><button id="calExtra7Capture" class="primary">Messpunkt 8 aufnehmen</button></div>
+<div id="calExtra7Value" class="cal-measure-result" hidden></div>
 </div>
 <div class="cal-point-row" id="calExtra8Row" data-cal-extra="8" hidden>
-<div class="between"><h3 id="calExtra8Heading">Messpunkt 9 · Zwischenpunkt</h3><span class="pill" id="calExtra8State">Noch nicht aufgenommen</span></div>
+<div class="between"><h3 id="calExtra8Heading">Messpunkt 9 · Zwischenpunkt</h3><span class="cal-point-status" id="calExtra8State">Noch nicht aufgenommen</span></div>
 <div class="fieldrow">
 <label>Bezeichnung<input type="text" id="calExtra8Name" maxlength="45" value="Messpunkt 9"></label>
 <label>Referenzwert (<span data-cal-unit>bar</span>)<input type="number" id="calExtra8Pressure" step="any" value="5"></label>
 <label>Temperatur (°C)<input type="number" id="calExtra8Temp" step="any" min="-40" max="125" value="25"></label>
 </div>
-<div class="flex" style="margin-top:11px"><button id="calExtra8Capture" class="primary">Messpunkt 9 aufnehmen</button><span class="muted small" id="calExtra8Value">Noch keine Messwerte.</span></div>
+<div class="flex" style="margin-top:11px"><button id="calExtra8Capture" class="primary">Messpunkt 9 aufnehmen</button></div>
+<div id="calExtra8Value" class="cal-measure-result" hidden></div>
 </div>
 <div class="cal-point-row">
-<div class="between"><h3 id="pointHiHeading">Messpunkt 2 · Oberer Endpunkt</h3><span class="pill" id="highVal">Noch nicht aufgenommen</span></div>
+<div class="between"><h3 id="pointHiHeading">Messpunkt 2 · Oberer Endpunkt</h3><span class="cal-point-status" id="highVal">Noch nicht aufgenommen</span></div>
 <div class="fieldrow">
 <label>Bezeichnung<input type="text" id="pointHiName" maxlength="45" value="Messpunkt 2"></label>
 <label>Referenzwert (<span data-cal-unit>bar</span>)<strong class="reference-value" id="pointHiDisplay">10 bar</strong></label>
 <label>Temperatur (°C)<input id="calHiTemp" type="number" step="any" min="-40" max="125" value="25"></label>
 </div>
 <div class="flex" style="margin-top:11px"><button id="capHi" class="primary">Oberen Endpunkt aufnehmen</button></div>
+<div id="calHiResult" class="cal-measure-result" hidden></div>
 </div>
 <div id="calMsg" class="callout">Beide Endpunkte aufnehmen. Für zusätzliche Punkte stehen die Zwischenpunkte direkt darüber bereit.</div>
 <div class="triple"><div class="stat"><small>ADC-Hub</small><strong id="hub">—</strong></div><div class="stat"><small>Signalmitte</small><strong id="middle">—</strong></div><div class="stat"><small>Aussteuerung</small><strong id="usage">—</strong></div></div>
@@ -297,4 +324,4 @@ button.danger{background:#9e3e34;border-color:#9e3e34;color:#fff}button.danger:h
 </div>
 </section>
 <section class="card"><div class="between"><h3>App-Einstellungen</h3><span class="pill">Lokal gespeichert</span></div><label class="toggle"><input id="tooltips" type="checkbox" checked> Hover-Erklärungen aktivieren</label><p class="muted small">Über ? erscheint eine Erklärung zur jeweiligen Funktion. Die Auswahl bleibt im Browser erhalten.</p><details><summary>Technischer Status und Quellen</summary><div class="inner"><p><b>Implementiert:</b> NVM-Backup, unabhängiger Polynom-Fit, Q-Formate, RAM-DSP-Prüfung, NVM-Programmierworkflow und CRC16; Web Serial, `.VERSION`, SSP3 `IF_CFG`, 1-Wire `PLC`-Lesetelegramme, I²C- und SPI-Lesetelegramme, AFE-RAM-Schreiben per Übernehmen-Button mit Rückleseprüfung, ADC-Live-Messungen, geführte Aufnahme von 2–10 Kalibrierpunkten und Messprotokoll.</p><p><b>Getestet:</b> Firmwarebefehle, CRC4 und Schreib-CRC8 anhand der Herstellerbeispiele sowie Browserlogik im Simulator. <b>Nicht nachgewiesen:</b> USB-Antworten, Timing, CRC8 der Antwort und RAM-Gain-Änderung am physischen Board. NVM-Programmierung ist als ausdrücklich zu bestätigender Labor-Test implementiert, aber nicht am echten Board validiert.</p><p>Referenzen: AN 0204 (12.02.2019), AN 0203 (06.02.2020), E703.11 Datenblatt 25DS0170E.04 (16.11.2023) und API-Header aus `pssc_mc_dev_2024_07_12.zip`.</p></div></details></section><div class="foot">ELMOS E703.11 · unabhängiger Kalibrierprototyp · Sicherheitsprinzip: Factory- und Kommunikations-Bootregister gesperrt; dokumentierte AODO-Ausgangsoptionen nur nach Prüfung im NVM-Plan; Wiederherstellung nur mit passender Chip-UID.</div>
-</main></div></div><div id="tip" class="tooltip"></div><script src="calibration.js?v=expert-20261111-5"></script><script src="expert.js?v=expert-20261111-5"></script><script src="app.js?v=expert-20261111-5"></script></body></html>
+</main></div></div><div id="tip" class="tooltip"></div><script src="calibration.js?v=expert-20261111-5"></script><script src="expert.js?v=expert-20261111-5"></script><script src="app.js?v=samples-ui-20261111-1"></script></body></html>
