@@ -78,3 +78,21 @@ test('Output edits invalidate the previously prepared NVM plan',()=>{
  assert.ok(src.includes('function calculateAnalogScaling()'));
  assert.ok(src.includes("const result=CAL.analogScaling("));
 });
+
+test('Scaling at 25k uses different gain than scaling at 32k',()=>{
+ const a=CAL.analogScaling(0.5,4.5,5,25000),b=CAL.analogScaling(0.5,4.5,5,32000);
+ assert.ok(a.gain>b.gain);
+ assert.ok(Math.abs(a.gain-1.04834)<0.001);
+ for(const candidate of [a,b]){
+  assert.ok(Math.abs(candidate.actualVolts[0]-0.5)<0.005);
+  assert.ok(Math.abs(candidate.actualVolts[1]-4.5)<0.005);
+ }
+});
+test('Scaling UI shows automatically chosen DSP range and ADC distinction',()=>{
+ const html=read('index.html'),expert=read('expert.js'),app=read('app.js');
+ assert.ok(html.includes('id="psscScalingSource"'));
+ assert.ok(expert.includes("st.calfit.outputLimit"));
+ assert.ok(expert.includes("$('calDspLimit').dataset.userEdited"));
+ assert.ok(expert.includes("$('dspDisplayLimit').value"));
+ assert.ok(app.includes("$('calDspLimit').dataset.userEdited='1'"));
+});
