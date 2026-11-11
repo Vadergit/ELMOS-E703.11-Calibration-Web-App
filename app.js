@@ -62,8 +62,36 @@ if(typeof document!=='undefined') (function UI(){
  async function detect(){const w=await readReg(R_AFE);const g=decodeSafeAFE(w);const a=await readReg(0x2A);st.afe=w;st.staged={...g};st.chip=true;gainSummary();logging(`Chip-Leseantwort: AFE=0x${h(w,2)} ADC_S=${P.sign16(a)}`);await readADC();renderStatus();show('connMsg','Chip-Register über '+(st.iface==='plc'?'1-Wire':st.iface.toUpperCase())+' lesbar. Antworten sind plausibel; ein physischer Hardware-Abnahmetest steht noch aus.','success');step(1);startLive()}
  async function connect(port){if(st.port)throw Error('Es ist bereits ein Port offen');if(st.mode==='demo')exitDemo();if(!navigator.serial||!window.isSecureContext)throw Error('Chrome benötigt Web Serial über HTTPS oder localhost');await port.open({baudRate:Number($('baud').value),dataBits:8,stopBits:1,parity:'none',flowControl:'none'});st.port=port;st.mode='usb';st.firmware='';st.chip=false;st.afe=null;st.boot=null;st.regs={};$('allowRam').checked=false;st.iface=$('iface').value;st.readerPromise=readerLoop(port);renderStatus();show('connMsg','USB offen. Firmware und Chip werden geprüft …');try{await firmware();await selectChipInterface();try{await detect()}catch(e){st.chip=false;logging('Chiptest: '+e.message);show('connMsg','SSP3 erreichbar, aber kein Chipzugriff bestätigt: '+e.message+'. Prüfe Startfenster, Verdrahtung und Schnittstellenwahl.','warn');renderStatus()}}catch(e){logging('Handshake: '+e.message);show('connMsg','USB offen, aber SSP3 antwortet noch nicht korrekt: '+e.message,'warn')};renderStatus()}
  async function disconnect(){if(st.nvmWorking||st.calTask||st.writing){show('connMsg','USB-Trennung während laufender RAM-/NVM-Arbeit gesperrt. Bitte Vorgang beenden.','error');return}stopLive();const p=st.port;if(!p){if(st.mode==='demo')exitDemo();return}st.port=null;st.chip=false;st.mode='offline';st.boot=null;st.afe=null;st.nvmBackup=null;st.nvmBackupVerified=false;st.calImage=null;st.calVerified=false;st.calStaged=false;$('allowRam').checked=false;if(st.responseWait){clearTimeout(st.responseWait.timer);st.responseWait.reject(Error('Port getrennt'));st.responseWait=null}try{await st.reader?.cancel();await st.readerPromise?.catch(()=>{});await p.close()}catch(e){logging('Trennen: '+e.message)}renderStatus()}
- async function choose(){try{let p=await navigator.serial.requestPort();await connect(p)}catch(e){show('connMsg','USB-Portauswahl fehlgeschlagen: '+e.message,'error')}}
- async function auto(){try{const list=await navigator.serial.getPorts();if(!list.length)return show('connMsg','Noch kein Port freigegeben. Klicke zuerst auf «USB-Port auswählen».','warn');let ports=list.filter(x=>x.getInfo?.().usbVendorId===0x0403);let p=ports.length===1?ports[0]:list.length===1?list[0]:null;if(!p)return show('connMsg','Mehrere freigegebene Ports erkannt. Bitte USB-Port manuell auswählen.','warn');await connect(p)}catch(e){show('connMsg','Automatische Verbindung: '+e.message,'error')}}
+ function serialPortInfo(port){
+  let i={};try{i=port?.getInfo?.()||{}}catch(_){}
+  const hex=n=>Number(n).toString(16).padStart(4,'0').toUpperCase();
+  return i.usbVendorId!=null?`USB VID:${hex(i.usbVendorId)} PID:${hex(i.usbProductId??0)}`:'serieller Port';
+ }
+ function serialOpenError(error,port){
+  const original=String(error?.message||error||'Unbekannter Fehler');
+  if(error?.name==='NotFoundError')return 'Die Portauswahl wurde abgebrochen. Es wurde keine Verbindung hergestellt.';
+  if(/Failed to open serial port|access denied|permission denied|busy|resource busy|already open|cannot open/i.test(original)||error?.name==='NetworkError'||error?.name==='InvalidStateError'){
+   return `USB-Port ausgewählt (${serialPortInfo(port)}), aber Windows konnte ihn nicht öffnen. Das liegt meist an einem belegten COM-Port oder am FTDI-VCP-Treiber. 1. Originale PSSC-GUI, Terminalprogramme und andere Chrome-Tabs mit serieller Verbindung schliessen. 2. Windows-Gerätemanager → Anschlüsse (COM & LPT): Das SSP3 muss als USB Serial Port (COMx) ohne Warnsymbol erscheinen. 3. Board kurz aus- und wieder einstecken und «Bekannten Port verbinden» erneut versuchen. Falls kein COM-Port vorhanden ist, FTDI-VCP-Treiber prüfen. Technischer Fehler: ${original}`;
+  }
+  return `USB-Verbindung nicht hergestellt (${serialPortInfo(port)}): ${original}`;
+ }
+ async function choose(){
+  let port;
+  try{port=await navigator.serial.requestPort()}
+  catch(e){show('connMsg',serialOpenError(e,null),e?.name==='NotFoundError'?'warn':'error');return}
+  try{await connect(port)}catch(e){logging('USB öffnen: '+String(e));show('connMsg',serialOpenError(e,port),'error')}
+ }
+ async function auto(){
+  let port;
+  try{
+   const list=await navigator.serial.getPorts();
+   if(!list.length)return show('connMsg','Noch kein Port freigegeben. Klicke zuerst auf «USB-Port auswählen».','warn');
+   const ports=list.filter(x=>x.getInfo?.().usbVendorId===0x0403);
+   port=ports.length===1?ports[0]:list.length===1?list[0]:null;
+   if(!port)return show('connMsg','Mehrere freigegebene Ports erkannt. Bitte USB-Port manuell auswählen.','warn');
+   await connect(port)
+  }catch(e){logging('Bekannten USB-Port öffnen: '+String(e));show('connMsg',serialOpenError(e,port),'error')}
+ }
  function updateADC(a,source){st.adc={...a,source,time:Date.now()};st.trend.push({x:Date.now(),y:a.s});st.trend=st.trend.filter(v=>Date.now()-v.x<60000);st.history.push({time:new Date().toISOString(),adc_s:a.s,adc_t:a.t,adc_tc:a.tc,source,gains:{...st.staged}});if(st.history.length>5000)st.history.shift();$('adc').textContent=fmt(a.s);$('adct').textContent=fmt(a.t);$('adctc').textContent=fmt(a.tc);show('adcMsg',Math.abs(a.s)>25000?'ADC_S liegt ausserhalb des vorsichtigen ±25’000-Arbeitsbereichs. Gain reduzieren oder Offset kontrollieren.':`ADC_S ${fmt(a.s)} Digits · ${source==='demo'?'DEMO / simuliert':'USB / E703.11'} · ${new Date().toLocaleTimeString('de-CH')}`,Math.abs(a.s)>25000?'warn':'success');renderStatus();draw();return a.s}
  async function readADC(){if(st.mode==='demo')return updateADC({s:demoADC(),t:10755,tc:9902},'demo').s;if(!st.chip)throw Error('Chip-Lesezugriff noch nicht bestätigt');let tc=P.sign16(await readReg(0x26)),t=P.sign16(await readReg(0x28)),s=P.sign16(await readReg(0x2A));return updateADC({s,t,tc},'usb').s}
  function startLive(){if(st.live||st.calTask||!(st.chip||st.mode==='demo'))return;st.live=true;st.consecutiveErrors=0;renderStatus();(async function loop(){if(!st.live)return;try{if(!st.writing)await readADC();st.consecutiveErrors=0}catch(e){st.consecutiveErrors++;logging('ADC-Fehler: '+e.message);if(st.consecutiveErrors>=3){stopLive();show('adcMsg','Live-Messung gestoppt: '+e.message,'error');return}}finally{if(st.live)st.timeout=setTimeout(loop,650)}})()}
