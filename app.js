@@ -448,30 +448,19 @@ if(typeof document!=='undefined') (function UI(){
  
  async function capture(which){
   try{
-   if(st.calTask||st.writing||st.nvmWorking)throw Error('Wartungsvorgang läuft');
+   if(st.calTask||st.writing||st.nvmWorking)throw Error('Ein Mess- oder Wartungsvorgang läuft');
    const pmin=Number($('pmin').value),pmax=Number($('pmax').value);
    if(!Number.isFinite(pmin)||!Number.isFinite(pmax)||!(pmax>pmin))throw Error('Unterer und oberer Referenzwert sind ungültig');
    if(st.mode!=='demo'&&!st.chip)throw Error('Keine aktive Chipverbindung');
-   const vals=[];
-   for(let i=0;i<8;i++){
-    if(st.mode==='demo')vals.push({s:demoADC(),t:10755,tc:9902});
-    else vals.push({s:P.sign16(await readReg(0x2A)),t:P.sign16(await readReg(0x28)),tc:P.sign16(await readReg(0x26))});
-    await sleep(65)
-   }
-   const ordered=k=>vals.map(x=>x[k]).sort((a,b)=>a-b);
-   const sortedS=ordered('s'),sortedT=ordered('t'),sortedTC=ordered('tc');
-   const med=x=>(x[3]+x[4])/2,sp=sortedS[7]-sortedS[0];
-   if(sp>350)throw Error('ADC_S streut zu stark ('+sp+' Digits). Druck stabilisieren und erneut messen');
    const p=which==='lo'?pmin:pmax,name=pointName(which),at=new Date().toISOString(),temperature=Number($(which==='lo'?'calLoTemp':'calHiTemp').value);
    if(!Number.isFinite(temperature)||temperature< -40||temperature>125)throw Error('Referenztemperatur ausserhalb −40 bis 125 °C');
-   const record={kind:which,name,pressure:p,temperature,adc_s:med(sortedS),adc_t:med(sortedT),adc_tc:med(sortedTC),at,gains:{...st.staged},spread:sp,unit:pressureUnit()};
+   const samples=await measureCalibrationSamples(name);
+   const record={kind:which,name,pressure:p,temperature,...samples,at,gains:{...st.staged},unit:pressureUnit()};
    st.points[which]={v:record.adc_s,pressure:p,unit:record.unit,name,gains:{...st.staged},at};
    addCalPoint(record);
-   $(which==='lo'?'lowVal':'highVal').textContent=name+' · ADC_S '+fmt(record.adc_s)+' · ADC_T '+fmt(record.adc_t)+' · Streuung '+sp;
    refreshPoints()
   }catch(e){show('calMsg','Messung fehlgeschlagen: '+e.message,'error')}
  }
-
  
  function refreshPoints(){
   const a=st.points.lo,b=st.points.hi;
@@ -498,7 +487,7 @@ if(typeof document!=='undefined') (function UI(){
 
  function draw(){const c=$('chart');if(!c||c.closest('[hidden]'))return;const d=window.devicePixelRatio||1,w=Math.round(c.clientWidth*d),h=Math.round(c.clientHeight*d);if(w<20)return;if(c.width!==w||c.height!==h){c.width=w;c.height=h}const g=c.getContext('2d');g.clearRect(0,0,w,h);const x0=55*d,y0=10*d,yh=h-20*d,y=v=>y0+(32768-v)/65536*(yh-y0);g.font=`${11*d}px sans-serif`;for(const v of [25000,0,-25000]){g.beginPath();g.strokeStyle=v?'#e3c9aa':'#d7e4ef';g.setLineDash(v?[5*d,4*d]:[]);g.moveTo(x0,y(v));g.lineTo(w-8*d,y(v));g.stroke();g.setLineDash([]);g.fillStyle='#74849a';g.fillText((v>0?'+':'')+v,5*d,y(v)+4*d)}if(st.trend.length<1)return;const left=Date.now()-60000,x=t=>x0+(w-x0-10*d)*Math.max(0,Math.min(1,(t-left)/60000));g.beginPath();g.strokeStyle='#2867a6';g.lineWidth=2*d;st.trend.forEach((p,i)=>i?g.lineTo(x(p.x),y(p.y)):g.moveTo(x(p.x),y(p.y)));g.stroke()}
  function download(name,txt,mime='application/json'){let b=new Blob([txt],{type:mime}),u=URL.createObjectURL(b),a=document.createElement('a');a.href=u;a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(u),2000)}
- const report=()=>({tool:'ELMOS E703.11 Chrome v8 / SSP3 Zelos Protocol',created:new Date().toISOString(),connection:st.port?'USB':'offline/demo',hardwareValidated:false,unit:pressureUnit(),pointNames:{lower:pointName('lo'),upper:pointName('hi')},interface:st.iface,firmware:st.firmware,bootProtection:'Boot-/Werks-NVM-Schreiben gesperrt; kalibrierungsbezogenes User-NVM mit Bestätigung freigegeben',ramWriteActive:!!st.ramWriteScope,registers:st.regs,bootSnapshot:st.boot,chipUID:st.uid?.hex||null,expertOutput:st.expertOutputPlan,AFE:st.afe,gains:st.staged,low:st.points.lo,high:st.points.hi,verification:st.verify,calibrationPoints:st.calpoints,plannedCalibrationPointCount:calibrationPointCount(),requestedDSPOutputLimit:Number($('calDspLimit').value),coefficientFit:st.calfit,calRamVerified:st.calVerified,lastDSP:st.dsp,displayRange:getActiveDSPRange(),nvmState:{backupVerified:st.nvmBackupVerified,programmed:st.nvmDone},samples:st.history.slice(-1500),trace:st.log});
+ const report=()=>({tool:'ELMOS E703.11 Chrome v8 / SSP3 Zelos Protocol',created:new Date().toISOString(),connection:st.port?'USB':'offline/demo',hardwareValidated:false,unit:pressureUnit(),pointNames:{lower:pointName('lo'),upper:pointName('hi')},interface:st.iface,firmware:st.firmware,bootProtection:'Boot-/Werks-NVM-Schreiben gesperrt; kalibrierungsbezogenes User-NVM mit Bestätigung freigegeben',ramWriteActive:!!st.ramWriteScope,registers:st.regs,bootSnapshot:st.boot,chipUID:st.uid?.hex||null,expertOutput:st.expertOutputPlan,AFE:st.afe,gains:st.staged,low:st.points.lo,high:st.points.hi,verification:st.verify,calibrationPoints:st.calpoints,plannedCalibrationPointCount:calibrationPointCount(),requestedSamplesPerPoint:Number($('calSampleCount').value),requestedDSPOutputLimit:Number($('calDspLimit').value),coefficientFit:st.calfit,calRamVerified:st.calVerified,lastDSP:st.dsp,displayRange:getActiveDSPRange(),nvmState:{backupVerified:st.nvmBackupVerified,programmed:st.nvmDone},samples:st.history.slice(-1500),trace:st.log});
 
  // ============ Kalibrierung + NVM (AN0203 / AN0204 / Datasheet 2023) ============
  const ca=(id,msg,type='')=>show(id,msg,type);
@@ -523,22 +512,18 @@ if(typeof document!=='undefined') (function UI(){
   try{
    const count=calibrationPointCount();
    if(!Number.isFinite(count)||!Number.isInteger(slot)||slot<1||slot>count-2)throw Error('Messpunkt für die gewählte Anzahl nicht aktiv');
-   if(st.calTask||st.writing||st.nvmWorking)throw Error('Wartungsvorgang läuft');
+   if(st.calTask||st.writing||st.nvmWorking)throw Error('Ein Mess- oder Wartungsvorgang läuft');
    const pr=Number($('calExtra'+slot+'Pressure').value),t=Number($('calExtra'+slot+'Temp').value),lo=Number($('pmin').value),hi=Number($('pmax').value);
    if(!Number.isFinite(pr)||pr<lo||pr>hi||!Number.isFinite(t)||t< -40||t>125)throw Error('Referenzwert oder Temperatur ungültig');
    if(st.mode!=='demo'&&!st.chip)throw Error('Kein Chip verbunden');
-   const samples=[];for(let i=0;i<12;i++){
-    if(st.mode==='demo')samples.push({s:demoADC(),t:10755,tc:9902});
-    else samples.push({s:P.sign16(await readReg(0x2A)),t:P.sign16(await readReg(0x28)),tc:P.sign16(await readReg(0x26))});
-    await sleep(60)
-   }
-   const median=k=>samples.map(x=>x[k]).sort((a,b)=>a-b)[5],spread=k=>Math.max(...samples.map(x=>x[k]))-Math.min(...samples.map(x=>x[k]));
-   if(spread('s')>350)throw Error('ADC_S streut zu stark – Druck stabilisieren');
    const name=$('calExtra'+slot+'Name').value.trim()||'Messpunkt '+(slot+1);
-   addCalPoint({kind:'extra',slot,name,pressure:pr,unit:pressureUnit(),temperature:t,adc_s:median('s'),adc_t:median('t'),adc_tc:median('tc'),at:new Date().toISOString(),gains:{...st.staged},spread:spread('s')});
-   ca('calPointsMsg','Messpunkt '+(slot+1)+' aufgenommen.','success');refreshPoints()
+   const samples=await measureCalibrationSamples(name);
+   addCalPoint({kind:'extra',slot,name,pressure:pr,unit:pressureUnit(),temperature:t,...samples,at:new Date().toISOString(),gains:{...st.staged}});
+   ca('calPointsMsg','Messpunkt '+(slot+1)+' mit '+samples.sampleCount+' Samples aufgenommen.','success');
+   refreshPoints()
   }catch(e){ca('calPointsMsg','Messpunkt '+(slot+1)+': '+e.message,'error')}
  }
+ 
  function calcCoefficients(){
   try{
    if(st.calTask||st.writing||st.nvmWorking)throw Error('Es läuft ein anderer Vorgang');
@@ -798,6 +783,17 @@ if(typeof document!=='undefined') (function UI(){
  }
  renderDSPLive();
  // controls
+ const savedSampleCount=Number(lsGet('elmos-cal-sample-count-v1'));
+ if(Number.isInteger(savedSampleCount)&&savedSampleCount>=1&&savedSampleCount<=100)$('calSampleCount').value=String(savedSampleCount);
+ $('calSampleCount').addEventListener('change',()=>{
+  try{
+   const count=chosenCalibrationSamples();
+   lsSet('elmos-cal-sample-count-v1',String(count));
+   ca('calPointsMsg','Ab der nächsten Aufnahme werden '+count+' Samples pro Messpunkt erfasst. Bereits aufgenommene Messpunkte bleiben unverändert.','success')
+  }catch(e){
+   ca('calPointsMsg',e.message,'error')
+  }
+ });
  $('calPointCount').addEventListener('change',()=>{
   if(st.calTask||st.writing||st.nvmWorking){show('calPointPlanMsg','Anzahl während laufender Wartung nicht ändern.','error');return}
   erasePoints();
