@@ -79,7 +79,10 @@ const ELMOS_EXPERT=(()=>{
    return names[i]||factory[i]||(i>=35&&i<=50?'S'+(i-35):i>=51&&i<=54?'T'+(i-51):'CM_W'+i);
   }
   function refreshEEPROMViewer(){
-   const valid=!!(st.nvmBackupVerified&&Array.isArray(st.nvmBackup)&&st.nvmBackup.length===64);
+   // Never show cached EEPROM words as if they belong to a newly connected chip.
+   const valid=!!(st.mode==='usb'&&st.port&&st.chip&&st.uid&&st.nvmBackupVerified&&
+    Array.isArray(st.nvmBackup)&&st.nvmBackup.length===64&&
+    st.uid.ser0===st.nvmBackup[0]&&st.uid.ser1===st.nvmBackup[1]);
    const rows=$('eepromRows'),filter=($('eepromSearch').value||'').trim().toLowerCase();
    rows.replaceChildren();
    $('eepromExport').disabled=!valid||!st.uid;
@@ -139,7 +142,7 @@ const ELMOS_EXPERT=(()=>{
     refreshEEPROMViewer();
     if(!ok)show('eepromStatus','EEPROM-Lesen fehlgeschlagen. Bitte Chipverbindung und Diagnoselog kontrollieren.','error');
    }catch(e){show('eepromStatus','EEPROM-Lesen fehlgeschlagen: '+e.message,'error');show('expertRestoreMsg','EEPROM-Lesen fehlgeschlagen: '+e.message,'error')}
-   finally{$('eepromRead').disabled=false;}
+   finally{$('eepromRead').disabled=!st.port||!st.chip||st.calTask||st.writing||st.nvmWorking;}
   }
   async function readRegisters(){
    const addrs=[0,2,4,6,8,10,12,14,16,18,20,22,24,26,28,30,0x26,0x28,0x2A,0x2C,0x30,0x32,0x38,0x46,0x50,0x52,0x6A,0x6C,0x6E,0x70,0x72,0x9C,0x9E,0xA0,0xA2,0xA4,0xA6,0xA8,0xAA];
