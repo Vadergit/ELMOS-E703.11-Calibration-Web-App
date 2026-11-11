@@ -251,7 +251,7 @@ button.danger{background:#9e3e34;border-color:#9e3e34;color:#fff}button.danger:h
 .output-subheading{margin-top:15px}
 @media(max-width:700px){.output-grid,.output-grid-3,.output-errors{grid-template-columns:1fr}.output-heading{align-items:flex-start;flex-wrap:wrap}.output-endpoint-head,.output-endpoint-row{grid-template-columns:32px 1fr 1fr 1.4fr;gap:5px}.output-endpoint-row{padding:8px 4px}.output-endpoint-row input{padding:6px 4px}.output-section{padding:11px}}
 </style></head><body><div class="wrap"><header class="top">
-<div class="brand"><div class="logo">E</div><div><div class="eyebrow">E703.11 · PSSC · v0.3.1</div><h1>Kalibrierassistent</h1></div></div>
+<div class="brand"><div class="logo">E</div><div><div class="eyebrow">E703.11 · PSSC · v0.3.2</div><h1>Kalibrierassistent</h1></div></div>
 <div class="live-overview" role="group" aria-label="Sensorwerte · laufende Anzeige">
   <div class="live-kpi" title="Unkompensierter Druck-ADC. Warnung bei Beträgen über 25’000 Digits."><span class="live-kpi-label">ADC_S <span id="liveAdcAlert" class="live-alert" hidden>!</span></span><span class="live-kpi-reading" id="liveAdcS">—</span><span class="live-kpi-unit">Digits</span></div>
   <div class="live-kpi" title="ADC_T · Temperatur-Rohwert, keine direkte Temperatur in °C."><span class="live-kpi-label">ADC_T</span><span class="live-kpi-reading" id="liveAdcT">—</span><span class="live-kpi-unit">Digits</span></div>
@@ -555,8 +555,8 @@ button.danger{background:#9e3e34;border-color:#9e3e34;color:#fff}button.danger:h
         <option value="1">Analog Ratiometric 0..5 V</option>
         <option value="4">PWM</option>
         <option value="5">FM</option>
-        <option value="0">Disabled (HighZ)</option>
-        <option value="6">ALARM / End of Conversion</option>
+        <option value="0" disabled>Disabled (HighZ) · für 1-Wire-Startschutz gesperrt</option>
+        <option value="6" disabled>ALARM / End of Conversion · für 1-Wire-Startschutz gesperrt</option>
         <optgroup label="Weitere ratiometrische DAC-Korrekturen">
           <option value="2">Analog Ratiometric 0..5 V · DAC Correction 1</option>
           <option value="3">Analog Ratiometric 0..5 V · DAC Correction 2</option>
@@ -571,22 +571,24 @@ button.danger{background:#9e3e34;border-color:#9e3e34;color:#fff}button.danger:h
     <label id="expertPwmPeriodField" hidden>PWM Period (2–65’535 Takte)<input id="expertPwmPeriod" type="number" min="2" max="65535" step="1" value="16384"></label>
   </div>
   <p id="outputModeHint" class="muted small" role="status" aria-live="polite">Ausgangstyp wählen. Noch keine Änderung am Chip.</p>
+  <div id="psscCurrentOutputStatus" class="callout">Aktuelle Chip-Ausgangseinstellungen können beim Verbinden ausgelesen werden. Die gewünschten Zielspannungen S0/S1 bleiben davon unabhängig.</div>
 </section>
 
 <section class="output-section" aria-labelledby="scalingTitle">
   <div class="output-heading"><h3 id="scalingTitle">Scaling</h3><span class="output-tag">S0 / S1 wie in PSSC</span></div>
   <label class="toggle"><input id="expertScaleEnable" type="checkbox"> <strong>scale_en · Ausgangsskalierung aktivieren</strong></label>
-  <p class="muted small">Für <b>Analog Ratiometric 0..5 V</b> wählst du die gewünschten Spannungen bei 0 % und 100 % Sensorausgang. Gain und Offset werden daraus automatisch berechnet und erst im NVM-Schritt gespeichert.</p>
+  <p class="muted small">Für <b>Analog Ratiometric 0..5 V</b> sind <strong>S0 = 10 % VDD</strong> und <strong>S1 = 90 % VDD</strong> voreingestellt (bei 5 V: 0.5 V und 4.5 V). Diese Werte sind <strong>Zielspannungen</strong>, keine aus dem Chip gelesenen Werte. Gain und Offset werden automatisch berechnet; das Auslesen der Chipregister verändert S0/S1 nicht.</p>
   <div id="psscAnalogFields">
     <div class="output-grid">
       <label>VDD (V) · nur für Vorschau<input id="psscVdd" type="number" min="2.7" max="5.5" step="0.1" value="5"></label>
       <label>DSP_S · Zielbereich (± Digits)<input id="psscOutputLimit" type="text" value="±32’000" readonly></label>
     </div>
     <p id="psscScalingSource" class="muted small">Der DSP-Endwert wird automatisch aus der Kalibrierung übernommen. ADC_S ist davon unabhängig.</p>
+    <div class="flex"><button type="button" id="psscDefaultScaling">Standard 10–90 % VDD einsetzen</button></div>
     <div class="output-endpoint-head"><span>Scaling</span><span>DSP_S</span><span>sensor value</span><span>Ausgang</span></div>
     <div class="output-endpoint-row"><strong>S0</strong><output id="psscDspS0">−32’000</output><span>0.0000 %</span><label><input id="psscS0" type="number" step="0.001" min="0" max="5.5" value="0.5" aria-label="Ausgang S0 in Volt"> V</label></div>
     <div class="output-endpoint-row"><strong>S1</strong><output id="psscDspS1">+32’000</output><span>100.0000 %</span><label><input id="psscS1" type="number" step="0.001" min="0" max="5.5" value="4.5" aria-label="Ausgang S1 in Volt"> V</label></div>
-    <div id="psscScalingPreview" class="output-preview" aria-live="polite">S0 und S1 wählen, um die quantisierte Ausgangsspanne zu berechnen.</div>
+    <div id="psscScalingPreview" class="output-preview" aria-live="polite">Standard 10–90 % VDD (bei 5 V: 0.5–4.5 V) wird berechnet.</div>
   </div>
   <details class="output-detail"><summary>Erweitert · AODO_F (Gain) und AODO_O (Offset)</summary><div class="inner">
     <p class="muted small">Die beiden 16-Bit-Q3.12-Register skalieren und verschieben DSP_S. Bei einer analogen Einstellung werden sie automatisch aus S0/S1 berechnet. Nur für Spezialabgleiche von Hand ändern.</p>
@@ -694,5 +696,5 @@ button.danger{background:#9e3e34;border-color:#9e3e34;color:#fff}button.danger:h
 </div>
 <div class="nav"><button data-next="5">Zur Ausgangskonfiguration</button><button data-next="0">Zum USB-Start</button></div>
 </section>
-<div class="foot"><b>Version v0.3.1</b> · <a href="CHANGELOG.md" target="_blank" rel="noopener">Änderungsverlauf</a> · ELMOS E703.11 · unabhängiger Kalibrierprototyp · Sicherheitsprinzip: Factory- und Kommunikations-Bootregister gesperrt; dokumentierte AODO-Ausgangsoptionen nur nach Prüfung im NVM-Plan; Wiederherstellung nur mit passender Chip-UID.</div>
+<div class="foot"><b>Version v0.3.2</b> · <a href="CHANGELOG.md" target="_blank" rel="noopener">Änderungsverlauf</a> · ELMOS E703.11 · unabhängiger Kalibrierprototyp · Sicherheitsprinzip: Factory- und Kommunikations-Bootregister gesperrt; dokumentierte AODO-Ausgangsoptionen nur nach Prüfung im NVM-Plan; Wiederherstellung nur mit passender Chip-UID.</div>
 </main></div></div><div id="tip" class="tooltip"></div><script src="calibration.js?v=0.2.1"></script><script src="expert.js?v=0.2.1"></script><script src="app.js?v=0.2.1"></script></body></html>
