@@ -75,7 +75,8 @@ test('PSSC UI separates supported and unsupported output modes',()=>{
  assert.ok(html.includes('Analog Absolute 0..10 V · nicht E703.11'));
  assert.ok(html.includes('value="abs10" disabled'));
  assert.ok(html.includes('value="loop420" disabled'));
- assert.ok(html.includes('value="onewire" disabled'));
+ assert.ok(html.includes('value="onewire"'));
+ assert.ok(!html.includes('value="onewire" disabled'));
  assert.equal(html.split('id="expertScaleGain"').length-1,1);
  assert.equal(html.split('id="expertScaleOffset"').length-1,1);
 });
@@ -136,4 +137,28 @@ test('5V standard target 0.5 to 4.5 V stays independent of chip readback',()=>{
  assert.ok(identify.includes('refreshOutputReadOnly()'));
  assert.ok(!identify.includes("$('psscS0').value="));
  assert.ok(!identify.includes("$('psscS1').value="));
+});
+
+test('One Wire only: permanently active PLC is selectable without NVM changes',()=>{
+ const before=safeNvm();
+ const info=CAL.oneWireOnlyStatus(before);
+ assert.equal(info.ok,true);
+ assert.equal(info.permanent,true);
+ const after=CAL.prepareOutputConfig(before,{mode:'onewire',scaleEnabled:false,gain:0,offset:0,pwmPeriod:16384},25000);
+ assert.deepEqual(after,before);
+});
+test('One Wire only: boot timing window cannot masquerade as permanent PLC',()=>{
+ const before=safeNvm();before[17]&=~4;before[18]=2<<12;
+ assert.equal(CAL.oneWireStartupStatus(before).ok,true);
+ const oneWireOnly=CAL.oneWireOnlyStatus(before);
+ assert.equal(oneWireOnly.ok,false);
+ assert.throws(()=>CAL.prepareOutputConfig(before,{mode:'onewire',scaleEnabled:false},25000),/One Wire only nicht verfügbar/);
+});
+test('One Wire only: read-only status and protected mode selection in UI',()=>{
+ const html=read('index.html'),src=read('expert.js');
+ assert.ok(html.includes('id="psscOneWireOnlyStatus"'));
+ assert.ok(html.includes('id="psscScalingSection"'));
+ assert.ok(src.includes('CAL.oneWireOnlyStatus(st.nvmBackup)'));
+ assert.ok(src.includes('st.expertOutputPlan={mode:\'onewire\'}'));
+ assert.ok(src.includes("$('psscScalingSection').hidden=mode==='onewire'"));
 });
