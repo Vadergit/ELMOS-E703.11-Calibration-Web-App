@@ -32,6 +32,8 @@ if(typeof document!=='undefined') (function UI(){
  const REG_NAMES={4:'CFG_EN',6:'CFG_SPI_I2C',8:'CFG_PADS0',10:'CFG_PADS1',12:'CFG_PADS2',16:'CFG_AODO',0x14:'CFG_ADC',0x16:'CFG_LP0',0x18:'CFG_LP1',0x1A:'CFG_AFE0',0x1C:'CFG_AFE1',0x1E:'CFG_AFE2',0x26:'ADC_TC',0x28:'ADC_T',0x2A:'ADC_S'};
  const st={mode:'offline',port:null,reader:null,readerPromise:null,cmdQueue:Promise.resolve(),replyBuffer:'',responseWait:null,iface:'plc',adapterKind:'ssp3',firmware:'',chip:false,boot:null,afe:null,staged:{pga1:0,pga2:0,offset:0},adc:null,dsp:null,dspError:null,liveReadPromise:null,trend:[],history:[],log:[],regs:{},points:{lo:null,hi:null},verify:null,live:false,manualLivePause:false,timeout:null,consecutiveErrors:0,writing:false,pressure:5,calpoints:[],calfit:null,calImage:null,nvmBackup:null,nvmBackupVerified:false,calStaged:false,calVerified:false,calValidation:[],calTask:false,nvmWorking:false,nvmDone:false,afeWriteActive:false,ramWriteScope:null,uid:null,expertOutputPlan:null,restorePlan:null,outputOnlyPlan:null,uidShownForInput:null,profilePendingAFE:null};
  let currentStep=0,pendingGain=null,writeTimer=null;let tipEnabled=true,liveIntervalMs=650;
+ // UI-only demo state, never a physical RAM/EEPROM confirmation.
+ let demoTemperature=25,demoRamStaged=false,demoValidation=[],demoVerified=false,demoCompleted=false;
  const HELP={interface:'Schnittstelle zwischen SSP3-Board und Sensorchip. 1-Wire nutzt AODO (VDD, GND und AODO). Die Einstellung IF_CFG ändert die Programmer-Pins, nicht die NVM-Konfiguration des Sensors.',baud:'Baudrate des USB-UART zwischen Chrome und dem SSP3. Die Herstellersoftware verwendet 115200 Baud als Standard.',adcs:'ADC_S ist der unkompensierte 16-Bit-Druck-ADC. ±25000 Digits ist ein vorsichtiges Ziel für den manuellen Abgleich, keine garantierte Hardwaregrenze.',dsp_live:'DSP_S (Register 0x30) ist der skalierte DSP-Sensorausgang. Die Anzeige liest den Chipwert wiederholt und rechnet ihn mit dem konfigurierten DSP-Endwert (standardmässig ±32’000 Digits) in den gewählten Anzeigebereich um. Ein DSP-Wert allein belegt keine gültige Kalibrierung.',pga1:'Erste Druckverstärkungsstufe: 3.5×, 6×, 8.5× oder 11× (typische Werte laut Datenblatt 2023). Für gutes SNR möglichst hoch ohne Übersteuerung.',pga2:'Zweite Verstärkungsstufe: typische Faktoren 2× bis 10×. Der Gesamtfaktor ist PGA1 × PGA2.',offset:'17 DAC-Stufen von −400 bis +400 mV/V bezogen auf die Brückenspannung. Die Verschiebung liegt zwischen PGA1 und PGA2.',pressureunit:'Einheit für die Referenz- und Prüfdruckwerte. Für relative Kalibrierungen kann beispielsweise % mit 0 bis 100 gewählt werden. Referenzwerte müssen zum tatsächlichen Prüfstand passen. Einheitenwechsel erfordert neue Messpunkte.',dsp_limit:'Symmetrischer DSP-Endwert für die neue Kalibrierung. Standard ±32’000 Digits. ±30’000 lässt zusätzlich Reserve. Der Wert verändert die berechneten Koeffizienten sowie DSP-Soll und Fehlerumrechnung; er ist keine Hardware-Clipping-Grenze.',ram:'PGA1, Offset und PGA2 werden mit jeder Pfeiltaste sofort ausschliesslich in CFG_AFE1 0x1C im RAM geändert und rückgelesen. Kein NVM-/EEPROM-Schreiben. Boot-/Kommunikationsregister werden kontrolliert.',};
  const h=P.hx;
  const fmt=n=>n===null||n===undefined||!Number.isFinite(n)?'—':Math.round(n).toLocaleString('de-CH');
@@ -72,7 +74,7 @@ if(typeof document!=='undefined') (function UI(){
    st.staged=target;
    erasePoints();
    gainSummary();
-   updateADC({s:demoADC(),t:10755,tc:9902},'demo');
+   updateADC({s:demoADC(),t:P.sign16(demoRead(0x28)),tc:P.sign16(demoRead(0x26))},'demo');
    show('writeMsg','DEMO: '+k.toUpperCase()+' angepasst. Simulierter ADC_S sofort aktualisiert; keine Hardwarebefehle.','warn');
    return
   }
@@ -227,7 +229,7 @@ if(typeof document!=='undefined') (function UI(){
    const values=[];
    for(let i=0;i<required;i++){
     const value=st.mode==='demo'?
-     {s:demoADC(),t:10755,tc:9902}:
+     {s:demoADC(),t:P.sign16(demoRead(0x28)),tc:P.sign16(demoRead(0x26))}:
      {s:P.sign16(await readReg(0x2A)),t:P.sign16(await readReg(0x28)),tc:P.sign16(await readReg(0x26))};
     values.push(value);
     progress.textContent=label+': '+(i+1)+' / '+required+' Samples aufgenommen';
@@ -537,7 +539,7 @@ if(typeof document!=='undefined') (function UI(){
  async function readADC(){
   if(st.mode==='demo'){
    updateDSP(P.sign16(demoRead(0x30)),'demo');
-   return updateADC({s:demoADC(),t:10755,tc:9902},'demo').s
+   return updateADC({s:demoADC(),t:P.sign16(demoRead(0x28)),tc:P.sign16(demoRead(0x26))},'demo').s
   }
   if(!st.chip)throw Error('Chip-Lesezugriff noch nicht bestätigt');
   const tc=P.sign16(await readReg(0x26)),t=P.sign16(await readReg(0x28)),s=P.sign16(await readReg(0x2A));
@@ -570,10 +572,95 @@ if(typeof document!=='undefined') (function UI(){
   })()
  }
  function stopLive(){st.live=false;clearTimeout(st.timeout);st.timeout=null;renderStatus()}
- function demoADC(){const g=st.staged;return Math.max(-32768,Math.min(32767,Math.round((st.pressure-5)*750*(GAINS1[g.pga1]/3.5)*(GAINS2[g.pga2]/2)+g.offset*950+(Math.random()-.5)*28)))}
- function demoRead(addr){if(addr===0x1C)return P.encAFE(0x0800,st.staged);if(addr===0x2A)return demoADC()&65535;if(addr===0x28)return 10755;if(addr===0x26)return 9902;if(addr===0x30){const lim=getActiveDSPRange()?.limit??32000;return Math.max(-32768,Math.min(32767,Math.round((st.pressure/10)*2*lim-lim)))&65535;}const fixed={4:0x0200,6:0x0006,8:0x0100,10:0x0980,12:0,16:0};return fixed[addr]??0}
- function exitDemo(){stopLive();st.mode='offline';st.chip=false;st.afe=null;st.boot=null;st.regs={};st.afeWriteActive=false;st.ramWriteScope=null;st.points={lo:null,hi:null};st.calpoints=[];st.calfit=null;st.calImage=null;st.nvmBackup=null;st.dsp=null;st.adc=null;st.manualLivePause=false;st.calStaged=false;st.nvmDone=false;$('demo').textContent='Demo starten';$('demoPressurePanel').hidden=true;renderStatus()}
- function demo(){if(st.port)return show('connMsg','USB zuerst trennen, um die Demo zu starten.','warn');if(st.mode==='demo'){exitDemo();return}st.mode='demo';st.firmware='DEMO';st.chip=false;st.staged={pga1:1,pga2:3,offset:0};st.pressure=5;st.points={lo:null,hi:null};st.calpoints=[];st.calfit=null;st.calImage=null;st.nvmBackup=null;st.dsp=null;st.adc=null;st.manualLivePause=false;st.calStaged=false;st.nvmDone=false;gainSummary();$('demo').textContent='Demo beenden';$('demoPressurePanel').hidden=false;show('connMsg','DEMO aktiv: alle ADC-Werte sind simuliert. Es werden keine Hardwarebefehle gesendet.','warn');step(1);startLive();renderStatus()}
+ function demoADC(){
+  const g=st.staged,lo=Number($('pmin').value),hi=Number($('pmax').value);
+  const norm=Number.isFinite(lo)&&Number.isFinite(hi)&&hi>lo?
+    (st.pressure-lo)/(hi-lo)-.5:st.pressure/10-.5;
+  const gain=(GAINS1[g.pga1]/3.5)*(GAINS2[g.pga2]/2);
+  // Software fixture only: realistic ADC range, small temperature drift and noise.
+  // This is NOT an electrical/thermal model or a valid sensor test.
+  return Math.max(-32768,Math.min(32767,Math.round(
+   norm*9000*gain+(demoTemperature-25)*11+g.offset*950+(Math.random()-.5)*8)));
+ }
+ function demoRead(addr){
+  if(addr===0x1C)return P.encAFE(0x0800,st.staged);
+  if(addr===0x2A)return demoADC()&65535;
+  if(addr===0x28)return Math.round((demoTemperature-25)*180)&65535;
+  if(addr===0x26)return Math.round((demoTemperature-25)*150)&65535;
+  if(addr===0x30){
+   const lim=getActiveDSPRange()?.limit??32000;
+   const lo=Number($('pmin').value),hi=Number($('pmax').value);
+   const ratio=hi>lo?(st.pressure-lo)/(hi-lo):st.pressure/10;
+   return Math.max(-32768,Math.min(32767,Math.round((ratio*2-1)*lim)))&65535
+  }
+  const fixed={4:0x0200,6:0x0006,8:0x0100,10:0x0980,12:0,16:0};
+  return fixed[addr]??0
+ }
+ function demoSetpoint(pressure,temperature){
+  if(st.mode!=='demo'||st.port)throw Error('Nur im hardwarefreien Demo-Modus erlaubt');
+  const p=Number(pressure),t=Number(temperature),lo=Number($('pmin').value),hi=Number($('pmax').value);
+  if(!Number.isFinite(p)||!Number.isFinite(t)||!(hi>lo)||p<lo||p>hi||t< -40||t>125)
+   throw Error('Simulierter Druck/Temperatur ausserhalb des geplanten Bereichs');
+  st.pressure=p;demoTemperature=t;
+  const slider=$('demoPressure');slider.min=String(lo);slider.max=String(hi);slider.step=String(Math.max((hi-lo)/1000,.001));slider.value=String(p);
+  $('demoPressureVal').textContent=p.toFixed(3);
+  updateADC({s:demoADC(),t:P.sign16(demoRead(0x28)),tc:P.sign16(demoRead(0x26))},'demo');
+  return {pressure:p,temperature:t}
+ }
+ function resetDemoChecks(){
+  demoRamStaged=false;demoValidation=[];demoVerified=false;demoCompleted=false
+ }
+ function demoStageCalibration(){
+  if(st.mode!=='demo'||st.port)throw Error('Demo-RAM-Übernahme ist nur ohne Hardware erlaubt');
+  if(!st.calfit||!coefficientSettingsCurrent()||!calEndpointsReady())throw Error('Zuerst alle Messpunkte aufnehmen und Koeffizienten berechnen');
+  resetDemoChecks();demoRamStaged=true;
+  show('calRamStageMsg','DEMO: Virtuelle RAM-Übernahme bestätigt. Kein Chip oder RAM wurde beschrieben.','success');
+  return true
+ }
+ function demoVerifyCalibration(pressure,temperature){
+  if(st.mode!=='demo'||st.port||!demoRamStaged||!coefficientSettingsCurrent())throw Error('Demo-Prüfung erfordert eine zuvor simulierte RAM-Übernahme');
+  const p=Number(pressure),t=Number(temperature),lo=Number($('pmin').value),hi=Number($('pmax').value);
+  if(!(p>lo&&p<hi)||!Number.isFinite(t))throw Error('Prüfdruck muss innerhalb des Druckbereichs liegen');
+  const required=verificationRequiredCount();
+  if(!Number.isFinite(required))throw Error('Ungültige Anzahl Prüfpunkte');
+  demoSetpoint(p,t);
+  if(demoValidation.some(v=>Math.abs(v.pressure-p)<(hi-lo)*.1))throw Error('Prüfdrücke müssen sich ausreichend unterscheiden');
+  demoValidation.push({pressure:p,temperature:t,observedDSP:P.sign16(demoRead(0x30))});
+  const enoughTemps=Number($('calTOrder').value)===0||(
+   new Set(demoValidation.map(v=>v.temperature)).size>=Math.min(2,required));
+  demoVerified=demoValidation.length>=required&&enoughTemps;
+  show('calRamMsg','DEMO: '+demoValidation.length+'/'+required+' unabhängige Prüfpunkte simuliert. '+(demoVerified?'Alle Demo-Prüfungen abgeschlossen.':'Weitere Prüfungen nötig.')+' Kein Hardwaretest.','success');
+  $('calVerifyList').textContent=demoValidation.map((v,i)=>'DEMO '+(i+1)+': '+v.pressure+' '+pressureUnit()+' bei '+v.temperature+' °C; simulierte DSP_S '+v.observedDSP).join('\n');
+  return {done:demoValidation.length,required,verified:demoVerified}
+ }
+ function demoCompleteWizard(){
+  if(st.mode!=='demo'||st.port||!demoVerified)throw Error('Erst alle simulierten Prüfpunkte abschliessen');
+  demoCompleted=true;
+  show('nvmMsg','DEMO abgeschlossen: Die NVM-Programmierung wurde nur als Bedienablauf simuliert. Kein Chip, RAM oder EEPROM beschrieben.','success');
+  return true
+ }
+ function exitDemo(){
+  stopLive();resetDemoChecks();demoTemperature=25;
+  st.mode='offline';st.chip=false;st.afe=null;st.boot=null;st.regs={};
+  st.afeWriteActive=false;st.ramWriteScope=null;st.points={lo:null,hi:null};
+  st.calpoints=[];st.calfit=null;st.calImage=null;st.nvmBackup=null;
+  st.dsp=null;st.adc=null;st.manualLivePause=false;st.calStaged=false;
+  st.nvmDone=false;$('demo').textContent='Demo starten';
+  $('demoPressurePanel').hidden=true;renderStatus()
+ }
+ function demo(){
+  if(st.port)return show('connMsg','USB zuerst trennen, um die Demo zu starten.','warn');
+  if(st.mode==='demo'){exitDemo();return}
+  st.mode='demo';st.firmware='DEMO';st.chip=false;
+  st.staged={pga1:1,pga2:3,offset:0};st.pressure=5;demoTemperature=25;resetDemoChecks();
+  st.points={lo:null,hi:null};st.calpoints=[];st.calfit=null;st.calImage=null;st.nvmBackup=null;
+  st.dsp=null;st.adc=null;st.manualLivePause=false;st.calStaged=false;st.nvmDone=false;
+  gainSummary();$('demo').textContent='Demo beenden';
+  $('demoPressurePanel').hidden=false;
+  $('demoPressure').min=String($('pmin').value);$('demoPressure').max=String($('pmax').value);
+  show('connMsg','DEMO aktiv: Druck, Temperatur und DSP sind simuliert. Es werden keine Hardwarebefehle gesendet.','warn');
+  step(1);startLive();renderStatus()
+ }
  async function bootSnapshot(){if(!(st.chip||st.mode==='demo'))throw Error('Chip nicht verbunden');const out={};for(const a of LOCKED)out[a]=await readReg(a);return out}
  function bootString(b){return LOCKED.map(a=>`${REG_NAMES[a]} 0x${h(a)} = 0x${h(b[a],2)} · gesperrt`).join('\n')}
  async function readBoot(){try{const a=await bootSnapshot(),b=await bootSnapshot();if(!sameBoot(a,b))throw Error('Bootregister nicht stabil');st.boot=a;$('regdump').textContent=bootString(a);show('bootMsg','Bootregister zweifach gelesen. Boot-/Schnittstellenregister schreibgeschützt; NVM-Bereich nur im gesicherten Kalibrierablauf programmierbar.','success');return a}catch(e){st.boot=null;show('bootMsg','Bootregister-Prüfung fehlgeschlagen: '+e.message,'error');throw e}finally{renderStatus()}}
@@ -1240,7 +1327,7 @@ if(typeof document!=='undefined') (function UI(){
   $(k+'Up').addEventListener('click',()=>stepAFE(k,1))
  }
   $('readBoot').addEventListener('click',()=>readBoot().catch(e=>logging('Boot-Prüfung: '+e.message)));$('readRegs').addEventListener('click',()=>registerDump());
- $('demoPressure').addEventListener('input',()=>{st.pressure=Number($('demoPressure').value);$('demoPressureVal').textContent=st.pressure.toFixed(1);if(st.mode==='demo')updateADC({s:demoADC(),t:10755,tc:9902},'demo')});$('capLo').addEventListener('click',()=>capture('lo'));$('capHi').addEventListener('click',()=>capture('hi'));$('verify').addEventListener('click',()=>verify());
+ $('demoPressure').addEventListener('input',()=>{st.pressure=Number($('demoPressure').value);$('demoPressureVal').textContent=st.pressure.toFixed(3);if(st.mode==='demo')updateADC({s:demoADC(),t:P.sign16(demoRead(0x28)),tc:P.sign16(demoRead(0x26))},'demo')});$('capLo').addEventListener('click',()=>capture('lo'));$('capHi').addEventListener('click',()=>capture('hi'));$('verify').addEventListener('click',()=>verify());
  $('exportJSON').addEventListener('click',()=>download('ELMOS_Kalibrierprotokoll_'+Date.now()+'.json',JSON.stringify(report(),null,2)));
  $('exportDiag').addEventListener('click',()=>download('ELMOS_USB_Diagnose_'+Date.now()+'.json',JSON.stringify(report(),null,2)));
  $('exportCSV').addEventListener('click',()=>download('ELMOS_ADC_'+Date.now()+'.csv','\uFEFFZeit;ADC_S;ADC_T;ADC_TC;Quelle;PGA1;PGA2;Offset\n'+st.history.map(v=>[v.time,v.adc_s,v.adc_t,v.adc_tc,v.source,v.gains.pga1,v.gains.pga2,v.gains.offset].join(';')).join('\n'),'text/csv;charset=utf-8'));
@@ -1254,11 +1341,21 @@ if(typeof document!=='undefined') (function UI(){
   state:()=>({
    chip:!!st.chip,mode:st.mode,adapter:st.adapterKind,uid:st.uid?.hex||null,
    points:st.calpoints.map(x=>({kind:x.kind,slot:x.slot,at:x.at,pressure:x.pressure,temperature:x.temperature})),
-   calStaged:!!st.calStaged,calVerified:verificationComplete(),nvmDone:!!st.nvmDone,
+   calStaged:!!st.calStaged||(st.mode==='demo'&&demoRamStaged),calVerified:verificationComplete()||(st.mode==='demo'&&demoVerified),nvmDone:!!st.nvmDone,
+   demoCompleted:st.mode==='demo'&&demoCompleted,demoValidation:demoValidation.map(x=>({...x})),
    nvmBackupVerified:!!st.nvmBackupVerified,outputReady:expert.outputReady()
   }),
   navigate:n=>step(n),
-  refresh:()=>{renderFlowState();renderStatus()}
+  refresh:()=>{renderFlowState();renderStatus()},
+  startDemo:()=>{
+   if(st.port)throw Error('Für den Demo-Wizard zuerst die Hardwareverbindung trennen');
+   if(st.mode!=='demo')demo();
+   window.ELMOS_GUIDED?.open?.();
+  },
+  demoSetpoint:(pressure,temperature)=>demoSetpoint(pressure,temperature),
+  demoStageCalibration:()=>demoStageCalibration(),
+  demoVerifyCalibration:(pressure,temperature)=>demoVerifyCalibration(pressure,temperature),
+  demoCompleteWizard:()=>demoCompleteWizard()
  });
  gainSummary();renderStatus();step(0);window.addEventListener('resize',draw);
 })();
