@@ -4,12 +4,9 @@
 const ELMOS_COMPACT=(()=>{
  const STORAGE_KEY='elmos-compact-mode-v1';
  const $=id=>document.getElementById(id);
- const selectorText=(id,target)=>document.querySelector(id);
  let active=false;
  let original=[];
  let pointSelection='lo';
- let raf=null;
- let resizeObserver=null;
  function makeCard(title,id,content){
   return '<section class="cp-card cp-'+id+'"><div class="cp-card-heading"><strong>'+title+'</strong></div>'+content+'</section>';
  }
@@ -68,7 +65,7 @@ const ELMOS_COMPACT=(()=>{
 
   for(const id of ['calPointCount','calSampleCount','calUnit','calUnitOther','pmin','pmax'])label(id,'cpPointsSetup');
   // "customUnitLabel" is also the wrapper of calUnitOther.
-  for(const id of ['pointLoName','pointHiName']){} // row labels move together below.
+  // Point labels stay inside their original measurement cards.
   moveSelector('.panel[data-panel="2"] .cal-point-row:not([data-cal-extra])','cpPointRows');
   for(let i=1;i<=8;i++)moveId('calExtra'+i+'Row','cpPointRows');
   // The high-endpoint row is the remaining row not assigned a data-cal-extra.
@@ -138,8 +135,11 @@ const ELMOS_COMPACT=(()=>{
  function updateOutput(){
   if(!active)return;
   const mode=$('expertOutputMode').value;
-  $('cpOutputAnalog').hidden=!(mode==='1'||mode==='2'||mode==='3'||mode==='keep');
+  const analog=['1','2','3','keep'].includes(mode);
+  $('cpOutputAnalog').hidden=!analog;
   $('cpOutputExpert').hidden=!$('expertMode').checked;
+  $('expertScaleEnable').closest('label').classList.toggle('cp-hide-scaling',mode==='onewire');
+  $('psscDefaultScaling').classList.toggle('cp-hide-scaling',!analog);
  }
  function fitScreen(){
   if(!active)return;
@@ -153,7 +153,7 @@ const ELMOS_COMPACT=(()=>{
   if(on){
    active=true;
    try{build()}catch(e){
-    console.error(e);set(false);$('settingsMsg').textContent='Kompaktmodus konnte nicht geladen werden: '+e.message;return;
+    console.error(e);set(false);$('compactMode').checked=false;$('settingsMsg').textContent='Kompaktmodus konnte nicht geladen werden: '+e.message;return;
    }
    document.documentElement.classList.add('compact-mode');
    root.hidden=false;
