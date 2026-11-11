@@ -18,7 +18,9 @@ const ELMOS_GUIDED=(()=>{
   ['Fertig','Sensor abgeschlossen','Der Schreibvorgang wurde bestätigt. Für die Freigabe unbedingt einen echten Kaltstarttest durchführen.']
  ];
  let stage=0,task='calibration',root=null,original=[],mode=false,plan=null,signature=null;
- let selectedPoint=0,visited=new Set([0]),poll=null,lastCapturedStamp='',pendingCapture=null;
+ let selectedPoint=0,visited=new Set([0]),poll=null,pendingCapture=null;
+ const subscriptions=[];
+ const subscribe=(el,type,handler)=>{el.addEventListener(type,handler);subscriptions.push({el,type,handler})};
  const defaults={pCount:2,tCount:1,temps:[25],pmin:0,pmax:10,samples:12,outputLimit:25000,orderS:1,orderT:0};
  const state=()=>window.ELMOS_GUIDED_API?.state?.()||{chip:false,points:[],mode:'offline'};
  const msg=(text,kind='')=>{const x=$('gwMessage');if(!x)return;x.hidden=!text;x.className='gw-alert'+(kind?' '+kind:'');x.textContent=text||''};
@@ -115,9 +117,10 @@ const ELMOS_GUIDED=(()=>{
   $('gwNext').addEventListener('click',next);$('gwPrevious').addEventListener('click',previous);
   $('gwClassic').addEventListener('click',close);$('gwBackClassic').addEventListener('click',close);
   document.querySelectorAll('[data-gw-side]').forEach(button=>button.addEventListener('click',()=>{const index=Number(button.dataset.gwSide);if(visited.has(index)){stage=index;render()}}));
-  $('configApply').addEventListener('click',syncImportedConfig);
+  subscribe($('configApply'),'click',syncImportedConfig);
+  for(const id of ['pmin','pmax','calUnit','calSampleCount','calDspLimit'])subscribe($(id),'change',renderPlan);
   for(const id of ['capLo','capHi',...Array.from({length:8},(_,k)=>'calExtra'+(k+1)+'Capture')]){
-   $(id).addEventListener('click',()=>observeCapture());
+   subscribe($(id),'click',()=>observeCapture());
   }
   $('gwPressureCount').value='2';$('gwTemperatureCount').value='1';$('gwComplexity').value='simple';
   renderPlan();
@@ -188,6 +191,11 @@ const ELMOS_GUIDED=(()=>{
   const p=makePlan();
   const nextSignature=JSON.stringify(p);
   if(signature===nextSignature)return p;
+  if(signature!==null&&(state().points||[]).length){
+   if(!window.confirm('Die Messmatrix wurde geändert. Bereits erfasste Messpunkte werden verworfen. Neue Messung beginnen?'))
+    throw Error('Änderung abgebrochen. Bisherige Messpunkte bleiben erhalten.');
+   $('calPointClear').click(); // Originaler, sicherer Löschpfad; keine Hardwareaktion.
+  }
   // Setting point-count first invokes the ORIGINAL safe invalidation of old points.
   fieldValue('calPointCount',p.total);
   fieldValue('pmin',p.pmin);fieldValue('pmax',p.pmax);
@@ -267,7 +275,7 @@ const ELMOS_GUIDED=(()=>{
    if(!record||record.at===old)return;
    window.clearInterval(pendingCapture);pendingCapture=null;
    renderCapture();
-   const nextIndex=plan.points.findIndex((p,i)=>i>selectedPoint&&!pointRecord(p));
+   const nextIndex=plan.points.findIndex((p,i)=>i>target.index&&!pointRecord(p));
    if(nextIndex>=0){selectedPoint=nextIndex;renderCapture()}
    else if(plan.points.every(p=>pointRecord(p)))msg('Alle Messpunkte sind aufgenommen. Weiter zur Koeffizientenberechnung.','success');
   },320);
@@ -370,6 +378,8 @@ const ELMOS_GUIDED=(()=>{
   mode=false;
   if(poll){window.clearInterval(poll);poll=null}
   if(pendingCapture){window.clearInterval(pendingCapture);pendingCapture=null}
+  for(const {el,type,handler} of subscriptions)el.removeEventListener(type,handler);
+  subscriptions.length=0;
   restore();root.hidden=true;root.replaceChildren();document.documentElement.classList.remove('guided-active');
   window.ELMOS_GUIDED_API?.refresh?.();
  }
@@ -394,6 +404,7 @@ const ELMOS_GUIDED=(()=>{
  }
  return {init,open,close,onConnected,makePlan};
 })();
+if(typeof window!=='undefined')window.ELMOS_GUIDED=ELMOS_GUIDED;
 if(typeof document!=='undefined'){
  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',ELMOS_GUIDED.init);
  else ELMOS_GUIDED.init();
