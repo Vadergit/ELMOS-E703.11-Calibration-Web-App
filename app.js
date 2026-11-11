@@ -213,7 +213,7 @@ if(typeof document!=='undefined') (function UI(){
   renderFlowState();draw();if((next===1||next===4)&&(st.chip||st.mode==='demo'))startLive()
  }
  function invalidateCalculation(reason){
-  st.calfit=null;st.calImage=null;st.calStaged=false;st.calVerified=false;st.calValidation=[];
+  st.calfit=null;st.calImage=null;st.calStaged=false;st.calVerified=false;st.calValidation=[];st.nvmBackup=null;st.nvmBackupVerified=false;
   $('calCoeffList').textContent='Noch nicht berechnet.';
   $('calVerifyList').textContent='Noch keine unabhängigen Prüfpunkte.';
   show('calFitMsg',reason||'Koeffizienten müssen neu berechnet werden.','warn');
@@ -477,7 +477,7 @@ if(typeof document!=='undefined') (function UI(){
    if(!Number.isInteger(outputLimit)||outputLimit<1000||outputLimit>32000)throw Error('DSP-Endwert muss zwischen 1’000 und 32’000 Digits liegen');
    if(st.calpoints.length<(orderS+1)*(orderT+1))throw Error('Für diese Polynom- und Temperaturordnung sind mindestens '+((orderS+1)*(orderT+1))+' unabhängige Messpunkte nötig. Anzahl in Schritt 3 erhöhen.');
    const solution=CAL.fit(st.calpoints,{pmin,pmax,orderS,orderT,outputLimit});
-   st.calfit=solution;st.calImage=null;st.calStaged=false;st.calVerified=false;st.calValidation=[];renderDSPLive();
+   st.calfit=solution;st.calImage=null;st.calStaged=false;st.calVerified=false;st.calValidation=[];st.nvmBackup=null;st.nvmBackupVerified=false;renderDSPLive();
    const r=solution.registers;
    $('calCoeffList').textContent='S_O 0x'+h(r.so,2)+' (Q3.12)  S_F 0x'+h(r.sf,2)+' (Q3.12)\n'+r.coeffs.map((x,i)=>'S'+String(i).padEnd(2)+' 0x'+h(x,2)+'    '+CAL.fromQ(x,15).toFixed(7)).join('\n')+(r.tcoeffs?'\nT_O '+h(r.to,2)+' T_F '+h(r.tf,2)+'\n'+r.tcoeffs.map((x,i)=>'T'+i+': 0x'+h(x,2)).join('\n'):'\nTemperaturpfad bleibt unverändert.');
    const note='DSP-Ziel ±'+fmt(solution.outputLimit)+' Digits (Reserve bis +32’767: '+fmt(32767-solution.outputLimit)+' Digits). Max. Fitfehler '+solution.stats.maxDigits.toFixed(2)+' Digits · RMS '+solution.stats.rmsDigits.toFixed(2)+' Digits.';
@@ -526,6 +526,7 @@ if(typeof document!=='undefined') (function UI(){
  async function nvmScan(options={}){
   let started=false;
   const postBoot=options?.postBoot===true;
+  const backupStarted=Date.now();
   try{
    if(!postBoot&&!verificationComplete())throw Error('Zuerst DSP-Kalibrierung im RAM erfolgreich prüfen');
    if(!st.port||!st.chip||st.mode==='demo')throw Error('Ein echter Chip muss verbunden sein');
@@ -541,7 +542,7 @@ if(typeof document!=='undefined') (function UI(){
    if(factoryCRC!==factoryHigh)throw Error(`Werks-CRC8 stimmt nicht: 0x${h(factoryCRC)} statt 0x${h(factoryHigh)}. Programmierung gesperrt.`);
    for(const index of [0,1,15,16,17,18,19,20,22,27,28,63])if(await nvmReadWord(index*2)!==words[index])throw Error('NVM bei Wiederholungslesung unstabil (Wort '+index+')');
    const after=await bootSnapshot();if(!sameBoot(before,after))throw Error('Bootregister haben sich beim NVM-Lesen verändert');
-   st.nvmBackup=words;st.nvmBackupVerified=true;st.calImage=null;ca('backupMsg','Original-NVM vollständig gelesen und geprüft: 64 Wörter, CRC8 und CRC16 bestätigt. Backup herunterladen und danach NVM-Änderungen kontrollieren.','success');$('backupProgress').textContent='64 / 64 Wörter – Prüfung erfolgreich.';
+   st.nvmBackup=words;st.nvmBackupVerified=true;st.calImage=null;ca('backupMsg','Original-NVM vollständig gelesen und geprüft: 64 Wörter, CRC8 und CRC16 bestätigt. Backup herunterladen und danach NVM-Änderungen kontrollieren.','success');$('backupProgress').textContent='64 / 64 Wörter – Prüfung erfolgreich in '+((Date.now()-backupStarted)/1000).toFixed(1)+' s.';
    ca('nvmMsg',`Vollständiges 64-Wort-Backup gelesen, CRC8 und CRC16 bestätigt. Chipkennung SER0/SER1: ${h(words[1],2)}${h(words[0],2)}. Backup jetzt herunterladen.`,'success');
   }catch(e){
    logging('NVM-Backup: '+e.message);
@@ -564,7 +565,7 @@ if(typeof document!=='undefined') (function UI(){
    if(r.tcoeffs)changes.push([0x6C,r.to],[0x6E,r.tf],...r.tcoeffs.map((v,i)=>[0x94+2*i,v]));
    for(const [addr,value] of changes){await maintWrite(addr,value);const actual=await readReg(addr);if(actual!==value)throw Error(`DSP-RAM Rücklesefehler 0x${h(addr)}: 0x${h(actual,2)} statt 0x${h(value,2)}`)}
    if(!sameBoot(before,await bootSnapshot()))throw Error('Bootregister nach Kalibrier-RAM-Schreiben verändert');
-   st.calStaged=true;st.calVerified=false;st.calValidation=[];st.calImage=null;st.dsp=null;renderDSPLive();
+   st.calStaged=true;st.calVerified=false;st.calValidation=[];st.calImage=null;st.nvmBackup=null;st.nvmBackupVerified=false;st.dsp=null;renderDSPLive();
    ca('calRamStageMsg',`${changes.length} DSP-Wörter ins RAM geschrieben und einzeln erfolgreich rückgelesen. Jetzt im nächsten Schritt DSP_S unabhängig prüfen.`,'success');
    ca('calRamMsg','DSP-Koeffizienten ins RAM übertragen. Bitte Prüfdruck einstellen und DSP_S kontrollieren.','warn');
   }catch(e){
