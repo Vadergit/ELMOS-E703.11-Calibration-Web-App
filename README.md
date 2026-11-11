@@ -31,7 +31,7 @@
 | Expertenmodus | Über **⚙ Einstellungen → Expertenparameter freischalten** aktivieren. Öffnet sofort ein eigenes Diagnosefenster mit Registerleser, NVM-/EEPROM-Übersicht, Chip-UID und Backups; unabhängig von den Kalibrierschritten |
 | Diagnose | Register-/Chipanzeige, technisches Log, Demo-Modus und Dokumentation |
 
-Für Entwickler gibt es **18 Software-Regressionstests** (Stand v0.3.3) mit Node.js: `node --test tests/safety.test.cjs`. Die Prüfungen umfassen unveränderte Boot-/Kommunikationswörter, One-Wire-only-Bedingungen, S0/S1-Skalierung und die sieben Schritte. Die Tests ersetzen keine echte Hardwareprüfung.
+Für Entwickler gibt es **19 Software-Regressionstests** (Stand v0.3.3) mit Node.js: `node --test tests/safety.test.cjs`. Die Prüfungen umfassen unveränderte Boot-/Kommunikationswörter, One-Wire-only-Bedingungen, S0/S1-Skalierung, die sieben Schritte und das separate Expertenfenster. Die Tests ersetzen keine echte Hardwareprüfung.
 
 Die Browser-App verwendet eine **eigene JavaScript-Koeffizientenberechnung**, nicht die originale Elmos-Kalibrier-DLL. Eine Übereinstimmung mit der Herstellersoftware muss auf der Zielhardware verifiziert werden.
 
