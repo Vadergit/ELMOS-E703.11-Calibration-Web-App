@@ -95,6 +95,18 @@ const ELMOS_CAL = (() => {
    windowLabel:permanent?'dauerhaft':startupWindow===0?'4 ms':startupWindow===1?'10 ms':startupWindow===2?'200 ms':'aus',
    downstream,upstream,registerAccess};
  }
+ /** Pure check for the PSSC-style "One Wire only" choice.
+  * On the E703.11 it is not a CFG_EN.aodo_en value. With permanent PLC=1
+  * a documented AODO mode 1..5 is retained, and 1-Wire owns the AODO pin.
+  * Never program protected interface/boot bits as part of this preset.
+  */
+ function oneWireOnlyStatus(words){
+  const startup=oneWireStartupStatus(words);
+  const errors=[...startup.errors];
+  if(startup.ok&&!startup.permanent)
+   errors.push('One Wire only benötigt CFG_SPI_I2C.plc_en = 1 im Original-NVM (permanenter 1-Wire-Betrieb); ein kurzes Startup-Zeitfenster allein genügt nicht');
+  return {...startup,ok:errors.length===0,errors};
+ }
  function protectStartupCommunication(before,after){
   if(!Array.isArray(before)||!Array.isArray(after)||before.length!==64||after.length!==64||
    [...before,...after].some(v=>!Number.isInteger(v)||v<0||v>65535))
@@ -141,6 +153,13 @@ const ELMOS_CAL = (() => {
   if(!Array.isArray(original)||original.length!==64)throw Error('Vollständiges NVM-Abbild erforderlich');
   const out=original.slice();
   if(!settings||settings.mode==='keep')return out;
+  if(settings.mode==='onewire'){
+   const status=oneWireOnlyStatus(original);
+   if(!status.ok)throw Error('One Wire only nicht verfügbar: '+status.errors.join('; ')+'. Boot-/Kommunikationsregister werden nicht automatisch verändert.');
+   // Already permanently enabled in the exact NVM that was read. No mode
+   // change, no scaling writes, and no communication register updates.
+   return out;
+  }
   const mode=Number(settings.mode),scaleEnabled=settings.scaleEnabled===true,period=Number(settings.pwmPeriod);
   if(!Number.isInteger(mode)||mode<1||mode>5)throw Error('1-Wire-Startschutz: Nur AODO-Modi 1–5 dürfen dauerhaft gespeichert werden. High-Z und Alarm deaktivieren 1-Wire gemäss Datenblatt.');
   if(mode===4&&(!Number.isInteger(period)||period<2||period>65535))throw Error('PWM-Periode muss 2–65’535 Takte betragen');
@@ -183,6 +202,6 @@ const ELMOS_CAL = (() => {
   protectStartupCommunication(original,cfg);
   return {before:original.slice(),after:cfg,changes:cfg.map((v,i)=>v!==original[i]?{index:i,address:i*2,from:original[i],to:v}:null).filter(Boolean)};
  }
- return {fit,solveFit,crc16,crc8,configFrom,prepareOutputConfig,protectStartupCommunication,oneWireStartupStatus,analogScaling,fromQ,q,signed};
+ return {fit,solveFit,crc16,crc8,configFrom,prepareOutputConfig,protectStartupCommunication,oneWireStartupStatus,oneWireOnlyStatus,analogScaling,fromQ,q,signed};
 })();
 if(typeof module!=='undefined'&&module.exports)module.exports=ELMOS_CAL;
