@@ -77,6 +77,23 @@ const ELMOS_CAL = (() => {
   }
   return {method:'browser-independent-polynomial-fit',points:ps.length,orderS,orderT,outputLimit,registers:{so,sf,coeffs:regs,to,tf,tcoeffs:tRegs},stats:{maxDigits:max,rmsDigits:rms,maxTemperatureDigits:tErrors.length?Math.max(...tErrors.map(Math.abs)):null,rangeDigits:smax-smin,maxNormalized:Math.max(...ps.map(p=>Math.abs(normS(p.s)))),maxOutput},errors,coefficients:decoded,note:'Q3.12/Q0.15 nach Datenblatt; numerischer JavaScript-Fit, nicht identisch mit der Elmos-Kalibrier-DLL. Vor Programmierung RAM/DSP-Verifikation notwendig.'};
  }
+ function protectStartupCommunication(before,after){
+  // Fail closed: only AODO output mode/scale bits and CFG_AODO may differ in boot area.
+  // This preserves existing communication and 1-Wire startup configuration bit-for-bit,
+  // but a real power-cycle/1-Wire test is still mandatory for hardware assurance.
+  if(!Array.isArray(before)||!Array.isArray(after)||before.length!==64||after.length!==64||
+   [...before,...after].some(v=>!Number.isInteger(v)||v<0||v>65535))
+   throw Error('1-Wire-Startschutz: Ungültiges 64-Wort-NVM-Abbild');
+  for(let i=0;i<28;i++){
+   if(i===16){
+    const allowed=((7<<9)|(1<<6));
+    if(((before[i]^after[i])&~allowed)!==0)throw Error('1-Wire-Startschutz: Nicht erlaubte CFG_EN-Bits verändert');
+   }else if(i!==22&&before[i]!==after[i]){
+    throw Error('1-Wire-Startschutz: Kommunikations-, Boot- oder Factory-Wort '+i+' verändert');
+   }
+  }
+  return true;
+ }
  function prepareOutputConfig(original,settings,outputLimit=32000){
   if(!Array.isArray(original)||original.length!==64)throw Error('Vollständiges NVM-Abbild erforderlich');
   const out=original.slice();
@@ -106,6 +123,7 @@ const ELMOS_CAL = (() => {
   if(scaleEnabled){out[57]=q(offset,12);out[58]=q(gain,12);}
   if(original.slice(0,16).some((v,i)=>v!==out[i]))throw Error('Factory-Bereich darf nicht verändert werden');
   for(let i=17;i<28;i++)if(i!==22&&out[i]!==original[i])throw Error('Geschützte Kommunikation verändert');
+  protectStartupCommunication(original,out);
   return out;
  }
   function configFrom(original,solution,afeWord,opts={}){
@@ -119,8 +137,9 @@ const ELMOS_CAL = (() => {
   for(let i=0;i<=27;i++)if(cfg[i]!==original[i]&&![16,22].includes(i))throw Error('Sicherheitsfehler: schreibgeschützter NVM-Bereich verändert');
   if(cfg[16]!==original[16]&&(((cfg[16]^original[16])&~((7<<9)|(1<<6)))!==0))throw Error('CFG_EN: fremde Bits dürfen nicht verändert werden');
   if(cfg.slice(0,16).some((v,i)=>v!==original[i]))throw Error('Werkskalibrierung verändert');
+  protectStartupCommunication(original,cfg);
   return {before:original.slice(),after:cfg,changes:cfg.map((v,i)=>v!==original[i]?{index:i,address:i*2,from:original[i],to:v}:null).filter(Boolean)};
  }
- return {fit,solveFit,crc16,crc8,configFrom,prepareOutputConfig,fromQ,q,signed};
+ return {fit,solveFit,crc16,crc8,configFrom,prepareOutputConfig,protectStartupCommunication,fromQ,q,signed};
 })();
 if(typeof module!=='undefined'&&module.exports)module.exports=ELMOS_CAL;
