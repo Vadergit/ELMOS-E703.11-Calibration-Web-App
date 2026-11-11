@@ -235,8 +235,8 @@ button.danger{background:#9e3e34;border-color:#9e3e34;color:#fff}button.danger:h
 <h3>3. Kalibrierung dauerhaft schreiben</h3>
 <p class="muted small">Das Schreiben kann bei Stromunterbruch oder Protokollproblemen den Chip unbrauchbar machen. Bitte kontrolliere die Änderungsliste und die Chipkennung. Für die endgültige Programmierung sind Chip-ID und das Bestätigungswort erforderlich.</p>
 <div class="fieldrow" style="margin-top:12px">
-<label>Chip-ID (SER1+SER0, 8 Hex-Ziffern)<input id="nvmConfirmId" type="text" placeholder="z. B. 1234ABCD" autocomplete="off"></label>
-<label>Bestätigungswort<input id="nvmConfirmWord" type="text" placeholder="PROGRAMMIEREN" autocomplete="off"></label>
+<label>Chip-UID (VERSION + SER1 + SER0, 12 Hex-Ziffern)<input id="nvmConfirmId" type="text" placeholder="z. B. 00205678ABCD" autocomplete="off"></label>
+<label>Bestätigungswort<input id="nvmConfirmWord" type="text" placeholder="PROGRAMMIEREN oder WIEDERHERSTELLEN" autocomplete="off"></label>
 </div>
 <div class="flex" style="margin-top:12px"><button class="danger" id="nvmProgram">Kalibrierung dauerhaft ins NVM schreiben</button></div>
 <p class="small muted">Keine automatische Programmierung: Der Knopf startet erst nach erfolgreichem Backup, DSP-Prüfung und bewusster Eingabe der beiden Bestätigungsfelder.</p>
@@ -287,7 +287,7 @@ button.danger{background:#9e3e34;border-color:#9e3e34;color:#fff}button.danger:h
 <label>AODO_O · Offset (Q3.12)<input id="expertScaleOffset" type="number" min="-7.9" max="7.9" step="0.0001" value="0"></label>
 </div>
 <p class="muted small">PWM und FM benötigen ausschliesslich <b>positive DSP_AODO-Ausgangswerte</b>. Für PWM empfiehlt das Datenblatt 10–90 % der gewählten Periode. Die App prüft dies vor der Übernahme. Ratiometrisch analog ist laut Datenblatt im linearen Bereich 10–90 % VDD spezifiziert.</p>
-<div class="flex"><button class="primary" id="expertOutputStage">Geprüfte Ausgangskonfiguration für NVM vormerken</button><button id="expertOutputDiscard">Ausgangsänderungen verwerfen</button></div>
+<div class="flex"><button id="expertOutputPreset">Sichere Ausgangsskalierung vorschlagen</button><button class="primary" id="expertOutputStage">Geprüfte Ausgangskonfiguration für NVM vormerken</button><button id="expertOutputDiscard">Ausgangsänderungen verwerfen</button></div>
 <div id="expertOutputMsg" class="callout">Bisher keine Ausgangsänderungen vorgemerkt.</div>
 <h3>Register- und EEPROM-Übersicht</h3>
 <p class="muted small">Dokumentierte Hauptregister können direkt aus dem Chip gelesen werden. Nach einer kompletten EEPROM-Lesung werden alle 64 NVM-Wörter mit Adresse, Funktion und Schutzstatus aufgelistet. <b>Factory-Daten bleiben immer nur lesbar.</b></p>
