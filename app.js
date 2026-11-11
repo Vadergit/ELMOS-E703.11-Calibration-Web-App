@@ -41,7 +41,7 @@ if(typeof document!=='undefined') (function UI(){
  const hexWords=arr=>arr.map(x=>P.hx(x,2)).join(' ');
  const sleep=ms=>new Promise(r=>setTimeout(r,ms));
  const sameBoot=(a,b)=>!!a&&!!b&&LOCKED.every(k=>a[k]===b[k]);
- function renderStatus(){let connected=!!st.port, demo=st.mode==='demo';$('status').textContent=demo?'DEMO · simuliert':st.chip?'Chip-Leseantwort plausibel':connected?'USB verbunden · Chipprüfung offen':'Nicht verbunden';$('statusDot').className='dot'+(demo?' demo':st.chip?' active':'');$('fw').textContent=st.firmware?st.firmware.slice(0,19):'—';$('chip').textContent=st.chip?'Antwort erhalten':'—';$('ifaceLabel').textContent=st.iface==='plc'?'1-Wire':st.iface==='i2c'?'I²C':'SPI';$('srcLabel').textContent=demo?'DEMO':st.adc?.source==='usb'?'USB / Chip':'Keine Messdaten';$('choose').disabled=connected;$('auto').disabled=connected;$('disconnect').disabled=!connected;$('readNow').disabled=!connected&&!demo;$('live').disabled=!connected&&!demo;$('live').textContent=st.live?'Live-Messung stoppen':'Live-Messung starten';$('readBoot').disabled=!st.chip;$('readRegs').disabled=!st.chip;$('allowRam').disabled=!st.chip||demo;if(!st.chip)$('allowRam').checked=false;$('afeWord').textContent=st.afe===null?'CFG_AFE1: —':'CFG_AFE1: 0x'+h(st.afe,2);renderFlowState()};
+ function renderStatus(){let connected=!!st.port, demo=st.mode==='demo';$('status').textContent=demo?'DEMO · simuliert':st.chip?'Chip-Leseantwort plausibel':connected?'USB verbunden · Chipprüfung offen':'Nicht verbunden';$('statusDot').className='dot'+(demo?' demo':st.chip?' active':'');$('fw').textContent=st.firmware?st.firmware.slice(0,19):'—';$('chip').textContent=st.chip?'Antwort erhalten':'—';$('ifaceLabel').textContent=st.iface==='plc'?'1-Wire':st.iface==='i2c'?'I²C':'SPI';$('srcLabel').textContent=demo?'DEMO':st.adc?.source==='usb'?'USB / Chip':'Keine Messdaten';$('choose').disabled=connected;$('auto').disabled=connected;$('disconnect').disabled=!connected;$('readNow').disabled=!connected&&!demo;$('live').disabled=!connected&&!demo;$('live').textContent=st.live?'Live-Messung stoppen':'Live-Messung starten';$('readBoot').disabled=!st.chip;$('readRegs').disabled=!st.chip;$('allowRam').disabled=!st.chip||demo;if(!st.chip)$('allowRam').checked=false;$('calRamEnable').checked=$('allowRam').checked;$('afeWord').textContent=st.afe===null?'CFG_AFE1: —':'CFG_AFE1: 0x'+h(st.afe,2);renderFlowState()};
  function gainSummary(){for(let k of ['pga1','pga2','offset']){$(k).value=st.staged[k];$(k+'val').textContent=(st.staged[k]>0&&k==='offset'?'+':'')+st.staged[k]}let g=st.staged;$('gainInfo').textContent=`PGA1 ${GAINS1[g.pga1]}× · PGA2 ${GAINS2[g.pga2]}× · Gesamt ${(GAINS1[g.pga1]*GAINS2[g.pga2]).toFixed(2)}× · Offset-DAC ${g.offset*50} mV/V`;renderStatus()}
  
  function pressureUnit(){const opt=$('calUnit').value;return opt==='custom'?($('calUnitOther').value.trim()||'Einheit'):opt}
@@ -510,7 +510,20 @@ if(typeof document!=='undefined') (function UI(){
   renderFlowState()
  });
  $('nvmBackupRead').addEventListener('click',nvmScan);
- $('nvmBackupSave').addEventListener('click',()=>{if(!st.nvmBackupVerified)return ca('nvmMsg','Zuerst NVM lesen','warn');download('ELMOS_NVM_Backup_'+Date.now()+'.json',JSON.stringify({chipId:h(st.nvmBackup[1],2)+h(st.nvmBackup[0],2),version:st.firmware,words:st.nvmBackup,checksum:st.nvmBackup[63],created:new Date().toISOString()},null,2))});
+ function downloadNvmBackup(){
+  if(!st.nvmBackupVerified||!st.nvmBackup){
+   ca('backupMsg','Noch kein erfolgreich verifiziertes NVM-Backup vorhanden.','error');
+   ca('nvmMsg','Zuerst Original-NVM lesen und prüfen.','error');return
+  }
+  download('ELMOS_NVM_Backup_'+Date.now()+'.json',JSON.stringify({
+   chipId:h(st.nvmBackup[1],2)+h(st.nvmBackup[0],2),
+   version:st.firmware,words:st.nvmBackup,checksum:st.nvmBackup[63],
+   created:new Date().toISOString()
+  },null,2));
+  ca('backupMsg','Original-NVM geprüft. Der Backup-Download wurde gestartet. Datei bitte sicher aufbewahren.','success');
+ }
+ $('nvmBackupSave').addEventListener('click',downloadNvmBackup);
+ $('nvmBackupDownload').addEventListener('click',downloadNvmBackup);
  $('nvmPrepare').addEventListener('click',prepareNvm);
  $('nvmProgram').addEventListener('click',nvmProgram);
  $('nvmPostBoot').addEventListener('click',postBootCheck);
@@ -526,8 +539,30 @@ if(typeof document!=='undefined') (function UI(){
  $('choose').addEventListener('click',()=>choose());$('auto').addEventListener('click',()=>auto());$('disconnect').addEventListener('click',()=>disconnect());$('demo').addEventListener('click',()=>demo());
  $('readNow').addEventListener('click',()=>readADC().catch(e=>show('adcMsg','ADC: '+e.message,'error')));$('live').addEventListener('click',()=>st.live?stopLive():startLive());
  for(let k of ['pga1','pga2','offset'])$(k).addEventListener('input',()=>gainChange());
- $('allowRam').addEventListener('change',async()=>{if($('allowRam').checked){try{if(!st.port||!st.chip)throw Error('Nur bei echter Chipverbindung freischaltbar');await readBoot();show('writeMsg','RAM-Gain-Änderungen freigeschaltet. Jede Regleränderung wird mit 340 ms Entprellung übertragen, rückgelesen und mit ADC_S verglichen.','warn')}catch(e){$('allowRam').checked=false;show('writeMsg','Schreibfreigabe verweigert: '+e.message,'error')}}else{pendingGain=null;clearTimeout(writeTimer);show('writeMsg','RAM-Schreibfreigabe ausgeschaltet.')};renderStatus()});
- $('readBoot').addEventListener('click',()=>readBoot().catch(e=>logging('Boot-Prüfung: '+e.message)));$('readRegs').addEventListener('click',()=>registerDump());
+ async function setRamWriteAccess(allowed){
+  $('allowRam').checked=!!allowed;$('calRamEnable').checked=!!allowed;
+  if(allowed){
+   try{
+    if(!st.port||!st.chip)throw Error('Nur bei einer echten Chipverbindung freischaltbar');
+    await readBoot();
+    if(!$('allowRam').checked)throw Error('Bootregister-Prüfung konnte die Schreibfreigabe nicht bestätigen');
+    show('writeMsg','RAM-Schreibzugriff freigegeben. AFE-Gain-Änderungen und berechnete DSP-Koeffizienten können nach ihren jeweiligen Sicherheitsprüfungen ins RAM geschrieben werden.','warn');
+    show('calRamStageMsg','RAM-Schreibzugriff freigegeben. Als Nächstes Original-NVM lesen und prüfen.','warn');
+   }catch(e){
+    $('allowRam').checked=false;$('calRamEnable').checked=false;
+    show('writeMsg','RAM-Freigabe verweigert: '+e.message,'error');
+    show('calRamStageMsg','RAM-Freigabe verweigert: '+e.message,'error');
+   }
+  }else{
+   pendingGain=null;clearTimeout(writeTimer);
+   show('writeMsg','RAM-Schreibfreigabe ausgeschaltet.');
+   show('calRamStageMsg','RAM-Schreibfreigabe ausgeschaltet. Für RAM-Übernahme erneut freigeben.','warn');
+  }
+  renderStatus()
+ }
+ $('allowRam').addEventListener('change',()=>setRamWriteAccess($('allowRam').checked));
+ $('calRamEnable').addEventListener('change',()=>setRamWriteAccess($('calRamEnable').checked));
+  $('readBoot').addEventListener('click',()=>readBoot().catch(e=>logging('Boot-Prüfung: '+e.message)));$('readRegs').addEventListener('click',()=>registerDump());
  $('demoPressure').addEventListener('input',()=>{st.pressure=Number($('demoPressure').value);$('demoPressureVal').textContent=st.pressure.toFixed(1);if(st.mode==='demo')updateADC({s:demoADC(),t:10755,tc:9902},'demo')});$('capLo').addEventListener('click',()=>capture('lo'));$('capHi').addEventListener('click',()=>capture('hi'));$('verify').addEventListener('click',()=>verify());
  $('exportJSON').addEventListener('click',()=>download('ELMOS_Kalibrierprotokoll_'+Date.now()+'.json',JSON.stringify(report(),null,2)));
  $('exportDiag').addEventListener('click',()=>download('ELMOS_USB_Diagnose_'+Date.now()+'.json',JSON.stringify(report(),null,2)));
