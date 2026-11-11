@@ -75,6 +75,14 @@ if(typeof document!=='undefined') (function UI(){
  }
  function renderFlowState(){
   updateVerificationProgress();
+  const ramPrereq=!st.calfit?'1. Zuerst die Koeffizienten berechnen.':!st.port||!st.chip?'USB-Verbindung und Chip-Lesezugriff fehlen.':!$('allowRam').checked?'2. RAM-Schreibfreigabe hier aktivieren.':!st.nvmBackupVerified?'3. Original-NVM lesen und prüfen.':'Bereit: NVM-Backup geprüft und RAM-Schreibzugriff freigegeben.';
+  $('calRamPrereq').textContent=ramPrereq;
+  $('calRamPrereq').className='callout'+(st.calfit&&st.chip&&$('allowRam').checked&&st.nvmBackupVerified?' success':' warn');
+  $('calRamEnable').checked=$('allowRam').checked;
+  $('calRamEnable').disabled=!st.chip||st.mode==='demo'||st.writing||st.calTask;
+  $('nvmBackupRead').disabled=!st.calfit||!st.port||!st.chip||!$('allowRam').checked||st.writing||st.calTask;
+  $('nvmBackupDownload').disabled=!st.nvmBackupVerified;
+  $('calApplyRam').disabled=!st.calfit||!st.port||!st.chip||!$('allowRam').checked||!st.nvmBackupVerified||st.writing||st.calTask;
   const unlocked=[true,true,true,calEndpointsReady(),calEndpointsReady()&&!!st.calfit&&st.calStaged,!workflowGate(5)];
   document.querySelectorAll('[data-step]').forEach(b=>{const index=Number(b.dataset.step);b.classList.toggle('locked',!unlocked[index]);b.setAttribute('aria-disabled',String(!unlocked[index]));b.title=unlocked[index]?'':workflowGate(index)});
   for(const btn of document.querySelectorAll('[data-next]')){const index=Number(btn.dataset.next);if(index>2){btn.disabled=!unlocked[index];btn.title=unlocked[index]?'':workflowGate(index)}else btn.disabled=false}
@@ -321,35 +329,57 @@ if(typeof document!=='undefined') (function UI(){
   await maintWrite(0x4E,0x4C00|addr);await nvmWaitIdle();return await readReg(0x48);
  }
  async function nvmScan(){
-  if(!st.chip||st.mode==='demo'||!$('allowRam').checked||st.writing)throw Error('Echter Chip + RAM-Freigabe nötig');
-  st.calTask=true;st.writing=true;stopLive();ca('nvmMsg','NVM wird vollständig gelesen …','warn');
+  let started=false;
   try{
+   if(!st.calfit)throw Error('Zuerst Koeffizienten berechnen');
+   if(!st.port||!st.chip||st.mode==='demo')throw Error('Ein echter Chip muss verbunden sein');
+   if(!$('allowRam').checked)throw Error('RAM-Schreibfreigabe oben im Schritt 4 aktivieren');
+   if(st.writing||st.calTask||st.nvmWorking)throw Error('Ein anderer Vorgang läuft');
+   st.calTask=true;st.writing=true;started=true;stopLive();
+   ca('backupMsg','Original-NVM wird gelesen und geprüft …','warn');
+   ca('nvmMsg','NVM wird vollständig gelesen …','warn');
    const before=await bootSnapshot();await ramGrant();const words=[];
-   for(let i=0;i<64;i++){words.push(await nvmReadWord(i*2));$('nvmProgress').textContent=`NVM Backup ${i+1}/64`}
+   for(let i=0;i<64;i++){words.push(await nvmReadWord(i*2));$('nvmProgress').textContent=`NVM Backup ${i+1}/64`;$('backupProgress').textContent=`NVM-Backup: ${i+1} / 64 Wörter`}
    const crc=CAL.crc16(words);
    if(crc!==words[63])throw Error(`CRC16 im bestehenden NVM ungültig: berechnet 0x${h(crc,2)}, gelesen 0x${h(words[63],2)}. Programmierung nicht zulässig.`);
    const factoryCRC=CAL.crc8(words),factoryHigh=(words[15]>>>8);
    if(factoryCRC!==factoryHigh)throw Error(`Werks-CRC8 stimmt nicht: 0x${h(factoryCRC)} statt 0x${h(factoryHigh)}. Programmierung gesperrt.`);
    for(const index of [0,1,15,16,17,18,19,20,22,27,28,63])if(await nvmReadWord(index*2)!==words[index])throw Error('NVM bei Wiederholungslesung unstabil (Wort '+index+')');
    const after=await bootSnapshot();if(!sameBoot(before,after))throw Error('Bootregister haben sich beim NVM-Lesen verändert');
-   st.nvmBackup=words;st.nvmBackupVerified=true;st.calImage=null;st.calVerified=false;ca('backupMsg','Backup vollständig gelesen: 64 NVM-Wörter, CRC8 und CRC16 bestätigt. Jetzt RAM-Koeffizienten übertragen.','success');
+   st.nvmBackup=words;st.nvmBackupVerified=true;st.calImage=null;st.calVerified=false;ca('backupMsg','Backup vollständig gelesen und geprüft: 64 NVM-Wörter, CRC8 und CRC16 bestätigt. Du kannst das Backup jetzt herunterladen und danach die Koeffizienten ins RAM schreiben.','success');$('backupProgress').textContent='64 / 64 Wörter – Prüfung erfolgreich.';
    ca('nvmMsg',`Vollständiges 64-Wort-Backup gelesen, CRC8 und CRC16 bestätigt. Chipkennung SER0/SER1: ${h(words[1],2)}${h(words[0],2)}. Backup jetzt herunterladen.`,'success');
-  }catch(e){st.nvmBackup=null;st.nvmBackupVerified=false;ca('nvmMsg','NVM-Backup fehlgeschlagen: '+e.message,'error');ca('backupMsg','NVM-Backup fehlgeschlagen: '+e.message,'error')}
-  finally{await ramLock();st.calTask=false;st.writing=false;renderStatus();}
+  }catch(e){
+   logging('NVM-Backup: '+e.message);
+   st.nvmBackup=null;st.nvmBackupVerified=false;
+   ca('nvmMsg','NVM-Backup fehlgeschlagen: '+e.message,'error');
+   ca('backupMsg','NVM-Backup fehlgeschlagen: '+e.message,'error');
+  }
+  finally{if(started){await ramLock();st.calTask=false;st.writing=false}renderStatus()}
  }
  async function applyCalRam(){
   try{
-   if(!st.calfit||!st.chip||!$('allowRam').checked||st.writing)throw Error('Berechnung, USB-Verbindung und manuelle RAM-Freigabe nötig');
-   if(!st.nvmBackupVerified)throw Error('Vorher vollständiges NVM-Backup im letzten Schritt lesen.');
-   st.calTask=true;st.writing=true;stopLive();const before=await bootSnapshot();await ramGrant();
+   if(!st.calfit)throw Error('Zuerst Koeffizienten berechnen');
+   if(!st.port||!st.chip)throw Error('USB-Verbindung zum Chip fehlt');
+   if(!$('allowRam').checked)throw Error('RAM-Schreibzugriff im Schritt 4 aktivieren');
+   if(!st.nvmBackupVerified)throw Error('Zuerst Original-NVM in Schritt 4 lesen und prüfen');
+   if(st.writing||st.calTask||st.nvmWorking)throw Error('Ein anderer Vorgang läuft');
+   st.calTask=true;st.writing=true;stopLive();
+   ca('calRamStageMsg','Berechnete DSP-Koeffizienten werden ins RAM übertragen und rückgelesen …','warn');
+   const before=await bootSnapshot();await ramGrant();
    const r=st.calfit.registers;
    const changes=[[0x70,r.so],[0x72,r.sf],...r.coeffs.map((v,i)=>[0x74+2*i,v])];
    if(r.tcoeffs)changes.push([0x6C,r.to],[0x6E,r.tf],...r.tcoeffs.map((v,i)=>[0x94+2*i,v]));
    for(const [addr,value] of changes){await maintWrite(addr,value);const actual=await readReg(addr);if(actual!==value)throw Error(`DSP-RAM Rücklesefehler 0x${h(addr)}: 0x${h(actual,2)} statt 0x${h(value,2)}`)}
    if(!sameBoot(before,await bootSnapshot()))throw Error('Bootregister nach Kalibrier-RAM-Schreiben verändert');
-   st.calStaged=true;st.calVerified=false;st.calValidation=[];ca('calRamMsg',`${changes.length} DSP-Koeffizienten/Rohwert-Skalierungen in RAM geschrieben und rückgelesen. Jetzt mit einem unabhängigen Druckpunkt die echte DSP_S-Ausgabe prüfen.`,'success');
-  }catch(e){st.calStaged=false;st.calVerified=false;ca('calRamMsg','RAM-Übernahme fehlgeschlagen: '+e.message,'error')}
-  finally{await ramLock();st.calTask=false;st.writing=false;renderStatus()}
+   st.calStaged=true;st.calVerified=false;st.calValidation=[];st.calImage=null;
+   ca('calRamStageMsg',`${changes.length} DSP-Wörter ins RAM geschrieben und einzeln erfolgreich rückgelesen. Jetzt im nächsten Schritt DSP_S unabhängig prüfen.`,'success');
+   ca('calRamMsg','DSP-Koeffizienten ins RAM übertragen. Bitte Prüfdruck einstellen und DSP_S kontrollieren.','warn');
+  }catch(e){
+   st.calStaged=false;st.calVerified=false;st.calImage=null;
+   logging('DSP-RAM-Übernahme: '+e.message);
+   ca('calRamStageMsg','RAM-Übernahme fehlgeschlagen: '+e.message,'error');
+  }
+  finally{if(st.calTask){await ramLock();st.calTask=false;st.writing=false}renderStatus()}
  }
  async function verifyCalRam(){
   try{
