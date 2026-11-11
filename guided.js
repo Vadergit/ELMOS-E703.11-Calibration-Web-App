@@ -142,7 +142,7 @@ const ELMOS_GUIDED=(()=>{
    }catch(e){msg(e.message,'error')}
   });
   $('gwDemoNvm').addEventListener('click',()=>{
-   try{window.ELMOS_GUIDED_API.demoCompleteWizard();msg('DEMO: NVM-Ablauf simuliert; es wurde kein Speicher programmiert.','success');updateUI()}
+   try{window.ELMOS_GUIDED_API.demoCompleteWizard({outputOnly:task==='output'});msg('DEMO: NVM-Ablauf simuliert; es wurde kein Speicher programmiert.','success');updateUI()}
    catch(e){msg(e.message,'error')}
   });
   $('gwClassic').addEventListener('click',close);$('gwBackClassic').addEventListener('click',close);
