@@ -337,6 +337,7 @@ const ELMOS_GUIDED=(()=>{
  function updateUI(){
   if(!mode)return;
   const s=state();
+  document.documentElement.classList.toggle('guided-demo',s.mode==='demo');
   $('gwDemoBanner').hidden=s.mode!=='demo';
   $('gwDemoRam').hidden=s.mode!=='demo';
   $('gwDemoVerify').hidden=s.mode!=='demo';
@@ -443,7 +444,7 @@ const ELMOS_GUIDED=(()=>{
   if(pendingCapture){window.clearInterval(pendingCapture);pendingCapture=null}
   for(const {el,type,handler} of subscriptions)el.removeEventListener(type,handler);
   subscriptions.length=0;
-  restore();root.hidden=true;root.replaceChildren();document.documentElement.classList.remove('guided-active');
+  restore();root.hidden=true;root.replaceChildren();document.documentElement.classList.remove('guided-active','guided-demo');
   window.ELMOS_GUIDED_API?.refresh?.();
  }
  function onConnected(){
