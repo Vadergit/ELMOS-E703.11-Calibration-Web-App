@@ -45,10 +45,10 @@ if(typeof document!=='undefined') (function UI(){
  function gainSummary(){
   const g=st.staged;
   for(const k of ['pga1','pga2','offset'])$(k).value=String(g[k]);
-  $('pga1val').textContent='Stufe '+g.pga1+' · '+GAINS1[g.pga1]+'×';
-  $('pga2val').textContent='Stufe '+g.pga2+' · '+GAINS2[g.pga2]+'×';
-  $('offsetval').textContent=(g.offset>0?'+':'')+g.offset+' · '+(g.offset*50>0?'+':'')+(g.offset*50)+' mV/V';
-  $('gainInfo').textContent=`PGA1 ${GAINS1[g.pga1]}× · PGA2 ${GAINS2[g.pga2]}× · Gesamt ${(GAINS1[g.pga1]*GAINS2[g.pga2]).toFixed(2)}× · Offset-DAC ${g.offset*50} mV/V`;
+  $('pga1val').textContent=GAINS1[g.pga1]+'×';
+  $('offsetval').textContent=(g.offset*50>0?'+':'')+(g.offset*50)+' mV/V';
+  $('pga2val').textContent=GAINS2[g.pga2]+'×';
+  $('gainInfo').textContent=`PGA1 ${GAINS1[g.pga1]}× · Offset ${g.offset*50} mV/V · PGA2 ${GAINS2[g.pga2]}× · Gesamt ${(GAINS1[g.pga1]*GAINS2[g.pga2]).toFixed(2)}×`;
   renderStatus()
  }
  function renderAFEStepperState(){
