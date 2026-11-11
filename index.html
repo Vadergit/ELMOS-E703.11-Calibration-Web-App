@@ -168,6 +168,8 @@ button.danger{background:#9e3e34;border-color:#9e3e34;color:#fff}button.danger:h
 }
 
 
+.nvm-uid-field{grid-template-columns:minmax(180px,360px)!important}
+.nvm-uid-field input{font-family:ui-monospace,SFMono-Regular,Consolas,monospace;letter-spacing:.6px}
 /* Eigenständige, kompakte App-Einstellungen rechts oben. */
 .connection-actions{display:flex;align-items:center;gap:9px}
 .settings-gear{border:1px solid #c9d7e6;border-radius:8px;background:#fff;color:#23496c;padding:6px 10px;font-weight:750;font-size:12px;min-height:31px}
@@ -471,7 +473,7 @@ button.danger{background:#9e3e34;border-color:#9e3e34;color:#fff}button.danger:h
 <section class="card panel nvm-compact" data-panel="5" hidden>
 <div class="eyebrow">Schritt 6 · Dauerhaft speichern</div>
 <h2>Kalibrierung im Sensor speichern</h2>
-<p class="muted small">Nach erfolgreicher DSP-Prüfung wird das aktuelle NVM automatisch gelesen und kontrolliert. Erst nach der Änderungsvorschau und deiner ausdrücklichen Bestätigung erfolgt die dauerhafte Programmierung.</p>
+<p class="muted small">Nach erfolgreicher DSP-Prüfung das aktuelle NVM lesen und die Änderungen prüfen. Anschliessend kann die Kalibrierung über den finalen Knopf im Sensor gespeichert werden.</p>
 <div class="nvm-compact-row">
   <label class="toggle nvm-backup-choice"><input type="checkbox" id="nvmAutoBackup" checked> <strong>Altes NVM automatisch sichern</strong> <span class="muted">· empfohlen</span></label>
   <span class="muted small">Optional abwählbar. Die Sicherheitslesung mit CRC bleibt immer aktiv.</span>
@@ -487,13 +489,13 @@ button.danger{background:#9e3e34;border-color:#9e3e34;color:#fff}button.danger:h
   </div>
 </details>
 <div class="nvm-confirm-section">
-  <h3>2. Programmierung bestätigen</h3>
+  <h3>2. Kalibrierung dauerhaft speichern</h3>
   <div class="muted small" id="nvmUidHint">Erkannte Chip-UID: noch nicht gelesen.</div>
-  <div class="fieldrow">
-    <label>Chip-UID (12 Hex-Ziffern)<input id="nvmConfirmId" type="text" maxlength="12" placeholder="UID des verbundenen Chips" autocomplete="off"></label>
-    <label>Bestätigungswort<input id="nvmConfirmWord" type="text" placeholder="PROGRAMMIEREN" autocomplete="off"></label>
+  <div class="fieldrow nvm-uid-field">
+    <label>Chip-UID (automatisch ausgelesen, editierbar)<input id="nvmConfirmId" type="text" maxlength="12" placeholder="Chip verbinden …" spellcheck="false" autocomplete="off"></label>
   </div>
-  <div id="nvmWritePrereq" class="callout warn" role="status" aria-live="polite">Erst Änderungen prüfen, danach UID und Bestätigungswort eingeben.</div>
+  <p class="muted small">Die erkannte 48-Bit-UID wird automatisch eingetragen. Du kannst sie korrigieren, zum Schreiben muss sie aber mit der UID des angeschlossenen Chips übereinstimmen.</p>
+  <div id="nvmWritePrereq" class="callout warn" role="status" aria-live="polite">Zuerst NVM lesen und Änderungen prüfen; die erkannte Chip-UID wird automatisch eingesetzt.</div>
   <button class="danger" id="nvmProgram" disabled>Kalibrierung dauerhaft ins NVM schreiben</button>
   <p class="muted small nvm-risk">Achtung: Stromunterbruch oder Protokollfehler können den Sensor unbrauchbar machen. Factory-/Bootregister bleiben geschützt. Der echte NVM-Schreibpfad ist noch nicht hardwarevalidiert.</p>
 </div>
