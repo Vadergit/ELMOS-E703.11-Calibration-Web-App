@@ -31,24 +31,32 @@ const ELMOS_EXPERT=(()=>{
    if(!hex)throw Error('Chip-ID nicht plausibel');
    st.uid={version,ser0,ser1,hex};renderBackups();
    try{
-    const en=await readReg(0x04),mode=(en>>>9)&7,ao=await readReg(0x10);
-    if(mode<=6)$('expertOutputMode').value=String(mode);
-    if(mode===4)$('expertPwmPeriod').value=String(ao);
-    const scale=!!(en&(1<<6));$('expertScaleEnable').checked=scale;
-    if(scale){
-     $('expertScaleGain').value=String(CAL.fromQ(await readReg(0xA2),12));
-     $('expertScaleOffset').value=String(CAL.fromQ(await readReg(0xA0),12));
+    const en=await readReg(0x04),chipMode=(en>>>9)&7,ao=await readReg(0x10);
+    const enabled=!!(en&(1<<6));
+    const gainRaw=enabled?await readReg(0xA2):null,offsetRaw=enabled?await readReg(0xA0):null;
+    const gain=enabled?CAL.fromQ(gainRaw,12):1,offset=enabled?CAL.fromQ(offsetRaw,12):0;
+    const modeLabel={0:'High-Z',1:'Analog Ratiometric · DAC 0',2:'Analog Ratiometric · DAC 1',3:'Analog Ratiometric · DAC 2',4:'PWM',5:'FM',6:'Alarm',7:'SDA'};
+    const status=$('psscCurrentOutputStatus');
+    if(status){
+     const lim=currentLimit(),vdd=Number($('psscVdd').value);
+     const voltage=chipMode>=1&&chipMode<=3&&Number.isFinite(vdd)&&Number.isFinite(lim)?
+      ' · Bei angenommenem DSP-Bereich ±'+lim+' und VDD '+vdd+' V: etwa '+((offset*32768-gain*lim)/32768*vdd/2+vdd/2).toFixed(5)+'–'+((offset*32768+gain*lim)/32768*vdd/2+vdd/2).toFixed(5)+' V':'';
+     status.textContent='Aus dem Chip gelesen (RAM, nur Information): '+(modeLabel[chipMode]||'Unbekannt')+
+      ' · scale_en '+(enabled?'ein':'aus')+' · AODO_F '+(enabled?gain.toFixed(6):'nicht aktiv')+
+      ' · AODO_O '+(enabled?offset.toFixed(6):'nicht aktiv')+
+      ' · CFG_EN=0x'+hx(en)+' · CFG_AODO=0x'+hx(ao)+voltage+
+      '. Die gewünschten S0/S1-Werte werden dadurch nicht überschrieben.';
+     status.className='callout'+(chipMode<1||chipMode>5?' warn':'');
     }
-    // The voltage estimate uses the user-supplied VDD and DSP range, not a voltmeter.
-    if(isAnalog(mode)&&scale){
-     const vdd=Number($('psscVdd').value),lim=currentLimit();
-     const gain=Number($('expertScaleGain').value),offset=Number($('expertScaleOffset').value);
-     $('psscS0').value=((offset*32768-gain*lim)/32768*vdd/2+vdd/2).toFixed(5);
-     $('psscS1').value=((offset*32768+gain*lim)/32768*vdd/2+vdd/2).toFixed(5);
-     manualScaling=true;
-    }else manualScaling=false;
+    // Reading the existing chip must NEVER overwrite proposed S0/S1 values,
+    // their automatically calculated Gain/Offset, or an already staged proposal.
+    // E703.11 DS 6.3.2.6 / 6.4.1.1.
+    if(!st.expertOutputPlan&&!st.outputOnlyPlan&&!manualScaling&&isAnalog($('expertOutputMode').value)){
+     try{calculateAnalogScaling()}catch(e){show('expertOutputMsg','Ziel-Skalierung ungültig: '+e.message,'warn')}
+    }
+    refreshOutputReadOnly();
     renderOutputMode();
-    show('expertOutputMsg','Aktueller Chip-Ausgang: '+(mode===1||mode===2||mode===3?'ratiometrisch analog':mode===4?'PWM':mode===5?'FM':mode===6?'Alarm':mode===0?'High-Z':'SDA / Sondermodus')+'. CFG_EN=0x'+hx(en)+', CFG_AODO=0x'+hx(ao)+'. Anzeige wurde nur gelesen, nicht verändert.','success')
+    show('expertOutputMsg','Chip-Ausgangsregister gelesen, gewünschte S0/S1-Zielspannungen unverändert. Neue Einstellungen erst mit «Ausgangskonfiguration prüfen und vormerken» übernehmen.','success');
    }catch(e){show('expertOutputMsg','Chip-UID erkannt. Ausgangsregister konnten noch nicht vollständig gelesen werden: '+e.message,'warn')}
    return st.uid
   }
@@ -278,6 +286,11 @@ const ELMOS_EXPERT=(()=>{
   for(const id of ['expertScaleGain','expertScaleOffset'])$(id).addEventListener('change',()=>{manualScaling=true;renderOutputPreview();invalidateOutputPlan()});
   $('expertPwmPeriod').addEventListener('change',invalidateOutputPlan);
   renderOutputMode();
+  // Initialise the editable TARGET independently from existing chip values.
+  // 5 V -> S0 0.5 V (10% VDD), S1 4.5 V (90% VDD).
+  if(isAnalog($('expertOutputMode').value)){
+   try{calculateAnalogScaling()}catch(e){$('psscScalingPreview').textContent=e.message;$('psscScalingPreview').classList.add('invalid')}
+  }
   $('expertBackupSelect').addEventListener('change',()=>{
    if(st.restorePlan){
     if(st.calImage===st.restorePlan)st.calImage=null;
