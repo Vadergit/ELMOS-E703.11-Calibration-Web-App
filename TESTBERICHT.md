@@ -1,3 +1,18 @@
+## Expertenmodus & UID-Backups – UI-/Logikprüfung 11.11.2026
+
+- Vollständige 48-Bit-Chipkennung VERSION + SER1 + SER0 aus simulierten Chipregistern gelesen; Wiedererkennung `002056781234` erfolgreich
+- Beim vollständigen 64-Wort-NVM-Scan Backup mit CRC8/CRC16 automatisch lokal und nach UID gruppiert gespeichert
+- Erneute Abfrage nach einer simulierten Benutzerwort-Änderung erzeugte zweite historische Version; automatische Restore-Auswahl findet den letzten **abweichenden** Stand
+- Restore-Plan nur für dieselbe UID; Factory-/Bootbereich bleibt identisch. Im Simulator wurden ein Benutzerwort (Index 35) und CRC16 (Index 63) geschrieben/rückgelesen, mit anschliessend gültiger CRC
+- NVM-Restore ohne neue Druckkalibrierung erst nach gelesenem aktuellen Chipbackup und manuellem Vergleich; finale Eingabe verlangt 48-Bit-UID und `WIEDERHERSTELLEN`
+- Ausgangsmodi ratiometrisch analog, PWM, FM, Alarm, High-Z in Expertenmaske; CFG_EN.aodo_en und CFG_AODO/AODO_F/AODO_O nur durch dokumentierte, validierte Vorschläge im normalen finalen NVM-Plan beschreibbar
+- Algorithmische Tests: ratiometrische und PWM-Vorschläge verändern tatsächlich Koeffizienten/CFG_AODO und erhalten korrekte CRC16; unsichere PWM-Ausgangsskalierung wird verworfen
+- Factory-/Bootschreibzugriffe bleiben blockiert; vollständige EEPROM- und Registeransicht ist lesend
+- CSS für aktive/hovernde blaue Schaltflächen behält kontrastreiche weisse Schrift; RAM-Freigabe-Checkboxen entfernt
+- Sequenz: Berechnen → RAM-Schreiben → DSP-Prüfung → erst dann NVM-Backup/Finalprogrammierung, mit verkürzten sicheren Lese-Pollintervallen
+
+**Kein echter Hardware-Freigabetest:** Serielles SSP3-Timing, ratiometrischer/PWM/FM-Ausgang am Pin, NVM-Programmierung und Restore am physischen Chip sind noch zu testen. Die Tests sind simulierte JavaScript-/NVM-Tests, keine Produktionsfreigabe.
+
 ## Messpunktplanung und einstellbarer DSP-Endwert – Änderungen 11.11.2026
 
 - 2–10 Kalibrier-Messpunkte vor der Aufnahme auswählbar (Standard 2), für alle aktivierten Punkte individuelle Referenz-/Temperaturfelder und Aufnahmeknöpfe
