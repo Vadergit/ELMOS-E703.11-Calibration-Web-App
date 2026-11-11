@@ -1,6 +1,6 @@
 # Config-Dateien und EEPROM Viewer
 
-**Version v0.4.0 · 11. November 2026 · ELMOS E703.11 Kalibrierassistent**
+**Version v0.5.0 · 11. November 2026 · ELMOS E703.11 Kalibrierassistent**
 
 Die Web-App unterstützt die Wiederverwendung von **chipunabhängigen Konfigurationen**, ohne dass sensorspezifische Kalibrierwerte, Werksdaten oder Kommunikationsregister von einem Sensor auf einen anderen übertragen werden.
 
