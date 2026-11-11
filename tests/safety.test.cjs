@@ -255,7 +255,7 @@ test('EEPROM explanations remain read-only, chip verified and contextual',()=>{
  assert.ok(expert.includes('st.uid.ser0===st.nvmBackup[0]'));
  assert.ok(expert.includes('st.uid.ser1===st.nvmBackup[1]'));
  assert.ok(expert.includes('word.search.includes(filter)'));
- assert.ok(expert.includes("const expertDetails=$('expertMode').checked"));
+ assert.ok(expert.includes("expertDetails=$('expertMode').checked"));
  assert.ok(expert.includes('expandedEEPROM.clear()'));
  assert.ok(!helper.includes('writeReg('));
  assert.ok(!helper.includes('maintWrite('));
