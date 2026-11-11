@@ -29,7 +29,19 @@ const ELMOS_EXPERT=(()=>{
    if(!st.chip||!st.port)throw Error('Kein echter Chip verbunden');
    const version=await readReg(0x38),ser0=await readReg(0x50),ser1=await readReg(0x52),hex=uidHex(version,ser1,ser0);
    if(!hex)throw Error('Chip-ID nicht plausibel');
-   st.uid={version,ser0,ser1,hex};renderBackups();return st.uid
+   st.uid={version,ser0,ser1,hex};renderBackups();
+   try{
+    const en=await readReg(0x04),mode=(en>>>9)&7,ao=await readReg(0x10);
+    if(mode<=6)$('expertOutputMode').value=String(mode);
+    if(mode===4)$('expertPwmPeriod').value=String(ao);
+    const scale=!!(en&(1<<6));$('expertScaleEnable').checked=scale;
+    if(scale){
+     $('expertScaleGain').value=String(Number(CAL.fromQ(await readReg(0xA2),12).toFixed(6)));
+     $('expertScaleOffset').value=String(Number(CAL.fromQ(await readReg(0xA0),12).toFixed(6)))
+    }
+    show('expertOutputMsg','Aktueller Chip-Ausgang: '+(mode===1||mode===2||mode===3?'ratiometrisch analog':mode===4?'PWM':mode===5?'FM':mode===6?'Alarm':mode===0?'High-Z':'SDA / Sondermodus')+'. CFG_EN=0x'+hx(en)+', CFG_AODO=0x'+hx(ao)+'. Anzeige wurde nur gelesen, nicht verändert.','success')
+   }catch(e){show('expertOutputMsg','Chip-UID erkannt. Ausgangsregister konnten noch nicht vollständig gelesen werden: '+e.message,'warn')}
+   return st.uid
   }
   async function onDetect(){try{await identify()}catch(e){st.uid=null;renderBackups();show('expertUidStatus','Chipkennung konnte nicht gelesen werden: '+e.message,'warn')}}
   function save(words,source='NVM gelesen'){
