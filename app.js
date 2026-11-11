@@ -47,14 +47,35 @@ if(typeof document!=='undefined') (function UI(){
  function pressureUnit(){const opt=$('calUnit').value;return opt==='custom'?($('calUnitOther').value.trim()||'Einheit'):opt}
  function pointName(which){return ($((which==='lo'?'pointLoName':'pointHiName')).value.trim()||('Messpunkt '+(which==='lo'?'1':'2')))}
  function calEndpointsReady(){const a=st.points.lo,b=st.points.hi;return !!a&&!!b&&Number.isFinite(a.v)&&Number.isFinite(b.v)&&Math.abs(a.v-b.v)>=10&&JSON.stringify(a.gains)===JSON.stringify(b.gains)&&JSON.stringify(a.gains)===JSON.stringify(st.staged)&&st.calpoints.some(x=>x.kind==='lo')&&st.calpoints.some(x=>x.kind==='hi')}
+ function verificationRequiredCount(){
+  const n=Number($('calVerifyCount').value);
+  return Number.isInteger(n)&&n>=1&&n<=10?n:Infinity;
+ }
+ function verificationComplete(){
+  const count=verificationRequiredCount();
+  return !!st.calVerified&&!!st.calfit&&!!st.calStaged&&Number.isFinite(count)&&st.calValidation.length>=count;
+ }
+ function updateVerificationProgress(){
+  const required=verificationRequiredCount(),done=st.calValidation.length;
+  if(!Number.isFinite(required)){
+   $('calVerifyProgress').textContent='Bitte eine ganze Zahl zwischen 1 und 10 eingeben.';
+   $('calVerifyCoverage').textContent='Ungültige Anzahl: Die NVM-Freigabe bleibt gesperrt.';
+   return
+  }
+  $('calVerifyProgress').textContent=done+' von '+required+' Prüfpunkten erfolgreich.';
+  $('calVerifyCoverage').textContent=required===1?
+   'Ein Prüfpunkt (Standard): Die DSP-Kalibrierung wird nur an einer Stelle geprüft. Das ist keine Verifikation des gesamten Druckbereichs. Bei Temperaturkompensation sind zusätzliche Temperaturprüfungen nötig.':
+   required+' Prüfpunkte: Jeder Prüfwert muss innerhalb der Toleranz liegen und ausreichend Abstand zu den anderen Punkten haben. Bei Temperaturkompensation müssen zusätzlich verschiedene Temperaturen geprüft werden.'
+ }
  function workflowGate(n){
   if(n>=3&&!calEndpointsReady())return 'Zuerst beide Referenzpunkte mit derselben AFE-Einstellung aufnehmen. Dann kann gerechnet werden.';
   if(n>=4&&(!st.calfit||!st.calStaged))return 'Zuerst die DSP-Koeffizienten berechnen und ins Chip-RAM übertragen. Eine Rechnung allein reicht für die DSP-Prüfung nicht.';
-  if(n>=5&&!st.calVerified)return 'NVM bleibt gesperrt: Zuerst mindestens zwei unabhängige Prüfpunkte über DSP_S im RAM erfolgreich verifizieren.';
+  if(n>=5&&!verificationComplete())return 'NVM bleibt gesperrt: Zuerst '+(Number.isFinite(verificationRequiredCount())?verificationRequiredCount()+' Prüfpunkte':'eine gültige Anzahl Prüfpunkte')+' über DSP_S im RAM erfolgreich verifizieren.';
   return ''
  }
  function renderFlowState(){
-  const unlocked=[true,true,true,calEndpointsReady(),!!st.calfit&&st.calStaged,!!st.calVerified];
+  updateVerificationProgress();
+  const unlocked=[true,true,true,calEndpointsReady(),!!st.calfit&&st.calStaged,verificationComplete()];
   document.querySelectorAll('[data-step]').forEach(b=>{const index=Number(b.dataset.step);b.classList.toggle('locked',!unlocked[index]);b.setAttribute('aria-disabled',String(!unlocked[index]));b.title=unlocked[index]?'':workflowGate(index)});
   for(const btn of document.querySelectorAll('[data-next]')){const index=Number(btn.dataset.next);if(index>2){btn.disabled=!unlocked[index];btn.title=unlocked[index]?'':workflowGate(index)}else btn.disabled=false}
  }
@@ -330,36 +351,54 @@ if(typeof document!=='undefined') (function UI(){
   }catch(e){st.calStaged=false;st.calVerified=false;ca('calRamMsg','RAM-Übernahme fehlgeschlagen: '+e.message,'error')}
   finally{await ramLock();st.calTask=false;st.writing=false;renderStatus()}
  }
- async function verifyCalRam(){try{
+ async function verifyCalRam(){
+  try{
    if(!st.calStaged||!st.calfit||!st.chip||st.calTask)throw Error('Koeffizienten zuerst im RAM übernehmen / anderer Vorgang läuft');
+   const required=verificationRequiredCount();
+   if(!Number.isFinite(required))throw Error('Anzahl Prüfpunkte: Bitte eine ganze Zahl zwischen 1 und 10 eingeben');
    const p=Number($('calVerifyPressure').value),pmin=Number($('pmin').value),pmax=Number($('pmax').value),tol=Number($('calVerifyTolerance').value);
-   if(!Number.isFinite(p)||!(p>pmin&&p<pmax)||!Number.isFinite(tol)||tol<=0)throw Error('Unabhängigen Prüfdruck innerhalb des Bereichs eingeben');
+   if(!Number.isFinite(p)||!(p>pmin&&p<pmax)||!Number.isFinite(tol)||tol<=0)throw Error('Prüfdruck innerhalb des Kalibrierbereichs und positive Toleranz eingeben');
    const got=P.sign16(await readReg(0x30)),target=64000*(p-pmin)/(pmax-pmin)-32000;
    const stat=await readReg(0x32),delta=got-target,errorBar=delta/64000*(pmax-pmin);
    if(stat&(1<<10))throw Error('DSP-Sättigung erkannt (STATUS_SYNC.dsp_sat). Programmierung gesperrt.');
-   if(Math.abs(errorBar)>tol){st.calValidation=[];st.calVerified=false;throw Error(`DSP_S ${got}: Abweichung ${errorBar.toFixed(4)} ${pressureUnit()} über Toleranz ${tol} ${pressureUnit()}`)}
+   if(Math.abs(errorBar)>tol){
+    st.calValidation=[];st.calVerified=false;st.calImage=null;
+    $('calVerifyList').textContent='Prüfung fehlgeschlagen. Bisherige Prüfpunkte verworfen; alle erneut prüfen.';
+    throw Error(`DSP_S ${got}: Abweichung ${errorBar.toFixed(4)} ${pressureUnit()} über Toleranz ${tol} ${pressureUnit()}`)
+   }
    st.calValidation=st.calValidation.filter(x=>Math.abs(x.pressure-p)>(pmax-pmin)*0.10);
    st.calValidation.push({pressure:p,actual:got,expected:target,errorBar,temperature:Number($('calVerifyTemperature').value),measuredTemp:P.sign16(await readReg(0x2E))});
-   const distinct=st.calValidation.length>=2;
-   const temperatureValidation=st.calfit.orderT===0||((Math.max(...st.calValidation.map(x=>x.temperature))-Math.min(...st.calValidation.map(x=>x.temperature)))>=10 && st.calValidation.every(x=>Number.isFinite(x.temperature)&&Math.abs(x.measuredTemp-(387.88*x.temperature-16485))<=Math.max(100,tol*64000/(pmax-pmin))));
-   st.calVerified=distinct&&temperatureValidation;
-   $('calVerifyList').textContent=st.calValidation.map((v,i)=>(i+1)+'. '+v.pressure+' '+pressureUnit()+' · DSP_S '+v.actual+' · Abweichung '+v.errorBar.toFixed(5)+' '+pressureUnit()).join('\n');ca('calRamMsg',`DSP_S ${got} · Soll ${target.toFixed(1)} Digits · Fehler ${errorBar.toFixed(5)} ${pressureUnit()} · ${st.calValidation.length} unabhängige Prüfpunkte. ${st.calVerified?'RAM-Verifikation bestanden':'Weitere unabhängige Prüfpunkte erforderlich'}`,st.calVerified?'success':'warn');
-  }catch(e){st.calVerified=false;ca('calRamMsg','DSP-Verifikation: '+e.message,'error')}
+   const pointsReady=st.calValidation.length>=required;
+   const temperatureValidation=st.calfit.orderT===0||(
+    st.calValidation.length>=2
+    &&(Math.max(...st.calValidation.map(x=>x.temperature))-Math.min(...st.calValidation.map(x=>x.temperature)))>=10
+    &&st.calValidation.every(x=>Number.isFinite(x.temperature)&&Math.abs(x.measuredTemp-(387.88*x.temperature-16485))<=Math.max(100,tol*64000/(pmax-pmin)))
+   );
+   st.calVerified=pointsReady&&temperatureValidation;
+   st.calImage=null; // Nach jeder neuen Prüfung muss der NVM-Plan neu erstellt werden.
+   $('calVerifyList').textContent=st.calValidation.map((v,i)=>(i+1)+'. '+v.pressure+' '+pressureUnit()+' · DSP_S '+v.actual+' · Abweichung '+v.errorBar.toFixed(5)+' '+pressureUnit()).join('\n');
+   const remaining=Math.max(0,required-st.calValidation.length);
+   const info=st.calVerified?
+    (required===1?'Ein Prüfpunkt bestanden. NVM-Schritt freigegeben; der übrige Druckbereich wurde nicht verifiziert.':'Alle '+required+' Prüfpunkte bestanden. NVM-Schritt freigegeben.'):
+    (remaining>0?'Noch '+remaining+' unabhängige Prüfpunkte erforderlich.':'Die Prüfpunkte sind erfasst, aber die Temperaturverifikation ist noch nicht vollständig.');
+   ca('calRamMsg',`DSP_S ${got} · Soll ${target.toFixed(1)} Digits · Fehler ${errorBar.toFixed(5)} ${pressureUnit()} · ${st.calValidation.length}/${required} Prüfpunkte. ${info}`,st.calVerified&&required>1?'success':'warn');
+  }catch(e){st.calVerified=false;st.calImage=null;ca('calRamMsg','DSP-Verifikation: '+e.message,'error')}
   finally{renderFlowState()}
- }function prepareNvm(){try{if(st.calTask||st.writing)throw Error('Wartungsvorgang läuft');
-  if(!st.nvmBackupVerified||!st.calfit||!st.calVerified||!st.calStaged)throw Error('NVM-Backup, berechnete Koeffizienten und bestandene echte DSP-RAM-Verifikation nötig');
+ }
+ function prepareNvm(){try{if(st.calTask||st.writing)throw Error('Wartungsvorgang läuft');
+  if(!st.nvmBackupVerified||!st.calfit||!verificationComplete()||!st.calStaged)throw Error('NVM-Backup, berechnete Koeffizienten und bestandene DSP-RAM-Verifikation für die gewählte Anzahl Prüfpunkte nötig');
   const image=CAL.configFrom(st.nvmBackup,st.calfit,st.afe??0x800);
   if(image.changes.some(c=>c.index<28||c.index===29||c.index===30))throw Error('Unerlaubtes NVM-Register im Änderungsplan');
   if(image.changes.length===0)throw Error('Keine NVM-Änderungen nötig');
   st.calImage=image;$('nvmDiff').textContent=image.changes.map(c=>`NVM 0x${h(c.address)} [${c.index}] 0x${h(c.from,2)} → 0x${h(c.to,2)}`).join('\n');
-  ca('nvmMsg',`${image.changes.length} von 64 Wörtern werden geändert (CRC16 zuletzt). Werksbereich 0x00–0x1E und alle Boot-/Kommunikationsregister bleiben exakt erhalten.`,`warn`);
+  ca('nvmMsg',`${image.changes.length} von 64 Wörtern werden geändert (CRC16 zuletzt). Werksbereich 0x00–0x1E und alle Boot-/Kommunikationsregister bleiben exakt erhalten.${verificationRequiredCount()===1?' ACHTUNG: Nur ein Prüfpunkt bestanden – der restliche Druckbereich ist ungeprüft.':''}`,`warn`);
  }catch(e){st.calImage=null;ca('nvmMsg','Vorbereitung: '+e.message,'error')}
  }
  async function nvmProgram(){
   if(st.nvmWorking||st.writing)return;
   let chipProgrammingStarted=false;
   try{
-   if(st.mode!=='usb'||!st.chip||!st.port||!$('allowRam').checked||!st.nvmBackupVerified||!st.calImage||!st.calVerified)throw Error('Hardware, Sicherungen oder Kalibrierverifikation fehlen');
+   if(st.mode!=='usb'||!st.chip||!st.port||!$('allowRam').checked||!st.nvmBackupVerified||!st.calImage||!verificationComplete())throw Error('Hardware, Sicherungen oder Kalibrierverifikation fehlen');
    if(!$('nvmConfirm').checked)throw Error('Risikohinweis muss ausdrücklich bestätigt sein');
    const id=h(st.nvmBackup[1],2)+h(st.nvmBackup[0],2);
    if($('nvmConfirmId').value.trim().toUpperCase()!==id)throw Error('Chipkennung stimmt nicht');
@@ -434,6 +473,12 @@ if(typeof document!=='undefined') (function UI(){
  $('calCalculate').addEventListener('click',calcCoefficients);
  $('calApplyRam').addEventListener('click',applyCalRam);
  $('calVerifyRam').addEventListener('click',verifyCalRam);
+ $('calVerifyCount').addEventListener('change',()=>{
+  st.calValidation=[];st.calVerified=false;st.calImage=null;
+  $('calVerifyList').textContent='Noch kein Prüfpunkt aufgenommen.';
+  ca('calRamMsg','Anzahl Prüfpunkte geändert. Prüfungen zurückgesetzt; DSP_S erneut messen.','warn');
+  renderFlowState()
+ });
  $('nvmBackupRead').addEventListener('click',nvmScan);
  $('nvmBackupSave').addEventListener('click',()=>{if(!st.nvmBackupVerified)return ca('nvmMsg','Zuerst NVM lesen','warn');download('ELMOS_NVM_Backup_'+Date.now()+'.json',JSON.stringify({chipId:h(st.nvmBackup[1],2)+h(st.nvmBackup[0],2),version:st.firmware,words:st.nvmBackup,checksum:st.nvmBackup[63],created:new Date().toISOString()},null,2))});
  $('nvmPrepare').addEventListener('click',prepareNvm);
