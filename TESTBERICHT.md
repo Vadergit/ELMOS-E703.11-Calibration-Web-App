@@ -1,6 +1,6 @@
 # Testbericht – ELMOS E703.11 Web-Kalibrierassistent
 
-**Stand: Version v0.6.0-beta.1 · 11. November 2026 · Laborprototyp, keine Hardware- oder Produktionsfreigabe**
+**Stand: Version v0.6.0-beta.2 · 11. November 2026 · Laborprototyp, keine Hardware- oder Produktionsfreigabe**
 
 Dieser Bericht trennt den **im Code beziehungsweise mit simulierten Chipantworten geprüften Stand** von noch offenen Hardwareprüfungen. Ältere, überholte UI-Varianten und frühere Bestätigungswörter werden hier bewusst nicht als aktuelle Funktion beschrieben.
 
@@ -54,7 +54,7 @@ Dieser Bericht trennt den **im Code beziehungsweise mit simulierten Chipantworte
 
 Die Tests waren **Simulationen oder lokale JavaScript-Prüfungen**. Das Repository enthält inzwischen automatisierte Node-Regressionstests unter `tests/safety.test.cjs`, startbar mit `node --test tests/safety.test.cjs`. Der Code selbst wird ohne Buildprozess direkt durch GitHub Pages ausgeliefert. Die Tests ersetzen keine echte Hardwareprüfung.
 
-Die automatisierten Software-Regressionstests umfassen in **v0.6.0-beta.1 insgesamt 41 Fälle**. Zusätzlich wurden vorhandene HTML-IDs, die Referenzen aus den JavaScript-Dateien und einheitliche Browser-Skriptversionen geprüft. Ein vollwertiger Browser-End-to-End-Test und reale Sensorhardware stehen weiterhin aus. Die neue Datei-API, das Speichern im Browser und echte SSP3-EEPROM-Lesungen wurden noch nicht mit angeschlossenem Sensor als vollständige End-to-End-Kette verifiziert.
+Die automatisierten Software-Regressionstests umfassen in **v0.6.0-beta.2 insgesamt 46 Fälle**. Zusätzlich wurden vorhandene HTML-IDs, die Referenzen aus den JavaScript-Dateien und einheitliche Browser-Skriptversionen geprüft. Ein vollwertiger Browser-End-to-End-Test und reale Sensorhardware stehen weiterhin aus. Die neue Datei-API, das Speichern im Browser und echte SSP3-EEPROM-Lesungen wurden noch nicht mit angeschlossenem Sensor als vollständige End-to-End-Kette verifiziert.
 
 Zusätzlicher Regressionstest ab v0.4.1: Wenn SSP3 bereits auf Befehle antwortet, die Chipprüfung aber scheitert, darf der automatische USB-Neuaufbau nur **einmal** stattfinden; danach muss die Diagnose stehen bleiben. Der reale Fehlerfall am SSP3 ist noch nicht hardwaregetestet.
 
@@ -63,6 +63,8 @@ Weitere Regressionstests ab v0.4.2 prüfen die Beschreibung aller 64 EEPROM-Wör
 Ab v0.5.0 prüfen drei zusätzliche Regressionstests die opt-in-Konfiguration, die Rückkehr zur unveränderten normalen Navigation und die Verwendung der bestehenden Bedien- und NVM-Sicherheitslogik im One-Pager. Ein vollwertiger Browser-Test für Layout-Höhen, Bedienbarkeit und die DOM-Umschaltung am angeschlossenen SSP3 ist weiterhin erforderlich. Auf kleineren Viewports kann innerhalb einzelner Kompaktkarten Scrollen notwendig sein.
 
 **Beta-Status:** 10 weitere Tests prüfen die Druck×Temperatur-Matrix (2×1, 2×3, 3×2, 5×2, ungültige Kombinationen), die Wiederverwendung der originalen Hardware- und NVM-Bedienelemente sowie die fail-closed USB-Bridge. Für echte Browser-/Hardwaretests stehen weiterhin SSP3 und ein entbehrlicher E703.11-Testchip aus. Die Microcontroller-Firmware ist zunächst nur USB-CDC-Prototyp ohne PLC.
+
+**Beta.2:** Zusätzliche Softwareprüfungen decken den C3-SuperMini-Firmware-Handshake (keine GPIO-/PLC-/NVM-Funktionen), den hardwarefreien Guided-Demo-Ablauf und die mathematische Regression mit synthetischen Temperatur-/Druck-Matrizen ab. Diese Simulationsprüfungen ersetzen weder den echten E703.11-Fit noch einen Hardware- oder USB-Browser-Abnahmetest.
 
 ## Offene Prüfungen vor produktivem Einsatz
 
