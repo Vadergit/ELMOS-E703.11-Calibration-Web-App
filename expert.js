@@ -106,7 +106,7 @@ const ELMOS_EXPERT=(()=>{
    renderFlowState()
   }
   function restoreReady(){
-   return !!(st.restorePlan&&st.nvmBackupVerified&&st.nvmBackup&&st.uid&&st.restorePlan.uid===st.uid.hex&&
+   return !!($('expertMode').checked&&st.restorePlan&&st.nvmBackupVerified&&st.nvmBackup&&st.uid&&st.restorePlan.uid===st.uid.hex&&
     st.restorePlan.before.every((v,i)=>v===st.nvmBackup[i]))
   }
   function prepareRestore(){
@@ -145,7 +145,12 @@ const ELMOS_EXPERT=(()=>{
    const entry={format:'E70311-CM64-v2',uid:st.uid.hex,created,source:'Manueller Export',words:st.nvmBackup.slice(),version:st.uid.version};
    download('ELMOS_E70311_UID_'+st.uid.hex+'_'+created.replace(/[:.]/g,'-')+'.json',JSON.stringify(entry,null,2));
   }
-  $('expertMode').addEventListener('change',()=>{$('expertPanel').hidden=!$('expertMode').checked;if($('expertMode').checked)renderBackups()});
+  $('expertMode').addEventListener('change',()=>{
+   $('expertPanel').hidden=!$('expertMode').checked;
+   if($('expertMode').checked)renderBackups();
+   else {if(st.restorePlan&&st.calImage===st.restorePlan)st.calImage=null;st.restorePlan=null;}
+   renderFlowState()
+  });
   $('expertIdentify').addEventListener('click',()=>identify().catch(e=>show('expertUidStatus',e.message,'error')));
   $('expertNvmRead').addEventListener('click',readNvm);
   $('expertNvmExport').addEventListener('click',exportCurrent);
