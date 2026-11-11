@@ -30,7 +30,7 @@ if(typeof document!=='undefined') (function UI(){
  const LOCKED=[4,6,8,10,12,16],R_AFE=0x1C;
  const CAL=ELMOS_CAL; const CAL_REGS=[0x6C,0x6E,0x70,0x72,...Array.from({length:16},(_,i)=>0x74+2*i),0x94,0x96,0x98,0x9A];
  const REG_NAMES={4:'CFG_EN',6:'CFG_SPI_I2C',8:'CFG_PADS0',10:'CFG_PADS1',12:'CFG_PADS2',16:'CFG_AODO',0x14:'CFG_ADC',0x16:'CFG_LP0',0x18:'CFG_LP1',0x1A:'CFG_AFE0',0x1C:'CFG_AFE1',0x1E:'CFG_AFE2',0x26:'ADC_TC',0x28:'ADC_T',0x2A:'ADC_S'};
- const st={mode:'offline',port:null,reader:null,readerPromise:null,cmdQueue:Promise.resolve(),replyBuffer:'',responseWait:null,iface:'plc',adapterKind:'ssp3',firmware:'',chip:false,boot:null,afe:null,staged:{pga1:0,pga2:0,offset:0},adc:null,dsp:null,dspError:null,liveReadPromise:null,trend:[],history:[],log:[],regs:{},points:{lo:null,hi:null},verify:null,live:false,manualLivePause:false,timeout:null,consecutiveErrors:0,writing:false,pressure:5,calpoints:[],calfit:null,calImage:null,nvmBackup:null,nvmBackupVerified:false,calStaged:false,calVerified:false,calValidation:[],calTask:false,nvmWorking:false,nvmDone:false,afeWriteActive:false,ramWriteScope:null,uid:null,expertOutputPlan:null,restorePlan:null,outputOnlyPlan:null,uidShownForInput:null,profilePendingAFE:null};
+ const st={mode:'offline',port:null,closing:false,reader:null,readerPromise:null,cmdQueue:Promise.resolve(),replyBuffer:'',responseWait:null,iface:'plc',adapterKind:'ssp3',firmware:'',chip:false,boot:null,afe:null,staged:{pga1:0,pga2:0,offset:0},adc:null,dsp:null,dspError:null,liveReadPromise:null,trend:[],history:[],log:[],regs:{},points:{lo:null,hi:null},verify:null,live:false,manualLivePause:false,timeout:null,consecutiveErrors:0,writing:false,pressure:5,calpoints:[],calfit:null,calImage:null,nvmBackup:null,nvmBackupVerified:false,calStaged:false,calVerified:false,calValidation:[],calTask:false,nvmWorking:false,nvmDone:false,afeWriteActive:false,ramWriteScope:null,uid:null,expertOutputPlan:null,restorePlan:null,outputOnlyPlan:null,uidShownForInput:null,profilePendingAFE:null};
  let currentStep=0,pendingGain=null,writeTimer=null;let tipEnabled=true,liveIntervalMs=650;
  const HELP={interface:'Schnittstelle zwischen SSP3-Board und Sensorchip. 1-Wire nutzt AODO (VDD, GND und AODO). Die Einstellung IF_CFG ändert die Programmer-Pins, nicht die NVM-Konfiguration des Sensors.',baud:'Baudrate des USB-UART zwischen Chrome und dem SSP3. Die Herstellersoftware verwendet 115200 Baud als Standard.',adcs:'ADC_S ist der unkompensierte 16-Bit-Druck-ADC. ±25000 Digits ist ein vorsichtiges Ziel für den manuellen Abgleich, keine garantierte Hardwaregrenze.',dsp_live:'DSP_S (Register 0x30) ist der skalierte DSP-Sensorausgang. Die Anzeige liest den Chipwert wiederholt und rechnet ihn mit dem konfigurierten DSP-Endwert (standardmässig ±32’000 Digits) in den gewählten Anzeigebereich um. Ein DSP-Wert allein belegt keine gültige Kalibrierung.',pga1:'Erste Druckverstärkungsstufe: 3.5×, 6×, 8.5× oder 11× (typische Werte laut Datenblatt 2023). Für gutes SNR möglichst hoch ohne Übersteuerung.',pga2:'Zweite Verstärkungsstufe: typische Faktoren 2× bis 10×. Der Gesamtfaktor ist PGA1 × PGA2.',offset:'17 DAC-Stufen von −400 bis +400 mV/V bezogen auf die Brückenspannung. Die Verschiebung liegt zwischen PGA1 und PGA2.',pressureunit:'Einheit für die Referenz- und Prüfdruckwerte. Für relative Kalibrierungen kann beispielsweise % mit 0 bis 100 gewählt werden. Referenzwerte müssen zum tatsächlichen Prüfstand passen. Einheitenwechsel erfordert neue Messpunkte.',dsp_limit:'Symmetrischer DSP-Endwert für die neue Kalibrierung. Standard ±32’000 Digits. ±30’000 lässt zusätzlich Reserve. Der Wert verändert die berechneten Koeffizienten sowie DSP-Soll und Fehlerumrechnung; er ist keine Hardware-Clipping-Grenze.',ram:'PGA1, Offset und PGA2 werden mit jeder Pfeiltaste sofort ausschliesslich in CFG_AFE1 0x1C im RAM geändert und rückgelesen. Kein NVM-/EEPROM-Schreiben. Boot-/Kommunikationsregister werden kontrolliert.',};
  const h=P.hx;
@@ -41,7 +41,7 @@ if(typeof document!=='undefined') (function UI(){
  const hexWords=arr=>arr.map(x=>P.hx(x,2)).join(' ');
  const sleep=ms=>new Promise(r=>setTimeout(r,ms));
  const sameBoot=(a,b)=>!!a&&!!b&&LOCKED.every(k=>a[k]===b[k]);
- function renderStatus(){let connected=!!st.port;$('status').textContent=st.chip?'Chip-Leseantwort plausibel':connected?'USB verbunden · Chipprüfung offen':'Nicht verbunden';$('statusDot').className='dot'+(st.chip?' active':'');$('fw').textContent=st.firmware?st.firmware.slice(0,19):'—';$('chip').textContent=st.chip?'Antwort erhalten':'—';$('ifaceLabel').textContent=st.iface==='plc'?'1-Wire':st.iface==='i2c'?'I²C':'SPI';$('srcLabel').textContent=st.adc?.source==='usb'?'USB / Chip':'Keine Messdaten';$('choose').disabled=connected;$('auto').disabled=connected;$('disconnect').disabled=!connected;$('readNow').disabled=!connected;$('live').disabled=!connected;$('live').textContent=st.live?'Live-Messung stoppen':'Live-Messung starten';$('readBoot').disabled=!st.chip;$('readRegs').disabled=!st.chip;$('afeWord').textContent=st.afe===null?'CFG_AFE1: —':'CFG_AFE1: 0x'+h(st.afe,2);renderAFEStepperState();renderFlowState();renderDSPLive()};
+ function renderStatus(){let connected=!!st.port;$('status').textContent=st.chip?'Chip-Leseantwort plausibel':connected?'USB verbunden · Chipprüfung offen':'Nicht verbunden';$('statusDot').className='dot'+(st.chip?' active':'');$('fw').textContent=st.firmware?st.firmware.slice(0,19):'—';$('chip').textContent=st.chip?'Antwort erhalten':'—';$('ifaceLabel').textContent=st.iface==='plc'?'1-Wire':st.iface==='i2c'?'I²C':'SPI';$('srcLabel').textContent=st.adc?.source==='usb'?'USB / Chip':'Keine Messdaten';$('choose').disabled=connected;$('auto').disabled=connected;$('disconnect').disabled=!connected||st.closing;$('readNow').disabled=!connected;$('live').disabled=!connected;$('live').textContent=st.live?'Live-Messung stoppen':'Live-Messung starten';$('readBoot').disabled=!st.chip;$('readRegs').disabled=!st.chip;$('afeWord').textContent=st.afe===null?'CFG_AFE1: —':'CFG_AFE1: 0x'+h(st.afe,2);renderAFEStepperState();renderFlowState();renderDSPLive()};
  function gainSummary(){
   const g=st.staged;
   for(const k of ['pga1','pga2','offset'])$(k).value=String(g[k]);
@@ -322,8 +322,7 @@ if(typeof document!=='undefined') (function UI(){
    'Aus dem Chip gelesen: '+recognizedUid+' · Feld automatisch ausgefüllt; eine Änderung wird vor dem Schreiben mit dem Sensor abgeglichen.':
    'Chip-UID wird nach erfolgreicher Sensorverbindung automatisch eingetragen.';
   let nvmReason='';
-  if(st.adapterKind==='bridge')nvmReason='USB-Bridge (experimentell): Permanentes NVM-Schreiben ist bis zur Hardware-Validierung gesperrt. Bitte für echte Programmierung das SSP3 verwenden.';
-  else if(st.iface!=='plc')nvmReason='1-Wire-Startschutz: Dauerhaftes NVM-Schreiben ausschliesslich über 1-Wire möglich. Bitte per 1-Wire verbinden.';
+  if(st.iface!=='plc')nvmReason='1-Wire-Startschutz: Dauerhaftes NVM-Schreiben ausschliesslich über 1-Wire möglich. Bitte per 1-Wire verbinden.';
   else if(!verified||st.mode!=='usb')nvmReason='Zuerst die DSP-Prüfung abschliessen und sicherstellen, dass der echte Chip verbunden ist.';
   else if(!st.nvmBackupVerified||!st.nvmBackup)nvmReason='Zuerst Original-NVM vollständig lesen und prüfen.';
   else if(!st.calImage)nvmReason='Zuerst «NVM lesen & Änderungen prüfen» drücken. Anschliessend kann gespeichert werden.';
@@ -415,9 +414,9 @@ if(typeof document!=='undefined') (function UI(){
  };
 
  const rawLine=s=>{st.log.push(now()+'  '+s);if(st.log.length>500)st.log.shift();$('usbLog').textContent=st.log.slice(-90).join('\n')};
- async function readerLoop(port){try{let r=port.readable.getReader();st.reader=r;try{while(st.port===port){const{value,done}=await r.read();if(done)break;if(!value)continue;let txt=new TextDecoder().decode(value);rawLine('RX '+txt.replace(/\r/g,'\\r').replace(/\n/g,'\\n'));if(st.responseWait){st.replyBuffer+=txt;const colon=st.replyBuffer.match(/(?:^|[\r\n])\s*:\s*(?:\r|\n|$)/);if(colon){const waiter=st.responseWait;st.responseWait=null;clearTimeout(waiter.timer);const out=st.replyBuffer;st.replyBuffer='';waiter.resolve(out)}else if(st.replyBuffer.length>16000){const waiter=st.responseWait;st.responseWait=null;clearTimeout(waiter.timer);waiter.reject(Error('SSP3-Antwort zu lang'))}}}}finally{r.releaseLock();if(st.reader===r)st.reader=null}}catch(e){if(st.port===port){logging('USB-Lesefehler: '+e.message);st.chip=false;stopLive();renderStatus();show('connMsg','USB-Lesefehler: '+e.message,'error')}}}
+ async function readerLoop(port){try{let r=port.readable.getReader();st.reader=r;try{while(st.port===port&&!st.closing){const{value,done}=await r.read();if(done)break;if(!value)continue;let txt=new TextDecoder().decode(value);rawLine('RX '+txt.replace(/\r/g,'\\r').replace(/\n/g,'\\n'));if(st.responseWait){st.replyBuffer+=txt;const colon=st.replyBuffer.match(/(?:^|[\r\n])\s*:\s*(?:\r|\n|$)/);if(colon){const waiter=st.responseWait;st.responseWait=null;clearTimeout(waiter.timer);const out=st.replyBuffer;st.replyBuffer='';waiter.resolve(out)}else if(st.replyBuffer.length>16000){const waiter=st.responseWait;st.responseWait=null;clearTimeout(waiter.timer);waiter.reject(Error('SSP3-Antwort zu lang'))}}}}finally{r.releaseLock();if(st.reader===r)st.reader=null}}catch(e){if(st.port===port){logging('USB-Lesefehler: '+e.message);st.chip=false;stopLive();renderStatus();show('connMsg','USB-Lesefehler: '+e.message,'error')}}}
  function serialize(fn){const run=st.cmdQueue.then(fn,fn);st.cmdQueue=run.catch(()=>{});return run}
- async function exchange(text,timeout=2500){return serialize(async()=>{if(!st.port?.writable)throw Error('USB-Verbindung nicht geöffnet');if(st.responseWait)throw Error('Interner Befehlskonflikt');st.replyBuffer='';let resolver,rejecter;const future=new Promise((res,rej)=>{resolver=res;rejecter=rej});const ticket={resolve:resolver,reject:rejecter,timer:setTimeout(()=>{if(st.responseWait===ticket){st.responseWait=null;ticket.reject(Error('SSP3 Timeout für '+text.slice(0,18))) }},timeout)};st.responseWait=ticket;const writer=st.port.writable.getWriter();try{logging('TX '+text);await writer.write(new TextEncoder().encode(text+'\r'))}catch(e){if(st.responseWait===ticket){st.responseWait=null;clearTimeout(ticket.timer);rejecter(e)}throw e}finally{writer.releaseLock()}const ans=await future;if(ans.split(/[\r\n]+/).some(l=>l.trim().startsWith('!')))throw Error('SSP3 meldet Fehler: '+ans.slice(0,140));return ans})}
+ async function exchange(text,timeout=2500){return serialize(async()=>{if(st.closing||!st.port?.writable)throw Error('USB-Verbindung nicht geöffnet');if(st.responseWait)throw Error('Interner Befehlskonflikt');st.replyBuffer='';let resolver,rejecter;const future=new Promise((res,rej)=>{resolver=res;rejecter=rej});const ticket={resolve:resolver,reject:rejecter,timer:setTimeout(()=>{if(st.responseWait===ticket){st.responseWait=null;ticket.reject(Error('SSP3 Timeout für '+text.slice(0,18))) }},timeout)};st.responseWait=ticket;future.catch(()=>{});const writer=st.port.writable.getWriter();try{logging('TX '+text);await writer.write(new TextEncoder().encode(text+'\r'))}catch(e){if(st.responseWait===ticket){st.responseWait=null;clearTimeout(ticket.timer);rejecter(e)}throw e}finally{writer.releaseLock()}const ans=await future;if(ans.split(/[\r\n]+/).some(l=>l.trim().startsWith('!')))throw Error('SSP3 meldet Fehler: '+ans.slice(0,140));return ans})}
  async function firmware(){let a=await exchange('.VERSION',1600);let lines=a.split(/[\r\n]+/).map(x=>x.trim()).filter(x=>x&&!x.startsWith('#')&&x!==':'&&!x.startsWith('@'));st.firmware=lines.join(' ').replace(/^\.VERSION/i,'').trim().slice(0,80)||'Antwort erhalten';renderStatus()}
  const ifcfg={plc:'IF_CFG 7 0 0',i2c:'IF_CFG 2 1 0',spi:'IF_CFG 1 1 0'};
  async function selectChipInterface(){await exchange(ifcfg[st.iface]);logging('Programmieradapter-Schnittstellenmodus '+st.iface+' gesetzt (nicht NVM).')}
@@ -428,20 +427,15 @@ if(typeof document!=='undefined') (function UI(){
   const caps=match[1].split(',');
   st.firmware='USB-CDC Bridge v1 · '+caps.join('/');
   renderStatus();logging('USB-Bridge CAPS: '+caps.join(','));
-  const advertised=['PLC_READ','PLC_WRITE','NVM'].every(cap=>caps.includes(cap));
-  const BRIDGE_SENSOR_IO_VALIDATED=false; // Mandatory explicit hardware release in a later reviewed revision.
-  if(!advertised||!BRIDGE_SENSOR_IO_VALIDATED){
-   show('connMsg',!advertised?
-    'USB-CDC-Bridge erkannt, aber nur '+caps.join('/')+' verfügbar. Die Beispiel-Firmware ist ein USB-Kommunikationstest und hat noch keine geprüfte 1-Wire-Implementierung. E703.11-Chipzugriff bleibt gesperrt.':
-    'Die Bridge meldet vollständige PLC-Fähigkeiten, wurde aber noch nicht am E703.11 hardwarevalidiert. Chipzugriff und NVM bleiben in dieser Beta aus Sicherheitsgründen gesperrt.','warn');
-   return false;
+  const ready=['PLC_READ','PLC_WRITE','NVM'].every(cap=>caps.includes(cap));
+  if(!ready){
+   show('connMsg','USB-Bridge erkannt. Für Chipzugriff ist die ESP32-C3 PLC-Firmware erforderlich.','warn');
   }
-  // Future release only: full SSP3 framing, voltage levels, CRC, timing and readback validated.
-  // NVM additionally has an independent bridge lock in nvmProgram().
-  return true;
+  return ready;
  }
+
  async function readReg(addr){if(!st.port)throw Error('SSP3-Port nicht verbunden');if(!Number.isInteger(addr)||addr<0||addr>0xFE||addr%2)throw Error('Ungültige Registeradresse');let result;
-   if(st.iface==='plc'){const cmd=P.plcRead(addr,1);let ans=await exchange(cmd);let vals=P.readData(ans,3);result=vals[0]*256+vals[1];logging(`1-Wire 0x${h(addr)} → 0x${h(result,2)} (CRC8-Antwortbyte vorhanden, noch nicht unabhängig verifiziert)`)}
+   if(st.iface==='plc'){const cmd=P.plcRead(addr,1);let ans=await exchange(cmd);let vals=P.readData(ans,3);result=vals[0]*256+vals[1];logging(`1-Wire 0x${h(addr)} → 0x${h(result,2)} (CRC8-Antwortbyte vorhanden, ${st.adapterKind==='bridge'?'vom ESP32 geprüft':'noch nicht unabhängig verifiziert'})`)}
    else if(st.iface==='i2c'){const cmd=P.i2cRead(addr);let ans=await exchange(cmd);let vals=P.readData(ans,2);result=vals[0]|(vals[1]<<8)}
    else {let ans=await exchange(P.spiRead(addr));let vals=P.readData(ans,4);result=(vals[2]<<8)|vals[3]}
    st.regs[addr]=result;return result;
@@ -458,20 +452,27 @@ if(typeof document!=='undefined') (function UI(){
   show('connMsg','USB offen. Firmware und Chip werden geprüft …');
   try{
    if(st.adapterKind==='bridge'){
+    st.iface='plc';
+    $('iface').value='plc';
     const bridgeReady=await bridgeHello();
     if(!bridgeReady)return;
    }
    await firmware();
    await selectChipInterface();
    try{
+    if(st.adapterKind==='bridge'){
+     await exchange('PLC_BAUD '+$('plcBaud').value);
+     await exchange($('plcPowerCycle').checked?'PLC START':'PLC ACCESS');
+    }
     await detect();
    }catch(e){
+    if(st.closing||st.port!==port)return;
     st.chip=false;
     logging('Chiptest: '+e.message);
     if(retryChipOnce&&st.adapterKind==='ssp3'){
      logging('SSP3 erreichbar, kein bestätigter E703.11-Zugriff: USB wird einmal automatisch getrennt und neu geöffnet.');
      show('connMsg','SSP3 antwortet, aber E703.11 noch nicht. USB-Verbindung wird einmal automatisch neu aufgebaut …','warn');
-     await disconnect();
+     if(!await disconnect())return;
      await sleep(200);
      try{
       await connect(port,false);
@@ -482,16 +483,62 @@ if(typeof document!=='undefined') (function UI(){
      }
      return;
     }
+    if(st.adapterKind==='bridge'){
+     show('connMsg','ESP32 erreichbar. E703.11-Zugriff fehlgeschlagen: '+e.message,'warn');
+     renderStatus();
+     return;
+    }
     show('connMsg','SSP3 erreichbar, aber auch nach einem einmaligen automatischen USB-Neuaufbau kein E703.11-Chipzugriff bestätigt: '+e.message+'. Keine weiteren Versuche. Prüfe Startfenster, Verdrahtung und Schnittstellenwahl.','warn');
     renderStatus();
    }
   }catch(e){
+   if(st.closing||st.port!==port)return;
    logging('Handshake: '+e.message);
    show('connMsg','USB offen, aber SSP3 antwortet noch nicht korrekt: '+e.message,'warn');
   }
   renderStatus();
  }
- async function disconnect(){if(st.nvmWorking||st.calTask||st.writing){show('connMsg','USB-Trennung während laufender RAM-/NVM-Arbeit gesperrt. Bitte Vorgang beenden.','error');return}stopLive();const p=st.port;if(!p)returnst.port=null;st.chip=false;st.mode='offline';st.boot=null;st.afe=null;st.nvmBackup=null;st.nvmBackupVerified=false;st.calImage=null;st.calVerified=false;st.calStaged=false;st.nvmDone=false;st.dsp=null;st.adc=null;st.dspError=null;st.manualLivePause=false;st.afeWriteActive=false;st.ramWriteScope=null;st.uid=null;st.uidShownForInput=null;st.restorePlan=null;st.outputOnlyPlan=null;if(st.responseWait){clearTimeout(st.responseWait.timer);st.responseWait.reject(Error('Port getrennt'));st.responseWait=null}try{await st.reader?.cancel();await st.readerPromise?.catch(()=>{});await p.close()}catch(e){logging('Trennen: '+e.message)}renderStatus()}
+ async function disconnect(){
+  const port=st.port;
+  if(!port||st.closing)return false;
+  if(st.nvmWorking||st.calTask||st.writing){
+   show('connMsg','Bitte den laufenden RAM-/NVM-Vorgang vor dem Trennen abschliessen.','error');
+   return false;
+  }
+  st.closing=true;
+  stopLive();
+  show('connMsg','USB-Verbindung wird getrennt …');
+  if(st.responseWait){
+   const waiter=st.responseWait;
+   st.responseWait=null;
+   clearTimeout(waiter.timer);
+   waiter.reject(Error('Port wird getrennt'));
+  }
+  try{
+   const reader=st.reader;
+   const readerDone=st.readerPromise;
+   await reader?.cancel().catch(()=>{});
+   await readerDone;
+   await st.cmdQueue;
+   await port.close();
+   Object.assign(st,{
+    port:null,readerPromise:null,chip:false,mode:'offline',firmware:'',boot:null,afe:null,
+    nvmBackup:null,nvmBackupVerified:false,calImage:null,calVerified:false,calStaged:false,nvmDone:false,
+    dsp:null,adc:null,dspError:null,manualLivePause:false,afeWriteActive:false,ramWriteScope:null,
+    uid:null,uidShownForInput:null,restorePlan:null,expertOutputPlan:null,outputOnlyPlan:null
+   });
+   show('connMsg','USB-Verbindung getrennt.','success');
+   return true;
+  }catch(e){
+   logging('Trennen: '+e.message);
+   show('connMsg','USB-Port konnte nicht geschlossen werden: '+e.message,'error');
+   return false;
+  }finally{
+   st.closing=false;
+   if(st.port===port&&port.readable&&!st.reader)st.readerPromise=readerLoop(port);
+   renderStatus();
+  }
+ }
  function serialPortInfo(port){
   let i={};try{i=port?.getInfo?.()||{}}catch(_){}
   const hex=n=>Number(n).toString(16).padStart(4,'0').toUpperCase();
@@ -559,7 +606,7 @@ if(typeof document!=='undefined') (function UI(){
  function bootString(b){return LOCKED.map(a=>`${REG_NAMES[a]} 0x${h(a)} = 0x${h(b[a],2)} · gesperrt`).join('\n')}
  async function readBoot(){try{const a=await bootSnapshot(),b=await bootSnapshot();if(!sameBoot(a,b))throw Error('Bootregister nicht stabil');st.boot=a;$('regdump').textContent=bootString(a);show('bootMsg','Bootregister zweifach gelesen. Boot-/Schnittstellenregister schreibgeschützt; NVM-Bereich nur im gesicherten Kalibrierablauf programmierbar.','success');return a}catch(e){st.boot=null;show('bootMsg','Bootregister-Prüfung fehlgeschlagen: '+e.message,'error');throw e}finally{renderStatus()}}
  async function registerDump(){try{if(!st.chip)throw Error('Chip-Lesezugriff nicht bestätigt');const regs=[...LOCKED,0x14,0x16,0x18,0x1A,0x1C,0x1E,0x26,0x28,0x2A];for(const a of regs)st.regs[a]=await readReg(a);$('regdump').textContent=regs.map(a=>`0x${h(a)}  ${REG_NAMES[a]||'Register'}  0x${h(st.regs[a],2)} ${LOCKED.includes(a)?'GESCHÜTZT':''}`).join('\n');show('bootMsg','Diagnoseregister gelesen. Bootregister bleiben schreibgeschützt.','success')}catch(e){show('bootMsg','Registerlesen: '+e.message,'error')}}
- async function unlockRAM(){if(st.iface==='plc'){await exchange('PLC P',3500);await exchange('PLC T',3500)}else {for(const w of [0xF75A,0x0CC7,0xD21E])await lowLevelWrite(0x22,w,true)}}
+ async function unlockRAM(){if(st.adapterKind==='bridge'){await exchange('PLC ACCESS',3500)}else if(st.iface==='plc'){await exchange('PLC P',3500);await exchange('PLC T',3500)}else {for(const w of [0xF75A,0x0CC7,0xD21E])await lowLevelWrite(0x22,w,true)}}
  async function lowLevelWrite(addr,word,forUnlock=false){if(!st.port||!st.afeWriteActive||!st.chip)throw Error('AFE-Schreibzugriff nur während expliziter RAM-Übernahme zulässig');if(addr!==R_AFE&&!(forUnlock&&addr===0x22))throw Error('Nur CFG_AFE1 und dokumentierte RAM-Freigabecookies zulässig');if(addr===0x22&&!([0xF75A,0x0CC7,0xD21E].includes(word)))throw Error('Nicht erlaubtes CMD-Cookie');let cmd;if(st.iface==='plc'){if(addr!==R_AFE)throw Error('PLC nutzt PLC P / PLC T für RAM-Freigabe');cmd=P.plcWrite(addr,word)}else if(st.iface==='i2c'){cmd=P.i2cWrite(addr,word)}else{cmd=P.spiWrite(addr,word)}await exchange(cmd,2300)}
  async function commitGain(target){
   if(st.writing||st.calTask||st.nvmWorking){
@@ -755,7 +802,7 @@ if(typeof document!=='undefined') (function UI(){
  }
  async function ramGrant(){
   if(st.iface!=='plc'&&(Number(st.boot?.[6]||0)&0x8000))throw Error('I²C/SPI benötigt CRC-geschützte Frames – Wartung gesperrt');
-  if(st.iface==='plc'){await exchange('PLC P',3500);await exchange('PLC T',3500)}
+  if(st.adapterKind==='bridge'){await exchange('PLC ACCESS',3500)}else if(st.iface==='plc'){await exchange('PLC P',3500);await exchange('PLC T',3500)}
   else for(const w of [0xF75A,0x0CC7,0xD21E])await maintWrite(0x22,w);
  }
  async function ramLock(){
@@ -898,7 +945,6 @@ if(typeof document!=='undefined') (function UI(){
   let chipProgrammingStarted=false;
   try{
    const restoring=!!(expert.restoreReady()&&st.calImage===st.restorePlan),outputOnly=!!(expert.outputReady()&&st.calImage===st.outputOnlyPlan);
-   if(st.adapterKind==='bridge')throw Error('USB-Bridge ist nicht für dauerhaftes NVM-Schreiben hardwarevalidiert. Nur das SSP3 ist freigegeben.');
    if(st.iface!=='plc')throw Error('1-Wire-Startschutz: NVM darf ausschliesslich über eine bestätigte 1-Wire-Verbindung programmiert werden. Neu über 1-Wire verbinden.');
    if(st.mode!=='usb'||!st.chip||!st.port||!st.nvmBackupVerified||!st.calImage||(!restoring&&!outputOnly&&!verificationComplete()))throw Error('Hardware, Sicherungen oder Kalibrierverifikation fehlen');
    const id=st.uid?.hex;
@@ -1177,6 +1223,7 @@ if(typeof document!=='undefined') (function UI(){
  $('adapterType').value=lsGet('elmos-adapter-type-v1')||'ssp3';
  if(!['ssp3','bridge'].includes($('adapterType').value))$('adapterType').value='ssp3';
  st.adapterKind=$('adapterType').value;
+ $('plcOptions').hidden=st.adapterKind!=='bridge';
  $('tooltips').checked=(lsGet('elmos7-tooltips')??'1')==='1';tipEnabled=$('tooltips').checked;
  $('tooltips').addEventListener('change',()=>{tipEnabled=$('tooltips').checked;lsSet('elmos7-tooltips',tipEnabled?'1':'0');tip.classList.remove('visible')});
  function toggleSettings(open){
@@ -1210,8 +1257,9 @@ if(typeof document!=='undefined') (function UI(){
  $('adapterType').addEventListener('change',()=>{
   if(st.port){$('adapterType').value=st.adapterKind;show('connMsg','Zur Adapteränderung zuerst die USB-Verbindung trennen.','warn');return}
   st.adapterKind=$('adapterType').value;
+  $('plcOptions').hidden=st.adapterKind!=='bridge';
   lsSet('elmos-adapter-type-v1',st.adapterKind);
-  show('connMsg',st.adapterKind==='bridge'?'Experimentelle USB-Bridge: Erst Firmware gemäss Anleitung flashen. Das Beispiel bestätigt USB, unterstützt jedoch noch keinen echten E703.11-Chipzugriff.':'SSP3 Evaluation Board ausgewählt. Die originale Kommunikation bleibt unverändert.','warn');
+  show('connMsg',st.adapterKind==='bridge'?'ESP32-C3-Bridge ausgewählt. PLC-Baudrate und Sensorversorgung prüfen.':'SSP3 Evaluation Board ausgewählt. Die originale Kommunikation bleibt unverändert.','warn');
   renderStatus();
  });
  $('choose').addEventListener('click',()=>choose());$('auto').addEventListener('click',()=>auto());$('disconnect').addEventListener('click',()=>disconnect());

@@ -474,7 +474,7 @@ const ELMOS_GUIDED=(()=>{
  function open(){
   if(mode)return;
   const s=state();
-  if(!s.chip){const panel=$('connMsg');if(panel){panel.textContent='Bitte zuerst das SSP3 und den E703.11 verbinden starten.';panel.className='callout warn'};return}
+  if(!s.chip){const panel=$('connMsg');if(panel){panel.textContent='Bitte zuerst den Programmieradapter mit dem E703.11 verbinden.';panel.className='callout warn'};return}
   if(typeof ELMOS_COMPACT!=='undefined')ELMOS_COMPACT.set(false);
   if($('compactMode'))$('compactMode').checked=false;
   mode=true;stage=0;task='calibration';visited=new Set([0]);selectedPoint=0;

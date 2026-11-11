@@ -180,7 +180,7 @@ test('Expert mode shows contextual settings and no modal',()=>{
  assert.ok(html.includes('data-expert-area hidden><summary>Erweitert · AODO_F'));
  assert.ok(src.includes("classList.toggle('is-expert',enabled)"));
  const scripts=Array.from(html.matchAll(/<script src="([^"]+)"/g),m=>m[1]);
- assert.deepEqual(scripts,['calibration.js?v=0.6.0','eeprom-help.js?v=0.6.0','expert.js?v=0.6.0','config.js?v=0.6.0','guided-plan.js?v=0.6.0','app.js?v=0.6.0','compact.js?v=0.6.0','guided.js?v=0.6.0']);
+ assert.deepEqual(scripts,['calibration.js?v=0.6.0','eeprom-help.js?v=0.6.0','expert.js?v=0.6.0','config.js?v=0.6.0','guided-plan.js?v=0.6.0','app.js?v=0.6.0-plc.1','compact.js?v=0.6.0','guided.js?v=0.6.0']);
 });
 
 test('Failed E703.11 probe reconnects SSP3 at most once, without NVM writes',()=>{
@@ -191,7 +191,7 @@ test('Failed E703.11 probe reconnects SSP3 at most once, without NVM writes',()=
  assert.ok(connect.includes('await selectChipInterface();'));
  assert.ok(connect.includes('await detect();'));
  assert.ok(connect.includes("if(retryChipOnce&&st.adapterKind==='ssp3'){"));
- assert.ok(connect.includes('await disconnect();'));
+ assert.ok(connect.includes('if(!await disconnect())return;'));
  assert.ok(connect.includes('await sleep(200);'));
  assert.ok(connect.includes('await connect(port,false);'));
  assert.ok(connect.includes('Keine weiteren Versuche.'));
@@ -413,7 +413,7 @@ test('Guided app uses read-only status, and the original NVM protections remain'
  assert.ok(app.includes("window.ELMOS_GUIDED?.onConnected?.()"));
  assert.ok(app.includes("const approvalGranted=nvmReason===''"));
  assert.ok(app.includes("$('nvmProgram').disabled=!approvalGranted"));
- assert.ok(app.includes("if(st.adapterKind==='bridge')nvmReason="));
+ assert.ok(app.includes('CAL.protectStartupCommunication(initial,modified)'));
 });
 test('USB bridge fails closed until a truly compatible PLC firmware is available',()=>{
  const app=read('app.js'),fw=read('firmware/usb_bridge_cdc/usb_bridge_cdc.ino');
@@ -444,28 +444,16 @@ test('Guided and compact modes restore the original controls before switching',(
  assert.ok(guided.includes("const subscriptions=[]"));
  assert.ok(guided.includes("el.removeEventListener(type,handler)"));
 });
-test('Experimental bridge never initiates PLC traffic, even with advertised full capabilities',()=>{
- const app=read('app.js');
- assert.ok(app.includes('const BRIDGE_SENSOR_IO_VALIDATED=false'));
- assert.ok(app.includes("if(!advertised||!BRIDGE_SENSOR_IO_VALIDATED)"));
- assert.ok(app.includes("if(!bridgeReady)return;"));
- assert.ok(app.includes("if(st.adapterKind==='bridge')throw Error('USB-Bridge ist nicht für dauerhaftes NVM-Schreiben"));
-});
-
-
-test('ESP32-C3 SuperMini sketch targets native USB-CDC and refuses PLC access',()=>{
- const fw=read('firmware/esp32c3_supermini/esp32c3_supermini.ino');
+test('ESP32-C3 bridge verifies capabilities and establishes PLC access before detection',()=>{
+ const app=read('app.js'),fw=read('firmware/esp32c3_supermini/esp32c3_supermini.ino');
+ assert.ok(app.indexOf('if(!bridgeReady)return;')<app.indexOf("await exchange('PLC_BAUD '"));
+ assert.ok(app.includes("checked?'PLC START':'PLC ACCESS'"));
+ assert.ok(fw.includes('CAPS=PLC_UID,PLC_READ,PLC_WRITE,NVM'));
  assert.ok(fw.includes('CONFIG_IDF_TARGET_ESP32C3'));
  assert.ok(fw.includes('ARDUINO_USB_CDC_ON_BOOT'));
- assert.ok(fw.includes('GPIO18')&&fw.includes('GPIO19'));
- assert.ok(fw.includes('CAPS=CDC_ONLY'));
- assert.ok(fw.includes('BRIDGE_INFO')&&fw.includes('BRIDGE_PING'));
- assert.ok(fw.includes('PLC_NOT_IMPLEMENTED'));
- assert.ok(!/^[ \t]*pinMode\s*\(/m.test(fw));
- assert.ok(!/^[ \t]*digitalWrite\s*\(/m.test(fw));
- assert.ok(!fw.includes('CAPS=PLC_READ,PLC_WRITE,NVM'));
+ assert.ok(fw.includes('GPIO18/19'));
+ assert.ok(fw.includes('PLC_WRITE_DENIED'));
 });
-
 
 test('Mathematical fit works with representative synthetic pressure-temperature grids',()=>{
  for(const [pCount,tCount,temperatures] of [[2,1,[25]],[2,3,[-10,25,65]],[3,2,[10,60]],[3,3,[-10,25,65]],[5,2,[10,60]]]){
@@ -482,7 +470,7 @@ test('Mathematical fit works with representative synthetic pressure-temperature 
 });
 test('Board shortlist, flash guide and pure-USB safety instructions are included',()=>{
  const boards=read('docs/ESP_BOARD_OPTIONS.md'),guide=read('docs/USB_BRIDGE_GUIDE.md');
- for(const name of ['ESP32-C3 SuperMini','XIAO ESP32C3','ESP32-S3-DevKitC-1','Nano ESP32','ESP32-C6'])
+ for(const name of ['ESP32-C3 SuperMini','XIAO ESP32C3','ESP32-S3 DevKitC-1','Nano ESP32','ESP32-C6'])
   assert.ok(boards.includes(name),name);
  for(const term of ['ESP32C3 Dev Module','USB CDC On Boot','BRIDGE_INFO','CDC_ONLY','GPIO18','GPIO19','esp32c3_supermini.ino'])
   assert.ok(boards.includes(term),term);

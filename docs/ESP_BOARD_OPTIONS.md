@@ -1,5 +1,7 @@
 # ESP32- und Arduino-kompatible Boards: AODO / 1-Wire und I²C-Pinbelegung
 
+Für die ESP32-C3-Firmware v0.3 gilt die [PLC-Testanleitung](ESP32_C3_PLC_TEST.md). Die folgenden Hinweise zum reinen USB-Test beziehen sich auf die CDC-Beispielfirmware.
+
 **Stand: v0.6.0 · Referenz für die zukünftige E703.11-PLC-Bridge**
 
 Dieser Guide umfasst die gängigen ESP32-, Arduino-, RP2040- und weiteren Arduino-kompatiblen Boards. Er dokumentiert **beide E703.11-Kommunikationswege**: einen vorgeschlagenen MCU-GPIO für **AODO / 1-Wire** sowie separate MCU-Pins für **I²C SDA und SCL**.

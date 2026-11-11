@@ -1,5 +1,7 @@
 # USB-Bridge statt SSP3 – experimenteller Testaufbau
 
+Für die ESP32-C3-Firmware v0.3 gilt die [PLC-Testanleitung](ESP32_C3_PLC_TEST.md). Die folgenden Hinweise zum reinen USB-Test beziehen sich auf die CDC-Beispielfirmware.
+
 **Stand v0.6.0 · in der Hauptversion enthalten**
 
 Der Kalibrierassistent nutzt standardmässig weiterhin das **ELMOS SSP3**. In der Web-App kann unter **USB & Chip → Programmieradapter** auch **ESP32 / Arduino USB-Bridge · experimentell** gewählt werden.
