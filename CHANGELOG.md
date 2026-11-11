@@ -2,6 +2,15 @@
 
 Versionierung nach `MAJOR.MINOR.PATCH`: Kleine Anpassungen erhöhen PATCH, neue Funktionen MINOR, inkompatible Änderungen MAJOR. Jede Änderung erhält eine neue Nummer und einen Eintrag.
 
+## v0.4.2 – 11.11.2026
+
+- **EEPROM Viewer als Registerreferenz:** Neue Spalte «Funktion» für alle 64 Wörter, anklickbare Zeilen mit ausführlicher Beschreibung, Roh-/Signed-/Unsigned-Wert und berechnetem Q3.12/Q0.15-Wert bei dokumentierten Koeffizienten.
+- **Adressen eindeutig:** EEPROM-Wortindex, EEPROM-Byteadresse und – wo geprüft zuordenbar – RAM-Registeradresse getrennt ausgewiesen.
+- **Kontextbezogene Experteninfos:** Binäransicht, verifizierte Einzelbits für CFG_EN, CFG_SPI_I2C, CFG_PADS0, CFG_PADS1 und CFG_AFE1 sowie relevante Formeln.
+- **Beschreibungen durchsuchbar:** z. B. «Temperatur», «Gain», «Offset», «1-Wire». Unbekannte Bitfelder werden nicht erraten.
+- **Unveränderte Sicherheit:** Der Viewer verwendet weiterhin nur das CRC-geprüfte, zur Chip-UID passende 64-Wort-Abbild. Aufklappen, Suche und Erläuterungen verändern weder RAM noch EEPROM.
+- Neues rein lesendes Modul `eeprom-help.js`; JavaScript-Cache-Version v0.4.2 und **28 Regressionstests**.
+
 ## v0.4.1 – 11.11.2026
 
 - **Einmaliger automatischer USB-Neuaufbau:** Antwortet das SSP3 nach dem USB-Handshake, aber die E703.11-Chiperkennung scheitert, wird der COM-Port einmal geschlossen, nach 200 ms wieder geöffnet und Firmware/Interface/Chip erneut geprüft.
