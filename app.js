@@ -774,18 +774,12 @@ if(typeof document!=='undefined') (function UI(){
  });
  $('nvmBackupRead').addEventListener('click',nvmScan);
  function downloadNvmBackup(){
-  if(!st.nvmBackupVerified||!st.nvmBackup){
-   ca('backupMsg','Noch kein erfolgreich verifiziertes NVM-Backup vorhanden.','error');
-   ca('nvmMsg','Zuerst Original-NVM lesen und prüfen.','error');return
-  }
-  download('ELMOS_NVM_Backup_'+Date.now()+'.json',JSON.stringify({
-   chipId:h(st.nvmBackup[1],2)+h(st.nvmBackup[0],2),
-   version:st.firmware,words:st.nvmBackup,checksum:st.nvmBackup[63],
-   created:new Date().toISOString()
-  },null,2));
-  ca('backupMsg','Original-NVM geprüft. Der Backup-Download wurde gestartet. Datei bitte sicher aufbewahren.','success');
+  if(!st.nvmBackupVerified||!st.nvmBackup)return ca('backupMsg','Zuerst vollständiges Original-NVM lesen und prüfen.','error');
+  if(!st.uid)return ca('backupMsg','48-Bit-Chip-UID nicht verfügbar. Erst «Chip-UID lesen» im Expertenmodus ausführen.','error');
+  expert.exportCurrent();
+  ca('backupMsg','Backup-Export für UID '+st.uid.hex+' ausgelöst. Sichere die JSON-Datei für eine spätere Wiederherstellung.','success')
  }
- $('nvmBackupDownload').addEventListener('click',downloadNvmBackup);
+  $('nvmBackupDownload').addEventListener('click',downloadNvmBackup);
  $('nvmPrepare').addEventListener('click',prepareNvm);
  $('nvmProgram').addEventListener('click',nvmProgram);
  $('nvmPostBoot').addEventListener('click',postBootCheck);
