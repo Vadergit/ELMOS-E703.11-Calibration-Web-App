@@ -2,6 +2,18 @@
 
 Versionierung nach `MAJOR.MINOR.PATCH`: Kleine Anpassungen erhöhen PATCH, neue Funktionen MINOR, inkompatible Änderungen MAJOR. Jede Änderung erhält eine neue Nummer und einen Eintrag.
 
+## v0.6.0-beta.1 – 11.11.2026 · TESTBRANCH, NICHT MAIN
+
+- **Separater Branch** `feature/guided-calibration-and-usb-bridges`; keine produktive Main-Veröffentlichung, kein automatischer Merge.
+- **Geführter Kalibrierassistent:** Nach bestätigter Verbindung Auswahl zwischen vollständigem Sensorabgleich, reiner Ausgangskonfiguration und EEPROM/Diagnose.
+- **Vorheriger Messplan:** Druckpunkte (2–5), Temperaturstufen (1–3), automatische oder manuelle Polynomordnung, individuelle Solltemperaturen, Samples, DSP-Ziel und Ausgangsspannung.
+- **Druck×Temperatur-Matrix:** Bis zu 10 echte Referenzmessungen werden den originalen Messpunkterfassungen zugeordnet; der Assistent zeigt Sollwert, Reihenfolge, Fortschritt und folgt der bestehenden RAM-/DSP-/NVM-Logik.
+- **Config-Import:** Originale chipunabhängige Config-Vorlagen im Assistenten, ohne Übernahme individueller EEPROM-/Factory-Daten.
+- **Klassisch bleibt:** Original-Steuerung wird nur temporär in den Guide verschoben und beim Schliessen zurückgestellt; Kompaktansicht und EEPROM-Viewer bleiben erhalten.
+- **Adapterwahl:** SSP3 (unverändert) oder experimentelle USB-CDC-Bridge. `BRIDGE_INFO` mit expliziten Capabilities, ohne unvalidierte Sensor-Freigabe. NVM-Programmierung über Bridge explizit auch im NVM-Schreibpfad gesperrt.
+- **Native USB-Beispiel-Firmware:** ESP32-S3 / RP2040 über Arduino IDE; nur CDC-Handshake, noch kein PLC-Sensorprotokoll.
+- Dokumentation: `docs/GEFUEHRTER_ASSISTENT.md`, `docs/USB_BRIDGE_GUIDE.md`. Regressionstests für die Matrix und den Bridge-Sicherheitspfad ergänzt.
+
 ## v0.5.0 – 11.11.2026
 
 - **Optionaler One-Pager:** «Kompaktmodus · One-Pager» in den App-Einstellungen. Die normale Ansicht bleibt standardmässig unverändert; die Auswahl wird lokal gespeichert.
