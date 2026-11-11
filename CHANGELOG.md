@@ -2,6 +2,13 @@
 
 Versionierung nach `MAJOR.MINOR.PATCH`: Kleine Anpassungen erhöhen PATCH, neue Funktionen MINOR, inkompatible Änderungen MAJOR. Jede Änderung erhält eine neue Nummer und einen Eintrag.
 
+## v0.4.1 – 11.11.2026
+
+- **Einmaliger automatischer USB-Neuaufbau:** Antwortet das SSP3 nach dem USB-Handshake, aber die E703.11-Chiperkennung scheitert, wird der COM-Port einmal geschlossen, nach 200 ms wieder geöffnet und Firmware/Interface/Chip erneut geprüft.
+- Bei einem zweiten Chipfehler bleibt der USB-Port geöffnet und eine eindeutige Warnung erscheint. **Keine Endlosschleife**, keine wiederholten automatischen Reconnects und keine Änderungen an Chip-Registern oder NVM.
+- Der SSP3-Firmware-Handshake selbst löst keinen automatischen Retry aus. Das Diagnoseprotokoll kennzeichnet den ersten Chipfehler und den Neuaufbau.
+- Cache-Version aller Browser-Skripte auf v0.4.1 angehoben; Regressionstest für die einmalige Wiederholung hinzugefügt. Hardwaretest am SSP3/E703.11 weiterhin notwendig.
+
 ## v0.4.0 – 11.11.2026
 
 - **EEPROM Viewer:** Eigener, jederzeit erreichbarer Navigationstab zusätzlich zu den sieben Kalibrierschritten. 64 NVM-Wörter tabellarisch mit PSSC-ähnlichen Spalten Adresse, Bitfield, Data Hex, Data und Schutzstatus; Suche und chipbezogener JSON-Backup-Export. Er nutzt denselben CRC-geprüften Leseweg und bietet keine direkte EEPROM-Editierfunktion.
