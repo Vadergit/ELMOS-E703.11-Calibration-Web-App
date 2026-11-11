@@ -349,21 +349,15 @@ if(typeof document!=='undefined') (function UI(){
  
  function refreshPoints(){
   const a=st.points.lo,b=st.points.hi;
-  renderFlowState();
-  if(!a||!b)return show('calMsg','Messpunkt erfasst. Bitte auch den zweiten Referenzpunkt messen.');
-  if(!calEndpointsReady())return show('calMsg','Punkte haben unterschiedliche Gains oder zu wenig ADC-Hub. Beide neu messen.','error');
-  const span=Math.abs(b.v-a.v),mid=(a.v+b.v)/2,max=Math.max(Math.abs(a.v),Math.abs(b.v)),use=max/25000;
-  $('hub').textContent=fmt(span);$('middle').textContent=fmt(mid);$('usage').textContent=(use*100).toFixed(1)+' %';
-  show('calMsg','Beide Punkte ('+a.name+' / '+b.name+') erfasst. Signalhub '+fmt(span)+' Digits. Jetzt Koeffizienten berechnen.','success');
-  let advise;
-  if(max>25000)advise='Zu hoch ausgesteuert: PGA2 reduzieren und beide Punkte erneut aufnehmen.';
-  else if(span<18000)advise='Signalhub klein: PGA1 schrittweise erhöhen, sofern der Vorverstärker nicht übersteuert. Dann PGA2 optimieren; beide Punkte neu messen.';
-  else if(Math.abs(mid)>7000)advise='Signalmitte verschoben: Offset-DAC schrittweise testen und beide Referenzpunkte erneut aufnehmen.';
-  else advise='AFE-Hub grundsätzlich geeignet. Als Nächstes die DSP-Koeffizienten berechnen, dann ins RAM schreiben und prüfen.';
+  renderCalPoints();renderFlowState();
+  if(!a||!b)return show('calMsg','Unteren und oberen Referenzpunkt aufnehmen. Weitere Punkte dazwischen ebenfalls erfassen.');
+  const span=Math.abs(b.v-a.v),mid=(a.v+b.v)/2,max=Math.max(Math.abs(a.v),Math.abs(b.v));
+  $('hub').textContent=fmt(span);$('middle').textContent=fmt(mid);$('usage').textContent=(max/25000*100).toFixed(1)+' %';
+  if(!calEndpointsReady())show('calMsg',st.calpoints.length+' von '+calibrationPointCount()+' Punkten erfasst. Noch fehlende Punkte aufnehmen; alle müssen mit den gleichen AFE-Gains gemessen werden.','warn');
+  else show('calMsg','Alle '+calibrationPointCount()+' Kalibrierpunkte aufgenommen. Berechnung ist freigegeben.','success');
+  const advise=max>25000?'Übersteuerung möglich: Gain reduzieren und alle Punkte erneut aufnehmen.':span<18000?'Signalhub klein: PGA1/PGA2 optimieren und alle Punkte erneut aufnehmen.':Math.abs(mid)>7000?'Signalmitte verschoben: Offset prüfen und Messpunkte erneut aufnehmen.':'AFE-Hub grundsätzlich geeignet. Nach vollständiger Messung Koeffizienten berechnen.';
   show('recommendation',advise,'success')
  }
-
- 
  async function verify(){
   try{
    if(!calEndpointsReady())throw Error('Zuerst beide Referenzpunkte aufnehmen');
@@ -385,34 +379,49 @@ if(typeof document!=='undefined') (function UI(){
  
  function renderCalPoints(){
   const out=$('calPointsList');if(!out)return;
-  out.textContent=st.calpoints.length?st.calpoints.map((x,i)=>(i+1)+'. '+(x.name||'Zusatzpunkt')+' · '+Number(x.pressure).toFixed(3)+' '+pressureUnit()+' · '+Number(x.temperature).toFixed(1)+' °C · ADC_S '+fmt(x.adc_s)+' · ADC_T '+fmt(x.adc_t)).join('\n'):'Noch keine Messpunkte. Zuerst die zwei Referenzpunkte aufnehmen.';
+  const count=calibrationPointCount();
+  const slot=x=>x.kind==='lo'?0:x.kind==='hi'?count-1:x.slot;
+  out.textContent=st.calpoints.length?st.calpoints.slice().sort((a,b)=>slot(a)-slot(b)).map(x=>
+   'Messpunkt '+(slot(x)+1)+' · '+x.name+' · '+Number(x.pressure).toFixed(3)+' '+pressureUnit()+' · '+Number(x.temperature).toFixed(1)+' °C · ADC_S '+fmt(x.adc_s)+' · ADC_T '+fmt(x.adc_t)
+  ).join('\n'):'Noch keine Messpunkte.';
+  renderCalibrationPlan()
  }
  function addCalPoint(x){
   if(!Number.isFinite(x.adc_s)||!Number.isFinite(x.adc_t)||!Number.isFinite(x.pressure)||!Number.isFinite(x.temperature))throw Error('ADC_S/ADC_T oder Referenz fehlt');
   if(x.kind==='lo'||x.kind==='hi')st.calpoints=st.calpoints.filter(p=>p.kind!==x.kind);
+  else st.calpoints=st.calpoints.filter(p=>!(p.kind==='extra'&&p.slot===x.slot));
   st.calpoints.push(x);invalidateCalculation('Messpunkte geändert. DSP-Koeffizienten erneut berechnen.');
   renderCalPoints()
  }
-
- async function captureCalPoint(){try{if(st.calTask||st.writing)throw Error('Wartungsvorgang läuft');
-  const pr=Number($('calPressure').value),t=Number($('calTemp').value);
-  if(!Number.isFinite(pr)||!Number.isFinite(t)||t< -40||t>125)throw Error('Druck / Temperatur ungültig');
-  if(st.mode!=='demo'&&!st.chip)throw Error('Kein Chip verbunden');
-  const samples=[];for(let i=0;i<12;i++){if(st.mode==='demo')samples.push({s:demoADC(),t:10755,tc:9902});else samples.push({s:P.sign16(await readReg(0x2A)),t:P.sign16(await readReg(0x28)),tc:P.sign16(await readReg(0x26))});await sleep(60)}
-  const median=k=>samples.map(x=>x[k]).sort((a,b)=>a-b)[5];
-  const spread=k=>Math.max(...samples.map(x=>x[k]))-Math.min(...samples.map(x=>x[k]));
-  if(spread('s')>350)throw Error('ADC_S streut über 350 Digits – Druck stabilisieren');
-  const a={kind:'extra',name:'Zusatzpunkt '+(st.calpoints.filter(x=>x.kind==='extra').length+1),pressure:pr,unit:pressureUnit(),temperature:t,adc_s:median('s'),adc_t:median('t'),adc_tc:median('tc'),at:new Date().toISOString(),gains:{...st.staged},spread:spread('s')};
-  addCalPoint(a);ca('calPointsMsg',`Messpunkt ${st.calpoints.length} gespeichert (Streuung ${a.spread} Digits).`,'success');
- }catch(e){ca('calPointsMsg',e.message,'error')}}
- 
+ async function captureCalPoint(slot){
+  try{
+   const count=calibrationPointCount();
+   if(!Number.isFinite(count)||!Number.isInteger(slot)||slot<1||slot>count-2)throw Error('Messpunkt für die gewählte Anzahl nicht aktiv');
+   if(st.calTask||st.writing||st.nvmWorking)throw Error('Wartungsvorgang läuft');
+   const pr=Number($('calExtra'+slot+'Pressure').value),t=Number($('calExtra'+slot+'Temp').value),lo=Number($('pmin').value),hi=Number($('pmax').value);
+   if(!Number.isFinite(pr)||pr<lo||pr>hi||!Number.isFinite(t)||t< -40||t>125)throw Error('Referenzwert oder Temperatur ungültig');
+   if(st.mode!=='demo'&&!st.chip)throw Error('Kein Chip verbunden');
+   const samples=[];for(let i=0;i<12;i++){
+    if(st.mode==='demo')samples.push({s:demoADC(),t:10755,tc:9902});
+    else samples.push({s:P.sign16(await readReg(0x2A)),t:P.sign16(await readReg(0x28)),tc:P.sign16(await readReg(0x26))});
+    await sleep(60)
+   }
+   const median=k=>samples.map(x=>x[k]).sort((a,b)=>a-b)[5],spread=k=>Math.max(...samples.map(x=>x[k]))-Math.min(...samples.map(x=>x[k]));
+   if(spread('s')>350)throw Error('ADC_S streut zu stark – Druck stabilisieren');
+   const name=$('calExtra'+slot+'Name').value.trim()||'Messpunkt '+(slot+1);
+   addCalPoint({kind:'extra',slot,name,pressure:pr,unit:pressureUnit(),temperature:t,adc_s:median('s'),adc_t:median('t'),adc_tc:median('tc'),at:new Date().toISOString(),gains:{...st.staged},spread:spread('s')});
+   ca('calPointsMsg','Messpunkt '+(slot+1)+' aufgenommen.','success');refreshPoints()
+  }catch(e){ca('calPointsMsg','Messpunkt '+(slot+1)+': '+e.message,'error')}
+ }
  function calcCoefficients(){
   try{
    if(st.calTask||st.writing||st.nvmWorking)throw Error('Es läuft ein anderer Vorgang');
-   if(!calEndpointsReady())throw Error('Zuerst die beiden Referenzpunkte mit gleicher AFE-Einstellung aufnehmen');
+   if(!calEndpointsReady())throw Error('Zuerst alle '+calibrationPointCount()+' gewählten Kalibrierpunkte mit gleicher AFE-Einstellung aufnehmen');
    const pmin=Number($('pmin').value),pmax=Number($('pmax').value);
    if(st.calpoints.some(p=>JSON.stringify(p.gains)!==JSON.stringify(st.staged)))throw Error('Gain wurde nach der Aufnahme geändert. Messpunkte erneut erfassen');
-   const solution=CAL.fit(st.calpoints,{pmin,pmax,orderS:Number($('calSOrder').value),orderT:Number($('calTOrder').value)});
+   const orderS=Number($('calSOrder').value),orderT=Number($('calTOrder').value);
+   if(st.calpoints.length<(orderS+1)*(orderT+1))throw Error('Für diese Polynom- und Temperaturordnung sind mindestens '+((orderS+1)*(orderT+1))+' unabhängige Messpunkte nötig. Anzahl in Schritt 3 erhöhen.');
+   const solution=CAL.fit(st.calpoints,{pmin,pmax,orderS,orderT});
    st.calfit=solution;st.calImage=null;st.calStaged=false;st.calVerified=false;st.calValidation=[];renderDSPLive();
    const r=solution.registers;
    $('calCoeffList').textContent='S_O 0x'+h(r.so,2)+' (Q3.12)  S_F 0x'+h(r.sf,2)+' (Q3.12)\n'+r.coeffs.map((x,i)=>'S'+String(i).padEnd(2)+' 0x'+h(x,2)+'    '+CAL.fromQ(x,15).toFixed(7)).join('\n')+(r.tcoeffs?'\nT_O '+h(r.to,2)+' T_F '+h(r.tf,2)+'\n'+r.tcoeffs.map((x,i)=>'T'+i+': 0x'+h(x,2)).join('\n'):'\nTemperaturpfad bleibt unverändert.');
