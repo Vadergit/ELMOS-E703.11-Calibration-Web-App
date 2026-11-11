@@ -51,7 +51,7 @@ const ELMOS_COMPACT=(()=>{
   root.innerHTML=layout();
   // All controls remain the same DOM nodes, with their original handlers.
   for(const id of ['iface','baud'])label(id,'cpUsbFields');
-  actions(['choose','auto','disconnect','demo'],'cpUsbActions');
+  actions(['choose','auto','disconnect'],'cpUsbActions');
   moveId('connMsg','cpUsbStatus');
   actions(['readBoot','readRegs','exportDiag'],'cpUsbExtra');
   moveId('bootMsg','cpUsbExtra');
@@ -159,6 +159,8 @@ const ELMOS_COMPACT=(()=>{
   root.style.height=Math.max(390,available)+'px';
  }
  function set(on){
+  // Never relocate the same original controls from two workspaces simultaneously.
+  if(on&&window.ELMOS_GUIDED?.isOpen?.())window.ELMOS_GUIDED.close();
   if(on===active)return;
   const root=$('compactWorkspace');
   if(on){
@@ -175,7 +177,7 @@ const ELMOS_COMPACT=(()=>{
     if(!active)return;
     if(Number($('calPointCount').value)!==lastPointCount){pointSelection='lo';updatePoint()}
     if($('expertOutputMode').value!==lastOutputMode)updateOutput();
-    // Demo pressure slider and responsive header can change the available height.
+    // Responsive header can change the available height.
     fitScreen();
    },500);
   }else{

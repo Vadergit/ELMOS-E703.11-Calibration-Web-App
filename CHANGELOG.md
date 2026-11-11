@@ -2,6 +2,41 @@
 
 Versionierung nach `MAJOR.MINOR.PATCH`: Kleine Anpassungen erhöhen PATCH, neue Funktionen MINOR, inkompatible Änderungen MAJOR. Jede Änderung erhält eine neue Nummer und einen Eintrag.
 
+## v0.6.0 – 11.11.2026 · ZUSAMMENGEFÜHRT NACH MAIN
+
+- Geführter Kalibrierassistent mit Aufgabe, Druck-/Temperaturplan, Sensor-Vorgaben, AFE, echter Referenzmessung, DSP-Berechnung, unabhängiger Verifikation, Ausgang und NVM; die klassischen und kompakten Ansichten bleiben erhalten.
+- **Demo-Modus vollständig entfernt**: kein simuliertes ADC/DSP/NVM in der Web-App; geführter Abgleich setzt eine bestätigte Chipverbindung voraus.
+- **AFE optimiert:** Original-Live-Graph in der geführten Ansicht, Grenzlinien ±25’000 Digits, Minimum/Maximum/Hub ab gewähltem Messfenster. Keine neue Hardware-Befehlsschicht.
+- **Fertig-Seite:** grosser aktueller DSP-Sensorwert, ADC_S / ADC_T, Zeit, Verlauf und ausdrückliche Kennzeichnung der Ausgangs-Sollspannungen (nicht gemessene Spannungen).
+- Übersichtlichere Gruppierung von Druck, Temperatur, VDD, S0/S1 und optionaler Config-Vorlage.
+- ESP32-C3 SuperMini USB-CDC-Beispiel und ESP-Boardliste integriert. USB-Bridge bleibt **ohne reale PLC-/NVM-Freigabe**.
+- **49 bestandene Software-Regressionstests**. Hardware-End-to-End-Prüfung mit echtem E703.11 bleibt offen.
+
+---
+
+## v0.6.0-beta.2 – 11.11.2026 · TESTBRANCH, NICHT MAIN
+
+- **Ohne Hardware testbar:** «◈ Demo-Wizard» in der Kopfzeile sowie «Wizard ohne Hardware testen» auf der Verbindungsseite. Simulierte ADC_S-/ADC_T-Werte für verschiedene Druck-/Temperaturbedingungen.
+- **Geführte Demo bis zum Ende:** Originale Messpunkterfassung und Fitberechnung auf synthetischen Rohwerten; virtuelle, von echten Hardwarezuständen strikt getrennte RAM-/DSP-/NVM-Bestätigungen. Die echten Hardware-Schreibaktionen bleiben gesperrt.
+- **Demo-Config:** Geladene AFE-Profile können im Demo-Modus ausschliesslich virtuell übernommen werden, ohne Sensor-RAM anzusprechen.
+- **ESP32-C3 SuperMini:** Eigener Arduino-Sketch mit nativer USB-CDC-Kommunikation, `BRIDGE_INFO`, `BRIDGE_PING`, `BRIDGE_STATS` und `CAPS=CDC_ONLY`. Kein unvalidierter PLC-GPIO-Zugriff.
+- **ESP-Auswahlliste:** `docs/ESP_BOARD_OPTIONS.md` mit C3, S2, S3, C6, Nano ESP32 und XIAO-Boards, USB-Pins und Flash-Anleitung.
+- **47 Regressionstests**, darunter Berechnungen mit synthetischen 2×1-, 2×3-, 3×2-, 3×3- und 5×2-Messmatrizen.
+- `main` bleibt unverändert, die produktive GitHub-Pages-Seite unveröffentlicht für diese Beta. Kein Merge.
+
+## v0.6.0-beta.1 – 11.11.2026 · TESTBRANCH, NICHT MAIN
+
+- **Separater Branch** `feature/guided-calibration-and-usb-bridges`; keine produktive Main-Veröffentlichung, kein automatischer Merge.
+- **Geführter Kalibrierassistent:** Nach bestätigter Verbindung Auswahl zwischen vollständigem Sensorabgleich, reiner Ausgangskonfiguration und EEPROM/Diagnose.
+- **Vorheriger Messplan:** Druckpunkte (2–5), Temperaturstufen (1–3), automatische oder manuelle Polynomordnung, individuelle Solltemperaturen, Samples, DSP-Ziel und Ausgangsspannung.
+- **Druck×Temperatur-Matrix:** Bis zu 10 echte Referenzmessungen werden den originalen Messpunkterfassungen zugeordnet; der Assistent zeigt Sollwert, Reihenfolge, Fortschritt und folgt der bestehenden RAM-/DSP-/NVM-Logik.
+- **Config-Import:** Originale chipunabhängige Config-Vorlagen im Assistenten, ohne Übernahme individueller EEPROM-/Factory-Daten.
+- **Klassisch bleibt:** Original-Steuerung wird nur temporär in den Guide verschoben und beim Schliessen zurückgestellt; Kompaktansicht und EEPROM-Viewer bleiben erhalten.
+- **Adapterwahl:** SSP3 (unverändert) oder experimentelle USB-CDC-Bridge. `BRIDGE_INFO` mit expliziten Capabilities, ohne unvalidierte Sensor-Freigabe. NVM-Programmierung über Bridge explizit auch im NVM-Schreibpfad gesperrt.
+- **Native USB-Beispiel-Firmware:** ESP32-S3 / RP2040 über Arduino IDE; nur CDC-Handshake, noch kein PLC-Sensorprotokoll.
+- 41 JavaScript-Regressionstests inklusive Branch-Sicherheit, Bridge-NVM-Sperre, 3×3/4×2-Messmatrix und Wechsel zwischen Kompakt-/Guided-Modus. Ein lokaler Python-Vorschauserver (`scripts/preview.py`) vereinfacht Tests ohne Veröffentlichung.
+- Dokumentation: `docs/GEFUEHRTER_ASSISTENT.md`, `docs/USB_BRIDGE_GUIDE.md`. Regressionstests für die Matrix und den Bridge-Sicherheitspfad ergänzt.
+
 ## v0.5.0 – 11.11.2026
 
 - **Optionaler One-Pager:** «Kompaktmodus · One-Pager» in den App-Einstellungen. Die normale Ansicht bleibt standardmässig unverändert; die Auswahl wird lokal gespeichert.

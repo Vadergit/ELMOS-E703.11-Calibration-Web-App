@@ -1,0 +1,231 @@
+
+/* Guided beta – isolated by html.guided-active. Classic and compact layouts remain intact. */
+html.guided-active .content,html.guided-active #compactWorkspace{display:none!important}
+html.guided-active .wrap{max-width:1500px}
+html.guided-active body{background:#f5f7fb}
+#guidedWorkspace[hidden]{display:none!important}
+#guidedWorkspace{min-height:calc(100vh - 124px);margin:15px auto 0;max-width:1220px;color:#213348}
+.gw-shell{background:#fff;border:1px solid #e0e7f0;border-radius:20px;box-shadow:0 14px 52px rgba(35,62,95,.07);min-height:660px;display:grid;grid-template-columns:220px minmax(0,1fr);overflow:hidden}
+.gw-sidebar{background:#f8fafd;border-right:1px solid #e4eaf2;padding:28px 15px;display:flex;flex-direction:column;gap:15px}
+.gw-backlogo{display:flex;align-items:center;gap:9px;font-size:12px;color:#668098;font-weight:700;margin:0 10px 10px}
+.gw-backlogo>span{background:#e7f0fb;color:#2469a5;padding:6px;border-radius:8px}
+.gw-sideitems{display:grid;gap:4px}
+.gw-sideitem{border:0;border-radius:10px;display:flex;align-items:center;gap:10px;text-align:left;color:#6e8197;background:transparent;padding:10px 11px;min-width:0;font-weight:550;font-size:12px;cursor:default}
+.gw-sideitem .gw-no{display:grid;place-items:center;background:#e8edf3;color:#6b7e90;border-radius:50%;width:23px;height:23px;flex-shrink:0;font-size:11px;font-weight:750}
+.gw-sideitem.is-active{color:#155690;background:#e7f2fd;font-weight:760}
+.gw-sideitem.is-active .gw-no{background:#276eaf;color:#fff}
+.gw-sideitem.is-done{color:#426481;cursor:pointer}
+.gw-sideitem.is-done .gw-no{background:#dff4eb;color:#16866a}
+.gw-sidebar-footer{margin-top:auto;padding:13px 11px;border-top:1px solid #e0e8f0;font-size:11px;color:#718397;line-height:1.6}
+.gw-main{padding:32px 38px 20px;display:flex;flex-direction:column;min-width:0}
+.gw-topline{display:flex;align-items:center;justify-content:space-between;gap:12px}
+.gw-kicker{letter-spacing:.1em;color:#2871b0;font-size:11px;font-weight:850;text-transform:uppercase}
+.gw-topline .gw-chipstatus{font-size:11px;color:#316954;background:#eff9f4;border:1px solid #d7eae0;padding:5px 9px;border-radius:99px}
+.gw-topline .gw-chipstatus.is-offline{color:#90661c;background:#fff8eb;border-color:#f0e0ba}
+.gw-progressbar{height:4px;background:#eaf0f7;border-radius:99px;margin:17px 0 25px;overflow:hidden}
+.gw-progressbar>span{height:100%;background:#2873b9;border-radius:inherit;display:block;transition:width .2s}
+.gw-title{font-weight:780;font-size:27px;letter-spacing:-.9px;line-height:1.2;margin:0 0 10px}
+.gw-desc{font-size:14px;color:#63788e;max-width:680px;line-height:1.65;margin:0 0 22px}
+.gw-page[hidden]{display:none!important}
+.gw-page{flex:1;min-height:270px}
+.gw-columns{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:15px}
+.gw-columns.gw-three{grid-template-columns:repeat(3,minmax(0,1fr))}
+.gw-tile{border:1px solid #dfe7f0;border-radius:13px;padding:18px;background:#fff;min-width:0}
+.gw-tile h3{font-size:14px;color:#264765;margin:0 0 8px}
+.gw-tile p{margin:4px 0 10px;font-size:12px;color:#687d91;line-height:1.55}
+.gw-tile.is-soft{background:#f8fbff}
+.gw-tile.is-warning{background:#fffaf3;border-color:#e9d9b8}
+.gw-choice{width:100%;text-align:left;border:1.5px solid #e1e8f1;border-radius:15px;padding:18px;min-height:120px;display:flex;flex-direction:column;gap:8px;background:#fff;transition:border-color .15s,background .15s}
+.gw-choice strong{font-size:15px;color:#244365}
+.gw-choice small{font-size:12px;line-height:1.5;color:#70849a;font-weight:450}
+.gw-choice[aria-pressed=true],.gw-choice:hover{background:#f0f7ff;border-color:#5fa1d8}
+.gw-choice .gw-choice-icon{width:30px;height:30px;border-radius:9px;display:grid;place-items:center;background:#eaf2fa;color:#22669f;font-size:17px}
+.gw-fields{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+.gw-fields.gw-3{grid-template-columns:repeat(3,minmax(0,1fr))}
+.gw-fields.gw-4{grid-template-columns:repeat(4,minmax(0,1fr))}
+.gw-fields label{font-size:12px;color:#576d81;font-weight:650;min-width:0}
+.gw-fields input,.gw-fields select{width:100%;padding:9px 10px;min-height:39px;background:#fff;border:1px solid #cddae7;border-radius:8px;font-size:13px;min-width:0}
+.gw-fields .toggle{font-size:12px}
+.gw-fieldnote{font-size:11px;color:#73869c;margin-top:6px}
+.gw-preset-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin:0 0 18px}
+.gw-preset{background:#fff;border:1.5px solid #e2eaf1;border-radius:12px;padding:15px;text-align:left;min-height:93px}
+.gw-preset[aria-pressed=true]{background:#eef7ff;border-color:#438ac3}
+.gw-preset strong,.gw-preset small{display:block}
+.gw-preset strong{font-size:13px;color:#254767}
+.gw-preset small{font-size:11px;font-weight:450;color:#6d8196;margin-top:5px;line-height:1.45}
+.gw-summary{background:#f5f9fe;border:1px solid #dde9f6;border-radius:12px;padding:13px 15px;margin:14px 0;font-size:12px;color:#385f82}
+.gw-summary strong{font-size:13px}
+.gw-matrix{display:flex;gap:6px;flex-wrap:wrap;margin:9px 0}
+.gw-matrix>span{display:inline-flex;align-items:center;gap:6px;border:1px solid #d4e2f0;border-radius:7px;background:#fff;padding:5px 8px;font-size:11px}
+.gw-matrix>span b{color:#3472ae}
+.gw-panel-actions{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:12px}
+.gw-panel-actions button{font-size:12px;padding:9px 13px;border-radius:8px}
+.gw-panel-actions button.primary{background:#2867a6;color:#fff}
+.gw-control .callout{margin:6px 0;font-size:12px}
+.gw-control .afe-step-panel{margin:0;padding:6px 2px}
+.gw-control .afe-step-row{grid-template-columns:minmax(160px,1fr) minmax(190px,230px)}
+.gw-control .afe-step-title{font-size:14px}
+.gw-control .afe-step-subtitle{font-size:11px}
+.gw-control #gainInfo{font-size:12px;color:#53718d;margin-top:10px}
+.gw-control .cal-point-row{border:0;padding:0;margin:0}
+.gw-control .cal-point-row:not(.gw-point-active){display:none!important}
+.gw-control .cal-point-row.gw-point-active{display:block!important}
+.gw-control .cal-point-row .fieldrow{display:grid;grid-template-columns:minmax(0,1.3fr) minmax(0,1fr) minmax(0,1fr) 170px;gap:9px;align-items:end}
+.gw-control .cal-point-row .fieldrow label{min-width:0}
+.gw-control .cal-point-row .fieldrow input{width:100%;min-width:0}
+.gw-control .cal-point-row .cal-card-action button{width:100%;white-space:normal}
+.gw-control .cal-point-row .between{margin:4px 0 13px}
+.gw-control .cal-point-row .between h3{font-size:15px}
+.gw-control .cal-point-row .cal-measure-result{padding:12px;margin:12px 0}
+.gw-points-layout{display:grid;grid-template-columns:215px minmax(0,1fr);gap:16px}
+.gw-point-nav{display:grid;gap:5px;align-content:start;max-height:510px;overflow:auto}
+.gw-point-nav button{width:100%;border:1px solid transparent;background:#f8fafc;border-radius:9px;text-align:left;font-weight:550;padding:10px;color:#617a93;font-size:12px}
+.gw-point-nav button.gw-selected{border-color:#9dc7e9;background:#edf7ff;color:#2369a5}
+.gw-point-nav button.gw-done{color:#1c8063}
+.gw-point-nav button.gw-done::before{content:'✓  '}
+.gw-control .profile-afe{padding:9px;margin:10px 0}
+.gw-alert{padding:10px 13px;border-radius:9px;background:#f2f7fc;border:1px solid #d9e6f4;color:#456882;font-size:12px;margin:10px 0;line-height:1.55}
+.gw-alert.warn{background:#fff9ef;border-color:#eadab9;color:#896126}
+.gw-alert.error{background:#fff2f2;border-color:#eac5c5;color:#a43d41}
+.gw-alert.success{background:#f0faf5;border-color:#c7e5d6;color:#1c795a}
+.gw-footer{border-top:1px solid #e4eaf1;display:flex;align-items:center;justify-content:space-between;gap:12px;padding-top:18px;margin-top:20px}
+.gw-footer .gw-actions{display:flex;gap:8px}
+.gw-footer button{padding:10px 17px;font-size:13px;min-height:40px;border-radius:10px}
+.gw-footer button.primary{background:#236cac;color:#fff;border-color:#236cac}
+.gw-footer button:disabled{opacity:.45}
+.gw-footer small{color:#8295a8;font-size:11px}
+.gw-control #nvmProgram{background:#a23d38;border-color:#a23d38;color:#fff;font-size:14px;padding:11px 16px}
+.gw-control #nvmProgram:disabled{opacity:.5}
+.gw-control #nvmDiffDetails{margin:8px 0}
+.gw-control pre.monoarea{max-height:220px;font-size:11px}
+.gw-secondary-link{background:none;border:0;padding:2px 0;color:#286daa;font-weight:650;cursor:pointer}
+.gw-bridge-chip{font-size:11px;background:#fff5e7;border:1px solid #ead8b6;border-radius:7px;padding:7px 10px;color:#8f6829;display:inline-block}
+.gw-advanced[hidden]{display:none!important}
+html.guided-active #guidedWorkspace [hidden]{display:none!important}
+@media(max-width:1120px){.gw-shell{grid-template-columns:170px minmax(0,1fr)}.gw-main{padding:25px 25px 18px}.gw-sidebar{padding:20px 10px}.gw-fields.gw-4{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:790px){.gw-shell{grid-template-columns:1fr}.gw-sidebar{padding:12px;display:block}.gw-backlogo,.gw-sidebar-footer{display:none}.gw-sideitems{display:flex;gap:6px;overflow:auto}.gw-sideitem{min-width:100px;padding:7px}.gw-main{padding:22px 17px}.gw-title{font-size:22px}.gw-columns,.gw-columns.gw-three,.gw-preset-grid{grid-template-columns:1fr}.gw-points-layout{grid-template-columns:1fr}.gw-point-nav{display:flex;overflow:auto}.gw-point-nav button{min-width:140px}.gw-control .cal-point-row .fieldrow{grid-template-columns:repeat(2,minmax(0,1fr))}.gw-control .cal-point-row .cal-card-action{grid-column:1/-1}}
+@media(max-width:520px){.gw-fields,.gw-fields.gw-3,.gw-fields.gw-4{grid-template-columns:1fr}.gw-main{padding:17px 12px}.gw-footer{flex-direction:column;align-items:stretch}.gw-footer .gw-actions{justify-content:space-between}.gw-topline .gw-chipstatus{display:none}}
+
+/* v0.6.0-beta.3: polished sensor setup, genuine shared AFE graph and live finish monitor.
+   Deliberately scoped to the guided workspace: the classic and compact UI keep their CSS. */
+#guidedWorkspace .gw-main{padding:27px 32px 18px}
+#guidedWorkspace .gw-desc{margin-bottom:17px}
+#guidedWorkspace .gw-progressbar{margin:14px 0 19px}
+#guidedWorkspace .gw-page .gw-tile{border-radius:14px;padding:18px 19px;box-shadow:0 1px 2px rgba(28,59,92,.025)}
+#guidedWorkspace .gw-section-head{display:flex;align-items:flex-start;gap:10px;margin-bottom:17px}
+#guidedWorkspace .gw-section-head h3{font-size:14px;font-weight:760;margin:0 0 4px;color:#1d3f5f;letter-spacing:-.015em}
+#guidedWorkspace .gw-section-head p{font-size:11px;margin:0;color:#7b8da0;line-height:1.4}
+#guidedWorkspace .gw-section-no{width:27px;height:27px;flex:0 0 27px;border-radius:8px;display:grid;place-items:center;background:#e9f3fc;color:#256aa7;font-size:10px;font-weight:850}
+#guidedWorkspace .gw-subheading{margin:18px 0 10px;padding-top:12px;border-top:1px solid #e9eff6;color:#345777;font-size:11px;font-weight:750;letter-spacing:.015em}
+#guidedWorkspace .gw-setup-grid{align-items:stretch;gap:13px}
+#guidedWorkspace .gw-setup-grid>.gw-tile{height:100%;min-width:0}
+#guidedWorkspace .gw-setup-page .gw-fields{align-items:start}
+#guidedWorkspace .gw-setup-page .gw-fields label{font-size:11px;line-height:1.45;min-width:0;color:#586e85}
+#guidedWorkspace .gw-setup-page .gw-fields input,#guidedWorkspace .gw-setup-page .gw-fields select{display:block;box-sizing:border-box;min-width:0;width:100%;height:39px;margin-top:7px;padding:8px 10px;font-weight:640;font-size:13px;border:1px solid #cfdeec;border-radius:8px}
+#guidedWorkspace .gw-setup-pressure,#guidedWorkspace .gw-setup-vdd{grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+#guidedWorkspace .gw-setup-temps{grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
+#guidedWorkspace .gw-voltage-endpoints{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+#guidedWorkspace .gw-voltage-endpoint{background:#f7faff;border:1px solid #e0eaf5;border-radius:10px;padding:10px 12px;min-width:0}
+#guidedWorkspace .gw-voltage-label{display:block;font-size:11px;color:#526e89;font-weight:700;margin:0 0 7px}
+#guidedWorkspace .gw-voltage-endpoint label{font-size:11px;display:flex;align-items:center;gap:7px;white-space:nowrap;color:#6b8296}
+#guidedWorkspace .gw-voltage-endpoint input{width:100%;min-width:0;height:36px;margin:0;font-weight:750;font-size:14px}
+#guidedWorkspace .gw-setup-hint{margin:12px 0 0;color:#677f93;font-size:11px;line-height:1.55}
+#guidedWorkspace .gw-config-details{margin-top:12px;padding:12px 16px!important}
+#guidedWorkspace .gw-config-details summary{font-size:12px;color:#276ba5;cursor:pointer;display:flex;justify-content:space-between;align-items:center;gap:12px;list-style:revert}
+#guidedWorkspace .gw-config-details summary span{font-size:11px;color:#8395a6;font-weight:450}
+#guidedWorkspace .gw-config-details[open]{padding-bottom:15px!important}
+#guidedWorkspace .gw-config-details[open] summary{margin-bottom:12px}
+#guidedWorkspace .gw-setup-summary{margin:11px 0 0;padding:11px 15px;font-size:11px;border:1px solid #dfe9f3;border-radius:10px;background:#f7faff;color:#496a87}
+
+/* AFE uses the classic live ADC_S chart. No duplicate data source or draw loop. */
+#guidedWorkspace .gw-afe-layout{grid-template-columns:minmax(0,.95fr) minmax(0,1.05fr);gap:13px;align-items:start}
+#guidedWorkspace .gw-afe-page .gw-tile{min-height:0}
+#guidedWorkspace .gw-afe-controls .afe-step-panel{padding:0;margin:3px 0 0}
+#guidedWorkspace .gw-afe-controls .afe-step-row{grid-template-columns:minmax(95px,1fr) minmax(155px,205px);gap:8px;padding:10px 2px}
+#guidedWorkspace .gw-afe-controls .afe-step-title{font-size:12px}
+#guidedWorkspace .gw-afe-controls .afe-step-subtitle{font-size:10px}
+#guidedWorkspace .gw-afe-controls #gainInfo{padding:10px 11px;border-radius:8px;background:#f4f8fd;color:#436583;font-size:11px;line-height:1.45}
+#guidedWorkspace .gw-afe-controls #gwAFEMsg{margin:8px 0}
+#guidedWorkspace .gw-afe-controls .callout{font-size:11px}
+#guidedWorkspace .gw-afe-guide{margin-top:14px;border-top:1px solid #e7eef5;padding-top:13px}
+#guidedWorkspace .gw-afe-guide strong{font-size:12px;color:#325776}
+#guidedWorkspace .gw-afe-guide ol{margin:8px 0 9px;padding-left:18px;display:grid;gap:5px}
+#guidedWorkspace .gw-afe-guide li{font-size:11px;color:#5e748a;line-height:1.42}
+#guidedWorkspace .gw-afe-guide small{display:block;font-size:10px;color:#946b35;background:#fff9ed;border:1px solid #f1dfbf;padding:8px 10px;border-radius:8px;line-height:1.45}
+#guidedWorkspace .gw-monitor-head,#guidedWorkspace .gw-finish-top{display:flex;justify-content:space-between;align-items:center;gap:10px}
+#guidedWorkspace .gw-monitor-head h3{font-size:14px;letter-spacing:-.01em;margin:0 0 4px}
+#guidedWorkspace .gw-monitor-head p{font-size:11px;margin:0;color:#7b8fa3}
+#guidedWorkspace .gw-live-badge{display:inline-block;flex-shrink:0;padding:5px 9px;border:1px solid #e3e9ee;background:#f6f8fa;color:#788797;border-radius:99px;font-size:10px;font-weight:760;white-space:nowrap}
+#guidedWorkspace .gw-live-badge.is-live{color:#1b805e;background:#eef9f3;border-color:#d3e9dd}
+#guidedWorkspace .gw-afe-current{display:flex;align-items:baseline;gap:9px;margin:17px 0 10px}
+#guidedWorkspace .gw-afe-current strong{font-variant-numeric:tabular-nums;font-size:32px;color:#163e64;letter-spacing:-1px;line-height:1}
+#guidedWorkspace .gw-afe-current span{font-size:12px;color:#70879d}
+#guidedWorkspace .gw-afe-chart{width:100%;height:215px;overflow:hidden;background:#fbfdff;border:1px solid #e0eaf4;border-radius:11px}
+#guidedWorkspace .gw-afe-chart #chart,#guidedWorkspace .gw-finish-chart #chart{display:block;width:100%;height:100%;margin:0;border:0;box-shadow:none;max-width:none;border-radius:0;background:transparent}
+#guidedWorkspace .gw-chart-legend{display:flex;flex-wrap:wrap;gap:12px;margin:9px 0 15px;color:#6b8297;font-size:10px}
+#guidedWorkspace .gw-chart-legend span::before{content:'';display:inline-block;width:15px;height:3px;vertical-align:middle;margin-right:5px;border-radius:2px}
+#guidedWorkspace .gw-legend-limit::before{background:#d5aa72}
+#guidedWorkspace .gw-legend-zero::before{background:#b8cbdc}
+#guidedWorkspace .gw-legend-line::before{background:#2867a6}
+#guidedWorkspace .gw-afe-kpis{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin-top:5px}
+#guidedWorkspace .gw-afe-kpis>div{min-width:0;border:1px solid #e2ebf4;border-radius:9px;background:#f7faff;padding:10px 8px}
+#guidedWorkspace .gw-afe-kpis span{display:block;color:#778da2;font-size:10px;margin-bottom:4px}
+#guidedWorkspace .gw-afe-kpis strong{display:block;color:#234f73;font-size:16px;font-variant-numeric:tabular-nums;overflow-wrap:anywhere}
+#guidedWorkspace .gw-monitor-actions{display:flex;align-items:center;justify-content:space-between;gap:9px;margin-top:11px;flex-wrap:wrap}
+#guidedWorkspace #gwAfeLiveActions{display:flex;gap:6px;align-items:center;flex-wrap:wrap}
+#guidedWorkspace #gwAfeLiveActions button,#guidedWorkspace .gw-secondary-btn{font-size:11px;min-height:32px;padding:7px 10px;border:1px solid #d3e2f0;background:#fff;color:#2c6594;border-radius:8px;font-weight:650}
+#guidedWorkspace #gwAfeLiveActions .pill{font-size:10px;padding:5px 8px}
+#guidedWorkspace .gw-secondary-btn:hover{background:#eef6fd}
+#guidedWorkspace .gw-afe-quality{margin-top:10px;border-radius:9px;padding:9px 11px;border:1px solid #e4ebf3;background:#f8fafc;color:#536f86;font-size:11px;line-height:1.48}
+#guidedWorkspace .gw-afe-quality.is-warning{background:#fff6ea;border-color:#f1dab3;color:#8d5d20}
+#guidedWorkspace .gw-afe-quality.is-good{background:#f1faf5;border-color:#d5eddd;color:#257250}
+#guidedWorkspace .gw-afe-quality.is-neutral{background:#f6f9ff;border-color:#dce7f5;color:#45698a}
+#guidedWorkspace #gwAfeMessage{margin-top:7px}
+#guidedWorkspace #gwAfeMessage .callout{font-size:11px;line-height:1.35}
+
+/* Completion: clear measured DSP value; requested analogue voltages are not asserted as measured. */
+#guidedWorkspace .gw-finish-signal{border:1px solid #d9e7f4;border-radius:17px;padding:24px 28px;background:#f7fbff}
+#guidedWorkspace .gw-finish-top h3{font-size:17px;margin:3px 0 0;color:#254767}
+#guidedWorkspace .gw-finish-number{display:flex;align-items:baseline;justify-content:center;gap:13px;min-height:104px;margin:19px 0 2px}
+#guidedWorkspace .gw-finish-number strong{font-size:clamp(47px,7vw,78px);font-variant-numeric:tabular-nums;letter-spacing:-.065em;font-weight:830;line-height:1.15;color:#16598c;overflow-wrap:anywhere}
+#guidedWorkspace .gw-finish-number span{font-size:22px;color:#6684a0;font-weight:600;white-space:nowrap}
+#guidedWorkspace .gw-finish-caption{text-align:center;color:#5e768d;font-size:12px;line-height:1.5;max-width:800px;margin:4px auto 20px}
+#guidedWorkspace .gw-finish-bar{height:9px;border-radius:99px;background:#e0eaf5;overflow:hidden}
+#guidedWorkspace .gw-finish-bar span{display:block;height:100%;width:0;background:#2674b0;border-radius:inherit;transition:width .35s}
+#guidedWorkspace .gw-finish-limits{display:flex;justify-content:space-between;margin:7px 0 18px;color:#7389a1;font-size:11px}
+#guidedWorkspace .gw-finish-kpis{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:9px}
+#guidedWorkspace .gw-finish-kpis>div{border:1px solid #e1eaf4;background:#fff;border-radius:9px;padding:11px 12px;min-width:0}
+#guidedWorkspace .gw-finish-kpis span{display:block;color:#71869a;font-size:10px;margin-bottom:6px}
+#guidedWorkspace .gw-finish-kpis strong{display:inline;color:#254c6c;font-size:17px;font-variant-numeric:tabular-nums;overflow-wrap:anywhere}
+#guidedWorkspace .gw-finish-kpis small{color:#8599aa;font-size:10px;margin-left:4px}
+#guidedWorkspace .gw-finish-bottom{margin-top:13px;grid-template-columns:minmax(0,1.08fr) minmax(0,.92fr)}
+#guidedWorkspace .gw-finish-chart{height:180px;overflow:hidden;border:1px solid #e5edf5;border-radius:11px;background:#fcfdff}
+#guidedWorkspace .gw-finish-checklist .gw-alert{font-size:12px;margin:10px 0}
+#guidedWorkspace .gw-finish-checklist>p{font-size:11px;line-height:1.5;color:#577189}
+#guidedWorkspace .gw-finish-warning{color:#98723b!important}
+#guidedWorkspace .gw-finish-checklist #gwBackClassic{margin-top:10px}
+
+@media(max-width:1120px){
+ #guidedWorkspace .gw-main{padding:24px 24px 18px}
+ #guidedWorkspace .gw-afe-layout{grid-template-columns:minmax(0,.92fr) minmax(0,1.08fr)}
+ #guidedWorkspace .gw-afe-controls .afe-step-row{grid-template-columns:minmax(65px,1fr) minmax(125px,160px)}
+ #guidedWorkspace .gw-voltage-endpoints{gap:8px}
+}
+@media(max-width:850px){
+ #guidedWorkspace .gw-setup-grid,#guidedWorkspace .gw-afe-layout,#guidedWorkspace .gw-finish-bottom{grid-template-columns:1fr}
+ #guidedWorkspace .gw-setup-grid>.gw-tile{height:auto}
+ #guidedWorkspace .gw-afe-chart{height:240px}
+}
+@media(max-width:600px){
+ #guidedWorkspace .gw-main{padding:17px 13px}
+ #guidedWorkspace .gw-setup-pressure,#guidedWorkspace .gw-setup-vdd,#guidedWorkspace .gw-voltage-endpoints{grid-template-columns:repeat(2,minmax(0,1fr))}
+ #guidedWorkspace .gw-setup-temps{grid-template-columns:repeat(2,minmax(0,1fr))}
+ #guidedWorkspace .gw-config-details summary{display:block}
+ #guidedWorkspace .gw-config-details summary span{display:block;padding-top:5px}
+ #guidedWorkspace .gw-afe-kpis{gap:5px}
+ #guidedWorkspace .gw-afe-kpis strong{font-size:14px}
+ #guidedWorkspace .gw-afe-chart{height:205px}
+ #guidedWorkspace .gw-finish-signal{padding:16px 14px}
+ #guidedWorkspace .gw-finish-kpis{grid-template-columns:repeat(2,minmax(0,1fr))}
+ #guidedWorkspace .gw-finish-number strong{font-size:49px}
+}

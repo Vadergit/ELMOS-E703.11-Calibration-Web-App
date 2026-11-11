@@ -180,7 +180,7 @@ test('Expert mode shows contextual settings and no modal',()=>{
  assert.ok(html.includes('data-expert-area hidden><summary>Erweitert · AODO_F'));
  assert.ok(src.includes("classList.toggle('is-expert',enabled)"));
  const scripts=Array.from(html.matchAll(/<script src="([^"]+)"/g),m=>m[1]);
- assert.deepEqual(scripts,['calibration.js?v=0.5.0','eeprom-help.js?v=0.5.0','expert.js?v=0.5.0','config.js?v=0.5.0','app.js?v=0.5.0','compact.js?v=0.5.0']);
+ assert.deepEqual(scripts,['calibration.js?v=0.6.0','eeprom-help.js?v=0.6.0','expert.js?v=0.6.0','config.js?v=0.6.0','guided-plan.js?v=0.6.0','app.js?v=0.6.0','compact.js?v=0.6.0','guided.js?v=0.6.0']);
 });
 
 test('Failed E703.11 probe reconnects SSP3 at most once, without NVM writes',()=>{
@@ -190,7 +190,7 @@ test('Failed E703.11 probe reconnects SSP3 at most once, without NVM writes',()=
  assert.ok(connect.includes('await firmware();'));
  assert.ok(connect.includes('await selectChipInterface();'));
  assert.ok(connect.includes('await detect();'));
- assert.ok(connect.includes('if(retryChipOnce){'));
+ assert.ok(connect.includes("if(retryChipOnce&&st.adapterKind==='ssp3'){"));
  assert.ok(connect.includes('await disconnect();'));
  assert.ok(connect.includes('await sleep(200);'));
  assert.ok(connect.includes('await connect(port,false);'));
@@ -356,4 +356,221 @@ test('EEPROM Viewer refuses to display a backup from another chip',()=>{
  assert.ok(expert.includes('st.uid.ser0===st.nvmBackup[0]'));
  assert.ok(expert.includes('st.uid.ser1===st.nvmBackup[1]'));
  assert.ok(expert.includes("st.mode==='usb'&&st.port&&st.chip"));
+});
+
+const GUIDED_PLAN=require('../guided-plan.js');
+test('Guided matrix: 2 pressures without temperature correction',()=>{
+ const p=GUIDED_PLAN.create({pCount:2,tCount:1,temperatures:[25],pmin:0,pmax:10});
+ assert.equal(p.total,2);assert.equal(p.orderS,1);assert.equal(p.orderT,0);
+ assert.deepEqual(p.points.map(p=>p.slot),['lo','hi']);
+ assert.deepEqual(p.pressureValues,[0,10]);
+});
+test('Guided matrix: 2 pressure x 3 temperature full independent grid',()=>{
+ const p=GUIDED_PLAN.create({pCount:2,tCount:3,temperatures:[-10,25,65],pmin:0,pmax:10});
+ assert.equal(p.total,6);assert.equal(p.orderS,1);assert.equal(p.orderT,2);
+ assert.deepEqual(p.points.map(p=>p.pressure),[0,10,0,10,0,10]);
+ assert.deepEqual(p.points.map(p=>p.temperature),[-10,-10,25,25,65,65]);
+ assert.deepEqual(p.points.map(p=>p.slot),['lo','extra1','extra2','extra3','extra4','hi']);
+});
+test('Guided matrix: 3 pressure x 2 temperature, and supported 10-point maximum',()=>{
+ const p=GUIDED_PLAN.create({pCount:3,tCount:2,temperatures:[10,60],pmin:-1,pmax:5});
+ assert.equal(p.total,6);assert.equal(p.orderS,2);assert.equal(p.orderT,1);
+ assert.deepEqual(p.pressureValues,[-1,2,5]);
+ const max=GUIDED_PLAN.create({pCount:5,tCount:2,temperatures:[10,60]});
+ assert.equal(max.total,10);assert.equal(max.orderS,3);assert.equal(max.orderT,1);
+});
+test('Guided planner rejects >10, nonascending temperatures, invalid pressure and overfit',()=>{
+ assert.throws(()=>GUIDED_PLAN.create({pCount:4,tCount:3,temperatures:[0,25,65]}),/höchstens 10/);
+ assert.throws(()=>GUIDED_PLAN.create({pCount:2,tCount:3,temperatures:[25,15,60]}),/aufsteigend/);
+ assert.throws(()=>GUIDED_PLAN.create({pCount:2,tCount:1,temperatures:[25],pmin:10,pmax:0}),/grösser/);
+ assert.throws(()=>GUIDED_PLAN.create({pCount:3,tCount:1,temperatures:[25],orderS:3}),/Druckpolynom/);
+ assert.throws(()=>GUIDED_PLAN.create({pCount:2,tCount:1,temperatures:[25],orderT:1}),/Temperaturpolynom/);
+ assert.throws(()=>GUIDED_PLAN.create({pCount:2,tCount:2,temperatures:[10,60],samples:101}),/Samples/);
+});
+test('Guided view is optional and contains only one set of hardware inputs',()=>{
+ const html=read('index.html'),ui=read('guided.js');
+ assert.ok(html.includes('id="guidedWorkspace" hidden'));
+ assert.ok(html.includes('id="workflowMode"'));
+ assert.ok(html.includes('id="guidedLaunch"'));
+ assert.ok(html.includes('id="guidedLaunchTop"'));
+ assert.ok(html.includes('guided.css?v=0.6.0'));
+ for(const id of ['nvmProgram','nvmPrepare','calApplyRam','calVerifyRam','expertOutputStage','configApply','configFile']){
+  assert.equal(html.split('id="'+id+'"').length-1,1);
+ }
+ assert.ok(ui.includes('node.parentNode.replaceChild(marker,node)'));
+ assert.ok(ui.includes('marker.parentNode.replaceChild(x.node,x.marker)'));
+ assert.ok(ui.includes("moveId('nvmProgram','gwNvmWrite')"));
+ assert.ok(ui.includes("moveId('calApplyRam','gwFitActions')")===false || ui.includes("'calApplyRam'"));
+ assert.ok(!ui.includes('nvmProgram('));
+ assert.ok(!ui.includes('maintWrite('));
+ assert.ok(!ui.includes('writeReg('));
+ assert.ok(ui.includes('ELMOS_GUIDED_PLAN.create('));
+});
+test('Guided app uses read-only status, and the original NVM protections remain',()=>{
+ const app=read('app.js');
+ assert.ok(app.includes('window.ELMOS_GUIDED_API=Object.freeze('));
+ assert.ok(app.includes('calVerified:verificationComplete()'));
+ assert.ok(app.includes("window.ELMOS_GUIDED?.onConnected?.()"));
+ assert.ok(app.includes("const approvalGranted=nvmReason===''"));
+ assert.ok(app.includes("$('nvmProgram').disabled=!approvalGranted"));
+ assert.ok(app.includes("if(st.adapterKind==='bridge')nvmReason="));
+});
+test('USB bridge fails closed until a truly compatible PLC firmware is available',()=>{
+ const app=read('app.js'),fw=read('firmware/usb_bridge_cdc/usb_bridge_cdc.ino');
+ assert.ok(app.includes("exchange('BRIDGE_INFO',1600)"));
+ assert.ok(app.includes("'PLC_READ','PLC_WRITE','NVM'"));
+ assert.ok(app.includes("if(!bridgeReady)return;"));
+ assert.ok(fw.includes('CAPS=CDC_ONLY'));
+ assert.ok(fw.includes('PLC_NOT_IMPLEMENTED'));
+ assert.ok(!fw.includes('pinMode('));
+ assert.ok(!/^[ \t]*digitalWrite\s*\(/m.test(fw));
+ assert.ok(!fw.includes('CAPS=PLC_READ,PLC_WRITE,NVM'));
+});
+
+test('Guided complex pressure/temperature grids remain inside existing calibration engine limits',()=>{
+ const p33=GUIDED_PLAN.create({pCount:3,tCount:3,temperatures:[-10,25,65],pmin:0,pmax:16});
+ const p42=GUIDED_PLAN.create({pCount:4,tCount:2,temperatures:[5,60],pmin:0,pmax:12});
+ assert.equal(p33.total,9);assert.equal(p33.orderS,2);assert.equal(p33.orderT,2);
+ assert.equal(p42.total,8);assert.equal(p42.orderS,3);assert.equal(p42.orderT,1);
+ assert.equal(p33.points.at(-1).slot,'hi');
+ assert.equal(p42.points.filter(p=>p.slot.startsWith('extra')).length,6);
+});
+test('Guided and compact modes restore the original controls before switching',()=>{
+ const guided=read('guided.js'),compact=read('compact.js');
+ assert.ok(guided.includes('isOpen:()=>mode'));
+ assert.ok(compact.includes('window.ELMOS_GUIDED?.isOpen?.()'));
+ assert.ok(compact.includes('window.ELMOS_GUIDED.close()'));
+ assert.ok(guided.includes("ELMOS_COMPACT.set(false)"));
+ assert.ok(guided.includes("const subscriptions=[]"));
+ assert.ok(guided.includes("el.removeEventListener(type,handler)"));
+});
+test('Experimental bridge never initiates PLC traffic, even with advertised full capabilities',()=>{
+ const app=read('app.js');
+ assert.ok(app.includes('const BRIDGE_SENSOR_IO_VALIDATED=false'));
+ assert.ok(app.includes("if(!advertised||!BRIDGE_SENSOR_IO_VALIDATED)"));
+ assert.ok(app.includes("if(!bridgeReady)return;"));
+ assert.ok(app.includes("if(st.adapterKind==='bridge')throw Error('USB-Bridge ist nicht für dauerhaftes NVM-Schreiben"));
+});
+
+
+test('ESP32-C3 SuperMini sketch targets native USB-CDC and refuses PLC access',()=>{
+ const fw=read('firmware/esp32c3_supermini/esp32c3_supermini.ino');
+ assert.ok(fw.includes('CONFIG_IDF_TARGET_ESP32C3'));
+ assert.ok(fw.includes('ARDUINO_USB_CDC_ON_BOOT'));
+ assert.ok(fw.includes('GPIO18')&&fw.includes('GPIO19'));
+ assert.ok(fw.includes('CAPS=CDC_ONLY'));
+ assert.ok(fw.includes('BRIDGE_INFO')&&fw.includes('BRIDGE_PING'));
+ assert.ok(fw.includes('PLC_NOT_IMPLEMENTED'));
+ assert.ok(!/^[ \t]*pinMode\s*\(/m.test(fw));
+ assert.ok(!/^[ \t]*digitalWrite\s*\(/m.test(fw));
+ assert.ok(!fw.includes('CAPS=PLC_READ,PLC_WRITE,NVM'));
+});
+
+
+test('Mathematical fit works with representative synthetic pressure-temperature grids',()=>{
+ for(const [pCount,tCount,temperatures] of [[2,1,[25]],[2,3,[-10,25,65]],[3,2,[10,60]],[3,3,[-10,25,65]],[5,2,[10,60]]]){
+  const p=GUIDED_PLAN.create({pCount,tCount,temperatures,pmin:0,pmax:10,outputLimit:25000});
+  const points=p.points.map((v,i)=>({
+   pressure:v.pressure,temperature:v.temperature,
+   adc_s:Math.round(((v.pressure/10)-.5)*9000*(6/3.5)*(2.86/2)+(v.temperature-25)*11+(i%2?2:-2)),
+   adc_t:Math.round((v.temperature-25)*180)
+  }));
+  const fit=CAL.fit(points,{pmin:0,pmax:10,orderS:p.orderS,orderT:p.orderT,outputLimit:25000});
+  assert.ok(fit.stats.maxDigits<100);
+  assert.ok(Number.isFinite(fit.stats.rmsDigits));
+ }
+});
+test('Board shortlist, flash guide and pure-USB safety instructions are included',()=>{
+ const boards=read('docs/ESP_BOARD_OPTIONS.md'),guide=read('docs/USB_BRIDGE_GUIDE.md');
+ for(const name of ['ESP32-C3 SuperMini','XIAO ESP32C3','ESP32-S3-DevKitC-1','Nano ESP32','ESP32-C6'])
+  assert.ok(boards.includes(name),name);
+ for(const term of ['ESP32C3 Dev Module','USB CDC On Boot','BRIDGE_INFO','CDC_ONLY','GPIO18','GPIO19','esp32c3_supermini.ino'])
+  assert.ok(boards.includes(term),term);
+ assert.ok(guide.includes('ESP_BOARD_OPTIONS.md'));
+});
+
+
+
+test('Guided AFE uses the original ADC chart and live buttons, never a second hardware connection',()=>{
+ const html=read('index.html'),guide=read('guided.js'),app=read('app.js'),css=read('guided.css');
+ assert.equal(html.split('id="chart"').length-1,1);
+ assert.ok(guide.includes("moveId('chart','gwAfeChartHost')"));
+ assert.ok(guide.includes("for(const id of ['readNow','live','srcLabel'])moveId(id,'gwAfeLiveActions')"));
+ assert.ok(guide.includes("moveId('adcMsg','gwAfeMessage')"));
+ assert.ok(guide.includes("$('gwFinishChartHost').appendChild($('chart'))"));
+ assert.ok(guide.includes("$('gwAfeChartHost').appendChild($('chart'))"));
+ assert.ok(guide.includes("function updateAfeTelemetry()"));
+ assert.ok(app.includes("redraw:()=>draw()"));
+ assert.ok(css.includes("#guidedWorkspace .gw-afe-chart #chart"));
+ assert.ok(css.includes("#guidedWorkspace .gw-finish-chart #chart"));
+ assert.ok(!guide.includes('readReg('));
+ assert.ok(!guide.includes('writeReg('));
+});
+test('Guided AFE range tracker uses original samples and ignores older or changed-gain readings',()=>{
+ const app=read('app.js');
+ const segment=app.split(' function guidedAfeStats(since){')[1].split('\n }\n window.ELMOS_GUIDED_API')[0];
+ assert.ok(segment&&segment.includes('st.history.filter('));
+ const func='function guidedAfeStats(since){'+segment+'\n }';
+ const when=Date.parse('2026-11-11T18:00:00Z');
+ const gains={pga1:1,pga2:3,offset:0};
+ const rows=[
+  {time:'2026-11-11T17:59:59Z',source:'usb',adc_s:30000,gains},
+  {time:'2026-11-11T18:00:01Z',source:'usb',adc_s:-12000,gains},
+  {time:'2026-11-11T18:00:02Z',source:'usb',adc_s:8000,gains},
+  {time:'2026-11-11T18:00:03Z',source:'usb',adc_s:27000,gains:{pga1:2,pga2:3,offset:0}}
+ ];
+ const calculate=new Function('st','since','return ('+func+')(since)');
+ const result=calculate({mode:'usb',history:rows,staged:gains},when);
+ assert.equal(result.count,2);
+ assert.equal(result.min,-12000);
+ assert.equal(result.max,8000);
+ assert.equal(result.hub,20000);
+ assert.equal(result.limitExceeded,false);
+ const warning=calculate({mode:'usb',history:[...rows,{time:'2026-11-11T18:00:05Z',source:'usb',adc_s:25500,gains}],staged:gains},when);
+ assert.equal(warning.limitExceeded,true);
+ const empty=calculate({mode:'usb',history:rows,staged:gains},Date.parse('2026-11-11T18:01:00Z'));
+ assert.equal(empty.count,0);
+});
+test('Guided finish distinguishes measured DSP from requested output-voltage settings',()=>{
+ const guide=read('guided.js'),app=read('app.js'),css=read('guided.css');
+ for(const id of ['gwFinishSignalValue','gwFinishSignalUnit','gwFinishDsp','gwFinishAdc','gwFinishTemp','gwFinishTime','gwFinishBar','gwFinishStatus','gwFinishConfig'])
+  assert.equal(guide.split('id="'+id+'"').length-1,1);
+ assert.ok(guide.includes('function updateFinishTelemetry()'));
+ assert.ok(guide.includes("range.kind==='display'"));
+ assert.ok(guide.includes('t.dspRaw===null'));
+ assert.ok(guide.includes('Diese Spannungen wurden nicht am Pin gemessen.'));
+ assert.ok(guide.includes('Kaltstart und Ausgangsmessung stehen noch aus.'));
+ assert.ok(app.includes('telemetry:()=>guidedTelemetry()'));
+ assert.ok(app.includes("const adc=online&&st.adc&&nowMs-st.adc.time<5000"));
+ assert.ok(app.includes("const dsp=online&&st.dsp&&nowMs-st.dsp.time<5000&&!st.dspError"));
+ assert.ok(css.includes("#guidedWorkspace .gw-finish-number strong"));
+});
+test('Guided setup keeps reference and output fields aligned while restoring the classic UI',()=>{
+ const guide=read('guided.js'),css=read('guided.css');
+ assert.ok(guide.includes('id="gwS0Holder"'));
+ assert.ok(guide.includes('id="gwS1Holder"'));
+ assert.ok(guide.includes("moveLabel('psscS0','gwS0Holder')"));
+ assert.ok(guide.includes("moveLabel('psscS1','gwS1Holder')"));
+ assert.ok(guide.includes("rehome('psscS0','gwS0Holder')"));
+ assert.ok(guide.includes("rehome('psscS1','gwS1Holder')"));
+ assert.ok(guide.includes('node.parentNode.replaceChild(marker,node)'));
+ assert.ok(guide.includes('marker.parentNode.replaceChild(x.node,x.marker)'));
+ assert.ok(css.includes('#guidedWorkspace .gw-setup-grid'));
+ assert.ok(css.includes('#guidedWorkspace .gw-voltage-endpoints'));
+});
+
+test('Released wizard excludes demo controls and requires a real sensor connection',()=>{
+ const app=read('app.js'),guided=read('guided.js'),html=read('index.html'),compact=read('compact.js');
+ for(const id of ['demo','guidedDemoTop','guidedDemoLaunch','demoPressurePanel'])
+  assert.ok(!html.includes('id="'+id+'"'));
+ for(const id of ['gwDemoBanner','gwDemoRam','gwDemoVerify','gwDemoNvm','gwDemoApplyAFE'])
+  assert.ok(!guided.includes('id="'+id+'"'));
+ assert.ok(!app.includes("st.mode==='demo'"));
+ assert.ok(!app.includes('function demoADC('));
+ assert.ok(!app.includes('demoCompleteWizard'));
+ assert.ok(!guided.includes("mode==='demo'"));
+ assert.ok(!guided.includes('startDemo'));
+ assert.ok(!compact.includes("'demo'"));
+ assert.ok(guided.includes("if(!s.chip){msg("));
+ assert.ok(app.includes("if(st.mode!=='usb'||!st.chip||!st.port"));
 });
