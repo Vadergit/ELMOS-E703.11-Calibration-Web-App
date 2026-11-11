@@ -230,3 +230,10 @@ test('Profile only stages AFE, never automatically writes hardware or EEPROM',()
  for(const id of ['configSave','configFile','configApply','configLabel','configPreview','configAfeApplyRam'])
   assert.equal(html.split('id="'+id+'"').length-1,1);
 });
+
+test('EEPROM Viewer refuses to display a backup from another chip',()=>{
+ const expert=read('expert.js');
+ assert.ok(expert.includes('st.uid.ser0===st.nvmBackup[0]'));
+ assert.ok(expert.includes('st.uid.ser1===st.nvmBackup[1]'));
+ assert.ok(expert.includes("st.mode==='usb'&&st.port&&st.chip"));
+});
