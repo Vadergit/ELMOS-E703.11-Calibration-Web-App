@@ -30,7 +30,7 @@ if(typeof document!=='undefined') (function UI(){
  const LOCKED=[4,6,8,10,12,16],R_AFE=0x1C;
  const CAL=ELMOS_CAL; const CAL_REGS=[0x6C,0x6E,0x70,0x72,...Array.from({length:16},(_,i)=>0x74+2*i),0x94,0x96,0x98,0x9A];
  const REG_NAMES={4:'CFG_EN',6:'CFG_SPI_I2C',8:'CFG_PADS0',10:'CFG_PADS1',12:'CFG_PADS2',16:'CFG_AODO',0x14:'CFG_ADC',0x16:'CFG_LP0',0x18:'CFG_LP1',0x1A:'CFG_AFE0',0x1C:'CFG_AFE1',0x1E:'CFG_AFE2',0x26:'ADC_TC',0x28:'ADC_T',0x2A:'ADC_S'};
- const st={mode:'offline',port:null,reader:null,readerPromise:null,cmdQueue:Promise.resolve(),replyBuffer:'',responseWait:null,iface:'plc',firmware:'',chip:false,boot:null,afe:null,staged:{pga1:0,pga2:0,offset:0},adc:null,dsp:null,dspError:null,liveReadPromise:null,trend:[],history:[],log:[],regs:{},points:{lo:null,hi:null},verify:null,live:false,manualLivePause:false,timeout:null,consecutiveErrors:0,writing:false,pressure:5,calpoints:[],calfit:null,calImage:null,nvmBackup:null,nvmBackupVerified:false,calStaged:false,calVerified:false,calValidation:[],calTask:false,nvmWorking:false,nvmDone:false,afeWriteActive:false,ramWriteScope:null,uid:null,expertOutputPlan:null,restorePlan:null,outputOnlyPlan:null,uidShownForInput:null};
+ const st={mode:'offline',port:null,reader:null,readerPromise:null,cmdQueue:Promise.resolve(),replyBuffer:'',responseWait:null,iface:'plc',firmware:'',chip:false,boot:null,afe:null,staged:{pga1:0,pga2:0,offset:0},adc:null,dsp:null,dspError:null,liveReadPromise:null,trend:[],history:[],log:[],regs:{},points:{lo:null,hi:null},verify:null,live:false,manualLivePause:false,timeout:null,consecutiveErrors:0,writing:false,pressure:5,calpoints:[],calfit:null,calImage:null,nvmBackup:null,nvmBackupVerified:false,calStaged:false,calVerified:false,calValidation:[],calTask:false,nvmWorking:false,nvmDone:false,afeWriteActive:false,ramWriteScope:null,uid:null,expertOutputPlan:null,restorePlan:null,outputOnlyPlan:null,uidShownForInput:null,profilePendingAFE:null};
  let currentStep=0,pendingGain=null,writeTimer=null;let tipEnabled=true,liveIntervalMs=650;
  const HELP={interface:'Schnittstelle zwischen SSP3-Board und Sensorchip. 1-Wire nutzt AODO (VDD, GND und AODO). Die Einstellung IF_CFG ändert die Programmer-Pins, nicht die NVM-Konfiguration des Sensors.',baud:'Baudrate des USB-UART zwischen Chrome und dem SSP3. Die Herstellersoftware verwendet 115200 Baud als Standard.',adcs:'ADC_S ist der unkompensierte 16-Bit-Druck-ADC. ±25000 Digits ist ein vorsichtiges Ziel für den manuellen Abgleich, keine garantierte Hardwaregrenze.',dsp_live:'DSP_S (Register 0x30) ist der skalierte DSP-Sensorausgang. Die Anzeige liest den Chipwert wiederholt und rechnet ihn mit dem konfigurierten DSP-Endwert (standardmässig ±32’000 Digits) in den gewählten Anzeigebereich um. Ein DSP-Wert allein belegt keine gültige Kalibrierung.',pga1:'Erste Druckverstärkungsstufe: 3.5×, 6×, 8.5× oder 11× (typische Werte laut Datenblatt 2023). Für gutes SNR möglichst hoch ohne Übersteuerung.',pga2:'Zweite Verstärkungsstufe: typische Faktoren 2× bis 10×. Der Gesamtfaktor ist PGA1 × PGA2.',offset:'17 DAC-Stufen von −400 bis +400 mV/V bezogen auf die Brückenspannung. Die Verschiebung liegt zwischen PGA1 und PGA2.',pressureunit:'Einheit für die Referenz- und Prüfdruckwerte. Für relative Kalibrierungen kann beispielsweise % mit 0 bis 100 gewählt werden. Referenzwerte müssen zum tatsächlichen Prüfstand passen. Einheitenwechsel erfordert neue Messpunkte.',dsp_limit:'Symmetrischer DSP-Endwert für die neue Kalibrierung. Standard ±32’000 Digits. ±30’000 lässt zusätzlich Reserve. Der Wert verändert die berechneten Koeffizienten sowie DSP-Soll und Fehlerumrechnung; er ist keine Hardware-Clipping-Grenze.',ram:'PGA1, Offset und PGA2 werden mit jeder Pfeiltaste sofort ausschliesslich in CFG_AFE1 0x1C im RAM geändert und rückgelesen. Kein NVM-/EEPROM-Schreiben. Boot-/Kommunikationsregister werden kontrolliert.',};
  const h=P.hx;
@@ -297,6 +297,7 @@ if(typeof document!=='undefined') (function UI(){
    required+' Prüfpunkte: Jeder Prüfwert muss innerhalb der Toleranz liegen und ausreichend Abstand zu den anderen Punkten haben. Bei Temperaturkompensation müssen zusätzlich verschiedene Temperaturen geprüft werden.'
  }
  function workflowGate(n){
+  if(n===7)return ''; // EEPROM Viewer unabhängig vom Kalibrierablauf: nur lesen.
   if(n===5)return ''; // Eigener Ausgangsschritt ist auch bei bestehenden Sensoren erreichbar.
   if(n===6&&(expert.restoreReady()||expert.outputReady()))return '';
   if(n>=3&&!calEndpointsReady())return 'Zuerst alle '+calibrationPointCount()+' gewählten Kalibrierpunkte bei gleicher AFE-Einstellung aufnehmen.';
@@ -353,6 +354,10 @@ if(typeof document!=='undefined') (function UI(){
    outputStatus.className='callout '+(connected&&safeSaved?'success':'warn');
    if(saved&&!safeSaved&&!nvmReason)nvmReason='1-Wire-Startschutz: '+saved.errors.join('; ')+'. NVM-Schreiben gesperrt.';
   }
+  const eepromReadBtn=$('eepromRead');
+  if(eepromReadBtn)eepromReadBtn.disabled=!st.port||!st.chip||st.calTask||st.writing||st.nvmWorking;
+  const configAfeRam=$('configAfeApplyRam');
+  if(configAfeRam)configAfeRam.disabled=!st.profilePendingAFE||!st.port||!st.chip||st.mode!=='usb'||st.calTask||st.writing||st.nvmWorking;
   const outputNvmRead=$('outputNvmRead');if(outputNvmRead)outputNvmRead.disabled=!st.port||!st.chip||st.writing||st.calTask||st.nvmWorking;
   const approvalGranted=nvmReason==='';
   $('nvmProgram').disabled=!approvalGranted;
@@ -360,7 +365,7 @@ if(typeof document!=='undefined') (function UI(){
    'Bereit: Chip-UID stimmt, NVM-Änderungsplan und CRC sind geprüft. Beim Klick wird '+($('nvmAutoBackup').checked?'das alte NVM vor dem Schreiben automatisch gesichert und danach':'ohne zusätzliches Backup')+' programmiert.':
    nvmReason;
   $('nvmWritePrereq').className='callout '+(approvalGranted?'success':'warn');
-  const unlocked=[true,true,true,calEndpointsReady(),ready&&st.calStaged,true,!workflowGate(6)];
+  const unlocked=[true,true,true,calEndpointsReady(),ready&&st.calStaged,true,!workflowGate(6),true];
   document.querySelectorAll('[data-step]').forEach(b=>{
    const index=Number(b.dataset.step);b.classList.toggle('locked',!unlocked[index]);
    b.setAttribute('aria-disabled',String(!unlocked[index]));
@@ -381,13 +386,13 @@ if(typeof document!=='undefined') (function UI(){
   renderCalPoints();renderCalibrationPlan();renderLiveOverview();
  }
  function step(n){
-  const next=Math.max(0,Math.min(6,Number(n)));
+  const next=Math.max(0,Math.min(7,Number(n)));
   const blocked=workflowGate(next);
   if(blocked){show('flowMsg',blocked,'warn');$('flowMsg').hidden=false;renderFlowState();return}
   currentStep=next;$('flowMsg').hidden=true;
   document.querySelectorAll('.panel').forEach(x=>x.hidden=Number(x.dataset.panel)!==next);
   document.querySelectorAll('[data-step]').forEach(x=>x.classList.toggle('active',Number(x.dataset.step)===next));
-  renderFlowState();if(next===5)expert.refreshOutputPreview();draw();if(!st.manualLivePause&&(st.chip||st.mode==='demo'))startLive()
+  renderFlowState();if(next===5)expert.refreshOutputPreview();if(next===7)expert.refreshEEPROMViewer();draw();if(!st.manualLivePause&&(st.chip||st.mode==='demo'))startLive()
  }
  function invalidateCalculation(reason){
   st.calfit=null;st.calImage=null;st.calStaged=false;st.calVerified=false;st.calValidation=[];st.nvmBackup=null;st.nvmBackupVerified=false;
@@ -632,7 +637,7 @@ if(typeof document!=='undefined') (function UI(){
 
  function draw(){const c=$('chart');if(!c||c.closest('[hidden]'))return;const d=window.devicePixelRatio||1,w=Math.round(c.clientWidth*d),h=Math.round(c.clientHeight*d);if(w<20)return;if(c.width!==w||c.height!==h){c.width=w;c.height=h}const g=c.getContext('2d');g.clearRect(0,0,w,h);const x0=55*d,y0=10*d,yh=h-20*d,y=v=>y0+(32768-v)/65536*(yh-y0);g.font=`${11*d}px sans-serif`;for(const v of [25000,0,-25000]){g.beginPath();g.strokeStyle=v?'#e3c9aa':'#d7e4ef';g.setLineDash(v?[5*d,4*d]:[]);g.moveTo(x0,y(v));g.lineTo(w-8*d,y(v));g.stroke();g.setLineDash([]);g.fillStyle='#74849a';g.fillText((v>0?'+':'')+v,5*d,y(v)+4*d)}if(st.trend.length<1)return;const left=Date.now()-60000,x=t=>x0+(w-x0-10*d)*Math.max(0,Math.min(1,(t-left)/60000));g.beginPath();g.strokeStyle='#2867a6';g.lineWidth=2*d;st.trend.forEach((p,i)=>i?g.lineTo(x(p.x),y(p.y)):g.moveTo(x(p.x),y(p.y)));g.stroke()}
  function download(name,txt,mime='application/json'){let b=new Blob([txt],{type:mime}),u=URL.createObjectURL(b),a=document.createElement('a');a.href=u;a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(u),2000)}
- const report=()=>({tool:'ELMOS E703.11 Kalibrierassistent v0.3.4 / SSP3 Zelos Protocol',created:new Date().toISOString(),connection:st.port?'USB':'offline/demo',hardwareValidated:false,unit:pressureUnit(),pointNames:{lower:pointName('lo'),upper:pointName('hi')},interface:st.iface,firmware:st.firmware,bootProtection:'Boot-/Werks-NVM-Schreiben gesperrt; kalibrierungsbezogenes User-NVM mit Bestätigung freigegeben',ramWriteActive:!!st.ramWriteScope,registers:st.regs,bootSnapshot:st.boot,chipUID:st.uid?.hex||null,expertOutput:st.expertOutputPlan,AFE:st.afe,gains:st.staged,low:st.points.lo,high:st.points.hi,verification:st.verify,calibrationPoints:st.calpoints,plannedCalibrationPointCount:calibrationPointCount(),requestedSamplesPerPoint:Number($('calSampleCount').value),requestedDSPOutputLimit:Number($('calDspLimit').value),coefficientFit:st.calfit,calRamVerified:st.calVerified,lastDSP:st.dsp,displayRange:getActiveDSPRange(),nvmState:{backupVerified:st.nvmBackupVerified,programmed:st.nvmDone},samples:st.history.slice(-1500),trace:st.log});
+ const report=()=>({tool:'ELMOS E703.11 Kalibrierassistent v0.4.0 / SSP3 Zelos Protocol',created:new Date().toISOString(),connection:st.port?'USB':'offline/demo',hardwareValidated:false,unit:pressureUnit(),pointNames:{lower:pointName('lo'),upper:pointName('hi')},interface:st.iface,firmware:st.firmware,bootProtection:'Boot-/Werks-NVM-Schreiben gesperrt; kalibrierungsbezogenes User-NVM mit Bestätigung freigegeben',ramWriteActive:!!st.ramWriteScope,registers:st.regs,bootSnapshot:st.boot,chipUID:st.uid?.hex||null,expertOutput:st.expertOutputPlan,AFE:st.afe,gains:st.staged,low:st.points.lo,high:st.points.hi,verification:st.verify,calibrationPoints:st.calpoints,plannedCalibrationPointCount:calibrationPointCount(),requestedSamplesPerPoint:Number($('calSampleCount').value),requestedDSPOutputLimit:Number($('calDspLimit').value),coefficientFit:st.calfit,calRamVerified:st.calVerified,lastDSP:st.dsp,displayRange:getActiveDSPRange(),nvmState:{backupVerified:st.nvmBackupVerified,programmed:st.nvmDone},samples:st.history.slice(-1500),trace:st.log});
 
  // ============ Kalibrierung + NVM (AN0203 / AN0204 / Datasheet 2023) ============
  const ca=(id,msg,type='')=>show(id,msg,type);
@@ -744,7 +749,7 @@ if(typeof document!=='undefined') (function UI(){
    if(factoryCRC!==factoryHigh)throw Error(`Werks-CRC8 stimmt nicht: 0x${h(factoryCRC)} statt 0x${h(factoryHigh)}. Programmierung gesperrt.`);
    for(const index of [0,1,15,16,17,18,19,20,22,27,28,63])if(await nvmReadWord(index*2)!==words[index])throw Error('NVM bei Wiederholungslesung unstabil (Wort '+index+')');
    const after=await bootSnapshot();if(!sameBoot(before,after))throw Error('Bootregister haben sich beim NVM-Lesen verändert');
-   st.nvmBackup=words;st.nvmBackupVerified=true;st.calImage=null;expert.refreshOutputReadOnly();
+   st.nvmBackup=words;st.nvmBackupVerified=true;st.calImage=null;expert.refreshOutputReadOnly();expert.refreshEEPROMViewer();
    const shouldArchive=expertRead||(!preview&&$('nvmAutoBackup').checked);
    if(shouldArchive)expert.afterNvmScan();
    ca('backupMsg','NVM vollständig gelesen: 64 Wörter, CRC8 und CRC16 geprüft.'+
@@ -754,7 +759,7 @@ if(typeof document!=='undefined') (function UI(){
    ca('nvmMsg',`Aktuelles NVM gelesen und CRC8/CRC16 geprüft. Chipkennung SER1/SER0: ${h(words[1],2)}${h(words[0],2)}. ${preview?'Änderungsplan wird berechnet.':'NVM-Lesung erfolgreich.'}`,'success');
   }catch(e){
    logging('NVM-Backup: '+e.message);
-   st.nvmBackup=null;st.nvmBackupVerified=false;
+   st.nvmBackup=null;st.nvmBackupVerified=false;expert.refreshEEPROMViewer();
    ca('nvmMsg','NVM-Backup fehlgeschlagen: '+e.message,'error');
    ca('backupMsg','NVM-Backup fehlgeschlagen: '+e.message,'error');
   }
@@ -957,6 +962,92 @@ if(typeof document!=='undefined') (function UI(){
   $(id).addEventListener('input',renderDSPLive);
  }
  renderDSPLive();
+ // Config-Vorlagen: strikt auf chipunabhängige Zielwerte begrenzt, niemals NVM/Bootdaten.
+ let selectedConfig=null;
+ function profileSummary(){
+  const proposed=st.profilePendingAFE,box=$('configAfePending');
+  box.hidden=!proposed;
+  if(proposed){
+   $('configAfeSummary').textContent='PGA1 '+GAINS1[proposed.pga1]+'× · Offset '+(proposed.offset*50)+' mV/V · PGA2 '+
+    GAINS2[proposed.pga2]+'×. Aktuell im Chip: PGA1 '+GAINS1[st.staged.pga1]+'×, Offset '+(st.staged.offset*50)+
+    ' mV/V, PGA2 '+GAINS2[st.staged.pga2]+'×. Erst nach einem bestätigten RAM-Schreibvorgang werden die Vorgaben aktiv.';
+  }
+ }
+ function configFromUi(){
+  const p=st.profilePendingAFE||st.staged;
+  const cf=ELMOS_CONFIG.create({
+   label:$('configLabel').value.trim()||'Standardprofil',
+   afe:{pga1:p.pga1,pga2:p.pga2,offset:p.offset},
+   calibration:{
+    sOrder:Number($('calSOrder').value),tOrder:Number($('calTOrder').value),
+    dspLimit:Number($('calDspLimit').value),pointCount:Number($('calPointCount').value),
+    samples:Number($('calSampleCount').value),
+    reference:{min:Number($('pmin').value),max:Number($('pmax').value),
+     unit:$('calUnit').value,customUnit:$('calUnitOther').value.trim()}
+   },
+   output:{mode:$('expertOutputMode').value,scaleEnabled:$('expertScaleEnable').checked,
+    vdd:Number($('psscVdd').value),s0:Number($('psscS0').value),s1:Number($('psscS1').value),
+    gain:Number($('expertScaleGain').value),offset:Number($('expertScaleOffset').value),
+    pwmPeriod:Number($('expertPwmPeriod').value)}
+  },CAL);
+  return cf;
+ }
+ $('configSave').addEventListener('click',()=>{
+  try{
+   const profile=configFromUi();
+   const label=profile.label.replace(/[^a-z0-9_-]+/gi,'_').slice(0,46)||'Profil';
+   download('ELMOS_E70311_Config_'+label+'.json',JSON.stringify(profile,null,2));
+   show('configPreview','Config «'+profile.label+'» gespeichert. Enthält nur AFE-Stufen, DSP- und Messvorgaben und Ausgangsparameter. Keine UID, keine EEPROM-Daten und keine DSP-Koeffizienten.','success');
+  }catch(e){show('configPreview','Config konnte nicht gespeichert werden: '+e.message,'error')}
+ });
+ $('configFile').addEventListener('change',async()=>{
+  selectedConfig=null;$('configApply').disabled=true;
+  const file=$('configFile').files?.[0];if(!file)return;
+  try{
+   if(file.size>65536)throw Error('Config-Datei ist zu gross (max. 64 kB)');
+   const profile=ELMOS_CONFIG.validate(JSON.parse(await file.text()),CAL);
+   selectedConfig=profile;
+   $('configApply').disabled=false;
+   show('configPreview','Datei geprüft – noch NICHT übernommen.\n'+ELMOS_CONFIG.describe(profile)+
+    '\nEs werden keine Messpunkte, Kalibrierkoeffizienten, EEPROM- oder Boot-/Kommunikationsdaten importiert.','success');
+  }catch(e){selectedConfig=null;show('configPreview','Config-Laden abgelehnt: '+e.message,'error')}
+ });
+ $('configApply').addEventListener('click',()=>{
+  try{
+   if(!selectedConfig)throw Error('Zuerst eine gültige Config-Datei wählen');
+   if(st.writing||st.nvmWorking||st.calTask||st.afeWriteActive)throw Error('Chipvorgang läuft. Config erst danach übernehmen.');
+   // Reusing a profile must never transfer sensor-specific calibration or stale NVM plans.
+   erasePoints();
+   invalidateCalculation('Config-Vorlage übernommen. Messpunkte und Koeffizienten müssen für diesen Sensor neu aufgenommen/berechnet werden.');
+   st.restorePlan=null;st.outputOnlyPlan=null;st.expertOutputPlan=null;
+   const c=selectedConfig.calibration;
+   $('calPointCount').value=String(c.pointCount);
+   $('calSampleCount').value=String(c.samples);
+   $('settingsSampleCount').value=String(c.samples);
+   $('calUnit').value=c.reference.unit;
+   $('calUnitOther').value=c.reference.customUnit;
+   $('pmin').value=String(c.reference.min);$('pmax').value=String(c.reference.max);
+   $('calSOrder').value=String(c.sOrder);$('calTOrder').value=String(c.tOrder);
+   $('calDspLimit').value=String(c.dspLimit);$('calDspLimit').dataset.userEdited='1';
+   fillIntermediateReferences();refreshUnitLabels();updateDSPOutputLimit();renderDSPLive();
+   expert.applyOutputProfile(selectedConfig.output);
+   st.profilePendingAFE={...selectedConfig.afe};profileSummary();
+   $('configLabel').value=selectedConfig.label;
+   lsSet('elmos-cal-sample-count-v1',String(c.samples));
+   renderFlowState();
+   show('configPreview','Config «'+selectedConfig.label+'» in den Assistenten übernommen. Noch KEINE Chip- oder EEPROM-Werte geschrieben.\n'+
+    'AFE-Vorgabe unter «AFE optimieren» ausdrücklich ins RAM übertragen. Messpunkte und DSP-Kalibrierung anschliessend pro Sensor neu durchführen.','success');
+  }catch(e){show('configPreview','Config-Übernahme fehlgeschlagen: '+e.message,'error')}
+ });
+ $('configAfeApplyRam').addEventListener('click',async()=>{
+  const target=st.profilePendingAFE;if(!target)return;
+  if(!st.port||!st.chip||st.mode!=='usb')return show('writeMsg','Geladene AFE-Config kann erst mit echter USB-Chipverbindung ins RAM übertragen werden.','warn');
+  await commitGain({...target});
+  if(st.afe!==null&&P.goodG(st.staged)&&['pga1','pga2','offset'].every(k=>st.staged[k]===target[k])){
+   st.profilePendingAFE=null;profileSummary();renderFlowState();
+   show('writeMsg','Geladene AFE-Config erfolgreich ins Chip-RAM geschrieben und rückgelesen. Keine EEPROM-Programmierung.','success');
+  }else{profileSummary();show('writeMsg','AFE-Config ist weiterhin nur vorgemerkt: RAM-Rücklesung nicht bestätigt.','warn')}
+ });
  // controls
  const savedSampleCount=Number(lsGet('elmos-cal-sample-count-v1'));
  if(Number.isInteger(savedSampleCount)&&savedSampleCount>=1&&savedSampleCount<=100)$('calSampleCount').value=String(savedSampleCount);
