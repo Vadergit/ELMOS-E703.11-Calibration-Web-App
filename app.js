@@ -297,10 +297,11 @@ if(typeof document!=='undefined') (function UI(){
    required+' Prüfpunkte: Jeder Prüfwert muss innerhalb der Toleranz liegen und ausreichend Abstand zu den anderen Punkten haben. Bei Temperaturkompensation müssen zusätzlich verschiedene Temperaturen geprüft werden.'
  }
  function workflowGate(n){
-  if(n===5&&(expert.restoreReady()||expert.outputReady()))return '';
+  if(n===5)return ''; // Eigener Ausgangsschritt ist auch bei bestehenden Sensoren erreichbar.
+  if(n===6&&(expert.restoreReady()||expert.outputReady()))return '';
   if(n>=3&&!calEndpointsReady())return 'Zuerst alle '+calibrationPointCount()+' gewählten Kalibrierpunkte bei gleicher AFE-Einstellung aufnehmen.';
   if(n>=4&&(!coefficientSettingsCurrent()||!st.calStaged))return 'Zuerst die Koeffizienten für den eingestellten DSP-Endwert berechnen und ins RAM übertragen.';
-  if(n>=5&&!verificationComplete()&&!expert.restoreReady())return 'NVM bleibt gesperrt: Zuerst '+(Number.isFinite(verificationRequiredCount())?verificationRequiredCount()+' Prüfpunkte':'eine gültige Anzahl Prüfpunkte')+' über DSP_S im RAM erfolgreich verifizieren.';
+  if(n>=6&&!verificationComplete()&&!expert.restoreReady())return 'NVM bleibt gesperrt: Zuerst '+(Number.isFinite(verificationRequiredCount())?verificationRequiredCount()+' Prüfpunkte':'eine gültige Anzahl Prüfpunkte')+' über DSP_S im RAM erfolgreich verifizieren.';
   return ''
  }
  function renderFlowState(){
@@ -330,19 +331,23 @@ if(typeof document!=='undefined') (function UI(){
    'Aus dem Chip gelesen: '+recognizedUid+' · Feld automatisch ausgefüllt; eine Änderung wird vor dem Schreiben mit dem Sensor abgeglichen.':
    'Chip-UID wird nach erfolgreicher Sensorverbindung automatisch eingetragen.';
   let nvmReason='';
-  if(!verified||st.mode!=='usb')nvmReason='Zuerst die DSP-Prüfung abschliessen und sicherstellen, dass der echte Chip verbunden ist.';
+  if(st.iface!=='plc')nvmReason='1-Wire-Startschutz: Dauerhaftes NVM-Schreiben ausschliesslich über 1-Wire möglich. Bitte per 1-Wire verbinden.';
+  if(!nvmReason&&(!verified||st.mode!=='usb'))nvmReason='Zuerst die DSP-Prüfung abschliessen und sicherstellen, dass der echte Chip verbunden ist.';
   else if(!st.nvmBackupVerified||!st.nvmBackup)nvmReason='Zuerst Original-NVM vollständig lesen und prüfen.';
   else if(!st.calImage)nvmReason='Zuerst «NVM lesen & Änderungen prüfen» drücken. Anschliessend kann gespeichert werden.';
   else if(!recognizedUid||st.uid.ser0!==st.nvmBackup[0]||st.uid.ser1!==st.nvmBackup[1])nvmReason='Chip-UID wurde nicht vollständig mit dem NVM-Backup abgeglichen.';
   else if(!/^[0-9A-Fa-f]{12}$/.test($('nvmConfirmId').value.trim()))nvmReason='Chip-UID muss genau 12 Hex-Ziffern enthalten.';
   else if($('nvmConfirmId').value.trim().toUpperCase()!==recognizedUid)nvmReason='Die editierte UID stimmt nicht mit dem aktuell verbundenen Chip überein. Programmierung gesperrt.';
+  const outputStatus=$('outputOneWireStatus');
+  if(outputStatus){const connected=st.mode==='usb'&&st.iface==='plc'&&st.chip;outputStatus.textContent=connected?'1-Wire-Kommunikation zum Chip aktuell erfolgreich. Für die Startgarantie ist zusätzlich eine Prüfung nach echtem Aus-/Einschalten nötig.':st.iface==='plc'?'1-Wire ausgewählt, aber noch kein echter Chipzugriff bestätigt.':'I²C/SPI ist nur für die Kommunikation am SSP3 gewählt; NVM-Schreiben bleibt gesperrt, bis der Chip über 1-Wire erreichbar ist.';outputStatus.className='callout '+(connected?'success':'warn')}
+  const outputNvmRead=$('outputNvmRead');if(outputNvmRead)outputNvmRead.disabled=!st.port||!st.chip||st.writing||st.calTask||st.nvmWorking;
   const approvalGranted=nvmReason==='';
   $('nvmProgram').disabled=!approvalGranted;
   $('nvmWritePrereq').textContent=approvalGranted?
    'Bereit: Chip-UID stimmt, NVM-Änderungsplan und CRC sind geprüft. Beim Klick wird '+($('nvmAutoBackup').checked?'das alte NVM vor dem Schreiben automatisch gesichert und danach':'ohne zusätzliches Backup')+' programmiert.':
    nvmReason;
   $('nvmWritePrereq').className='callout '+(approvalGranted?'success':'warn');
-  const unlocked=[true,true,true,calEndpointsReady(),ready&&st.calStaged,!workflowGate(5)];
+  const unlocked=[true,true,true,calEndpointsReady(),ready&&st.calStaged,true,!workflowGate(6)];
   document.querySelectorAll('[data-step]').forEach(b=>{
    const index=Number(b.dataset.step);b.classList.toggle('locked',!unlocked[index]);
    b.setAttribute('aria-disabled',String(!unlocked[index]));
@@ -363,7 +368,7 @@ if(typeof document!=='undefined') (function UI(){
   renderCalPoints();renderCalibrationPlan();renderLiveOverview();
  }
  function step(n){
-  const next=Math.max(0,Math.min(5,Number(n)));
+  const next=Math.max(0,Math.min(6,Number(n)));
   const blocked=workflowGate(next);
   if(blocked){show('flowMsg',blocked,'warn');$('flowMsg').hidden=false;renderFlowState();return}
   currentStep=next;$('flowMsg').hidden=true;
@@ -709,7 +714,7 @@ if(typeof document!=='undefined') (function UI(){
  }
  async function nvmScan(options={}){
   let started=false;
-  const postBoot=options?.postBoot===true,expertRead=options?.expertRead===true&&$('expertMode').checked,preview=options?.preview===true;
+  const postBoot=options?.postBoot===true,expertRead=options?.expertRead===true,preview=options?.preview===true;
   const backupStarted=Date.now();
   try{
    if(!postBoot&&!expertRead&&!verificationComplete())throw Error('Zuerst DSP-Kalibrierung im RAM erfolgreich prüfen (oder im Expertenmodus nur auslesen)');
@@ -831,11 +836,13 @@ if(typeof document!=='undefined') (function UI(){
   let chipProgrammingStarted=false;
   try{
    const restoring=!!(expert.restoreReady()&&st.calImage===st.restorePlan),outputOnly=!!(expert.outputReady()&&st.calImage===st.outputOnlyPlan);
+   if(st.iface!=='plc')throw Error('1-Wire-Startschutz: NVM darf ausschliesslich über eine bestätigte 1-Wire-Verbindung programmiert werden. Neu über 1-Wire verbinden.');
    if(st.mode!=='usb'||!st.chip||!st.port||!st.nvmBackupVerified||!st.calImage||(!restoring&&!outputOnly&&!verificationComplete()))throw Error('Hardware, Sicherungen oder Kalibrierverifikation fehlen');
    const id=st.uid?.hex;
    if(!id||st.uid.ser0!==st.nvmBackup[0]||st.uid.ser1!==st.nvmBackup[1])throw Error('48-Bit-Chip-UID muss vor dem Schreiben verifiziert werden');
    if($('nvmConfirmId').value.trim().toUpperCase()!==id)throw Error('48-Bit-Chip-UID stimmt nicht');
    const initial=st.calImage.before,modified=st.calImage.after;
+   CAL.protectStartupCommunication(initial,modified);
    if(CAL.crc16(initial)!==initial[63]||CAL.crc16(modified)!==modified[63])throw Error('CRC16-Prüfung fehlgeschlagen');
    if(!restoring&&!outputOnly&&st.calfit.stats.maxDigits>100)throw Error('Fitfehler zu gross (>100 Digits)');
    const allowedNormal=new Set([16,22,28,31,32,33,34,...Array.from({length:16},(_,i)=>35+i),51,52,53,54,57,58,63]);
@@ -861,6 +868,7 @@ if(typeof document!=='undefined') (function UI(){
    ca('nvmMsg','NVM wird programmiert. USB-Verbindung nicht trennen, Versorgung stabil halten.','warn');
    const beforeBoot=await bootSnapshot();await ramGrant();
    for(const i of [0,1,16,17,18,19,20,21,22,23,27,28,63]){const check=await nvmReadWord(i*2);if(check!==initial[i])throw Error(`Chip-NVM hat sich seit dem Backup verändert (Index ${i})`)}
+   CAL.protectStartupCommunication(initial,modified);
    for(let i=0;i<28;i++)if(modified[i]!==initial[i]&&(restoring||![16,22].includes(i)))throw Error('Boot-/Werksbereich verändert');
    // Only USER region access is authorized; NEVER unlock factory calibration area.
    for(const x of [0x98BD,0x25BF,0x36D8])await maintWrite(0x4E,x);
@@ -996,6 +1004,7 @@ if(typeof document!=='undefined') (function UI(){
   renderFlowState()
  });
  $('nvmBackupRead').addEventListener('click',nvmScan);
+  $('outputNvmRead').addEventListener('click',()=>nvmScan({expertRead:true}));
  function downloadNvmBackup(){
   if(!st.nvmBackupVerified||!st.nvmBackup)return ca('backupMsg','Zuerst vollständiges Original-NVM lesen und prüfen.','error');
   if(!st.uid)return ca('backupMsg','48-Bit-Chip-UID nicht verfügbar. Erst «Chip-UID lesen» im Expertenmodus ausführen.','error');
