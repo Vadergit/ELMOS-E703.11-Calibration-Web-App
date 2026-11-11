@@ -423,7 +423,7 @@ const ELMOS_GUIDED=(()=>{
   $('guidedLaunchTop')?.addEventListener('click',open);
   // A previously saved recipe is intentionally not applied to chip automatically.
  }
- return {init,open,close,onConnected,makePlan};
+ return {init,open,close,onConnected,makePlan,isOpen:()=>mode};
 })();
 if(typeof window!=='undefined')window.ELMOS_GUIDED=ELMOS_GUIDED;
 if(typeof document!=='undefined'){
