@@ -1,6 +1,6 @@
 # Bedienungsanleitung – ELMOS E703.11
 
-**Dokumentationsstand v0.3.3** Kalibrierassistent
+**Dokumentationsstand v0.3.4** Kalibrierassistent
 
 **[Web-App öffnen](https://vadergit.github.io/ELMOS-E703.11-Calibration-Web-App/)** · **[Projektübersicht](README.md)** · **[Testbericht](TESTBERICHT.md)**
 
@@ -145,11 +145,11 @@ Das **Zahnrad oben rechts** öffnet die Einstellungen. Dort lassen sich folgende
 - **Standard-Sample-Anzahl** für neue Messpunkte (1–100).
 - **Live-Abfrageintervall** (400, 650, 1’000, 1’500 oder 2’000 ms).
 
-Nach Aktivierung erscheinen die erweiterten Eingabefelder **im zugehörigen Arbeitsschritt**:
+Beim Einschalten des Expertenmodus öffnet sich sofort ein **eigenes Expertenfenster**. Es ist von jedem Kalibrierschritt aus erreichbar, auch wenn die DSP-Verifikation noch nicht abgeschlossen ist. Mit «Schliessen ×» verlässt du das Fenster, ohne den Expertenmodus auszuschalten. Über **⚙ Einstellungen → Expertenwerkzeuge öffnen** kannst du es jederzeit erneut öffnen; das Zahnrad zeigt bei aktivem Expertenmodus «EXPERT» an. Beim Aktivieren werden keine Register geändert.
 
-**Unter Ausgang konfigurieren:** AODO-Ausgangsmodus (High-Z, ratiometrisch analog mit drei DAC-Korrekturstufen, PWM, FM, Alarm), PWM-Periode und unterstützte AODO-Skalierung. Die App prüft die Vorschläge; die eigentliche dauerhafte Änderung erfolgt über den geschützten NVM-Schreibablauf. Eine reine Ausgangsänderung an einem schon kalibrierten Sensor ist vorgesehen und benötigt zunächst ein vollständiges geprüftes NVM-Abbild.
+**Unter Ausgang konfigurieren (normaler Schritt 6, immer sichtbar):** Ratiometrischer Analogausgang mit drei DAC-Korrekturarten, PWM, FM und «One Wire only» (nur bei vorhandener permanenter 1-Wire-Konfiguration). High-Z und Alarm sind wegen des 1-Wire-Startschutzes gesperrt. Scaling, PWM-Periode und weitere PSSC-orientierte Diagnosefelder sind nicht vom Expertenmodus abhängig. Dauerhafte Änderungen verwenden den geschützten NVM-Schreibablauf.
 
-**Unter NVM speichern:** Hauptregister lesen, komplettes EEPROM-/NVM-Abbild anzeigen, nach UID gespeicherte Backups auswählen, importieren, exportieren und einen Restore-Plan erstellen. Die Backup-Dateinamen enthalten die **12-stellige UID**.
+**Im separaten Expertenfenster:** Hauptregister lesen, komplettes EEPROM-/NVM-Abbild anzeigen, chipbezogene Backups auswählen, importieren, exportieren und einen Restore-Plan erstellen. Diese Lese- und Diagnosewerkzeuge benötigen keinen Abschluss der normalen Kalibrierschritte. Die Backup-Dateinamen enthalten die **12-stellige UID**. Ein Restore-Plan darf weiterhin nur über die geschützten, UID- und CRC-geprüften NVM-Funktionen durchgeführt werden.
 
 **Factory-Schutz:** Der Werksbereich **CM-Byteadresse 0x00–0x1E** bleibt nur lesbar. Boot-/Kommunikationswerte bleiben geschützt. Gezielte, dokumentierte AODO-Konfigurationsfelder werden nur über geprüfte Schreibpläne geändert. Es gibt **keinen allgemeinen Editor für beliebige NVM-Wörter**. Die Wiederherstellung eines fremden Chips oder eines Backups mit abweichenden Factory-/Bootwerten wird abgelehnt; sie erfolgt niemals automatisch.
 
