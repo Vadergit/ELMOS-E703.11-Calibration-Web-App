@@ -438,13 +438,16 @@ if(typeof document!=='undefined') (function UI(){
   const caps=match[1].split(',');
   st.firmware='USB-CDC Bridge v1 · '+caps.join('/');
   renderStatus();logging('USB-Bridge CAPS: '+caps.join(','));
-  const ready=['PLC_READ','PLC_WRITE','NVM'].every(cap=>caps.includes(cap));
-  if(!ready){
-   show('connMsg','USB-CDC-Bridge erkannt, aber nur '+caps.join('/')+' verfügbar. Die Beispiel-Firmware ist ein USB-Kommunikationstest und hat noch keine geprüfte 1-Wire-Implementierung. E703.11-Chipzugriff bleibt gesperrt.','warn');
+  const advertised=['PLC_READ','PLC_WRITE','NVM'].every(cap=>caps.includes(cap));
+  const BRIDGE_SENSOR_IO_VALIDATED=false; // Mandatory explicit hardware release in a later reviewed revision.
+  if(!advertised||!BRIDGE_SENSOR_IO_VALIDATED){
+   show('connMsg',!advertised?
+    'USB-CDC-Bridge erkannt, aber nur '+caps.join('/')+' verfügbar. Die Beispiel-Firmware ist ein USB-Kommunikationstest und hat noch keine geprüfte 1-Wire-Implementierung. E703.11-Chipzugriff bleibt gesperrt.':
+    'Die Bridge meldet vollständige PLC-Fähigkeiten, wurde aber noch nicht am E703.11 hardwarevalidiert. Chipzugriff und NVM bleiben in dieser Beta aus Sicherheitsgründen gesperrt.','warn');
    return false;
   }
-  // A future fully supported bridge must emulate the existing SSP3 command/response framing.
-  // NVM remains software-disabled for this experimental adapter until hardware validation.
+  // Future release only: full SSP3 framing, voltage levels, CRC, timing and readback validated.
+  // NVM additionally has an independent bridge lock in nvmProgram().
   return true;
  }
  async function readReg(addr){if(st.mode==='demo')return demoRead(addr);if(!st.port)throw Error('SSP3-Port nicht verbunden');if(!Number.isInteger(addr)||addr<0||addr>0xFE||addr%2)throw Error('Ungültige Registeradresse');let result;
