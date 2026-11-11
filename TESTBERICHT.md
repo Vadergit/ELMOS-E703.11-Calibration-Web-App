@@ -1,156 +1,63 @@
-## Automatische AFE-RAM-Übernahme beim Stufenklick (11.11.2026)
+# Testbericht – ELMOS E703.11 Web-Kalibrierassistent
 
-- PGA1, Offset und PGA2 in Originalreihenfolge; angezeigte physikalische Werte ohne Stufencodes
-- Bei jedem Pfeilklick wird in der Simulation genau ein AFE-RAM-Schreibvorgang mit Register-Rücklesung ausgeführt (3 Klicks → 3 Schreibvorgänge)
-- Bestehende Boot-/Kommunikationsregister werden vor/nach dem Schreiben verglichen
-- Erfolgsfall: Live-ADC-Anzeige wird aktualisiert und ältere Kalibrierpunkte werden ungültig
-- Fehlerfall: verweigerter RAM-Zugriff erzeugt keine zusätzliche Registeränderung und die bisherige Einstellung bleibt erhalten; bei unklarem Schreibstatus werden Messpunkte verworfen
-- Während des Schreibens sind weitere Klicks gesperrt; Live-Polling wird nach Abschluss fortgesetzt, wenn es vorher aktiv war
-- Manueller «Ins RAM übernehmen»-Knopf entfernt, da nicht mehr erforderlich
-- Noch nicht am physischen E703.11 getestet; der permanente NVM-Schreibweg wurde nicht geändert
+**Stand: 11. November 2026 · Laborprototyp, keine Hardware- oder Produktionsfreigabe**
 
-## AFE-Schrittsteuerung und Grenzen – UI-Test 11.11.2026
+Dieser Bericht trennt den **im Code beziehungsweise mit simulierten Chipantworten geprüften Stand** von noch offenen Hardwareprüfungen. Ältere, überholte UI-Varianten und frühere Bestätigungswörter werden hier bewusst nicht als aktuelle Funktion beschrieben.
 
-- Diskrete Stufen PGA1 (0–3), PGA2 (0–8), Offset (−8 bis +8) statt Slider
-- Simulierte Klicks auf alle sechs ±-Tasten: PGA1 0→1, PGA2 0→1 und Offset 0→2 zeigen richtige physikalische Werte (6×, 2.22×, +100 mV/V)
-- Grenzfälle: Weitere Klicks bei PGA1=3, PGA2=8, Offset=+8 oder −8 werden blockiert
-- Laufender Schreibvorgang: Alle sechs Tasten deaktiviert
-- Keine Änderung der eigentlichen AFE-RAM-/NVM-Schreibfunktionen; Pfeile aktualisieren nur die Vorschau
-- Komplette Web-App-JavaScript-Initialisierung sowie alle erforderlichen DOM-IDs erfolgreich getestet
-- Hardwaretest am echten SSP3/E703.11 steht noch aus
+**[Web-App](https://vadergit.github.io/ELMOS-E703.11-Calibration-Web-App/)** · **[README](README.md)** · **[Bedienungsanleitung](ANLEITUNG.md)**
 
-## NVM-Finalschritt: automatische Sicherung beim Schreiben / optional ohne Backup – Simulation (11.11.2026)
+## Zusammenfassung
 
-- Neue Oberfläche: kompakte Eingabefelder, zusammengefasste NVM-Lesung und Änderungsvorschau, einklappbare Änderungsliste und manuelles Leseprotokoll
-- `nvmPrepare` liest automatisch 64 NVM-Wörter samt Factory-CRC8/CRC16 und zweiter Prüfung kritischer Wörter; kein persistentes Backup beim reinen Vorschau-Klick
-- Nach der Vorschau wird der Programmierknopf erst bei gültiger UID und richtigem Bestätigungswort aktiviert (vorheriger Buttonfehler behoben)
-- **Backup aktiv:** Vor dem ersten NVM-Schreibbefehl wird die UID-gebundene NVM-Sicherung lokal geprüft gespeichert, JSON-Download gestartet und anschliessend mit Rücklesen/CRC programmiert. Im Simulator Historie und Download verifiziert.
-- **Backup aus:** Bei unverändert vollständiger NVM-Sicherheitslesung und CRC-Kontrolle wird kein ursprüngliches NVM archiviert und kein JSON heruntergeladen. Die NVM-Programmierung und anschliessende CRC-Prüfung bestanden den Test ebenfalls.
-- Factory-Wörter in beiden Durchläufen unverändert; nur zugelassene Anwender-/CRC-Wörter geschrieben
-- Backup standardmässig bei jeder neu geöffneten Seite aktiviert, Checkbox während NVM-Wartung/Programmierung gesperrt
-- **Nicht getestet am echten Chip:** Hardware-Timing, tatsächliche SSP3-NVM-Programmierung, automatische Download-Freigabe in Chrome und physischer Neustart
+| Teilbereich | Software-/Simulationstest | Echte E703.11-Hardware |
+| --- | --- | --- |
+| JavaScript, initialisierte UI-Elemente, Buttons | Geprüft | Bedienung am realen SSP3 weiter prüfen |
+| USB-Portöffnung / FTDI | Browsererkennung und isolierte Diagnoseseite vorhanden | Abhängig von Chrome, FTDI-Treiber und Gerät |
+| Live-ADC / DSP / obere Statusleiste | UI und Simulation geprüft | Datenrate und Langzeitstabilität prüfen |
+| AFE-PGA1, Offset, PGA2 mit **sofortiger RAM-Übernahme** | Simulierte Registerschreib- und Rücklesetests erfolgreich | Registerwerte und ADC-Hub praktisch bestätigen |
+| 2–10 Kalibrierpunkte / 1–100 Samples | UI und Stichproben mit 1, 3 und 6 Samples geprüft | ADC-Streuung und Timing prüfen |
+| Polynomfit / DSP-Zielspanne | Mathematische Regression und Grenzen simuliert | Mit Originalsoftware und Referenzdruck vergleichen |
+| DSP-RAM-Schreiben und Prüfpunkte | Simulierte Register- und Freigabelogik geprüft | Vollständige Druck-/Temperaturprüfung fehlt |
+| NVM-Sicherungs-/Programmierungsplan | CRC, Änderungslisten, UID und Schreibsequenzen simuliert | **Permanentes NVM-Schreiben nicht hardwarefreigegeben** |
+| AODO analog / PWM / FM | Modi und Grenzprüfungen simuliert | Physische Ausgangssignale messen |
+| Chip-UID / Backup / Wiederherstellung | UID-Zuordnung, CRC und Restore-Plan simuliert | Echter Restore auf Testchip fehlt |
 
-## Samples und Messwertdarstellung – UI-Regression 11.11.2026
+## Aktuelle Oberfläche und Bedienung
 
-- Gemeinsamer Messpfad für untere/obere Endpunkte und Zwischenpunkte; bisherige feste **8** bzw. **12** Samples durch den wählbaren Wert **1–100** ersetzt
-- Speicherung des Medians aller ADC_S/ADC_T/ADC_TC-Samples; bei gerader Anzahl Mittelwert der beiden mittleren Messwerte
-- Bei mehr als einem Sample wird die ADC_S-Spreizung (Max − Min) kontrolliert; Grenze wie bisher 350 Digits. Bei einem Sample wird darauf hingewiesen, dass eine Streuungsprüfung nicht möglich ist
-- Für jede Aufnahme Live-Fortschritt; während der Aufnahme pausiert das parallele Live-Polling, danach Wiederaufnahme, falls zuvor aktiv
-- Hoher Kontrast: grün umrahmte Ergebnisflächen mit ADC_S, ADC_T, Spreizung, Sample-Anzahl, Referenz und Temperatur, statt kleiner transparenter Textanzeigen
-- Simulierter UI-Test: 3 Samples am unteren Endpunkt, 6 am oberen Endpunkt, 1 am Zwischenpunkt; alle drei Ergebnisflächen korrekt sichtbar; Punktanzahl vollständig und Fit-Freigabe korrekt
-- Beim Löschen aller Punkte verschwinden alle Ergebniskarten und Statusanzeigen wechseln zurück auf «Noch nicht aufgenommen»
-- Ungültige Anzahl (101) wird zurückgewiesen; gültige Einstellung im Browser gespeichert
+- **Sechs Schritte:** Verbindung → AFE → Messpunkte → Koeffizienten/RAM → DSP-Verifikation → NVM.
+- **Live-Leiste:** ADC_S, ADC_T, DSP_S, umgerechneter Sensorwert und Status über alle Schritte; keine zusätzlichen Schreibbefehle für diese Anzeige.
+- **AFE:** diskrete Tasten in der Reihenfolge **PGA1 → Offset → PGA2**. Angezeigt werden ausschliesslich Verstärkungen beziehungsweise mV/V, keine Stufennummern. Jeder Klick löst unmittelbar eine **AFE-RAM-Änderung mit Rücklesung** aus; gleichzeitige Schreibaktionen werden blockiert.
+- **Grenzen:** PGA1 0–3, Offset −8 bis +8, PGA2 0–8. Die ±-Tasten werden an den Grenzen und während Schreibvorgängen gesperrt.
+- **Fehlerbehandlung:** Bei verweigertem RAM-Zugriff bleibt der bisher bestätigte AFE-Zustand erhalten. Bei unklarem tatsächlichem Schreibstatus werden vorhandene Kalibrierpunkte vorsorglich verworfen.
+- **Einstellungen:** Zahnrad oben rechts; Expertenparameter erscheinen kontextbezogen unter AFE oder NVM.
+- **NVM:** Nach bestandener DSP-Prüfung kann **«NVM lesen & Änderungen prüfen»** ohne vorgängig erstelltes Backup ausgeführt werden. Nach gültiger automatisch eingetragener, weiterhin editierbarer **48-Bit-UID** wird der Schreibknopf freigegeben. **Kein zusätzliches Bestätigungswort**.
+- **Optionale Sicherung:** Vor dem finalen Schreiben kann das alte NVM unter der Chip-UID archiviert und als JSON heruntergeladen werden. Ist diese Option deaktiviert, bleibt die vollständige CRC-Sicherheitslesung erforderlich.
 
-**Hardwaretest ausstehend:** Das Zeitverhalten und die tatsächliche ADC-Streuung über 1–100 Samples am SSP3/E703.11 wurden noch nicht physisch überprüft.
+## Bisherige Softwaretests
 
-## Separate Ausgangsänderung eines bereits kalibrierten Sensors (11.11.2026)
+1. **Kalibrierplanung:** Anzahl 2–10; End- und Zwischenpunkte; eigene Messpunktnamen; Freigabe erst bei vollständiger Aufnahme mit konsistenten AFE-Gains.
+2. **Sample-Aufnahme:** Ein, drei und sechs Samples an End-/Zwischenpunkten; Median und Streuung, Ergebnisfelder sowie das Zurücksetzen beim Löschen geprüft.
+3. **Koeffizienten:** Numerische Fittertests, zulässige DSP-Zielspanne bis ±32’000, feste Punktanzahl, CRC16- und AODO-Mapping. Der Fit ist **kein Nachweis der Gleichwertigkeit mit der Elmos-DLL**.
+4. **AFE-RAM:** Simulierte SSP3-Registerantworten mit drei Einzelklicks und drei Schreib-/Rücklesevorgängen. Fehlerpfad bei verweigertem RAM-Zugriff geprüft.
+5. **DSP-Prüfung:** Status- und Sperrlogik für 1–10 wählbare Prüfpunkte; ohne bestandene Verifikation bleibt die normale NVM-Programmierung gesperrt.
+6. **NVM-Plan:** Vollständiges 64-Wort-Abbild, Factory-CRC8, CRC16, Schutzvergleiche und veränderte Wortadressen geprüft. Simulierter Schreibvorgang nur für erlaubte Felder und CRC.
+7. **Backups:** Bestätigte Chip-UID (`VERSION + SER1 + SER0`), Zuordnung zu lokal gespeicherten Versionen, Import-/Vergleichsprüfung und Factory-/Bootschutz beim Restore.
+8. **NVM mit/ohne Backup:** Beide Varianten wurden in einer simulierten Umgebung durchlaufen; das alte NVM wird nur bei aktivierter Sicherung archiviert.
+9. **AODO-Ausgang:** Ratiometrische und PWM-NVM-Mappings sowie CRC geprüft; unsichere PWM-Skalierung wird verworfen. FM/Alarm sind noch nicht vollständig an realen Ausgängen bewertet.
 
-- Simulierter E703.11 mit vollständigem CRC8/CRC16-geprüftem NVM und erkannter UID `002056781234`
-- Ohne erneute Aufnahme oder DSP-Kalibrierung Modus ratiometrisch → PWM umgestellt, Periode 16’384 Takte und passende AODO-Skalierung vorgemerkt
-- Nur die dokumentierten Anwenderfelder an CM-Wortindizes 16, 22, 57 und 58 sowie CRC16 an 63 verändert
-- Verifikation des NVM-Inhalts im Simulator nach Rücklesen bestanden; Factory-Bereich 0–15 und übrige Boot-/Kommunikationsregister 17–21 unverändert
-- 48-Bit-Chip-UID und `AUSGANG SPEICHERN` als erforderliche Bestätigung
-- Ausgangsskalierung ohne positive PWM-Werte wird vor dem Schreiben zurückgewiesen
-- Der Restore-Simulatortest verwendet zusätzlich `WIEDERHERSTELLEN` und kann ohne neuen Druckabgleich die sichere User-Konfiguration eines passenden Backups wiederherstellen
-- **Keine Hardwareabnahme:** AODO-Spannung, PWM/FM-Signalqualität und tatsächlicher NVM-Schreibpfad müssen an einem entbehrlichen E703.11 überprüft werden
+Die Tests waren **Simulationen oder lokale JavaScript-Prüfungen**. Nach der Bereinigung ist im Repository **kein separater Node-Teststarter** mehr enthalten. Der Code wird ohne Buildprozess direkt durch GitHub Pages ausgeliefert.
 
-## Expertenmodus & UID-Backups – UI-/Logikprüfung 11.11.2026
+## Offene Prüfungen vor produktivem Einsatz
 
-- Vollständige 48-Bit-Chipkennung VERSION + SER1 + SER0 aus simulierten Chipregistern gelesen; Wiedererkennung `002056781234` erfolgreich
-- Beim vollständigen 64-Wort-NVM-Scan Backup mit CRC8/CRC16 automatisch lokal und nach UID gruppiert gespeichert
-- Erneute Abfrage nach einer simulierten Benutzerwort-Änderung erzeugte zweite historische Version; automatische Restore-Auswahl findet den letzten **abweichenden** Stand
-- Restore-Plan nur für dieselbe UID; Factory-/Bootbereich bleibt identisch. Im Simulator wurden ein Benutzerwort (Index 35) und CRC16 (Index 63) geschrieben/rückgelesen, mit anschliessend gültiger CRC
-- NVM-Restore ohne neue Druckkalibrierung erst nach gelesenem aktuellen Chipbackup und manuellem Vergleich; finale Eingabe verlangt 48-Bit-UID und `WIEDERHERSTELLEN`
-- Ausgangsmodi ratiometrisch analog, PWM, FM, Alarm, High-Z in Expertenmaske; CFG_EN.aodo_en und CFG_AODO/AODO_F/AODO_O nur durch dokumentierte, validierte Vorschläge im normalen finalen NVM-Plan beschreibbar
-- Algorithmische Tests: ratiometrische und PWM-Vorschläge verändern tatsächlich Koeffizienten/CFG_AODO und erhalten korrekte CRC16; unsichere PWM-Ausgangsskalierung wird verworfen
-- Factory-/Bootschreibzugriffe bleiben blockiert; vollständige EEPROM- und Registeransicht ist lesend
-- CSS für aktive/hovernde blaue Schaltflächen behält kontrastreiche weisse Schrift; RAM-Freigabe-Checkboxen entfernt
-- Sequenz: Berechnen → RAM-Schreiben → DSP-Prüfung → erst dann NVM-Backup/Finalprogrammierung, mit verkürzten sicheren Lese-Pollintervallen
+- **Original PSSC-GUI vergleichen:** Gleiche Referenzdrücke, Temperaturpunkte, Koeffizienten und DSP-Ausgabe mit der Herstellerlösung vergleichen.
+- **AFE am Sensor:** Alle PGA-/Offsetstufen durchgehen, echte ADC-Werte prüfen, Nebenwirkungen und Fehler bei Verbindungsabbrüchen testen.
+- **Messqualität:** Sample-Zeiten, Streuungsgrenzen, verschiedene Druckbereiche und Temperaturkompensation am Prüfstand validieren.
+- **NVM-Hardwaretest:** Backup vor dem Schreiben kontrollieren, nur an einem **entbehrlichen Testchip** programmieren, jedes Wort und CRC zurücklesen, Versorgung tatsächlich neu starten und erneut prüfen.
+- **AODO-Ausgänge:** Spannung, PWM-Tastgrad/Frequenz sowie FM-/Alarmverhalten elektrisch messen.
+- **Wiederherstellung:** Verhalten bei beschädigter Konfiguration, falscher UID, abweichenden Bootregistern und Stromunterbruch testen.
+- **UI-Feedback:** Bedienbarkeit für neue Anwender, kompakte Anordnung, verständliche Fehlermeldungen und Schritte des Kalibrierablaufs von erfahrenen Anwendern beurteilen lassen.
 
-**Kein echter Hardware-Freigabetest:** Serielles SSP3-Timing, ratiometrischer/PWM/FM-Ausgang am Pin, NVM-Programmierung und Restore am physischen Chip sind noch zu testen. Die Tests sind simulierte JavaScript-/NVM-Tests, keine Produktionsfreigabe.
+## Sicherheitsstatus
 
-## Messpunktplanung und einstellbarer DSP-Endwert – Änderungen 11.11.2026
+**Keine Produktionsfreigabe.** Eine bestandene Simulation sagt nichts über einen unterbrochenen realen NVM-Schreibvorgang aus. Factory-Kalibrierung und Kommunikations-/Bootregister bleiben geschützt. Für dokumentierte AODO-Optionen bestehen gesonderte, begrenzte Änderungen. Eine Wiederherstellung wird nicht automatisch ausgelöst.
 
-- 2–10 Kalibrier-Messpunkte vor der Aufnahme auswählbar (Standard 2), für alle aktivierten Punkte individuelle Referenz-/Temperaturfelder und Aufnahmeknöpfe
-- Automatische Vorschläge für Zwischenwerte, frei änderbar; beim Ändern der Punktanzahl werden alte Messwerte ungültig, damit keine fremden Punkte in die Koeffizientenberechnung gelangen
-- JavaScript-UI mit vier simulierten Punkten und linearem Fit getestet: vollständiger Datensatz schaltet Berechnung frei
-- DSP-Endwert ist nun ±1’000 bis ±32’000 Digits; bei ±30’000 sind die Koeffizienten gegenüber ±32’000 tatsächlich anders, nicht nur die Anzeige
-- Algorithmus-Regression: bei Referenzbereich 0–10 und ±30’000 Digits bleibt der Fitfehler im simulierten Test unter 3 Digits; unzulässige Grenzen werden abgewiesen
-- Live-Skalierung der neuen RAM-Kalibrierung: ±30’000 Digits entsprechen korrekt dem gesamten gewählten Referenzbereich
-- Nach Änderung des DSP-Endwerts blockiert die NVM-Freigabe, bis die neu berechneten Koeffizienten erneut ins RAM übertragen und geprüft sind
-- Bestehende NVM-Backup-, CRC-, Bootregister- und explizite Programmierfreigaben unverändert
-
-**Noch nicht getestet:** Messpunktaufnahme, RAM-Übertragung und NVM-Programmierung mit den neuen Einstellungen am physischen E703.11.
-
-## DSP_S-Live-Anzeige – UI- und Logiktests (11.11.2026)
-
-- Bei bereits kalibriertem Sensor ohne neuen Fit: gelesener DSP_S=0 ergibt auf beiden Seiten 50.00 % (voreingestellter Bereich 0–100 %)
-- Manueller Anzeigebereich 1–5 bar: DSP_S=0 ergibt 3.00 bar; die Anzeigeeinstellung wird lokal gespeichert, ohne Registerzugriff
-- Nach RAM-Kalibrierung mit Referenzbereich −20 bis 80 kPa: DSP_S=−16’000 ergibt 5.00 kPa und überschreibt nur vorübergehend den manuellen Anzeigebereich
-- Die DSP-Anzeige lässt sich ohne erneuten Fit nach dem Neustart als bestehender Sensor-DSP-Ausgang darstellen; der Kalibrierstatus bleibt dabei ausdrücklich unbestätigt
-- Ohne DSP-Lesedaten wird «—» statt eines alten Livewerts angezeigt
-- JavaScript-Initialisierung, DOM-ID-Vollständigkeit und die oben genannten Skalierungen simuliert und geprüft
-
-**Nicht geprüft:** Reales Polling von DSP_S am physischen E703.11 / SSP3, tatsächliche Regler- und RAM-Schreibinteraktion, Antwort-Timing unter Dauerbetrieb. Die automatische Verifikation / NVM-Freigabe bleibt auf den separaten Prüfknopf beschränkt.
-
-## RAM-Übernahme – Bedienungsfehler korrigiert (11.11.2026)
-
-- Fehlende RAM-Schreibfreigabe wird nun direkt in Schritt 4 angezeigt statt nur in der AFE-Ansicht
-- Original-NVM-Lesebefehl prüft die Voraussetzungen innerhalb der Fehlerbehandlung; Fehler erscheinen direkt unter der Sicherung
-- Vollständiges NVM-Backup mit CRC-Prüfung, Fortschritt über alle 64 Wörter und separater JSON-Download vor der RAM-Übertragung
-- RAM-Schreibknopf bleibt bis zu vorhandenen Koeffizienten, echter Chipverbindung, aktivierter RAM-Freigabe und geprüftem Original-NVM deaktiviert; der jeweils fehlende Schritt wird sichtbar genannt
-- RAM-Übertragungsfehler oder erfolgreiche Rückleseprüfung werden direkt auf Schritt 4 angezeigt, nicht in der zunächst versteckten DSP-Prüfansicht
-- Der Zustand der RAM-Freigabe ist zwischen der AFE-Seite und Schritt 4 synchronisiert
-- Simulierte UI-Initialisierung, fehlende und erfüllte Freigabebedingungen, sichtbare Fehlermeldungen und Schalter-Synchronisierung getestet
-- **Noch nicht real getestet:** NVM-Backup, Schreiben und Rücklesen der DSP-Koeffizienten am physischen SSP3/E703.11
-
-## Konfigurierbare DSP-Prüfung – Änderungsprüfung 11.11.2026
-
-- Anzahl unabhängiger Prüfdrucke im UI auf 1–10 einstellbar; Standard 1
-- Bei gültiger DSP_S-Messung innerhalb der Toleranz wird die NVM-Navigation bei Anzahl 1 nach dem ersten Prüfpunkt freigeschaltet (sofern übrige Voraussetzungen wie NVM-Backup und gegebenenfalls Temperaturverifikation vorliegen)
-- Erhöhung der Prüfpunktanzahl verwirft bisherige Prüfergebnisse und sperrt NVM erneut
-- Ungültige Auswahl (0 oder mehr als 10) sperrt die Freigabe
-- Bei nur einem Prüfpunkt wird ausdrücklich vor der fehlenden Vollbereichsprüfung gewarnt
-- Die bestehenden Boot-/Werksregisterschutz-, Backup-, CRC-, Chip-ID- und manuellen NVM-Bestätigungen bleiben erhalten
-- Simulierter UI-Initialisierungstest und Freigabe-/Sperrlogik geprüft; echte DSP_S- und NVM-Hardwaretests stehen aus
-
-## Geführter Kalibrierablauf – Änderungsprüfung 11.11.2026
-
-Der bisherige Pflichtschritt «Rohwert-Zwischenprüfung» vor der DSP-Berechnung wurde entfernt. Der optionale Rohwertvergleich ist nun unter Messpunkte eingeklappt und ist **nicht** als erfolgreiche Chip-Kalibrierung gekennzeichnet.
-
-Neue Reihenfolge: **Messpunkte → Koeffizienten berechnen → NVM-Backup → DSP in RAM schreiben und rücklesen → unabhängige DSP_S-Verifikation → bewusstes NVM-Programmieren**.
-
-**Prüfungen ohne Hardware:**
-
-- JavaScript-Syntax und UI-Initialisierung geprüft; alle im Skript referenzierten HTML-IDs vorhanden
-- Handler für USB-Portauswahl, zwei Referenzpunkte, Berechnung, RAM, DSP-Verifikation und Einheitsauswahl vorhanden
-- Umstellung der Einheit auf Prozent setzt bei leerem Standardbereich den Bereich auf 0–100 und bezeichnet die Punkte mit 0 % / 100 %
-- Demo-Aufnahme von zwei Referenzpunkten speichert jeweils ADC_S, ADC_T und ADC_TC mit derselben AFE-Einstellung
-- Lineare Browser-Koeffizientenberechnung mit zwei simulierten Endpunkten und geeignetem Hub erfolgreich
-- Schritt «DSP prüfen» wird ohne RAM-Übernahme gesperrt; «NVM» wird ohne erfolgreiche DSP-Verifikation gesperrt
-- Nach simulierten Statusänderungen in RAM und Verifikation werden die nächsten Schritte freigegeben
-
-**Nicht getestet:** Tatsächliche SSP3-Kommunikation, korrekte Koeffizientenübernahme in echten E703.11-RAM-Speicher, reale DSP_S-Messung, NVM-Programmierung und physischer Neustart. Die Bedienlogik-Tests ersetzen keine Hardwarefreigabe.
-
-# ELMOS Chrome v8 – Prüfbericht (10.11.2026)
-
-## Erreicht / geprüft
-
-- Referenzdokumente AN 0203 und AN 0204 aus dem Entwicklerpaket sowie E703.11-Datenblatt verwendet.
-- JavaScript-Syntaxprüfung bestanden, Koeffizienten-Berechnung und NVM-Konfigurationsänderungen mit automatisierten Tests geprüft.
-- Chrome-Browserdemo (Playwright) bestanden.
-- SSP3/1-Wire-USB-Ablauf in einem simulierten SSP3-Gerät durchlaufen: Firmwareabfrage, AFE- und ADC-Lesen, Druckpunkte, Koeffizientenfit, vollständiges NVM-Backup inkl. CRC8/CRC16, Schreiben und Rücklesen der DSP-Koeffizienten ins RAM, zwei unabhängige DSP_S-Verifikationspunkte und vollständige User-NVM-Programmierung mit abschliessendem 64-Wort-Rücklesen/CRC16 erfolgreich simuliert.
-- Beim simulierten NVM-Test wurden ausschliesslich Nutzerdaten und CRC16 geschrieben, die Boot-/Werksbereiche blieben gleich.
-
-## Ausdrücklich nicht verifiziert
-
-1. **Kein physisches SSP3/E703.11-Board angeschlossen**: Kein End-to-End-Test der 1-Wire-, I²C-, SPI-Verbindung, der NVM-Schreib-Timings und des Chip-Verhaltens.
-2. **Koeffizientenberechnung**: unabhängiger numerischer JS-Fit nach Datenblatt und AN 0203, nicht bytegenau gegen die Elmos `pssc_cal_lib.dll` verglichen.
-3. **CRC8 der empfangenen 1-Wire-Nutzdaten**: die Bytes werden gelesen, aber nicht separat anhand eines herstellerbestätigten Verfahrens verifiziert. Bei externem Störsignal können plausible Antworten daher falsch interpretiert werden. Sicherer NVM-Laborbetrieb erfordert echte Validierung dieser Prüfung.
-4. **Power-cycle-Nachprüfung**: Funktion im Code vorgesehen, im Simulator nicht vollständig erfolgreich verifiziert. Lokal gespeicherte Erfolgsprotokolle benötigen `localStorage` unter `localhost`/HTTPS; bei temporären Testseiten sind sie nicht verfügbar.
-5. **Höhere DSP-/Temperatur-Polynomordnungen**: Mathematische Fits per Unit-Test geprüft, nicht physisch am Chip verifiziert. Es kann Überanpassung geben.
-6. **I²C/SPI mit aktivierter CRC-Pflicht im Chip**: geschützter Schreiben-Zugriff wird sicherheitshalber gesperrt.
-
-## Freigabestatus
-
-**LABORPROTOTYP. NVM-Schreiben ist im Browser implementiert, aber noch nicht für Produktion oder unersetzbare Chips freigegeben.** Die App muss zuerst mit einem entbehrlichen Chip getestet und das vollständige Backupschema kontrolliert werden. Ein unterbrochener NVM-Schreibvorgang kann den Chip trotz unveränderter Bootregister unbrauchbar machen.
+**Nur webbasiert:** Das Repository enthält die eigentliche GitHub-Pages-Web-App und die separate browserbasierte USB-Diagnoseseite. Windows-/macOS-Startskripte und ein lokaler Node-Teststarter gehören nicht mehr zum veröffentlichten Stand.
