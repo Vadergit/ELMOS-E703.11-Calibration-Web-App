@@ -36,9 +36,18 @@ const ELMOS_EXPERT=(()=>{
     if(mode===4)$('expertPwmPeriod').value=String(ao);
     const scale=!!(en&(1<<6));$('expertScaleEnable').checked=scale;
     if(scale){
-     $('expertScaleGain').value=String(Number(CAL.fromQ(await readReg(0xA2),12).toFixed(6)));
-     $('expertScaleOffset').value=String(Number(CAL.fromQ(await readReg(0xA0),12).toFixed(6)))
+     $('expertScaleGain').value=String(CAL.fromQ(await readReg(0xA2),12));
+     $('expertScaleOffset').value=String(CAL.fromQ(await readReg(0xA0),12));
     }
+    // The voltage estimate uses the user-supplied VDD and DSP range, not a voltmeter.
+    if(isAnalog(mode)&&scale){
+     const vdd=Number($('psscVdd').value),lim=currentLimit();
+     const gain=Number($('expertScaleGain').value),offset=Number($('expertScaleOffset').value);
+     $('psscS0').value=((offset*32768-gain*lim)/32768*vdd/2+vdd/2).toFixed(5);
+     $('psscS1').value=((offset*32768+gain*lim)/32768*vdd/2+vdd/2).toFixed(5);
+     manualScaling=true;
+    }else manualScaling=false;
+    renderOutputMode();
     show('expertOutputMsg','Aktueller Chip-Ausgang: '+(mode===1||mode===2||mode===3?'ratiometrisch analog':mode===4?'PWM':mode===5?'FM':mode===6?'Alarm':mode===0?'High-Z':'SDA / Sondermodus')+'. CFG_EN=0x'+hx(en)+', CFG_AODO=0x'+hx(ao)+'. Anzeige wurde nur gelesen, nicht verändert.','success')
    }catch(e){show('expertOutputMsg','Chip-UID erkannt. Ausgangsregister konnten noch nicht vollständig gelesen werden: '+e.message,'warn')}
    return st.uid
@@ -65,7 +74,7 @@ const ELMOS_EXPERT=(()=>{
    const ok=!!st.nvmBackupVerified&&!!st.nvmBackup;
    if(ok){
     const saved=save(st.nvmBackup,'SSP3-EEPROM-Lesung');
-    dump();
+    dump();refreshOutputReadOnly();
     if(!saved)show('expertUidStatus','NVM gelesen, aber 48-Bit-UID nicht bestätigt. Backup nur manuell exportieren, nicht automatisch einem Chip zuordnen.','warn')
    }else dump()
   }
