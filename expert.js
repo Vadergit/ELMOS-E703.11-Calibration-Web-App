@@ -32,6 +32,10 @@ const ELMOS_EXPERT=(()=>{
    st.uid={version,ser0,ser1,hex};renderBackups();
    try{
     const en=await readReg(0x04),chipMode=(en>>>9)&7,ao=await readReg(0x10);
+    // Initial type follows the chip only when the operator has not already selected
+    // an output; target S0/S1 and proposed scaling are NEVER loaded from chip RAM.
+    if(!modeChoiceEdited&&!st.expertOutputPlan&&!st.outputOnlyPlan&&chipMode>=1&&chipMode<=5)
+     $('expertOutputMode').value=String(chipMode);
     const enabled=!!(en&(1<<6));
     const gainRaw=enabled?await readReg(0xA2):null,offsetRaw=enabled?await readReg(0xA0):null;
     const gain=enabled?CAL.fromQ(gainRaw,12):1,offset=enabled?CAL.fromQ(offsetRaw,12):0;
@@ -104,7 +108,7 @@ const ELMOS_EXPERT=(()=>{
   const outputValues=()=>({mode:$('expertOutputMode').value,scaleEnabled:$('expertScaleEnable').checked,
    gain:Number($('expertScaleGain').value),offset:Number($('expertScaleOffset').value),pwmPeriod:Number($('expertPwmPeriod').value)});
 
-  let manualScaling=false;
+  let manualScaling=false,modeChoiceEdited=false;
   const isAnalog=mode=>['1','2','3'].includes(String(mode));
   function currentLimit(){
    // A new calibration owns its DSP endpoint range; an already-calibrated sensor
@@ -269,11 +273,26 @@ const ELMOS_EXPERT=(()=>{
    refreshOutputReadOnly();renderOutputPreview();
   }
   $('expertOutputMode').addEventListener('change',()=>{
+   modeChoiceEdited=true;
    manualScaling=false;
    if(isAnalog($('expertOutputMode').value)){
     try{calculateAnalogScaling()}catch(e){$('psscScalingPreview').textContent=e.message;$('psscScalingPreview').classList.add('invalid')}
    }
    renderOutputMode();invalidateOutputPlan();
+  });
+  $('psscDefaultScaling').addEventListener('click',()=>{
+   const vdd=Number($('psscVdd').value);
+   if(!Number.isFinite(vdd)||vdd<2.7||vdd>5.5){
+    show('expertOutputMsg','Bitte zuerst VDD zwischen 2.7 und 5.5 V eingeben.','error');return;
+   }
+   $('psscS0').value=String(Number((vdd*0.1).toFixed(5)));
+   $('psscS1').value=String(Number((vdd*0.9).toFixed(5)));
+   manualScaling=false;
+   try{
+    const result=calculateAnalogScaling();
+    invalidateOutputPlan();
+    show('expertOutputMsg','Standard 10–90 % VDD eingesetzt: S0 '+(vdd*0.1).toFixed(3)+' V, S1 '+(vdd*0.9).toFixed(3)+' V. Keine Änderung am Chip.','success');
+   }catch(e){show('expertOutputMsg',e.message,'error');invalidateOutputPlan()}
   });
   for(const id of ['psscVdd','psscS0','psscS1']){
    $(id).addEventListener('input',()=>{
