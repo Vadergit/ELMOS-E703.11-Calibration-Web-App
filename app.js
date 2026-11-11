@@ -97,7 +97,45 @@ if(typeof document!=='undefined') (function UI(){
  }
   function pressureUnit(){const opt=$('calUnit').value;return opt==='custom'?($('calUnitOther').value.trim()||'Einheit'):opt}
  function pointName(which){return ($((which==='lo'?'pointLoName':'pointHiName')).value.trim()||('Messpunkt '+(which==='lo'?'1':'2')))}
- function calEndpointsReady(){const a=st.points.lo,b=st.points.hi;return !!a&&!!b&&Number.isFinite(a.v)&&Number.isFinite(b.v)&&Math.abs(a.v-b.v)>=10&&JSON.stringify(a.gains)===JSON.stringify(b.gains)&&JSON.stringify(a.gains)===JSON.stringify(st.staged)&&st.calpoints.some(x=>x.kind==='lo')&&st.calpoints.some(x=>x.kind==='hi')}
+ function calibrationPointCount(){const count=Number($('calPointCount').value);return Number.isInteger(count)&&count>=2&&count<=10?count:Infinity}
+ function calEndpointsReady(){
+  const count=calibrationPointCount(),lo=st.points.lo,hi=st.points.hi;
+  if(!Number.isFinite(count)||!lo||!hi||!Number.isFinite(lo.v)||!Number.isFinite(hi.v)||Math.abs(lo.v-hi.v)<10)return false;
+  const gains=JSON.stringify(st.staged);
+  if(JSON.stringify(lo.gains)!==gains||JSON.stringify(hi.gains)!==gains)return false;
+  if(st.calpoints.length!==count||st.calpoints.some(x=>JSON.stringify(x.gains)!==gains||!Number.isFinite(x.adc_s)))return false;
+  const pmin=Number($('pmin').value),pmax=Number($('pmax').value);
+  if(!(pmax>pmin)||lo.pressure!==pmin||hi.pressure!==pmax)return false;
+  if(st.calpoints.filter(x=>x.kind==='lo').length!==1||st.calpoints.filter(x=>x.kind==='hi').length!==1)return false;
+  return Array.from({length:count-2},(_,i)=>i+1).every(slot=>st.calpoints.filter(x=>x.kind==='extra'&&x.slot===slot).length===1)
+ }
+ function renderCalibrationPlan(){
+  const count=calibrationPointCount();
+  if(!Number.isFinite(count))return show('calPointPlanMsg','Anzahl muss zwischen 2 und 10 liegen.','error');
+  $('pointHiHeading').textContent='Messpunkt '+count+' · Oberer Endpunkt';
+  if(!$('pointHiName').dataset.userEdited)$('pointHiName').value='Messpunkt '+count;
+  for(let k=1;k<=8;k++){
+   $('calExtra'+k+'Row').hidden=k>count-2;
+   $('calExtra'+k+'Heading').textContent='Messpunkt '+(k+1)+' · Zwischenpunkt';
+   $('calExtra'+k+'Capture').textContent='Messpunkt '+(k+1)+' aufnehmen';
+   if(!$('calExtra'+k+'Name').dataset.userEdited)$('calExtra'+k+'Name').value='Messpunkt '+(k+1);
+   const p=st.calpoints.find(x=>x.kind==='extra'&&x.slot===k);
+   $('calExtra'+k+'State').textContent=p?'Aufgenommen':'Noch nicht aufgenommen';
+   $('calExtra'+k+'Value').textContent=p?'ADC_S '+fmt(p.adc_s)+' · ADC_T '+fmt(p.adc_t)+' · Streuung '+p.spread:'Noch keine Messwerte.';
+  }
+  const done=st.calpoints.length,complete=calEndpointsReady();
+  $('calPointPlanMsg').textContent=complete?'Alle '+count+' Kalibrierpunkte aufgenommen. Weiter zur Berechnung.':count+' Kalibrierpunkte gewählt · '+done+' von '+count+' aufgenommen.';
+  $('calPointPlanMsg').className='callout'+(complete?' success':'')
+ }
+ function fillIntermediateReferences(){
+  const count=calibrationPointCount(),lo=Number($('pmin').value),hi=Number($('pmax').value);
+  if(!Number.isFinite(count)||!(hi>lo))return;
+  for(let k=1;k<=8;k++){
+   const field=$('calExtra'+k+'Pressure');
+   if(!field.dataset.userEdited)field.value=String(Number((lo+(hi-lo)*k/(count-1)).toFixed(5)))
+  }
+  renderCalibrationPlan()
+ }
  function verificationRequiredCount(){
   const n=Number($('calVerifyCount').value);
   return Number.isInteger(n)&&n>=1&&n<=10?n:Infinity;
@@ -119,7 +157,7 @@ if(typeof document!=='undefined') (function UI(){
    required+' Prüfpunkte: Jeder Prüfwert muss innerhalb der Toleranz liegen und ausreichend Abstand zu den anderen Punkten haben. Bei Temperaturkompensation müssen zusätzlich verschiedene Temperaturen geprüft werden.'
  }
  function workflowGate(n){
-  if(n>=3&&!calEndpointsReady())return 'Zuerst beide Referenzpunkte mit derselben AFE-Einstellung aufnehmen. Dann kann gerechnet werden.';
+  if(n>=3&&!calEndpointsReady())return 'Zuerst alle '+calibrationPointCount()+' gewählten Kalibrierpunkte bei gleicher AFE-Einstellung aufnehmen.';
   if(n>=4&&(!st.calfit||!st.calStaged))return 'Zuerst die DSP-Koeffizienten berechnen und ins Chip-RAM übertragen. Eine Rechnung allein reicht für die DSP-Prüfung nicht.';
   if(n>=5&&!verificationComplete())return 'NVM bleibt gesperrt: Zuerst '+(Number.isFinite(verificationRequiredCount())?verificationRequiredCount()+' Prüfpunkte':'eine gültige Anzahl Prüfpunkte')+' über DSP_S im RAM erfolgreich verifizieren.';
   return ''
@@ -144,7 +182,7 @@ if(typeof document!=='undefined') (function UI(){
   $('pointLoDisplay').textContent=Number.isFinite(lo)?lo+' '+unit:'—';
   $('pointHiDisplay').textContent=Number.isFinite(hi)?hi+' '+unit:'—';
   $('customUnitLabel').hidden=$('calUnit').value!=='custom';
-  renderCalPoints();
+  renderCalPoints();renderCalibrationPlan();
  }
  function step(n){
   const next=Math.max(0,Math.min(5,Number(n)));
@@ -170,9 +208,10 @@ if(typeof document!=='undefined') (function UI(){
   const pmin=Number($('pmin').value),pmax=Number($('pmax').value);
   if(Number.isFinite(pmin)&&Number.isFinite(pmax)&&pmax>pmin){
    const m=(pmin+pmax)/2;
-   for(const id of ['ptest','calPressure','calVerifyPressure'])$(id).value=m;
+   for(const id of ['ptest','calVerifyPressure'])$(id).value=m;
   }
-  refreshUnitLabels()
+  for(let k=1;k<=8;k++)$('calExtra'+k+'Pressure').dataset.userEdited='';
+  fillIntermediateReferences();refreshUnitLabels()
  }
 
  
@@ -180,7 +219,7 @@ if(typeof document!=='undefined') (function UI(){
   st.points={lo:null,hi:null};st.verify=null;st.calpoints=[];st.calfit=null;st.calImage=null;st.calStaged=false;st.calVerified=false;st.calValidation=[];
   renderCalPoints();$('lowVal').textContent='Noch nicht erfasst';$('highVal').textContent='Noch nicht erfasst';$('hub').textContent='—';$('middle').textContent='—';$('usage').textContent='—';
   $('calCoeffList').textContent='Noch nicht berechnet.';$('calVerifyList').textContent='Noch keine unabhängigen Prüfpunkte.';
-  show('calMsg','Beide Messpunkte nach einer Änderung erneut aufnehmen.');renderFlowState()
+  show('calMsg','Messpunkte nach einer Änderung erneut aufnehmen.');renderCalPoints();renderFlowState()
  };
 
  const rawLine=s=>{st.log.push(now()+'  '+s);if(st.log.length>500)st.log.shift();$('usbLog').textContent=st.log.slice(-90).join('\n')};
@@ -297,8 +336,8 @@ if(typeof document!=='undefined') (function UI(){
    const sortedS=ordered('s'),sortedT=ordered('t'),sortedTC=ordered('tc');
    const med=x=>(x[3]+x[4])/2,sp=sortedS[7]-sortedS[0];
    if(sp>350)throw Error('ADC_S streut zu stark ('+sp+' Digits). Druck stabilisieren und erneut messen');
-   const p=which==='lo'?pmin:pmax,name=pointName(which),at=new Date().toISOString(),temperature=Number($('calTemp').value);
-   if(!Number.isFinite(temperature))throw Error('Referenztemperatur fehlt');
+   const p=which==='lo'?pmin:pmax,name=pointName(which),at=new Date().toISOString(),temperature=Number($(which==='lo'?'calLoTemp':'calHiTemp').value);
+   if(!Number.isFinite(temperature)||temperature< -40||temperature>125)throw Error('Referenztemperatur ausserhalb −40 bis 125 °C');
    const record={kind:which,name,pressure:p,temperature,adc_s:med(sortedS),adc_t:med(sortedT),adc_tc:med(sortedTC),at,gains:{...st.staged},spread:sp,unit:pressureUnit()};
    st.points[which]={v:record.adc_s,pressure:p,unit:record.unit,name,gains:{...st.staged},at};
    addCalPoint(record);
