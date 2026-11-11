@@ -180,7 +180,23 @@ test('Expert mode shows contextual settings and no modal',()=>{
  assert.ok(html.includes('data-expert-area hidden><summary>Erweitert · AODO_F'));
  assert.ok(src.includes("classList.toggle('is-expert',enabled)"));
  const scripts=Array.from(html.matchAll(/<script src="([^"]+)"/g),m=>m[1]);
- assert.deepEqual(scripts,['calibration.js?v=0.4.0','expert.js?v=0.4.0','config.js?v=0.4.0','app.js?v=0.4.0']);
+ assert.deepEqual(scripts,['calibration.js?v=0.4.1','expert.js?v=0.4.1','config.js?v=0.4.1','app.js?v=0.4.1']);
+});
+
+test('Failed E703.11 probe reconnects SSP3 at most once, without NVM writes',()=>{
+ const src=read('app.js');
+ const connect=src.split('async function connect(port,retryChipOnce=true){')[1]?.split('async function disconnect()')[0];
+ assert.ok(connect);
+ assert.ok(connect.includes('await firmware();'));
+ assert.ok(connect.includes('await selectChipInterface();'));
+ assert.ok(connect.includes('await detect();'));
+ assert.ok(connect.includes('if(retryChipOnce){'));
+ assert.ok(connect.includes('await disconnect();'));
+ assert.ok(connect.includes('await sleep(200);'));
+ assert.ok(connect.includes('await connect(port,false);'));
+ assert.ok(connect.includes('Keine weiteren Versuche.'));
+ assert.ok(!connect.includes('writeReg('));
+ assert.ok(!connect.includes('nvmWrite('));
 });
 
 test('EEPROM viewer reads only via the established CRC-tested NVM path',()=>{
