@@ -283,8 +283,36 @@ button.danger{background:#9e3e34;border-color:#9e3e34;color:#fff}button.danger:h
 .eeprom-table .nvm-boot td{background:#fffaf0}
 .eeprom-table .nvm-crc td{background:#f4f8f3}
 @media(max-width:660px){.eeprom-table{font-size:11px}.eeprom-table th,.eeprom-table td{padding:6px 5px}.profile-card{padding:10px}}
+
+/* EEPROM reference: compact table first, detailed read-only register reference on demand. */
+.eeprom-table{min-width:790px}
+.eeprom-expand{border:0;padding:3px 7px;border-radius:6px;background:transparent;color:#165c9b;font:600 12px ui-monospace,SFMono-Regular,Consolas,monospace;white-space:nowrap}
+.eeprom-expand:hover:not(:disabled),.eeprom-expand:focus-visible{background:#e5f1fd;border-color:transparent}
+.eeprom-table .eeprom-register{font-weight:650;color:#254365;white-space:nowrap}
+.eeprom-table .eeprom-function{color:#425b70;min-width:160px}
+.eeprom-table .eeprom-protection{font-size:11px;color:#576981;white-space:nowrap}
+.eeprom-table tr.eeprom-detail-row:hover td,.eeprom-table tr.eeprom-detail-row td{background:#f6f9fd;color:var(--ink);font-family:inherit;text-align:left}
+.eeprom-table .eeprom-detail-row>td{padding:0!important;border-bottom:2px solid #d4e2f0}
+.eeprom-detail{padding:18px 20px;border-left:3px solid #2c73b5;background:#f8fbff}
+.eeprom-detail h3{font-size:14px;margin:0 0 7px}
+.eeprom-detail-description{font-size:13px;margin:0 0 12px;max-width:920px}
+.eeprom-meta{display:grid;grid-template-columns:repeat(3,minmax(140px,1fr));gap:8px;margin:0 0 10px}
+.eeprom-meta-item{border:1px solid #dfebf5;background:#fff;border-radius:7px;padding:8px 10px}
+.eeprom-meta-item dt{font-size:10px;font-weight:650;color:#697c8f}
+.eeprom-meta-item dd{font:600 12px/1.6 ui-monospace,SFMono-Regular,Consolas,monospace;color:#254365;margin:3px 0 0;overflow-wrap:anywhere}
+.eeprom-formula{background:#eef5fc;border-radius:7px;padding:9px 10px;font-family:ui-monospace,SFMono-Regular,Consolas,monospace;font-size:12px;overflow-wrap:anywhere}
+.eeprom-small{color:#5c7185;font-size:11px;margin:9px 0}
+.eeprom-bit-detail{border-top:1px solid #d6e5f3;margin-top:11px;padding-top:11px}
+.eeprom-bit-detail h4{font-size:12px;margin:0 0 7px}
+.eeprom-binary{font:12px ui-monospace,SFMono-Regular,Consolas,monospace;background:#e9f2fa;border:1px solid #c8deef;padding:9px 11px;border-radius:6px;letter-spacing:1px;display:inline-block}
+.eeprom-bit-table{border-collapse:collapse;width:100%;margin-top:10px;font-size:11px}
+.eeprom-bit-table th,.eeprom-bit-table td{text-align:left!important;border-bottom:1px solid #dbe7f1;padding:7px 8px!important;white-space:normal;font-family:inherit!important;color:var(--ink)!important}
+.eeprom-bit-table th{background:#e9f2fb;position:static}
+@media(max-width:800px){.eeprom-meta{grid-template-columns:repeat(2,minmax(0,1fr))}.eeprom-detail{padding:12px}}
+@media(max-width:500px){.eeprom-meta{grid-template-columns:1fr}.eeprom-detail{padding:10px}}
+
 </style></head><body><div class="wrap"><header class="top">
-<div class="brand"><div class="logo">E</div><div><div class="eyebrow">E703.11 · PSSC · v0.4.1</div><h1>Kalibrierassistent</h1></div></div>
+<div class="brand"><div class="logo">E</div><div><div class="eyebrow">E703.11 · PSSC · v0.4.2</div><h1>Kalibrierassistent</h1></div></div>
 <div class="live-overview" role="group" aria-label="Sensorwerte · laufende Anzeige">
   <div class="live-kpi" title="Unkompensierter Druck-ADC. Warnung bei Beträgen über 25’000 Digits."><span class="live-kpi-label">ADC_S <span id="liveAdcAlert" class="live-alert" hidden>!</span></span><span class="live-kpi-reading" id="liveAdcS">—</span><span class="live-kpi-unit">Digits</span></div>
   <div class="live-kpi" title="ADC_T · Temperatur-Rohwert, keine direkte Temperatur in °C."><span class="live-kpi-label">ADC_T</span><span class="live-kpi-reading" id="liveAdcT">—</span><span class="live-kpi-unit">Digits</span></div>
@@ -726,14 +754,14 @@ button.danger{background:#9e3e34;border-color:#9e3e34;color:#fff}button.danger:h
 <section class="card panel" data-panel="7" hidden>
 <div class="eyebrow">DIAGNOSE · Jederzeit erreichbar</div>
 <h2>EEPROM Viewer</h2>
-<p class="muted">64 EEPROM-Wörter des E703.11 in einer Tabelle wie bei PSSC anzeigen. Der Viewer ist <b>nur lesend</b> und unabhängig vom Kalibrierablauf. Ohne Chipverbindung bleibt er leer.</p>
+<p class="muted">Alle 64 EEPROM-Wörter mit Bedeutung und Registerdetails anzeigen. Über die Adresse lassen sich zusätzliche Erklärungen öffnen. Der Viewer ist <b>nur lesend</b> und unabhängig vom Kalibrierablauf.</p>
 <div class="flex"><button class="primary" id="eepromRead" type="button">EEPROM lesen (64 Wörter)</button><button id="eepromExport" type="button" disabled>EEPROM-Backup exportieren (mit Chip-ID)</button></div>
 <div id="eepromStatus" class="callout">Noch kein EEPROM aus dem Sensor gelesen. Das Lesen benötigt eine echte Sensorverbindung und prüft die CRC.</div>
 <div class="fieldrow" style="margin:13px 0 8px">
-<label>In EEPROM-Wörtern suchen<input id="eepromSearch" type="search" placeholder="z. B. CFG_AFE1, 1C oder AODO_F"></label>
-<span class="muted small">Adresse = NVM-Wortindex (00–3F); Byteadresse = Index × 2. Werte werden nie direkt editiert.</span>
+<label>In EEPROM-Wörtern und Beschreibungen suchen<input id="eepromSearch" type="search" placeholder="z. B. Offset, Temperatur, 1-Wire oder AODO_F"></label>
+<span class="muted small">Adresse = EEPROM-Wortindex (00–3F). Zeile anklicken für Beschreibung, Byteadresse, RAM-Register und Wertinterpretation. Expertenmodus zeigt bekannte Bitfelder. Nur lesend.</span>
 </div>
-<div class="eeprom-table-scroll"><table class="eeprom-table"><thead><tr><th>Adresse</th><th>Bitfield</th><th>Data Hex</th><th>Data</th><th>Schutz</th></tr></thead><tbody id="eepromRows"><tr><td colspan="5">Noch keine gültigen Daten. Bitte «EEPROM lesen» drücken.</td></tr></tbody></table></div>
+<div class="eeprom-table-scroll" id="eepromTableScroll"><table class="eeprom-table"><thead><tr><th>Adresse</th><th>Bitfield</th><th>Data Hex</th><th>Data</th><th>Funktion</th><th>Schutz</th></tr></thead><tbody id="eepromRows"><tr><td colspan="6">Noch keine gültigen Daten. Bitte «EEPROM lesen» drücken.</td></tr></tbody></table></div>
 <div class="expert-inline" data-expert-area hidden>
 <details id="expertToolsDetails" open><summary>Erweitert: Registerdiagnose, EEPROM und Backups</summary>
 <div class="inner">
@@ -760,5 +788,5 @@ button.danger{background:#9e3e34;border-color:#9e3e34;color:#fff}button.danger:h
 </div>
 <div class="nav"><button data-next="0">Zur Verbindung</button><button data-next="6">Zum NVM-Schritt</button></div>
 </section>
-<div class="foot"><b>Version v0.4.1</b> · <a href="CHANGELOG.md" target="_blank" rel="noopener">Änderungsverlauf</a> · ELMOS E703.11 · unabhängiger Kalibrierprototyp · Sicherheitsprinzip: Factory- und Kommunikations-Bootregister gesperrt; dokumentierte AODO-Ausgangsoptionen nur nach Prüfung im NVM-Plan; Wiederherstellung nur mit passender Chip-UID.</div>
-</main></div></div><div id="tip" class="tooltip"></div><script src="calibration.js?v=0.4.1"></script><script src="expert.js?v=0.4.1"></script><script src="config.js?v=0.4.1"></script><script src="app.js?v=0.4.1"></script></body></html>
+<div class="foot"><b>Version v0.4.2</b> · <a href="CHANGELOG.md" target="_blank" rel="noopener">Änderungsverlauf</a> · ELMOS E703.11 · unabhängiger Kalibrierprototyp · Sicherheitsprinzip: Factory- und Kommunikations-Bootregister gesperrt; dokumentierte AODO-Ausgangsoptionen nur nach Prüfung im NVM-Plan; Wiederherstellung nur mit passender Chip-UID.</div>
+</main></div></div><div id="tip" class="tooltip"></div><script src="calibration.js?v=0.4.2"></script><script src="eeprom-help.js?v=0.4.2"></script><script src="expert.js?v=0.4.2"></script><script src="config.js?v=0.4.2"></script><script src="app.js?v=0.4.2"></script></body></html>
