@@ -23,6 +23,18 @@ Browserbasierter Kalibrierassistent für den **ELMOS E703.11** mit **SSP3-Eval-B
 
 Python 3 wird für den lokalen Webserver benötigt. Danach `http://localhost:8765` in Chrome öffnen. USB-Port bei der ersten Verwendung über den Browserdialog freigeben. Alternativ kann die App über **HTTPS** bereitgestellt werden. Der Web-Serial-Zugriff ist über `file://` nicht zuverlässig verfügbar.
 
+## Windows: USB-Port lässt sich nicht öffnen
+
+Falls Chrome nach der Portauswahl **„Failed to execute 'open' on 'SerialPort': Failed to open serial port“** meldet, war die Portauswahl erfolgreich, aber Windows konnte den Port nicht öffnen. Das ist **noch kein 1-Wire- oder E703.11-Protokollfehler**.
+
+1. **PSSC-GUI vollständig beenden.** Auch Terminals, serielle Monitore und andere Chrome-Tabs schliessen, die denselben COM-Port verwenden könnten.
+2. Windows **Gerätemanager → Anschlüsse (COM & LPT)** öffnen. Das SSP3 sollte als **USB Serial Port (COMx)** ohne Warnsymbol erscheinen. Falls nur „USB Serial Converter“ ohne COM-Port angezeigt wird, die FTDI-VCP-Einrichtung prüfen.
+3. USB-Kabel kurz trennen, wieder anschliessen und zunächst **Bekannten Port verbinden** testen. Bei mehreren oder veralteten freigegebenen Ports den korrekten Anschluss über **USB-Port auswählen** neu wählen.
+4. Falls der COM-Port fehlt oder fehlerhaft angezeigt wird, den offiziellen [FTDI-VCP-Treiber](https://ftdichip.com/drivers/vcp-drivers/) prüfen. Treiberinstallation benötigt möglicherweise Administratorrechte.
+5. Erst wenn der COM-Port geöffnet werden kann, die SSP3-Firmwareabfrage und danach 1-Wire/I²C prüfen. Die angezeigte Baudrate ist normalerweise **nicht** die Ursache für ein fehlgeschlagenes `open()`.
+
+Bei diesem Fehler **keine RAM- oder NVM-Schreibversuche starten**. Falls er bleibt, zusammen mit der genauen COM-Port-Anzeige den Inhalt des technischen Logs teilen.
+
 ## Sicherheitsregeln
 
 - Beim ersten Hardwaretest nur **lesen**.
