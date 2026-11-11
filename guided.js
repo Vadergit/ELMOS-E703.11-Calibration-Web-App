@@ -351,6 +351,86 @@ const ELMOS_GUIDED=(()=>{
   if(!s.chip)return 'Kein E703.11 erkannt';
   return 'E703.11 verbunden · '+(s.uid||'Chip gelesen');
  }
+
+ const measurementNumber=(value,decimals=0)=>{
+  if(!Number.isFinite(value))return '—';
+  return Number(value).toLocaleString('de-CH',{minimumFractionDigits:decimals,maximumFractionDigits:decimals})
+ };
+ function startAfeWindow(){
+  afeStatsStart=Date.now();
+  afeGainSignature=JSON.stringify(window.ELMOS_GUIDED_API?.telemetry?.()?.gains||{});
+ }
+ function updateAfeTelemetry(){
+  const api=window.ELMOS_GUIDED_API;
+  const t=api?.telemetry?.();
+  if(!t)return;
+  const signature=JSON.stringify(t.gains||{});
+  if(signature!==afeGainSignature){afeStatsStart=Date.now();afeGainSignature=signature}
+  const stats=api.afeStats?.(afeStatsStart)||{count:0};
+  setText('gwAfeAdcValue',measurementNumber(t.adcS));
+  setText('gwAfeMin',measurementNumber(stats.min));
+  setText('gwAfeMax',measurementNumber(stats.max));
+  setText('gwAfeHub',measurementNumber(stats.hub));
+  const badge=$('gwAfeLiveBadge');
+  badge.textContent=!t.online?'Nicht verbunden':t.mode==='demo'?'DEMO · simuliert':t.adcS===null?'Warte auf ADC':t.live?'Live':'Messung pausiert';
+  badge.className='gw-live-badge'+(t.adcS!==null?' is-live':'')+(t.mode==='demo'?' is-demo':'');
+  const quality=$('gwAfeQuality');
+  quality.className='gw-afe-quality';
+  if(!stats.count){
+   quality.textContent='Noch keine Messungen. Min-/Max-Druck anlegen; die Grafik markiert ±25’000 Digits.';
+  }else if(stats.limitExceeded||Math.abs(t.adcS??0)>25000){
+   quality.classList.add('is-warning');
+   quality.textContent='Grenze ±25’000 Digits überschritten. PGA/Offset anpassen und den Messbereich erneut abfahren.';
+  }else if(stats.hub<4000){
+   quality.classList.add('is-neutral');
+   quality.textContent='Beobachteter Hub: '+measurementNumber(stats.hub)+' Digits. Für den Kalibrier-Fit sind mindestens 4’000 Digits über die aufgenommenen Referenzpunkte erforderlich.';
+  }else{
+   quality.classList.add('is-good');
+   quality.textContent='Im beobachteten Zeitraum innerhalb ±25’000 Digits. Hub '+measurementNumber(stats.hub)+' Digits bei '+stats.count+' Messwerten. Gesamten Druckbereich prüfen.';
+  }
+ }
+ function updateFinishTelemetry(){
+  const api=window.ELMOS_GUIDED_API,t=api?.telemetry?.(),s=state();
+  if(!t)return;
+  const good=Number.isFinite(t.sensorValue)&&t.dspRaw!==null;
+  const primary=good?t.sensorValue:t.dspRaw;
+  const range=t.range;
+  let digits=2;
+  if(range&&Number.isFinite(range.max-range.min)&&range.max-range.min<=2)digits=3;
+  setText('gwFinishSignalValue',measurementNumber(primary,good?digits:0));
+  setText('gwFinishSignalUnit',good?(t.unit||'—'):t.dspRaw!==null?'Digits':'—');
+  setText('gwFinishDsp',measurementNumber(t.dspRaw));
+  setText('gwFinishAdc',measurementNumber(t.adcS));
+  setText('gwFinishTemp',measurementNumber(t.adcT));
+  setText('gwFinishTime',t.dspTime?new Date(t.dspTime).toLocaleTimeString('de-CH',{hour12:false}):'—');
+  const badge=$('gwFinishStatus');
+  badge.textContent=t.mode==='demo'?'DEMO · simuliert':!t.online?'Nicht verbunden':t.dspRaw===null?'Warte auf DSP':t.live?'Live':'Letzter Messwert';
+  badge.className='gw-live-badge'+(t.dspRaw!==null?' is-live':'')+(t.mode==='demo'?' is-demo':'');
+  const source=$('gwFinishSource');
+  source.textContent=t.mode==='demo'?
+   'Simulierter Druck für den Funktionstest des Wizards. Kein Hardwaremesswert.':
+   t.dspRaw===null?'Kein aktueller DSP_S-Wert verfügbar. Bitte Verbindung und Live-Messung prüfen.':
+   !range?'DSP_S direkt aus Register 0x30. Druckwert erst mit korrekt bekanntem Anzeigebereich möglich.':
+   range.kind==='display'?'Manuelle Zuordnung des DSP_S auf einen Anzeigebereich; keine unabhängig bestätigte Kalibrierung.':
+   'Live-Wert aus DSP_S (Register 0x30) und dem aktuellen Kalibrierbereich.';
+  const bar=$('gwFinishBar');
+  const percent=good&&range&&range.max>range.min?
+   Math.max(0,Math.min(100,100*(t.sensorValue-range.min)/(range.max-range.min))):0;
+  bar.style.width=percent.toFixed(2)+'%';
+  setText('gwFinishRangeMin',good&&range?measurementNumber(range.min,2)+' '+(t.unit||''):'—');
+  setText('gwFinishRangeMax',good&&range?measurementNumber(range.max,2)+' '+(t.unit||''):'—');
+  const v=t.voltageTargets;
+  setText('gwFinishConfig',v?
+   'Ausgangs-Sollwerte: S0 '+measurementNumber(v.s0,3)+' V · S1 '+measurementNumber(v.s1,3)+' V · VDD '+measurementNumber(v.vdd,2)+' V. Diese Spannungen wurden nicht am Pin gemessen.':
+   'Ausgangs-Sollwerte nicht verfügbar.');
+  const completion=$('gwFinishCompletion');
+  completion.className='gw-alert '+(t.mode==='demo'?'warn':s.nvmDone?'success':'warn');
+  completion.textContent=t.mode==='demo'?
+   (s.demoCompleted?'Demo abgeschlossen – es wurde kein echtes NVM/EEPROM beschrieben.':'Virtuelle NVM-Bestätigung ausstehend.'):
+   s.nvmDone?'NVM-Schreibvorgang bestätigt. Kaltstart und Ausgangsmessung stehen noch aus.':
+   'NVM-Schreibbestätigung fehlt. Keine Hardwarefreigabe.';
+ }
+
  function updateUI(){
   if(!mode)return;
   const s=state();
@@ -372,6 +452,12 @@ const ELMOS_GUIDED=(()=>{
   }
   const ready=stage===4?!!plan&&plan.points.every(p=>pointRecord(p)):stage===5?!!s.calStaged:stage===6?!!s.calVerified:stage===8?(s.mode==='demo'?!!s.demoCompleted:!!s.nvmDone):true;
   $('gwNext').disabled=!ready||stage===9;
+  if(stage===3)updateAfeTelemetry();
+  if(stage===9)updateFinishTelemetry();
+  if(stage===3||stage===9)apiRedraw();
+ }
+ function apiRedraw(){
+  window.ELMOS_GUIDED_API?.redraw?.();
  }
  function render(){
   if(!mode)return;
