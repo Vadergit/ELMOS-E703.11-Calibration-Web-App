@@ -269,7 +269,9 @@ if(typeof document!=='undefined') (function UI(){
   else if($('nvmConfirmWord').value.trim()!==requiredWord)nvmReason='Das Bestätigungswort muss exakt '+requiredWord+' lauten.';
   const approvalGranted=nvmReason==='';
   $('nvmProgram').disabled=!approvalGranted;
-  $('nvmWritePrereq').textContent=approvalGranted?'Freigabe bereit: Chip-UID und Bestätigungswort stimmen. Der nächste Klick startet die endgültige NVM-Programmierung. Bitte Versorgung und Änderungsliste nochmals kontrollieren.':nvmReason;
+  $('nvmWritePrereq').textContent=approvalGranted?
+   'Bereit: UID und Bestätigungswort stimmen. Beim Schreiben wird '+($('nvmAutoBackup').checked?'zuerst das alte NVM automatisch unter dieser UID gesichert, danach':'ohne dauerhaftes Backup direkt')+' programmiert.':
+   nvmReason;
   $('nvmWritePrereq').className='callout '+(approvalGranted?'success':'warn');
   const unlocked=[true,true,true,calEndpointsReady(),ready&&st.calStaged,!workflowGate(5)];
   document.querySelectorAll('[data-step]').forEach(b=>{
@@ -738,7 +740,17 @@ if(typeof document!=='undefined') (function UI(){
     const expected=CAL.prepareOutputConfig(initial,st.expertOutputPlan,outputOnly?st.outputOnlyPlan.limit:st.calfit.outputLimit);
     for(const i of [16,22,57,58])if(modified[i]!==expected[i])throw Error('Ausgangsregister entspricht nicht dem geprüften Vorschlag');
    }
-   st.nvmWorking=true;st.calTask=true;st.writing=true;st.ramWriteScope='nvm';stopLive();lsSet('elmos8-prewrite-backup',JSON.stringify({id,words:initial,ts:new Date().toISOString(),restore:restoring}));
+   const saveOldNvm=$('nvmAutoBackup').checked;
+   // Backup and export belong to this final explicitly confirmed action, not to the preview.
+   // Without backup selection the original NVM remains in RAM only for readback/CRC safety.
+   if(saveOldNvm){
+    if(!expert.archiveCurrentNvm('Unmittelbar vor NVM-Programmierung'))throw Error('Backup konnte nicht lokal gespeichert werden. Kein NVM-Schreiben gestartet');
+    expert.exportCurrent();
+    ca('backupMsg','Altes NVM mit UID '+id+' lokal archiviert. JSON-Download gestartet.','success');
+   }else{
+    ca('backupMsg','Ohne Backup ausgewählt. Das alte NVM wurde zum sicheren Vergleich gelesen, aber nicht dauerhaft gesichert.','warn');
+   }
+   st.nvmWorking=true;st.calTask=true;st.writing=true;st.ramWriteScope='nvm';stopLive();
    ca('nvmMsg','NVM wird programmiert. USB-Verbindung nicht trennen, Versorgung stabil halten.','warn');
    const beforeBoot=await bootSnapshot();await ramGrant();
    for(const i of [0,1,16,17,18,19,20,21,22,23,27,28,63]){const check=await nvmReadWord(i*2);if(check!==initial[i])throw Error(`Chip-NVM hat sich seit dem Backup verändert (Index ${i})`)}
@@ -761,7 +773,7 @@ if(typeof document!=='undefined') (function UI(){
    if(CAL.crc16(after)!==after[63])throw Error('Abschliessende NVM-CRC16-Prüfung fehlgeschlagen');
    const cm=await readReg(0x46);if(cm&(1<<6))throw Error('Chip meldet CM CRC Fehler');
    if(!sameBoot(beforeBoot,await bootSnapshot()))throw Error('Bootregister nach Programmierung abweichend');
-   st.nvmDone=true;st.nvmBackup=after;st.nvmBackupVerified=true;st.calImage=null;st.restorePlan=null;st.outputOnlyPlan=null;expert.afterNvmScan();lsSet('elmos8-last-program',JSON.stringify({id,words:after,ts:new Date().toISOString(),restore:restoring}));
+   st.nvmDone=true;st.nvmBackup=after;st.nvmBackupVerified=true;st.calImage=null;st.restorePlan=null;st.outputOnlyPlan=null;if(saveOldNvm)expert.afterNvmScan();lsSet('elmos8-last-program',JSON.stringify({id,words:after,ts:new Date().toISOString(),restore:restoring}));
    ca('nvmMsg',restoring?'Backup-Wiederherstellung abgeschlossen, NVM rückgelesen und CRC16 bestätigt. Sensor neu starten und erneut prüfen.':outputOnly?'AODO-Ausgangseinstellungen dauerhaft gespeichert, NVM rückgelesen und CRC16 bestätigt. Sensor neu starten und Ausgabefunktion prüfen.':'NVM-Programmierung und vollständiges Rücklesen/CRC16 erfolgreich. Sensor neu starten und Schnittstelle erneut prüfen.','success');
   }catch(e){ca('nvmMsg',`NVM-Vorgang fehlgeschlagen: ${e.message}.${chipProgrammingStarted?' NVM-Schreibversuch wurde bereits begonnen: Chip nicht unkontrolliert neu starten, Backup und Diagnose sichern!':' Es wurden keine NVM-Schreibbefehle gestartet.'}`,'error');logging('NVM FEHLER: '+e.message)}
   finally{if(st.calTask){try{await maintWrite(0x4E,0x0000)}catch(e){logging('NVM-Zugriffssperre: '+e.message)}await ramLock()};st.ramWriteScope=null;st.nvmWorking=false;st.calTask=false;st.writing=false;$('nvmConfirmWord').value='';renderStatus()}
@@ -883,6 +895,11 @@ if(typeof document!=='undefined') (function UI(){
  }
   $('nvmBackupDownload').addEventListener('click',downloadNvmBackup);
  $('nvmPrepare').addEventListener('click',prepareNvm);
+ $('nvmAutoBackup').checked=(lsGet('elmos8-automatic-backup-v1')??'1')==='1';
+ $('nvmAutoBackup').addEventListener('change',()=>{
+  lsSet('elmos8-automatic-backup-v1',$('nvmAutoBackup').checked?'1':'0');
+  renderFlowState()
+ });
  for(const id of ['nvmConfirmId','nvmConfirmWord'])$(id).addEventListener('input',renderFlowState);
  $('nvmProgram').addEventListener('click',nvmProgram);
  $('nvmPostBoot').addEventListener('click',postBootCheck);
