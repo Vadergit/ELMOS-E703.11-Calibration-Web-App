@@ -28,6 +28,23 @@ button.danger{background:#9e3e34;border-color:#9e3e34;color:#fff}button.danger:h
 .cal-point-row.is-captured{border-color:#7db9a0;background:#fbfefd}
 .cal-sampling-progress{margin-top:10px;padding:9px 12px;border-radius:8px;border:1px solid #b8cfea;background:#eaf3fc;color:#194f80;font-size:13px;font-weight:700}
 
+
+/* Kompakter Workflow, speziell für den finalen NVM-Schritt */
+.main{gap:12px}.card{padding:20px}.stepBtn{padding:10px 12px}.nav{margin-top:14px;padding-top:12px}
+.nvm-compact p{margin:5px 0 10px}.nvm-compact h2{margin-bottom:5px}
+.nvm-compact .callout{padding:9px 11px;margin:9px 0}
+.nvm-compact details{margin-top:10px;padding-top:8px}
+.nvm-compact details .inner{margin-top:8px}
+.nvm-compact .monoarea{max-height:175px;padding:10px}
+.nvm-compact-row{display:flex;flex-wrap:wrap;align-items:center;gap:6px 16px;border:1px solid var(--line);border-radius:9px;background:#f8fbfd;padding:10px 12px;margin:12px 0}
+.nvm-backup-choice{display:inline-flex;align-items:center;gap:7px;color:var(--ink);font-size:13px}
+.nvm-compact .nvm-main-actions{margin-top:9px}
+.nvm-confirm-section{border-top:1px solid var(--line);margin-top:12px;padding-top:12px}
+.nvm-confirm-section h3{margin-bottom:3px}
+.nvm-confirm-section .fieldrow{margin-top:8px;gap:10px}
+.nvm-compact .nvm-risk{margin-top:8px;font-size:11px}
+.nvm-advanced summary{font-size:12px}
+@media(max-width:750px){.nvm-compact .fieldrow{grid-template-columns:1fr}.nvm-compact-row{align-items:flex-start;flex-direction:column}}
 </style></head><body><div class="wrap"><header class="top"><div class="brand"><div class="logo">E</div><div><div class="eyebrow">E703.11 · PSSC</div><h1>Kalibrierassistent</h1></div></div><span class="chip"><span class="dot" id="statusDot"></span><span id="status">Nicht verbunden</span></span></header>
 <div id="demoPressurePanel" class="callout warn" hidden><div class="between"><strong>DEMO – simulierter Druck</strong><span><b id="demoPressureVal">5.0</b> bar</span></div><input id="demoPressure" type="range" min="0" max="10" step="0.1" value="5" style="margin-top:10px"></div>
 <div class="content"><aside class="side"><button class="stepBtn active" data-step="0"><span class="num">1</span><span>USB & Chip</span></button><button class="stepBtn" data-step="1"><span class="num">2</span><span>AFE optimieren</span></button><button class="stepBtn" data-step="2"><span class="num">3</span><span>Messpunkte</span></button><button class="stepBtn" data-step="3"><span class="num">4</span><span>Berechnen & RAM</span></button><button class="stepBtn" data-step="4"><span class="num">5</span><span>DSP prüfen</span></button><button class="stepBtn" data-step="5"><span class="num">6</span><span>NVM programmieren</span></button></aside>
@@ -244,36 +261,39 @@ button.danger{background:#9e3e34;border-color:#9e3e34;color:#fff}button.danger:h
 <div class="nav"><button data-next="3">Zurück zur Berechnung</button><button class="primary" data-next="5">Weiter: Im Sensor speichern</button></div>
 </section>
 
-<section class="card panel" data-panel="5" hidden>
-<div class="eyebrow">Schritt 6 · Permanent speichern</div>
-<h2>Geprüfte Kalibrierung im Sensor speichern</h2>
-<p class="muted">Die DSP-Koeffizienten wurden bereits im RAM geschrieben und geprüft. Nur hier werden sie dauerhaft ins NVM übernommen. Vor dem endgültigen Schreiben liest die App den Original-NVM-Inhalt und kontrolliert CRC sowie Bootregister.</p>
-<h3>1. Original-NVM sichern und prüfen</h3>
-<div class="flex"><button id="nvmBackupRead">Original-NVM lesen und prüfen</button><button id="nvmBackupDownload" disabled>Backup als JSON herunterladen</button></div>
-<div class="small muted" id="backupProgress" aria-live="polite"></div>
-<div id="backupMsg" class="callout">Original-NVM noch nicht gelesen. Die bestehende RAM-Kalibrierung bleibt während des Lesens erhalten.</div>
-<div class="mutedline"></div>
-<h3>2. NVM-Änderungen prüfen</h3>
-<button id="nvmPrepare">Änderungsliste erstellen</button>
-<div id="nvmMsg" class="callout">Nach dem geprüften Backup die Änderungsliste erstellen.</div>
-<div id="nvmProgress" class="small muted" aria-live="polite"></div>
-<details open><summary>Änderungsliste inkl. CRC16</summary><pre id="nvmDiff" class="monoarea">Noch kein Programmierplan</pre></details>
-<div class="mutedline"></div>
-<h3>3. Kalibrierung dauerhaft schreiben</h3>
-<p class="muted small">Das Schreiben kann bei Stromunterbruch oder Protokollproblemen den Chip unbrauchbar machen. Bitte kontrolliere die Änderungsliste und die Chipkennung. Für die endgültige Programmierung musst du die erkannte Chip-UID und das Bestätigungswort selbst in die beiden Felder eingeben. Hellgraue Beispiele in Eingabefeldern sind keine ausgefüllten Werte.</p>
-<div class="fieldrow" style="margin-top:12px">
-<label>Chip-UID (VERSION + SER1 + SER0, 12 Hex-Ziffern)<input id="nvmConfirmId" type="text" placeholder="z. B. 00205678ABCD" autocomplete="off"></label>
-<label>Bestätigungswort<input id="nvmConfirmWord" type="text" placeholder="PROGRAMMIEREN / AUSGANG SPEICHERN / WIEDERHERSTELLEN" autocomplete="off"></label>
+<section class="card panel nvm-compact" data-panel="5" hidden>
+<div class="eyebrow">Schritt 6 · Dauerhaft speichern</div>
+<h2>Kalibrierung im Sensor speichern</h2>
+<p class="muted small">Nach erfolgreicher DSP-Prüfung wird das aktuelle NVM automatisch gelesen und kontrolliert. Erst nach der Änderungsvorschau und deiner ausdrücklichen Bestätigung erfolgt die dauerhafte Programmierung.</p>
+<div class="nvm-compact-row">
+  <label class="toggle nvm-backup-choice"><input type="checkbox" id="nvmAutoBackup" checked> <strong>Altes NVM automatisch sichern</strong> <span class="muted">· empfohlen</span></label>
+  <span class="muted small">Optional abwählbar. Die Sicherheitslesung mit CRC bleibt immer aktiv.</span>
 </div>
-<div class="callout" style="margin-top:12px" id="nvmUidHint">Erkannte Chip-UID: wird nach der Verbindung angezeigt.</div>
-<div id="nvmWritePrereq" class="callout warn" role="status" aria-live="polite">Änderungsliste erstellen, danach Chip-UID und Bestätigungswort tatsächlich eingeben. Die Beispiele in den Feldern sind nur Platzhalter.</div>
-<div class="flex" style="margin-top:12px"><button class="danger" id="nvmProgram" disabled>Kalibrierung dauerhaft ins NVM schreiben</button></div>
-<p class="small muted">Keine automatische Programmierung. Der normale Kalibrierablauf verlangt eine bestandene DSP-Prüfung. Separate Ausgangsänderungen und Backups werden nur über den aktiven Expertenmodus, ein aktuelles geprüftes NVM-Backup und die bewusste Eingabe von Chip-UID und Bestätigungswort zugelassen.</p>
-<div class="mutedline"></div>
-<h3>Nach dem Neustart</h3>
-<label class="toggle"><input id="nvmRebootConfirm" type="checkbox"> Der Chip wurde nach dem Schreiben tatsächlich aus- und wieder eingeschaltet.</label>
-<div class="flex" style="margin-top:12px"><button id="nvmPostBoot">Nach Neustart verifizieren</button></div>
-<p class="small muted" style="margin-top:12px">Laborprototyp: Der vollständige NVM-Schreibpfad wurde noch nicht am physischen SSP3/E703.11 abgenommen. Nicht für die Serienproduktion einsetzen.</p>
+<div class="flex nvm-main-actions"><button id="nvmPrepare" class="primary">1. NVM lesen & Änderungen prüfen</button><span class="muted small" id="nvmProgress" aria-live="polite"></span></div>
+<div id="nvmMsg" class="callout">Zuerst den aktuellen NVM-Inhalt automatisch prüfen und die Änderungsliste erstellen.</div>
+<details id="nvmDiffDetails"><summary>Änderungsliste (inkl. CRC16) anzeigen</summary><pre id="nvmDiff" class="monoarea">Noch keine Änderungen vorbereitet.</pre></details>
+<details class="nvm-advanced"><summary>Backup / NVM-Leseprotokoll</summary>
+  <div class="inner">
+    <div class="flex"><button id="nvmBackupRead">NVM separat erneut lesen</button><button id="nvmBackupDownload" disabled>Aktuelles NVM als JSON herunterladen</button></div>
+    <div class="small muted" id="backupProgress" aria-live="polite"></div>
+    <div id="backupMsg" class="callout">Noch keine vollständige NVM-Lesung durchgeführt.</div>
+  </div>
+</details>
+<div class="nvm-confirm-section">
+  <h3>2. Programmierung bestätigen</h3>
+  <div class="muted small" id="nvmUidHint">Erkannte Chip-UID: noch nicht gelesen.</div>
+  <div class="fieldrow">
+    <label>Chip-UID (12 Hex-Ziffern)<input id="nvmConfirmId" type="text" maxlength="12" placeholder="UID des verbundenen Chips" autocomplete="off"></label>
+    <label>Bestätigungswort<input id="nvmConfirmWord" type="text" placeholder="PROGRAMMIEREN" autocomplete="off"></label>
+  </div>
+  <div id="nvmWritePrereq" class="callout warn" role="status" aria-live="polite">Erst Änderungen prüfen, danach UID und Bestätigungswort eingeben.</div>
+  <button class="danger" id="nvmProgram" disabled>Kalibrierung dauerhaft ins NVM schreiben</button>
+  <p class="muted small nvm-risk">Achtung: Stromunterbruch oder Protokollfehler können den Sensor unbrauchbar machen. Factory-/Bootregister bleiben geschützt. Der echte NVM-Schreibpfad ist noch nicht hardwarevalidiert.</p>
+</div>
+<details class="nvm-advanced"><summary>Kontrolle nach Neustart</summary><div class="inner">
+  <label class="toggle"><input id="nvmRebootConfirm" type="checkbox"> Der Chip wurde nach dem Schreiben tatsächlich aus- und wieder eingeschaltet.</label>
+  <button id="nvmPostBoot">NVM nach Neustart verifizieren</button>
+</div></details>
 <div class="nav"><button data-next="4">Zurück zur DSP-Prüfung</button><button data-next="0">Zum USB-Start</button></div>
 </section>
 <section class="card" id="expertSection">
