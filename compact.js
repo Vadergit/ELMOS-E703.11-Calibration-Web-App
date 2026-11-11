@@ -175,6 +175,8 @@ const ELMOS_COMPACT=(()=>{
     if(!active)return;
     if(Number($('calPointCount').value)!==lastPointCount){pointSelection='lo';updatePoint()}
     if($('expertOutputMode').value!==lastOutputMode)updateOutput();
+    // Demo pressure slider and responsive header can change the available height.
+    fitScreen();
    },500);
   }else{
    active=false;
