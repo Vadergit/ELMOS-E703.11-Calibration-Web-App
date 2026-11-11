@@ -233,21 +233,29 @@ const ELMOS_EXPERT=(()=>{
   function renderOutputMode(){
    const mode=$('expertOutputMode').value;
    $('expertPwmPeriodField').hidden=mode!=='4';
-   const hints={keep:'Bestehende Einstellung bleibt erhalten.',0:'High-Z: AODO deaktiviert.',1:'Ratiometrisch analog · DAC-Korrektur 0 · linear 10–90 % VDD.',2:'Ratiometrisch analog · DAC-Korrektur 1 · linear 10–90 % VDD.',3:'Ratiometrisch analog · DAC-Korrektur 2 · linear 10–90 % VDD.',4:'PWM: Periode und positiven DSP_AODO-Bereich kontrollieren.',5:'FM: positiven DSP_AODO-Bereich kontrollieren.',6:'Alarm-Ausgang: Grenzwerte separat kontrollieren.'};
-   $('outputModeHint').textContent=(hints[mode]||'Unbekannter Modus')+' Änderungen werden nur vorgemerkt und erst im geschützten NVM-Schritt gespeichert.';
+   $('psscAnalogFields').hidden=!isAnalog(mode);
+   const hints={keep:'Bisherigen AODO-Modus und Scaling unverändert lassen.',0:'Disabled (HighZ): AODO ausgeschaltet. Kein nachgewiesener One-Wire-only-Startmodus.',1:'Analog Ratiometric 0..5 V · linear 10–90 % VDD.',2:'Analog Ratiometric 0..5 V · DAC Correction 1.',3:'Analog Ratiometric 0..5 V · DAC Correction 2.',4:'PWM · Periode und positive DSP_AODO-Werte beachten.',5:'FM · positive DSP_AODO-Werte beachten.',6:'ALARM / End of Conversion · Fehler- und Grenzwerte bleiben unverändert.'};
+   $('outputModeHint').textContent=(hints[mode]||'Unbekannter oder nicht freigegebener Modus')+' Nur verifizierte AODO-Werte werden für NVM vorgemerkt.';
+   refreshOutputReadOnly();renderOutputPreview();
   }
-  $('expertOutputMode').addEventListener('change',renderOutputMode);
+  $('expertOutputMode').addEventListener('change',()=>{
+   manualScaling=false;
+   if(isAnalog($('expertOutputMode').value)){
+    try{calculateAnalogScaling()}catch(e){$('psscScalingPreview').textContent=e.message;$('psscScalingPreview').classList.add('invalid')}
+   }
+   renderOutputMode();invalidateOutputPlan();
+  });
+  for(const id of ['psscVdd','psscS0','psscS1']){
+   $(id).addEventListener('input',()=>{
+    manualScaling=false;
+    try{calculateAnalogScaling()}catch(e){$('psscScalingPreview').textContent=e.message;$('psscScalingPreview').classList.add('invalid')}
+    invalidateOutputPlan();
+   });
+  }
+  $('expertScaleEnable').addEventListener('change',()=>{manualScaling=true;renderOutputPreview();invalidateOutputPlan()});
+  for(const id of ['expertScaleGain','expertScaleOffset'])$(id).addEventListener('change',()=>{manualScaling=true;renderOutputPreview();invalidateOutputPlan()});
+  $('expertPwmPeriod').addEventListener('change',invalidateOutputPlan);
   renderOutputMode();
-  for(const id of ['expertOutputMode','expertPwmPeriod','expertScaleEnable','expertScaleGain','expertScaleOffset']){
-   $(id).addEventListener('change',()=>{
-    if(st.outputOnlyPlan&&st.calImage===st.outputOnlyPlan)st.calImage=null;
-    if(st.expertOutputPlan||st.outputOnlyPlan){
-     st.outputOnlyPlan=null;st.expertOutputPlan=null;
-     show('expertOutputMsg','Ausgangseinstellungen verändert. Bitte die neue Konfiguration erneut prüfen und vormerken.','warn');
-     renderFlowState()
-    }
-   })
-  }
   $('expertBackupSelect').addEventListener('change',()=>{
    if(st.restorePlan){
     if(st.calImage===st.restorePlan)st.calImage=null;
@@ -264,7 +272,7 @@ const ELMOS_EXPERT=(()=>{
   $('expertRestorePreview').addEventListener('click',prepareRestore);
   $('expertBackupImport').addEventListener('change',importFile);
   renderBackups();
-  return {onDetect,identify,afterNvmScan,archiveCurrentNvm,restoreReady,outputReady,prepareRestore,exportCurrent,renderBackups,validBackup:valid}
+  return {onDetect,identify,afterNvmScan,refreshOutputReadOnly,archiveCurrentNvm,restoreReady,outputReady,prepareRestore,exportCurrent,renderBackups,validBackup:valid}
  }
  return {init}
 })();
