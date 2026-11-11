@@ -180,7 +180,7 @@ test('Expert mode shows contextual settings and no modal',()=>{
  assert.ok(html.includes('data-expert-area hidden><summary>Erweitert · AODO_F'));
  assert.ok(src.includes("classList.toggle('is-expert',enabled)"));
  const scripts=Array.from(html.matchAll(/<script src="([^"]+)"/g),m=>m[1]);
- assert.deepEqual(scripts,['calibration.js?v=0.5.0','eeprom-help.js?v=0.5.0','expert.js?v=0.5.0','config.js?v=0.5.0','app.js?v=0.5.0','compact.js?v=0.5.0']);
+ assert.deepEqual(scripts,['calibration.js?v=0.6.0-beta.1','eeprom-help.js?v=0.6.0-beta.1','expert.js?v=0.6.0-beta.1','config.js?v=0.6.0-beta.1','guided-plan.js?v=0.6.0-beta.1','app.js?v=0.6.0-beta.1','compact.js?v=0.6.0-beta.1','guided.js?v=0.6.0-beta.1']);
 });
 
 test('Failed E703.11 probe reconnects SSP3 at most once, without NVM writes',()=>{
@@ -356,4 +356,73 @@ test('EEPROM Viewer refuses to display a backup from another chip',()=>{
  assert.ok(expert.includes('st.uid.ser0===st.nvmBackup[0]'));
  assert.ok(expert.includes('st.uid.ser1===st.nvmBackup[1]'));
  assert.ok(expert.includes("st.mode==='usb'&&st.port&&st.chip"));
+});
+
+const GUIDED_PLAN=require('../guided-plan.js');
+test('Guided matrix: 2 pressures without temperature correction',()=>{
+ const p=GUIDED_PLAN.create({pCount:2,tCount:1,temperatures:[25],pmin:0,pmax:10});
+ assert.equal(p.total,2);assert.equal(p.orderS,1);assert.equal(p.orderT,0);
+ assert.deepEqual(p.points.map(p=>p.slot),['lo','hi']);
+ assert.deepEqual(p.pressureValues,[0,10]);
+});
+test('Guided matrix: 2 pressure x 3 temperature full independent grid',()=>{
+ const p=GUIDED_PLAN.create({pCount:2,tCount:3,temperatures:[-10,25,65],pmin:0,pmax:10});
+ assert.equal(p.total,6);assert.equal(p.orderS,1);assert.equal(p.orderT,2);
+ assert.deepEqual(p.points.map(p=>p.pressure),[0,10,0,10,0,10]);
+ assert.deepEqual(p.points.map(p=>p.temperature),[-10,-10,25,25,65,65]);
+ assert.deepEqual(p.points.map(p=>p.slot),['lo','extra1','extra2','extra3','extra4','hi']);
+});
+test('Guided matrix: 3 pressure x 2 temperature, and supported 10-point maximum',()=>{
+ const p=GUIDED_PLAN.create({pCount:3,tCount:2,temperatures:[10,60],pmin:-1,pmax:5});
+ assert.equal(p.total,6);assert.equal(p.orderS,2);assert.equal(p.orderT,1);
+ assert.deepEqual(p.pressureValues,[-1,2,5]);
+ const max=GUIDED_PLAN.create({pCount:5,tCount:2,temperatures:[10,60]});
+ assert.equal(max.total,10);assert.equal(max.orderS,3);assert.equal(max.orderT,1);
+});
+test('Guided planner rejects >10, nonascending temperatures, invalid pressure and overfit',()=>{
+ assert.throws(()=>GUIDED_PLAN.create({pCount:4,tCount:3,temperatures:[0,25,65]}),/höchstens 10/);
+ assert.throws(()=>GUIDED_PLAN.create({pCount:2,tCount:3,temperatures:[25,15,60]}),/aufsteigend/);
+ assert.throws(()=>GUIDED_PLAN.create({pCount:2,tCount:1,temperatures:[25],pmin:10,pmax:0}),/grösser/);
+ assert.throws(()=>GUIDED_PLAN.create({pCount:3,tCount:1,temperatures:[25],orderS:3}),/Druckpolynom/);
+ assert.throws(()=>GUIDED_PLAN.create({pCount:2,tCount:1,temperatures:[25],orderT:1}),/Temperaturpolynom/);
+ assert.throws(()=>GUIDED_PLAN.create({pCount:2,tCount:2,temperatures:[10,60],samples:101}),/Samples/);
+});
+test('Guided view is optional and contains only one set of hardware inputs',()=>{
+ const html=read('index.html'),ui=read('guided.js');
+ assert.ok(html.includes('id="guidedWorkspace" hidden'));
+ assert.ok(html.includes('id="workflowMode"'));
+ assert.ok(html.includes('id="guidedLaunch"'));
+ assert.ok(html.includes('id="guidedLaunchTop"'));
+ assert.ok(html.includes('guided.css?v=0.6.0-beta.1'));
+ for(const id of ['nvmProgram','nvmPrepare','calApplyRam','calVerifyRam','expertOutputStage','configApply','configFile']){
+  assert.equal(html.split('id="'+id+'"').length-1,1);
+ }
+ assert.ok(ui.includes('node.parentNode.replaceChild(marker,node)'));
+ assert.ok(ui.includes('marker.parentNode.replaceChild(x.node,x.marker)'));
+ assert.ok(ui.includes("moveId('nvmProgram','gwNvmWrite')"));
+ assert.ok(ui.includes("moveId('calApplyRam','gwFitActions')")===false || ui.includes("'calApplyRam'"));
+ assert.ok(!ui.includes('nvmProgram('));
+ assert.ok(!ui.includes('maintWrite('));
+ assert.ok(!ui.includes('writeReg('));
+ assert.ok(ui.includes('ELMOS_GUIDED_PLAN.create('));
+});
+test('Guided app uses read-only status, and the original NVM protections remain',()=>{
+ const app=read('app.js');
+ assert.ok(app.includes('window.ELMOS_GUIDED_API=Object.freeze('));
+ assert.ok(app.includes('calVerified:verificationComplete()'));
+ assert.ok(app.includes("window.ELMOS_GUIDED?.onConnected?.()"));
+ assert.ok(app.includes("const approvalGranted=nvmReason===''"));
+ assert.ok(app.includes("$('nvmProgram').disabled=!approvalGranted"));
+ assert.ok(app.includes("if(st.adapterKind==='bridge')nvmReason="));
+});
+test('USB bridge fails closed until a truly compatible PLC firmware is available',()=>{
+ const app=read('app.js'),fw=read('firmware/usb_bridge_cdc/usb_bridge_cdc.ino');
+ assert.ok(app.includes("exchange('BRIDGE_INFO',1600)"));
+ assert.ok(app.includes("'PLC_READ','PLC_WRITE','NVM'"));
+ assert.ok(app.includes("if(!bridgeReady)return;"));
+ assert.ok(fw.includes('CAPS=CDC_ONLY'));
+ assert.ok(fw.includes('PLC_NOT_IMPLEMENTED'));
+ assert.ok(!fw.includes('pinMode('));
+ assert.ok(!fw.includes('digitalWrite('));
+ assert.ok(!fw.includes('CAPS=PLC_READ,PLC_WRITE,NVM'));
 });
