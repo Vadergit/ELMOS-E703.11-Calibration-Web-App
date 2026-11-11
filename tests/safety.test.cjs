@@ -180,7 +180,7 @@ test('Expert mode shows contextual settings and no modal',()=>{
  assert.ok(html.includes('data-expert-area hidden><summary>Erweitert · AODO_F'));
  assert.ok(src.includes("classList.toggle('is-expert',enabled)"));
  const scripts=Array.from(html.matchAll(/<script src="([^"]+)"/g),m=>m[1]);
- assert.deepEqual(scripts,['calibration.js?v=0.4.2','eeprom-help.js?v=0.4.2','expert.js?v=0.4.2','config.js?v=0.4.2','app.js?v=0.4.2']);
+ assert.deepEqual(scripts,['calibration.js?v=0.5.0','eeprom-help.js?v=0.5.0','expert.js?v=0.5.0','config.js?v=0.5.0','app.js?v=0.5.0','compact.js?v=0.5.0']);
 });
 
 test('Failed E703.11 probe reconnects SSP3 at most once, without NVM writes',()=>{
@@ -260,6 +260,58 @@ test('EEPROM explanations remain read-only, chip verified and contextual',()=>{
  assert.ok(!helper.includes('writeReg('));
  assert.ok(!helper.includes('maintWrite('));
  assert.ok(!helper.includes('nvmWrite('));
+});
+
+
+test('Compact one-pager is opt-in and leaves normal seven-step interface intact',()=>{
+ const html=read('index.html'),src=read('compact.js');
+ assert.ok(html.includes('id="compactMode" type="checkbox"'));
+ assert.ok(html.includes('id="compactWorkspace" hidden'));
+ assert.ok(html.includes('html.compact-mode .content{display:none!important}'));
+ assert.ok(html.includes('.cp-board{'));
+ assert.ok(html.includes('.cp-output{grid-column:span 2}'));
+ assert.ok(src.includes("localStorage.getItem(STORAGE_KEY)==='1'"));
+ assert.ok(src.includes("checkbox.addEventListener('change',()=>set(checkbox.checked))"));
+ assert.ok(src.includes("document.documentElement.classList.add('compact-mode')"));
+ assert.ok(src.includes("document.documentElement.classList.remove('compact-mode')"));
+ assert.ok(src.includes('placeholder.parentNode.replaceChild(node,placeholder)'));
+ assert.ok(!src.includes('cloneNode('));
+ assert.ok(!src.includes('innerHTML=original'));
+ assert.ok(!html.includes('id="compactMode" type="checkbox" checked'));
+});
+test('Compact workspace covers all calibration steps with existing original controls',()=>{
+ const src=read('compact.js');
+ for(const id of [
+  'choose','auto','disconnect','iface','baud','pga1Down','offsetUp','pga2Down',
+  'configFile','configApply','calPointCount','calSampleCount','pmin','pmax',
+  'calSOrder','calTOrder','calDspLimit','calCalculate','calApplyRam',
+  'calVerifyCount','calVerifyPressure','calVerifyTolerance','calVerifyTemperature','calVerifyRam',
+  'expertOutputMode','expertScaleEnable','psscVdd','psscS0','psscS1','expertOutputStage',
+  'nvmPrepare','nvmAutoBackup','nvmConfirmId','nvmProgram'
+ ]){
+  // AFE buttons remain inside the moved stepper; all others are moved by their IDs.
+  if(['pga1Down','offsetUp','pga2Down'].includes(id))
+   assert.ok(src.includes("moveSelector('.afe-step-panel','cpAfeSteps')"));
+  else if(id==='calVerifyRam'||id==='expertOutputMode'||id==='nvmProgram')
+   assert.ok(src.includes("'"+id+"'"));
+  else assert.ok(src.includes("'"+id+"'")||src.includes(''+id));
+ }
+ assert.ok(src.includes("'calExtra'+i+'Row'"));
+ assert.ok(src.includes("pointSelection='lo'"));
+ assert.ok(src.includes('cpPointSelect'));
+ assert.ok(src.includes("actions(['nvmProgram'],'cpNvmProgram')"));
+});
+test('Compact mode does not alter NVM safety or bypass original handlers',()=>{
+ const compact=read('compact.js'),app=read('app.js');
+ assert.ok(compact.includes('node.parentNode.replaceChild(placeholder,node)'));
+ assert.ok(!compact.includes('nvmScan('));
+ assert.ok(!compact.includes('nvmProgram('));
+ assert.ok(!compact.includes('maintWrite('));
+ assert.ok(!compact.includes('writeReg('));
+ assert.ok(!compact.includes("removeAttribute('disabled')"));
+ assert.ok(app.includes("else if(!recognizedUid||st.uid.ser0!==st.nvmBackup[0]"));
+ assert.ok(app.includes("const approvalGranted=nvmReason===''"));
+ assert.ok(app.includes("$('nvmProgram').disabled=!approvalGranted"));
 });
 
 const CFG=require('../config.js');
