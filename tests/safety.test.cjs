@@ -190,7 +190,7 @@ test('Failed E703.11 probe reconnects SSP3 at most once, without NVM writes',()=
  assert.ok(connect.includes('await firmware();'));
  assert.ok(connect.includes('await selectChipInterface();'));
  assert.ok(connect.includes('await detect();'));
- assert.ok(connect.includes('if(retryChipOnce){'));
+ assert.ok(connect.includes("if(retryChipOnce&&st.adapterKind==='ssp3'){"));
  assert.ok(connect.includes('await disconnect();'));
  assert.ok(connect.includes('await sleep(200);'));
  assert.ok(connect.includes('await connect(port,false);'));
