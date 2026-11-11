@@ -285,6 +285,7 @@ const ELMOS_GUIDED=(()=>{
  }
  function statusText(){
   const s=state();
+  if(s.mode==='demo')return 'DEMO · ohne Hardware';
   if(!s.chip)return 'Kein E703.11 erkannt';
   return 'E703.11 verbunden · '+(s.uid||'Chip gelesen');
  }
@@ -292,7 +293,7 @@ const ELMOS_GUIDED=(()=>{
   if(!mode)return;
   const s=state();
   $('gwChipStatus').textContent=statusText();
-  $('gwChipStatus').classList.toggle('is-offline',!s.chip);
+  $('gwChipStatus').classList.toggle('is-offline',!s.chip||s.mode==='demo');
   const completed=s.points?.length||0;
   if(stage===4&&plan){renderCapture();if(completed===plan.total)$('gwNext').disabled=false}
   if(stage===5||stage===6||stage===8){
@@ -331,7 +332,7 @@ const ELMOS_GUIDED=(()=>{
  }
  function next(){
   const s=state();
-  if(!s.chip){msg('Zuerst den E703.11 über USB verbinden. Eine reine USB-CDC-Verbindung ohne Chipzugriff genügt nicht.','warn');return}
+  if(!s.chip&&s.mode!=='demo'){msg('Zuerst den E703.11 über USB verbinden. Eine reine USB-CDC-Verbindung ohne Chipzugriff genügt nicht.','warn');return}
   if(stage===0){
    if(task==='inspect'){close();window.ELMOS_GUIDED_API?.navigate?.(7);return}
    if(task==='output'){goto(2);return}
@@ -362,12 +363,14 @@ const ELMOS_GUIDED=(()=>{
  function open(){
   if(mode)return;
   const s=state();
-  if(!s.chip){const panel=$('connMsg');if(panel){panel.textContent='Bitte zuerst das SSP3 und den E703.11 verbinden; danach lässt sich der geführte Abgleich starten.';panel.className='callout warn'};return}
+  if(!s.chip&&s.mode!=='demo'){const panel=$('connMsg');if(panel){panel.textContent='Bitte zuerst das SSP3 und den E703.11 verbinden oder den Demo-Modus zur reinen UI-Vorschau starten.';panel.className='callout warn'};return}
   if(typeof ELMOS_COMPACT!=='undefined')ELMOS_COMPACT.set(false);
   if($('compactMode'))$('compactMode').checked=false;
   mode=true;stage=0;task='calibration';visited=new Set([0]);selectedPoint=0;
   try{build()}catch(e){
-   console.error(e);restore();mode=false;if(root)root.replaceChildren();
+   console.error(e);
+   for(const {el,type,handler} of subscriptions)el.removeEventListener(type,handler);
+   subscriptions.length=0;restore();mode=false;if(root)root.replaceChildren();
    if($('connMsg')){$('connMsg').textContent='Geführte Ansicht konnte nicht gestartet werden: '+e.message;$('connMsg').className='callout error'}
    return;
   }
