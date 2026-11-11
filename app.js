@@ -398,6 +398,7 @@ if(typeof document!=='undefined') (function UI(){
   renderFlowState();if(next===5)expert.refreshOutputPreview();if(next===7)expert.refreshEEPROMViewer();draw();if(!st.manualLivePause&&(st.chip||st.mode==='demo'))startLive()
  }
  function invalidateCalculation(reason){
+  if(st.mode==='demo')resetDemoChecks();
   st.calfit=null;st.calImage=null;st.calStaged=false;st.calVerified=false;st.calValidation=[];st.nvmBackup=null;st.nvmBackupVerified=false;
   $('calCoeffList').textContent='Noch nicht berechnet.';
   $('calVerifyList').textContent='Noch keine unabhängigen Prüfpunkte.';
@@ -420,6 +421,7 @@ if(typeof document!=='undefined') (function UI(){
 
  
  const erasePoints=()=>{
+  if(st.mode==='demo')resetDemoChecks();
   st.points={lo:null,hi:null};st.verify=null;st.calpoints=[];st.calfit=null;st.calImage=null;st.calStaged=false;st.calVerified=false;st.calValidation=[];
   renderCalPoints();$('lowVal').textContent='Noch nicht erfasst';$('highVal').textContent='Noch nicht erfasst';$('hub').textContent='—';$('middle').textContent='—';$('usage').textContent='—';
   $('calCoeffList').textContent='Noch nicht berechnet.';$('calVerifyList').textContent='Noch keine unabhängigen Prüfpunkte.';
@@ -633,8 +635,9 @@ if(typeof document!=='undefined') (function UI(){
   $('calVerifyList').textContent=demoValidation.map((v,i)=>'DEMO '+(i+1)+': '+v.pressure+' '+pressureUnit()+' bei '+v.temperature+' °C; simulierte DSP_S '+v.observedDSP).join('\n');
   return {done:demoValidation.length,required,verified:demoVerified}
  }
- function demoCompleteWizard(){
-  if(st.mode!=='demo'||st.port||!demoVerified)throw Error('Erst alle simulierten Prüfpunkte abschliessen');
+ function demoCompleteWizard(outputOnly=false){
+  if(st.mode!=='demo'||st.port)throw Error('Virtueller NVM-Abschluss ist nur ohne Hardware erlaubt');
+  if(!outputOnly&&!demoVerified)throw Error('Erst alle simulierten Prüfpunkte abschliessen');
   demoCompleted=true;
   show('nvmMsg','DEMO abgeschlossen: Die NVM-Programmierung wurde nur als Bedienablauf simuliert. Kein Chip, RAM oder EEPROM beschrieben.','success');
   return true
@@ -834,6 +837,7 @@ if(typeof document!=='undefined') (function UI(){
    if(!Number.isInteger(outputLimit)||outputLimit<1000||outputLimit>32000)throw Error('DSP-Endwert muss zwischen 1’000 und 32’000 Digits liegen');
    if(st.calpoints.length<(orderS+1)*(orderT+1))throw Error('Für diese Polynom- und Temperaturordnung sind mindestens '+((orderS+1)*(orderT+1))+' unabhängige Messpunkte nötig. Anzahl in Schritt 3 erhöhen.');
    const solution=CAL.fit(st.calpoints,{pmin,pmax,orderS,orderT,outputLimit});
+   if(st.mode==='demo')resetDemoChecks();
    st.calfit=solution;st.calImage=null;st.calStaged=false;st.calVerified=false;st.calValidation=[];st.nvmBackup=null;st.nvmBackupVerified=false;renderDSPLive();
    const r=solution.registers;
    $('calCoeffList').textContent='S_O 0x'+h(r.so,2)+' (Q3.12)  S_F 0x'+h(r.sf,2)+' (Q3.12)\n'+r.coeffs.map((x,i)=>'S'+String(i).padEnd(2)+' 0x'+h(x,2)+'    '+CAL.fromQ(x,15).toFixed(7)).join('\n')+(r.tcoeffs?'\nT_O '+h(r.to,2)+' T_F '+h(r.tf,2)+'\n'+r.tcoeffs.map((x,i)=>'T'+i+': 0x'+h(x,2)).join('\n'):'\nTemperaturpfad bleibt unverändert.');
@@ -1355,7 +1359,7 @@ if(typeof document!=='undefined') (function UI(){
   demoSetpoint:(pressure,temperature)=>demoSetpoint(pressure,temperature),
   demoStageCalibration:()=>demoStageCalibration(),
   demoVerifyCalibration:(pressure,temperature)=>demoVerifyCalibration(pressure,temperature),
-  demoCompleteWizard:()=>demoCompleteWizard()
+  demoCompleteWizard:(options)=>demoCompleteWizard(!!options?.outputOnly)
  });
  gainSummary();renderStatus();step(0);window.addEventListener('resize',draw);
 })();
