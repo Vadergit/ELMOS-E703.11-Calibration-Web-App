@@ -251,7 +251,7 @@ button.danger{background:#9e3e34;border-color:#9e3e34;color:#fff}button.danger:h
 .output-subheading{margin-top:15px}
 @media(max-width:700px){.output-grid,.output-grid-3,.output-errors{grid-template-columns:1fr}.output-heading{align-items:flex-start;flex-wrap:wrap}.output-endpoint-head,.output-endpoint-row{grid-template-columns:32px 1fr 1fr 1.4fr;gap:5px}.output-endpoint-row{padding:8px 4px}.output-endpoint-row input{padding:6px 4px}.output-section{padding:11px}}
 </style></head><body><div class="wrap"><header class="top">
-<div class="brand"><div class="logo">E</div><div><div class="eyebrow">E703.11 · PSSC · v0.3.2</div><h1>Kalibrierassistent</h1></div></div>
+<div class="brand"><div class="logo">E</div><div><div class="eyebrow">E703.11 · PSSC · v0.3.3</div><h1>Kalibrierassistent</h1></div></div>
 <div class="live-overview" role="group" aria-label="Sensorwerte · laufende Anzeige">
   <div class="live-kpi" title="Unkompensierter Druck-ADC. Warnung bei Beträgen über 25’000 Digits."><span class="live-kpi-label">ADC_S <span id="liveAdcAlert" class="live-alert" hidden>!</span></span><span class="live-kpi-reading" id="liveAdcS">—</span><span class="live-kpi-unit">Digits</span></div>
   <div class="live-kpi" title="ADC_T · Temperatur-Rohwert, keine direkte Temperatur in °C."><span class="live-kpi-label">ADC_T</span><span class="live-kpi-reading" id="liveAdcT">—</span><span class="live-kpi-unit">Digits</span></div>
@@ -555,6 +555,7 @@ button.danger{background:#9e3e34;border-color:#9e3e34;color:#fff}button.danger:h
         <option value="1">Analog Ratiometric 0..5 V</option>
         <option value="4">PWM</option>
         <option value="5">FM</option>
+        <option value="onewire">One Wire only · falls im NVM bereits dauerhaft aktiv</option>
         <option value="0" disabled>Disabled (HighZ) · für 1-Wire-Startschutz gesperrt</option>
         <option value="6" disabled>ALARM / End of Conversion · für 1-Wire-Startschutz gesperrt</option>
         <optgroup label="Weitere ratiometrische DAC-Korrekturen">
@@ -564,17 +565,17 @@ button.danger{background:#9e3e34;border-color:#9e3e34;color:#fff}button.danger:h
         <optgroup label="PSSC-Modi für andere Varianten / ungeprüft">
           <option value="abs10" disabled>Analog Absolute 0..10 V · nicht E703.11</option>
           <option value="loop420" disabled>Analog Absolute 4..20 mA · nicht E703.11</option>
-          <option value="onewire" disabled>One Wire only · Registerzuordnung nicht verifiziert</option>
         </optgroup>
       </select>
     </label>
     <label id="expertPwmPeriodField" hidden>PWM Period (2–65’535 Takte)<input id="expertPwmPeriod" type="number" min="2" max="65535" step="1" value="16384"></label>
   </div>
   <p id="outputModeHint" class="muted small" role="status" aria-live="polite">Ausgangstyp wählen. Noch keine Änderung am Chip.</p>
+  <div id="psscOneWireOnlyStatus" class="callout" hidden>One Wire only ist keine eigene AODO-Registerart. Zuerst das Original-NVM lesen; nur bei dauerhaft aktiviertem 1-Wire wird diese Auswahl bestätigt.</div>
   <div id="psscCurrentOutputStatus" class="callout">Aktuelle Chip-Ausgangseinstellungen können beim Verbinden ausgelesen werden. Die gewünschten Zielspannungen S0/S1 bleiben davon unabhängig.</div>
 </section>
 
-<section class="output-section" aria-labelledby="scalingTitle">
+<section class="output-section" id="psscScalingSection" aria-labelledby="scalingTitle">
   <div class="output-heading"><h3 id="scalingTitle">Scaling</h3><span class="output-tag">S0 / S1 wie in PSSC</span></div>
   <label class="toggle"><input id="expertScaleEnable" type="checkbox"> <strong>scale_en · Ausgangsskalierung aktivieren</strong></label>
   <p class="muted small">Für <b>Analog Ratiometric 0..5 V</b> sind <strong>S0 = 10 % VDD</strong> und <strong>S1 = 90 % VDD</strong> voreingestellt (bei 5 V: 0.5 V und 4.5 V). Diese Werte sind <strong>Zielspannungen</strong>, keine aus dem Chip gelesenen Werte. Gain und Offset werden automatisch berechnet; das Auslesen der Chipregister verändert S0/S1 nicht.</p>
@@ -696,5 +697,5 @@ button.danger{background:#9e3e34;border-color:#9e3e34;color:#fff}button.danger:h
 </div>
 <div class="nav"><button data-next="5">Zur Ausgangskonfiguration</button><button data-next="0">Zum USB-Start</button></div>
 </section>
-<div class="foot"><b>Version v0.3.2</b> · <a href="CHANGELOG.md" target="_blank" rel="noopener">Änderungsverlauf</a> · ELMOS E703.11 · unabhängiger Kalibrierprototyp · Sicherheitsprinzip: Factory- und Kommunikations-Bootregister gesperrt; dokumentierte AODO-Ausgangsoptionen nur nach Prüfung im NVM-Plan; Wiederherstellung nur mit passender Chip-UID.</div>
+<div class="foot"><b>Version v0.3.3</b> · <a href="CHANGELOG.md" target="_blank" rel="noopener">Änderungsverlauf</a> · ELMOS E703.11 · unabhängiger Kalibrierprototyp · Sicherheitsprinzip: Factory- und Kommunikations-Bootregister gesperrt; dokumentierte AODO-Ausgangsoptionen nur nach Prüfung im NVM-Plan; Wiederherstellung nur mit passender Chip-UID.</div>
 </main></div></div><div id="tip" class="tooltip"></div><script src="calibration.js?v=0.2.1"></script><script src="expert.js?v=0.2.1"></script><script src="app.js?v=0.2.1"></script></body></html>
