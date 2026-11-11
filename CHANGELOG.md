@@ -2,6 +2,25 @@
 
 Versionierung nach `MAJOR.MINOR.PATCH`: Kleine Anpassungen erhöhen PATCH, neue Funktionen MINOR, inkompatible Änderungen MAJOR. Jede Änderung erhält eine neue Nummer und einen Eintrag.
 
+## v0.6.5 – 11.11.2026
+
+- Überarbeitete Oberfläche und geführter Assistent veröffentlicht.
+- Demo-Modus in die Einstellungen verschoben.
+
+## v0.6.4 · Vorschau
+
+- Ausgangseinstellungen in Schritt 8 gebündelt und die Formularfelder sowie Karten im Assistenten ausgerichtet.
+
+## v0.6.3 · Vorschau
+
+- Demo-Modus mit simulierten Messwerten und NVM für den vollständigen Kalibrierablauf.
+
+## v0.6.2 · Vorschau
+
+- Klarere Farben und Kontraste in der klassischen, geführten und kompakten Ansicht.
+- Adaptereinstellungen, Verbindungsstatus und Diagnose sind in «USB & Chip» nach Aufgabe gruppiert.
+- Die Messwertleiste hebt den Sensorwert hervor und gruppiert die Rohwerte.
+
 ## v0.6.1 – 11.11.2026
 
 - ESP32-C3 PLC-Bridge für den Test am E703.11 integriert.

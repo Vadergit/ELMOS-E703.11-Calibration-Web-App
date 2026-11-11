@@ -3,6 +3,7 @@
    handlers or bypasses NVM/UID/CRC gates. Normal UI is restored exactly on exit. */
 const ELMOS_COMPACT=(()=>{
  const STORAGE_KEY='elmos-compact-mode-v1';
+ const storage=()=>new URLSearchParams(location.search).get('demo')==='1'?sessionStorage:localStorage;
  const $=id=>document.getElementById(id);
  let active=false;
  let original=[];
@@ -15,7 +16,7 @@ const ELMOS_COMPACT=(()=>{
  const layout=()=>[
   '<div class="cp-heading"><strong>Kompakt-Abgleich <small>· Alle Hauptschritte auf einer Seite</small></strong><div class="cp-heading-right"><span>Originale Chipfunktionen · Sicherheitsprüfungen unverändert</span><button id="cpExit" type="button">Normalansicht</button></div></div>',
   '<div class="cp-board">',
-  makeCard('1 · USB / SSP3','connection','<div class="cp-fields cp-cols-2" id="cpUsbFields"></div><div class="cp-actions" id="cpUsbActions"></div><div class="cp-status" id="cpUsbStatus"></div><details class="cp-fold"><summary>Diagnose / Startfenster</summary><div id="cpUsbExtra" class="cp-fold-body"></div></details>'),
+  makeCard('1 · USB & Chip','connection','<div class="cp-fields cp-cols-2" id="cpUsbFields"></div><div class="cp-actions" id="cpUsbActions"></div><div class="cp-status" id="cpUsbStatus"></div><details class="cp-fold"><summary>Diagnose / Startfenster</summary><div id="cpUsbExtra" class="cp-fold-body"></div></details>'),
   makeCard('2 · AFE / RAM','afe','<div id="cpAfeSteps"></div><div class="cp-actions" id="cpAfeActions"></div><div id="cpAfeGain" class="cp-caption"></div><div class="cp-status" id="cpAfeStatus"></div><div id="cpAfeTemplate"></div>'),
   makeCard('Config-Vorlagen','config','<div class="cp-fields cp-cols-2" id="cpCfgFields"></div><div class="cp-actions" id="cpCfgActions"></div><div class="cp-status" id="cpCfgStatus"></div>'),
   makeCard('3 · Messpunkte','points','<div class="cp-fields cp-points-setup" id="cpPointsSetup"></div><div class="cp-point-toolbar"><label>Messpunkt bearbeiten <select id="cpPointSelect" aria-label="Messpunkt auswählen"></select></label><div id="cpPointProgress"></div></div><div class="cp-point-edit" id="cpPointRows"></div><div class="cp-actions" id="cpPointsActions"></div><div class="cp-status" id="cpPointsStatus"></div>'),
@@ -50,7 +51,9 @@ const ELMOS_COMPACT=(()=>{
   const root=$('compactWorkspace');
   root.innerHTML=layout();
   // All controls remain the same DOM nodes, with their original handlers.
-  for(const id of ['iface','baud'])label(id,'cpUsbFields');
+  for(const id of ['adapterType','iface'])label(id,'cpUsbFields');
+  moveId('plcOptions','cpUsbFields');
+  label('baud','cpUsbExtra');
   actions(['choose','auto','disconnect'],'cpUsbActions');
   moveId('connMsg','cpUsbStatus');
   actions(['readBoot','readRegs','exportDiag'],'cpUsbExtra');
@@ -192,14 +195,14 @@ const ELMOS_COMPACT=(()=>{
    root.replaceChildren();root.hidden=true;root.style.height='';
    document.documentElement.classList.remove('compact-mode');
   }
-  try{localStorage.setItem(STORAGE_KEY,on?'1':'0')}catch(_){}
+  try{storage().setItem(STORAGE_KEY,on?'1':'0')}catch(_){}
  }
  function init(){
   const checkbox=$('compactMode'),root=$('compactWorkspace');
   if(!checkbox||!root)return;
   checkbox.addEventListener('change',()=>set(checkbox.checked));
   window.addEventListener('resize',fitScreen);
-  try{checkbox.checked=localStorage.getItem(STORAGE_KEY)==='1'}catch(_){}
+  try{checkbox.checked=storage().getItem(STORAGE_KEY)==='1'}catch(_){}
   if(checkbox.checked)set(true);
  }
  return {init,set};

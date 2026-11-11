@@ -180,7 +180,7 @@ test('Expert mode shows contextual settings and no modal',()=>{
  assert.ok(html.includes('data-expert-area hidden><summary>Erweitert · AODO_F'));
  assert.ok(src.includes("classList.toggle('is-expert',enabled)"));
  const scripts=Array.from(html.matchAll(/<script src="([^"]+)"/g),m=>m[1]);
- assert.deepEqual(scripts,['calibration.js?v=0.6.1','eeprom-help.js?v=0.6.1','expert.js?v=0.6.1','config.js?v=0.6.1','guided-plan.js?v=0.6.1','app.js?v=0.6.1','compact.js?v=0.6.1','guided.js?v=0.6.1']);
+ assert.deepEqual(scripts,['calibration.js?v=0.6.5','eeprom-help.js?v=0.6.5','expert.js?v=0.6.5','config.js?v=0.6.5','guided-plan.js?v=0.6.5','demo.js?v=0.6.5','app.js?v=0.6.5','compact.js?v=0.6.5','guided.js?v=0.6.5']);
 });
 
 test('Failed E703.11 probe reconnects SSP3 at most once, without NVM writes',()=>{
@@ -270,7 +270,7 @@ test('Compact one-pager is opt-in and leaves normal seven-step interface intact'
  assert.ok(html.includes('html.compact-mode .content{display:none!important}'));
  assert.ok(html.includes('.cp-board{'));
  assert.ok(html.includes('.cp-output{grid-column:span 2}'));
- assert.ok(src.includes("localStorage.getItem(STORAGE_KEY)==='1'"));
+ assert.ok(src.includes("storage().getItem(STORAGE_KEY)==='1'"));
  assert.ok(src.includes("checkbox.addEventListener('change',()=>set(checkbox.checked))"));
  assert.ok(src.includes("document.documentElement.classList.add('compact-mode')"));
  assert.ok(src.includes("document.documentElement.classList.remove('compact-mode')"));
@@ -393,7 +393,7 @@ test('Guided view is optional and contains only one set of hardware inputs',()=>
  assert.ok(html.includes('id="workflowMode"'));
  assert.ok(html.includes('id="guidedLaunch"'));
  assert.ok(html.includes('id="guidedLaunchTop"'));
- assert.ok(html.includes('guided.css?v=0.6.1'));
+ assert.ok(html.includes('guided.css?v=0.6.5'));
  for(const id of ['nvmProgram','nvmPrepare','calApplyRam','calVerifyRam','expertOutputStage','configApply','configFile']){
   assert.equal(html.split('id="'+id+'"').length-1,1);
  }
@@ -539,26 +539,20 @@ test('Guided setup keeps reference and output fields aligned while restoring the
  assert.ok(guide.includes('id="gwS1Holder"'));
  assert.ok(guide.includes("moveLabel('psscS0','gwS0Holder')"));
  assert.ok(guide.includes("moveLabel('psscS1','gwS1Holder')"));
- assert.ok(guide.includes("rehome('psscS0','gwS0Holder')"));
- assert.ok(guide.includes("rehome('psscS1','gwS1Holder')"));
+ assert.ok(guide.includes("moveLabel('calDspLimit','gwDspFields')"));
+ assert.ok(guide.indexOf('id="gwS0Holder"')>guide.indexOf('id="gwPage7"'));
  assert.ok(guide.includes('node.parentNode.replaceChild(marker,node)'));
  assert.ok(guide.includes('marker.parentNode.replaceChild(x.node,x.marker)'));
  assert.ok(css.includes('#guidedWorkspace .gw-setup-grid'));
- assert.ok(css.includes('#guidedWorkspace .gw-voltage-endpoints'));
+ assert.ok(read('interface.css').includes('#guidedWorkspace .gw-output-voltage-fields'));
 });
 
-test('Released wizard excludes demo controls and requires a real sensor connection',()=>{
- const app=read('app.js'),guided=read('guided.js'),html=read('index.html'),compact=read('compact.js');
- for(const id of ['demo','guidedDemoTop','guidedDemoLaunch','demoPressurePanel'])
-  assert.ok(!html.includes('id="'+id+'"'));
- for(const id of ['gwDemoBanner','gwDemoRam','gwDemoVerify','gwDemoNvm','gwDemoApplyAFE'])
-  assert.ok(!guided.includes('id="'+id+'"'));
- assert.ok(!app.includes("st.mode==='demo'"));
- assert.ok(!app.includes('function demoADC('));
- assert.ok(!app.includes('demoCompleteWizard'));
- assert.ok(!guided.includes("mode==='demo'"));
- assert.ok(!guided.includes('startDemo'));
- assert.ok(!compact.includes("'demo'"));
- assert.ok(guided.includes("if(!s.chip){msg("));
- assert.ok(app.includes("if(st.mode!=='usb'||!st.chip||!st.port"));
+test('Demo uses an isolated adapter and does not request a physical USB port',()=>{
+ const app=read('app.js'),html=read('index.html'),demo=read('demo.js');
+ assert.ok(html.includes('id="demoMode"'));
+ assert.ok(html.includes('id="demoNotice"'));
+ assert.ok(app.includes('if(demoEnabled&&port!==demoPort)throw Error'));
+ assert.ok(app.includes('if(!st.closing&&demoPort&&st.port===demoPort)return demoPort.exchange(text)'));
+ assert.ok(app.includes("sessionStorage.setItem('demo-'+k,v)"));
+ assert.ok(!demo.includes('navigator.serial'));
 });

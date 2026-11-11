@@ -1,0 +1,181 @@
+:root {
+  --bg: #edf2f5;
+  --paper: #fff;
+  --ink: #142538;
+  --muted: #485d71;
+  --line: #d0dbe4;
+  --blue: #075b78;
+  --blue-soft: #dceff5;
+  --red: #902b38;
+  --yellow: #845109;
+  --green: #17624c;
+  --control-border: #7a90a3;
+  --focus: #136a9a;
+  --panel-subtle: #f3f7fa;
+}
+
+a { color: var(--blue); text-underline-offset: .18em; }
+button, input, select { border-color: var(--control-border); }
+button { font-weight: 680; }
+button:hover:not(:disabled) { background: #edf5f8; border-color: var(--blue); }
+button.primary:hover:not(:disabled), button.primary:focus-visible { background: #06465d; border-color: #06465d; }
+button:disabled { opacity: 1; color: #536779; background: #e8eef2; border-color: #d0dbe4; }
+button.primary:disabled { color: #536779; background: #e8eef2; border-color: #d0dbe4; }
+:where(button, input, select, a, summary):focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; }
+label { color: #354b60; }
+h2 { font-size: clamp(21px, 2vw, 27px); line-height: 1.24; letter-spacing: -.025em; }
+h3 { font-size: 15px; }
+.eyebrow { color: #3b5f70; }
+.panel > .eyebrow { margin-bottom: 6px; }
+.panel > p { max-width: 72ch; }
+
+.wrap { max-width: 1450px; }
+.top { grid-template-columns: minmax(220px, auto) minmax(0, 1fr) auto; column-gap: 22px; }
+.logo { background: #12334a; border-radius: 11px; }
+.brand .eyebrow { letter-spacing: .075em; }
+.connection-actions { gap: 6px; }
+.live-connection .chip { color: #254455; background: #fff; }
+.live-meta, .live-kpi-label, .live-kpi-unit { color: var(--muted); }
+.live-overview {
+  grid-template-columns: repeat(3,minmax(0,1fr)) minmax(0,1.35fr);
+  gap: 0;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: #fff;
+}
+.live-kpi { border: 0; border-radius: 0; background: transparent; padding: 7px 10px; }
+.live-kpi + .live-kpi { border-left: 1px solid var(--line); }
+.live-kpi-primary { background: #dceff5; border-radius: 0 9px 9px 0; }
+.live-kpi-primary .live-kpi-reading { color: #084e69; font-size: clamp(19px, 2vw, 24px); }
+
+.content { grid-template-columns: 216px minmax(0,1fr); gap: 22px; margin-top: 17px; }
+.side { gap: 4px; }
+.stepBtn, .stepBtn.locked { opacity: 1; }
+.stepBtn.locked { color: #536779; }
+.stepBtn.active { color: #124b61; border-color: #a9cad8; background: var(--blue-soft); }
+.stepBtn .num { flex-shrink: 0; }
+.stepBtn:not(.active) .num { background: #dce5ed; color: #3f566a; }
+.card, .sidebox { border-color: #cbd8e2; }
+.card { padding: clamp(17px, 2.3vw, 31px); }
+.stat, .range { background: var(--panel-subtle); border-color: var(--line); }
+.callout { color: #204658; background: #eaf4fa; border-color: #bed5e5; border-inline-start: 4px solid #4584a7; }
+.callout.warn { color: #694104; background: #fff3dc; border-color: #e3bd79; border-inline-start-color: #a66a13; }
+.callout.error { color: #772735; background: #fff0f2; border-color: #e8bdc5; border-inline-start-color: #a73d4d; }
+.callout.success { color: #155440; background: #e8f6ef; border-color: #a6d2c0; border-inline-start-color: #268268; }
+
+.connection-setup { margin-top: 20px; }
+.connection-fields, #plcOptions { gap: 16px; align-items: end; }
+#plcOptions { margin-top: 16px; padding: 12px 14px; border-radius: 9px; background: var(--panel-subtle); }
+#plcOptions .toggle { min-height: 43px; }
+#plcOptions .toggle input { flex: 0 0 auto; }
+.connectionActions { margin: 18px 0 0; gap: 8px; }
+.connectionActions #guidedLaunch.primary { order: -1; }
+.connectionActions #guidedLaunch:disabled, #compactWorkspace #choose:disabled, .connectionActions #choose:disabled { display: none; }
+.connectionActions .connection-link { background: transparent; border-color: transparent; color: var(--blue); }
+.connectionActions .connection-link:disabled { color: #536779; }
+.connection-summary { margin: 0; padding: 13px 15px; display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap: 12px; border-radius: 9px; background: var(--panel-subtle); }
+.connection-summary dt { font-size: 12px; color: var(--muted); }
+.connection-summary dd { margin: 2px 0 0; font-weight: 750; overflow-wrap: anywhere; }
+.connection-advanced label { max-width: 265px; }
+.connection-resources { display: flex; flex-wrap: wrap; gap: 8px 19px; margin-top: 11px; font-size: 13px; }
+
+html.guided-active body { background: var(--bg); }
+.gw-shell { border-color: #cbd8e2; }
+.gw-sidebar, .gw-tile { background: var(--panel-subtle); }
+.gw-sideitem, .gw-sidebar-footer, .gw-desc, .gw-tile p, .gw-footer small { color: var(--muted); }
+.gw-sideitem .gw-no { color: #3f566a; }
+.gw-sideitem.is-active { color: #124b61; background: var(--blue-soft); }
+.gw-sideitem.is-active .gw-no, .gw-progressbar > span, .gw-footer button.primary { background: var(--blue); border-color: var(--blue); }
+.gw-footer button.primary:disabled { opacity: 1; background: #e8eef2; border-color: var(--line); color: #536779; }
+
+.cp-board { gap: 9px; }
+.cp-card { border-color: #c3d2de; }
+.cp-card-heading { color: #174b62; }
+.cp-card .cp-status > .callout { max-height: none; }
+#cpUsbFields #plcOptions { grid-column: 1/-1; margin: 0; padding: 4px 6px; gap: 6px; }
+#cpUsbFields #plcOptions .toggle { min-height: 0; }
+
+@media (max-width: 1120px) {
+  .top { grid-template-columns: minmax(0,1fr) auto; }
+}
+@media (max-width: 900px) {
+  .content { grid-template-columns: minmax(0,1fr); gap: 12px; }
+  .side { flex-wrap: nowrap; overflow-x: auto; padding: 4px 4px 8px; }
+  .side .stepBtn { flex: 0 0 auto; }
+  .side .side-separator { display: none; }
+}
+@media (max-width: 600px) {
+  .top { grid-template-columns: minmax(0,1fr); row-gap: 8px; }
+  .live-connection { grid-column: 1; grid-row: 3; align-items: flex-start; min-width: 0; }
+  .connection-actions { justify-content: flex-start; }
+  .live-kpi { padding: 6px; }
+  .live-kpi-reading { font-size: 15px; }
+  .live-kpi-primary .live-kpi-reading { font-size: 18px; }
+  .connection-fields, #plcOptions { grid-template-columns: minmax(0,1fr); }
+  .connection-summary { grid-template-columns: minmax(0,1fr); }
+  .connection-summary > div { display: flex; gap: 7px; align-items: baseline; }
+}
+
+.demo-notice {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 8px 16px;
+  padding: 10px 14px;
+  margin-top: 12px;
+  background: #fff3dc;
+  border-inline-start: 4px solid #a66a13;
+  border-radius: 8px;
+  color: #694104;
+}
+.demo-notice button { padding: 5px 10px; }
+.settings-demo p { margin: 4px 0 0 21px; }
+
+/* Guided form rows share a baseline even when a label wraps. */
+#guidedWorkspace .gw-fields { align-items: end; }
+#guidedWorkspace .gw-fields input[type="checkbox"] {
+  width: 17px;
+  height: 17px;
+  min-height: 0;
+  padding: 0;
+  margin: 0;
+  flex: 0 0 17px;
+}
+#guidedWorkspace .gw-fields .toggle { min-height: 39px; }
+#guidedWorkspace .gw-setup-page .gw-fields { align-items: end; }
+#guidedWorkspace .gw-dsp-fields { grid-template-columns: minmax(0,1fr); }
+#guidedWorkspace .gw-page > .gw-columns:has(> .is-soft),
+#guidedWorkspace .gw-page > .gw-columns:has(> .is-warning) {
+  grid-template-columns: minmax(0,1.45fr) minmax(0,1fr);
+  align-items: start;
+}
+#guidedWorkspace .gw-output-voltage-fields {
+  grid-template-columns: repeat(3,minmax(0,1fr));
+  align-items: stretch;
+}
+#guidedWorkspace .gw-output-voltage-fields > div {
+  padding: 0;
+  border: 0;
+  background: transparent;
+  min-width: 0;
+  align-self: end;
+}
+#guidedWorkspace .gw-output-voltage-fields .gw-voltage-label,
+#guidedWorkspace #gwVddHolder label { font-size: 12px; color: #354b60; }
+#guidedWorkspace .gw-output-voltage-fields .gw-voltage-label { margin-bottom: 5px; }
+#guidedWorkspace .gw-output-voltage-fields input { height: 39px; }
+#guidedWorkspace .gw-output-review .callout { margin: 8px 0; }
+#guidedWorkspace .gw-panel-actions { gap: 8px; }
+#guidedWorkspace .gw-panel-actions button { white-space: normal; text-align: center; }
+#guidedWorkspace .gw-footer .gw-actions { flex-wrap: wrap; }
+#guidedWorkspace .gw-control .cal-point-row .fieldrow { align-items: end; }
+
+@media (max-width: 850px) {
+  #guidedWorkspace .gw-page > .gw-columns:has(> .is-soft),
+  #guidedWorkspace .gw-page > .gw-columns:has(> .is-warning) { grid-template-columns: minmax(0,1fr); }
+}
+@media (max-width: 520px) {
+  #guidedWorkspace .gw-output-voltage-fields,
+  #guidedWorkspace .gw-setup-pressure { grid-template-columns: minmax(0,1fr); }
+}
