@@ -393,6 +393,10 @@ html.compact-mode #demoPressurePanel{padding:4px 8px;margin:0 0 4px}
 .cp-output-grid .cp-output-controls>label:first-child{grid-column:1/-1}
 .cp-output-grid .cp-output-advanced{grid-template-columns:1fr}
 .cp-output-grid .cp-output-advanced[hidden]{display:none}
+#compactWorkspace .cp-hide-scaling{display:none!important}
+#compactWorkspace .cp-s0::before,#compactWorkspace .cp-s1::before{display:block;font-size:10px;color:#49657e;font-weight:650}
+#compactWorkspace .cp-s0::before{content:"S0 · Ausgang (V)"}
+#compactWorkspace .cp-s1::before{content:"S1 · Ausgang (V)"}
 .cp-output-grid .cp-output-analog[hidden]{display:none}
 .cp-output #psscOneWireOnlyStatus[hidden]{display:none}
 .cp-output .cp-actions button{white-space:normal}
