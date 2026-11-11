@@ -49,12 +49,17 @@ const ELMOS_EXPERT=(()=>{
    const entry={format:'E70311-CM64-v2',uid:st.uid.hex,created:new Date().toISOString(),source,words:words.slice()};
    const old=all(),identical=old.find(b=>b.uid===entry.uid&&b.words.every((w,i)=>w===words[i]));
    lsSet('elmos-backups-v2',JSON.stringify([entry,...old.filter(x=>x!==identical)].slice(0,50)));
-   renderBackups();return true
+   renderBackups();
+   // A successful call must mean the data actually survived the browser storage write.
+   return all().some(x=>x.uid===entry.uid&&x.words.every((w,i)=>w===entry.words[i]))
   }
   function dump(){
    $('expertNvmDump').textContent=st.nvmBackupVerified&&st.nvmBackup?
     st.nvmBackup.map((v,i)=>'CM 0x'+hx(2*i)+'  0x'+hx(v)+'  '+(i<16?'FACTORY · NUR LESEN':i<28?'BOOT/KONFIG · GESCHÜTZT':i===63?'CRC16':'USER · DOKUMENTIERTE FUNKTIONEN')+'  '+(names[i]||(i>=35&&i<=50?'S'+(i-35):i>=51&&i<=54?'T'+(i-51):''))).join('\n'):
     'Noch kein vollständiges NVM-Abbild vorhanden.';
+  }
+  function archiveCurrentNvm(source='Vor NVM-Programmierung'){
+   return !!(st.nvmBackupVerified&&st.nvmBackup&&save(st.nvmBackup,source))
   }
   function afterNvmScan(){
    const ok=!!st.nvmBackupVerified&&!!st.nvmBackup;
@@ -200,7 +205,7 @@ const ELMOS_EXPERT=(()=>{
   $('expertRestorePreview').addEventListener('click',prepareRestore);
   $('expertBackupImport').addEventListener('change',importFile);
   renderBackups();
-  return {onDetect,identify,afterNvmScan,restoreReady,outputReady,prepareRestore,exportCurrent,renderBackups,validBackup:valid}
+  return {onDetect,identify,afterNvmScan,archiveCurrentNvm,restoreReady,outputReady,prepareRestore,exportCurrent,renderBackups,validBackup:valid}
  }
  return {init}
 })();
