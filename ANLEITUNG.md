@@ -2,9 +2,9 @@
 
 ## Diskrete AFE-Stufeneinstellung (11.11.2026)
 
-Unter **AFE optimieren → Verstärkung und Offset** werden drei diskrete Steuerelemente mit **− / +** statt Schiebereglern angezeigt. Eine Betätigung ändert jeweils genau einen gültigen Registercode: **PGA1 = 0–3** (4 Verstärkungsstufen), **PGA2 = 0–8** (9 Verstärkungsstufen), **Offset = −8 bis +8**. Neben dem Stufencode wird die jeweilige physikalische Verstärkung beziehungsweise der DAC-Offset in mV/V dargestellt. An den Grenzen oder bei laufenden Kalibrier-/NVM-Transaktionen sind die entsprechenden Tasten deaktiviert.
+Unter **AFE optimieren → Verstärkung und Offset** werden die diskreten Steuerelemente in der Reihenfolge **PGA1 → Offset → PGA2** mit **− / +** angezeigt. Eine Betätigung ändert jeweils genau einen zulässigen Registercode: **PGA1 = 0–3** (4 Stufen), **Offset = −8 bis +8** und **PGA2 = 0–8** (9 Stufen). Sichtbar sind nur die tatsächlichen Verstärkungen und der DAC-Offset in mV/V, nicht die Stufencodes. An den Grenzen sowie während einer RAM-/NVM-Transaktion sind die Tasten deaktiviert.
 
-Die Buttons verändern **nur die Vorschau** und machen bereits erfasste Kalibrierpunkte ungültig, genau wie zuvor die Schieberegler. Der eigentliche Chip-RAM-Schreibvorgang bleibt separat und benötigt den Knopf **«AFE-Einstellungen ins RAM übernehmen»**. Factory-/Bootregister und NVM werden von den Pfeiltasten nicht beschrieben.
+**Jeder Pfeilklick überträgt die neue Einstellung unmittelbar ins RAM des verbundenen Sensors** (CFG_AFE1, 0x1C). Die App pausiert dafür eine laufende Live-Lesung, prüft die Bootregister, schreibt genau die AFE-Bits, liest die Einstellung zur Kontrolle zurück und aktualisiert den ADC_S-Wert. Bis zum Abschluss sind weitere Pfeilklicks gesperrt. Bereits erfasste Kalibrierpunkte werden nach erfolgreicher Änderung verworfen; bei unsicherem Schreiben vorsorglich ebenfalls. Im Demo-Modus wird nur simuliert. **NVM und Factory-/Bootregister werden nicht programmiert.**
 
 ## Zweck und Sicherheitsstatus
 
