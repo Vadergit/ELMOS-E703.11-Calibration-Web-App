@@ -184,6 +184,8 @@ if(typeof document!=='undefined') (function UI(){
   $('nvmBackupDownload').disabled=!st.nvmBackupVerified||!st.nvmBackup;
   $('nvmPrepare').disabled=!verificationComplete()||!st.nvmBackupVerified||!!st.restorePlan;
   $('nvmProgram').disabled=!verified||!st.nvmBackupVerified||!st.calImage;
+  $('nvmProgram').textContent=expert.restoreReady()?'Backup auf diesem Chip wiederherstellen':'Kalibrierung dauerhaft ins NVM schreiben';
+  $('nvmConfirmWord').placeholder=expert.restoreReady()?'WIEDERHERSTELLEN':'PROGRAMMIEREN';
   const unlocked=[true,true,true,calEndpointsReady(),ready&&st.calStaged,!workflowGate(5)];
   document.querySelectorAll('[data-step]').forEach(b=>{
    const index=Number(b.dataset.step);b.classList.toggle('locked',!unlocked[index]);
