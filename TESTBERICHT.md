@@ -1,3 +1,14 @@
+## Automatische AFE-RAM-Übernahme beim Stufenklick (11.11.2026)
+
+- PGA1, Offset und PGA2 in Originalreihenfolge; angezeigte physikalische Werte ohne Stufencodes
+- Bei jedem Pfeilklick wird in der Simulation genau ein AFE-RAM-Schreibvorgang mit Register-Rücklesung ausgeführt (3 Klicks → 3 Schreibvorgänge)
+- Bestehende Boot-/Kommunikationsregister werden vor/nach dem Schreiben verglichen
+- Erfolgsfall: Live-ADC-Anzeige wird aktualisiert und ältere Kalibrierpunkte werden ungültig
+- Fehlerfall: verweigerter RAM-Zugriff erzeugt keine zusätzliche Registeränderung und die bisherige Einstellung bleibt erhalten; bei unklarem Schreibstatus werden Messpunkte verworfen
+- Während des Schreibens sind weitere Klicks gesperrt; Live-Polling wird nach Abschluss fortgesetzt, wenn es vorher aktiv war
+- Manueller «Ins RAM übernehmen»-Knopf entfernt, da nicht mehr erforderlich
+- Noch nicht am physischen E703.11 getestet; der permanente NVM-Schreibweg wurde nicht geändert
+
 ## AFE-Schrittsteuerung und Grenzen – UI-Test 11.11.2026
 
 - Diskrete Stufen PGA1 (0–3), PGA2 (0–8), Offset (−8 bis +8) statt Slider
