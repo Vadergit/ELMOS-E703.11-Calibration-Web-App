@@ -251,6 +251,7 @@ if(typeof document!=='undefined') (function UI(){
   const verified=(verificationComplete()||expert.restoreReady()||expert.outputReady())&&!!st.port&&!!st.chip&&!st.nvmWorking&&!st.writing&&!st.calTask;
   $('nvmBackupRead').disabled=!verificationComplete()||!st.port||!st.chip||st.nvmWorking||st.writing||st.calTask;
   $('nvmBackupDownload').disabled=!st.nvmBackupVerified||!st.nvmBackup;
+  $('nvmAutoBackup').disabled=st.nvmWorking||st.writing||st.calTask;
   $('nvmPrepare').disabled=!verificationComplete()||!st.nvmBackupVerified||!!st.restorePlan||!!st.outputOnlyPlan;
   const restoring=expert.restoreReady(),outputOnly=expert.outputReady();
   $('nvmProgram').textContent=restoring?'Backup auf diesem Chip wiederherstellen':outputOnly?'AODO-Ausgangseinstellungen im NVM speichern':'Kalibrierung dauerhaft ins NVM schreiben';
