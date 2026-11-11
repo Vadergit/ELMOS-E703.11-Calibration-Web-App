@@ -1,0 +1,75 @@
+<!doctype html>
+<html lang="de-CH"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>ELMOS SSP3 · USB-Diagnose</title>
+<style>
+:root{font:15px/1.5 system-ui,-apple-system,"Segoe UI",Arial,sans-serif;color:#263648;background:#f5f7fa}
+*{box-sizing:border-box}body{margin:0}main{max-width:820px;margin:35px auto;padding:0 20px}h1{font-size:24px;margin:0 0 8px}h2{font-size:17px;margin-top:28px}
+.card{background:white;border:1px solid #dce4ed;padding:22px;border-radius:14px;margin:18px 0}
+.note{color:#667789}button{font:inherit;cursor:pointer;background:#2465a3;border:1px solid #2465a3;border-radius:8px;color:#fff;padding:11px 14px;margin:5px 7px 5px 0}
+button.alt{background:#fff;color:#2465a3}button:disabled{opacity:.45;cursor:not-allowed}
+pre{white-space:pre-wrap;overflow-wrap:anywhere;background:#101c2c;color:#d8edff;border-radius:10px;padding:14px;min-height:140px;font:12px/1.55 ui-monospace,Consolas,monospace}
+a{color:#2465a3}code{background:#edf3fa;padding:2px 4px;border-radius:3px}
+</style></head><body><main>
+<p><a href="./">← Zur Web-App</a></p><h1>SSP3 · USB-Diagnose</h1>
+<p class="note">Der Test prüft ausschliesslich, ob Chrome den FTDI-COM-Port öffnen kann. Er sendet keine Befehle und verändert weder RAM noch NVM oder Bootregister.</p>
+<section class="card">
+<h2>1. USB-Port wählen und öffnen</h2>
+<p>SSP3 anschliessen, Original-PSSC-GUI schliessen. Für einen bereits freigegebenen Port «Bekannten Port testen» verwenden.</p>
+<button id="pick">USB-Port auswählen &amp; testen</button>
+<button id="known" class="alt">Bekannten Port testen</button>
+<button id="close" class="alt" disabled>Port schliessen</button>
+<h2>2. Ergebnis</h2>
+<p id="result">Noch kein Test gestartet.</p>
+<pre id="log" aria-live="polite"></pre>
+<button id="copy" class="alt">Diagnose kopieren</button>
+</section>
+<section class="card">
+<h2>Wenn das Öffnen fehlschlägt</h2>
+<p>Chrome zeigt bei einem fehlgeschlagenen Öffnen häufig nur «NetworkError» an. Der genaue Windows-Grund ist daraus nicht ersichtlich. Den Fehler auf <code>chrome://device-log/</code> nachstellen (diese Adresse in einem neuen Chrome-Tab öffnen).</p>
+<p>Alternativ lässt sich COM8 ohne Elmos-Kommunikation kurz mit PowerShell testen. Ist PowerShell erfolgreich und Chrome nicht, prüfen wir gezielt den Chrome-Zugriff.</p>
+<p class="note">Keine FTDI-Treiber oder EEPROM-Einstellungen verändern, bevor der Fehler eingegrenzt ist.</p>
+</section>
+</main><script>
+const $=id=>document.getElementById(id);
+let port=null,busy=false;
+const lines=[];
+const stamp=()=>new Date().toLocaleTimeString("de-CH");
+function log(message){lines.push("["+stamp()+"] "+message);$("log").textContent=lines.join("\n");}
+function info(p){try{const d=p.getInfo();return "VID="+(d.usbVendorId??"?").toString(16).padStart(4,"0")+" PID="+(d.usbProductId??"?").toString(16).padStart(4,"0")}catch(e){return "Portdetails nicht verfügbar"}}
+function controls(){ $("pick").disabled=busy;$("known").disabled=busy;$("close").disabled=busy||!port?.readable; }
+async function test(p){
+  if(busy)return;busy=true;controls();port=p;
+  log("Gewählter Port: "+info(p));log("Öffnen mit baudRate=115200 (Minimaloptionen, 8N1 standardmässig).");
+  try{
+    await p.open({baudRate:115200});
+    log("ERFOLG: Chrome konnte den Port öffnen.");
+    $("result").textContent="Port kann geöffnet werden. Falls die Haupt-App trotzdem scheitert, liegt ein Unterschied im dortigen Verbindungsablauf vor.";
+    await p.close();log("Port wieder geschlossen. Keine Bytes gesendet.");port=null;
+  }catch(e){
+    log("FEHLER: "+(e?.name??"Error")+" | "+(e?.message??String(e)));
+    $("result").textContent="Chrome konnte den COM-Port nicht öffnen. Mit diesem isolierten Test ist das Problem nicht durch Elmos-Befehle verursacht.";
+    try{if(p.readable||p.writable){await p.close();log("Port nach Fehler geschlossen.")}}catch(closeError){log("Schliessen: "+String(closeError))}
+    port=null;
+  }finally{busy=false;controls()}
+}
+$("pick").addEventListener("click",async()=>{
+  if(busy)return;
+  try{if(!("serial" in navigator))throw Error("Web Serial nicht verfügbar");
+    let p=await navigator.serial.requestPort();await test(p);
+  }catch(e){log("Portauswahl: "+(e?.name??"Error")+" | "+(e?.message??String(e)))}
+});
+$("known").addEventListener("click",async()=>{
+  if(busy)return;
+  try{const ps=await navigator.serial.getPorts();log("Freigegebene Ports: "+ps.length);
+    if(ps.length===0)throw Error("Kein Port freigegeben – bitte zuerst auswählen.");
+    const ft=ps.filter(p=>p.getInfo().usbVendorId===0x0403);
+    const chosen=ft.length===1?ft[0]:(ps.length===1?ps[0]:null);
+    if(!chosen)throw Error("Mehrere Ports. Bitte manuell auswählen.");
+    await test(chosen);
+  }catch(e){log("Bekannter Port: "+(e?.name??"Error")+" | "+(e?.message??String(e)))}
+});
+$("close").addEventListener("click",async()=>{if(!port||busy)return;try{await port.close();log("Port manuell geschlossen.")}catch(e){log("Schliessen: "+e.message)}finally{port=null;controls()}});
+$("copy").addEventListener("click",async()=>{try{await navigator.clipboard.writeText(lines.join("\n"));$("result").textContent="Diagnose kopiert."}catch(e){$("result").textContent="Kopieren nicht möglich: "+e.message}});
+log("Chrome: "+navigator.userAgent);
+log("Sicherer Kontext: "+window.isSecureContext+" | Web Serial: "+("serial" in navigator));
+</script></body></html>
