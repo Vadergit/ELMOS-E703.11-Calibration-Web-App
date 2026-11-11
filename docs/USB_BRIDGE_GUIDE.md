@@ -15,7 +15,7 @@ Der Kalibrierassistent nutzt standardmässig weiterhin das **ELMOS SSP3**. In de
 
 **Wichtig:** Das Beispiel ist keine fertige E703.11-Programmer-Firmware. Es implementiert **weder den Elmos-1-Wire/PLC-Bus noch die EEPROM-Programmierung**. Ein serieller USB-Port alleine ersetzt die zeitkritische Hardware-Kommunikation nicht.
 
-Die [vollständige ESP32-/Arduino-Boardliste](ESP_BOARD_OPTIONS.md) enthält die Belegung für AODO / 1-Wire **und** I²C, optionale Empfangspins, I/O-Spannungen und Hersteller-Pinouts.
+Die [vollständige ESP32-/Arduino-Boardliste](ESP_BOARD_OPTIONS.md) enthält die Belegung für AODO / 1-Wire **und** I²C, I/O-Spannungen und Hersteller-Pinouts.
 
 **Für den bereits vorhandenen ESP32-C3 SuperMini:** Statt des allgemeinen Arduino-Beispiels die neue [C3-SuperMini-Firmware](../firmware/esp32c3_supermini/esp32c3_supermini.ino) verwenden. Arduino IDE → Board **ESP32C3 Dev Module**, **USB CDC On Boot: Enabled**. Nach dem Flashen `BRIDGE_INFO` senden. Erwartet wird `# E70311-BRIDGE V1 CAPS=CDC_ONLY`.
 
@@ -23,9 +23,9 @@ Die [vollständige ESP32-/Arduino-Boardliste](ESP_BOARD_OPTIONS.md) enthält die
 
 Der Anschluss am **E703.11 für 1-Wire heisst AODO** (nicht A0D0). Für **I²C** besitzt der Sensor die Anschlüsse **MISO/SDA (Daten)** und **SCK/SCL (Takt)**; ausserdem ist **NCS/SA0** für den Modus beziehungsweise die Adressbeschaltung zu berücksichtigen.
 
-Die Tabellen zeigen die **MCU-Pinseite für beide Schnittstellen**. **AODO / 1-Wire** bedeutet hier einen vorgeschlagenen GPIO für eine **noch zu entwickelnde bidirektionale Schutz-/Treiberschaltung**. I²C-SDA/SCL sind **zwei andere Pins** und dürfen erst nach Prüfung der Pull-ups, Busspannungen und Chip-Konfiguration verwendet werden.
+Die Tabellen zeigen die **MCU-Pinseite für beide Schnittstellen**. **AODO / 1-Wire** verwendet einen einzelnen vorgeschlagenen GPIO für Senden und Empfangen über eine **noch zu entwickelnde bidirektionale Schutz-/Treiberschaltung**. I²C-SDA/SCL sind **zwei andere Pins** und dürfen erst nach Prüfung der Pull-ups, Busspannungen und Chip-Konfiguration verwendet werden.
 
-Die **vollständige Liste aller 27 Boards** mit optionalem 1-Wire-RX, USB-Pins, Boardbesonderheiten, Hersteller-Pinouts und Verdrahtungsbeispiel steht in [**ESP32-/Arduino-Boards: AODO / 1-Wire und I²C**](ESP_BOARD_OPTIONS.md).
+Die **vollständige Liste aller 27 Boards** mit AODO-/1-Wire-GPIO, USB-Pins, Boardbesonderheiten, Hersteller-Pinouts und Verdrahtungsbeispiel steht in [**ESP32-/Arduino-Boards: AODO / 1-Wire und I²C**](ESP_BOARD_OPTIONS.md).
 
 ### ESP32 / ESP8266
 
