@@ -20,8 +20,6 @@
 | Bereich | Aktueller Stand |
 | --- | --- |
 | Verbindung | Browserbasiert über **Chrome / Web Serial**, FTDI / SSP3, standardmässig **1-Wire (AODO)**; I²C/SPI-Optionen |
-
-Antwortet das SSP3, aber die Chipprüfung schlägt beim ersten Versuch fehl, führt die App automatisch **genau einen** USB-Trenn-/Neuaufbau durch. Nach einem weiteren Misserfolg stoppt sie mit Warnung und lässt den SSP3-Port für die Diagnose geöffnet. Das ersetzt keinen Sensor-Power-Cycle bei einem begrenzten 1-Wire-Startfenster.
 | Live-Werte | Obere Statusleiste mit **ADC_S**, **ADC_T**, **DSP_S** und umgerechnetem Sensorwert; Live-Status und letzter Messzeitpunkt in allen sieben Schritten |
 | AFE-Abgleich | Diskrete **− / +** Tasten in der Reihenfolge **PGA1 → Offset → PGA2**. Jeder Klick schreibt die neue Einstellung direkt ins **RAM** und liest sie zurück. Kein NVM-Schreiben |
 | Messpunkte | **2–10 Kalibrierpunkte** (Standard 2), eigene Namen, Referenzen und Temperaturen; **1–100 Samples** pro Punkt (Standard 12), Median und Streuungsprüfung |
@@ -33,6 +31,8 @@ Antwortet das SSP3, aber die Chipprüfung schlägt beim ersten Versuch fehl, fü
 | Expertenmodus | Über **⚙ Einstellungen → Expertenparameter freischalten** aktivieren. Zusätzliche, selten genutzte Einstellungen werden **direkt im passenden Reiter** eingeblendet (AFE, Ausgang, EEPROM Viewer); kein separates Fenster |
 | EEPROM Viewer | **Eigenständiger Navigationstab** ausserhalb des siebenschrittigen Abgleichs. 64 NVM-/EEPROM-Wörter mit Wortadresse, Bitfield, Hex/Dezimalwert und Schutzstatus; Suche und chipgebundener Backup-Export; Tabelle nur lesbar |
 | Config-Vorlagen | **JSON speichern/laden:** AFE-Gains und Offset, DSP- und Messvorgaben, Ausgang und S0/S1. Keine Seriennummern, Werksregister, EEPROM-Abbilder oder sensorspezifischen Koeffizienten. AFE-Übernahme erst nach separatem RAM-Klick |\n| Diagnose | Register-/Chipanzeige, technisches Log, Demo-Modus und Dokumentation |
+
+Antwortet das SSP3, aber die Chipprüfung schlägt beim ersten Versuch fehl, führt die App automatisch **genau einen** USB-Trenn-/Neuaufbau durch. Nach einem weiteren Misserfolg stoppt sie mit Warnung und lässt den SSP3-Port für die Diagnose geöffnet. Das ersetzt keinen Sensor-Power-Cycle bei einem begrenzten 1-Wire-Startfenster.
 
 Für Entwickler gibt es **25 Software-Regressionstests** (Stand v0.4.1) mit Node.js: `node --test tests/safety.test.cjs`. Geprüft werden Boot-/Kommunikationsschutz, One Wire only, S0/S1-Skalierung, die sieben Kalibrierschritte, der separate EEPROM-Reiter, das Einblenden der Expertenparameter und der sichere Config-Import/-Export. Die Tests ersetzen keine Browser- und Hardwareprüfung.
 
