@@ -71,7 +71,7 @@ const ELMOS_GUIDED=(()=>{
    '<div id="gwPage4" class="gw-page" hidden><div class="gw-points-layout"><div class="gw-point-nav" id="gwPointNav"></div><div class="gw-tile gw-control"><div id="gwCurrentSetpoint" class="gw-summary"></div><div id="gwPointHost"></div><div id="gwSampleStatus"></div><div id="gwPointMessages"></div></div></div><div class="gw-alert">Der angezeigte Druck und die Temperatur sind <b>Referenz-Sollwerte</b>. Sie werden nicht automatisch erzeugt. Wähle den tatsächlichen Sollwert am Druckkalibrator und stelle die Temperaturkammer stabil ein, bevor du auf «aufnehmen» klickst.</div></div>'+
    '<div id="gwPage5" class="gw-page" hidden><div class="gw-columns"><div class="gw-tile gw-control"><h3>Polynom und DSP-Ziel</h3><div class="gw-fields gw-3" id="gwFitFields"></div><div class="gw-panel-actions" id="gwFitActions"></div><div id="gwFitStatuses"></div><div id="gwFitDetails"></div></div><div class="gw-tile is-soft"><h3>Sicherer Ablauf</h3><p>1. Koeffizienten aus den gemessenen Punkten berechnen.</p><p>2. Zahlenbereich und Fehler kontrollieren.</p><p>3. Berechnete Werte nur ins RAM übertragen und rücklesen.</p><div class="gw-alert">Der berechnete Fit ist noch keine Hardware-Verifikation. Im nächsten Schritt wird DSP_S an unabhängigen Punkten geprüft.</div></div></div></div>'+
    '<div id="gwPage6" class="gw-page" hidden><div class="gw-columns"><div class="gw-tile gw-control"><h3>Unabhängige Prüfpunkte</h3><div class="gw-fields gw-3" id="gwVerifyFields"></div><div class="gw-panel-actions" id="gwVerifyActions"></div><div id="gwVerifyStatuses"></div><details><summary>Prüfprotokoll</summary><div id="gwVerifyDetails"></div></details></div><div class="gw-tile is-soft"><h3>Was prüfe ich hier?</h3><p>Stelle einen neuen Druck ein, der nicht bloss eine Wiederholung der Kalibrierpunkte ist. Bei Temperaturkompensation sind zusätzliche Prüftemperaturen wichtig.</p><div class="gw-alert warn">Die Live-Anzeige allein zählt nicht als Prüfung. Verwende «Prüfwert aus DSP_S lesen» und kontrolliere die tatsächliche Abweichung.</div></div></div></div>'+
-   '<div id="gwPage7" class="gw-page" hidden><div class="gw-columns"><div class="gw-tile gw-control"><h3>Ausgangsart und Zielwerte</h3><div class="gw-fields" id="gwOutputFields"></div><div class="gw-fields gw-3" id="gwOutputVoltage"></div><div class="gw-panel-actions" id="gwOutputActions"></div><div id="gwOutputStatuses"></div></div><div class="gw-tile is-soft"><h3>Vor dem Speichern</h3><p>Bei 5 V: 0.5–4.5 V für den normalen ratiometrischen Analogausgang. Bei anderer VDD entsprechend 10–90 % einstellen.</p><p>Für reine Ausgangsänderungen zunächst das Original-NVM mit CRC und Chip-UID lesen.</p><div class="gw-alert warn">One Wire only ist nur möglich, wenn dauerhafter PLC-Zugriff bereits im Original-NVM vorhanden ist. Boot-/Kommunikationsregister werden nicht automatisch verändert.</div></div></div></div>'+
+   '<div id="gwPage7" class="gw-page" hidden><div class="gw-columns"><div class="gw-tile gw-control"><h3>Ausgangsart und Zielwerte</h3><div class="gw-fields" id="gwOutputFields"></div><div class="gw-fields gw-3" id="gwOutputVoltage"></div><div class="gw-advanced" id="gwAdvancedOutput" hidden><details><summary>Expertenparameter · AODO Gain/Offset</summary><div class="gw-fields" id="gwExpertOutputFields"></div></details></div><div class="gw-panel-actions" id="gwOutputActions"></div><div id="gwOutputStatuses"></div></div><div class="gw-tile is-soft"><h3>Vor dem Speichern</h3><p>Bei 5 V: 0.5–4.5 V für den normalen ratiometrischen Analogausgang. Bei anderer VDD entsprechend 10–90 % einstellen.</p><p>Für reine Ausgangsänderungen zunächst das Original-NVM mit CRC und Chip-UID lesen.</p><div class="gw-alert warn">One Wire only ist nur möglich, wenn dauerhafter PLC-Zugriff bereits im Original-NVM vorhanden ist. Boot-/Kommunikationsregister werden nicht automatisch verändert.</div></div></div></div>'+
    '<div id="gwPage8" class="gw-page" hidden><div class="gw-columns"><div class="gw-tile gw-control"><h3>Änderungen prüfen und bestätigen</h3><div id="gwNvmBackup"></div><div class="gw-panel-actions" id="gwNvmPrepare"></div><div id="gwNvmMessages"></div><div class="gw-fields" id="gwNvmUID"></div><div class="gw-panel-actions" id="gwNvmWrite"></div><div id="gwNvmDetails"></div></div><div class="gw-tile is-warning"><h3>Wichtig vor dem NVM-Schreiben</h3><p>Ein Stromunterbruch während der Programmierung kann den Sensor unbrauchbar machen.</p><p>Prüfe Chip-UID und die Änderungsübersicht. Zuerst an einem entbehrlichen Testchip validieren.</p><p>Der Button ist nur freigegeben, wenn die bestehende Sicherheitslogik alle Voraussetzungen bestätigt.</p></div></div></div>'+
    '<div id="gwPage9" class="gw-page" hidden><div class="gw-tile is-soft"><h3>Kalibrierung im Sensor bestätigt</h3><p>Führe jetzt einen echten Power-Cycle durch und prüfe die Kommunikation, CRC und Ausgangsspannung erneut. Erst dann ist der Hardwaretest abgeschlossen.</p><div class="gw-panel-actions" id="gwPostBoot"></div><button class="gw-secondary-link" id="gwBackClassic" type="button">Zur vollständigen Expertenansicht wechseln</button></div></div>'+
    '<div id="gwMessage" class="gw-alert" hidden></div><footer class="gw-footer"><small id="gwFooterHint">E703.11 · Beta · Nur über den Testbranch</small><div class="gw-actions"><button id="gwClassic" type="button">Klassische Ansicht</button><button id="gwPrevious" type="button">Zurück</button><button id="gwNext" class="primary" type="button">Weiter</button></div></footer></main></div>';
@@ -102,9 +102,9 @@ const ELMOS_GUIDED=(()=>{
   moveId('calVerifyList','gwVerifyDetails');
   moveLabel('expertOutputMode','gwOutputFields');moveId('expertPwmPeriodField','gwOutputFields');
   moveLabel('expertScaleEnable','gwOutputFields');
-  for(const id of ['expertScaleGain','expertScaleOffset'])moveLabel(id,'gwOutputFields');
+  for(const id of ['expertScaleGain','expertScaleOffset'])moveLabel(id,'gwExpertOutputFields');
   for(const id of ['expertOutputPreset','expertOutputStage','outputNvmRead'])moveId(id,'gwOutputActions');
-  for(const id of ['expertOutputMsg','psscScalingPreview','outputOneWireStatus','psscOneWireOnlyStatus'])moveId(id,'gwOutputStatuses');
+  for(const id of ['expertOutputMsg','psscScalingPreview','outputOneWireStatus','psscOneWireOnlyStatus','outputModeHint','psscCurrentOutputStatus'])moveId(id,'gwOutputStatuses');
   moveLabel('nvmAutoBackup','gwNvmBackup');
   moveId('nvmPrepare','gwNvmPrepare');moveId('nvmProgress','gwNvmPrepare');
   for(const id of ['nvmMsg','nvmUidHint','nvmWritePrereq'])moveId(id,'gwNvmMessages');
@@ -125,6 +125,8 @@ const ELMOS_GUIDED=(()=>{
   $('gwClassic').addEventListener('click',close);$('gwBackClassic').addEventListener('click',close);
   document.querySelectorAll('[data-gw-side]').forEach(button=>button.addEventListener('click',()=>{const index=Number(button.dataset.gwSide);if(visited.has(index)){stage=index;render()}}));
   subscribe($('configApply'),'click',syncImportedConfig);
+  subscribe($('expertMode'),'change',renderOutputOptions);
+  subscribe($('expertOutputMode'),'change',renderOutputOptions);
   for(const id of ['pmin','pmax','calUnit','calSampleCount','calDspLimit'])subscribe($(id),'change',renderPlan);
   for(const id of ['capLo','capHi',...Array.from({length:8},(_,k)=>'calExtra'+(k+1)+'Capture')]){
    subscribe($(id),'click',()=>observeCapture());
@@ -257,6 +259,12 @@ const ELMOS_GUIDED=(()=>{
   if(point.slot==='hi')return [...$('gwPointHost').querySelectorAll('.cal-point-row:not([data-cal-extra])')].at(-1);
   return $('calExtra'+point.index+'Row');
  }
+ function renderOutputOptions(){
+  if(!mode)return;
+  $('gwAdvancedOutput').hidden=!$('expertMode').checked;
+  const analog=['keep','1','2','3'].includes($('expertOutputMode').value);
+  $('gwOutputVoltage').hidden=!analog;
+ }
  function renderCapture(){
   if(!plan)return;
   const nav=$('gwPointNav');nav.replaceChildren();
@@ -329,7 +337,7 @@ const ELMOS_GUIDED=(()=>{
   if(stage===1)renderPlan();
   if(stage===2){for(const id of ['psscVdd','psscS0','psscS1'])rehome(id,'gwVoltageFields');renderPlan()}
   if(stage===4)renderCapture();
-  if(stage===7){for(const id of ['psscVdd','psscS0','psscS1'])rehome(id,'gwOutputVoltage')}
+  if(stage===7){for(const id of ['psscVdd','psscS0','psscS1'])rehome(id,'gwOutputVoltage');renderOutputOptions()}
   msg('');
   updateUI();
  }
