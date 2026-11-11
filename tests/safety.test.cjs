@@ -426,3 +426,28 @@ test('USB bridge fails closed until a truly compatible PLC firmware is available
  assert.ok(!fw.includes('digitalWrite('));
  assert.ok(!fw.includes('CAPS=PLC_READ,PLC_WRITE,NVM'));
 });
+
+test('Guided complex pressure/temperature grids remain inside existing calibration engine limits',()=>{
+ const p33=GUIDED_PLAN.create({pCount:3,tCount:3,temperatures:[-10,25,65],pmin:0,pmax:16});
+ const p42=GUIDED_PLAN.create({pCount:4,tCount:2,temperatures:[5,60],pmin:0,pmax:12});
+ assert.equal(p33.total,9);assert.equal(p33.orderS,2);assert.equal(p33.orderT,2);
+ assert.equal(p42.total,8);assert.equal(p42.orderS,3);assert.equal(p42.orderT,1);
+ assert.equal(p33.points.at(-1).slot,'hi');
+ assert.equal(p42.points.filter(p=>p.slot.startsWith('extra')).length,6);
+});
+test('Guided and compact modes restore the original controls before switching',()=>{
+ const guided=read('guided.js'),compact=read('compact.js');
+ assert.ok(guided.includes('isOpen:()=>mode'));
+ assert.ok(compact.includes('window.ELMOS_GUIDED?.isOpen?.()'));
+ assert.ok(compact.includes('window.ELMOS_GUIDED.close()'));
+ assert.ok(guided.includes("ELMOS_COMPACT.set(false)"));
+ assert.ok(guided.includes("const subscriptions=[]"));
+ assert.ok(guided.includes("el.removeEventListener(type,handler)"));
+});
+test('Experimental bridge never initiates PLC traffic, even with advertised full capabilities',()=>{
+ const app=read('app.js');
+ assert.ok(app.includes('const BRIDGE_SENSOR_IO_VALIDATED=false'));
+ assert.ok(app.includes("if(!advertised||!BRIDGE_SENSOR_IO_VALIDATED)"));
+ assert.ok(app.includes("if(!bridgeReady)return;"));
+ assert.ok(app.includes("if(st.adapterKind==='bridge')throw Error('USB-Bridge ist nicht für dauerhaftes NVM-Schreiben"));
+});
