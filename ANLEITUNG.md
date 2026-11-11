@@ -1,6 +1,6 @@
 # Bedienungsanleitung – ELMOS E703.11
 
-**Dokumentationsstand v0.4.1** Kalibrierassistent
+**Dokumentationsstand v0.4.2** Kalibrierassistent
 
 **[Web-App öffnen](https://vadergit.github.io/ELMOS-E703.11-Calibration-Web-App/)** · **[Projektübersicht](README.md)** · **[Config-Dateien & EEPROM Viewer](CONFIG_DATEIEN.md)** · **[Testbericht](TESTBERICHT.md)**
 
@@ -24,6 +24,8 @@ In **Schritt 1 – Verbindung**:
 **Wenn SSP3 antwortet, der E703.11 aber nicht:** Nach der ersten fehlgeschlagenen Chiperkennung trennt die App den seriellen Port einmal automatisch und verbindet ihn nach einer kurzen Pause neu. Firmware, SSP3-Schnittstelle und Chip werden nochmals geprüft. Bleibt der Chip nicht erreichbar, endet der automatische Versuch mit einer Warnung, der SSP3-Port bleibt für die manuelle Fehlersuche geöffnet. Es erfolgt **kein automatischer Reset der Sensorversorgung** und keine Änderung von Chipregistern oder NVM. Ein begrenztes 1-Wire-Startfenster lässt sich durch blosses USB-Neuverbinden nicht immer beheben.
 
 **Wenn sich COM öffnen nicht lässt:** Die Auswahl eines FTDI-Adapters bedeutet noch nicht, dass Chrome den Port öffnen kann. Zum Beispiel andere serielle Programme schliessen, COM-Zuordnung und VCP-Treiber prüfen; eine Fehlermeldung bei `SerialPort.open()` entsteht vor einer eigentlichen E703.11-Protokollprüfung. Der technische Diagnosemodus kann helfen.
+
+**EEPROM Viewer:** Im separaten Navigationstab können alle 64 Wörter mit der zusätzlichen Spalte **Funktion** gelesen werden. Ein Klick auf den blauen Wortindex öffnet die Registerbeschreibung mit EEPROM-Wortindex (0x00–0x3F), EEPROM-Byteadresse (Wortindex × 2), zugeordnetem RAM-Register (falls dokumentiert), Rohwert, Signed-Wert und interpretierter Q3.12-/Q0.15-Zahl. Das Suchfeld durchsucht auch Funktionsbeschreibungen wie «Offset», «Temperatur» oder «1-Wire». Bei aktiviertem Expertenmodus erscheinen zusätzlich die bekannten Bitpositionen und zugehörigen Formeln; unbestätigte Bitfelder werden bewusst nicht dekodiert. Dieser Viewer löst durch Öffnen einer Zeile **keinen Chipzugriff und keinen Schreibvorgang** aus.
 
 ### Config-Vorlagen in «USB & Chip»
 
