@@ -75,7 +75,7 @@ if(typeof document!=='undefined') (function UI(){
  }
  function renderFlowState(){
   updateVerificationProgress();
-  const unlocked=[true,true,true,calEndpointsReady(),!!st.calfit&&st.calStaged,verificationComplete()];
+  const unlocked=[true,true,true,calEndpointsReady(),calEndpointsReady()&&!!st.calfit&&st.calStaged,!workflowGate(5)];
   document.querySelectorAll('[data-step]').forEach(b=>{const index=Number(b.dataset.step);b.classList.toggle('locked',!unlocked[index]);b.setAttribute('aria-disabled',String(!unlocked[index]));b.title=unlocked[index]?'':workflowGate(index)});
   for(const btn of document.querySelectorAll('[data-next]')){const index=Number(btn.dataset.next);if(index>2){btn.disabled=!unlocked[index];btn.title=unlocked[index]?'':workflowGate(index)}else btn.disabled=false}
  }
