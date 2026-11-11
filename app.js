@@ -1353,7 +1353,39 @@ if(typeof document!=='undefined') (function UI(){
  const tip=$('tip');document.querySelectorAll('.help').forEach(el=>{el.setAttribute('tabindex','0');el.addEventListener('mouseenter',e=>tooltip(e,el));el.addEventListener('mousemove',e=>placeTip(e));el.addEventListener('mouseleave',()=>tip.classList.remove('visible'));el.addEventListener('focus',e=>tooltip(e,el));el.addEventListener('blur',()=>tip.classList.remove('visible'))});function tooltip(e,el){if(!tipEnabled)return;tip.textContent=HELP[el.dataset.help]||'';tip.classList.add('visible');placeTip(e)}function placeTip(e){const rect=e.target?.getBoundingClientRect?.()||{left:25,bottom:25};let x=e.clientX||rect.left,y=e.clientY||rect.bottom;tip.style.left=Math.max(10,Math.min(window.innerWidth-330,x+15))+'px';tip.style.top=Math.max(10,Math.min(window.innerHeight-150,y+16))+'px'}
  if(!navigator.serial||!window.isSecureContext){show('connMsg','Für echte USB-Kommunikation Chrome Desktop über HTTPS oder localhost nutzen. Der Demo-Modus funktioniert auch ohne USB.','warn');$('choose').disabled=true;$('auto').disabled=true;}else{setTimeout(()=>auto().catch(()=>{}),350)}
  const expert=ELMOS_EXPERT.init({st,CAL,readReg,nvmScan,download,show,stopLive,startLive,lsGet,lsSet,renderFlowState,verificationComplete});
- // Read-only guide bridge: keeps the wizard independent from SSP3/NVM internals.
+ // Read-only guide bridge: uses the same ADC/DSP samples as the classic UI.
+ function guidedTelemetry(){
+  const online=st.mode==='demo'||!!(st.port&&st.chip);
+  const nowMs=Date.now();
+  const adc=online&&st.adc&&nowMs-st.adc.time<5000?st.adc:null;
+  const dsp=online&&st.dsp&&nowMs-st.dsp.time<5000&&!st.dspError?st.dsp:null;
+  const configured=getActiveDSPRange();
+  const demoRange=st.mode==='demo'&&Number($('pmax').value)>Number($('pmin').value)?
+   {min:Number($('pmin').value),max:Number($('pmax').value),unit:pressureUnit(),kind:'simulation'}:null;
+  const range=demoRange||configured;
+  const sensor=dsp&&range?
+   (st.mode==='demo'?st.pressure:
+    range.min+(dsp.raw+range.limit)/(2*range.limit)*(range.max-range.min)):null;
+  return {
+   online,live:!!st.live,mode:st.mode,adcS:adc?.s??null,adcT:adc?.t??null,adcTC:adc?.tc??null,
+   adcTime:adc?.time??null,dspRaw:dsp?.raw??null,dspTime:dsp?.time??null,
+   sensorValue:Number.isFinite(sensor)?sensor:null,unit:range?.unit??null,
+   range:range?{min:range.min,max:range.max,kind:range.kind}:null,
+   gains:{...st.staged},nvmConfirmed:!!st.nvmDone,
+   // These are editable desired values, NOT voltages measured on AODO.
+   voltageTargets:{vdd:Number($('psscVdd').value),s0:Number($('psscS0').value),s1:Number($('psscS1').value)}
+  };
+ }
+ function guidedAfeStats(since){
+  const start=Number.isFinite(since)?since:Date.now();
+  const selected=st.history.filter(item=>Date.parse(item.time)>=start&&
+   item.source===(st.mode==='demo'?'demo':'usb')&&Number.isFinite(item.adc_s)&&
+   item.gains?.pga1===st.staged.pga1&&item.gains?.pga2===st.staged.pga2&&item.gains?.offset===st.staged.offset);
+  if(!selected.length)return {count:0,min:null,max:null,hub:null,limitExceeded:false};
+  const readings=selected.map(item=>item.adc_s);
+  const min=Math.min(...readings),max=Math.max(...readings);
+  return {count:readings.length,min,max,hub:max-min,limitExceeded:readings.some(v=>Math.abs(v)>25000)};
+ }
  window.ELMOS_GUIDED_API=Object.freeze({
   state:()=>({
    chip:!!st.chip,mode:st.mode,adapter:st.adapterKind,uid:st.uid?.hex||null,
@@ -1364,6 +1396,9 @@ if(typeof document!=='undefined') (function UI(){
   }),
   navigate:n=>step(n),
   refresh:()=>{renderFlowState();renderStatus()},
+  telemetry:()=>guidedTelemetry(),
+  afeStats:since=>guidedAfeStats(since),
+  redraw:()=>draw(),
   startDemo:()=>{
    if(st.port)throw Error('Für den Demo-Wizard zuerst die Hardwareverbindung trennen');
    if(st.mode!=='demo')demo();
