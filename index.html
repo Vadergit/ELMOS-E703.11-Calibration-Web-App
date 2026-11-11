@@ -262,8 +262,29 @@ button.danger{background:#9e3e34;border-color:#9e3e34;color:#fff}button.danger:h
 #settingsOpen.is-expert{background:#eaf3fe;border-color:#75a8d7;color:#164b81}
 #settingsOpen.is-expert::after{content:" · EXPERT";font-size:10px;font-weight:800}
 @media(max-width:620px){.expert-workspace{padding:7px}.expert-workspace-content{max-height:calc(100vh - 14px);padding:12px}.expert-workspace-head{flex-direction:column}#settingsOpen.is-expert::after{content:"★";font-size:12px}}
+/* Normaler Ablauf schlank; erweiterte Details nur beim Expertenmodus. */
+[data-expert-area][hidden],.profile-afe[hidden]{display:none!important}
+.side-separator{height:1px;background:#d9e3ec;margin:14px 8px 10px}
+.viewer-nav .num{font-size:17px}
+.profile-card{margin:16px 0;padding:15px;border:1px solid #cbdbe8;background:#f9fcff;border-radius:10px}
+.profile-card h3{margin:0;font-size:15px}
+.profile-card p{line-height:1.55}
+.profile-card .fieldrow{margin:11px 0}
+.profile-afe{margin:12px 0;border:1px solid #b2d7c2;border-radius:9px;background:#f3fbf6;padding:12px}
+.profile-afe p{margin:8px 0;font-size:12px}
+.eeprom-table-scroll{max-height:63vh;overflow:auto;border:1px solid #cbd8e7;border-radius:9px;margin:10px 0 18px}
+.eeprom-table{width:100%;border-collapse:separate;border-spacing:0;font-size:12px;font-variant-numeric:tabular-nums}
+.eeprom-table th{position:sticky;top:0;background:#edf3f9;text-align:left;color:#34516b;font-weight:700;padding:9px 10px;border-bottom:1px solid #cddbe8;z-index:2}
+.eeprom-table td{padding:7px 10px;border-bottom:1px solid #e3ebf3}
+.eeprom-table tr:hover td{background:#f2f8fc}
+.eeprom-table td:nth-child(1),.eeprom-table td:nth-child(3){font-family:ui-monospace,SFMono-Regular,Consolas,monospace;color:#245c9c}
+.eeprom-table td:nth-child(4){text-align:right}
+.eeprom-table .nvm-factory td{background:#fbf7f7}
+.eeprom-table .nvm-boot td{background:#fffaf0}
+.eeprom-table .nvm-crc td{background:#f4f8f3}
+@media(max-width:660px){.eeprom-table{font-size:11px}.eeprom-table th,.eeprom-table td{padding:6px 5px}.profile-card{padding:10px}}
 </style></head><body><div class="wrap"><header class="top">
-<div class="brand"><div class="logo">E</div><div><div class="eyebrow">E703.11 · PSSC · v0.3.4</div><h1>Kalibrierassistent</h1></div></div>
+<div class="brand"><div class="logo">E</div><div><div class="eyebrow">E703.11 · PSSC · v0.4.0</div><h1>Kalibrierassistent</h1></div></div>
 <div class="live-overview" role="group" aria-label="Sensorwerte · laufende Anzeige">
   <div class="live-kpi" title="Unkompensierter Druck-ADC. Warnung bei Beträgen über 25’000 Digits."><span class="live-kpi-label">ADC_S <span id="liveAdcAlert" class="live-alert" hidden>!</span></span><span class="live-kpi-reading" id="liveAdcS">—</span><span class="live-kpi-unit">Digits</span></div>
   <div class="live-kpi" title="ADC_T · Temperatur-Rohwert, keine direkte Temperatur in °C."><span class="live-kpi-label">ADC_T</span><span class="live-kpi-reading" id="liveAdcT">—</span><span class="live-kpi-unit">Digits</span></div>
@@ -276,7 +297,7 @@ button.danger{background:#9e3e34;border-color:#9e3e34;color:#fff}button.danger:h
 <div class="settings-panel-head"><strong>App-Einstellungen</strong><button type="button" id="settingsClose" aria-label="Einstellungen schliessen">Schliessen ×</button></div>
 <div class="settings-body">
 <label class="toggle"><input id="expertMode" type="checkbox"> <strong>Expertenparameter freischalten</strong></label>
-<div id="expertPanel" class="settings-expert-hint" hidden><strong>Expertenmodus aktiv</strong><p>Registerdiagnose, kompletter NVM-Leser und Chip-Backups sind jetzt unabhängig von den Kalibrierschritten verfügbar. Factory- und Kommunikationsregister bleiben schreibgeschützt.</p><button type="button" id="expertWorkspaceOpen" class="primary" style="margin-top:9px">Expertenwerkzeuge öffnen</button></div>
+<div id="expertPanel" class="settings-expert-hint" hidden><strong>Expertenmodus aktiv</strong><p>Erweiterte Einstellungen erscheinen direkt im passenden Reiter: AFE, Ausgang und EEPROM Viewer. Es wird kein eigenes Fenster geöffnet und kein Register beschrieben.</p></div>
 <label class="toggle"><input id="tooltips" type="checkbox" checked> Hover-Erklärungen aktivieren</label>
 <div class="settings-fields">
 <label>Standard-Samples pro Messpunkt<input id="settingsSampleCount" type="number" min="1" max="100" value="12" step="1"></label>
@@ -286,16 +307,25 @@ button.danger{background:#9e3e34;border-color:#9e3e34;color:#fff}button.danger:h
 <details><summary>Technischer Status & Quellen</summary><div class="inner small muted">ELMOS E703.11, SSP3, Web Serial. Unterstützt: ADC/DSP-Livewerte, AFE-Abgleich, RAM-Prüfung, NVM-Diagnose, CRC und kontrollierte Schreibvorgänge. Factory- und Kommunikationsregister bleiben geschützt. Referenzen: AN 0204, AN 0203, E703.11 Datenblatt 25DS0170E.04. Kein Hardwarefreigabetest für permanente NVM-Programmierung.</div></details>
 </div></section>
 <div id="demoPressurePanel" class="callout warn" hidden><div class="between"><strong>DEMO – simulierter Druck</strong><span><b id="demoPressureVal">5.0</b> bar</span></div><input id="demoPressure" type="range" min="0" max="10" step="0.1" value="5" style="margin-top:10px"></div>
-<div class="content"><aside class="side"><button class="stepBtn active" data-step="0"><span class="num">1</span><span>USB & Chip</span></button><button class="stepBtn" data-step="1"><span class="num">2</span><span>AFE optimieren</span></button><button class="stepBtn" data-step="2"><span class="num">3</span><span>Messpunkte</span></button><button class="stepBtn" data-step="3"><span class="num">4</span><span>Berechnen & RAM</span></button><button class="stepBtn" data-step="4"><span class="num">5</span><span>DSP prüfen</span></button><button class="stepBtn" data-step="5"><span class="num">6</span><span>Ausgang konfigurieren</span></button><button class="stepBtn" data-step="6"><span class="num">7</span><span>NVM programmieren</span></button></aside>
+<div class="content"><aside class="side"><button class="stepBtn active" data-step="0"><span class="num">1</span><span>USB & Chip</span></button><button class="stepBtn" data-step="1"><span class="num">2</span><span>AFE optimieren</span></button><button class="stepBtn" data-step="2"><span class="num">3</span><span>Messpunkte</span></button><button class="stepBtn" data-step="3"><span class="num">4</span><span>Berechnen & RAM</span></button><button class="stepBtn" data-step="4"><span class="num">5</span><span>DSP prüfen</span></button><button class="stepBtn" data-step="5"><span class="num">6</span><span>Ausgang konfigurieren</span></button><button class="stepBtn" data-step="6"><span class="num">7</span><span>NVM programmieren</span></button><div class="side-separator"></div><button class="stepBtn viewer-nav" data-step="7"><span class="num">▤</span><span>EEPROM Viewer</span></button></aside>
 <main class="main"><div id="flowMsg" class="callout warn" hidden></div>
-<section class="card panel" data-panel="0"><div class="eyebrow">Schritt 1 · Verbindung</div><h2>Eval-Board anschliessen</h2><p class="muted">Chrome verbindet sich direkt über USB mit dem FTDI-Adapter des SSP3. Standard ist <b>1-Wire über AODO</b>.</p><div class="fieldrow"><label>Chip-Schnittstelle <span class="help" data-help="interface">?</span><select id="iface"><option value="plc">1-Wire · AODO (Standard)</option><option value="i2c">I²C · SCL / SDA</option><option value="spi">SPI · Testmodus</option></select></label><label>USB-Baudrate <span class="help" data-help="baud">?</span><select id="baud"><option>115200</option><option>57600</option><option>230400</option><option>460800</option><option>921600</option></select></label></div><div class="flex connectionActions"><button class="primary" id="choose">USB-Port auswählen</button><button id="auto">Bekannten Port verbinden</button><button id="disconnect" disabled>Trennen</button><button id="demo">Demo starten</button></div><div id="connMsg" class="callout">Noch nicht verbunden. Der erste USB-Zugriff erfordert eine einmalige Portfreigabe durch Chrome.</div><p class="small muted">COM-Port lässt sich nicht öffnen? <a href="usb-diagnose.html" target="_blank" rel="noopener">Isolierten USB-Test öffnen (ohne Chipzugriff)</a></p><div class="triple"><div class="stat"><small>SSP3-Firmware</small><strong id="fw" style="font-size:17px">—</strong></div><div class="stat"><small>Chip-Schnittstelle</small><strong id="ifaceLabel" style="font-size:19px">1-Wire</strong></div><div class="stat"><small>Chip-Register</small><strong id="chip" style="font-size:19px">—</strong></div></div><details><summary>Verkabelung und Startfenster</summary><div class="inner"><p><b>1-Wire:</b> VDD, GND, AODO. <b>I²C:</b> VDD, GND, SCL, SDA und korrekte SA0-/EOC-Beschaltung. Die App ändert mit IF_CFG nur den SSP3, nicht die Bootkonfiguration des Chips.</p><p>Einige 1-Wire-Konfigurationen reagieren nur kurz nach dem Einschalten. Falls der Chip nicht antwortet, Versorgung und Pin-Beschaltung prüfen. Die App führt <b>keinen automatischen Power-Cycle</b> durch.</p><p><b>USB-Port kann nicht geöffnet werden?</b> Zuerst die originale PSSC-GUI und andere COM-Port-Programme schliessen. Im Windows-Gerätemanager unter «Anschlüsse (COM & LPT)» muss ein «USB Serial Port (COMx)» ohne Warnsymbol angezeigt werden. Falls nötig das Eval-Board kurz neu einstecken und «Bekannten Port verbinden» erneut versuchen. Fehlender COM-Port: FTDI-VCP-Treiber prüfen (Details im README).</p></div></details><div class="nav"><span class="muted small">Daten bleiben lokal im Browser.</span><button class="primary" data-next="1">Weiter zur AFE</button></div></section>
+<section class="card panel" data-panel="0"><div class="eyebrow">Schritt 1 · Verbindung</div><h2>Eval-Board anschliessen</h2><p class="muted">Chrome verbindet sich direkt über USB mit dem FTDI-Adapter des SSP3. Standard ist <b>1-Wire über AODO</b>.</p><div class="fieldrow"><label>Chip-Schnittstelle <span class="help" data-help="interface">?</span><select id="iface"><option value="plc">1-Wire · AODO (Standard)</option><option value="i2c">I²C · SCL / SDA</option><option value="spi">SPI · Testmodus</option></select></label><label>USB-Baudrate <span class="help" data-help="baud">?</span><select id="baud"><option>115200</option><option>57600</option><option>230400</option><option>460800</option><option>921600</option></select></label></div><div class="flex connectionActions"><button class="primary" id="choose">USB-Port auswählen</button><button id="auto">Bekannten Port verbinden</button><button id="disconnect" disabled>Trennen</button><button id="demo">Demo starten</button></div><div id="connMsg" class="callout">Noch nicht verbunden. Der erste USB-Zugriff erfordert eine einmalige Portfreigabe durch Chrome.</div><p class="small muted">COM-Port lässt sich nicht öffnen? <a href="usb-diagnose.html" target="_blank" rel="noopener">Isolierten USB-Test öffnen (ohne Chipzugriff)</a></p><div class="triple"><div class="stat"><small>SSP3-Firmware</small><strong id="fw" style="font-size:17px">—</strong></div><div class="stat"><small>Chip-Schnittstelle</small><strong id="ifaceLabel" style="font-size:19px">1-Wire</strong></div><div class="stat"><small>Chip-Register</small><strong id="chip" style="font-size:19px">—</strong></div></div><details><summary>Verkabelung und Startfenster</summary><div class="inner"><p><b>1-Wire:</b> VDD, GND, AODO. <b>I²C:</b> VDD, GND, SCL, SDA und korrekte SA0-/EOC-Beschaltung. Die App ändert mit IF_CFG nur den SSP3, nicht die Bootkonfiguration des Chips.</p><p>Einige 1-Wire-Konfigurationen reagieren nur kurz nach dem Einschalten. Falls der Chip nicht antwortet, Versorgung und Pin-Beschaltung prüfen. Die App führt <b>keinen automatischen Power-Cycle</b> durch.</p><p><b>USB-Port kann nicht geöffnet werden?</b> Zuerst die originale PSSC-GUI und andere COM-Port-Programme schliessen. Im Windows-Gerätemanager unter «Anschlüsse (COM & LPT)» muss ein «USB Serial Port (COMx)» ohne Warnsymbol angezeigt werden. Falls nötig das Eval-Board kurz neu einstecken und «Bekannten Port verbinden» erneut versuchen. Fehlender COM-Port: FTDI-VCP-Treiber prüfen (Details im README).</p></div></details><section class="profile-card" aria-labelledby="configTitle">
+<div class="between"><h3 id="configTitle">Config-Vorlagen</h3><span class="pill">Chipunabhängig</span></div>
+<p class="muted small">AFE-Gains/Offset, Mess- und DSP-Einstellungen sowie Ausgangsart/Scaling für weitere Sensoren wiederverwenden. <b>Keine</b> Chip-ID, Werksdaten, DSP-Koeffizienten oder EEPROM-Register werden kopiert. Laden ändert zunächst <b>nur die Vorgaben im Assistenten</b>.</p>
+<div class="fieldrow">
+<label>Name der Vorlage<input id="configLabel" maxlength="80" value="Standardprofil" placeholder="z. B. Drucksensor 0–10 bar"></label>
+<label>Config-Datei auswählen<input id="configFile" type="file" accept=".json,application/json"></label>
+</div>
+<div class="flex"><button id="configSave">Aktuelle Config speichern (.json)</button><button id="configApply" class="primary" disabled>Geladene Config übernehmen</button></div>
+<div id="configPreview" class="callout">Noch keine Config-Datei geladen. Die Datei wird vor dem Übernehmen vollständig geprüft.</div>
+</section><div class="nav"><span class="muted small">Daten bleiben lokal im Browser.</span><button class="primary" data-next="1">Weiter zur AFE</button></div></section>
 <section class="card panel" data-panel="1" hidden><div class="eyebrow">Schritt 2 · Frontend</div><h2>AFE einstellen</h2><div class="triple"><div class="stat"><small>ADC_S <span class="help" data-help="adcs">?</span></small><strong id="adc">—</strong><em>Digits · 16 Bit signed</em></div><div class="stat"><small>ADC_T</small><strong id="adct">—</strong><em>Temperaturpfad</em></div><div class="stat"><small>ADC_TC</small><strong id="adctc">—</strong><em>Chiptemperaturpfad</em></div></div><div id="adcMsg" class="callout">Chipwerte werden nach erfolgreicher Verbindung angezeigt.</div>
 <div class="dsp-live" aria-live="off">
 <div class="dsp-head"><strong>Kalibrierter Sensorausgang · DSP_S live <span class="help" data-help="dsp_live">?</span></strong><span class="dsp-mode" id="afeDspMode">Warten auf Sensor</span></div>
 <div class="dsp-main"><span class="dsp-number" id="afeDspValue">—</span><span class="dsp-unit" id="afeDspUnit">%</span></div>
 <div class="dsp-sub"><span id="afeDspRaw">DSP_S: — Digits</span> · <span id="afeDspSeen">Noch keine DSP-Messung</span></div>
 </div>
-<details><summary>Anzeigebereich für bereits kalibrierten Sensor einstellen</summary><div class="inner">
+<details data-expert-area hidden><summary>Anzeigebereich für bereits kalibrierten Sensor einstellen</summary><div class="inner">
 <p class="muted small">Bei einem früher kalibrierten Sensor liest die App direkt DSP_S. Den tatsächlichen Druckbereich kann sie nicht zuverlässig automatisch erkennen. Diese Einstellungen ändern <b>nur die Anzeige</b>, nicht den Chip. Sie werden lokal im Browser gespeichert.</p>
 <div class="fieldrow">
 <label>Anzeige Minimum<input id="dspDisplayMin" type="number" step="any" value="0"></label>
@@ -333,7 +363,13 @@ button.danger{background:#9e3e34;border-color:#9e3e34;color:#fff}button.danger:h
   </div>
   <input id="pga2" type="hidden" value="0">
 </div>
-</div><div class="kpiNote" id="gainInfo">PGA1 3.5× · Offset 0 mV/V · PGA2 2× · Gesamt 7×</div><div class="afe-auto-write-note"><span class="afe-auto-write-dot" aria-hidden="true"></span><span><strong>Direkte RAM-Übernahme aktiv</strong> · Jede − / + Taste schreibt die neue Einstellung sofort ins Sensor-RAM und prüft sie durch Rücklesen. Die Live-Anzeige zeigt anschliessend den neuen ADC_S-Wert. Keine dauerhafte NVM-Programmierung.</span></div><div id="writeMsg" class="callout" role="status" aria-live="polite">PGA1, Offset oder PGA2 mit − / + ändern. Jede Änderung wird direkt ins RAM übernommen.</div><details><summary>Geschützte Register & Diagnose</summary><div class="inner"><div class="flex"><button id="readBoot">Boot-Register prüfen</button><button id="readRegs">Diagnoseregister lesen</button><button id="exportDiag">USB-Diagnose exportieren</button></div><div id="bootMsg" class="callout">Bootregister noch nicht geprüft. Schreibzugriff gesperrt.</div><pre id="regdump" class="monoarea">Noch keine Register gelesen.</pre><details><summary>USB-Rohprotokoll</summary><pre class="monoarea" id="usbLog"></pre></details></div></details><div class="nav"><button data-next="0">Zurück</button><button class="primary" data-next="2">Weiter zu Messpunkten</button></div>
+</div><div class="kpiNote" id="gainInfo">PGA1 3.5× · Offset 0 mV/V · PGA2 2× · Gesamt 7×</div>
+<div class="profile-afe" id="configAfePending" hidden>
+ <div class="between"><strong>AFE-Vorgabe aus geladener Config</strong><span class="pill">Noch nicht im Chip</span></div>
+ <p id="configAfeSummary">Keine Vorgabe geladen.</p>
+ <button class="primary" id="configAfeApplyRam" type="button">AFE-Vorgabe jetzt ins RAM übertragen und rücklesen</button>
+ <p class="muted small">Erst dieser Knopf verändert die AFE-RAM-Einstellung. Ohne verbundenen Chip bleibt die Vorlage nur vorgemerkt. EEPROM wird dadurch nicht geschrieben.</p>
+</div><div class="afe-auto-write-note"><span class="afe-auto-write-dot" aria-hidden="true"></span><span><strong>Direkte RAM-Übernahme aktiv</strong> · Jede − / + Taste schreibt die neue Einstellung sofort ins Sensor-RAM und prüft sie durch Rücklesen. Die Live-Anzeige zeigt anschliessend den neuen ADC_S-Wert. Keine dauerhafte NVM-Programmierung.</span></div><div id="writeMsg" class="callout" role="status" aria-live="polite">PGA1, Offset oder PGA2 mit − / + ändern. Jede Änderung wird direkt ins RAM übernommen.</div><details><summary>Geschützte Register & Diagnose</summary><div class="inner"><div class="flex"><button id="readBoot">Boot-Register prüfen</button><button id="readRegs">Diagnoseregister lesen</button><button id="exportDiag">USB-Diagnose exportieren</button></div><div id="bootMsg" class="callout">Bootregister noch nicht geprüft. Schreibzugriff gesperrt.</div><pre id="regdump" class="monoarea">Noch keine Register gelesen.</pre><details><summary>USB-Rohprotokoll</summary><pre class="monoarea" id="usbLog"></pre></details></div></details><div class="nav"><button data-next="0">Zurück</button><button class="primary" data-next="2">Weiter zu Messpunkten</button></div>
 </section>
 <section class="card panel" data-panel="2" hidden>
 <div class="eyebrow">Schritt 3 · Kalibrierwerte aufnehmen</div>
@@ -540,7 +576,7 @@ button.danger{background:#9e3e34;border-color:#9e3e34;color:#fff}button.danger:h
 <div class="flex"><button id="outputNvmRead">Original-NVM für Ausgangsänderung lesen (64 Wörter)</button></div>
 
 <div class="output-config">
-<section class="output-section" aria-labelledby="digitalTitle">
+<section class="output-section" aria-labelledby="digitalTitle" data-expert-area hidden>
   <div class="output-heading"><h3 id="digitalTitle">Digital Interface</h3><span class="output-locked">Nur lesen · Startup geschützt</span></div>
   <p class="muted small">Diese Optionen zeigt die originale PSSC im Output-Tab. Der Assistent verändert die digitale Boot-Schnittstelle <b>nicht</b>, damit die bestehende 1-Wire-Erreichbarkeit nicht durch eine Ausgangskonfiguration verloren geht.</p>
   <div class="output-grid">
@@ -603,7 +639,7 @@ button.danger{background:#9e3e34;border-color:#9e3e34;color:#fff}button.danger:h
     <div class="output-endpoint-row"><strong>S1</strong><output id="psscDspS1">+32’000</output><span>100.0000 %</span><label><input id="psscS1" type="number" step="0.001" min="0" max="5.5" value="4.5" aria-label="Ausgang S1 in Volt"> V</label></div>
     <div id="psscScalingPreview" class="output-preview" aria-live="polite">Standard 10–90 % VDD (bei 5 V: 0.5–4.5 V) wird berechnet.</div>
   </div>
-  <details class="output-detail"><summary>Erweitert · AODO_F (Gain) und AODO_O (Offset)</summary><div class="inner">
+  <details class="output-detail" data-expert-area hidden><summary>Erweitert · AODO_F (Gain) und AODO_O (Offset)</summary><div class="inner">
     <p class="muted small">Die beiden 16-Bit-Q3.12-Register skalieren und verschieben DSP_S. Bei einer analogen Einstellung werden sie automatisch aus S0/S1 berechnet. Nur für Spezialabgleiche von Hand ändern.</p>
     <div class="output-grid">
       <label>AODO_F · Gain (Q3.12)<input id="expertScaleGain" type="number" min="-7.9" max="7.9" step="0.000001" value="1"></label>
@@ -612,7 +648,7 @@ button.danger{background:#9e3e34;border-color:#9e3e34;color:#fff}button.danger:h
   </div></details>
 </section>
 
-<section class="output-section" aria-labelledby="limitingTitle">
+<section class="output-section" aria-labelledby="limitingTitle" data-expert-area hidden>
   <div class="output-heading"><h3 id="limitingTitle">Limiting</h3><span class="output-locked">Nur Diagnose · keine Schreibfreigabe</span></div>
   <p class="muted small">LimLow, LimHigh, Hysteresis und limit_en sind in der PSSC vorhanden. Bis die genaue Bitzuordnung und die Wirkung auf den E703.11 verifiziert sind, werden sie hier nicht geändert.</p>
   <label class="toggle"><input id="psscLimitEnable" type="checkbox" disabled> limit_en · Limitierung aktivieren (noch nicht decodiert)</label>
@@ -623,7 +659,7 @@ button.danger{background:#9e3e34;border-color:#9e3e34;color:#fff}button.danger:h
   </div>
 </section>
 
-<section class="output-section" aria-labelledby="errorTitle">
+<section class="output-section" aria-labelledby="errorTitle" data-expert-area hidden>
   <div class="output-heading"><h3 id="errorTitle">Error Signaling</h3><span class="output-locked">Nur Diagnose · keine Schreibfreigabe</span></div>
   <p class="muted small">Die Fehlerreaktionen bleiben unverändert. «Nicht decodiert» bedeutet ausdrücklich nicht, dass der Chip «Ignore» eingestellt hat.</p>
   <div class="output-errors">
@@ -686,14 +722,20 @@ button.danger{background:#9e3e34;border-color:#9e3e34;color:#fff}button.danger:h
 
 <div class="nav"><button data-next="5">Zur Ausgangskonfiguration</button><button data-next="0">Zum USB-Start</button></div>
 </section>
-<section id="expertWorkspace" class="expert-workspace" role="dialog" aria-modal="true" aria-labelledby="expertWorkspaceTitle" hidden>
-<div class="expert-workspace-content">
-<div class="settings-panel-head expert-workspace-head">
- <div><div class="eyebrow">EXPERTENMODUS</div><h2 id="expertWorkspaceTitle">Expertenwerkzeuge</h2><p class="muted small">Register und NVM lesen, Chip-UID prüfen sowie Backups vergleichen. Diese Ansicht ist unabhängig von den Kalibrierschritten. Eine Wiederherstellung bleibt weiterhin durch die NVM-Schutzprüfungen gesichert.</p></div>
- <button type="button" id="expertWorkspaceClose">Schliessen ×</button>
+
+<section class="card panel" data-panel="7" hidden>
+<div class="eyebrow">DIAGNOSE · Jederzeit erreichbar</div>
+<h2>EEPROM Viewer</h2>
+<p class="muted">64 EEPROM-Wörter des E703.11 in einer Tabelle wie bei PSSC anzeigen. Der Viewer ist <b>nur lesend</b> und unabhängig vom Kalibrierablauf. Ohne Chipverbindung bleibt er leer.</p>
+<div class="flex"><button class="primary" id="eepromRead" type="button">EEPROM lesen (64 Wörter)</button><button id="eepromExport" type="button" disabled>EEPROM-Backup exportieren (mit Chip-ID)</button></div>
+<div id="eepromStatus" class="callout">Noch kein EEPROM aus dem Sensor gelesen. Das Lesen benötigt eine echte Sensorverbindung und prüft die CRC.</div>
+<div class="fieldrow" style="margin:13px 0 8px">
+<label>In EEPROM-Wörtern suchen<input id="eepromSearch" type="search" placeholder="z. B. CFG_AFE1, 1C oder AODO_F"></label>
+<span class="muted small">Adresse = NVM-Wortindex (00–3F); Byteadresse = Index × 2. Werte werden nie direkt editiert.</span>
 </div>
+<div class="eeprom-table-scroll"><table class="eeprom-table"><thead><tr><th>Adresse</th><th>Bitfield</th><th>Data Hex</th><th>Data</th><th>Schutz</th></tr></thead><tbody id="eepromRows"><tr><td colspan="5">Noch keine gültigen Daten. Bitte «EEPROM lesen» drücken.</td></tr></tbody></table></div>
 <div class="expert-inline" data-expert-area hidden>
-<details id="expertToolsDetails" open><summary>Register, NVM / EEPROM und Chip-Backups</summary>
+<details id="expertToolsDetails" open><summary>Erweitert: Registerdiagnose, EEPROM und Backups</summary>
 <div class="inner">
 <div class="callout warn"><b>Geschützt:</b> Factory-Wörter 0x00–0x1E und Kommunikations-/Bootregister sind nur lesbar. Eine Wiederherstellung darf keine Factory- oder Bootdaten ändern.</div>
 <h3>Chipkennung & gespeicherte Backups</h3>
@@ -716,6 +758,7 @@ button.danger{background:#9e3e34;border-color:#9e3e34;color:#fff}button.danger:h
 <pre id="expertNvmDump" class="monoarea">Noch kein komplettes EEPROM-Abbild gelesen.</pre>
 </div></details>
 </div>
-</div></section>
-<div class="foot"><b>Version v0.3.4</b> · <a href="CHANGELOG.md" target="_blank" rel="noopener">Änderungsverlauf</a> · ELMOS E703.11 · unabhängiger Kalibrierprototyp · Sicherheitsprinzip: Factory- und Kommunikations-Bootregister gesperrt; dokumentierte AODO-Ausgangsoptionen nur nach Prüfung im NVM-Plan; Wiederherstellung nur mit passender Chip-UID.</div>
-</main></div></div><div id="tip" class="tooltip"></div><script src="calibration.js?v=0.3.4"></script><script src="expert.js?v=0.3.4"></script><script src="app.js?v=0.3.4"></script></body></html>
+<div class="nav"><button data-next="0">Zur Verbindung</button><button data-next="6">Zum NVM-Schritt</button></div>
+</section>
+<div class="foot"><b>Version v0.4.0</b> · <a href="CHANGELOG.md" target="_blank" rel="noopener">Änderungsverlauf</a> · ELMOS E703.11 · unabhängiger Kalibrierprototyp · Sicherheitsprinzip: Factory- und Kommunikations-Bootregister gesperrt; dokumentierte AODO-Ausgangsoptionen nur nach Prüfung im NVM-Plan; Wiederherstellung nur mit passender Chip-UID.</div>
+</main></div></div><div id="tip" class="tooltip"></div><script src="calibration.js?v=0.3.4"></script><script src="expert.js?v=0.3.4"></script><script src="app.js?v=0.3.4"></script><script src="config.js?v=0.4.0"></script></body></html>
