@@ -19,31 +19,43 @@ Der Kalibrierassistent nutzt standardmässig weiterhin das **ELMOS SSP3**. In de
 
 Die [vollständige ESP32-/Arduino-Boardliste](ESP_BOARD_OPTIONS.md) enthält die Belegung für AODO / 1-Wire **und** I²C, I/O-Spannungen und Hersteller-Pinouts.
 
-**Für den bereits vorhandenen ESP32-C3 SuperMini:** Statt des allgemeinen Arduino-Beispiels die neue [C3-SuperMini-Firmware](../firmware/esp32c3_supermini/esp32c3_supermini.ino) verwenden. Arduino IDE → Board **ESP32C3 Dev Module**, **USB CDC On Boot: Enabled**. Nach dem Flashen `BRIDGE_INFO` senden. Erwartet wird `# E70311-BRIDGE V1 CAPS=CDC_ONLY`.
+**Für den bereits vorhandenen ESP32-C3 SuperMini:** Statt des allgemeinen Arduino-Beispiels die neue [C3-SuperMini-Firmware](../firmware/esp32c3_supermini/esp32c3_supermini.ino) verwenden. Arduino IDE → Board **ESP32C3 Dev Module**, **USB CDC On Boot: Enabled**. Nach dem Flashen `BRIDGE_INFO` senden. Die SuperMini-PLC-Firmware meldet `CAPS=PLC_UID,PLC_READ,PLC_WRITE,NVM`.
 
 ## 2. AODO / 1-Wire und I²C – passende MCU-Pins
 
 Der Anschluss am **E703.11 für 1-Wire heisst AODO** (nicht A0D0). Für **I²C** besitzt der Sensor die Anschlüsse **MISO/SDA (Daten)** und **SCK/SCL (Takt)**; ausserdem ist **NCS/SA0** für den Modus beziehungsweise die Adressbeschaltung zu berücksichtigen.
 
-Die Tabellen zeigen die **MCU-Pinseite für beide Schnittstellen**. **AODO / 1-Wire** verwendet einen einzelnen vorgeschlagenen GPIO für Senden und Empfangen über eine **noch zu entwickelnde bidirektionale Schutz-/Treiberschaltung**. I²C-SDA/SCL sind **zwei andere Pins** und dürfen erst nach Prüfung der Pull-ups, Busspannungen und Chip-Konfiguration verwendet werden.
+Die Tabellen zeigen die MCU-Pins für eine externe PLC-Treiberstufe und mögliche alternative I²C-Anschlüsse. Beim ESP32-C3 SuperMini ist die PLC-Belegung durch die Firmware festgelegt. Die übrigen Boardzeilen sind Verdrahtungsvorschläge. Vor einem I²C-Aufbau Pull-ups, Busspannungen und Chip-Konfiguration prüfen.
 
 Die **vollständige Liste aller 27 Boards** mit AODO-/1-Wire-GPIO, USB-Pins, Boardbesonderheiten, Hersteller-Pinouts und Verdrahtungsbeispiel steht in [**ESP32-/Arduino-Boards: AODO / 1-Wire und I²C**](ESP_BOARD_OPTIONS.md).
 
 ### ESP32 / ESP8266
 
-| Board | AODO / 1-Wire (MCU) | I²C SDA (MCU) | I²C SCL (MCU) | USB zum PC |
-| --- | --- | --- | --- | --- |
-| **ESP32-C3 SuperMini** | **GPIO4** | **GPIO6** | **GPIO7** | Native USB Serial/JTAG |
-| **XIAO ESP32C3** | **D2 / GPIO4** | D4 / GPIO6 | D5 / GPIO7 | Nativ |
-| ESP32-C3 DevKit / DevKitM | **GPIO4** | GPIO6 | GPIO7 | Nativ oder USB-UART |
-| ESP32-S3 DevKitC-1 | **GPIO4** | GPIO8 | GPIO9 | Nativ oder USB-UART |
-| XIAO ESP32S3 | **D3 / GPIO4** | D4 / GPIO5 | D5 / GPIO6 | Nativ |
-| Arduino Nano ESP32 | **D2 / GPIO5** | A4 / GPIO11 | A5 / GPIO12 | Nativ |
-| ESP32-S2 Saola-1 | **GPIO4** | GPIO8 | GPIO9 | Nativ |
-| ESP32-C6 DevKitC-1 | **GPIO10** | GPIO6 | GPIO7 | Nativ oder USB-UART |
-| XIAO ESP32C6 | **D3 / GPIO21** | D4 / GPIO22 | D5 / GPIO23 | Nativ |
-| ESP32 DevKit / WROOM-32 | **GPIO25** | GPIO21 | GPIO22 | USB-UART |
-| ESP8266 NodeMCU / Wemos D1 mini | **D5 / GPIO14** | D2 / GPIO4 | D1 / GPIO5 | USB-UART |
+| Board | AODO / 1-Wire (MCU) | I²C SDA (MCU) | I²C SCL (MCU) | USB zum PC | Sensorversorgung / Neustart |
+| --- | --- | --- | --- | --- | --- |
+| **ESP32-C3 SuperMini** | **GPIO4** (TX) | GPIO6 (alternativ) | GPIO7 (alternativ) | Native USB Serial/JTAG | **GPIO7** (Lastschalter) |
+| **XIAO ESP32C3** | **D2 / GPIO4** | D4 / GPIO6 | D5 / GPIO7 | Nativ | — |
+| ESP32-C3 DevKit / DevKitM | **GPIO4** | GPIO6 | GPIO7 | Nativ oder USB-UART | — |
+| ESP32-S3 DevKitC-1 | **GPIO4** | GPIO8 | GPIO9 | Nativ oder USB-UART | — |
+| XIAO ESP32S3 | **D3 / GPIO4** | D4 / GPIO5 | D5 / GPIO6 | Nativ | — |
+| Arduino Nano ESP32 | **D2 / GPIO5** | A4 / GPIO11 | A5 / GPIO12 | Nativ | — |
+| ESP32-S2 Saola-1 | **GPIO4** | GPIO8 | GPIO9 | Nativ | — |
+| ESP32-C6 DevKitC-1 | **GPIO10** | GPIO6 | GPIO7 | Nativ oder USB-UART | — |
+| XIAO ESP32C6 | **D3 / GPIO21** | D4 / GPIO22 | D5 / GPIO23 | Nativ | — |
+| ESP32 DevKit / WROOM-32 | **GPIO25** | GPIO21 | GPIO22 | USB-UART | — |
+| ESP8266 NodeMCU / Wemos D1 mini | **D5 / GPIO14** | D2 / GPIO4 | D1 / GPIO5 | USB-UART | — |
+
+**ESP32-C3 SuperMini mit PLC-Firmware**
+
+| Pin | Funktion |
+| --- | --- |
+| GPIO4 | TX zur externen AODO-Treiberstufe |
+| GPIO5 | Aktives High-OE der Treiberstufe |
+| GPIO6 | RX von der Treiberstufe zum ESP32 |
+| GPIO7 | Aktives High-Enable für den externen Lastschalter der Sensorversorgung. Dient zum Einschalten und zum Neustart nach dem NVM-Schreiben |
+| GND | Gemeinsame Masse von ESP32, Treiberstufe und Sensor |
+
+GPIO6 und GPIO7 sind im PLC-Aufbau für RX und den Lastschalter belegt. Die I²C-Belegung in der Tabelle gilt für einen alternativen Aufbau. In der Web-App vor dem Verbinden **«Sensorversorgung über GPIO7 steuern»** aktivieren, wenn der Lastschalter angeschlossen ist. Der Strich in den übrigen Boardzeilen bedeutet, dass die Firmware dort keinen Pin für die Sensorversorgung festlegt. [Anschluss und Testablauf](ESP32_C3_PLC_TEST.md)
 
 ### Arduino und weitere kompatible Mikrocontroller
 
