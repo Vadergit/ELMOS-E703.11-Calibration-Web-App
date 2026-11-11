@@ -77,10 +77,25 @@ const ELMOS_CAL = (() => {
   }
   return {method:'browser-independent-polynomial-fit',points:ps.length,orderS,orderT,outputLimit,registers:{so,sf,coeffs:regs,to,tf,tcoeffs:tRegs},stats:{maxDigits:max,rmsDigits:rms,maxTemperatureDigits:tErrors.length?Math.max(...tErrors.map(Math.abs)):null,rangeDigits:smax-smin,maxNormalized:Math.max(...ps.map(p=>Math.abs(normS(p.s)))),maxOutput},errors,coefficients:decoded,note:'Q3.12/Q0.15 nach Datenblatt; numerischer JavaScript-Fit, nicht identisch mit der Elmos-Kalibrier-DLL. Vor Programmierung RAM/DSP-Verifikation notwendig.'};
  }
+ /** Verifies documented 1-Wire boot prerequisites (Elmos DS 25DS0170E.04, 6.4.5.7).
+  * A software check never replaces a physical power-cycle check.
+  */
+ function oneWireStartupStatus(words){
+  if(!Array.isArray(words)||words.length!==64||words.some(v=>!Number.isInteger(v)||v<0||v>65535))
+   return {ok:false,errors:['Ungültiges 64-Wort-NVM-Abbild']};
+  const mode=(words[16]>>>9)&7,permanent=!!(words[17]&4),startupWindow=(words[18]>>>12)&3;
+  const downstream=!!(words[19]&(1<<11)),upstream=!!(words[19]&(1<<7)),registerAccess=!!(words[19]&(1<<8));
+  const errors=[];
+  if(mode<1||mode>5)errors.push('CFG_EN.aodo_en muss 1–5 sein (Analog/PWM/FM, nicht High-Z/Alarm)');
+  if(!permanent&&startupWindow===3)errors.push('Weder PLC dauerhaft noch Startup-1-Wire-Zeitfenster aktiv');
+  if(!downstream)errors.push('CFG_PADS1.plc_downsel deaktiviert');
+  if(!upstream)errors.push('CFG_PADS1.plc_us_en deaktiviert');
+  if(!registerAccess)errors.push('CFG_PADS1.plc_rw_en deaktiviert (nur Magic-Cookie-Zugriff möglich)');
+  return {ok:errors.length===0,errors,mode,permanent,startupWindow,
+   windowLabel:permanent?'dauerhaft':startupWindow===0?'4 ms':startupWindow===1?'10 ms':startupWindow===2?'200 ms':'aus',
+   downstream,upstream,registerAccess};
+ }
  function protectStartupCommunication(before,after){
-  // Fail closed: only AODO output mode/scale bits and CFG_AODO may differ in boot area.
-  // This preserves existing communication and 1-Wire startup configuration bit-for-bit,
-  // but a real power-cycle/1-Wire test is still mandatory for hardware assurance.
   if(!Array.isArray(before)||!Array.isArray(after)||before.length!==64||after.length!==64||
    [...before,...after].some(v=>!Number.isInteger(v)||v<0||v>65535))
    throw Error('1-Wire-Startschutz: Ungültiges 64-Wort-NVM-Abbild');
@@ -92,6 +107,9 @@ const ELMOS_CAL = (() => {
     throw Error('1-Wire-Startschutz: Kommunikations-, Boot- oder Factory-Wort '+i+' verändert');
    }
   }
+  const initial=oneWireStartupStatus(before),final=oneWireStartupStatus(after);
+  if(!initial.ok)throw Error('1-Wire-Startschutz: Original-NVM erfüllt die Voraussetzungen für den 1-Wire-Start nicht: '+initial.errors.join('; ')+'. NVM-Schreiben gesperrt.');
+  if(!final.ok)throw Error('1-Wire-Startschutz: Geplantes NVM würde den 1-Wire-Start gefährden: '+final.errors.join('; '));
   return true;
  }
  /** Convert PSSC-style analog endpoints to validated E703.11 Q3.12 AODO scaling.
@@ -124,7 +142,7 @@ const ELMOS_CAL = (() => {
   const out=original.slice();
   if(!settings||settings.mode==='keep')return out;
   const mode=Number(settings.mode),scaleEnabled=settings.scaleEnabled===true,period=Number(settings.pwmPeriod);
-  if(!Number.isInteger(mode)||mode<0||mode>6)throw Error('Ungültiger oder nicht unterstützter AODO-Ausgangsmodus');
+  if(!Number.isInteger(mode)||mode<1||mode>5)throw Error('1-Wire-Startschutz: Nur AODO-Modi 1–5 dürfen dauerhaft gespeichert werden. High-Z und Alarm deaktivieren 1-Wire gemäss Datenblatt.');
   if(mode===4&&(!Number.isInteger(period)||period<2||period>65535))throw Error('PWM-Periode muss 2–65’535 Takte betragen');
   const gain=Number(settings.gain),offset=Number(settings.offset);
   if(scaleEnabled&&(!Number.isFinite(gain)||!Number.isFinite(offset)))throw Error('AODO-Gain/Offset sind ungültig');
@@ -165,6 +183,6 @@ const ELMOS_CAL = (() => {
   protectStartupCommunication(original,cfg);
   return {before:original.slice(),after:cfg,changes:cfg.map((v,i)=>v!==original[i]?{index:i,address:i*2,from:original[i],to:v}:null).filter(Boolean)};
  }
- return {fit,solveFit,crc16,crc8,configFrom,prepareOutputConfig,protectStartupCommunication,analogScaling,fromQ,q,signed};
+ return {fit,solveFit,crc16,crc8,configFrom,prepareOutputConfig,protectStartupCommunication,oneWireStartupStatus,analogScaling,fromQ,q,signed};
 })();
 if(typeof module!=='undefined'&&module.exports)module.exports=ELMOS_CAL;
