@@ -180,7 +180,7 @@ test('Expert mode shows contextual settings and no modal',()=>{
  assert.ok(html.includes('data-expert-area hidden><summary>Erweitert · AODO_F'));
  assert.ok(src.includes("classList.toggle('is-expert',enabled)"));
  const scripts=Array.from(html.matchAll(/<script src="([^"]+)"/g),m=>m[1]);
- assert.deepEqual(scripts,['calibration.js?v=0.6.0-beta.2','eeprom-help.js?v=0.6.0-beta.2','expert.js?v=0.6.0-beta.2','config.js?v=0.6.0-beta.2','guided-plan.js?v=0.6.0-beta.2','app.js?v=0.6.0-beta.2','compact.js?v=0.6.0-beta.2','guided.js?v=0.6.0-beta.2']);
+ assert.deepEqual(scripts,['calibration.js?v=0.6.0','eeprom-help.js?v=0.6.0','expert.js?v=0.6.0','config.js?v=0.6.0','guided-plan.js?v=0.6.0','app.js?v=0.6.0','compact.js?v=0.6.0','guided.js?v=0.6.0']);
 });
 
 test('Failed E703.11 probe reconnects SSP3 at most once, without NVM writes',()=>{
@@ -393,7 +393,7 @@ test('Guided view is optional and contains only one set of hardware inputs',()=>
  assert.ok(html.includes('id="workflowMode"'));
  assert.ok(html.includes('id="guidedLaunch"'));
  assert.ok(html.includes('id="guidedLaunchTop"'));
- assert.ok(html.includes('guided.css?v=0.6.0-beta.2'));
+ assert.ok(html.includes('guided.css?v=0.6.0'));
  for(const id of ['nvmProgram','nvmPrepare','calApplyRam','calVerifyRam','expertOutputStage','configApply','configFile']){
   assert.equal(html.split('id="'+id+'"').length-1,1);
  }
@@ -465,33 +465,9 @@ test('ESP32-C3 SuperMini sketch targets native USB-CDC and refuses PLC access',(
  assert.ok(!/^[ \t]*digitalWrite\s*\(/m.test(fw));
  assert.ok(!fw.includes('CAPS=PLC_READ,PLC_WRITE,NVM'));
 });
-test('Guided no-hardware demo has visible launch, safe virtual stages and never writes sensor NVM',()=>{
- const app=read('app.js'),guide=read('guided.js'),html=read('index.html'),css=read('guided.css');
- for(const id of ['guidedDemoTop','guidedDemoLaunch'])assert.equal(html.split('id="'+id+'"').length-1,1);
- for(const method of ['startDemo','demoSetpoint','demoStageCalibration','demoVerifyCalibration','demoCompleteWizard'])
-  assert.ok(app.includes(method));
- for(const id of ['gwDemoBanner','gwDemoRam','gwDemoVerify','gwDemoNvm'])assert.ok(guide.includes('id="'+id+'"'));
- assert.ok(app.includes("if(st.mode!=='demo'||st.port)throw"));
- assert.ok(app.includes('demoValidation.push('));
- assert.ok(app.includes('demoCompleted=true'));
- assert.ok(!guide.includes('maintWrite('));
- assert.ok(!guide.includes('nvmProgram('));
- assert.ok(css.includes('html.guided-active.guided-demo #guidedWorkspace #nvmProgram'));
- assert.ok(css.includes('html.guided-active.guided-demo #guidedWorkspace #calApplyRam'));
-});
-test('Demo completion and real NVM programming have independent safety gates',()=>{
- const app=read('app.js');
- const demoFn=app.split('function demoCompleteWizard(outputOnly=false)')[1].split('function exitDemo()')[0];
- assert.ok(demoFn.includes("st.mode!=='demo'||st.port"));
- assert.ok(demoFn.includes('demoVerified'));
- assert.ok(!demoFn.includes('maintWrite('));
- assert.ok(!demoFn.includes('nvmProgram('));
- const nvmFunc=app.split('async function nvmProgram()')[1].split('function postBootCheck()')[0];
- assert.ok(nvmFunc.includes("if(st.mode!=='usb'||!st.chip||!st.port"));
- assert.ok(nvmFunc.includes("if(st.adapterKind==='bridge')throw Error"));
- assert.ok(app.includes("demoCompleted:st.mode==='demo'&&demoCompleted"));
-});
-test('Mathematical fit works with representative simulated pressure-temperature demo grids',()=>{
+
+
+test('Mathematical fit works with representative synthetic pressure-temperature grids',()=>{
  for(const [pCount,tCount,temperatures] of [[2,1,[25]],[2,3,[-10,25,65]],[3,2,[10,60]],[3,3,[-10,25,65]],[5,2,[10,60]]]){
   const p=GUIDED_PLAN.create({pCount,tCount,temperatures,pmin:0,pmax:10,outputLimit:25000});
   const points=p.points.map((v,i)=>({
@@ -513,19 +489,7 @@ test('Board shortlist, flash guide and pure-USB safety instructions are included
  assert.ok(guide.includes('ESP_BOARD_OPTIONS.md'));
 });
 
-test('Imported AFE profile can be previewed in demo without any physical write',()=>{
- const app=read('app.js'),wizard=read('guided.js');
- const part=app.split('function demoApplyAFEProfile(){')[1].split('function demoStageCalibration()')[0];
- assert.ok(part.includes("st.mode!=='demo'||st.port"));
- assert.ok(part.includes('P.goodG(target)'));
- assert.ok(part.includes('st.staged={...target}'));
- assert.ok(part.includes('st.profilePendingAFE=null'));
- assert.ok(part.includes('erasePoints()'));
- assert.ok(!part.includes('maintWrite('));
- assert.ok(!part.includes('commitGain('));
- assert.ok(wizard.includes('id="gwDemoApplyAFE"'));
- assert.ok(wizard.includes('window.ELMOS_GUIDED_API.demoApplyAFEProfile()'));
-});
+
 
 test('Guided AFE uses the original ADC chart and live buttons, never a second hardware connection',()=>{
  const html=read('index.html'),guide=read('guided.js'),app=read('app.js'),css=read('guided.css');
@@ -593,4 +557,20 @@ test('Guided setup keeps reference and output fields aligned while restoring the
  assert.ok(guide.includes('marker.parentNode.replaceChild(x.node,x.marker)'));
  assert.ok(css.includes('#guidedWorkspace .gw-setup-grid'));
  assert.ok(css.includes('#guidedWorkspace .gw-voltage-endpoints'));
+});
+
+test('Released wizard excludes demo controls and requires a real sensor connection',()=>{
+ const app=read('app.js'),guided=read('guided.js'),html=read('index.html'),compact=read('compact.js');
+ for(const id of ['demo','guidedDemoTop','guidedDemoLaunch','demoPressurePanel'])
+  assert.ok(!html.includes('id="'+id+'"'));
+ for(const id of ['gwDemoBanner','gwDemoRam','gwDemoVerify','gwDemoNvm','gwDemoApplyAFE'])
+  assert.ok(!guided.includes('id="'+id+'"'));
+ assert.ok(!app.includes("st.mode==='demo'"));
+ assert.ok(!app.includes('function demoADC('));
+ assert.ok(!app.includes('demoCompleteWizard'));
+ assert.ok(!guided.includes("mode==='demo'"));
+ assert.ok(!guided.includes('startDemo'));
+ assert.ok(!compact.includes("'demo'"));
+ assert.ok(guided.includes("if(!s.chip){msg("));
+ assert.ok(app.includes("if(st.mode!=='usb'||!st.chip||!st.port"));
 });
