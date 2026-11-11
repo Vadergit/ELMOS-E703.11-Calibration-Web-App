@@ -512,3 +512,17 @@ test('Board shortlist, flash guide and pure-USB safety instructions are included
   assert.ok(boards.includes(term),term);
  assert.ok(guide.includes('ESP_BOARD_OPTIONS.md'));
 });
+
+test('Imported AFE profile can be previewed in demo without any physical write',()=>{
+ const app=read('app.js'),wizard=read('guided.js');
+ const part=app.split('function demoApplyAFEProfile(){')[1].split('function demoStageCalibration()')[0];
+ assert.ok(part.includes("st.mode!=='demo'||st.port"));
+ assert.ok(part.includes('P.goodG(target)'));
+ assert.ok(part.includes('st.staged={...target}'));
+ assert.ok(part.includes('st.profilePendingAFE=null'));
+ assert.ok(part.includes('erasePoints()'));
+ assert.ok(!part.includes('maintWrite('));
+ assert.ok(!part.includes('commitGain('));
+ assert.ok(wizard.includes('id="gwDemoApplyAFE"'));
+ assert.ok(wizard.includes('window.ELMOS_GUIDED_API.demoApplyAFEProfile()'));
+});
