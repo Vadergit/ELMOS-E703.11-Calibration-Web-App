@@ -98,7 +98,15 @@ const ELMOS_EXPERT=(()=>{
 
   let manualScaling=false;
   const isAnalog=mode=>['1','2','3'].includes(String(mode));
-  const currentLimit=()=>st.calfit?.outputLimit??Number($('dspDisplayLimit').value);
+  function currentLimit(){
+   // A new calibration owns its DSP endpoint range; an already-calibrated sensor
+   // without captured points uses its explicit read-only display range instead.
+   // Never confuse ADC_S's recommended ±25k window with the DSP_S range.
+   const selected=Number($('calDspLimit').value);
+   if(st.calfit)return st.calfit.outputLimit;
+   if(st.calpoints?.length||$('calDspLimit').dataset.userEdited==='1')return selected;
+   return Number($('dspDisplayLimit').value);
+  }
   function invalidateOutputPlan(){
    // Any output edit invalidates ALL previously prepared NVM images, including normal calibration and restore plans.
    st.calImage=null;st.restorePlan=null;st.outputOnlyPlan=null;st.expertOutputPlan=null;
@@ -115,6 +123,11 @@ const ELMOS_EXPERT=(()=>{
   function renderOutputPreview(){
    const mode=$('expertOutputMode').value,limit=currentLimit();
    $('psscOutputLimit').value=Number.isInteger(limit)?'±'+limit.toLocaleString('de-CH'):'Ungültig';
+   const label=$('psscScalingSource');
+   if(label){
+    const fresh=!!st.calfit||!!st.calpoints?.length||$('calDspLimit').dataset.userEdited==='1';
+    label.textContent=fresh?'DSP-Bereich automatisch aus «Berechnen & RAM» übernommen. ADC_S ±25’000 ist davon unabhängig.':'Bestehender Sensor: DSP-Bereich aus der Anzeigeeinstellung übernommen. Bereich bei Bedarf dort korrigieren.';
+   }
    $('psscDspS0').textContent=Number.isInteger(limit)?'−'+limit.toLocaleString('de-CH'):'—';
    $('psscDspS1').textContent=Number.isInteger(limit)?'+'+limit.toLocaleString('de-CH'):'—';
    if(!isAnalog(mode))return;
@@ -165,7 +178,7 @@ const ELMOS_EXPERT=(()=>{
      st.outputOnlyPlan=null;st.expertOutputPlan=null;
      show('expertOutputMsg','Ausgangskonfiguration bleibt unverändert.','success');return
     }
-    const limit=st.calfit?.outputLimit??Number($('dspDisplayLimit').value);
+    const limit=currentLimit();
     if(!Number.isInteger(limit)||limit<1000||limit>32000)throw Error('DSP-Zielbereich für diesen Sensor zuerst korrekt einstellen');
     const normalCalibration=verificationComplete();
     if(!normalCalibration&&(!st.nvmBackupVerified||!st.nvmBackup||!st.uid))throw Error('Für Ausgangsänderungen an bereits kalibrierten Sensoren zuerst die aktuelle 64-Wort-NVM-Sicherung mit bestätigter UID lesen');
