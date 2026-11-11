@@ -1,7 +1,7 @@
 # Geführter Kalibrierassistent – Beta
 
 **Branch:** `feature/guided-calibration-and-usb-bridges`  
-**Version:** v0.6.0-beta.1. **Kein Merge nach `main`** und keine Änderung der bestehenden GitHub-Pages-Veröffentlichung.
+**Version:** v0.6.0-beta.2. **Kein Merge nach `main`** und keine Änderung der bestehenden GitHub-Pages-Veröffentlichung.
 
 ## Wozu der neue Modus?
 
@@ -52,6 +52,24 @@ Die Config-Vorlage ist **keine Kopie eines kalibrierten Sensors**. Sie enthält 
 - Die neue UI erhält einen **nur lesenden** Status-Adapter `window.ELMOS_GUIDED_API`. Sie kann dadurch eine NVM-Freigabe nicht selber setzen.
 - Sie verwendet die originalen Buttons `calApplyRam`, `calVerifyRam`, `expertOutputStage`, `nvmPrepare`, `nvmProgram` mit bestehenden Sperren und Sicherheitsabfragen.
 - Nicht alle Kombinationen und Hardwarebedingungen wurden im Browser und am Sensor geprüft. Das Produkt bleibt **Laborprototyp**; keine Produktionsfreigabe.
+
+## Demo ohne Hardware – voller Wizard
+
+Du kannst den **gesamten geführten Ablauf ohne Evaluation Board, USB-Stick oder Sensor** testen. Der Demo-Modus ist ausschliesslich eine UI-/Rechensimulation, **kein Test des E703.11**.
+
+1. Die Beta mit [`scripts/preview.py`](../scripts/preview.py) lokal in Chrome starten (siehe unten). Es muss **kein Board angeschlossen** sein.
+2. Oben rechts auf **«◈ Demo-Wizard»** klicken – oder unter «USB & Chip» auf **«Wizard ohne Hardware testen»**. Die App startet einen vorhandenen Simulationsmodus und öffnet den Wizard direkt.
+3. Wähle z. B. **2 Druckpunkte × 3 Temperaturstufen** oder **3 Druckpunkte × 2 Temperaturstufen**, lege den Druckbereich und die simulierten Temperaturen fest.
+4. AFE mit PGA1, Offset, PGA2 ausprobieren. Kein Register wird beschrieben.
+5. Bei jedem Messpunkt setzt der Wizard im Demo-Modus **automatisch** die simulierte Druck-/Temperaturbedingung. Mit dem ursprünglichen Button «Messpunkt aufnehmen» kannst du die Werte virtuell erfassen.
+6. «Koeffizienten berechnen» verwendet die reale JavaScript-Rechenfunktion der App, jedoch nur **synthetische ADC-Werte**. Danach **«Demo: RAM-Übernahme simulieren»** drücken.
+7. **«Demo: Prüfpunkt ... simulieren»** wiederholt drücken, bis alle virtuellen unabhängigen Prüfpunkte abgearbeitet sind. Der Fortschritt wird angezeigt.
+8. Ausgangseinstellungen ansehen. Anschliessend **«Demo: NVM-Abschluss ohne Schreibvorgang simulieren»** drücken. So kannst du den letzten Assistentenschritt ebenfalls durchgehen.
+9. Es erscheint ausdrücklich «Demonstration beendet – keine Hardware benötigt». Dabei werden **weder RAM noch NVM/EEPROM eines echten Sensors** beschrieben.
+
+Die echten RAM-/DSP-/NVM-Schreibaktionen sind im Demo-Wizard nicht als solche verwendbar. Für den Test eines wirklichen Abgleichs weiterhin ein SSP3 und einen entbehrlichen Sensor einsetzen. Im Demo-Modus sollte der echte Hardware-NVM-Button gesperrt bleiben.
+
+**Auch der reine Ausgangsworkflow** kann als virtuelle Demonstration ohne vorangegangene Druckkalibrierung durchgespielt werden. Rückkehr zur klassischen Ansicht ist jederzeit möglich.
 
 ## Beta lokal testen – sicherster Weg
 
