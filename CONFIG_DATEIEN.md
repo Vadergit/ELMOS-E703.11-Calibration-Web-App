@@ -66,10 +66,13 @@ Mit **EEPROM lesen (64 Wörter)** wird der bestehende Leseweg der App genutzt: E
 - **Data Hex:** 16-Bit-Wert mit vier Hex-Ziffern.
 - **Data:** derselbe Wert als vorzeichenbehaftete 16-Bit-Dezimalzahl.
 - **Schutz:** Factory, Boot/Konfiguration oder User-NVM. Hier sind **alle Einträge nur lesbar**.
+- **Funktion:** kurze, auf alle 64 Wörter bezogene Beschreibung (unbekannte Bereiche werden ausdrücklich nicht geraten).
+- **Details je Wort:** ein Klick auf den Wortindex öffnet die Beschreibung, EEPROM-Byteadresse, das zugehörige RAM-Register (sofern dokumentiert), Hex-/Unsigned-/Signed-Wert sowie Q3.12/Q0.15-Interpretation bei passenden Koeffizienten.
+- **Expertenansicht:** bekannte Bitfelder mit tatsächlichen Codes und Bedeutungen; bei anderen Registern nur Binärrohwert und klarer Hinweis auf fehlende Bitdefinition. Angezeigte Formeln sind Referenzinformationen, keine Live-Spannungsmessung.
 
-Über das Suchfeld können Wörter nach Adresse, Bezeichnung oder Wert gefiltert werden. Der Export **EEPROM-Backup exportieren** enthält dagegen bewusst das komplette NVM samt Chip-UID für Diagnose bzw. chipbezogene Wiederherstellung. Dieser Export ist ein **anderes Dateiformat** als die Config-Vorlage.
+Über das Suchfeld können Wörter nach Wort-/Byteadresse, RAM-Adresse, Bezeichnung, Wert oder Bedeutung (z. B. «Gain», «Offset», «Temperatur», «1-Wire») gefiltert werden. Der Export **EEPROM-Backup exportieren** enthält dagegen bewusst das komplette NVM samt Chip-UID für Diagnose bzw. chipbezogene Wiederherstellung. Dieser Export ist ein **anderes Dateiformat** als die Config-Vorlage.
 
-Die Leseaktion benötigt intern die herstellerseitigen Wartungskommandos zum Auslesen. Sie startet **keine dauerhafte EEPROM-Programmierung**.
+Die Detailansicht arbeitet ausschliesslich auf dem zuvor CRC-geprüften EEPROM-Abbild und öffnet beim Aufklappen keine neue Hardwarekommunikation. Die Leseaktion benötigt intern die herstellerseitigen Wartungskommandos zum Auslesen. Sie startet **keine dauerhafte EEPROM-Programmierung**.
 
 ## Kontextbezogener Expertenmodus
 
