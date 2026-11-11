@@ -1,4 +1,6 @@
-# Bedienungsanleitung – ELMOS E703.11 Kalibrierassistent
+# Bedienungsanleitung – ELMOS E703.11
+
+**Dokumentationsstand v0.3.3** Kalibrierassistent
 
 **[Web-App öffnen](https://vadergit.github.io/ELMOS-E703.11-Calibration-Web-App/)** · **[Projektübersicht](README.md)** · **[Testbericht](TESTBERICHT.md)**
 
@@ -96,15 +98,27 @@ In **Schritt 5** werden die im RAM wirksamen DSP-Koeffizienten anhand der **echt
 
 Erst nach der bestandenen Prüfung aller gewählten Prüfpunkte wird der normale permanente NVM-Ablauf freigeschaltet.
 
+**Ausgangs- und 1-Wire-Details:** [PSSC-Modi, Datenblatt-Register und Startschutz](AUSGANG_1WIRE.md).
+
 ## 7. Ausgang konfigurieren
 
-Im neuen **Schritt 6** folgen die Ausgangseinstellungen nach der DSP-Prüfung. Sie sind nach den PSSC-Bereichen **Digital Interface**, **AODO pin**, **Scaling**, **Limiting**, **Error Signaling** und **Error Values** gegliedert. Nicht bestätigte Hardwareoptionen sind nur lesbar oder deaktiviert. Der AODO-Modus bestimmt die analoge, PWM-, FM- oder Alarm-Ausgabe; **1-Wire und I²C sind dagegen Kommunikationsschnittstellen**. AODO_F skaliert DSP_S, AODO_O verschiebt dessen Ausgangsbereich. Die beiden Werte sind unter «Erweiterte Ausgangsparameter» verborgen und können über «Passende Ausgangsskalierung berechnen» vorgeschlagen werden.
+Im neuen **Schritt 6** folgen die Ausgangseinstellungen nach der DSP-Prüfung. Sie sind nach den PSSC-Bereichen **Digital Interface**, **AODO pin**, **Scaling**, **Limiting**, **Error Signaling** und **Error Values** gegliedert. Nicht bestätigte Hardwareoptionen sind nur lesbar oder deaktiviert. Der AODO-Modus bestimmt die analoge, PWM- oder FM-Ausgabe. **«One Wire only» ist kein zusätzlicher CFG_EN.aodo_en-Wert**, sondern bezeichnet den bereits vorhandenen permanenten 1-Wire-Betrieb über CFG_SPI_I2C.plc_en. Die PSSC-Auswahl ist im Assistenten nur dann freigegeben, wenn die vollständige Original-NVM-Prüfung zeigt, dass permanentes PLC bereits korrekt eingerichtet ist. I²C bleibt eine separate Kommunikationsschnittstelle. AODO_F skaliert DSP_S, AODO_O verschiebt dessen Ausgangsbereich. Die beiden Werte sind unter «Erweiterte Ausgangsparameter» verborgen und können über «Scaling berechnen» vorgeschlagen werden.
 
 **DSP-Zielbereich:** Wenn «Berechnen & RAM» für die neue Kalibrierung ±25’000 Digits verwendet, müssen auch die Scaling-Punkte S0/S1 −25’000/+25’000 verwenden. Der Assistent übernimmt das automatisch. Eine reine AFE-Empfehlung «ADC_S innerhalb ±25’000» ist dagegen keine DSP-Skalierung und darf nicht damit gleichgesetzt werden.
 
 **Analog Ratiometric:** Die **Zielwerte** sind standardmässig S0 = 0.5 V und S1 = 4.5 V bei VDD = 5 V (10–90 % VDD). Das Auslesen aktueller AODO-Register ändert diese Zielwerte nicht mehr; die momentane Chipkonfiguration wird separat angezeigt. Mit «Standard 10–90 % VDD einsetzen» kann die Vorgabe jederzeit wiederhergestellt werden. AODO_F und AODO_O werden in Q3.12 berechnet und als Vorschau angezeigt. Vor permanenter Programmierung an einem Testchip prüfen.
 
 Für einen bereits kalibrierten Sensor das Original-NVM (64 Wörter) im Ausgangsschritt lesen und überprüfen. Eine neue Kalibrierung ist nicht erforderlich, wenn nur der Ausgang geändert werden soll.
+
+### «One Wire only» prüfen und auswählen
+
+1. In **Schritt 6** das vollständige **Original-NVM (64 Wörter)** lesen. Die Chip-UID muss dazu passen.
+2. Unter **AODO pin → Type** die Option **«One Wire only»** wählen.
+3. Die Meldung unter der Auswahl ansehen: Nur bei bereits dauerhaft aktiver 1-Wire-Konfiguration (plc_en=1, AODO-Grundmodus 1–5, Downstream/Upstream und persistenter Registerzugriff) wird der Zustand bestätigt.
+4. Bei einem solchen Chip ist **keine NVM-Änderung erforderlich**, um «One Wire only» zu bestätigen. Eine Auswahl ohne neue Kalibrierung programmiert daher nichts.
+5. Ist nur ein 1-Wire-Startzeitfenster vorhanden, gibt es eine verständliche Fehlermeldung. Die App **aktiviert nicht automatisch dauerhaftes PLC**, da dazu geschützte Bootregister verändert werden müssten.
+
+Wichtig: Bei dauerhaftem 1-Wire-Betrieb wird die reguläre analoge/PWM/FM-Ausgabe am AODO-Pin überlagert. **«One Wire only» und gleichzeitig dauerhaft 0.5–4.5 V analog an AODO sind keine kompatiblen Betriebsarten.** Zum Wechsel von einem Startzeitfenster auf permanentes PLC braucht es einen eigens abgesicherten und am Testchip validierten Prozess, der hier bewusst nicht enthalten ist.
 
 **1-Wire-Startschutz:** Dauerhafte NVM-Programmierung nur bei echter 1-Wire-Verbindung **und** mit einer zum Datenblatt passenden NVM-Startkonfiguration. AODO-Modus 1–5 ist Pflicht (Analog, PWM, FM); High-Z und Alarm bleiben gesperrt. Die PLC-Startzeit beziehungsweise permanente PLC-Freigabe sowie Downstream-, Upstream- und persistenter Lese-/Schreibzugriff werden im NVM geprüft. Wenn das ursprüngliche NVM diese Bedingung nicht erfüllt, wird kein NVM-Schreiben gestartet. Kommunikations-/Bootwerte des NVM dürfen sich durch den geplanten Schreibvorgang nicht ändern. Nach dem Schreiben den Sensor aus- und wieder einschalten und den 1-Wire-Zugriff erneut prüfen. Ohne Hardwaretest ist eine absolute Startgarantie nicht nachgewiesen.
 
