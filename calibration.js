@@ -77,18 +77,50 @@ const ELMOS_CAL = (() => {
   }
   return {method:'browser-independent-polynomial-fit',points:ps.length,orderS,orderT,outputLimit,registers:{so,sf,coeffs:regs,to,tf,tcoeffs:tRegs},stats:{maxDigits:max,rmsDigits:rms,maxTemperatureDigits:tErrors.length?Math.max(...tErrors.map(Math.abs)):null,rangeDigits:smax-smin,maxNormalized:Math.max(...ps.map(p=>Math.abs(normS(p.s)))),maxOutput},errors,coefficients:decoded,note:'Q3.12/Q0.15 nach Datenblatt; numerischer JavaScript-Fit, nicht identisch mit der Elmos-Kalibrier-DLL. Vor Programmierung RAM/DSP-Verifikation notwendig.'};
  }
- function configFrom(original,solution,afeWord){
+ function prepareOutputConfig(original,settings,outputLimit=32000){
+  if(!Array.isArray(original)||original.length!==64)throw Error('Vollständiges NVM-Abbild erforderlich');
+  const out=original.slice();
+  if(!settings||settings.mode==='keep')return out;
+  const mode=Number(settings.mode),scaleEnabled=settings.scaleEnabled===true,period=Number(settings.pwmPeriod);
+  if(!Number.isInteger(mode)||mode<0||mode>6)throw Error('Ungültiger oder nicht unterstützter AODO-Ausgangsmodus');
+  if(mode===4&&(!Number.isInteger(period)||period<2||period>65535))throw Error('PWM-Periode muss 2–65’535 Takte betragen');
+  const gain=Number(settings.gain),offset=Number(settings.offset);
+  if(scaleEnabled&&(!Number.isFinite(gain)||!Number.isFinite(offset)))throw Error('AODO-Gain/Offset sind ungültig');
+  const effectiveLimit=Number(outputLimit);
+  if(!Number.isFinite(effectiveLimit)||effectiveLimit<=0||effectiveLimit>32767)throw Error('DSP-Zielbereich ungültig');
+  if(mode>=1&&mode<=5){
+   if((mode===4||mode===5)&&!scaleEnabled)throw Error('PWM/FM benötigt positive DSP_AODO-Werte: AODO-Skalierung einschalten und sicher einstellen');
+   const values=scaleEnabled?[
+    offset*32768-gain*effectiveLimit,offset*32768+gain*effectiveLimit
+   ]:[-effectiveLimit,effectiveLimit];
+   const min=Math.min(...values),max=Math.max(...values);
+   if(mode<=3&&(min< -26214||max>26214))throw Error('Analogausgang: für 10–90 % VDD muss DSP_AODO innerhalb von ±26’214 Digits liegen. AODO-Skalierung anpassen.');
+   if(mode===4&&(min<period*0.10||max>period*0.90))throw Error('PWM: DSP_AODO muss für den ganzen Druckbereich innerhalb 10–90 % der PWM-Periode liegen.');
+   if(mode===5&&(min<2||max>32767))throw Error('FM: DSP_AODO muss über den ganzen Bereich zwischen 2 und 32’767 Digits liegen.');
+  }
+  // Only documented AODO mode bits and output-scaling bit may change in CFG_EN.
+  out[16]=(out[16]&~((7<<9)|(1<<6)))|(mode<<9)|(scaleEnabled?(1<<6):0);
+  if(mode>=1&&mode<=3)out[22]=0x0880;
+  if(mode===4)out[22]=period;
+  if(mode===5)out[22]=0x4200;
+  if(scaleEnabled){out[57]=q(offset,12);out[58]=q(gain,12);}
+  if(original.slice(0,16).some((v,i)=>v!==out[i]))throw Error('Factory-Bereich darf nicht verändert werden');
+  for(let i=17;i<28;i++)if(i!==22&&out[i]!==original[i])throw Error('Geschützte Kommunikation verändert');
+  return out;
+ }
+  function configFrom(original,solution,afeWord,opts={}){
   if(!Array.isArray(original)||original.length!==64||original.some(v=>!Number.isInteger(v)||v<0||v>65535))throw Error('NVM-Abbild muss exakt 64 gültige 16-Bit-Wörter enthalten');
-  const cfg=original.slice(),r=solution.registers;
+  const cfg=prepareOutputConfig(original,opts.output,solution.outputLimit??32000),r=solution.registers;
   // Reserved/factory and ALL boot/interface words 0..27 are carried over bit-for-bit.
   cfg[28]=(cfg[28]&~0x7FF)|(afeWord&0x7FF); // only AFE gain/offset bits
   cfg[33]=r.so;cfg[34]=r.sf;for(let i=0;i<16;i++)cfg[35+i]=r.coeffs[i];
   if(r.tcoeffs){cfg[31]=r.to;cfg[32]=r.tf;for(let i=0;i<4;i++)cfg[51+i]=r.tcoeffs[i]}
   cfg[63]=crc16(cfg);
-  for(let i=0;i<=27;i++)if(cfg[i]!==original[i])throw Error('Sicherheitsfehler: schreibgeschützter NVM-Bereich verändert');
+  for(let i=0;i<=27;i++)if(cfg[i]!==original[i]&&![16,22].includes(i))throw Error('Sicherheitsfehler: schreibgeschützter NVM-Bereich verändert');
+  if(cfg[16]!==original[16]&&(((cfg[16]^original[16])&~((7<<9)|(1<<6)))!==0))throw Error('CFG_EN: fremde Bits dürfen nicht verändert werden');
   if(cfg.slice(0,16).some((v,i)=>v!==original[i]))throw Error('Werkskalibrierung verändert');
   return {before:original.slice(),after:cfg,changes:cfg.map((v,i)=>v!==original[i]?{index:i,address:i*2,from:original[i],to:v}:null).filter(Boolean)};
  }
- return {fit,solveFit,crc16,crc8,configFrom,fromQ,q,signed};
+ return {fit,solveFit,crc16,crc8,configFrom,prepareOutputConfig,fromQ,q,signed};
 })();
 if(typeof module!=='undefined'&&module.exports)module.exports=ELMOS_CAL;
