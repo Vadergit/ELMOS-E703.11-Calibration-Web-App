@@ -463,6 +463,15 @@ const ELMOS_GUIDED=(()=>{
   }
   $('guidedLaunch')?.addEventListener('click',open);
   $('guidedLaunchTop')?.addEventListener('click',open);
+  const beginDemo=()=>{
+   try{window.ELMOS_GUIDED_API?.startDemo?.()}
+   catch(e){
+    const box=$('connMsg');
+    if(box){box.textContent='Demo-Wizard: '+e.message;box.className='callout warn'}
+   }
+  };
+  $('guidedDemoTop')?.addEventListener('click',beginDemo);
+  $('guidedDemoLaunch')?.addEventListener('click',beginDemo);
   // A previously saved recipe is intentionally not applied to chip automatically.
  }
  return {init,open,close,onConnected,makePlan,isOpen:()=>mode};
