@@ -2,7 +2,7 @@
 /* E703.11 Expert tools: read-only factory/boot inspection and chip-bound backups.
    No unrestricted raw writes. Permanent changes remain in the main NVM transaction. */
 const ELMOS_EXPERT=(()=>{
- function init({st,CAL,readReg,nvmScan,download,show,stopLive,startLive,lsGet,lsSet,renderFlowState}){
+ function init({st,CAL,readReg,nvmScan,download,show,stopLive,startLive,lsGet,lsSet,renderFlowState,verificationComplete}){
   const $=id=>document.getElementById(id),hx=v=>Number(v).toString(16).toUpperCase().padStart(4,'0');
   const names={0:'SER0',1:'SER1',2:'RATIO_DAC01',3:'RATIO_DAC23',4:'RATIO_DAC45',15:'CRC8 factory',
    16:'CFG_EN',17:'CFG_SPI_I2C',18:'CFG_PADS0',19:'CFG_PADS1',20:'CFG_PADS2',21:'CFG_PERIOD',22:'CFG_AODO',
@@ -83,7 +83,7 @@ const ELMOS_EXPERT=(()=>{
    gain:Number($('expertScaleGain').value),offset:Number($('expertScaleOffset').value),pwmPeriod:Number($('expertPwmPeriod').value)});
   function preset(){
    try{
-    const mode=Number($('expertOutputMode').value),lim=(st.calfit?.outputLimit??Number($('calDspLimit').value))||30000,period=Number($('expertPwmPeriod').value);
+    const mode=Number($('expertOutputMode').value),lim=(st.calfit?.outputLimit??Number($('dspDisplayLimit').value))||30000,period=Number($('expertPwmPeriod').value);
     let gain,offset;
     if(mode>=1&&mode<=3){gain=0.94*26214/lim;offset=0}
     else if(mode===4){if(period<2||period>32767)throw Error('PWM-Periode für Preset zwischen 2 und 32’767 wählen');gain=0.32*period/lim;offset=period*0.5/32768}
@@ -95,15 +95,38 @@ const ELMOS_EXPERT=(()=>{
   }
   function propose(){
    try{
-    if(!st.calfit)throw Error('Für den Ausgangsvorschlag zuerst eine DSP-Kalibrierung berechnen');
+    if(!$('expertMode').checked)throw Error('Expertenmodus ist ausgeschaltet');
     const values=outputValues();
-    if(values.mode==='keep'){st.expertOutputPlan=null;show('expertOutputMsg','Ausgang unverändert.','success');return}
-    const image=st.nvmBackupVerified&&st.nvmBackup?st.nvmBackup:Array(64).fill(0);
-    CAL.prepareOutputConfig(image,values,st.calfit.outputLimit);
-    st.expertOutputPlan=values;st.calImage=null;
-    show('expertOutputMsg','Ausgangsart '+values.mode+' geprüft und für den finalen NVM-Plan vorgemerkt. Noch nichts geschrieben.','success')
-   }catch(e){st.expertOutputPlan=null;show('expertOutputMsg','Ausgangsvorschlag abgelehnt: '+e.message,'error')}
+    if(values.mode==='keep'){
+     if(st.outputOnlyPlan&&st.calImage===st.outputOnlyPlan)st.calImage=null;
+     st.outputOnlyPlan=null;st.expertOutputPlan=null;
+     show('expertOutputMsg','Ausgangskonfiguration bleibt unverändert.','success');return
+    }
+    const limit=st.calfit?.outputLimit??Number($('dspDisplayLimit').value);
+    if(!Number.isInteger(limit)||limit<1000||limit>32000)throw Error('DSP-Zielbereich für diesen Sensor zuerst korrekt einstellen');
+    const normalCalibration=verificationComplete();
+    if(!normalCalibration&&(!st.nvmBackupVerified||!st.nvmBackup||!st.uid))throw Error('Für Ausgangsänderungen an bereits kalibrierten Sensoren zuerst die aktuelle 64-Wort-NVM-Sicherung mit bestätigter UID lesen');
+    const before=st.nvmBackupVerified&&st.nvmBackup?st.nvmBackup:Array(64).fill(0);
+    const after=CAL.prepareOutputConfig(before,values,limit);
+    if(!normalCalibration){
+     after[63]=CAL.crc16(after);
+     const changes=after.map((v,i)=>v!==before[i]?{index:i,address:i*2,from:before[i],to:v}:null).filter(Boolean);
+     if(!changes.length)throw Error('Ausgang ist bereits entsprechend konfiguriert');
+     if(changes.some(c=>![16,22,57,58,63].includes(c.index)))throw Error('Nicht erlaubtes Ausgangsregister im Änderungsplan');
+     const plan={uid:st.uid.hex,outputOnly:true,limit,before:before.slice(),after,changes};
+     st.outputOnlyPlan=plan;st.restorePlan=null;st.calImage=plan;
+     st.expertOutputPlan=values;
+     show('expertOutputMsg','Ausgangsänderung ohne neuen Druckabgleich vorbereitet: '+changes.length+' NVM-Wörter. Im letzten Schritt UID und AUSGANG SPEICHERN eingeben. Noch nichts am Sensor geändert.','warn')
+    }else{
+     st.outputOnlyPlan=null;st.restorePlan=null;st.calImage=null;st.expertOutputPlan=values;
+     show('expertOutputMsg','Ausgangseinstellung geprüft und in den normalen finalen Kalibrier-NVM-Plan vorgemerkt. Noch nichts am Sensor geändert.','success')
+    }
+   }catch(e){st.outputOnlyPlan=null;st.expertOutputPlan=null;if(st.calImage?.outputOnly)st.calImage=null;show('expertOutputMsg','Ausgangsvorschlag abgelehnt: '+e.message,'error')}
    renderFlowState()
+  }
+  function outputReady(){
+   return !!($('expertMode').checked&&st.outputOnlyPlan&&st.calImage===st.outputOnlyPlan&&st.nvmBackupVerified&&st.nvmBackup&&st.uid&&
+    st.outputOnlyPlan.uid===st.uid.hex&&st.outputOnlyPlan.before.every((v,i)=>v===st.nvmBackup[i]))
   }
   function restoreReady(){
    return !!($('expertMode').checked&&st.restorePlan&&st.nvmBackupVerified&&st.nvmBackup&&st.uid&&st.restorePlan.uid===st.uid.hex&&
@@ -122,7 +145,7 @@ const ELMOS_EXPERT=(()=>{
     const changes=after.map((v,i)=>v!==before[i]?{index:i,address:i*2,from:before[i],to:v}:null).filter(Boolean);
     if(!changes.length)throw Error('Dieses Backup ist bereits auf dem Chip vorhanden');
     const plan={uid:st.uid.hex,restore:true,before:before.slice(),after,changes,created:chosen.created};
-    st.restorePlan=plan;st.calImage=plan;
+    st.restorePlan=plan;st.outputOnlyPlan=null;st.expertOutputPlan=null;st.calImage=plan;
     $('expertRestoreDiff').textContent=changes.map(x=>'CM 0x'+hx(x.address)+' 0x'+hx(x.from)+' → 0x'+hx(x.to)).join('\n');
     show('expertRestoreMsg',changes.length+' User-NVM-Wörter aus Backup '+new Date(chosen.created).toLocaleString('de-CH')+' zur Wiederherstellung vorgemerkt. Noch nichts geschrieben. Zum NVM-Schritt wechseln, UID + WIEDERHERSTELLEN eingeben.','warn')
    }catch(e){st.restorePlan=null;if(st.calImage?.restore)st.calImage=null;show('expertRestoreMsg','Wiederherstellung abgelehnt: '+e.message,'error')}
@@ -148,7 +171,7 @@ const ELMOS_EXPERT=(()=>{
   $('expertMode').addEventListener('change',()=>{
    $('expertPanel').hidden=!$('expertMode').checked;
    if($('expertMode').checked)renderBackups();
-   else {if(st.restorePlan&&st.calImage===st.restorePlan)st.calImage=null;st.restorePlan=null;}
+   else {if((st.restorePlan&&st.calImage===st.restorePlan)||(st.outputOnlyPlan&&st.calImage===st.outputOnlyPlan))st.calImage=null;st.restorePlan=null;st.outputOnlyPlan=null;}
    renderFlowState()
   });
   $('expertIdentify').addEventListener('click',()=>identify().catch(e=>show('expertUidStatus',e.message,'error')));
@@ -157,11 +180,11 @@ const ELMOS_EXPERT=(()=>{
   $('expertRegistersRead').addEventListener('click',readRegisters);
   $('expertOutputPreset').addEventListener('click',preset);
   $('expertOutputStage').addEventListener('click',propose);
-  $('expertOutputDiscard').addEventListener('click',()=>{st.expertOutputPlan=null;st.calImage=null;show('expertOutputMsg','Ausgangsänderungen verworfen.','success');renderFlowState()});
+  $('expertOutputDiscard').addEventListener('click',()=>{st.expertOutputPlan=null;st.outputOnlyPlan=null;st.calImage=null;show('expertOutputMsg','Ausgangsänderungen verworfen.','success');renderFlowState()});
   $('expertRestorePreview').addEventListener('click',prepareRestore);
   $('expertBackupImport').addEventListener('change',importFile);
   renderBackups();
-  return {onDetect,identify,afterNvmScan,restoreReady,prepareRestore,exportCurrent,renderBackups,validBackup:valid}
+  return {onDetect,identify,afterNvmScan,restoreReady,outputReady,prepareRestore,exportCurrent,renderBackups,validBackup:valid}
  }
  return {init}
 })();
