@@ -110,19 +110,88 @@ if(typeof document!=='undefined') (function UI(){
   if(st.calpoints.filter(x=>x.kind==='lo').length!==1||st.calpoints.filter(x=>x.kind==='hi').length!==1)return false;
   return Array.from({length:count-2},(_,i)=>i+1).every(slot=>st.calpoints.filter(x=>x.kind==='extra'&&x.slot===slot).length===1)
  }
+ function chosenCalibrationSamples(){
+  const n=Number($('calSampleCount').value);
+  if(!Number.isInteger(n)||n<1||n>100)throw Error('Anzahl Samples muss eine ganze Zahl zwischen 1 und 100 sein');
+  return n
+ }
+ function renderCapturedPoint(statusId,resultId,record){
+  const status=$(statusId),box=$(resultId);
+  status.classList.toggle('is-captured',!!record);
+  status.textContent=record?'✓ Aufgenommen':'Noch nicht aufgenommen';
+  box.replaceChildren();
+  box.hidden=!record;
+  if(!record)return;
+  const title=document.createElement('div');
+  title.className='cal-measure-heading';
+  title.textContent='✓ Messpunkt erfolgreich übernommen · '+record.name;
+  box.appendChild(title);
+  const grid=document.createElement('div');grid.className='cal-measure-grid';
+  const measuredCount=Number.isInteger(record.sampleCount)?record.sampleCount:null;
+  const precision=n=>Number(n).toLocaleString('de-CH',{maximumFractionDigits:1});
+  const entries=[
+   ['ADC_S · Median',precision(record.adc_s)+' Digits'],
+   ['ADC_T · Median',precision(record.adc_t)+' Digits'],
+   ['Streuung ADC_S',measuredCount===1?'Nicht messbar':precision(record.spread)+' Digits'],
+   ['Samples',measuredCount===null?'—':String(measuredCount)]
+  ];
+  for(const [label,value] of entries){
+   const item=document.createElement('div');item.className='cal-measure-cell';
+   const caption=document.createElement('span');caption.className='cal-measure-label';caption.textContent=label;
+   const reading=document.createElement('strong');reading.className='cal-measure-value';reading.textContent=value;
+   item.appendChild(caption);item.appendChild(reading);grid.appendChild(item)
+  }
+  box.appendChild(grid);
+  const note=document.createElement('div');note.className='cal-measure-note';
+  note.textContent='Referenz: '+record.pressure+' '+(record.unit||pressureUnit())+
+   ' · Temperatur: '+record.temperature+' °C'+
+   (measuredCount===1?' · Achtung: Nur ein Sample – keine Stabilitätskontrolle möglich.':' · Median aller aufgenommenen Samples');
+  box.appendChild(note)
+ }
+ async function measureCalibrationSamples(label){
+  const required=chosenCalibrationSamples();
+  if(st.calTask||st.writing||st.nvmWorking)throw Error('Ein Mess- oder Wartungsvorgang läuft');
+  const resumeLive=st.live;
+  st.calTask=true;stopLive();
+  const progress=$('calSampleProgress');
+  progress.hidden=false;progress.textContent=label+': Messung wird vorbereitet …';
+  renderFlowState();
+  try{
+   if(st.liveReadPromise)await st.liveReadPromise.catch(()=>{});
+   const values=[];
+   for(let i=0;i<required;i++){
+    const value=st.mode==='demo'?
+     {s:demoADC(),t:10755,tc:9902}:
+     {s:P.sign16(await readReg(0x2A)),t:P.sign16(await readReg(0x28)),tc:P.sign16(await readReg(0x26))};
+    values.push(value);
+    progress.textContent=label+': '+(i+1)+' / '+required+' Samples aufgenommen';
+    if(i<required-1)await sleep(60)
+   }
+   const ordered=k=>values.map(x=>x[k]).sort((a,b)=>a-b);
+   const median=x=>required%2?x[Math.floor(required/2)]:(x[required/2-1]+x[required/2])/2;
+   const pressure=ordered('s'),temperature=ordered('t'),compensated=ordered('tc');
+   const spread=pressure[required-1]-pressure[0];
+   if(required>1&&spread>350)throw Error('ADC_S streut zu stark ('+spread+' Digits). Druck stabilisieren und erneut messen');
+   return {adc_s:median(pressure),adc_t:median(temperature),adc_tc:median(compensated),spread,sampleCount:required}
+  }finally{
+   progress.hidden=true;st.calTask=false;
+   if(resumeLive&&(st.chip||st.mode==='demo'))startLive();
+   else renderStatus()
+  }
+ }
  function renderCalibrationPlan(){
   const count=calibrationPointCount();
   if(!Number.isFinite(count))return show('calPointPlanMsg','Anzahl muss zwischen 2 und 10 liegen.','error');
   $('pointHiHeading').textContent='Messpunkt '+count+' · Oberer Endpunkt';
   if(!$('pointHiName').dataset.userEdited)$('pointHiName').value='Messpunkt '+count;
+  renderCapturedPoint('lowVal','calLoResult',st.calpoints.find(x=>x.kind==='lo'));
+  renderCapturedPoint('highVal','calHiResult',st.calpoints.find(x=>x.kind==='hi'));
   for(let k=1;k<=8;k++){
    $('calExtra'+k+'Row').hidden=k>count-2;
    $('calExtra'+k+'Heading').textContent='Messpunkt '+(k+1)+' · Zwischenpunkt';
    $('calExtra'+k+'Capture').textContent='Messpunkt '+(k+1)+' aufnehmen';
    if(!$('calExtra'+k+'Name').dataset.userEdited)$('calExtra'+k+'Name').value='Messpunkt '+(k+1);
-   const p=st.calpoints.find(x=>x.kind==='extra'&&x.slot===k);
-   $('calExtra'+k+'State').textContent=p?'Aufgenommen':'Noch nicht aufgenommen';
-   $('calExtra'+k+'Value').textContent=p?'ADC_S '+fmt(p.adc_s)+' · ADC_T '+fmt(p.adc_t)+' · Streuung '+p.spread:'Noch keine Messwerte.';
+   renderCapturedPoint('calExtra'+k+'State','calExtra'+k+'Value',st.calpoints.find(x=>x.kind==='extra'&&x.slot===k));
   }
   const done=st.calpoints.length,complete=calEndpointsReady();
   $('calPointPlanMsg').textContent=complete?'Alle '+count+' Kalibrierpunkte aufgenommen. Weiter zur Berechnung.':count+' Kalibrierpunkte gewählt · '+done+' von '+count+' aufgenommen.';
