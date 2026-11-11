@@ -131,6 +131,18 @@ const ELMOS_EXPERT=(()=>{
    $('psscLimitLow').value=words?String(CAL.signed(words[59]))+' · Rohwert':'';
    $('psscLimitHigh').value=words?String(CAL.signed(words[60]))+' · Rohwert':'';
    $('psscErrorRaw').value=words?'0x'+hx(words[61])+' / 0x'+hx(words[62]):'NVM zuerst lesen';
+   const status=$('psscOneWireOnlyStatus'),selected=$('expertOutputMode').value==='onewire';
+   status.hidden=!selected;
+   if(selected){
+    const check=words?CAL.oneWireOnlyStatus(words):null;
+    status.textContent=!check?
+     'One Wire only prüfen: Zuerst das vollständige Original-NVM (64 Wörter) lesen und die Chip-UID bestätigen. Es werden keine Kommunikationsregister automatisch geändert.':
+     check.ok?
+      'One Wire only bereits im Original-NVM aktiv: permanentes 1-Wire (plc_en=1), AODO-Modus '+check.mode+
+      ', Downstream/Upstream und persistenter Registerzugriff vorhanden. Die analoge/PWM/FM-Ausgabe wird von 1-Wire überlagert. Die Auswahl erfordert KEINE Änderung der Bootregister.':
+      'One Wire only kann nicht sicher vorgemerkt werden: '+check.errors.join('; ')+'. Keine automatische Bootregister-Umstellung.';
+    status.className='callout '+(check?.ok?'success':'warn');
+   }
   }
   function renderOutputPreview(){
    const mode=$('expertOutputMode').value,limit=currentLimit();
@@ -189,6 +201,21 @@ const ELMOS_EXPERT=(()=>{
      if(st.outputOnlyPlan&&st.calImage===st.outputOnlyPlan)st.calImage=null;
      st.outputOnlyPlan=null;st.expertOutputPlan=null;
      show('expertOutputMsg','Ausgangskonfiguration bleibt unverändert.','success');return
+    }
+    if(values.mode==='onewire'){
+     if(!st.nvmBackupVerified||!st.nvmBackup||!st.uid)
+      throw Error('One Wire only: Erst vollständiges Original-NVM lesen und Chip-UID bestätigen. Es werden keine Bootregister geändert.');
+     const chk=CAL.oneWireOnlyStatus(st.nvmBackup);
+     if(!chk.ok)throw Error('One Wire only: '+chk.errors.join('; ')+'. Umstellung der geschützten Kommunikationsregister ist gesperrt.');
+     st.outputOnlyPlan=null;st.restorePlan=null;st.calImage=null;
+     if(verificationComplete()){
+      st.expertOutputPlan={mode:'onewire'};
+      show('expertOutputMsg','One Wire only ist im NVM bereits dauerhaft aktiv. Bei der späteren Kalibrier-NVM-Programmierung bleiben sämtliche Ausgangs- und Kommunikationsregister unverändert.','success');
+     }else{
+      st.expertOutputPlan=null;
+      show('expertOutputMsg','One Wire only ist bereits dauerhaft aktiv und wurde aus dem Original-NVM bestätigt. Keine separate NVM-Änderung nötig.','success');
+     }
+     renderFlowState();return;
     }
     const limit=currentLimit();
     if(!Number.isInteger(limit)||limit<1000||limit>32000)throw Error('DSP-Zielbereich für diesen Sensor zuerst korrekt einstellen');
@@ -268,7 +295,9 @@ const ELMOS_EXPERT=(()=>{
    const mode=$('expertOutputMode').value;
    $('expertPwmPeriodField').hidden=mode!=='4';
    $('psscAnalogFields').hidden=!isAnalog(mode);
-   const hints={keep:'Bisherigen AODO-Modus und Scaling unverändert lassen.',0:'Disabled (HighZ): AODO ausgeschaltet. Kein nachgewiesener One-Wire-only-Startmodus.',1:'Analog Ratiometric 0..5 V · linear 10–90 % VDD.',2:'Analog Ratiometric 0..5 V · DAC Correction 1.',3:'Analog Ratiometric 0..5 V · DAC Correction 2.',4:'PWM · Periode und positive DSP_AODO-Werte beachten.',5:'FM · positive DSP_AODO-Werte beachten.',6:'ALARM / End of Conversion · Fehler- und Grenzwerte bleiben unverändert.'};
+   $('psscScalingSection').hidden=mode==='onewire';
+   $('expertOutputPreset').disabled=mode==='onewire';
+   const hints={keep:'Bisherigen AODO-Modus und Scaling unverändert lassen.',0:'Disabled (HighZ): AODO ausgeschaltet. Kein nachgewiesener One-Wire-only-Startmodus.',1:'Analog Ratiometric 0..5 V · linear 10–90 % VDD.',2:'Analog Ratiometric 0..5 V · DAC Correction 1.',3:'Analog Ratiometric 0..5 V · DAC Correction 2.',4:'PWM · Periode und positive DSP_AODO-Werte beachten.',5:'FM · positive DSP_AODO-Werte beachten.',6:'ALARM / End of Conversion · Fehler- und Grenzwerte bleiben unverändert.',onewire:'One Wire only: Permanenter PLC-Betrieb übernimmt den AODO-Pin. Diese Wahl ist nur zulässig, wenn plc_en bereits im Original-NVM aktiv ist; Bootregister bleiben geschützt.'};
    $('outputModeHint').textContent=(hints[mode]||'Unbekannter oder nicht freigegebener Modus')+' Nur verifizierte AODO-Werte werden für NVM vorgemerkt.';
    refreshOutputReadOnly();renderOutputPreview();
   }
