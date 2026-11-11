@@ -1,3 +1,14 @@
+## Separate Ausgangsänderung eines bereits kalibrierten Sensors (11.11.2026)
+
+- Simulierter E703.11 mit vollständigem CRC8/CRC16-geprüftem NVM und erkannter UID `002056781234`
+- Ohne erneute Aufnahme oder DSP-Kalibrierung Modus ratiometrisch → PWM umgestellt, Periode 16’384 Takte und passende AODO-Skalierung vorgemerkt
+- Nur die dokumentierten Anwenderfelder an CM-Wortindizes 16, 22, 57 und 58 sowie CRC16 an 63 verändert
+- Verifikation des NVM-Inhalts im Simulator nach Rücklesen bestanden; Factory-Bereich 0–15 und übrige Boot-/Kommunikationsregister 17–21 unverändert
+- 48-Bit-Chip-UID und `AUSGANG SPEICHERN` als erforderliche Bestätigung
+- Ausgangsskalierung ohne positive PWM-Werte wird vor dem Schreiben zurückgewiesen
+- Der Restore-Simulatortest verwendet zusätzlich `WIEDERHERSTELLEN` und kann ohne neuen Druckabgleich die sichere User-Konfiguration eines passenden Backups wiederherstellen
+- **Keine Hardwareabnahme:** AODO-Spannung, PWM/FM-Signalqualität und tatsächlicher NVM-Schreibpfad müssen an einem entbehrlichen E703.11 überprüft werden
+
 ## Expertenmodus & UID-Backups – UI-/Logikprüfung 11.11.2026
 
 - Vollständige 48-Bit-Chipkennung VERSION + SER1 + SER0 aus simulierten Chipregistern gelesen; Wiedererkennung `002056781234` erfolgreich
