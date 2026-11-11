@@ -1,3 +1,14 @@
+## RAM-Übernahme – Bedienungsfehler korrigiert (11.11.2026)
+
+- Fehlende RAM-Schreibfreigabe wird nun direkt in Schritt 4 angezeigt statt nur in der AFE-Ansicht
+- Original-NVM-Lesebefehl prüft die Voraussetzungen innerhalb der Fehlerbehandlung; Fehler erscheinen direkt unter der Sicherung
+- Vollständiges NVM-Backup mit CRC-Prüfung, Fortschritt über alle 64 Wörter und separater JSON-Download vor der RAM-Übertragung
+- RAM-Schreibknopf bleibt bis zu vorhandenen Koeffizienten, echter Chipverbindung, aktivierter RAM-Freigabe und geprüftem Original-NVM deaktiviert; der jeweils fehlende Schritt wird sichtbar genannt
+- RAM-Übertragungsfehler oder erfolgreiche Rückleseprüfung werden direkt auf Schritt 4 angezeigt, nicht in der zunächst versteckten DSP-Prüfansicht
+- Der Zustand der RAM-Freigabe ist zwischen der AFE-Seite und Schritt 4 synchronisiert
+- Simulierte UI-Initialisierung, fehlende und erfüllte Freigabebedingungen, sichtbare Fehlermeldungen und Schalter-Synchronisierung getestet
+- **Noch nicht real getestet:** NVM-Backup, Schreiben und Rücklesen der DSP-Koeffizienten am physischen SSP3/E703.11
+
 ## Konfigurierbare DSP-Prüfung – Änderungsprüfung 11.11.2026
 
 - Anzahl unabhängiger Prüfdrucke im UI auf 1–10 einstellbar; Standard 1
