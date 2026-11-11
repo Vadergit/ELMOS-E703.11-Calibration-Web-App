@@ -322,7 +322,6 @@ html.compact-mode .brand .eyebrow{font-size:9px}
 html.compact-mode .brand .logo{width:29px;height:29px;font-size:16px;border-radius:7px}
 html.compact-mode .content{display:none!important}
 html.compact-mode .foot{display:none}
-html.compact-mode #demoPressurePanel{padding:4px 8px;margin:0 0 4px}
 #compactWorkspace[hidden]{display:none!important}
 #compactWorkspace{display:flex;flex-direction:column;gap:5px;min-height:390px;font-size:11px}
 .cp-heading{display:flex;align-items:center;justify-content:space-between;gap:9px;flex:0 0 29px}
@@ -444,7 +443,7 @@ html.compact-mode #demoPressurePanel{padding:4px 8px;margin:0 0 4px}
  .cp-output-grid{grid-template-columns:1fr 1fr}
  .cp-points .cp-points-setup{grid-template-columns:repeat(3,minmax(0,1fr))}
 }
-</style><link rel="stylesheet" href="guided.css?v=0.6.0-beta.2"></head><body><div class="wrap"><header class="top">
+</style><link rel="stylesheet" href="guided.css?v=0.6.0"></head><body><div class="wrap"><header class="top">
 <div class="brand"><div class="logo">E</div><div><div class="eyebrow">E703.11 · PSSC · v0.6.0</div><h1>Kalibrierassistent</h1></div></div>
 <div class="live-overview" role="group" aria-label="Sensorwerte · laufende Anzeige">
   <div class="live-kpi" title="Unkompensierter Druck-ADC. Warnung bei Beträgen über 25’000 Digits."><span class="live-kpi-label">ADC_S <span id="liveAdcAlert" class="live-alert" hidden>!</span></span><span class="live-kpi-reading" id="liveAdcS">—</span><span class="live-kpi-unit">Digits</span></div>
@@ -731,7 +730,7 @@ html.compact-mode #demoPressurePanel{padding:4px 8px;margin:0 0 4px}
 <div class="flex" style="margin-top:14px"><button class="primary" id="calVerifyRam">Prüfwert aus DSP_S lesen</button></div>
 <div id="calRamMsg" class="callout">Koeffizienten zuerst berechnen und ins RAM übertragen.</div>
 <pre id="calVerifyList" class="monoarea">Noch kein Prüfpunkt aufgenommen.</pre>
-<p class="muted small">Wenn die gewählte Anzahl an Prüfpunkten innerhalb der eingestellten Toleranz liegt, wird der abschliessende NVM-Schritt freigeschaltet. Bei aktiver Temperaturkompensation sind zusätzliche Temperaturprüfungen nötig. Im Demo-Modus ist keine Hardwareverifikation möglich.</p>
+<p class="muted small">Wenn die gewählte Anzahl an Prüfpunkten innerhalb der eingestellten Toleranz liegt, wird der abschliessende NVM-Schritt freigeschaltet. Bei aktiver Temperaturkompensation sind zusätzliche Temperaturprüfungen nötig. </p>
 <div class="nav"><button data-next="3">Zurück zur Berechnung</button><button class="primary" data-next="5">Weiter: Ausgang konfigurieren</button></div>
 </section>
 
@@ -928,4 +927,4 @@ html.compact-mode #demoPressurePanel{padding:4px 8px;margin:0 0 4px}
 <div class="nav"><button data-next="0">Zur Verbindung</button><button data-next="6">Zum NVM-Schritt</button></div>
 </section>
 <div class="foot"><b>Version v0.6.0</b> · <a href="CHANGELOG.md" target="_blank" rel="noopener">Änderungsverlauf</a> · ELMOS E703.11 · unabhängiger Kalibrierprototyp · Sicherheitsprinzip: Factory- und Kommunikations-Bootregister gesperrt; dokumentierte AODO-Ausgangsoptionen nur nach Prüfung im NVM-Plan; Wiederherstellung nur mit passender Chip-UID.</div>
-</main></div></div><div id="tip" class="tooltip"></div><script src="calibration.js?v=0.6.0-beta.2"></script><script src="eeprom-help.js?v=0.6.0-beta.2"></script><script src="expert.js?v=0.6.0-beta.2"></script><script src="config.js?v=0.6.0-beta.2"></script><script src="guided-plan.js?v=0.6.0-beta.2"></script><script src="app.js?v=0.6.0-beta.2"></script><script src="compact.js?v=0.6.0-beta.2"></script><script src="guided.js?v=0.6.0-beta.2"></script></body></html>
+</main></div></div><div id="tip" class="tooltip"></div><script src="calibration.js?v=0.6.0"></script><script src="eeprom-help.js?v=0.6.0"></script><script src="expert.js?v=0.6.0"></script><script src="config.js?v=0.6.0"></script><script src="guided-plan.js?v=0.6.0"></script><script src="app.js?v=0.6.0"></script><script src="compact.js?v=0.6.0"></script><script src="guided.js?v=0.6.0"></script></body></html>
