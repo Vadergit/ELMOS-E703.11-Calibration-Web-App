@@ -1,8 +1,8 @@
 # Bedienungsanleitung – ELMOS E703.11
 
-**Dokumentationsstand v0.3.4** Kalibrierassistent
+**Dokumentationsstand v0.4.0** Kalibrierassistent
 
-**[Web-App öffnen](https://vadergit.github.io/ELMOS-E703.11-Calibration-Web-App/)** · **[Projektübersicht](README.md)** · **[Testbericht](TESTBERICHT.md)**
+**[Web-App öffnen](https://vadergit.github.io/ELMOS-E703.11-Calibration-Web-App/)** · **[Projektübersicht](README.md)** · **[Config-Dateien & EEPROM Viewer](CONFIG_DATEIEN.md)** · **[Testbericht](TESTBERICHT.md)**
 
 Diese Anleitung beschreibt die derzeitige Benutzeroberfläche der browserbasierten App für den **ELMOS E703.11** mit **SSP3-Eval-Board**. Ziel ist ein geführter Abgleich mit möglichst wenig Vorwissen und optionalen Expertenfunktionen.
 
@@ -22,6 +22,18 @@ In **Schritt 1 – Verbindung**:
 4. Firmware-/Chip-Erkennung und erste ADC-Werte kontrollieren. Bei Fehlern zunächst **nur lesen**, nicht programmieren.
 
 **Wenn sich COM öffnen nicht lässt:** Die Auswahl eines FTDI-Adapters bedeutet noch nicht, dass Chrome den Port öffnen kann. Zum Beispiel andere serielle Programme schliessen, COM-Zuordnung und VCP-Treiber prüfen; eine Fehlermeldung bei `SerialPort.open()` entsteht vor einer eigentlichen E703.11-Protokollprüfung. Der technische Diagnosemodus kann helfen.
+
+### Config-Vorlagen in «USB & Chip»
+
+Im ersten Reiter gibt es neu den Bereich **Config-Vorlagen**. Die Datei ist eine wiederverwendbare Einrichtungsvorlage und **kein EEPROM-Backup**.
+
+**Speichern:** Alle gewünschten PGA1-/PGA2-/AFE-Offset-, Polynom-, DSP-Soll- und Ausgangseinstellungen wählen, dann unter USB & Chip einen Vorlagennamen eintragen und «Aktuelle Config speichern (.json)» drücken. Eine [Beispiel-Datei](examples/Beispiel_0-10bar.json) ist im Repository vorhanden.
+
+**Laden:** Datei auswählen, die angezeigte Vorschau prüfen und erst danach «Geladene Config übernehmen» drücken. Dabei werden Eingabefelder vorbelegt und vorhandene Messpunkte, Koeffizienten und NVM-Schreibpläne ungültig. **Noch kein Chipzugriff.**
+
+**AFE anwenden:** Im Reiter «AFE optimieren» erscheint ein Hinweis auf die vorgemerkte AFE-Konfiguration. Erst «AFE-Vorgabe jetzt ins RAM übertragen und rücklesen» verändert die AFE-RAM-Stufen des verbundenen Chips. Danach erneut alle sensorspezifischen Kalibrierpunkte erfassen. Das EEPROM wird durch das Config-Laden nicht beschrieben.
+
+Details zur strikten JSON-Struktur und den ausgeschlossenen Daten: [CONFIG_DATEIEN.md](CONFIG_DATEIEN.md).
 
 ## 2. Live-Werte – in allen sieben Schritten sichtbar
 
@@ -136,7 +148,18 @@ Die Änderungsliste, das separate Leseprotokoll und die Kontrolle nach einem phy
 
 **Achtung:** Ein Stromunterbruch oder Protokollfehler beim NVM-Schreiben kann den Sensor beschädigen. Die Hardwareverträglichkeit der aktuellen Implementierung ist nicht vollständig validiert.
 
-## 9. ⚙ Einstellungen und Expertenmodus
+## 9. EEPROM Viewer (eigener Reiter, unabhängig vom Kalibrierablauf)
+
+Der zusätzliche Reiter **EEPROM Viewer** ist jederzeit erreichbar und gehört nicht zu den sieben Kalibrierschritten. Er zeigt eine **nur lesbare 64-Wort-Tabelle** mit den PSSC-ähnlichen Spalten **Adresse, Bitfield, Data Hex, Data, Schutz**.
+
+- **EEPROM lesen (64 Wörter):** Benötigt einen verbundenen Sensor; die App verwendet den vorhandenen Wartungs-Leseweg und prüft CRC8/CRC16.
+- **In EEPROM-Wörtern suchen:** Nach Wortadresse, Bitfield-Name, Wert oder Schutzstatus filtern.
+- **EEPROM-Backup exportieren:** Exportiert das komplette, chipgebundene NVM samt UID als JSON – ausdrücklich **nicht** dasselbe Format wie eine chipunabhängige Config.
+- **Expertenmodus:** Schaltet zusätzliche Registerlese-/Diagnosefunktionen und Backup-Wiederherstellungsplanung in diesem Reiter frei.
+
+Der Viewer erlaubt **kein direktes Bearbeiten oder Programmieren von EEPROM-Wörtern**. Eine permanente Änderung erfolgt nur im normalen geschützten NVM-Ablauf.
+
+## 10. ⚙ Einstellungen und Expertenmodus
 
 Das **Zahnrad oben rechts** öffnet die Einstellungen. Dort lassen sich folgende Optionen bedienen:
 
@@ -145,23 +168,25 @@ Das **Zahnrad oben rechts** öffnet die Einstellungen. Dort lassen sich folgende
 - **Standard-Sample-Anzahl** für neue Messpunkte (1–100).
 - **Live-Abfrageintervall** (400, 650, 1’000, 1’500 oder 2’000 ms).
 
-Beim Einschalten des Expertenmodus öffnet sich sofort ein **eigenes Expertenfenster**. Es ist von jedem Kalibrierschritt aus erreichbar, auch wenn die DSP-Verifikation noch nicht abgeschlossen ist. Mit «Schliessen ×» verlässt du das Fenster, ohne den Expertenmodus auszuschalten. Über **⚙ Einstellungen → Expertenwerkzeuge öffnen** kannst du es jederzeit erneut öffnen; das Zahnrad zeigt bei aktivem Expertenmodus «EXPERT» an. Beim Aktivieren werden keine Register geändert.
+Beim Einschalten des Expertenmodus erscheinen zusätzliche, selten benötigte Felder **direkt in den jeweiligen Reitern**. Es wird **kein separates Fenster** geöffnet. Du kannst jederzeit wieder zum normalen Modus wechseln, ohne Registerwerte zu verändern.
 
-**Unter Ausgang konfigurieren (normaler Schritt 6, immer sichtbar):** Ratiometrischer Analogausgang mit drei DAC-Korrekturarten, PWM, FM und «One Wire only» (nur bei vorhandener permanenter 1-Wire-Konfiguration). High-Z und Alarm sind wegen des 1-Wire-Startschutzes gesperrt. Scaling, PWM-Periode und weitere PSSC-orientierte Diagnosefelder sind nicht vom Expertenmodus abhängig. Dauerhafte Änderungen verwenden den geschützten NVM-Schreibablauf.
+**AFE optimieren:** Erweiterte DSP-Anzeigeeinstellungen für bereits kalibrierte Sensoren.
 
-**Im separaten Expertenfenster:** Hauptregister lesen, komplettes EEPROM-/NVM-Abbild anzeigen, chipbezogene Backups auswählen, importieren, exportieren und einen Restore-Plan erstellen. Diese Lese- und Diagnosewerkzeuge benötigen keinen Abschluss der normalen Kalibrierschritte. Die Backup-Dateinamen enthalten die **12-stellige UID**. Ein Restore-Plan darf weiterhin nur über die geschützten, UID- und CRC-geprüften NVM-Funktionen durchgeführt werden.
+**Ausgang konfigurieren:** Grundlegende AODO-Modi und die S0/S1-Skalierung sind immer sichtbar. Mit Expertenmodus werden zusätzlich Digital Interface, AODO_F/AODO_O und die noch nicht freigegebenen Limiting- und Error-Signaling-Diagnosen eingeblendet. High-Z und Alarm bleiben wegen der 1-Wire-Startbedingung gesperrt.
+
+**EEPROM Viewer:** Die 64-Wort-Tabelle ist für alle zugänglich. Der Expertenmodus blendet die Registerdiagnose und die chipgebundenen Backup-/Restore-Werkzeuge ein. Die sichere Restore-Vorbereitung ist nicht gleichbedeutend mit einem NVM-Schreiben.
 
 **Factory-Schutz:** Der Werksbereich **CM-Byteadresse 0x00–0x1E** bleibt nur lesbar. Boot-/Kommunikationswerte bleiben geschützt. Gezielte, dokumentierte AODO-Konfigurationsfelder werden nur über geprüfte Schreibpläne geändert. Es gibt **keinen allgemeinen Editor für beliebige NVM-Wörter**. Die Wiederherstellung eines fremden Chips oder eines Backups mit abweichenden Factory-/Bootwerten wird abgelehnt; sie erfolgt niemals automatisch.
 
 Die lokale Browser-Backup-Historie kann beim Löschen von Website-Daten verloren gehen. **JSON-Backups zusätzlich extern aufbewahren.**
 
-## 10. Sicherheit, technische Grundlage und Grenzen
+## 11. Sicherheit, technische Grundlage und Grenzen
 
 - **Vor echten Schreibtests:** Zuerst nur lesen; anschliessend RAM-Funktionen; permanente NVM-Schreibvorgänge erst an einem entbehrlichen Testchip.
 - **Eigene Berechnung:** Die Software verwendet einen unabhängigen numerischen JavaScript-Fit, **nicht** `pssc_cal_lib.dll`. Der resultierende DSP-Abgleich muss an echten Sensoren und möglichst mit der Originalsoftware verglichen werden.
 - **Vorhandene technische Grundlagen:** E703.11-Datenblatt `25DS0170E.04`, Evaluation-Kit-Dokumentation und SSP3-/Kalibrier-Unterlagen AN 0203/0204. Proprietäre Herstellerdateien sind nicht im Repository enthalten.
 - **Keine Garantie:** Selbst korrekt bestandene Software-Simulationen können das Verhalten von SSP3, AODO-Ausgängen, NVM oder Bootsequenzen auf echter Hardware nicht garantieren.
 
-**Web-Dateien:** `index.html` (UI), `app.js` (Web Serial und Ablauf), `calibration.js` (Koeffizienten/CRC/NVM-Plan), `expert.js` (Expertenparameter und Backups) und `usb-diagnose.html` (isolierte USB-Diagnose im Browser). Es gibt keine lokale Startanwendung und keinen Node-Teststarter. Dokumentierte Simulationen und offene Hardwareprüfungen: [TESTBERICHT.md](TESTBERICHT.md).
+**Web-Dateien:** `index.html` (UI), `app.js` (Web Serial und Ablauf), `calibration.js` (Koeffizienten/CRC/NVM), `expert.js` (kontextbezogene Expertenparameter/EEPROM), `config.js` (chipunabhängige Config-Prüfung) und `usb-diagnose.html` (USB-Diagnose). Für Entwickler existieren Node-Tests in `tests/safety.test.cjs`; es gibt keine lokale Desktop-Startanwendung. Dokumentierte Simulationen und offene Hardwareprüfungen: [TESTBERICHT.md](TESTBERICHT.md).
 
 **Datenblatt-Referenz:** E703.11, 25DS0170E.04, Production Data 16.11.2023, §6.3.2.6 / §6.4.1.1 / §6.4.5.7–8 / §6.5.1.1–2 / §6.5.7.2. Eine reine Softwareprüfung kann eine tatsächliche Kaltstartprüfung nicht ersetzen.
