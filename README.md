@@ -10,7 +10,7 @@
 
 > **Betaversion – die produktive Hauptversion bleibt unverändert.** Diese Version ist ausschliesslich im Branch `feature/guided-calibration-and-usb-bridges` vorhanden. Bitte nicht versehentlich über die produktive [GitHub-Pages-Webseite](https://vadergit.github.io/ELMOS-E703.11-Calibration-Web-App/) testen: Diese zeigt weiterhin die Main-Version.
 >
-> [Geführten Assistenten testen](docs/GEFUEHRTER_ASSISTENT.md) · [USB-Bridge / ESP32-S3 / Arduino einrichten](docs/USB_BRIDGE_GUIDE.md) · [Arduino-Beispiel-Firmware](firmware/usb_bridge_cdc/usb_bridge_cdc.ino)
+> [Geführten Assistenten testen](docs/GEFUEHRTER_ASSISTENT.md) · [USB-Bridge / ESP32-S3 / Arduino einrichten](docs/USB_BRIDGE_GUIDE.md) · [Arduino-Beispiel-Firmware](firmware/usb_bridge_cdc/usb_bridge_cdc.ino) · [Lokaltest starten](scripts/preview.py)
 
 ## Projektziel
 
@@ -43,7 +43,7 @@ Antwortet das SSP3, aber die Chipprüfung schlägt beim ersten Versuch fehl, fü
 
 **Kompaktmodus:** Über ⚙ Einstellungen → «Kompaktmodus · One-Pager» einschalten. Rechts oben «Normalansicht» schaltet zurück; die Auswahl wird im Browser gespeichert. Auf ausreichend grossen Desktop-Bildschirmen werden alle Hauptschritte ohne Seitenwechsel nebeneinander gezeigt. Bei kleineren Auflösungen oder vielen Details können einzelne Karten intern scrollen. Sämtliche Eingaben, Kalibrier- und NVM-Schutzabläufe bleiben unverändert; nicht benötigte Langtexte sind gekürzt oder aufklappbar. Für selten verwendete Experten- und Diagnosefunktionen steht weiterhin die vollständige Normalansicht zur Verfügung.
 
-Für Entwickler gibt es **38 Software-Regressionstests** (Stand v0.5.0) mit Node.js: `node --test tests/safety.test.cjs`. Geprüft werden Boot-/Kommunikationsschutz, One Wire only, S0/S1-Skalierung, die sieben Kalibrierschritte, der separate EEPROM-Reiter, das Einblenden der Expertenparameter und der sichere Config-Import/-Export. Die Tests ersetzen keine Browser- und Hardwareprüfung.
+Für Entwickler gibt es **41 Software-Regressionstests** (Stand v0.5.0) mit Node.js: `node --test tests/safety.test.cjs`. Geprüft werden Boot-/Kommunikationsschutz, One Wire only, S0/S1-Skalierung, die sieben Kalibrierschritte, der separate EEPROM-Reiter, das Einblenden der Expertenparameter und der sichere Config-Import/-Export. Die Tests ersetzen keine Browser- und Hardwareprüfung.
 
 Die Browser-App verwendet eine **eigene JavaScript-Koeffizientenberechnung**, nicht die originale Elmos-Kalibrier-DLL. Eine Übereinstimmung mit der Herstellersoftware muss auf der Zielhardware verifiziert werden.
 
