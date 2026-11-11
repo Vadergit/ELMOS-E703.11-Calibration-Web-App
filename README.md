@@ -2,7 +2,7 @@
 
 **Ein geführter Kalibrierassistent für den ELMOS E703.11 und das SSP3-Eval-Board.** Ziel ist ein verständlicher Abgleich, der auch ohne tiefere Vorkenntnisse Schritt für Schritt funktioniert. Wer mehr benötigt, kann zusätzliche Messpunkte, DSP-Parameter und einen geschützten Expertenmodus verwenden.
 
-**Version: v0.3.1** · [Änderungsverlauf](CHANGELOG.md)
+**Version: v0.3.2** · [Änderungsverlauf](CHANGELOG.md)
 
 **[Web-App öffnen](https://vadergit.github.io/ELMOS-E703.11-Calibration-Web-App/)** · **[Bedienungsanleitung](ANLEITUNG.md)** · **[Testbericht und Grenzen](TESTBERICHT.md)**
 
@@ -27,7 +27,7 @@
 | RAM & DSP | Berechnete Koeffizienten ins RAM schreiben, rücklesen und DSP_S gegen Referenz/Toleranz prüfen; **1–10 Prüfpunkte** (Standard 1) |
 | NVM | Vor dem permanenten Schreiben vollständige **64-Wort-Lesung**, CRC-/Schutzprüfung und Änderungsliste; optionales Backup; 48-Bit-Chip-UID wird automatisch eingetragen und beim Schreiben geprüft |
 | Ausgangskonfiguration | Eigener **Schritt 6**, PSSC-ähnlich gegliedert in Digital Interface, AODO pin, Scaling, Limiting, Error Signaling und Error Values; nicht validierte Registereinstellungen bleiben ausschliesslich lesbar |
-| 1-Wire-Startschutz | NVM-Programmierung nur über bestätigte 1-Wire-Sitzung; Factory- und Boot-/Kommunikationswerte unverändert. Echte Startprüfung nach Neustart weiterhin nötig |
+| 1-Wire-Startschutz | Vor NVM-Schreiben werden auch die Datenblattbedingungen für AODO-Modus 1–5, PLC-Startup, Downstream/Upstream und persistenten Registerzugriff geprüft. Boot-/Kommunikationswerte bleiben unverändert; nachher Kaltstart prüfen |
 | Expertenmodus | Über **⚙ Einstellungen** aktivieren. NVM-/EEPROM-Leser und chipbezogene Backups unter **NVM** |
 | Diagnose | Register-/Chipanzeige, technisches Log, Demo-Modus und Dokumentation |
 
@@ -51,11 +51,11 @@ Die Browser-App verwendet eine **eigene JavaScript-Koeffizientenberechnung**, ni
 
 Das **Zahnrad oben rechts** öffnet die App-Einstellungen. Hier lassen sich Expertenparameter, Hover-Hilfen, die Standard-Sample-Anzahl und das Live-Abfrageintervall einstellen.
 
-Die **Ausgangskonfiguration** besitzt Schritt 6 nach «DSP prüfen» und vor «NVM programmieren». AODO-Ausgangsmodi sind nicht dasselbe wie 1-Wire-/I²C-/SPI-Kommunikationsschnittstellen. Ein Wechsel am SSP3 programmiert nicht die Boot-/Kommunikationsregister des Sensors.
+Die **Ausgangskonfiguration** besitzt Schritt 6 nach «DSP prüfen» und vor «NVM programmieren». **S0/S1 sind Zielspannungen**, bei 5 V standardmässig 0.5 / 4.5 V. Die aktuelle Chipkonfiguration erscheint separat und kann diese Vorgabe nicht mehr überschreiben. Der Knopf «Standard 10–90 % VDD einsetzen» stellt plausible Ausgangswerte wieder her. AODO-Ausgangsmodi sind nicht dasselbe wie 1-Wire-/I²C-/SPI-Kommunikationsschnittstellen. Ein Wechsel am SSP3 programmiert nicht die Boot-/Kommunikationsregister des Sensors.
 
 Mit aktivem **Expertenmodus** erscheinen weitere Funktionen:
 
-- **Ausgang konfigurieren (für alle sichtbar):** PSSC-Bezeichnungen für Analog Ratiometric 0..5 V, PWM, FM, High-Z und Alarm; automatische S0/S1-Spannungs-zu-AODO_F/AODO_O-Berechnung mit Q3.12-Quantisierung und Vorschau. Absolute 0..10 V und 4..20 mA sind für den E703.11 nicht freigeschaltet. Limiting, Error Signaling und digitale Boot-Einstellungen werden nur als geschützte Diagnosefelder gezeigt. Änderungen werden zuerst als Vorschlag geprüft; auch eine reine Ausgangsänderung bei bereits kalibriertem Sensor ist vorgesehen.
+- **Ausgang konfigurieren (für alle sichtbar):** PSSC-Bezeichnungen für Analog Ratiometric 0..5 V, PWM und FM; High-Z und Alarm werden wegen des geforderten 1-Wire-Starts nur als gesperrte Optionen angezeigt; automatische S0/S1-Spannungs-zu-AODO_F/AODO_O-Berechnung mit Q3.12-Quantisierung und Vorschau. Absolute 0..10 V und 4..20 mA sind für den E703.11 nicht freigeschaltet. Limiting, Error Signaling und digitale Boot-Einstellungen werden nur als geschützte Diagnosefelder gezeigt. Änderungen werden zuerst als Vorschlag geprüft; auch eine reine Ausgangsänderung bei bereits kalibriertem Sensor ist vorgesehen.
 - **NVM:** Dokumentierte Hauptregister und vollständige EEPROM-/NVM-Ansicht, 48-Bit-UID (**VERSION + SER1 + SER0**), lokale Backup-Historie und Import/Vergleich eines passenden Backups.
 - **Schutz:** Factory-Wörter werden nicht frei beschrieben. Kommunikations-/Bootwerte bleiben gesperrt; nur gezielt freigegebene AODO-Felder sind über den validierten Schreibplan veränderbar. Keine allgemeinen Rohregister-Schreibbefehle.
 
@@ -88,3 +88,9 @@ Die Oberfläche und der Ablauf sind noch in Entwicklung. Besonders hilfreich ist
 Aktuell ist **keine Open-Source-Lizenz** festgelegt. Öffentlich einsehbarer Code ist deshalb nicht automatisch zur freien Weiterverwendung lizenziert. Dieses Projekt ist **keine offizielle ELMOS-Anwendung**; Produkt- und Markennamen gehören ihren jeweiligen Inhabern. Hersteller-DLLs und proprietäre Entwicklungsdateien sind nicht Bestandteil des Repositorys.
 
 **1-Wire-Sicherheitsgrenze:** Der Assistent verändert keine bisherigen Kommunikations-/Bootwörter im NVM. Vor permanentem Schreiben verlangt er eine tatsächlich lesbare 1-Wire-Verbindung und prüft den geplanten NVM-Inhalt. Eine hundertprozentige Hardwaregarantie gibt es ohne validierten Kaltstarttest und Hersteller-Dokumentation der relevanten Bits nicht. Vor dem Einsatz am Produktionssensor am Testchip prüfen.
+
+## Datenblatt-Abgleich für den Ausgang (v0.3.2)
+
+Verwendet wurde **E703.11 25DS0170E.04, Production Data vom 16.11.2023**: §6.3.2.6 (Q3.12-Ausgangsskalierung), §6.4.1.1 (nominaler DAC-Ausgang und 10–90 % VDD), §6.4.5.7–8 (1-Wire-Voraussetzungen und Startup), §6.5.1.1–2 (Konfigurationsregister), §6.5.7.2 (AODO-F/O-Register). Das Datenblatt ist ein externes Herstellerdokument und nicht im Repository enthalten.
+
+Der Assistent erfordert für NVM-Schreibvorgänge die im Original-NVM nachweisbare PLC-Startaktivierung, Downstream- und Upstream-Kommunikation und einen persistenten Register-Lese-/Schreibzugang. Sensoren, die nur über eine kurzzeitige Magic-Cookie-Freigabe kommunizieren, werden vorsorglich nicht dauerhaft programmiert. Die App ändert keine geschützten Startup-Register, um diese Situation zu umgehen. Ein Hardware-Kaltstarttest bleibt Pflicht.
