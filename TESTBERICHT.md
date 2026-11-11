@@ -54,7 +54,7 @@ Dieser Bericht trennt den **im Code beziehungsweise mit simulierten Chipantworte
 
 Die Tests waren **Simulationen oder lokale JavaScript-Prüfungen**. Das Repository enthält inzwischen automatisierte Node-Regressionstests unter `tests/safety.test.cjs`, startbar mit `node --test tests/safety.test.cjs`. Der Code selbst wird ohne Buildprozess direkt durch GitHub Pages ausgeliefert. Die Tests ersetzen keine echte Hardwareprüfung.
 
-Die automatisierten Software-Regressionstests umfassen in **v0.6.0-beta.2 insgesamt 46 Fälle**. Zusätzlich wurden vorhandene HTML-IDs, die Referenzen aus den JavaScript-Dateien und einheitliche Browser-Skriptversionen geprüft. Ein vollwertiger Browser-End-to-End-Test und reale Sensorhardware stehen weiterhin aus. Die neue Datei-API, das Speichern im Browser und echte SSP3-EEPROM-Lesungen wurden noch nicht mit angeschlossenem Sensor als vollständige End-to-End-Kette verifiziert.
+Die automatisierten Software-Regressionstests umfassen in **v0.6.0-beta.2 insgesamt 47 Fälle**. Zusätzlich wurden vorhandene HTML-IDs, die Referenzen aus den JavaScript-Dateien und einheitliche Browser-Skriptversionen geprüft. Ein vollwertiger Browser-End-to-End-Test und reale Sensorhardware stehen weiterhin aus. Die neue Datei-API, das Speichern im Browser und echte SSP3-EEPROM-Lesungen wurden noch nicht mit angeschlossenem Sensor als vollständige End-to-End-Kette verifiziert.
 
 Zusätzlicher Regressionstest ab v0.4.1: Wenn SSP3 bereits auf Befehle antwortet, die Chipprüfung aber scheitert, darf der automatische USB-Neuaufbau nur **einmal** stattfinden; danach muss die Diagnose stehen bleiben. Der reale Fehlerfall am SSP3 ist noch nicht hardwaregetestet.
 
