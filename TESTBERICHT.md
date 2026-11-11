@@ -1,10 +1,10 @@
 # Testbericht – ELMOS E703.11 Web-Kalibrierassistent
 
-**Stand: Version v0.3.4 · 11. November 2026 · Laborprototyp, keine Hardware- oder Produktionsfreigabe**
+**Stand: Version v0.4.0 · 11. November 2026 · Laborprototyp, keine Hardware- oder Produktionsfreigabe**
 
 Dieser Bericht trennt den **im Code beziehungsweise mit simulierten Chipantworten geprüften Stand** von noch offenen Hardwareprüfungen. Ältere, überholte UI-Varianten und frühere Bestätigungswörter werden hier bewusst nicht als aktuelle Funktion beschrieben.
 
-**[Web-App](https://vadergit.github.io/ELMOS-E703.11-Calibration-Web-App/)** · **[README](README.md)** · **[Bedienungsanleitung](ANLEITUNG.md)** · **[Ausgang und 1-Wire](AUSGANG_1WIRE.md)**
+**[Web-App](https://vadergit.github.io/ELMOS-E703.11-Calibration-Web-App/)** · **[README](README.md)** · **[Bedienungsanleitung](ANLEITUNG.md)** · **[Ausgang und 1-Wire](AUSGANG_1WIRE.md)** · **[Config & EEPROM Viewer](CONFIG_DATEIEN.md)**
 
 ## Zusammenfassung
 
@@ -20,7 +20,8 @@ Dieser Bericht trennt den **im Code beziehungsweise mit simulierten Chipantworte
 | NVM-Sicherungs-/Programmierungsplan | CRC, Änderungslisten, UID und Schreibsequenzen simuliert | **Permanentes NVM-Schreiben nicht hardwarefreigegeben** |
 | AODO analog / PWM / FM | Modus-/Grenzprüfungen und S0/S1-Q3.12-Skalierung simuliert | Physische Ausgangssignale messen |
 | «One Wire only» | Nur bereits permanentes PLC im Original-NVM akzeptiert; keine Bootregisteränderungen | Kaltstart und One-Wire-Kommunikation am Testchip prüfen |
-| Expertenfenster | Eigene, jederzeit zugängliche Diagnoseansicht, aufklappbar unabhängig von Schritt 7 | Registerlesen/Backups am echten Chip prüfen |
+| Kontextbezogener Expertenmodus | Zusatzeinstellungen erscheinen direkt in AFE, Ausgang und EEPROM Viewer; kein Popup | Bedienung mit realem Sensor prüfen |
+| EEPROM Viewer | Eigener Reiter, 64 Zeilen, Suchfeld, Hex/Dezimalwerte und Schutzanzeige; bestehender CRC-geprüfter Lesepfad | Vollständiges EEPROM am Testchip lesen und mit PSSC vergleichen |\n| Config-Vorlagen | Strikte JSON-Prüfung, Datei mit nur AFE/DSP/Mess-/Ausgangsparametern; staged AFE-RAM-Anwendung nach Benutzerklick | Import, AFE-Rücklesung und neue Sensor-Kalibrierung praktisch prüfen |
 | Chip-UID / Backup / Wiederherstellung | UID-Zuordnung, CRC und Restore-Plan simuliert | Echter Restore auf Testchip fehlt |
 
 ## Aktuelle Oberfläche und Bedienung
@@ -30,7 +31,8 @@ Dieser Bericht trennt den **im Code beziehungsweise mit simulierten Chipantworte
 - **AFE:** diskrete Tasten in der Reihenfolge **PGA1 → Offset → PGA2**. Angezeigt werden ausschliesslich Verstärkungen beziehungsweise mV/V, keine Stufennummern. Jeder Klick löst unmittelbar eine **AFE-RAM-Änderung mit Rücklesung** aus; gleichzeitige Schreibaktionen werden blockiert.
 - **Grenzen:** PGA1 0–3, Offset −8 bis +8, PGA2 0–8. Die ±-Tasten werden an den Grenzen und während Schreibvorgängen gesperrt.
 - **Fehlerbehandlung:** Bei verweigertem RAM-Zugriff bleibt der bisher bestätigte AFE-Zustand erhalten. Bei unklarem tatsächlichem Schreibstatus werden vorhandene Kalibrierpunkte vorsorglich verworfen.
-- **Einstellungen:** Zahnrad oben rechts; der Expertenmodus öffnet jetzt ein eigenes Diagnosefenster für Register, EEPROM/NVM und Chip-Backups. Das Fenster ist von jedem Kalibrierschritt erreichbar und muss nicht mehr hinter Schritt 7 aufgeklappt werden.
+- **Einstellungen:** Zahnrad oben rechts; der Expertenmodus blendet Zusatzeinstellungen im jeweiligen Reiter ein. Die Hauptoberfläche bleibt ohne Expertenmodus kompakt.
+- **EEPROM Viewer:** Als eigener Reiter neben den sieben Kalibrierschritten jederzeit erreichbar; Tabelle nur lesbar.\n- **Config-Vorlagen:** Datei in «USB & Chip» speichern/laden; geladene AFE-Werte getrennt vom tatsächlichen RAM-Zustand vormerken und erst mit einem weiteren Klick übertragen.
 - **NVM:** Nach bestandener DSP-Prüfung kann **«NVM lesen & Änderungen prüfen»** ohne vorgängig erstelltes Backup ausgeführt werden. Nach gültiger automatisch eingetragener, weiterhin editierbarer **48-Bit-UID** wird der Schreibknopf freigegeben. **Kein zusätzliches Bestätigungswort**.
 - **Optionale Sicherung:** Vor dem finalen Schreiben kann das alte NVM unter der Chip-UID archiviert und als JSON heruntergeladen werden. Ist diese Option deaktiviert, bleibt die vollständige CRC-Sicherheitslesung erforderlich.
 
@@ -47,11 +49,12 @@ Dieser Bericht trennt den **im Code beziehungsweise mit simulierten Chipantworte
 9. **AODO-Ausgang:** Ratiometrische/PWM-Mappings und Q3.12-Skalierung für S0/S1 geprüft; High-Z und Alarm dürfen wegen der 1-Wire-Startregel nicht ins NVM programmiert werden.
 10. **One Wire only:** Permanenter PLC-Modus wird aus dem Original-NVM erkannt und ohne Änderung der Kommunikationsregister bestätigt; ein kurzes PLC-Startfenster genügt nicht.
 11. **Datenblatt-Startschutz:** Prüfung von AODO-Modus 1–5, PLC-Dauerbetrieb oder Startfenster, Downstream, Upstream und persistentem Registerzugriff.
-12. **Expertenmodus:** Ab Version v0.3.4 als separates, jederzeit aufrufbares Diagnosefenster ohne Abhängigkeit von Schritt 7. Software-DOM- und Verdrahtungstest; kein Hardwarefreigabetest.
+12. **Expertenmodus:** Ab v0.4.0 kontextbezogen im passenden Reiter, nicht als separates Fenster.
+13. **EEPROM Viewer:** Zusätzlicher, unabhängig erreichbarer Reiter mit Lese-/Exportknopf, vollständiger NVM-Tabelle und Suchfeld.\n14. **Config-Vorlagen:** Import/Export ausschliesslich chipunabhängiger Zielparameter; keine UID, keine NVM-Wörter, keine Fit-Koeffizienten. Erst ein expliziter AFE-RAM-Knopf löst einen echten Chip-Schreibvorgang aus.
 
 Die Tests waren **Simulationen oder lokale JavaScript-Prüfungen**. Das Repository enthält inzwischen automatisierte Node-Regressionstests unter `tests/safety.test.cjs`, startbar mit `node --test tests/safety.test.cjs`. Der Code selbst wird ohne Buildprozess direkt durch GitHub Pages ausgeliefert. Die Tests ersetzen keine echte Hardwareprüfung.
 
-Die automatisierten Software-Regressionstests umfassen in **v0.3.4 insgesamt 19 Fälle**. Zusätzlich wurden vorhandene HTML-IDs, die Referenzen aus den JavaScript-Dateien und einheitliche Browser-Skriptversionen geprüft. Ein vollwertiger Browser-End-to-End-Test und reale Sensorhardware stehen weiterhin aus.
+Die automatisierten Software-Regressionstests umfassen in **v0.4.0 insgesamt 23 Fälle**. Zusätzlich wurden vorhandene HTML-IDs, die Referenzen aus den JavaScript-Dateien und einheitliche Browser-Skriptversionen geprüft. Ein vollwertiger Browser-End-to-End-Test und reale Sensorhardware stehen weiterhin aus. Die neue Datei-API, das Speichern im Browser und echte SSP3-EEPROM-Lesungen wurden noch nicht mit angeschlossenem Sensor als vollständige End-to-End-Kette verifiziert.
 
 ## Offene Prüfungen vor produktivem Einsatz
 
