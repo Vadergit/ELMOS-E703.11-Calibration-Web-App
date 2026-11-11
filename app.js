@@ -612,6 +612,19 @@ if(typeof document!=='undefined') (function UI(){
  function resetDemoChecks(){
   demoRamStaged=false;demoValidation=[];demoVerified=false;demoCompleted=false
  }
+ function demoApplyAFEProfile(){
+  if(st.mode!=='demo'||st.port)throw Error('Config-Simulation nur ohne Hardware möglich');
+  const target=st.profilePendingAFE;
+  if(!target||!P.goodG(target))throw Error('Keine gültige AFE-Config-Vorgabe vorhanden');
+  st.staged={...target};
+  st.profilePendingAFE=null;
+  erasePoints();
+  gainSummary();
+  profileSummary();
+  updateADC({s:demoADC(),t:P.sign16(demoRead(0x28)),tc:P.sign16(demoRead(0x26))},'demo');
+  show('writeMsg','DEMO: Config-AFE nur virtuell übernommen; keine Hardware und kein EEPROM verändert.','success');
+  return true
+ }
  function demoStageCalibration(){
   if(st.mode!=='demo'||st.port)throw Error('Demo-RAM-Übernahme ist nur ohne Hardware erlaubt');
   if(!st.calfit||!coefficientSettingsCurrent()||!calEndpointsReady())throw Error('Zuerst alle Messpunkte aufnehmen und Koeffizienten berechnen');
@@ -1357,6 +1370,7 @@ if(typeof document!=='undefined') (function UI(){
    window.ELMOS_GUIDED?.open?.();
   },
   demoSetpoint:(pressure,temperature)=>demoSetpoint(pressure,temperature),
+  demoApplyAFEProfile:()=>demoApplyAFEProfile(),
   demoStageCalibration:()=>demoStageCalibration(),
   demoVerifyCalibration:(pressure,temperature)=>demoVerifyCalibration(pressure,temperature),
   demoCompleteWizard:(options)=>demoCompleteWizard(!!options?.outputOnly)
