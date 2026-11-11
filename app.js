@@ -41,8 +41,32 @@ if(typeof document!=='undefined') (function UI(){
  const hexWords=arr=>arr.map(x=>P.hx(x,2)).join(' ');
  const sleep=ms=>new Promise(r=>setTimeout(r,ms));
  const sameBoot=(a,b)=>!!a&&!!b&&LOCKED.every(k=>a[k]===b[k]);
- function renderStatus(){let connected=!!st.port, demo=st.mode==='demo';$('status').textContent=demo?'DEMO · simuliert':st.chip?'Chip-Leseantwort plausibel':connected?'USB verbunden · Chipprüfung offen':'Nicht verbunden';$('statusDot').className='dot'+(demo?' demo':st.chip?' active':'');$('fw').textContent=st.firmware?st.firmware.slice(0,19):'—';$('chip').textContent=st.chip?'Antwort erhalten':'—';$('ifaceLabel').textContent=st.iface==='plc'?'1-Wire':st.iface==='i2c'?'I²C':'SPI';$('srcLabel').textContent=demo?'DEMO':st.adc?.source==='usb'?'USB / Chip':'Keine Messdaten';$('choose').disabled=connected;$('auto').disabled=connected;$('disconnect').disabled=!connected;$('readNow').disabled=!connected&&!demo;$('live').disabled=!connected&&!demo;$('live').textContent=st.live?'Live-Messung stoppen':'Live-Messung starten';$('readBoot').disabled=!st.chip;$('readRegs').disabled=!st.chip;$('afeApplyRam').disabled=!st.chip||demo||st.calTask||st.writing||st.nvmWorking;$('afeWord').textContent=st.afe===null?'CFG_AFE1: —':'CFG_AFE1: 0x'+h(st.afe,2);renderFlowState();renderDSPLive()};
- function gainSummary(){for(let k of ['pga1','pga2','offset']){$(k).value=st.staged[k];$(k+'val').textContent=(st.staged[k]>0&&k==='offset'?'+':'')+st.staged[k]}let g=st.staged;$('gainInfo').textContent=`PGA1 ${GAINS1[g.pga1]}× · PGA2 ${GAINS2[g.pga2]}× · Gesamt ${(GAINS1[g.pga1]*GAINS2[g.pga2]).toFixed(2)}× · Offset-DAC ${g.offset*50} mV/V`;renderStatus()}
+ function renderStatus(){let connected=!!st.port, demo=st.mode==='demo';$('status').textContent=demo?'DEMO · simuliert':st.chip?'Chip-Leseantwort plausibel':connected?'USB verbunden · Chipprüfung offen':'Nicht verbunden';$('statusDot').className='dot'+(demo?' demo':st.chip?' active':'');$('fw').textContent=st.firmware?st.firmware.slice(0,19):'—';$('chip').textContent=st.chip?'Antwort erhalten':'—';$('ifaceLabel').textContent=st.iface==='plc'?'1-Wire':st.iface==='i2c'?'I²C':'SPI';$('srcLabel').textContent=demo?'DEMO':st.adc?.source==='usb'?'USB / Chip':'Keine Messdaten';$('choose').disabled=connected;$('auto').disabled=connected;$('disconnect').disabled=!connected;$('readNow').disabled=!connected&&!demo;$('live').disabled=!connected&&!demo;$('live').textContent=st.live?'Live-Messung stoppen':'Live-Messung starten';$('readBoot').disabled=!st.chip;$('readRegs').disabled=!st.chip;$('afeApplyRam').disabled=!st.chip||demo||st.calTask||st.writing||st.nvmWorking;$('afeWord').textContent=st.afe===null?'CFG_AFE1: —':'CFG_AFE1: 0x'+h(st.afe,2);renderAFEStepperState();renderFlowState();renderDSPLive()};
+ function gainSummary(){
+  const g=st.staged;
+  for(const k of ['pga1','pga2','offset'])$(k).value=String(g[k]);
+  $('pga1val').textContent='Stufe '+g.pga1+' · '+GAINS1[g.pga1]+'×';
+  $('pga2val').textContent='Stufe '+g.pga2+' · '+GAINS2[g.pga2]+'×';
+  $('offsetval').textContent=(g.offset>0?'+':'')+g.offset+' · '+(g.offset*50>0?'+':'')+(g.offset*50)+' mV/V';
+  $('gainInfo').textContent=`PGA1 ${GAINS1[g.pga1]}× · PGA2 ${GAINS2[g.pga2]}× · Gesamt ${(GAINS1[g.pga1]*GAINS2[g.pga2]).toFixed(2)}× · Offset-DAC ${g.offset*50} mV/V`;
+  renderStatus()
+ }
+ function renderAFEStepperState(){
+  const busy=st.calTask||st.writing||st.nvmWorking;
+  for(const [k,min,max] of [['pga1',0,3],['pga2',0,8],['offset',-8,8]]){
+   $(k+'Down').disabled=busy||st.staged[k]<=min;
+   $(k+'Up').disabled=busy||st.staged[k]>=max
+  }
+ }
+ function stepAFE(k,increment){
+  if(st.calTask||st.writing||st.nvmWorking){gainSummary();show('writeMsg','Während einer Kalibrier- oder NVM-Transaktion sind AFE-Änderungen gesperrt.','warn');return}
+  const limits={pga1:[0,3],pga2:[0,8],offset:[-8,8]};
+  const [min,max]=limits[k];
+  const next=Math.max(min,Math.min(max,st.staged[k]+increment));
+  if(next===st.staged[k])return;
+  $(k).value=String(next);
+  gainChange()
+ }
  
 
  function getManualDSPRange(){
@@ -967,7 +991,10 @@ if(typeof document!=='undefined') (function UI(){
  $('iface').addEventListener('change',()=>{if(st.port){$('iface').value=st.iface;show('connMsg','Zur Schnittstellenänderung zuerst USB trennen.','warn');return}st.iface=$('iface').value;lsSet('elmos8-iface',st.iface);renderStatus()});
  $('choose').addEventListener('click',()=>choose());$('auto').addEventListener('click',()=>auto());$('disconnect').addEventListener('click',()=>disconnect());$('demo').addEventListener('click',()=>demo());
  $('readNow').addEventListener('click',()=>readADC().catch(e=>show('adcMsg','ADC: '+e.message,'error')));$('live').addEventListener('click',()=>{if(st.live){st.manualLivePause=true;stopLive()}else{st.manualLivePause=false;startLive()}});
- for(let k of ['pga1','pga2','offset'])$(k).addEventListener('input',()=>gainChange());
+ for(const k of ['pga1','pga2','offset']){
+  $(k+'Down').addEventListener('click',()=>stepAFE(k,-1));
+  $(k+'Up').addEventListener('click',()=>stepAFE(k,1))
+ }
  $('afeApplyRam').addEventListener('click',()=>commitGain({...st.staged}));
   $('readBoot').addEventListener('click',()=>readBoot().catch(e=>logging('Boot-Prüfung: '+e.message)));$('readRegs').addEventListener('click',()=>registerDump());
  $('demoPressure').addEventListener('input',()=>{st.pressure=Number($('demoPressure').value);$('demoPressureVal').textContent=st.pressure.toFixed(1);if(st.mode==='demo')updateADC({s:demoADC(),t:10755,tc:9902},'demo')});$('capLo').addEventListener('click',()=>capture('lo'));$('capHi').addEventListener('click',()=>capture('hi'));$('verify').addEventListener('click',()=>verify());
