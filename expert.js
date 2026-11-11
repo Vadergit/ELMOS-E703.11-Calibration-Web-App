@@ -78,8 +78,11 @@ const ELMOS_EXPERT=(()=>{
    const factory={5:'ABS_V_DAC01',6:'ABS_V_DAC23',7:'ABS_V_DAC45',8:'ABS_I_DAC01',9:'ABS_I_DAC23',10:'ABS_I_DAC45',11:'G01',12:'G2OFF',13:'CFG_CAL0',14:'CFG_CAL1'};
    return names[i]||factory[i]||(i>=35&&i<=50?'S'+(i-35):i>=51&&i<=54?'T'+(i-51):'CM_W'+i);
   }
+  // UI-only expansion state. It is cleared whenever the verified chip identity changes.
+  const expandedEEPROM=new Set();
+  let eepromViewerUid=null;
   function refreshEEPROMViewer(){
-   // Never show cached EEPROM words as if they belong to a newly connected chip.
+   // Keep the existing verified-NVM/UID gate. No reads and no writes from expanding a row.
    const valid=!!(st.mode==='usb'&&st.port&&st.chip&&st.uid&&st.nvmBackupVerified&&
     Array.isArray(st.nvmBackup)&&st.nvmBackup.length===64&&
     st.uid.ser0===st.nvmBackup[0]&&st.uid.ser1===st.nvmBackup[1]);
@@ -87,31 +90,100 @@ const ELMOS_EXPERT=(()=>{
    rows.replaceChildren();
    $('eepromExport').disabled=!valid||!st.uid;
    if(!valid){
+    expandedEEPROM.clear();eepromViewerUid=null;
     const tr=document.createElement('tr'),td=document.createElement('td');
-    td.colSpan=5;td.textContent='Noch keine gültigen EEPROM-Daten. «EEPROM lesen» starten.';
+    td.colSpan=6;td.textContent='Noch keine gültigen EEPROM-Daten. «EEPROM lesen» starten.';
     tr.appendChild(td);rows.appendChild(tr);
     $('eepromStatus').textContent='Noch kein vollständiges 64-Wort-EEPROM mit gültiger CRC vorhanden. Lesezugriff benötigt einen verbundenen Chip.';
     $('eepromStatus').className='callout';
     $('expertNvmDump').textContent='Noch kein komplettes EEPROM-Abbild gelesen.';
     return;
    }
-   const fragment=document.createDocumentFragment();
+   if(eepromViewerUid!==st.uid.hex){expandedEEPROM.clear();eepromViewerUid=st.uid.hex}
+   const fragment=document.createDocumentFragment(),expertDetails=$('expertMode').checked;
    let matched=0;
+   const elem=(tag,className,content)=>{
+    const el=document.createElement(tag);
+    if(className)el.className=className;
+    if(content!==undefined)el.textContent=String(content);
+    return el;
+   };
    for(let i=0;i<64;i++){
-    const value=st.nvmBackup[i],address=i.toString(16).toUpperCase().padStart(2,'0'),
-     name=nvmName(i),signed=CAL.signed(value),
-     protection=i<16?'Factory · nur lesen':i<28?'Boot/Konfig · geschützt':i===63?'CRC16':'User-NVM · geschützt';
-    const query=(address+' '+name+' '+hx(value)+' '+signed+' '+protection).toLowerCase();
-    if(filter&&!query.includes(filter))continue;
+    const value=st.nvmBackup[i],word=ELMOS_EEPROM_HELP.describe(i,value),
+     name=word.name,address=word.wordHex.slice(2),signed=word.signed,protection=word.protection;
+    if(filter&&!word.search.includes(filter))continue;
     matched++;
     const row=document.createElement('tr');
-    row.className=i<16?'nvm-factory':i<28?'nvm-boot':i===63?'nvm-crc':'';
-    for(const str of [address,name,'0x'+hx(value),String(signed),protection]){
-     const td=document.createElement('td');td.textContent=str;row.appendChild(td);
+    row.className=(i<16?'nvm-factory':i<28?'nvm-boot':i===63?'nvm-crc':'')+' eeprom-data-row';
+    const addressCell=elem('td');
+    const open=expandedEEPROM.has(i);
+    const toggle=elem('button','eeprom-expand',(open?'▾':'▸')+' '+address);
+    toggle.type='button';toggle.setAttribute('aria-expanded',String(open));
+    toggle.setAttribute('aria-label',(open?'Details schliessen: ':'Details öffnen: ')+name+', EEPROM-Wort '+address);
+    toggle.addEventListener('click',()=>{
+     if(expandedEEPROM.has(i))expandedEEPROM.delete(i);else expandedEEPROM.add(i);
+     const scroll=$('eepromTableScroll'),top=scroll.scrollTop;
+     refreshEEPROMViewer();
+     scroll.scrollTop=top;
+    });
+    addressCell.appendChild(toggle);row.appendChild(addressCell);
+    for(const [text,className] of [[name,'eeprom-register'],[word.rawHex,'eeprom-raw'],[String(signed),'eeprom-number'],[word.short,'eeprom-function'],[protection,'eeprom-protection']]){
+     row.appendChild(elem('td',className,text));
     }
     fragment.appendChild(row);
+    if(open){
+     const detailRow=elem('tr','eeprom-detail-row'),detailCell=elem('td');
+     detailCell.colSpan=6;
+     const detail=elem('div','eeprom-detail');
+     detail.appendChild(elem('h3','',word.name+' – '+word.short));
+     detail.appendChild(elem('p','eeprom-detail-description',word.description));
+     const meta=elem('dl','eeprom-meta');
+     const entries=[
+      ['EEPROM-Wortindex',word.wordHex+' ('+word.index+')'],
+      ['EEPROM-Byteadresse',word.byteHex+' (Index × 2)'],
+      ['RAM-Register',word.ramHex||'Nicht sicher zugeordnet'],
+      ['Rohwert',word.rawHex+' / '+word.unsigned+' unsigned'],
+      ['Signed 16 Bit',String(word.signed)],
+      ['Format',word.format]
+     ];
+     if(word.interpreted!==null)entries.push(['Umrechnungswert',word.interpreted+' ('+word.format+')']);
+     for(const [label,value] of entries){
+      const item=elem('div','eeprom-meta-item');
+      item.appendChild(elem('dt','',label));item.appendChild(elem('dd','',value));
+      meta.appendChild(item);
+     }
+     detail.appendChild(meta);
+     if(word.formula){
+      const formula=elem('p','eeprom-formula');
+      formula.appendChild(elem('strong','', 'Zusammenhang: '));
+      formula.appendChild(document.createTextNode(word.formula));
+      detail.appendChild(formula);
+     }
+     if(word.interpreted!==null)detail.appendChild(elem('p','eeprom-small','Festkommawert = vorzeichenbehafteter 16-Bit-Rohwert / '+(word.format==='Q3.12'?'4096':'32768')+'. Nicht mit einer gemessenen Spannung gleichsetzen.'));
+     if(expertDetails){
+      const advanced=elem('section','eeprom-bit-detail');
+      advanced.appendChild(elem('h4','', 'Expertenansicht · Rohbits und bekannte Bitfelder'));
+      advanced.appendChild(elem('div','eeprom-binary',word.binary));
+      if(word.fields.length){
+       const bitTable=elem('table','eeprom-bit-table');
+       const thead=elem('thead'),header=elem('tr');
+       for(const field of ['Bits','Bezeichnung','Code','Bedeutung'])header.appendChild(elem('th','',field));
+       thead.appendChild(header);bitTable.appendChild(thead);
+       const body=elem('tbody');
+       for(const field of word.fields){
+        const tr=elem('tr');
+        for(const text of [field.bits,field.name,field.raw,field.meaning])tr.appendChild(elem('td','',text));
+        body.appendChild(tr);
+       }
+       bitTable.appendChild(body);advanced.appendChild(bitTable);
+      }else advanced.appendChild(elem('p','eeprom-small','Keine verifizierte Bitfeld-Aufschlüsselung vorhanden; die Binärdarstellung ist nur eine Rohwertansicht.'));
+      detail.appendChild(advanced);
+     }else if(word.fields.length)detail.appendChild(elem('p','eeprom-small','Für Bitpositionen und Einzelcodes den Expertenmodus in den Einstellungen aktivieren.'));
+     detail.appendChild(elem('p','eeprom-small','Alle Angaben sind Diagnoseinformationen aus dem geprüften EEPROM-Abbild. Hier werden keine Register verändert.'));
+     detailCell.appendChild(detail);detailRow.appendChild(detailCell);fragment.appendChild(detailRow);
+    }
    }
-   if(!matched){const tr=document.createElement('tr'),td=document.createElement('td');td.colSpan=5;td.textContent='Keine EEPROM-Wörter für diese Suche.';tr.appendChild(td);fragment.appendChild(tr)}
+   if(!matched){const tr=elem('tr'),td=elem('td');td.colSpan=6;td.textContent='Keine EEPROM-Wörter für diese Suche.';tr.appendChild(td);fragment.appendChild(tr)}
    rows.appendChild(fragment);
    const status=CAL.oneWireStartupStatus(st.nvmBackup);
    $('eepromStatus').textContent='EEPROM: 64 Wörter gelesen, CRC8/CRC16 bestätigt. '+matched+' sichtbar. Chip-ID: '+(st.uid?.hex||'noch nicht bestätigt')+
@@ -342,6 +414,7 @@ const ELMOS_EXPERT=(()=>{
    $('settingsMsg').textContent=enabled?
     'Expertenmodus aktiv: Zusatzfelder befinden sich in den Reitern AFE, Ausgang und EEPROM Viewer. Es werden keine Chipwerte verändert.':
     'Expertenmodus deaktiviert: Die erweiterten Felder sind ausgeblendet; Chipwerte bleiben unverändert.';
+   refreshEEPROMViewer();
    if(enabled)renderBackups();
    else {if(st.restorePlan&&st.calImage===st.restorePlan)st.calImage=null;st.restorePlan=null;}
    renderFlowState();
