@@ -1,6 +1,6 @@
 # USB-Bridge statt SSP3 – experimenteller Testaufbau
 
-**Stand v0.6.0-beta.1 · nur im Branch `feature/guided-calibration-and-usb-bridges`**
+**Stand v0.6.0-beta.2 · nur im Branch `feature/guided-calibration-and-usb-bridges`**
 
 Der Kalibrierassistent nutzt standardmässig weiterhin das **ELMOS SSP3**. In dieser Testversion kann unter **USB & Chip → Programmieradapter** auch **ESP32 / Arduino USB-Bridge · experimentell** gewählt werden.
 
@@ -14,6 +14,10 @@ Der Kalibrierassistent nutzt standardmässig weiterhin das **ELMOS SSP3**. In di
 - Der bisherige SSP3-Kommunikationspfad bleibt unverändert.
 
 **Wichtig:** Das Beispiel ist keine fertige E703.11-Programmer-Firmware. Es implementiert **weder den Elmos-1-Wire/PLC-Bus noch die EEPROM-Programmierung**. Ein serieller USB-Port alleine ersetzt die zeitkritische Hardware-Kommunikation nicht.
+
+Die ausführliche, auf ESP-Baugruppen fokussierte [Board-Liste mit ESP32-C3 SuperMini](ESP_BOARD_OPTIONS.md) enthält auch die native USB-Pinbelegung und die speziellen Flash-Schritte.
+
+**Für den bereits vorhandenen ESP32-C3 SuperMini:** Statt des allgemeinen Arduino-Beispiels die neue [C3-SuperMini-Firmware](../firmware/esp32c3_supermini/esp32c3_supermini.ino) verwenden. Arduino IDE → Board **ESP32C3 Dev Module**, **USB CDC On Boot: Enabled**. Nach dem Flashen `BRIDGE_INFO` senden. Erwartet wird `# E70311-BRIDGE V1 CAPS=CDC_ONLY`.
 
 ## 2. Geeignete Boards
 
