@@ -1,7 +1,6 @@
-# Geführter Kalibrierassistent – Beta
+# Geführter Kalibrierassistent
 
-**Branch:** `feature/guided-calibration-and-usb-bridges`  
-**Version:** v0.6.0-beta.2. **Kein Merge nach `main`** und keine Änderung der bestehenden GitHub-Pages-Veröffentlichung.
+**Version:** v0.6.0. In der Hauptversion verfügbar. Der ursprüngliche Testbranch bleibt als Entwicklungsstand erhalten.
 
 ## Wozu der neue Modus?
 
@@ -47,42 +46,28 @@ Die Config-Vorlage ist **keine Kopie eines kalibrierten Sensors**. Sie enthält 
 
 ## Bestehende Oberfläche und Sicherheit
 
-- Die neue UI wird allein auf dem Testbranch geladen. Ein Knopf «Klassische Ansicht» stellt alle originalen Elemente an ihren vorherigen Platz zurück.
+- Die neue UI ist über die reguläre Web-App erreichbar. Ein Knopf «Klassische Ansicht» stellt alle originalen Elemente an ihren vorherigen Platz zurück.
 - Hardware-/USB-Kommandos werden ausschliesslich über den bestehenden `app.js`-Pfad abgewickelt.
 - Die neue UI erhält einen **nur lesenden** Status-Adapter `window.ELMOS_GUIDED_API`. Sie kann dadurch eine NVM-Freigabe nicht selber setzen.
 - Sie verwendet die originalen Buttons `calApplyRam`, `calVerifyRam`, `expertOutputStage`, `nvmPrepare`, `nvmProgram` mit bestehenden Sperren und Sicherheitsabfragen.
 - Nicht alle Kombinationen und Hardwarebedingungen wurden im Browser und am Sensor geprüft. Das Produkt bleibt **Laborprototyp**; keine Produktionsfreigabe.
 
-## Demo ohne Hardware – voller Wizard
+## Verbindung erforderlich
 
-Du kannst den **gesamten geführten Ablauf ohne Evaluation Board, USB-Stick oder Sensor** testen. Der Demo-Modus ist ausschliesslich eine UI-/Rechensimulation, **kein Test des E703.11**.
+Der geführte Abgleich startet erst nach einer bestätigten E703.11-Chipverbindung über das SSP3. Ohne reale Chipantwort lässt sich keine Kalibrierung durchführen. Der bisherige separate Demo-Modus ist entfernt. Für einen sicheren Test des Mess- und Programmierablaufs einen entbehrlichen Sensor verwenden.
 
-1. Die Beta mit [`scripts/preview.py`](../scripts/preview.py) lokal in Chrome starten (siehe unten). Es muss **kein Board angeschlossen** sein.
-2. Oben rechts auf **«◈ Demo-Wizard»** klicken – oder unter «USB & Chip» auf **«Wizard ohne Hardware testen»**. Die App startet einen vorhandenen Simulationsmodus und öffnet den Wizard direkt.
-3. Wähle z. B. **2 Druckpunkte × 3 Temperaturstufen** oder **3 Druckpunkte × 2 Temperaturstufen**, lege den Druckbereich und die simulierten Temperaturen fest.
-4. AFE mit PGA1, Offset, PGA2 ausprobieren. Optional eine Config-Vorlage laden und über **«Demo: geladene AFE-Config virtuell übernehmen»** anwenden. Kein Register wird beschrieben.
-5. Bei jedem Messpunkt setzt der Wizard im Demo-Modus **automatisch** die simulierte Druck-/Temperaturbedingung. Mit dem ursprünglichen Button «Messpunkt aufnehmen» kannst du die Werte virtuell erfassen.
-6. «Koeffizienten berechnen» verwendet die reale JavaScript-Rechenfunktion der App, jedoch nur **synthetische ADC-Werte**. Danach **«Demo: RAM-Übernahme simulieren»** drücken.
-7. **«Demo: Prüfpunkt ... simulieren»** wiederholt drücken, bis alle virtuellen unabhängigen Prüfpunkte abgearbeitet sind. Der Fortschritt wird angezeigt.
-8. Ausgangseinstellungen ansehen. Anschliessend **«Demo: NVM-Abschluss ohne Schreibvorgang simulieren»** drücken. So kannst du den letzten Assistentenschritt ebenfalls durchgehen.
-9. Es erscheint ausdrücklich «Demonstration beendet – keine Hardware benötigt». Dabei werden **weder RAM noch NVM/EEPROM eines echten Sensors** beschrieben.
+## Lokalen Browser-Test durchführen (optional)
 
-Die echten RAM-/DSP-/NVM-Schreibaktionen sind im Demo-Wizard nicht als solche verwendbar. Für den Test eines wirklichen Abgleichs weiterhin ein SSP3 und einen entbehrlichen Sensor einsetzen. Im Demo-Modus sollte der echte Hardware-NVM-Button gesperrt bleiben.
-
-**Auch der reine Ausgangsworkflow** kann als virtuelle Demonstration ohne vorangegangene Druckkalibrierung durchgespielt werden. Rückkehr zur klassischen Ansicht ist jederzeit möglich.
-
-## Beta lokal testen – sicherster Weg
-
-1. Auf GitHub den Branch `feature/guided-calibration-and-usb-bridges` auswählen.
+1. Auf GitHub das Repository mit `main` öffnen.
 2. «Code → Download ZIP» benutzen, ZIP entpacken.
 3. Im entpackten Ordner ein Terminal öffnen und **`python3 scripts/preview.py`** ausführen (auf Windows je nach Installation **`py scripts/preview.py`**). Dafür sind keine zusätzlichen Python-Pakete nötig.
 4. Die angezeigte Adresse **http://localhost:8000/** (oder den im Terminal angegebenen anderen Port) in **Chrome** öffnen. `localhost` gilt für Web Serial als sicherer Kontext.
-5. SSP3 anschliessen, Testversion prüfen. Im normalen Betrieb die bestehende GitHub-Pages-Webseite verwenden.
+5. SSP3 und einen Testchip anschliessen. Alternativ die offizielle GitHub-Pages-Webseite im Chrome verwenden.
 6. Zwischen der neuen Führung und «Klassische Ansicht» wechseln und die gleichen Werte kontrollieren. **NVM vor der Hardwarevalidierung nur am entbehrlichen Testchip.**
 
-GitHub Pages veröffentlicht bei der bisherigen Repository-Konfiguration nicht automatisch einen zweiten Branch als eigene Test-Webseite. Eine sichere Test-URL braucht deshalb ein separates Preview-Deployment oder den lokalen Testserver.
+Die Hauptversion ist unter der bisherigen GitHub-Pages-Adresse erreichbar. Für lokale Tests kann `scripts/preview.py` verwendet werden.
 
-## Noch zu prüfen vor dem Merge
+## Noch zu prüfen vor produktivem Hardwareeinsatz
 
 - Der volle Browserablauf unter Chrome mit echter SSP3-USB-Verbindung.
 - AFE-RAM-Änderungen und Messpunkt-Invalidierung nach einem Rücksprung.
@@ -92,4 +77,4 @@ GitHub Pages veröffentlicht bei der bisherigen Repository-Konfiguration nicht a
 - Nutzertests mit unerfahrenen Anwendern, insbesondere Meldungen, Rücksprünge und Fehlerfälle.
 - Die eigene USB-Bridge: zunächst nur CDC-Handshaketest, **keine ungeprüfte PLC/NVM-Programmierung**. Siehe [USB-Bridge-Anleitung](USB_BRIDGE_GUIDE.md).
 
-**Erst nach bestandenen Tests** ist ein Merge in `main` sinnvoll. Der Branch wird nicht automatisch gemergt.
+Die Softwaretests ersetzen keine vollständige Prüfung mit angeschlossenem SSP3, mehreren realen Druck-/Temperaturpunkten und anschliessendem Kaltstart.
