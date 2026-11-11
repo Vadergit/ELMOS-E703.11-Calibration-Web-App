@@ -8,9 +8,9 @@ Diese Anleitung beschreibt die derzeitige Benutzeroberfläche der browserbasiert
 
 ## 1. Start und Verbindung
 
-Die App kann direkt über die [GitHub-Pages-Webseite](https://vadergit.github.io/ELMOS-E703.11-Calibration-Web-App/) mit Chrome aufgerufen werden. Sie verwendet **Web Serial** und benötigt einen vom Betriebssystem erkannten USB-/FTDI-COM-Port.
+Die App wird **ausschliesslich über die [GitHub-Pages-Webseite](https://vadergit.github.io/ELMOS-E703.11-Calibration-Web-App/)** mit Chrome aufgerufen. Sie verwendet **Web Serial** und benötigt einen vom Betriebssystem erkannten USB-/FTDI-COM-Port.
 
-Alternativ lokal starten: `STARTEN_Windows.bat` oder `STARTEN_macOS.command` verwenden (Python 3 erforderlich), anschliessend `http://localhost:8765` in Chrome öffnen.
+**Es sind keine Installation, keine Windows-/macOS-Startskripte, kein Python und kein lokaler Webserver erforderlich.** Die separate [webbasierte SSP3-USB-Diagnose](usb-diagnose.html) kann bei Verbindungsproblemen direkt im Browser geöffnet werden.
 
 In **Schritt 1 – Verbindung**:
 
@@ -136,4 +136,4 @@ Die lokale Browser-Backup-Historie kann beim Löschen von Website-Daten verloren
 - **Vorhandene technische Grundlagen:** E703.11-Datenblatt `25DS0170E.04`, Evaluation-Kit-Dokumentation und SSP3-/Kalibrier-Unterlagen AN 0203/0204. Proprietäre Herstellerdateien sind nicht im Repository enthalten.
 - **Keine Garantie:** Selbst korrekt bestandene Software-Simulationen können das Verhalten von SSP3, AODO-Ausgängen, NVM oder Bootsequenzen auf echter Hardware nicht garantieren.
 
-**Dateien:** `index.html` (UI), `app.js` (Web Serial und Ablauf), `calibration.js` (Koeffizienten/CRC/NVM-Plan), `expert.js` (Expertenparameter und Backups), `test_math.js` (Softwaretests). Aktuelle Testdetails: [TESTBERICHT.md](TESTBERICHT.md).
+**Web-Dateien:** `index.html` (UI), `app.js` (Web Serial und Ablauf), `calibration.js` (Koeffizienten/CRC/NVM-Plan), `expert.js` (Expertenparameter und Backups) und `usb-diagnose.html` (isolierte USB-Diagnose im Browser). Es gibt keine lokale Startanwendung und keinen Node-Teststarter. Dokumentierte Simulationen und offene Hardwareprüfungen: [TESTBERICHT.md](TESTBERICHT.md).
