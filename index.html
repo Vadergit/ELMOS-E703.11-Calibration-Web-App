@@ -45,6 +45,56 @@ button.danger{background:#9e3e34;border-color:#9e3e34;color:#fff}button.danger:h
 .nvm-compact .nvm-risk{margin-top:8px;font-size:11px}
 .nvm-advanced summary{font-size:12px}
 @media(max-width:750px){.nvm-compact .fieldrow{grid-template-columns:1fr}.nvm-compact-row{align-items:flex-start;flex-direction:column}}
+
+/* Messpunkte: kompakte Desktop-Ansicht ohne Änderung an Mess- oder Kalibrierlogik. */
+.panel[data-panel="2"]{padding:18px 20px}
+.panel[data-panel="2"] .cal-intro{font-size:12px;line-height:1.45;margin:3px 0 12px}
+.panel[data-panel="2"] h2{margin-bottom:4px}
+.panel[data-panel="2"] label{font-size:11px}
+.panel[data-panel="2"] input:not([type="checkbox"]),.panel[data-panel="2"] select{padding:6px 9px;min-height:35px;border-radius:7px;font-size:13px;margin-top:3px}
+.panel[data-panel="2"] .cal-setup-grid{display:grid;grid-template-columns:minmax(165px,1.5fr) minmax(95px,.72fr) minmax(98px,.85fr) minmax(120px,.96fr) minmax(120px,.96fr);gap:8px;align-items:end}
+.panel[data-panel="2"] .cal-setup-grid #customUnitLabel{grid-column:span 2}
+.panel[data-panel="2"] #calPointPlanMsg{margin:10px 0;padding:8px 11px;font-size:12px}
+.panel[data-panel="2"] .cal-point-row{padding:10px 12px;margin:7px 0;border-radius:9px}
+.panel[data-panel="2"] .cal-point-row .between{margin-bottom:7px;gap:8px}
+.panel[data-panel="2"] .cal-point-row h3{font-size:13px}
+.panel[data-panel="2"] .cal-point-row .fieldrow{display:grid;grid-template-columns:minmax(160px,2.0fr) minmax(105px,1fr) minmax(95px,.85fr) auto;gap:10px;align-items:end}
+.panel[data-panel="2"] .reference-value{font-size:14px;padding:6px 0 4px;margin:3px 0 0;min-height:35px}
+.panel[data-panel="2"] .cal-card-action{display:flex;align-items:end}
+.panel[data-panel="2"] .cal-card-action button{padding:7px 11px;min-height:35px;white-space:nowrap;font-size:12px;border-radius:7px}
+.panel[data-panel="2"] .cal-point-status{padding:4px 8px;font-size:11px;white-space:nowrap}
+.panel[data-panel="2"] .cal-sampling-progress{margin:9px 0 0;padding:7px 9px;font-size:12px}
+.panel[data-panel="2"] .cal-measure-result{margin-top:9px;padding:9px 11px;border-width:1px;border-left-width:4px}
+.panel[data-panel="2"] .cal-measure-heading{font-size:12px;margin-bottom:6px}
+.panel[data-panel="2"] .cal-measure-grid{grid-template-columns:repeat(4,minmax(0,1fr));gap:7px}
+.panel[data-panel="2"] .cal-measure-cell{padding:6px 8px;border-radius:7px}
+.panel[data-panel="2"] .cal-measure-value{font-size:15px}
+.panel[data-panel="2"] .cal-measure-label{font-size:10px}
+.panel[data-panel="2"] .cal-measure-note{margin-top:6px;font-size:11px}
+.panel[data-panel="2"] .triple{gap:8px}
+.panel[data-panel="2"] .stat{padding:10px}
+.panel[data-panel="2"] .stat strong{font-size:19px}
+.panel[data-panel="2"] #calMsg,.panel[data-panel="2"] #recommendation{margin:9px 0;padding:9px 11px;font-size:12px}
+@media(max-width:1170px){
+ .panel[data-panel="2"] .cal-setup-grid{grid-template-columns:repeat(3,minmax(0,1fr))}
+ .panel[data-panel="2"] .cal-point-row .fieldrow{grid-template-columns:minmax(150px,1.6fr) minmax(100px,1fr) minmax(90px,.75fr)}
+ .panel[data-panel="2"] .cal-card-action{grid-column:1/-1}
+}
+@media(max-width:750px){
+ .panel[data-panel="2"] .cal-setup-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
+ .panel[data-panel="2"] .cal-point-row .fieldrow{grid-template-columns:repeat(2,minmax(0,1fr))}
+ .panel[data-panel="2"] .cal-card-action{grid-column:1/-1}
+ .panel[data-panel="2"] .cal-measure-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
+}
+@media(max-width:430px){
+ .panel[data-panel="2"]{padding:14px 12px}
+ .panel[data-panel="2"] .cal-point-row .fieldrow{grid-template-columns:1fr}
+ .panel[data-panel="2"] .cal-point-row .fieldrow label:first-child{grid-column:1}
+ .panel[data-panel="2"] .cal-card-action{grid-column:1}
+ .panel[data-panel="2"] .cal-setup-grid{grid-template-columns:1fr 1fr}
+ .panel[data-panel="2"] .cal-setup-grid label:first-child{grid-column:1/-1}
+}
+
 </style></head><body><div class="wrap"><header class="top"><div class="brand"><div class="logo">E</div><div><div class="eyebrow">E703.11 · PSSC</div><h1>Kalibrierassistent</h1></div></div><span class="chip"><span class="dot" id="statusDot"></span><span id="status">Nicht verbunden</span></span></header>
 <div id="demoPressurePanel" class="callout warn" hidden><div class="between"><strong>DEMO – simulierter Druck</strong><span><b id="demoPressureVal">5.0</b> bar</span></div><input id="demoPressure" type="range" min="0" max="10" step="0.1" value="5" style="margin-top:10px"></div>
 <div class="content"><aside class="side"><button class="stepBtn active" data-step="0"><span class="num">1</span><span>USB & Chip</span></button><button class="stepBtn" data-step="1"><span class="num">2</span><span>AFE optimieren</span></button><button class="stepBtn" data-step="2"><span class="num">3</span><span>Messpunkte</span></button><button class="stepBtn" data-step="3"><span class="num">4</span><span>Berechnen & RAM</span></button><button class="stepBtn" data-step="4"><span class="num">5</span><span>DSP prüfen</span></button><button class="stepBtn" data-step="5"><span class="num">6</span><span>NVM programmieren</span></button></aside>
@@ -71,8 +121,8 @@ button.danger{background:#9e3e34;border-color:#9e3e34;color:#fff}button.danger:h
 <section class="card panel" data-panel="2" hidden>
 <div class="eyebrow">Schritt 3 · Kalibrierwerte aufnehmen</div>
 <h2>Kalibrier-Messpunkte festlegen und aufnehmen</h2>
-<p class="muted">Bestimme zuerst, wie viele Kalibrierpunkte du aufnehmen möchtest. Anschliessend werden die passenden Eingabefelder angezeigt. Für einen linearen Abgleich sind <b>2 Punkte</b> voreingestellt. Die Anzahl der späteren <b>DSP-Prüfpunkte</b> wird separat in Schritt 5 festgelegt.</p>
-<div class="fieldrow">
+<p class="muted cal-intro">Kalibrierpunkte und Sample-Anzahl festlegen, dann die Referenzwerte aufnehmen. Standard: 2 Punkte für linearen Abgleich. Die DSP-Prüfpunkte folgen separat in Schritt 5.</p>
+<div class="fieldrow cal-setup-grid">
 <label>Anzahl Kalibrier-Messpunkte
 <select id="calPointCount">
 <option value="2" selected>2 · Linear (Standard)</option><option value="3">3 Punkte</option><option value="4">4 Punkte</option><option value="5">5 Punkte</option><option value="6">6 Punkte</option><option value="7">7 Punkte</option><option value="8">8 Punkte</option><option value="9">9 Punkte</option><option value="10">10 Punkte</option>
@@ -84,13 +134,10 @@ button.danger{background:#9e3e34;border-color:#9e3e34;color:#fff}button.danger:h
 <select id="calUnit"><option value="bar">bar</option><option value="%">%</option><option value="mbar">mbar</option><option value="kPa">kPa</option><option value="psi">psi</option><option value="custom">Andere Einheit</option></select>
 </label>
 <label id="customUnitLabel" hidden>Eigene Einheit<input id="calUnitOther" type="text" maxlength="14" placeholder="z. B. mmH₂O"></label>
-</div>
-<p class="muted small">Pro Messpunkt werden 1–100 Samples aufgenommen (Standard 12). Der Median wird als ADC-Wert verwendet; die Streuung zeigt die Stabilität der Messung. Die Einstellung gilt für neue Aufnahmen.</p>
-<div id="calSampleProgress" class="cal-sampling-progress" role="status" aria-live="polite" hidden>Bereit für die Messung.</div>
-<div class="fieldrow" style="margin-top:12px">
 <label>Unterer Referenzwert (<span data-cal-unit>bar</span>)<input type="number" step="any" id="pmin" value="0"></label>
 <label>Oberer Referenzwert (<span data-cal-unit>bar</span>)<input type="number" step="any" id="pmax" value="10"></label>
 </div>
+<div id="calSampleProgress" class="cal-sampling-progress" role="status" aria-live="polite" hidden>Bereit für die Messung.</div>
 <div id="calPointPlanMsg" class="callout">2 Messpunkte gewählt. Beide Endpunkte messen und anschliessend Koeffizienten berechnen.</div>
 <div class="cal-point-row">
 <div class="between"><h3>Messpunkt 1 · Unterer Endpunkt</h3><span class="cal-point-status" id="lowVal">Noch nicht aufgenommen</span></div>
@@ -98,8 +145,9 @@ button.danger{background:#9e3e34;border-color:#9e3e34;color:#fff}button.danger:h
 <label>Bezeichnung<input type="text" id="pointLoName" maxlength="45" value="Messpunkt 1"></label>
 <label>Referenzwert (<span data-cal-unit>bar</span>)<strong class="reference-value" id="pointLoDisplay">0 bar</strong></label>
 <label>Temperatur (°C)<input id="calLoTemp" type="number" step="any" min="-40" max="125" value="25"></label>
+<div class="cal-card-action"><button id="capLo" class="primary">Messpunkt 1 aufnehmen</button></div>
 </div>
-<div class="flex" style="margin-top:11px"><button id="capLo" class="primary">Messpunkt 1 aufnehmen</button></div>
+
 <div id="calLoResult" class="cal-measure-result" hidden></div>
 </div>
 <div class="cal-point-row" id="calExtra1Row" data-cal-extra="1" hidden>
@@ -108,8 +156,9 @@ button.danger{background:#9e3e34;border-color:#9e3e34;color:#fff}button.danger:h
 <label>Bezeichnung<input type="text" id="calExtra1Name" maxlength="45" value="Messpunkt 2"></label>
 <label>Referenzwert (<span data-cal-unit>bar</span>)<input type="number" id="calExtra1Pressure" step="any" value="5"></label>
 <label>Temperatur (°C)<input type="number" id="calExtra1Temp" step="any" min="-40" max="125" value="25"></label>
+<div class="cal-card-action"><button id="calExtra1Capture" class="primary">Messpunkt 2 aufnehmen</button></div>
 </div>
-<div class="flex" style="margin-top:11px"><button id="calExtra1Capture" class="primary">Messpunkt 2 aufnehmen</button></div>
+
 <div id="calExtra1Value" class="cal-measure-result" hidden></div>
 </div>
 <div class="cal-point-row" id="calExtra2Row" data-cal-extra="2" hidden>
@@ -118,8 +167,9 @@ button.danger{background:#9e3e34;border-color:#9e3e34;color:#fff}button.danger:h
 <label>Bezeichnung<input type="text" id="calExtra2Name" maxlength="45" value="Messpunkt 3"></label>
 <label>Referenzwert (<span data-cal-unit>bar</span>)<input type="number" id="calExtra2Pressure" step="any" value="5"></label>
 <label>Temperatur (°C)<input type="number" id="calExtra2Temp" step="any" min="-40" max="125" value="25"></label>
+<div class="cal-card-action"><button id="calExtra2Capture" class="primary">Messpunkt 3 aufnehmen</button></div>
 </div>
-<div class="flex" style="margin-top:11px"><button id="calExtra2Capture" class="primary">Messpunkt 3 aufnehmen</button></div>
+
 <div id="calExtra2Value" class="cal-measure-result" hidden></div>
 </div>
 <div class="cal-point-row" id="calExtra3Row" data-cal-extra="3" hidden>
@@ -128,8 +178,9 @@ button.danger{background:#9e3e34;border-color:#9e3e34;color:#fff}button.danger:h
 <label>Bezeichnung<input type="text" id="calExtra3Name" maxlength="45" value="Messpunkt 4"></label>
 <label>Referenzwert (<span data-cal-unit>bar</span>)<input type="number" id="calExtra3Pressure" step="any" value="5"></label>
 <label>Temperatur (°C)<input type="number" id="calExtra3Temp" step="any" min="-40" max="125" value="25"></label>
+<div class="cal-card-action"><button id="calExtra3Capture" class="primary">Messpunkt 4 aufnehmen</button></div>
 </div>
-<div class="flex" style="margin-top:11px"><button id="calExtra3Capture" class="primary">Messpunkt 4 aufnehmen</button></div>
+
 <div id="calExtra3Value" class="cal-measure-result" hidden></div>
 </div>
 <div class="cal-point-row" id="calExtra4Row" data-cal-extra="4" hidden>
@@ -138,8 +189,9 @@ button.danger{background:#9e3e34;border-color:#9e3e34;color:#fff}button.danger:h
 <label>Bezeichnung<input type="text" id="calExtra4Name" maxlength="45" value="Messpunkt 5"></label>
 <label>Referenzwert (<span data-cal-unit>bar</span>)<input type="number" id="calExtra4Pressure" step="any" value="5"></label>
 <label>Temperatur (°C)<input type="number" id="calExtra4Temp" step="any" min="-40" max="125" value="25"></label>
+<div class="cal-card-action"><button id="calExtra4Capture" class="primary">Messpunkt 5 aufnehmen</button></div>
 </div>
-<div class="flex" style="margin-top:11px"><button id="calExtra4Capture" class="primary">Messpunkt 5 aufnehmen</button></div>
+
 <div id="calExtra4Value" class="cal-measure-result" hidden></div>
 </div>
 <div class="cal-point-row" id="calExtra5Row" data-cal-extra="5" hidden>
@@ -148,8 +200,9 @@ button.danger{background:#9e3e34;border-color:#9e3e34;color:#fff}button.danger:h
 <label>Bezeichnung<input type="text" id="calExtra5Name" maxlength="45" value="Messpunkt 6"></label>
 <label>Referenzwert (<span data-cal-unit>bar</span>)<input type="number" id="calExtra5Pressure" step="any" value="5"></label>
 <label>Temperatur (°C)<input type="number" id="calExtra5Temp" step="any" min="-40" max="125" value="25"></label>
+<div class="cal-card-action"><button id="calExtra5Capture" class="primary">Messpunkt 6 aufnehmen</button></div>
 </div>
-<div class="flex" style="margin-top:11px"><button id="calExtra5Capture" class="primary">Messpunkt 6 aufnehmen</button></div>
+
 <div id="calExtra5Value" class="cal-measure-result" hidden></div>
 </div>
 <div class="cal-point-row" id="calExtra6Row" data-cal-extra="6" hidden>
@@ -158,8 +211,9 @@ button.danger{background:#9e3e34;border-color:#9e3e34;color:#fff}button.danger:h
 <label>Bezeichnung<input type="text" id="calExtra6Name" maxlength="45" value="Messpunkt 7"></label>
 <label>Referenzwert (<span data-cal-unit>bar</span>)<input type="number" id="calExtra6Pressure" step="any" value="5"></label>
 <label>Temperatur (°C)<input type="number" id="calExtra6Temp" step="any" min="-40" max="125" value="25"></label>
+<div class="cal-card-action"><button id="calExtra6Capture" class="primary">Messpunkt 7 aufnehmen</button></div>
 </div>
-<div class="flex" style="margin-top:11px"><button id="calExtra6Capture" class="primary">Messpunkt 7 aufnehmen</button></div>
+
 <div id="calExtra6Value" class="cal-measure-result" hidden></div>
 </div>
 <div class="cal-point-row" id="calExtra7Row" data-cal-extra="7" hidden>
@@ -168,8 +222,9 @@ button.danger{background:#9e3e34;border-color:#9e3e34;color:#fff}button.danger:h
 <label>Bezeichnung<input type="text" id="calExtra7Name" maxlength="45" value="Messpunkt 8"></label>
 <label>Referenzwert (<span data-cal-unit>bar</span>)<input type="number" id="calExtra7Pressure" step="any" value="5"></label>
 <label>Temperatur (°C)<input type="number" id="calExtra7Temp" step="any" min="-40" max="125" value="25"></label>
+<div class="cal-card-action"><button id="calExtra7Capture" class="primary">Messpunkt 8 aufnehmen</button></div>
 </div>
-<div class="flex" style="margin-top:11px"><button id="calExtra7Capture" class="primary">Messpunkt 8 aufnehmen</button></div>
+
 <div id="calExtra7Value" class="cal-measure-result" hidden></div>
 </div>
 <div class="cal-point-row" id="calExtra8Row" data-cal-extra="8" hidden>
@@ -178,8 +233,9 @@ button.danger{background:#9e3e34;border-color:#9e3e34;color:#fff}button.danger:h
 <label>Bezeichnung<input type="text" id="calExtra8Name" maxlength="45" value="Messpunkt 9"></label>
 <label>Referenzwert (<span data-cal-unit>bar</span>)<input type="number" id="calExtra8Pressure" step="any" value="5"></label>
 <label>Temperatur (°C)<input type="number" id="calExtra8Temp" step="any" min="-40" max="125" value="25"></label>
+<div class="cal-card-action"><button id="calExtra8Capture" class="primary">Messpunkt 9 aufnehmen</button></div>
 </div>
-<div class="flex" style="margin-top:11px"><button id="calExtra8Capture" class="primary">Messpunkt 9 aufnehmen</button></div>
+
 <div id="calExtra8Value" class="cal-measure-result" hidden></div>
 </div>
 <div class="cal-point-row">
@@ -188,8 +244,9 @@ button.danger{background:#9e3e34;border-color:#9e3e34;color:#fff}button.danger:h
 <label>Bezeichnung<input type="text" id="pointHiName" maxlength="45" value="Messpunkt 2"></label>
 <label>Referenzwert (<span data-cal-unit>bar</span>)<strong class="reference-value" id="pointHiDisplay">10 bar</strong></label>
 <label>Temperatur (°C)<input id="calHiTemp" type="number" step="any" min="-40" max="125" value="25"></label>
+<div class="cal-card-action"><button id="capHi" class="primary">Oberen Endpunkt aufnehmen</button></div>
 </div>
-<div class="flex" style="margin-top:11px"><button id="capHi" class="primary">Oberen Endpunkt aufnehmen</button></div>
+
 <div id="calHiResult" class="cal-measure-result" hidden></div>
 </div>
 <div id="calMsg" class="callout">Beide Endpunkte aufnehmen. Für zusätzliche Punkte stehen die Zwischenpunkte direkt darüber bereit.</div>
@@ -206,9 +263,6 @@ button.danger{background:#9e3e34;border-color:#9e3e34;color:#fff}button.danger:h
 <div class="nav"><button data-next="1">Zurück</button><button class="primary" data-next="3">Weiter: Koeffizienten berechnen</button></div>
 </section>
 
-
-<div class="nav"><button data-next="1">Zurück</button><button class="primary" data-next="3">Weiter: Koeffizienten berechnen</button></div>
-</section>
 
 <section class="card panel" data-panel="3" hidden>
 <div class="eyebrow">Schritt 4 · Rechnen & RAM</div>
@@ -346,4 +400,4 @@ button.danger{background:#9e3e34;border-color:#9e3e34;color:#fff}button.danger:h
 </div>
 </section>
 <section class="card"><div class="between"><h3>App-Einstellungen</h3><span class="pill">Lokal gespeichert</span></div><label class="toggle"><input id="tooltips" type="checkbox" checked> Hover-Erklärungen aktivieren</label><p class="muted small">Über ? erscheint eine Erklärung zur jeweiligen Funktion. Die Auswahl bleibt im Browser erhalten.</p><details><summary>Technischer Status und Quellen</summary><div class="inner"><p><b>Implementiert:</b> NVM-Backup, unabhängiger Polynom-Fit, Q-Formate, RAM-DSP-Prüfung, NVM-Programmierworkflow und CRC16; Web Serial, `.VERSION`, SSP3 `IF_CFG`, 1-Wire `PLC`-Lesetelegramme, I²C- und SPI-Lesetelegramme, AFE-RAM-Schreiben per Übernehmen-Button mit Rückleseprüfung, ADC-Live-Messungen, geführte Aufnahme von 2–10 Kalibrierpunkten und Messprotokoll.</p><p><b>Getestet:</b> Firmwarebefehle, CRC4 und Schreib-CRC8 anhand der Herstellerbeispiele sowie Browserlogik im Simulator. <b>Nicht nachgewiesen:</b> USB-Antworten, Timing, CRC8 der Antwort und RAM-Gain-Änderung am physischen Board. NVM-Programmierung ist als ausdrücklich zu bestätigender Labor-Test implementiert, aber nicht am echten Board validiert.</p><p>Referenzen: AN 0204 (12.02.2019), AN 0203 (06.02.2020), E703.11 Datenblatt 25DS0170E.04 (16.11.2023) und API-Header aus `pssc_mc_dev_2024_07_12.zip`.</p></div></details></section><div class="foot">ELMOS E703.11 · unabhängiger Kalibrierprototyp · Sicherheitsprinzip: Factory- und Kommunikations-Bootregister gesperrt; dokumentierte AODO-Ausgangsoptionen nur nach Prüfung im NVM-Plan; Wiederherstellung nur mit passender Chip-UID.</div>
-</main></div></div><div id="tip" class="tooltip"></div><script src="calibration.js?v=expert-20261111-5"></script><script src="expert.js?v=nvm-final-20261111-1"></script><script src="app.js?v=nvm-final-20261111-1"></script></body></html>
+</main></div></div><div id="tip" class="tooltip"></div><script src="calibration.js?v=expert-20261111-5"></script><script src="expert.js?v=nvm-final-20261111-1"></script><script src="app.js?v=compact-points-20261111-1"></script></body></html>
