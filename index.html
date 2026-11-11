@@ -251,7 +251,7 @@ button.danger{background:#9e3e34;border-color:#9e3e34;color:#fff}button.danger:h
 .output-subheading{margin-top:15px}
 @media(max-width:700px){.output-grid,.output-grid-3,.output-errors{grid-template-columns:1fr}.output-heading{align-items:flex-start;flex-wrap:wrap}.output-endpoint-head,.output-endpoint-row{grid-template-columns:32px 1fr 1fr 1.4fr;gap:5px}.output-endpoint-row{padding:8px 4px}.output-endpoint-row input{padding:6px 4px}.output-section{padding:11px}}
 </style></head><body><div class="wrap"><header class="top">
-<div class="brand"><div class="logo">E</div><div><div class="eyebrow">E703.11 · PSSC · v0.3.0</div><h1>Kalibrierassistent</h1></div></div>
+<div class="brand"><div class="logo">E</div><div><div class="eyebrow">E703.11 · PSSC · v0.3.1</div><h1>Kalibrierassistent</h1></div></div>
 <div class="live-overview" role="group" aria-label="Sensorwerte · laufende Anzeige">
   <div class="live-kpi" title="Unkompensierter Druck-ADC. Warnung bei Beträgen über 25’000 Digits."><span class="live-kpi-label">ADC_S <span id="liveAdcAlert" class="live-alert" hidden>!</span></span><span class="live-kpi-reading" id="liveAdcS">—</span><span class="live-kpi-unit">Digits</span></div>
   <div class="live-kpi" title="ADC_T · Temperatur-Rohwert, keine direkte Temperatur in °C."><span class="live-kpi-label">ADC_T</span><span class="live-kpi-reading" id="liveAdcT">—</span><span class="live-kpi-unit">Digits</span></div>
@@ -582,6 +582,7 @@ button.danger{background:#9e3e34;border-color:#9e3e34;color:#fff}button.danger:h
       <label>VDD (V) · nur für Vorschau<input id="psscVdd" type="number" min="2.7" max="5.5" step="0.1" value="5"></label>
       <label>DSP_S · Zielbereich (± Digits)<input id="psscOutputLimit" type="text" value="±32’000" readonly></label>
     </div>
+    <p id="psscScalingSource" class="muted small">Der DSP-Endwert wird automatisch aus der Kalibrierung übernommen. ADC_S ist davon unabhängig.</p>
     <div class="output-endpoint-head"><span>Scaling</span><span>DSP_S</span><span>sensor value</span><span>Ausgang</span></div>
     <div class="output-endpoint-row"><strong>S0</strong><output id="psscDspS0">−32’000</output><span>0.0000 %</span><label><input id="psscS0" type="number" step="0.001" min="0" max="5.5" value="0.5" aria-label="Ausgang S0 in Volt"> V</label></div>
     <div class="output-endpoint-row"><strong>S1</strong><output id="psscDspS1">+32’000</output><span>100.0000 %</span><label><input id="psscS1" type="number" step="0.001" min="0" max="5.5" value="4.5" aria-label="Ausgang S1 in Volt"> V</label></div>
@@ -693,5 +694,5 @@ button.danger{background:#9e3e34;border-color:#9e3e34;color:#fff}button.danger:h
 </div>
 <div class="nav"><button data-next="5">Zur Ausgangskonfiguration</button><button data-next="0">Zum USB-Start</button></div>
 </section>
-<div class="foot"><b>Version v0.3.0</b> · <a href="CHANGELOG.md" target="_blank" rel="noopener">Änderungsverlauf</a> · ELMOS E703.11 · unabhängiger Kalibrierprototyp · Sicherheitsprinzip: Factory- und Kommunikations-Bootregister gesperrt; dokumentierte AODO-Ausgangsoptionen nur nach Prüfung im NVM-Plan; Wiederherstellung nur mit passender Chip-UID.</div>
+<div class="foot"><b>Version v0.3.1</b> · <a href="CHANGELOG.md" target="_blank" rel="noopener">Änderungsverlauf</a> · ELMOS E703.11 · unabhängiger Kalibrierprototyp · Sicherheitsprinzip: Factory- und Kommunikations-Bootregister gesperrt; dokumentierte AODO-Ausgangsoptionen nur nach Prüfung im NVM-Plan; Wiederherstellung nur mit passender Chip-UID.</div>
 </main></div></div><div id="tip" class="tooltip"></div><script src="calibration.js?v=0.2.1"></script><script src="expert.js?v=0.2.1"></script><script src="app.js?v=0.2.1"></script></body></html>
