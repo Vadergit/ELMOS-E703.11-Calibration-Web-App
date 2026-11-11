@@ -332,7 +332,7 @@ if(typeof document!=='undefined') (function UI(){
    'Chip-UID wird nach erfolgreicher Sensorverbindung automatisch eingetragen.';
   let nvmReason='';
   if(st.iface!=='plc')nvmReason='1-Wire-Startschutz: Dauerhaftes NVM-Schreiben ausschliesslich über 1-Wire möglich. Bitte per 1-Wire verbinden.';
-  if(!nvmReason&&(!verified||st.mode!=='usb'))nvmReason='Zuerst die DSP-Prüfung abschliessen und sicherstellen, dass der echte Chip verbunden ist.';
+  else if(!verified||st.mode!=='usb')nvmReason='Zuerst die DSP-Prüfung abschliessen und sicherstellen, dass der echte Chip verbunden ist.';
   else if(!st.nvmBackupVerified||!st.nvmBackup)nvmReason='Zuerst Original-NVM vollständig lesen und prüfen.';
   else if(!st.calImage)nvmReason='Zuerst «NVM lesen & Änderungen prüfen» drücken. Anschliessend kann gespeichert werden.';
   else if(!recognizedUid||st.uid.ser0!==st.nvmBackup[0]||st.uid.ser1!==st.nvmBackup[1])nvmReason='Chip-UID wurde nicht vollständig mit dem NVM-Backup abgeglichen.';
@@ -374,7 +374,7 @@ if(typeof document!=='undefined') (function UI(){
   currentStep=next;$('flowMsg').hidden=true;
   document.querySelectorAll('.panel').forEach(x=>x.hidden=Number(x.dataset.panel)!==next);
   document.querySelectorAll('[data-step]').forEach(x=>x.classList.toggle('active',Number(x.dataset.step)===next));
-  renderFlowState();draw();if(!st.manualLivePause&&(st.chip||st.mode==='demo'))startLive()
+  renderFlowState();if(next===5)expert.refreshOutputPreview();draw();if(!st.manualLivePause&&(st.chip||st.mode==='demo'))startLive()
  }
  function invalidateCalculation(reason){
   st.calfit=null;st.calImage=null;st.calStaged=false;st.calVerified=false;st.calValidation=[];st.nvmBackup=null;st.nvmBackupVerified=false;
@@ -619,7 +619,7 @@ if(typeof document!=='undefined') (function UI(){
 
  function draw(){const c=$('chart');if(!c||c.closest('[hidden]'))return;const d=window.devicePixelRatio||1,w=Math.round(c.clientWidth*d),h=Math.round(c.clientHeight*d);if(w<20)return;if(c.width!==w||c.height!==h){c.width=w;c.height=h}const g=c.getContext('2d');g.clearRect(0,0,w,h);const x0=55*d,y0=10*d,yh=h-20*d,y=v=>y0+(32768-v)/65536*(yh-y0);g.font=`${11*d}px sans-serif`;for(const v of [25000,0,-25000]){g.beginPath();g.strokeStyle=v?'#e3c9aa':'#d7e4ef';g.setLineDash(v?[5*d,4*d]:[]);g.moveTo(x0,y(v));g.lineTo(w-8*d,y(v));g.stroke();g.setLineDash([]);g.fillStyle='#74849a';g.fillText((v>0?'+':'')+v,5*d,y(v)+4*d)}if(st.trend.length<1)return;const left=Date.now()-60000,x=t=>x0+(w-x0-10*d)*Math.max(0,Math.min(1,(t-left)/60000));g.beginPath();g.strokeStyle='#2867a6';g.lineWidth=2*d;st.trend.forEach((p,i)=>i?g.lineTo(x(p.x),y(p.y)):g.moveTo(x(p.x),y(p.y)));g.stroke()}
  function download(name,txt,mime='application/json'){let b=new Blob([txt],{type:mime}),u=URL.createObjectURL(b),a=document.createElement('a');a.href=u;a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(u),2000)}
- const report=()=>({tool:'ELMOS E703.11 Chrome v8 / SSP3 Zelos Protocol',created:new Date().toISOString(),connection:st.port?'USB':'offline/demo',hardwareValidated:false,unit:pressureUnit(),pointNames:{lower:pointName('lo'),upper:pointName('hi')},interface:st.iface,firmware:st.firmware,bootProtection:'Boot-/Werks-NVM-Schreiben gesperrt; kalibrierungsbezogenes User-NVM mit Bestätigung freigegeben',ramWriteActive:!!st.ramWriteScope,registers:st.regs,bootSnapshot:st.boot,chipUID:st.uid?.hex||null,expertOutput:st.expertOutputPlan,AFE:st.afe,gains:st.staged,low:st.points.lo,high:st.points.hi,verification:st.verify,calibrationPoints:st.calpoints,plannedCalibrationPointCount:calibrationPointCount(),requestedSamplesPerPoint:Number($('calSampleCount').value),requestedDSPOutputLimit:Number($('calDspLimit').value),coefficientFit:st.calfit,calRamVerified:st.calVerified,lastDSP:st.dsp,displayRange:getActiveDSPRange(),nvmState:{backupVerified:st.nvmBackupVerified,programmed:st.nvmDone},samples:st.history.slice(-1500),trace:st.log});
+ const report=()=>({tool:'ELMOS E703.11 Kalibrierassistent v0.3.0 / SSP3 Zelos Protocol',created:new Date().toISOString(),connection:st.port?'USB':'offline/demo',hardwareValidated:false,unit:pressureUnit(),pointNames:{lower:pointName('lo'),upper:pointName('hi')},interface:st.iface,firmware:st.firmware,bootProtection:'Boot-/Werks-NVM-Schreiben gesperrt; kalibrierungsbezogenes User-NVM mit Bestätigung freigegeben',ramWriteActive:!!st.ramWriteScope,registers:st.regs,bootSnapshot:st.boot,chipUID:st.uid?.hex||null,expertOutput:st.expertOutputPlan,AFE:st.afe,gains:st.staged,low:st.points.lo,high:st.points.hi,verification:st.verify,calibrationPoints:st.calpoints,plannedCalibrationPointCount:calibrationPointCount(),requestedSamplesPerPoint:Number($('calSampleCount').value),requestedDSPOutputLimit:Number($('calDspLimit').value),coefficientFit:st.calfit,calRamVerified:st.calVerified,lastDSP:st.dsp,displayRange:getActiveDSPRange(),nvmState:{backupVerified:st.nvmBackupVerified,programmed:st.nvmDone},samples:st.history.slice(-1500),trace:st.log});
 
  // ============ Kalibrierung + NVM (AN0203 / AN0204 / Datasheet 2023) ============
  const ca=(id,msg,type='')=>show(id,msg,type);
@@ -731,7 +731,7 @@ if(typeof document!=='undefined') (function UI(){
    if(factoryCRC!==factoryHigh)throw Error(`Werks-CRC8 stimmt nicht: 0x${h(factoryCRC)} statt 0x${h(factoryHigh)}. Programmierung gesperrt.`);
    for(const index of [0,1,15,16,17,18,19,20,22,27,28,63])if(await nvmReadWord(index*2)!==words[index])throw Error('NVM bei Wiederholungslesung unstabil (Wort '+index+')');
    const after=await bootSnapshot();if(!sameBoot(before,after))throw Error('Bootregister haben sich beim NVM-Lesen verändert');
-   st.nvmBackup=words;st.nvmBackupVerified=true;st.calImage=null;
+   st.nvmBackup=words;st.nvmBackupVerified=true;st.calImage=null;expert.refreshOutputReadOnly();
    const shouldArchive=expertRead||(!preview&&$('nvmAutoBackup').checked);
    if(shouldArchive)expert.afterNvmScan();
    ca('backupMsg','NVM vollständig gelesen: 64 Wörter, CRC8 und CRC16 geprüft.'+
