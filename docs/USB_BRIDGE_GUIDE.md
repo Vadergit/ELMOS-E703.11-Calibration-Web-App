@@ -15,27 +15,55 @@ Der Kalibrierassistent nutzt standardmässig weiterhin das **ELMOS SSP3**. In de
 
 **Wichtig:** Das Beispiel ist keine fertige E703.11-Programmer-Firmware. Es implementiert **weder den Elmos-1-Wire/PLC-Bus noch die EEPROM-Programmierung**. Ein serieller USB-Port alleine ersetzt die zeitkritische Hardware-Kommunikation nicht.
 
-Die ausführliche, auf ESP-Baugruppen fokussierte [Board-Liste mit ESP32-C3 SuperMini](ESP_BOARD_OPTIONS.md) enthält auch die native USB-Pinbelegung und die speziellen Flash-Schritte.
+Die [vollständige ESP32-/Arduino-Boardliste](ESP_BOARD_OPTIONS.md) enthält die GPIO-Vorschläge, optionalen Empfangspins, I/O-Spannungen und Hersteller-Pinouts.
 
 **Für den bereits vorhandenen ESP32-C3 SuperMini:** Statt des allgemeinen Arduino-Beispiels die neue [C3-SuperMini-Firmware](../firmware/esp32c3_supermini/esp32c3_supermini.ino) verwenden. Arduino IDE → Board **ESP32C3 Dev Module**, **USB CDC On Boot: Enabled**. Nach dem Flashen `BRIDGE_INFO` senden. Erwartet wird `# E70311-BRIDGE V1 CAPS=CDC_ONLY`.
 
-## 2. Geeignete Boards
+## 2. Geeignete Mikrocontroller und GPIO-Pins
 
-Für den ersten USB-Test eignen sich beispielsweise:
+Die folgende Tabelle zeigt die häufigsten Boards und **konkrete Pinvorschläge** für eine spätere externe E703.11-PLC-Treiberschaltung. **Diese Pins werden von der aktuellen Firmware noch nicht angesteuert.** Sie sind **keine Freigabe zum direkten Anschluss an AODO**.
 
-| Board | USB | Hinweis |
-| --- | --- | --- |
-| ESP32-S3 DevKit | Natives USB-CDC möglich | In Arduino IDE **USB CDC On Boot: Enabled** und den tatsächlich mit dem Chip verbundenen USB-Port wählen |
-| Arduino Nano ESP32 (ESP32-S3) | USB-CDC | Pin-/USB-Einstellungen der jeweiligen Boarddefinition prüfen |
-| Raspberry Pi Pico / Pico 2 mit passendem Arduino-Core | Native USB-CDC | USB-CDC-Konfiguration hängt vom verwendeten Core ab |
-| Arduino Nano RP2040 Connect | Native USB-CDC | Arduino IDE Board-Paket installieren |
+**Komplette Liste mit zusätzlichen Arduino-, ESP32-, RP2040- und STM32-Boards, Pinwarnungen und Herstellerquellen:** [**ESP32- und Arduino-kompatible Boards – USB und GPIO-Pinbelegung**](ESP_BOARD_OPTIONS.md).
 
-Ein einfacher ESP32-WROOM mit CP210x/CH340/FTDI kann zwar serielle Kommunikation liefern, hat aber nicht zwingend **native USB**. Für die spätere 1-Wire-Implementierung zählt insbesondere die **GPIO-Timing-Eignung**, nicht allein die USB-Buchse.
+### ESP32 / ESP8266
 
-Herstellerreferenzen:
-- [Espressif: USB CDC and DFU Flashing](https://docs.espressif.com/projects/arduino-esp32/en/latest/tutorials/cdc_dfu_flash.html)
-- [Espressif: ESP32-S3 USB Device Stack](https://docs.espressif.com/projects/esp-usb/en/latest/esp32s3/usb_device.html)
-- [ELMOS E703.11 Produktübersicht](https://www.elmos.com/english/application/non-automotive/industrial-automation/measurement/e70311.html)
+| Board | Geplanter PLC-Pin | RX optional | USB zum PC |
+| --- | --- | --- | --- |
+| **ESP32-C3 SuperMini** | **GPIO4** | GPIO5 | Natives USB Serial/JTAG |
+| **XIAO ESP32C3** | **D2 / GPIO4** | D3 / GPIO5 | Nativ |
+| ESP32-C3 DevKit / DevKitM | **GPIO4** | GPIO5 | Nativ oder USB-UART je nach Modell |
+| ESP32-S3 DevKitC-1 | **GPIO4** | GPIO5 | Nativ / USB-UART |
+| XIAO ESP32S3 | **D3 / GPIO4** | D4 / GPIO5 | Nativ |
+| Arduino Nano ESP32 | **D2 / GPIO5** | D3 / GPIO6 | Nativ |
+| ESP32-S2 Saola-1 | **GPIO4** | GPIO5 | Nativ |
+| ESP32-C6 DevKitC-1 | **GPIO10** | GPIO11 | Nativ / USB-UART |
+| XIAO ESP32C6 | **D3 / GPIO21** | D4 / GPIO22 | Nativ |
+| ESP32 DevKit / WROOM-32 | **GPIO25** | GPIO26 | USB-UART |
+| ESP8266 NodeMCU / Wemos D1 mini | **D2 / GPIO4** | D1 / GPIO5 | USB-UART |
+
+### Arduino und weitere Arduino-kompatible Boards
+
+| Board | Geplanter PLC-Pin | RX optional | I/O-Pegel |
+| --- | --- | --- | --- |
+| UNO R3, Nano Classic, Nano Every, Mega 2560 | **D2** | D3 | 5 V |
+| UNO R4 Minima / UNO R4 WiFi (RA4M1-Header) | **D2** | D3 | 5 V |
+| Leonardo, Micro, Pro Micro | **D4** | D5 | Meist 5 V; Pro Micro je nach Version 3,3 V |
+| Nano 33 IoT / Nano 33 BLE | **D2** | D3 | 3,3 V |
+| Nano RP2040 Connect | **D2 / GPIO25** | D3 / GPIO15 | 3,3 V |
+| Raspberry Pi Pico / Pico W / Pico 2 | **GP2 / GPIO2** | GP3 / GPIO3 | 3,3 V |
+| XIAO RP2040 | **D2 / GPIO28** | D1 / GPIO27 | 3,3 V |
+| Teensy 4.0 | **D2** | D3 | 3,3 V |
+| STM32 Blue Pill | **PA1** | PA2 | 3,3 V |
+
+**Besonders wichtig:**
+
+- Der **ESP32-C3 SuperMini** nutzt für native USB **GPIO18 (D−) und GPIO19 (D+)**. Diese Pins **nicht** als PLC-GPIO verwenden.
+- Der **Arduino Nano ESP32** verwendet **D2 = GPIO5**, nicht GPIO2. Beim Programmieren die Board-Bezeichnungen **D2/D3** benutzen.
+- Ein **UNO R4 WiFi** hat 5-V-Digitalpins auf dem **RA4M1**. Der zusätzliche ESP32-S3 arbeitet mit **3,3 V** und ist nicht mit D2 am UNO-Header gleichzusetzen.
+- Die zweite Leitung **RX** ist optional und hängt von der noch zu entwickelnden bidirektionalen Treiberarchitektur ab.
+- Bei klassischem ESP32, ESP8266 und vielen klassischen Arduinos ist **USB-UART** statt nativer USB-CDC üblich. Das ist für Web Serial grundsätzlich möglich, aber kein vorhandenes PLC-Protokoll.
+
+**Die sichere Verbindung lautet:** PC/USB → MCU → **noch zu entwickelnde geschützte Pegel-/PLC-Schnittstelle** → E703.11. Vor einem direkten AODO-Anschluss ist zu warnen: Der Sensorausgang kann aktiv getrieben sein und bei 3,3-V-GPIOs zu unzulässigen Spannungen führen. Die alternative Bridge bleibt für reale Sensorzugriffe in der Web-App gesperrt.
 
 ## 3. Arduino IDE – Test-Firmware flashen
 
@@ -56,7 +84,7 @@ Die folgende Arbeit muss vor einer Freigabe am Prüfstand erledigt werden:
 
 1. **Elektrische Schnittstelle verifizieren.** Der E703.11 benötigt die im Datenblatt spezifizierte Versorgung von 2.7–5.5 V. AODO/PLC ist kein beliebig ansteuerbarer UART-Pin. Die Pegel, Pull-ups, Open-Drain-/Tri-State-Anforderungen, Schutzbeschaltung und Rückwirkung auf die analoge Ausgangsstufe müssen anhand des vollständigen Datenblatts geprüft werden.
 2. **Timing der Elmos-PLC-Übertragung implementieren.** Telegramme, Flanken, Startfenster (4/10/200 ms gemäss konfiguriertem NVM), CRC, Lese- und Schreibzyklen müssen am Oszilloskop und mit dem SSP3 als Referenz bestätigt werden.
-3. **Programmierkommandos kapseln.** Entweder die bestehenden SSP3-Textbefehle samt Antwortformat emulieren oder eine versionierte separate Web-Bridge-API einführen. Die Beta verwendet aus Kompatibilitätsgründen zunächst die erste Variante.
+3. **Programmierkommandos kapseln.** Entweder die bestehenden SSP3-Textbefehle samt Antwortformat emulieren oder eine versionierte separate Web-Bridge-API einführen. Die aktuelle experimentelle Adapterstruktur orientiert sich aus Kompatibilitätsgründen an der ersten Variante.
 4. **Firmware-Fähigkeiten ehrlich melden.** `BRIDGE_INFO` muss das Format `# E70311-BRIDGE V1 CAPS=...` gefolgt von der Antwort-Endmarke `:` liefern. `CDC_ONLY` ist der sichere Standard. Die Fähigkeiten `PLC_READ,PLC_WRITE,NVM` dürfen **erst nach vollständiger Hardwarevalidierung** gemeldet werden.
 5. **Sicherheitskontrollen nachweisen.** Register-Readback, Chip-UID, Factory-/Bootschutz, CRC8/CRC16, RAM-Abgleich, NVM-Programmierung und echter Power-Cycle müssen mit einem entbehrlichen Testchip geprüft werden. Auch dann muss die Web-App die NVM-Freigabe für Bridge-Adapter erst in einer gesonderten, überprüften Änderung erhalten.
 
@@ -64,7 +92,7 @@ Die folgende Arbeit muss vor einer Freigabe am Prüfstand erledigt werden:
 
 ## 5. Warum ist NVM bei einer Bridge noch gesperrt?
 
-Weil eine fehlerhafte oder unterbrochene Programmierung dauerhafte Konsequenzen haben kann. In der aktuellen Beta gilt:
+Weil eine fehlerhafte oder unterbrochene Programmierung dauerhafte Konsequenzen haben kann. In der aktuellen Version gilt:
 
 - **SSP3:** unveränderte bestehende Lese-/RAM-/NVM-Pfade mit ihren bisherigen Prüfungen.
 - **USB-Bridge:** CDC-Handshaketest funktioniert; ohne vollständige PLC-Implementierung wird kein Sensorzugriff bestätigt.
