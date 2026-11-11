@@ -1,10 +1,10 @@
-# Runtime, diagnostics and private lab data
+# Ignore private lab data and local editor artifacts.
+# The published application is static HTML/JavaScript on GitHub Pages.
 .DS_Store
-__pycache__/
-*.pyc
+.vscode/
+.idea/
 *.log
 *.json
-!package.json
 *.dll
 *.exe
 *.so
@@ -12,5 +12,4 @@ __pycache__/
 *.zip
 .env
 .env.*
-node_modules/
 .cache/
