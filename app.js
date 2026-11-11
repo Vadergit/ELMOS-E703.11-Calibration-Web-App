@@ -772,7 +772,6 @@ if(typeof document!=='undefined') (function UI(){
   },null,2));
   ca('backupMsg','Original-NVM geprüft. Der Backup-Download wurde gestartet. Datei bitte sicher aufbewahren.','success');
  }
- $('nvmBackupSave').addEventListener('click',downloadNvmBackup);
  $('nvmBackupDownload').addEventListener('click',downloadNvmBackup);
  $('nvmPrepare').addEventListener('click',prepareNvm);
  $('nvmProgram').addEventListener('click',nvmProgram);
