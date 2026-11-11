@@ -115,3 +115,15 @@ html.guided-active #guidedWorkspace [hidden]{display:none!important}
 html.guided-active #demoPressurePanel{max-width:1220px;margin:8px auto;font-size:12px;padding:7px 10px}
 #guidedDemoTop{color:#975c11;background:#fff4e6;border-color:#e7cc9d}
 @media(max-width:800px){#guidedDemoTop{font-size:10px;padding:4px 7px}.gw-demo-banner{font-size:11px}}
+
+/* In simulated walkthrough, never present hardware-only actions as the next step.
+   Hiding via CSS leaves all original buttons and their disabled gates untouched. */
+html.guided-active.guided-demo #guidedWorkspace #calApplyRam,
+html.guided-active.guided-demo #guidedWorkspace #calVerifyRam,
+html.guided-active.guided-demo #guidedWorkspace #nvmPrepare,
+html.guided-active.guided-demo #guidedWorkspace #nvmProgram,
+html.guided-active.guided-demo #guidedWorkspace #outputNvmRead,
+html.guided-active.guided-demo #guidedWorkspace #expertOutputStage{display:none!important}
+html.guided-active.guided-demo #guidedWorkspace #gwDemoRam,
+html.guided-active.guided-demo #guidedWorkspace #gwDemoVerify,
+html.guided-active.guided-demo #guidedWorkspace #gwDemoNvm{display:block}
