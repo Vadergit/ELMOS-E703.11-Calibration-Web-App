@@ -13,14 +13,16 @@ Der NVM-Schreibweg ist tatsächlich implementiert, aber nicht am physischen Chip
 3. Eval-Board per USB anschliessen. In Chrome **USB-Port auswählen** und einmalig den USB-Serial-Zugriff freigeben. Bereits freigegebene FTDI-Ports kann Chrome später automatisch erneut öffnen. Bei mehreren Ports muss der passende manuell gewählt werden.
 4. Standard **1-Wire** beibehalten. SSP3 wird für `IF_CFG 7 0 0` konfiguriert. Erst ADC_S und Chip-AFE lesen, bevor RAM-Schreibzugriff freigegeben wird. Bei 1-Wire braucht es VDD, GND und AODO, bei I²C die dafür dokumentierten Anschlüsse.
 
-## Kalibrierablauf
+## Kalibrierablauf (Reihenfolge in der Web-App)
 
-1. **USB/ADC:** AFE kontrollieren. Bei Problemen hier abbrechen und ein Diagnose-JSON exportieren.
-2. **AFE:** PGA1, PGA2, Offset so einstellen, dass Enddrücke ohne Sättigung erfasst werden; Gain-Änderungen benötigen explizite RAM-Schreibfreigabe und werden direkt gesendet/rückgelesen.
-3. **Messpunkte:** Druck- und Temperaturreferenzwerte erfassen. Zwei Punkte genügen nur für linearen Druckabgleich ohne Temperaturkompensation. Höhere Ordnungen erfordern eine unabhängige Matrix mehrerer Druck-/Temperaturkombinationen.
-4. **Rohwertverifikation:** Einen Zwischenpunkt messen.
-5. **DSP:** Polynomordnung auswählen, Koeffizienten berechnen, dann **NVM-Backup zuerst lesen und als JSON herunterladen**. Koeffizienten nur ins RAM übertragen, DSP_S bei mindestens zwei unabhängigen Druckwerten kontrollieren. Ggf. reale Temperaturverifikation bei mehreren Temperaturen vornehmen.
-6. **NVM:** Erst nach bestandener RAM-Verifikation Änderungsliste kontrollieren. Die App übernimmt den vollständigen vorhandenen 64-Wort-Block und ändert nur erlaubte AFE-/DSP-Nutzerdaten plus CRC16, **keine** werksseitigen Werte und **keine** Boot-/Schnittstellenregister. Chip-ID und `PROGRAMMIEREN` explizit eintippen. Danach vollständiges NVM-Rücklesen abwarten; Strom nicht trennen! Nach einem kontrollierten tatsächlichen Neustart den Button **Nach Neustart verifizieren** verwenden.
+1. **USB und Chip:** SSP3 anschliessen. Firmware, ADC_S und AFE zunächst nur lesen. Bei Problemen USB-Diagnose exportieren.
+2. **AFE optimieren:** PGA1, PGA2 und Offset mit Live-ADC optimieren. AFE-Änderungen ins RAM erfordern bewusste Schreibfreigabe. Kein permanentes NVM-Schreiben in diesem Schritt.
+3. **Zwei Messpunkte:** Einheit frei wählen (z. B. %, bar, mbar, kPa, psi oder eigene Einheit). Referenzpunktnamen beliebig vergeben, z. B. «0 %» und «100 %». Unteren und oberen Druck-/Referenzwert einstellen und messen. Die Messung speichert **ADC_S, ADC_T und ADC_TC zum selben Referenzpunkt**. Ein höherer Polynomgrad oder eine Temperaturkompensation erfordert zusätzliche unabhängige Messpunkte. Eine lineare Rohwert-Vorprüfung ist optional und ersetzt nicht die Chip-DSP-Prüfung.
+4. **Berechnen und RAM:** Erst jetzt DSP-Koeffizienten aus den Messpunkten berechnen. Vor dem Schreiben vollständiges NVM-Backup samt CRC lesen und sichern. Danach berechnete Werte **nur in RAM** übertragen und alle geschriebenen Wörter zurücklesen. Ohne erfolgreiches RAM-Staging ist der nächste Schritt gesperrt.
+5. **DSP_S verifizieren:** Mindestens zwei unterschiedliche, unabhängige Prüfreferenzwerte innerhalb des Kalibrierbereichs einstellen. Die tatsächliche DSP_S-Ausgabe des Chips mit Soll und Toleranz vergleichen. Bei Abweichung, Sättigung oder unvollständigen Prüfpunkten ist die Freigabe zum NVM gesperrt.
+6. **Im Sensor speichern (NVM):** Erst nach positiver DSP-RAM-Verifikation NVM-Änderungsliste kontrollieren, Chip-ID und das Bestätigungswort `PROGRAMMIEREN` eingeben. Nach vollständiger Programmierung und Rücklesung einen echten Neustart durchführen und erneut prüfen. Dabei besteht trotz Schutz ein Risiko bei Stromunterbruch und Protokollfehlern.
+
+**Wichtig:** Die frei gewählte Einheit bezeichnet das Referenzwertsystem des Kalibrierbereichs; die physisch am Prüfstand eingestellten Werte müssen dazu passen. Der Browser ersetzt keinen Druckregler oder externes Drucknormal.
 
 ## Sicherheit
 
