@@ -914,6 +914,7 @@ if(typeof document!=='undefined') (function UI(){
   let chipProgrammingStarted=false;
   try{
    const restoring=!!(expert.restoreReady()&&st.calImage===st.restorePlan),outputOnly=!!(expert.outputReady()&&st.calImage===st.outputOnlyPlan);
+   if(st.adapterKind==='bridge')throw Error('USB-Bridge ist nicht für dauerhaftes NVM-Schreiben hardwarevalidiert. Nur das SSP3 ist freigegeben.');
    if(st.iface!=='plc')throw Error('1-Wire-Startschutz: NVM darf ausschliesslich über eine bestätigte 1-Wire-Verbindung programmiert werden. Neu über 1-Wire verbinden.');
    if(st.mode!=='usb'||!st.chip||!st.port||!st.nvmBackupVerified||!st.calImage||(!restoring&&!outputOnly&&!verificationComplete()))throw Error('Hardware, Sicherungen oder Kalibrierverifikation fehlen');
    const id=st.uid?.hex;
