@@ -100,8 +100,8 @@ const ELMOS_EXPERT=(()=>{
   const isAnalog=mode=>['1','2','3'].includes(String(mode));
   const currentLimit=()=>st.calfit?.outputLimit??Number($('dspDisplayLimit').value);
   function invalidateOutputPlan(){
-   if(st.calImage===st.outputOnlyPlan||st.calImage?.outputOnly||st.expertOutputPlan)st.calImage=null;
-   st.outputOnlyPlan=null;st.expertOutputPlan=null;
+   // Any output edit invalidates ALL previously prepared NVM images, including normal calibration and restore plans.
+   st.calImage=null;st.restorePlan=null;st.outputOnlyPlan=null;st.expertOutputPlan=null;
    show('expertOutputMsg','Ausgangseinstellungen geändert. Bitte erneut prüfen und vormerken. Am Chip wurde nichts geändert.','warn');
    renderFlowState();
   }
@@ -281,7 +281,7 @@ const ELMOS_EXPERT=(()=>{
   $('expertRestorePreview').addEventListener('click',prepareRestore);
   $('expertBackupImport').addEventListener('change',importFile);
   renderBackups();
-  return {onDetect,identify,afterNvmScan,refreshOutputReadOnly,archiveCurrentNvm,restoreReady,outputReady,prepareRestore,exportCurrent,renderBackups,validBackup:valid}
+  return {onDetect,identify,afterNvmScan,refreshOutputReadOnly,refreshOutputPreview:renderOutputPreview,archiveCurrentNvm,restoreReady,outputReady,prepareRestore,exportCurrent,renderBackups,validBackup:valid}
  }
  return {init}
 })();
