@@ -55,6 +55,8 @@ Besonders wichtig: **AODO_F und AODO_O in der Config sind nur Ausgangs-Zielparam
 - Ein Import prüft die Daten vollständig, bevor **Geladene Config übernehmen** freigegeben wird.
 - Eine vom Hersteller-PSSC exportierte vollständige Hex-/EEPROM-Datei ist **keine** kompatible Config-Vorlage. Wir importieren bewusst keine unbekannten Herstellerregister ohne vollständige Sicherheitsprüfung.
 
+**Im optionalen Kompaktmodus** sind die Config-Vorlagen direkt neben SSP3 und AFE erreichbar. Speichern, Dateiauswahl, Vorschau und bewusste Übernahme verwenden die identischen Bedienelemente wie in der Normalansicht. Ein Import programmiert weder RAM noch EEPROM automatisch.
+
 ## EEPROM Viewer
 
 In der Navigation gibt es zusätzlich zu den **sieben Kalibrierschritten** den eigenständigen Reiter **EEPROM Viewer**. Er ist von jedem Schritt aus erreichbar.
