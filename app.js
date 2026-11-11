@@ -895,11 +895,9 @@ if(typeof document!=='undefined') (function UI(){
  }
   $('nvmBackupDownload').addEventListener('click',downloadNvmBackup);
  $('nvmPrepare').addEventListener('click',prepareNvm);
- $('nvmAutoBackup').checked=(lsGet('elmos8-automatic-backup-v1')??'1')==='1';
- $('nvmAutoBackup').addEventListener('change',()=>{
-  lsSet('elmos8-automatic-backup-v1',$('nvmAutoBackup').checked?'1':'0');
-  renderFlowState()
- });
+ // Backup ist aus Sicherheitsgründen bei jedem neuen Browserdurchlauf standardmässig aktiviert.
+ $('nvmAutoBackup').checked=true;
+ $('nvmAutoBackup').addEventListener('change',renderFlowState);
  for(const id of ['nvmConfirmId','nvmConfirmWord'])$(id).addEventListener('input',renderFlowState);
  $('nvmProgram').addEventListener('click',nvmProgram);
  $('nvmPostBoot').addEventListener('click',postBootCheck);
