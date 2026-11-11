@@ -164,7 +164,7 @@ if(typeof document!=='undefined') (function UI(){
  function workflowGate(n){
   if(n>=3&&!calEndpointsReady())return 'Zuerst alle '+calibrationPointCount()+' gewählten Kalibrierpunkte bei gleicher AFE-Einstellung aufnehmen.';
   if(n>=4&&(!coefficientSettingsCurrent()||!st.calStaged))return 'Zuerst die Koeffizienten für den eingestellten DSP-Endwert berechnen und ins RAM übertragen.';
-  if(n>=5&&!verificationComplete())return 'NVM bleibt gesperrt: Zuerst '+(Number.isFinite(verificationRequiredCount())?verificationRequiredCount()+' Prüfpunkte':'eine gültige Anzahl Prüfpunkte')+' über DSP_S im RAM erfolgreich verifizieren.';
+  if(n>=5&&!verificationComplete()&&!expert.restoreReady())return 'NVM bleibt gesperrt: Zuerst '+(Number.isFinite(verificationRequiredCount())?verificationRequiredCount()+' Prüfpunkte':'eine gültige Anzahl Prüfpunkte')+' über DSP_S im RAM erfolgreich verifizieren.';
   return ''
  }
  function renderFlowState(){
@@ -178,10 +178,10 @@ if(typeof document!=='undefined') (function UI(){
    'Bereit: Koeffizienten können ohne vorheriges NVM-Backup ins RAM geschrieben werden.';
   $('calRamPrereq').className='callout'+(enabled?' success':'');
   $('calApplyRam').disabled=!enabled;
-  const verified=verificationComplete()&&!!st.port&&!!st.chip&&!st.nvmWorking&&!st.writing&&!st.calTask;
-  $('nvmBackupRead').disabled=!verified;
+  const verified=(verificationComplete()||expert.restoreReady())&&!!st.port&&!!st.chip&&!st.nvmWorking&&!st.writing&&!st.calTask;
+  $('nvmBackupRead').disabled=!verificationComplete()||!st.port||!st.chip||st.nvmWorking||st.writing||st.calTask;
   $('nvmBackupDownload').disabled=!st.nvmBackupVerified||!st.nvmBackup;
-  $('nvmPrepare').disabled=!verified||!st.nvmBackupVerified;
+  $('nvmPrepare').disabled=!verificationComplete()||!st.nvmBackupVerified||!!st.restorePlan;
   $('nvmProgram').disabled=!verified||!st.nvmBackupVerified||!st.calImage;
   const unlocked=[true,true,true,calEndpointsReady(),ready&&st.calStaged,!workflowGate(5)];
   document.querySelectorAll('[data-step]').forEach(b=>{
@@ -616,11 +616,11 @@ if(typeof document!=='undefined') (function UI(){
  }
  function prepareNvm(){try{if(st.calTask||st.writing)throw Error('Wartungsvorgang läuft');
   if(!st.nvmBackupVerified||!coefficientSettingsCurrent()||!verificationComplete()||!st.calStaged)throw Error('NVM-Backup, berechnete Koeffizienten und bestandene DSP-RAM-Verifikation für die gewählte Anzahl Prüfpunkte nötig');
-  const image=CAL.configFrom(st.nvmBackup,st.calfit,st.afe??0x800);
-  if(image.changes.some(c=>c.index<28||c.index===29||c.index===30))throw Error('Unerlaubtes NVM-Register im Änderungsplan');
+  const image=CAL.configFrom(st.nvmBackup,st.calfit,st.afe??0x800,{output:st.expertOutputPlan});
+  if(image.changes.some(c=>(c.index<28&&![16,22].includes(c.index))||c.index===29||c.index===30))throw Error('Unzulässiges NVM-Register im Änderungsplan');
   if(image.changes.length===0)throw Error('Keine NVM-Änderungen nötig');
   st.calImage=image;$('nvmDiff').textContent=image.changes.map(c=>`NVM 0x${h(c.address)} [${c.index}] 0x${h(c.from,2)} → 0x${h(c.to,2)}`).join('\n');
-  ca('nvmMsg',`${image.changes.length} von 64 Wörtern werden geändert (CRC16 zuletzt). Werksbereich 0x00–0x1E und alle Boot-/Kommunikationsregister bleiben exakt erhalten.${verificationRequiredCount()===1?' ACHTUNG: Nur ein Prüfpunkt bestanden – der restliche Druckbereich ist ungeprüft.':''}`,`warn`);
+  ca('nvmMsg',`${image.changes.length} von 64 Wörtern werden geändert (CRC16 zuletzt). Werksbereich 0x00–0x1E und Boot-/Kommunikationsregister ausser freigegebenen AODO-Bits bleiben unverändert.${verificationRequiredCount()===1?' ACHTUNG: Nur ein Prüfpunkt bestanden – der restliche Druckbereich ist ungeprüft.':''}`,`warn`);
  }catch(e){st.calImage=null;ca('nvmMsg','Vorbereitung: '+e.message,'error')}
  }
  async function nvmProgram(){
