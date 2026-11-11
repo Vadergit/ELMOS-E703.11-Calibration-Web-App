@@ -32,7 +32,7 @@ if(typeof document!=='undefined') (function UI(){
  const REG_NAMES={4:'CFG_EN',6:'CFG_SPI_I2C',8:'CFG_PADS0',10:'CFG_PADS1',12:'CFG_PADS2',16:'CFG_AODO',0x14:'CFG_ADC',0x16:'CFG_LP0',0x18:'CFG_LP1',0x1A:'CFG_AFE0',0x1C:'CFG_AFE1',0x1E:'CFG_AFE2',0x26:'ADC_TC',0x28:'ADC_T',0x2A:'ADC_S'};
  const st={mode:'offline',port:null,reader:null,readerPromise:null,cmdQueue:Promise.resolve(),replyBuffer:'',responseWait:null,iface:'plc',firmware:'',chip:false,boot:null,afe:null,staged:{pga1:0,pga2:0,offset:0},adc:null,dsp:null,dspError:null,liveReadPromise:null,trend:[],history:[],log:[],regs:{},points:{lo:null,hi:null},verify:null,live:false,timeout:null,consecutiveErrors:0,writing:false,pressure:5,calpoints:[],calfit:null,calImage:null,nvmBackup:null,nvmBackupVerified:false,calStaged:false,calVerified:false,calValidation:[],calTask:false,nvmWorking:false,nvmDone:false};
  let currentStep=0,pendingGain=null,writeTimer=null;let tipEnabled=true;
- const HELP={interface:'Schnittstelle zwischen SSP3-Board und Sensorchip. 1-Wire nutzt AODO (VDD, GND und AODO). Die Einstellung IF_CFG ändert die Programmer-Pins, nicht die NVM-Konfiguration des Sensors.',baud:'Baudrate des USB-UART zwischen Chrome und dem SSP3. Die Herstellersoftware verwendet 115200 Baud als Standard.',adcs:'ADC_S ist der unkompensierte 16-Bit-Druck-ADC. ±25000 Digits ist ein vorsichtiges Ziel für den manuellen Abgleich, keine garantierte Hardwaregrenze.',dsp_live:'DSP_S (Register 0x30) ist der skalierte DSP-Sensorausgang. Die Anzeige liest den realen Chipwert wiederholt und bildet -32000 bis +32000 Digits auf 0 bis 100 % ab. Ein vorhandener Kalibrierbereich kann für die Anzeige manuell gesetzt werden. Ein DSP-Wert allein belegt keine gültige Kalibrierung.',pga1:'Erste Druckverstärkungsstufe: 3.5×, 6×, 8.5× oder 11× (typische Werte laut Datenblatt 2023). Für gutes SNR möglichst hoch ohne Übersteuerung.',pga2:'Zweite Verstärkungsstufe: typische Faktoren 2× bis 10×. Der Gesamtfaktor ist PGA1 × PGA2.',offset:'17 DAC-Stufen von −400 bis +400 mV/V bezogen auf die Brückenspannung. Die Verschiebung liegt zwischen PGA1 und PGA2.',pressureunit:'Einheit für die Referenz- und Prüfdruckwerte. Für relative Kalibrierungen kann beispielsweise % mit 0 bis 100 gewählt werden. Referenzwerte müssen zum tatsächlichen Prüfstand passen. Einheitenwechsel erfordert neue Messpunkte.',dsp_limit:'Symmetrischer DSP-Endwert für die neue Kalibrierung. Standard ±32’000 Digits. ±30’000 lässt zusätzlich Reserve. Der Wert verändert die berechneten Koeffizienten sowie DSP-Soll und Fehlerumrechnung; er ist keine Hardware-Clipping-Grenze.',ram:'Schreibt nach manueller Freigabe ausschliesslich die Gain-/Offset-Bits in CFG_AFE1 0x1C im RAM. Kein NVM-/EEPROM-Schreiben. Vorher und nachher liest die App sämtliche Boot-/Kommunikationsregister.',};
+ const HELP={interface:'Schnittstelle zwischen SSP3-Board und Sensorchip. 1-Wire nutzt AODO (VDD, GND und AODO). Die Einstellung IF_CFG ändert die Programmer-Pins, nicht die NVM-Konfiguration des Sensors.',baud:'Baudrate des USB-UART zwischen Chrome und dem SSP3. Die Herstellersoftware verwendet 115200 Baud als Standard.',adcs:'ADC_S ist der unkompensierte 16-Bit-Druck-ADC. ±25000 Digits ist ein vorsichtiges Ziel für den manuellen Abgleich, keine garantierte Hardwaregrenze.',dsp_live:'DSP_S (Register 0x30) ist der skalierte DSP-Sensorausgang. Die Anzeige liest den Chipwert wiederholt und rechnet ihn mit dem konfigurierten DSP-Endwert (standardmässig ±32’000 Digits) in den gewählten Anzeigebereich um. Ein DSP-Wert allein belegt keine gültige Kalibrierung.',pga1:'Erste Druckverstärkungsstufe: 3.5×, 6×, 8.5× oder 11× (typische Werte laut Datenblatt 2023). Für gutes SNR möglichst hoch ohne Übersteuerung.',pga2:'Zweite Verstärkungsstufe: typische Faktoren 2× bis 10×. Der Gesamtfaktor ist PGA1 × PGA2.',offset:'17 DAC-Stufen von −400 bis +400 mV/V bezogen auf die Brückenspannung. Die Verschiebung liegt zwischen PGA1 und PGA2.',pressureunit:'Einheit für die Referenz- und Prüfdruckwerte. Für relative Kalibrierungen kann beispielsweise % mit 0 bis 100 gewählt werden. Referenzwerte müssen zum tatsächlichen Prüfstand passen. Einheitenwechsel erfordert neue Messpunkte.',dsp_limit:'Symmetrischer DSP-Endwert für die neue Kalibrierung. Standard ±32’000 Digits. ±30’000 lässt zusätzlich Reserve. Der Wert verändert die berechneten Koeffizienten sowie DSP-Soll und Fehlerumrechnung; er ist keine Hardware-Clipping-Grenze.',ram:'Schreibt nach manueller Freigabe ausschliesslich die Gain-/Offset-Bits in CFG_AFE1 0x1C im RAM. Kein NVM-/EEPROM-Schreiben. Vorher und nachher liest die App sämtliche Boot-/Kommunikationsregister.',};
  const h=P.hx;
  const fmt=n=>n===null||n===undefined||!Number.isFinite(n)?'—':Math.round(n).toLocaleString('de-CH');
  const now=()=>new Date().toLocaleTimeString('de-CH',{hour12:false});
@@ -141,9 +141,13 @@ if(typeof document!=='undefined') (function UI(){
   const n=Number($('calVerifyCount').value);
   return Number.isInteger(n)&&n>=1&&n<=10?n:Infinity;
  }
+ function coefficientSettingsCurrent(){
+  return !!st.calfit&&Number($('calDspLimit').value)===st.calfit.outputLimit&&
+   Number($('calSOrder').value)===st.calfit.orderS&&Number($('calTOrder').value)===st.calfit.orderT
+ }
  function verificationComplete(){
   const count=verificationRequiredCount();
-  return !!st.calVerified&&!!st.calfit&&!!st.calStaged&&Number.isFinite(count)&&st.calValidation.length>=count;
+  return !!st.calVerified&&coefficientSettingsCurrent()&&!!st.calStaged&&calEndpointsReady()&&Number.isFinite(count)&&st.calValidation.length>=count
  }
  function updateVerificationProgress(){
   const required=verificationRequiredCount(),done=st.calValidation.length;
@@ -159,21 +163,21 @@ if(typeof document!=='undefined') (function UI(){
  }
  function workflowGate(n){
   if(n>=3&&!calEndpointsReady())return 'Zuerst alle '+calibrationPointCount()+' gewählten Kalibrierpunkte bei gleicher AFE-Einstellung aufnehmen.';
-  if(n>=4&&(!st.calfit||!st.calStaged))return 'Zuerst die DSP-Koeffizienten berechnen und ins Chip-RAM übertragen. Eine Rechnung allein reicht für die DSP-Prüfung nicht.';
+  if(n>=4&&(!coefficientSettingsCurrent()||!st.calStaged))return 'Zuerst die Koeffizienten für den eingestellten DSP-Endwert berechnen und ins RAM übertragen.';
   if(n>=5&&!verificationComplete())return 'NVM bleibt gesperrt: Zuerst '+(Number.isFinite(verificationRequiredCount())?verificationRequiredCount()+' Prüfpunkte':'eine gültige Anzahl Prüfpunkte')+' über DSP_S im RAM erfolgreich verifizieren.';
   return ''
  }
  function renderFlowState(){
   updateVerificationProgress();
-  const ramPrereq=!st.calfit?'1. Zuerst die Koeffizienten berechnen.':!st.port||!st.chip?'USB-Verbindung und Chip-Lesezugriff fehlen.':!$('allowRam').checked?'2. RAM-Schreibfreigabe hier aktivieren.':!st.nvmBackupVerified?'3. Original-NVM lesen und prüfen.':'Bereit: NVM-Backup geprüft und RAM-Schreibzugriff freigegeben.';
+  const ramPrereq=!coefficientSettingsCurrent()?'1. Zuerst die Koeffizienten für den aktuellen DSP-Endwert berechnen.':!st.port||!st.chip?'USB-Verbindung und Chip-Lesezugriff fehlen.':!$('allowRam').checked?'2. RAM-Schreibfreigabe hier aktivieren.':!st.nvmBackupVerified?'3. Original-NVM lesen und prüfen.':'Bereit: NVM-Backup geprüft und RAM-Schreibzugriff freigegeben.';
   $('calRamPrereq').textContent=ramPrereq;
-  $('calRamPrereq').className='callout'+(st.calfit&&st.chip&&$('allowRam').checked&&st.nvmBackupVerified?' success':' warn');
+  $('calRamPrereq').className='callout'+(coefficientSettingsCurrent()&&st.chip&&$('allowRam').checked&&st.nvmBackupVerified?' success':' warn');
   $('calRamEnable').checked=$('allowRam').checked;
   $('calRamEnable').disabled=!st.chip||st.mode==='demo'||st.writing||st.calTask;
-  $('nvmBackupRead').disabled=!st.calfit||!st.port||!st.chip||!$('allowRam').checked||st.writing||st.calTask;
+  $('nvmBackupRead').disabled=!coefficientSettingsCurrent()||!st.port||!st.chip||!$('allowRam').checked||st.writing||st.calTask;
   $('nvmBackupDownload').disabled=!st.nvmBackupVerified;
-  $('calApplyRam').disabled=!st.calfit||!st.port||!st.chip||!$('allowRam').checked||!st.nvmBackupVerified||st.writing||st.calTask;
-  const unlocked=[true,true,true,calEndpointsReady(),calEndpointsReady()&&!!st.calfit&&st.calStaged,!workflowGate(5)];
+  $('calApplyRam').disabled=!coefficientSettingsCurrent()||!st.port||!st.chip||!$('allowRam').checked||!st.nvmBackupVerified||st.writing||st.calTask;
+  const unlocked=[true,true,true,calEndpointsReady(),calEndpointsReady()&&coefficientSettingsCurrent()&&st.calStaged,!workflowGate(5)];
   document.querySelectorAll('[data-step]').forEach(b=>{const index=Number(b.dataset.step);b.classList.toggle('locked',!unlocked[index]);b.setAttribute('aria-disabled',String(!unlocked[index]));b.title=unlocked[index]?'':workflowGate(index)});
   for(const btn of document.querySelectorAll('[data-next]')){const index=Number(btn.dataset.next);if(index>2){btn.disabled=!unlocked[index];btn.title=unlocked[index]?'':workflowGate(index)}else btn.disabled=false}
  }
@@ -308,7 +312,7 @@ if(typeof document!=='undefined') (function UI(){
  }
  function stopLive(){st.live=false;clearTimeout(st.timeout);st.timeout=null;renderStatus()}
  function demoADC(){const g=st.staged;return Math.max(-32768,Math.min(32767,Math.round((st.pressure-5)*750*(GAINS1[g.pga1]/3.5)*(GAINS2[g.pga2]/2)+g.offset*950+(Math.random()-.5)*28)))}
- function demoRead(addr){if(addr===0x1C)return P.encAFE(0x0800,st.staged);if(addr===0x2A)return demoADC()&65535;if(addr===0x28)return 10755;if(addr===0x26)return 9902;if(addr===0x30)return Math.max(-32768,Math.min(32767,Math.round((st.pressure/10)*64000-32000)))&65535;const fixed={4:0x0200,6:0x0006,8:0x0100,10:0x0980,12:0,16:0};return fixed[addr]??0}
+ function demoRead(addr){if(addr===0x1C)return P.encAFE(0x0800,st.staged);if(addr===0x2A)return demoADC()&65535;if(addr===0x28)return 10755;if(addr===0x26)return 9902;if(addr===0x30){const lim=getActiveDSPRange()?.limit??32000;return Math.max(-32768,Math.min(32767,Math.round((st.pressure/10)*2*lim-lim)))&65535;}const fixed={4:0x0200,6:0x0006,8:0x0100,10:0x0980,12:0,16:0};return fixed[addr]??0}
  function exitDemo(){stopLive();st.mode='offline';st.chip=false;st.afe=null;st.boot=null;st.regs={};$('allowRam').checked=false;st.points={lo:null,hi:null};st.calpoints=[];st.calfit=null;st.calImage=null;st.nvmBackup=null;st.dsp=null;st.calStaged=false;st.nvmDone=false;$('demo').textContent='Demo starten';$('demoPressurePanel').hidden=true;renderStatus()}
  function demo(){if(st.port)return show('connMsg','USB zuerst trennen, um die Demo zu starten.','warn');if(st.mode==='demo'){exitDemo();return}st.mode='demo';st.firmware='DEMO';st.chip=false;st.staged={pga1:1,pga2:3,offset:0};st.pressure=5;st.points={lo:null,hi:null};st.calpoints=[];st.calfit=null;st.calImage=null;st.nvmBackup=null;st.dsp=null;st.calStaged=false;st.nvmDone=false;gainSummary();$('demo').textContent='Demo beenden';$('demoPressurePanel').hidden=false;show('connMsg','DEMO aktiv: alle ADC-Werte sind simuliert. Es werden keine Hardwarebefehle gesendet.','warn');step(1);startLive();renderStatus()}
  async function bootSnapshot(){if(!(st.chip||st.mode==='demo'))throw Error('Chip nicht verbunden');const out={};for(const a of LOCKED)out[a]=await readReg(a);return out}
@@ -467,7 +471,7 @@ if(typeof document!=='undefined') (function UI(){
  async function nvmScan(){
   let started=false;
   try{
-   if(!st.calfit)throw Error('Zuerst Koeffizienten berechnen');
+   if(!coefficientSettingsCurrent())throw Error('Zuerst Koeffizienten mit dem aktuell eingestellten DSP-Endwert berechnen');
    if(!st.port||!st.chip||st.mode==='demo')throw Error('Ein echter Chip muss verbunden sein');
    if(!$('allowRam').checked)throw Error('RAM-Schreibfreigabe oben im Schritt 4 aktivieren');
    if(st.writing||st.calTask||st.nvmWorking)throw Error('Ein anderer Vorgang läuft');
@@ -494,7 +498,7 @@ if(typeof document!=='undefined') (function UI(){
  }
  async function applyCalRam(){
   try{
-   if(!st.calfit)throw Error('Zuerst Koeffizienten berechnen');
+   if(!coefficientSettingsCurrent())throw Error('Zuerst Koeffizienten für den aktuellen DSP-Endwert berechnen');
    if(!st.port||!st.chip)throw Error('USB-Verbindung zum Chip fehlt');
    if(!$('allowRam').checked)throw Error('RAM-Schreibzugriff im Schritt 4 aktivieren');
    if(!st.nvmBackupVerified)throw Error('Zuerst Original-NVM in Schritt 4 lesen und prüfen');
@@ -520,7 +524,7 @@ if(typeof document!=='undefined') (function UI(){
  async function verifyCalRam(){
   let isChecking=false;
   try{
-   if(!st.calStaged||!st.calfit||!st.chip||st.calTask||st.writing)throw Error('Koeffizienten zuerst im RAM übernehmen / anderer Vorgang läuft');
+   if(!st.calStaged||!coefficientSettingsCurrent()||!st.chip||st.calTask||st.writing)throw Error('Koeffizienten zuerst im RAM übernehmen / anderer Vorgang läuft');
    const required=verificationRequiredCount();
    if(!Number.isFinite(required))throw Error('Anzahl Prüfpunkte: Bitte eine ganze Zahl zwischen 1 und 10 eingeben');
    const p=Number($('calVerifyPressure').value),pmin=Number($('pmin').value),pmax=Number($('pmax').value),tol=Number($('calVerifyTolerance').value);
@@ -557,7 +561,7 @@ if(typeof document!=='undefined') (function UI(){
   finally{if(isChecking)st.calTask=false;renderFlowState()}
  }
  function prepareNvm(){try{if(st.calTask||st.writing)throw Error('Wartungsvorgang läuft');
-  if(!st.nvmBackupVerified||!st.calfit||!verificationComplete()||!st.calStaged)throw Error('NVM-Backup, berechnete Koeffizienten und bestandene DSP-RAM-Verifikation für die gewählte Anzahl Prüfpunkte nötig');
+  if(!st.nvmBackupVerified||!coefficientSettingsCurrent()||!verificationComplete()||!st.calStaged)throw Error('NVM-Backup, berechnete Koeffizienten und bestandene DSP-RAM-Verifikation für die gewählte Anzahl Prüfpunkte nötig');
   const image=CAL.configFrom(st.nvmBackup,st.calfit,st.afe??0x800);
   if(image.changes.some(c=>c.index<28||c.index===29||c.index===30))throw Error('Unerlaubtes NVM-Register im Änderungsplan');
   if(image.changes.length===0)throw Error('Keine NVM-Änderungen nötig');
