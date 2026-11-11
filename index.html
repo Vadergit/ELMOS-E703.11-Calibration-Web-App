@@ -95,7 +95,88 @@ button.danger{background:#9e3e34;border-color:#9e3e34;color:#fff}button.danger:h
  .panel[data-panel="2"] .cal-setup-grid label:first-child{grid-column:1/-1}
 }
 
-</style></head><body><div class="wrap"><header class="top"><div class="brand"><div class="logo">E</div><div><div class="eyebrow">E703.11 · PSSC</div><h1>Kalibrierassistent</h1></div></div><span class="chip"><span class="dot" id="statusDot"></span><span id="status">Nicht verbunden</span></span></header>
+
+/* Permanente Messwertübersicht – eine Zeile mit sauberen Spalten auf Desktop. */
+.top{display:grid;grid-template-columns:minmax(205px,245px) minmax(0,1fr) auto;align-items:center;gap:16px;padding:8px 0 15px;position:sticky;top:0;z-index:24;background:var(--bg);border-bottom:1px solid var(--line)}
+.brand{min-width:0}
+.live-overview{min-width:0;display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:6px;align-items:stretch}
+.live-kpi{display:flex;flex-direction:column;justify-content:center;min-width:0;padding:6px 10px;border:1px solid var(--line);background:#fff;border-radius:8px}
+.live-kpi-primary{border-color:#b9d3ea;background:#f1f7fd}
+.live-kpi-label{font-size:10px;line-height:1.15;letter-spacing:.025em;font-weight:750;color:#536b81}
+.live-kpi-reading{font-size:18px;line-height:1.28;font-weight:800;letter-spacing:-.35px;color:#213c5c;white-space:nowrap;font-variant-numeric:tabular-nums}
+.live-kpi-primary .live-kpi-reading{color:#195a94}
+.live-kpi-unit{font-size:10px;line-height:1.15;color:#65768b}
+.live-alert{display:inline-block;background:#f9dcbd;color:#935217;font-size:9px;font-weight:850;padding:1px 4px;border-radius:3px}
+.live-kpi.live-warning{border-color:#eab879;background:#fff7eb}
+.live-kpi.live-warning .live-kpi-reading{color:#97521c}
+.live-connection{display:flex;align-items:flex-end;flex-direction:column;gap:4px;min-width:164px}
+.live-connection .chip{padding:5px 9px;font-size:11px;white-space:nowrap}
+.live-meta{display:flex;align-items:center;justify-content:flex-end;gap:5px;color:#637489;font-size:10px;white-space:nowrap}
+.live-meta-dot{width:6px;height:6px;border-radius:50%;background:#a1acb7;flex-shrink:0}
+.live-meta-dot.is-live{background:#258665}
+.live-meta-dot.is-working{background:#d29a41}
+.live-meta-dot.is-demo{background:#cb8b2c}
+@media(max-width:1120px){
+ .top{grid-template-columns:minmax(0,1fr) auto;gap:8px 12px}
+ .live-overview{grid-column:1/-1;grid-row:2}
+ .live-connection{grid-column:2;grid-row:1}
+}
+@media(max-width:620px){
+ .top{padding:7px 0 9px;gap:6px}
+ .brand h1{font-size:17px}
+ .brand .logo{width:30px;height:30px;font-size:17px}
+ .live-connection{min-width:0}
+ .live-connection .chip{font-size:10px;padding:4px 6px}
+ .live-meta{font-size:9px}
+ .live-overview{gap:4px}
+ .live-kpi{padding:5px 6px}
+ .live-kpi-reading{font-size:14px}
+ .live-kpi-label,.live-kpi-unit{font-size:9px}
+}
+@media(max-width:370px){
+ .live-overview{grid-template-columns:repeat(2,minmax(0,1fr))}
+ .top{position:static}
+}
+/* Exakte Ausrichtung aller Eingaben und Buttons in Kalibrier-Messpunktkarten. */
+.panel[data-panel="2"] .cal-point-row .fieldrow{grid-template-columns:minmax(0,2.15fr) minmax(0,1fr) minmax(0,.92fr) 184px;align-items:end;gap:9px}
+.panel[data-panel="2"] .cal-card-action{display:flex;align-items:end;min-width:0}
+.panel[data-panel="2"] .cal-card-action button{width:100%;padding:7px 6px;min-height:35px;font-size:11px;text-align:center}
+.panel[data-panel="2"] .cal-point-row .fieldrow label{min-width:0}
+.panel[data-panel="2"] .cal-point-row .fieldrow input{width:100%;min-width:0}
+.panel[data-panel="2"] .cal-setup-grid{grid-template-columns:minmax(0,1.55fr) minmax(0,.73fr) minmax(0,.88fr) minmax(0,1fr) minmax(0,1fr);gap:9px}
+.panel[data-panel="2"] .cal-setup-grid label{min-width:0}
+.panel[data-panel="2"] .cal-setup-grid input,.panel[data-panel="2"] .cal-setup-grid select{min-width:0}
+.panel[data-panel="2"] .cal-point-row .between{align-items:center}
+.panel[data-panel="2"] .cal-point-status{flex-shrink:0}
+@media(max-width:1280px){
+ .panel[data-panel="2"] .cal-point-row .fieldrow{grid-template-columns:minmax(0,1.8fr) minmax(0,.9fr) minmax(0,.75fr) 176px}
+}
+@media(max-width:1100px){
+ .panel[data-panel="2"] .cal-setup-grid{grid-template-columns:repeat(3,minmax(0,1fr))}
+ .panel[data-panel="2"] .cal-point-row .fieldrow{grid-template-columns:minmax(0,1.5fr) minmax(0,.85fr) minmax(0,.75fr)}
+ .panel[data-panel="2"] .cal-card-action{grid-column:1/-1;justify-content:flex-end}
+ .panel[data-panel="2"] .cal-card-action button{width:auto;padding:7px 12px}
+}
+@media(max-width:750px){
+ .panel[data-panel="2"] .cal-setup-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
+ .panel[data-panel="2"] .cal-point-row .fieldrow{grid-template-columns:repeat(2,minmax(0,1fr))}
+ .panel[data-panel="2"] .cal-card-action{grid-column:1/-1}
+}
+@media(max-width:430px){
+ .panel[data-panel="2"] .cal-point-row .fieldrow{grid-template-columns:1fr}
+ .panel[data-panel="2"] .cal-card-action{grid-column:1}
+}
+
+</style></head><body><div class="wrap"><header class="top">
+<div class="brand"><div class="logo">E</div><div><div class="eyebrow">E703.11 · PSSC</div><h1>Kalibrierassistent</h1></div></div>
+<div class="live-overview" role="group" aria-label="Sensorwerte · laufende Anzeige">
+  <div class="live-kpi" title="Unkompensierter Druck-ADC. Warnung bei Beträgen über 25’000 Digits."><span class="live-kpi-label">ADC_S <span id="liveAdcAlert" class="live-alert" hidden>!</span></span><span class="live-kpi-reading" id="liveAdcS">—</span><span class="live-kpi-unit">Digits</span></div>
+  <div class="live-kpi" title="ADC_T · Temperatur-Rohwert, keine direkte Temperatur in °C."><span class="live-kpi-label">ADC_T</span><span class="live-kpi-reading" id="liveAdcT">—</span><span class="live-kpi-unit">Digits</span></div>
+  <div class="live-kpi" title="DSP_S · kalibrierter digitaler Ausgang in Digits."><span class="live-kpi-label">DSP_S</span><span class="live-kpi-reading" id="liveDspS">—</span><span class="live-kpi-unit">Digits</span></div>
+  <div class="live-kpi live-kpi-primary" title="DSP_S auf den eingestellten Druck- oder Prozentbereich umgerechnet. Der Wert ersetzt keine DSP-Verifikation."><span class="live-kpi-label">Sensorwert</span><span class="live-kpi-reading" id="livePressure">—</span><span class="live-kpi-unit" id="livePressureUnit">%</span></div>
+</div>
+<div class="live-connection"><span class="chip"><span class="dot" id="statusDot"></span><span id="status">Nicht verbunden</span></span><span class="live-meta"><span class="live-meta-dot" id="liveStateDot"></span><span id="liveState">Keine Live-Messung</span><span aria-hidden="true">·</span><span id="liveLastRead">—</span></span></div>
+</header>
 <div id="demoPressurePanel" class="callout warn" hidden><div class="between"><strong>DEMO – simulierter Druck</strong><span><b id="demoPressureVal">5.0</b> bar</span></div><input id="demoPressure" type="range" min="0" max="10" step="0.1" value="5" style="margin-top:10px"></div>
 <div class="content"><aside class="side"><button class="stepBtn active" data-step="0"><span class="num">1</span><span>USB & Chip</span></button><button class="stepBtn" data-step="1"><span class="num">2</span><span>AFE optimieren</span></button><button class="stepBtn" data-step="2"><span class="num">3</span><span>Messpunkte</span></button><button class="stepBtn" data-step="3"><span class="num">4</span><span>Berechnen & RAM</span></button><button class="stepBtn" data-step="4"><span class="num">5</span><span>DSP prüfen</span></button><button class="stepBtn" data-step="5"><span class="num">6</span><span>NVM programmieren</span></button></aside>
 <main class="main"><div id="flowMsg" class="callout warn" hidden></div>
@@ -400,4 +481,4 @@ button.danger{background:#9e3e34;border-color:#9e3e34;color:#fff}button.danger:h
 </div>
 </section>
 <section class="card"><div class="between"><h3>App-Einstellungen</h3><span class="pill">Lokal gespeichert</span></div><label class="toggle"><input id="tooltips" type="checkbox" checked> Hover-Erklärungen aktivieren</label><p class="muted small">Über ? erscheint eine Erklärung zur jeweiligen Funktion. Die Auswahl bleibt im Browser erhalten.</p><details><summary>Technischer Status und Quellen</summary><div class="inner"><p><b>Implementiert:</b> NVM-Backup, unabhängiger Polynom-Fit, Q-Formate, RAM-DSP-Prüfung, NVM-Programmierworkflow und CRC16; Web Serial, `.VERSION`, SSP3 `IF_CFG`, 1-Wire `PLC`-Lesetelegramme, I²C- und SPI-Lesetelegramme, AFE-RAM-Schreiben per Übernehmen-Button mit Rückleseprüfung, ADC-Live-Messungen, geführte Aufnahme von 2–10 Kalibrierpunkten und Messprotokoll.</p><p><b>Getestet:</b> Firmwarebefehle, CRC4 und Schreib-CRC8 anhand der Herstellerbeispiele sowie Browserlogik im Simulator. <b>Nicht nachgewiesen:</b> USB-Antworten, Timing, CRC8 der Antwort und RAM-Gain-Änderung am physischen Board. NVM-Programmierung ist als ausdrücklich zu bestätigender Labor-Test implementiert, aber nicht am echten Board validiert.</p><p>Referenzen: AN 0204 (12.02.2019), AN 0203 (06.02.2020), E703.11 Datenblatt 25DS0170E.04 (16.11.2023) und API-Header aus `pssc_mc_dev_2024_07_12.zip`.</p></div></details></section><div class="foot">ELMOS E703.11 · unabhängiger Kalibrierprototyp · Sicherheitsprinzip: Factory- und Kommunikations-Bootregister gesperrt; dokumentierte AODO-Ausgangsoptionen nur nach Prüfung im NVM-Plan; Wiederherstellung nur mit passender Chip-UID.</div>
-</main></div></div><div id="tip" class="tooltip"></div><script src="calibration.js?v=expert-20261111-5"></script><script src="expert.js?v=nvm-final-20261111-1"></script><script src="app.js?v=compact-points-20261111-1"></script></body></html>
+</main></div></div><div id="tip" class="tooltip"></div><script src="calibration.js?v=expert-20261111-5"></script><script src="expert.js?v=nvm-final-20261111-1"></script><script src="app.js?v=live-header-20261111-1"></script></body></html>
