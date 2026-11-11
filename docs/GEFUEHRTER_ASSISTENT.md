@@ -60,7 +60,7 @@ Du kannst den **gesamten geführten Ablauf ohne Evaluation Board, USB-Stick oder
 1. Die Beta mit [`scripts/preview.py`](../scripts/preview.py) lokal in Chrome starten (siehe unten). Es muss **kein Board angeschlossen** sein.
 2. Oben rechts auf **«◈ Demo-Wizard»** klicken – oder unter «USB & Chip» auf **«Wizard ohne Hardware testen»**. Die App startet einen vorhandenen Simulationsmodus und öffnet den Wizard direkt.
 3. Wähle z. B. **2 Druckpunkte × 3 Temperaturstufen** oder **3 Druckpunkte × 2 Temperaturstufen**, lege den Druckbereich und die simulierten Temperaturen fest.
-4. AFE mit PGA1, Offset, PGA2 ausprobieren. Kein Register wird beschrieben.
+4. AFE mit PGA1, Offset, PGA2 ausprobieren. Optional eine Config-Vorlage laden und über **«Demo: geladene AFE-Config virtuell übernehmen»** anwenden. Kein Register wird beschrieben.
 5. Bei jedem Messpunkt setzt der Wizard im Demo-Modus **automatisch** die simulierte Druck-/Temperaturbedingung. Mit dem ursprünglichen Button «Messpunkt aufnehmen» kannst du die Werte virtuell erfassen.
 6. «Koeffizienten berechnen» verwendet die reale JavaScript-Rechenfunktion der App, jedoch nur **synthetische ADC-Werte**. Danach **«Demo: RAM-Übernahme simulieren»** drücken.
 7. **«Demo: Prüfpunkt ... simulieren»** wiederholt drücken, bis alle virtuellen unabhängigen Prüfpunkte abgearbeitet sind. Der Fortschritt wird angezeigt.
