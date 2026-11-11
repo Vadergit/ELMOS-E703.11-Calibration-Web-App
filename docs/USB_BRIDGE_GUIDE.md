@@ -15,55 +15,52 @@ Der Kalibrierassistent nutzt standardmässig weiterhin das **ELMOS SSP3**. In de
 
 **Wichtig:** Das Beispiel ist keine fertige E703.11-Programmer-Firmware. Es implementiert **weder den Elmos-1-Wire/PLC-Bus noch die EEPROM-Programmierung**. Ein serieller USB-Port alleine ersetzt die zeitkritische Hardware-Kommunikation nicht.
 
-Die [vollständige ESP32-/Arduino-Boardliste](ESP_BOARD_OPTIONS.md) enthält die GPIO-Vorschläge, optionalen Empfangspins, I/O-Spannungen und Hersteller-Pinouts.
+Die [vollständige ESP32-/Arduino-Boardliste](ESP_BOARD_OPTIONS.md) enthält die Belegung für AODO / 1-Wire **und** I²C, optionale Empfangspins, I/O-Spannungen und Hersteller-Pinouts.
 
 **Für den bereits vorhandenen ESP32-C3 SuperMini:** Statt des allgemeinen Arduino-Beispiels die neue [C3-SuperMini-Firmware](../firmware/esp32c3_supermini/esp32c3_supermini.ino) verwenden. Arduino IDE → Board **ESP32C3 Dev Module**, **USB CDC On Boot: Enabled**. Nach dem Flashen `BRIDGE_INFO` senden. Erwartet wird `# E70311-BRIDGE V1 CAPS=CDC_ONLY`.
 
-## 2. Geeignete Mikrocontroller und GPIO-Pins
+## 2. AODO / 1-Wire und I²C – passende MCU-Pins
 
-Die folgende Tabelle zeigt die häufigsten Boards und **konkrete Pinvorschläge** für eine spätere externe E703.11-PLC-Treiberschaltung. **Diese Pins werden von der aktuellen Firmware noch nicht angesteuert.** Sie sind **keine Freigabe zum direkten Anschluss an AODO**.
+Der Anschluss am **E703.11 für 1-Wire heisst AODO** (nicht A0D0). Für **I²C** besitzt der Sensor die Anschlüsse **MISO/SDA (Daten)** und **SCK/SCL (Takt)**; ausserdem ist **NCS/SA0** für den Modus beziehungsweise die Adressbeschaltung zu berücksichtigen.
 
-**Komplette Liste mit zusätzlichen Arduino-, ESP32-, RP2040- und STM32-Boards, Pinwarnungen und Herstellerquellen:** [**ESP32- und Arduino-kompatible Boards – USB und GPIO-Pinbelegung**](ESP_BOARD_OPTIONS.md).
+Die Tabellen zeigen die **MCU-Pinseite für beide Schnittstellen**. **AODO / 1-Wire** bedeutet hier einen vorgeschlagenen GPIO für eine **noch zu entwickelnde bidirektionale Schutz-/Treiberschaltung**. I²C-SDA/SCL sind **zwei andere Pins** und dürfen erst nach Prüfung der Pull-ups, Busspannungen und Chip-Konfiguration verwendet werden.
+
+Die **vollständige Liste aller 27 Boards** mit optionalem 1-Wire-RX, USB-Pins, Boardbesonderheiten, Hersteller-Pinouts und Verdrahtungsbeispiel steht in [**ESP32-/Arduino-Boards: AODO / 1-Wire und I²C**](ESP_BOARD_OPTIONS.md).
 
 ### ESP32 / ESP8266
 
-| Board | Geplanter PLC-Pin | RX optional | USB zum PC |
-| --- | --- | --- | --- |
-| **ESP32-C3 SuperMini** | **GPIO4** | GPIO5 | Natives USB Serial/JTAG |
-| **XIAO ESP32C3** | **D2 / GPIO4** | D3 / GPIO5 | Nativ |
-| ESP32-C3 DevKit / DevKitM | **GPIO4** | GPIO5 | Nativ oder USB-UART je nach Modell |
-| ESP32-S3 DevKitC-1 | **GPIO4** | GPIO5 | Nativ / USB-UART |
-| XIAO ESP32S3 | **D3 / GPIO4** | D4 / GPIO5 | Nativ |
-| Arduino Nano ESP32 | **D2 / GPIO5** | D3 / GPIO6 | Nativ |
-| ESP32-S2 Saola-1 | **GPIO4** | GPIO5 | Nativ |
-| ESP32-C6 DevKitC-1 | **GPIO10** | GPIO11 | Nativ / USB-UART |
-| XIAO ESP32C6 | **D3 / GPIO21** | D4 / GPIO22 | Nativ |
-| ESP32 DevKit / WROOM-32 | **GPIO25** | GPIO26 | USB-UART |
-| ESP8266 NodeMCU / Wemos D1 mini | **D2 / GPIO4** | D1 / GPIO5 | USB-UART |
+| Board | AODO / 1-Wire (MCU) | I²C SDA (MCU) | I²C SCL (MCU) | USB zum PC |
+| --- | --- | --- | --- | --- |
+| **ESP32-C3 SuperMini** | **GPIO4** | **GPIO6** | **GPIO7** | Native USB Serial/JTAG |
+| **XIAO ESP32C3** | **D2 / GPIO4** | D4 / GPIO6 | D5 / GPIO7 | Nativ |
+| ESP32-C3 DevKit / DevKitM | **GPIO4** | GPIO6 | GPIO7 | Nativ oder USB-UART |
+| ESP32-S3 DevKitC-1 | **GPIO4** | GPIO8 | GPIO9 | Nativ oder USB-UART |
+| XIAO ESP32S3 | **D3 / GPIO4** | D4 / GPIO5 | D5 / GPIO6 | Nativ |
+| Arduino Nano ESP32 | **D2 / GPIO5** | A4 / GPIO11 | A5 / GPIO12 | Nativ |
+| ESP32-S2 Saola-1 | **GPIO4** | GPIO8 | GPIO9 | Nativ |
+| ESP32-C6 DevKitC-1 | **GPIO10** | GPIO6 | GPIO7 | Nativ oder USB-UART |
+| XIAO ESP32C6 | **D3 / GPIO21** | D4 / GPIO22 | D5 / GPIO23 | Nativ |
+| ESP32 DevKit / WROOM-32 | **GPIO25** | GPIO21 | GPIO22 | USB-UART |
+| ESP8266 NodeMCU / Wemos D1 mini | **D5 / GPIO14** | D2 / GPIO4 | D1 / GPIO5 | USB-UART |
 
-### Arduino und weitere Arduino-kompatible Boards
+### Arduino und weitere kompatible Mikrocontroller
 
-| Board | Geplanter PLC-Pin | RX optional | I/O-Pegel |
-| --- | --- | --- | --- |
-| UNO R3, Nano Classic, Nano Every, Mega 2560 | **D2** | D3 | 5 V |
-| UNO R4 Minima / UNO R4 WiFi (RA4M1-Header) | **D2** | D3 | 5 V |
-| Leonardo, Micro, Pro Micro | **D4** | D5 | Meist 5 V; Pro Micro je nach Version 3,3 V |
-| Nano 33 IoT / Nano 33 BLE | **D2** | D3 | 3,3 V |
-| Nano RP2040 Connect | **D2 / GPIO25** | D3 / GPIO15 | 3,3 V |
-| Raspberry Pi Pico / Pico W / Pico 2 | **GP2 / GPIO2** | GP3 / GPIO3 | 3,3 V |
-| XIAO RP2040 | **D2 / GPIO28** | D1 / GPIO27 | 3,3 V |
-| Teensy 4.0 | **D2** | D3 | 3,3 V |
-| STM32 Blue Pill | **PA1** | PA2 | 3,3 V |
+| Board | AODO / 1-Wire (MCU) | I²C SDA (MCU) | I²C SCL (MCU) | I/O |
+| --- | --- | --- | --- | --- |
+| UNO R3, Nano Classic, Nano Every | **D2** | A4 | A5 | 5 V |
+| Mega 2560 | **D2** | D20 | D21 | 5 V |
+| UNO R4 Minima / UNO R4 WiFi (RA4M1-Header) | **D2** | A4 | A5 | 5 V |
+| Leonardo, Micro, Pro Micro | **D4** | D2 | D3 | 5 V oder 3,3 V (Variante beachten) |
+| Nano 33 IoT / Nano 33 BLE | **D2** | A4 | A5 | 3,3 V |
+| Nano RP2040 Connect | **D2 / GPIO25** | A4 / GPIO12 | A5 / GPIO13 | 3,3 V |
+| Raspberry Pi Pico / Pico W / Pico 2 | **GP2** | GP4 | GP5 | 3,3 V |
+| XIAO RP2040 | **D2 / GPIO28** | D4 / GPIO6 | D5 / GPIO7 | 3,3 V |
+| Teensy 4.0 | **D2** | D18 | D19 | 3,3 V |
+| STM32 Blue Pill | **PA1** | PB7 | PB6 | 3,3 V |
 
-**Besonders wichtig:**
+**Pin-Hinweise:** Die ESP32-I²C-Pins sind teils **bewusst anders als die jeweiligen Arduino-Defaults** gewählt und müssen in der zukünftigen Firmware konfiguriert werden. Beim ESP32-C3 SuperMini bleiben **GPIO18/19 für USB** reserviert. Die früheren Überschneidungen beim XIAO ESP32S3, XIAO ESP32C6 und ESP8266 wurden vermieden. Auf dem **Arduino Nano ESP32 ist D2 = GPIO5, aber SDA = A4/GPIO11**.
 
-- Der **ESP32-C3 SuperMini** nutzt für native USB **GPIO18 (D−) und GPIO19 (D+)**. Diese Pins **nicht** als PLC-GPIO verwenden.
-- Der **Arduino Nano ESP32** verwendet **D2 = GPIO5**, nicht GPIO2. Beim Programmieren die Board-Bezeichnungen **D2/D3** benutzen.
-- Ein **UNO R4 WiFi** hat 5-V-Digitalpins auf dem **RA4M1**. Der zusätzliche ESP32-S3 arbeitet mit **3,3 V** und ist nicht mit D2 am UNO-Header gleichzusetzen.
-- Die zweite Leitung **RX** ist optional und hängt von der noch zu entwickelnden bidirektionalen Treiberarchitektur ab.
-- Bei klassischem ESP32, ESP8266 und vielen klassischen Arduinos ist **USB-UART** statt nativer USB-CDC üblich. Das ist für Web Serial grundsätzlich möglich, aber kein vorhandenes PLC-Protokoll.
-
-**Die sichere Verbindung lautet:** PC/USB → MCU → **noch zu entwickelnde geschützte Pegel-/PLC-Schnittstelle** → E703.11. Vor einem direkten AODO-Anschluss ist zu warnen: Der Sensorausgang kann aktiv getrieben sein und bei 3,3-V-GPIOs zu unzulässigen Spannungen führen. Die alternative Bridge bleibt für reale Sensorzugriffe in der Web-App gesperrt.
+**Momentaner Funktionsumfang:** Die USB-Test-Firmware meldet ausschliesslich **CAPS=CDC_ONLY**. Weder AODO / 1-Wire noch I²C zum E703.11 sind momentan als Sensor-Bridge implementiert oder freigegeben. Für einen echten Anschluss sind geeignete Pegel, Schutzschaltung, I²C-Pull-ups, Adresse/NCS/SA0, Telegramm-/CRC-Verhalten und die Pinbelegung der realen Leiterplatte abzuklären.
 
 ## 3. Arduino IDE – Test-Firmware flashen
 
