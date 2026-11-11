@@ -1,8 +1,8 @@
 # USB-Bridge statt SSP3 – experimenteller Testaufbau
 
-**Stand v0.6.0-beta.2 · nur im Branch `feature/guided-calibration-and-usb-bridges`**
+**Stand v0.6.0 · in der Hauptversion enthalten**
 
-Der Kalibrierassistent nutzt standardmässig weiterhin das **ELMOS SSP3**. In dieser Testversion kann unter **USB & Chip → Programmieradapter** auch **ESP32 / Arduino USB-Bridge · experimentell** gewählt werden.
+Der Kalibrierassistent nutzt standardmässig weiterhin das **ELMOS SSP3**. In der Web-App kann unter **USB & Chip → Programmieradapter** auch **ESP32 / Arduino USB-Bridge · experimentell** gewählt werden.
 
 ## 1. Was funktioniert bereits?
 
@@ -44,7 +44,7 @@ Herstellerreferenzen:
 3. Das **tatsächliche Board** auswählen. Beim ESP32-S3 mit nativer USB-Buchse **USB CDC On Boot → Enabled** aktivieren.
 4. Programm hochladen und bei Bedarf das Board einmal neu starten.
 5. Prüfen, ob ein serieller USB-Port im Betriebssystem erscheint. Für den Test mit der Web-App **Arduino Serial Monitor und andere COM-Programme schliessen**.
-6. Im **Testbranch**, nicht auf der produktiven Main-Seite, die Adapterwahl auf **ESP32 / Arduino USB-Bridge** stellen.
+6. In der **regulären Web-App** die Adapterwahl auf **ESP32 / Arduino USB-Bridge** stellen.
 7. «USB-Port auswählen» drücken und den neuen Port bestätigen.
 8. Erwartete Diagnose: **USB-CDC-Bridge erkannt, aber nur CDC_ONLY verfügbar**. Das ist der erfolgreiche Test der USB-Strecke, kein Fehler des Sensors.
 
