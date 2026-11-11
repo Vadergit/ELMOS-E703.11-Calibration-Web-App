@@ -2,6 +2,15 @@
 
 Versionierung nach `MAJOR.MINOR.PATCH`: Kleine Anpassungen erhöhen PATCH, neue Funktionen MINOR, inkompatible Änderungen MAJOR. Jede Änderung erhält eine neue Nummer und einen Eintrag.
 
+## v0.5.0 – 11.11.2026
+
+- **Optionaler One-Pager:** «Kompaktmodus · One-Pager» in den App-Einstellungen. Die normale Ansicht bleibt standardmässig unverändert; die Auswahl wird lokal gespeichert.
+- Alle Kernschritte für Kalibrierung und Programmierung gleichzeitig in einem kompakten Grid: Verbindung, direkte AFE-RAM-Einstellung, Config-Vorlagen, Messpunkte, Koeffizienten/RAM, DSP-Verifikation, Ausgang/Scaling und NVM.
+- **Identische Originalsteuerelemente:** Beim Umschalten werden die bestehenden DOM-Elemente vorübergehend neu angeordnet und beim Verlassen an die ursprüngliche Stelle zurückgestellt. Keine duplizierten Eingabewerte oder alternativen Hardware-/NVM-Schreibpfade.
+- Punkteditor mit Auswahl für 2–10 Kalibrierpunkte, ausklappbare Ergebnis-/Änderungsdetails, kompakte Warnungen sowie Expertenfelder bei aktiviertem Expertenmodus.
+- Responsive Desktop-Layout ohne Seitenwechsel; bei kleinen Auflösungen werden einzelne Karten bei Bedarf intern scrollbar. Neue Datei `compact.js`, Cache-Version v0.5.0 und **31 Software-Regressionstests**.
+- NVM-UID-/CRC-/Startschutz, DSP-Verifikation und Hardware-Freigabegrenzen unverändert; die Kompaktansicht ersetzt keine Hardwaretests.
+
 ## v0.4.2 – 11.11.2026
 
 - **EEPROM Viewer als Registerreferenz:** Neue Spalte «Funktion» für alle 64 Wörter, anklickbare Zeilen mit ausführlicher Beschreibung, Roh-/Signed-/Unsigned-Wert und berechnetem Q3.12/Q0.15-Wert bei dokumentierten Koeffizienten.
