@@ -74,11 +74,50 @@ const ELMOS_EXPERT=(()=>{
    // A successful call must mean the data actually survived the browser storage write.
    return all().some(x=>x.uid===entry.uid&&x.words.every((w,i)=>w===entry.words[i]))
   }
-  function dump(){
-   $('expertNvmDump').textContent=st.nvmBackupVerified&&st.nvmBackup?
-    st.nvmBackup.map((v,i)=>'CM 0x'+hx(2*i)+'  0x'+hx(v)+'  '+(i<16?'FACTORY · NUR LESEN':i<28?'BOOT/KONFIG · GESCHÜTZT':i===63?'CRC16':'USER · DOKUMENTIERTE FUNKTIONEN')+'  '+(names[i]||(i>=35&&i<=50?'S'+(i-35):i>=51&&i<=54?'T'+(i-51):''))).join('\n'):
-    'Noch kein vollständiges NVM-Abbild vorhanden.';
+  function nvmName(i){
+   const factory={5:'ABS_V_DAC01',6:'ABS_V_DAC23',7:'ABS_V_DAC45',8:'ABS_I_DAC01',9:'ABS_I_DAC23',10:'ABS_I_DAC45',11:'G01',12:'G2OFF',13:'CFG_CAL0',14:'CFG_CAL1'};
+   return names[i]||factory[i]||(i>=35&&i<=50?'S'+(i-35):i>=51&&i<=54?'T'+(i-51):'CM_W'+i);
   }
+  function refreshEEPROMViewer(){
+   const valid=!!(st.nvmBackupVerified&&Array.isArray(st.nvmBackup)&&st.nvmBackup.length===64);
+   const rows=$('eepromRows'),filter=($('eepromSearch').value||'').trim().toLowerCase();
+   rows.replaceChildren();
+   $('eepromExport').disabled=!valid||!st.uid;
+   if(!valid){
+    const tr=document.createElement('tr'),td=document.createElement('td');
+    td.colSpan=5;td.textContent='Noch keine gültigen EEPROM-Daten. «EEPROM lesen» starten.';
+    tr.appendChild(td);rows.appendChild(tr);
+    $('eepromStatus').textContent='Noch kein vollständiges 64-Wort-EEPROM mit gültiger CRC vorhanden. Lesezugriff benötigt einen verbundenen Chip.';
+    $('eepromStatus').className='callout';
+    $('expertNvmDump').textContent='Noch kein komplettes EEPROM-Abbild gelesen.';
+    return;
+   }
+   const fragment=document.createDocumentFragment();
+   let matched=0;
+   for(let i=0;i<64;i++){
+    const value=st.nvmBackup[i],address=i.toString(16).toUpperCase().padStart(2,'0'),
+     name=nvmName(i),signed=CAL.signed(value),
+     protection=i<16?'Factory · nur lesen':i<28?'Boot/Konfig · geschützt':i===63?'CRC16':'User-NVM · geschützt';
+    const query=(address+' '+name+' '+hx(value)+' '+signed+' '+protection).toLowerCase();
+    if(filter&&!query.includes(filter))continue;
+    matched++;
+    const row=document.createElement('tr');
+    row.className=i<16?'nvm-factory':i<28?'nvm-boot':i===63?'nvm-crc':'';
+    for(const str of [address,name,'0x'+hx(value),String(signed),protection]){
+     const td=document.createElement('td');td.textContent=str;row.appendChild(td);
+    }
+    fragment.appendChild(row);
+   }
+   if(!matched){const tr=document.createElement('tr'),td=document.createElement('td');td.colSpan=5;td.textContent='Keine EEPROM-Wörter für diese Suche.';tr.appendChild(td);fragment.appendChild(tr)}
+   rows.appendChild(fragment);
+   const status=CAL.oneWireStartupStatus(st.nvmBackup);
+   $('eepromStatus').textContent='EEPROM: 64 Wörter gelesen, CRC8/CRC16 bestätigt. '+matched+' sichtbar. Chip-ID: '+(st.uid?.hex||'noch nicht bestätigt')+
+    '. 1-Wire-Startbedingungen: '+(status.ok?'softwareseitig plausibel':'nicht erfüllt – NVM-Schreiben wird gesperrt')+'. Alle Wörter bleiben hier nur lesbar.';
+   $('eepromStatus').className='callout '+(status.ok?'success':'warn');
+   $('expertNvmDump').textContent=st.nvmBackup.map((v,i)=>'CM '+(i*2).toString(16).toUpperCase().padStart(2,'0')+'  0x'+hx(v)+'  '+
+    (i<16?'FACTORY · NUR LESEN':i<28?'BOOT/KONFIG · GESCHÜTZT':i===63?'CRC16':'USER')+'  '+nvmName(i)).join('\n');
+  }
+  const dump=refreshEEPROMViewer;
   function archiveCurrentNvm(source='Vor NVM-Programmierung'){
    return !!(st.nvmBackupVerified&&st.nvmBackup&&save(st.nvmBackup,source))
   }
@@ -91,8 +130,16 @@ const ELMOS_EXPERT=(()=>{
    }else dump()
   }
   async function readNvm(){
-   try{if(!st.uid)await identify();await nvmScan({expertRead:true});dump()}
-   catch(e){show('expertRestoreMsg','EEPROM-Lesen fehlgeschlagen: '+e.message,'error')}
+   if(st.calTask||st.writing||st.nvmWorking){show('eepromStatus','Ein anderer Chipvorgang läuft. EEPROM kann gerade nicht gelesen werden.','warn');return}
+   try{
+    if(!st.uid)await identify();
+    $('eepromRead').disabled=true;
+    show('eepromStatus','EEPROM wird vollständig gelesen und mit CRC8/CRC16 geprüft …','warn');
+    const ok=await nvmScan({expertRead:true});
+    refreshEEPROMViewer();
+    if(!ok)show('eepromStatus','EEPROM-Lesen fehlgeschlagen. Bitte Chipverbindung und Diagnoselog kontrollieren.','error');
+   }catch(e){show('eepromStatus','EEPROM-Lesen fehlgeschlagen: '+e.message,'error');show('expertRestoreMsg','EEPROM-Lesen fehlgeschlagen: '+e.message,'error')}
+   finally{$('eepromRead').disabled=false;}
   }
   async function readRegisters(){
    const addrs=[0,2,4,6,8,10,12,14,16,18,20,22,24,26,28,30,0x26,0x28,0x2A,0x2C,0x30,0x32,0x38,0x46,0x50,0x52,0x6A,0x6C,0x6E,0x70,0x72,0x9C,0x9E,0xA0,0xA2,0xA4,0xA6,0xA8,0xAA];
@@ -283,41 +330,36 @@ const ELMOS_EXPERT=(()=>{
    const entry={format:'E70311-CM64-v2',uid:st.uid.hex,created,source:'Manueller Export',words:st.nvmBackup.slice(),version:st.uid.version};
    download('ELMOS_E70311_UID_'+st.uid.hex+'_'+created.replace(/[:.]/g,'-')+'.json',JSON.stringify(entry,null,2));
   }
-  function showExpertWorkspace(open){
-   if(open&&!$('expertMode').checked)return;
-   $('expertWorkspace').hidden=!open;
-   if(open){
-    $('settingsPanel').hidden=true;
-    $('settingsOpen').setAttribute('aria-expanded','false');
-    $('expertToolsDetails').open=true;
-    $('expertWorkspaceClose').focus();
-   }else if($('expertMode').checked){
-    $('settingsOpen').focus();
-   }
-  }
-  $('expertWorkspaceOpen').addEventListener('click',()=>showExpertWorkspace(true));
-  $('expertWorkspaceClose').addEventListener('click',()=>showExpertWorkspace(false));
-  document.addEventListener('keydown',event=>{
-   if(event.key==='Escape'&&!$('expertWorkspace').hidden)showExpertWorkspace(false);
-  });
+  // Expert switch is contextual: reveal controls in their own tabs, no modal.
   $('expertMode').addEventListener('change',()=>{
    const enabled=$('expertMode').checked;
    $('expertPanel').hidden=!enabled;
    document.querySelectorAll('[data-expert-area]').forEach(section=>{section.hidden=!enabled});
    $('settingsOpen').classList.toggle('is-expert',enabled);
    $('settingsMsg').textContent=enabled?
-    'Expertenmodus aktiv: Register, NVM und Backups sind in einem eigenen Fenster zugänglich. Aktivieren schreibt keine Werte in den Chip.':
-    'Expertenmodus deaktiviert. Die Kalibrierung und die Chipwerte wurden dadurch nicht verändert.';
-   if(enabled){
-    renderBackups();
-    showExpertWorkspace(true);
-   }else{
-    showExpertWorkspace(false);
-    if(st.restorePlan&&st.calImage===st.restorePlan)st.calImage=null;
-    st.restorePlan=null;
-   }
+    'Expertenmodus aktiv: Zusatzfelder befinden sich in den Reitern AFE, Ausgang und EEPROM Viewer. Es werden keine Chipwerte verändert.':
+    'Expertenmodus deaktiviert: Die erweiterten Felder sind ausgeblendet; Chipwerte bleiben unverändert.';
+   if(enabled)renderBackups();
+   else {if(st.restorePlan&&st.calImage===st.restorePlan)st.calImage=null;st.restorePlan=null;}
    renderFlowState();
   });
+  function applyOutputProfile(cfg){
+   if(!cfg||typeof cfg!=='object')throw Error('Ausgangsprofil fehlt');
+   const mode=String(cfg.mode);
+   if(!['keep','1','2','3','4','5','onewire'].includes(mode))throw Error('Nicht erlaubter Ausgangsmodus im Profil');
+   $('expertOutputMode').value=mode;
+   $('psscVdd').value=String(cfg.vdd);
+   $('psscS0').value=String(cfg.s0);
+   $('psscS1').value=String(cfg.s1);
+   $('expertPwmPeriod').value=String(cfg.pwmPeriod);
+   $('expertScaleEnable').checked=!!cfg.scaleEnabled;
+   $('expertScaleGain').value=String(cfg.gain);
+   $('expertScaleOffset').value=String(cfg.offset);
+   modeChoiceEdited=true;
+   manualScaling=!isAnalog(mode);
+   if(isAnalog(mode))calculateAnalogScaling();
+   renderOutputMode();invalidateOutputPlan();
+  }
   function renderOutputMode(){
    const mode=$('expertOutputMode').value;
    $('expertPwmPeriodField').hidden=mode!=='4';
@@ -374,6 +416,9 @@ const ELMOS_EXPERT=(()=>{
   });
   $('expertIdentify').addEventListener('click',()=>identify().catch(e=>show('expertUidStatus',e.message,'error')));
   $('expertNvmRead').addEventListener('click',readNvm);
+  $('eepromRead').addEventListener('click',readNvm);
+  $('eepromExport').addEventListener('click',exportCurrent);
+  $('eepromSearch').addEventListener('input',refreshEEPROMViewer);
   $('expertNvmExport').addEventListener('click',exportCurrent);
   $('expertRegistersRead').addEventListener('click',readRegisters);
   $('expertOutputPreset').addEventListener('click',preset);
@@ -381,8 +426,8 @@ const ELMOS_EXPERT=(()=>{
   $('expertOutputDiscard').addEventListener('click',()=>{st.expertOutputPlan=null;st.outputOnlyPlan=null;st.calImage=null;show('expertOutputMsg','Ausgangsänderungen verworfen.','success');renderFlowState()});
   $('expertRestorePreview').addEventListener('click',prepareRestore);
   $('expertBackupImport').addEventListener('change',importFile);
-  renderBackups();
-  return {onDetect,identify,afterNvmScan,refreshOutputReadOnly,refreshOutputPreview:renderOutputPreview,archiveCurrentNvm,restoreReady,outputReady,prepareRestore,exportCurrent,renderBackups,validBackup:valid}
+  renderBackups();refreshEEPROMViewer();
+  return {onDetect,identify,afterNvmScan,refreshEEPROMViewer,applyOutputProfile,refreshOutputReadOnly,refreshOutputPreview:renderOutputPreview,archiveCurrentNvm,restoreReady,outputReady,prepareRestore,exportCurrent,renderBackups,validBackup:valid}
  }
  return {init}
 })();
