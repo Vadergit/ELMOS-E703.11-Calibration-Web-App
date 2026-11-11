@@ -218,6 +218,11 @@ button.danger{background:#9e3e34;border-color:#9e3e34;color:#fff}button.danger:h
  .afe-stepper{width:min(100%,300px)}
 }
 
+
+.afe-auto-write-note{display:flex;align-items:flex-start;gap:9px;margin:10px 0;padding:9px 12px;border:1px solid #c3dfd1;background:#eff9f3;border-radius:9px;color:#28543e;font-size:12px;line-height:1.45}
+.afe-auto-write-note strong{font-size:12px}
+.afe-auto-write-dot{display:block;flex:0 0 8px;height:8px;background:#2a8b63;border-radius:50%;margin-top:5px}
+
 </style></head><body><div class="wrap"><header class="top">
 <div class="brand"><div class="logo">E</div><div><div class="eyebrow">E703.11 · PSSC</div><h1>Kalibrierassistent</h1></div></div>
 <div class="live-overview" role="group" aria-label="Sensorwerte · laufende Anzeige">
@@ -289,7 +294,7 @@ button.danger{background:#9e3e34;border-color:#9e3e34;color:#fff}button.danger:h
   </div>
   <input id="pga2" type="hidden" value="0">
 </div>
-</div><div class="kpiNote" id="gainInfo">PGA1 3.5× · Offset 0 mV/V · PGA2 2× · Gesamt 7×</div><div class="flex" style="margin-top:12px"><button class="primary" id="afeApplyRam">AFE-Einstellungen ins RAM übernehmen</button><span class="muted small">Pfeiltasten ändern jeweils eine gültige Stufe als Vorschau. Erst dieser Knopf schreibt die Einstellungen ins RAM und liest sie zurück.</span></div><div id="writeMsg" class="callout">Die Pfeiltasten ändern nur die Vorschau. Zum Schreiben ins Chip-RAM den Übernehmen-Knopf drücken.</div><details><summary>Geschützte Register & Diagnose</summary><div class="inner"><div class="flex"><button id="readBoot">Boot-Register prüfen</button><button id="readRegs">Diagnoseregister lesen</button><button id="exportDiag">USB-Diagnose exportieren</button></div><div id="bootMsg" class="callout">Bootregister noch nicht geprüft. Schreibzugriff gesperrt.</div><pre id="regdump" class="monoarea">Noch keine Register gelesen.</pre><details><summary>USB-Rohprotokoll</summary><pre class="monoarea" id="usbLog"></pre></details></div></details><div class="nav"><button data-next="0">Zurück</button><button class="primary" data-next="2">Weiter zu Messpunkten</button></div><div class="expert-inline" data-expert-area hidden>
+</div><div class="kpiNote" id="gainInfo">PGA1 3.5× · Offset 0 mV/V · PGA2 2× · Gesamt 7×</div><div class="afe-auto-write-note"><span class="afe-auto-write-dot" aria-hidden="true"></span><span><strong>Direkte RAM-Übernahme aktiv</strong> · Jede − / + Taste schreibt die neue Einstellung sofort ins Sensor-RAM und prüft sie durch Rücklesen. Die Live-Anzeige zeigt anschliessend den neuen ADC_S-Wert. Keine dauerhafte NVM-Programmierung.</span></div><div id="writeMsg" class="callout" role="status" aria-live="polite">PGA1, Offset oder PGA2 mit − / + ändern. Jede Änderung wird direkt ins RAM übernommen.</div><details><summary>Geschützte Register & Diagnose</summary><div class="inner"><div class="flex"><button id="readBoot">Boot-Register prüfen</button><button id="readRegs">Diagnoseregister lesen</button><button id="exportDiag">USB-Diagnose exportieren</button></div><div id="bootMsg" class="callout">Bootregister noch nicht geprüft. Schreibzugriff gesperrt.</div><pre id="regdump" class="monoarea">Noch keine Register gelesen.</pre><details><summary>USB-Rohprotokoll</summary><pre class="monoarea" id="usbLog"></pre></details></div></details><div class="nav"><button data-next="0">Zurück</button><button class="primary" data-next="2">Weiter zu Messpunkten</button></div><div class="expert-inline" data-expert-area hidden>
 <details open><summary>Expertenparameter · AODO-Ausgang (ratiometrisch, PWM, FM, Alarm)</summary>
 <div class="inner"><p class="muted small">Factory- und Boot-/Kommunikationsregister sind schreibgeschützt. Änderungen werden erst nach geprüfter Vorbereitung im NVM-Schritt programmiert.</p>
 <h3>Ausgangsart am AODO-Pin</h3>
@@ -577,4 +582,4 @@ button.danger{background:#9e3e34;border-color:#9e3e34;color:#fff}button.danger:h
 <div class="nav"><button data-next="4">Zurück zur DSP-Prüfung</button><button data-next="0">Zum USB-Start</button></div>
 </section>
 <div class="foot">ELMOS E703.11 · unabhängiger Kalibrierprototyp · Sicherheitsprinzip: Factory- und Kommunikations-Bootregister gesperrt; dokumentierte AODO-Ausgangsoptionen nur nach Prüfung im NVM-Plan; Wiederherstellung nur mit passender Chip-UID.</div>
-</main></div></div><div id="tip" class="tooltip"></div><script src="calibration.js?v=fix-init-20261111-3"></script><script src="expert.js?v=fix-init-20261111-3"></script><script src="app.js?v=afe-order-20261111-1"></script></body></html>
+</main></div></div><div id="tip" class="tooltip"></div><script src="calibration.js?v=fix-init-20261111-3"></script><script src="expert.js?v=fix-init-20261111-3"></script><script src="app.js?v=afe-auto-ram-20261111-1"></script></body></html>
