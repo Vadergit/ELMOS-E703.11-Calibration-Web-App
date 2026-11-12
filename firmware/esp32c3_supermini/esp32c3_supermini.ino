@@ -34,9 +34,9 @@ static bool recoveryUsed = false;
 
 static void answer(const char *message) {
   // Same line-terminator as the existing SSP3-oriented Web Serial parser.
-  Serial.print(message);
-  Serial.print("\r\n:\r\n");
-  Serial.flush();
+  // Let USB Serial/JTAG service frames after PLC bit timing masked interrupts.
+  delay(2);
+  Serial.printf("%s\r\n:\r\n", message);
 }
 
 static void printUid(unsigned baud) {

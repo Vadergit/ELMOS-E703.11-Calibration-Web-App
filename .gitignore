@@ -13,3 +13,6 @@
 .env
 .env.*
 .cache/
+
+# Arduino export artifacts
+firmware/esp32c3_supermini/build/
