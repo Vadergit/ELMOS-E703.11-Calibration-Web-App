@@ -35,7 +35,7 @@ if(typeof document!=='undefined') (function UI(){
   lower:Number($('pmin').value),upper:Number($('pmax').value),limit:getActiveDSPRange()?.limit??32000
  })):null;
  const REG_NAMES={4:'CFG_EN',6:'CFG_SPI_I2C',8:'CFG_PADS0',10:'CFG_PADS1',12:'CFG_PADS2',16:'CFG_AODO',0x14:'CFG_ADC',0x16:'CFG_LP0',0x18:'CFG_LP1',0x1A:'CFG_AFE0',0x1C:'CFG_AFE1',0x1E:'CFG_AFE2',0x26:'ADC_TC',0x28:'ADC_T',0x2A:'ADC_S'};
- const st={mode:'offline',port:null,closing:false,reader:null,readerPromise:null,cmdQueue:Promise.resolve(),replyBuffer:'',responseWait:null,iface:'plc',adapterKind:'ssp3',sensorPowerEnabled:false,firmware:'',chip:false,boot:null,afe:null,staged:{pga1:0,pga2:0,offset:0},adc:null,dsp:null,dspError:null,liveReadPromise:null,trend:[],history:[],log:[],regs:{},points:{lo:null,hi:null},verify:null,live:false,manualLivePause:false,timeout:null,consecutiveErrors:0,writing:false,pressure:5,calpoints:[],calfit:null,calImage:null,nvmBackup:null,nvmBackupVerified:false,calStaged:false,calVerified:false,calValidation:[],calTask:false,nvmWorking:false,nvmDone:false,afeWriteActive:false,ramWriteScope:null,uid:null,expertOutputPlan:null,restorePlan:null,outputOnlyPlan:null,uidShownForInput:null,profilePendingAFE:null};
+ const st={chipDiag:null,diagRunning:false,lastPlcReply:null,mode:'offline',port:null,closing:false,reader:null,readerPromise:null,cmdQueue:Promise.resolve(),replyBuffer:'',responseWait:null,iface:'plc',adapterKind:'ssp3',sensorPowerEnabled:false,firmware:'',chip:false,boot:null,afe:null,staged:{pga1:0,pga2:0,offset:0},adc:null,dsp:null,dspError:null,liveReadPromise:null,trend:[],history:[],log:[],regs:{},points:{lo:null,hi:null},verify:null,live:false,manualLivePause:false,timeout:null,consecutiveErrors:0,writing:false,pressure:5,calpoints:[],calfit:null,calImage:null,nvmBackup:null,nvmBackupVerified:false,calStaged:false,calVerified:false,calValidation:[],calTask:false,nvmWorking:false,nvmDone:false,afeWriteActive:false,ramWriteScope:null,uid:null,expertOutputPlan:null,restorePlan:null,outputOnlyPlan:null,uidShownForInput:null,profilePendingAFE:null};
  let currentStep=0,pendingGain=null,writeTimer=null;let tipEnabled=true,liveIntervalMs=650;
  const HELP={interface:'Schnittstelle zwischen SSP3-Board und Sensorchip. 1-Wire nutzt AODO (VDD, GND und AODO). Die Einstellung IF_CFG ändert die Programmer-Pins, nicht die NVM-Konfiguration des Sensors.',baud:'Baudrate des USB-UART zwischen Chrome und dem SSP3. Die Herstellersoftware verwendet 115200 Baud als Standard.',adcs:'ADC_S ist der unkompensierte 16-Bit-Druck-ADC. ±25000 Digits ist ein vorsichtiges Ziel für den manuellen Abgleich, keine garantierte Hardwaregrenze.',dsp_live:'DSP_S (Register 0x30) ist der skalierte DSP-Sensorausgang. Die Anzeige liest den Chipwert wiederholt und rechnet ihn mit dem konfigurierten DSP-Endwert (standardmässig ±32’000 Digits) in den gewählten Anzeigebereich um. Ein DSP-Wert allein belegt keine gültige Kalibrierung.',pga1:'Erste Druckverstärkungsstufe: 3.5×, 6×, 8.5× oder 11× (typische Werte laut Datenblatt 2023). Für gutes SNR möglichst hoch ohne Übersteuerung.',pga2:'Zweite Verstärkungsstufe: typische Faktoren 2× bis 10×. Der Gesamtfaktor ist PGA1 × PGA2.',offset:'17 DAC-Stufen von −400 bis +400 mV/V bezogen auf die Brückenspannung. Die Verschiebung liegt zwischen PGA1 und PGA2.',pressureunit:'Einheit für die Referenz- und Prüfdruckwerte. Für relative Kalibrierungen kann beispielsweise % mit 0 bis 100 gewählt werden. Referenzwerte müssen zum tatsächlichen Prüfstand passen. Einheitenwechsel erfordert neue Messpunkte.',dsp_limit:'Symmetrischer DSP-Endwert für die neue Kalibrierung. Standard ±32’000 Digits. ±30’000 lässt zusätzlich Reserve. Der Wert verändert die berechneten Koeffizienten sowie DSP-Soll und Fehlerumrechnung; er ist keine Hardware-Clipping-Grenze.',ram:'PGA1, Offset und PGA2 werden mit jeder Pfeiltaste sofort ausschliesslich in CFG_AFE1 0x1C im RAM geändert und rückgelesen. Kein NVM-/EEPROM-Schreiben. Boot-/Kommunikationsregister werden kontrolliert.',};
  const h=P.hx;
@@ -448,13 +448,113 @@ if(typeof document!=='undefined') (function UI(){
   return ready;
  }
 
- async function readReg(addr){if(!st.port)throw Error('SSP3-Port nicht verbunden');if(!Number.isInteger(addr)||addr<0||addr>0xFE||addr%2)throw Error('Ungültige Registeradresse');let result;
-   if(st.iface==='plc'){const cmd=P.plcRead(addr,1);let ans=await exchange(cmd);let vals=P.readData(ans,3);result=vals[0]*256+vals[1];logging(`1-Wire 0x${h(addr)} → 0x${h(result,2)} (CRC8-Antwortbyte vorhanden, ${st.adapterKind==='bridge'?'vom ESP32 geprüft':'noch nicht unabhängig verifiziert'})`)}
-   else if(st.iface==='i2c'){const cmd=P.i2cRead(addr);let ans=await exchange(cmd);let vals=P.readData(ans,2);result=vals[0]|(vals[1]<<8)}
-   else {let ans=await exchange(P.spiRead(addr));let vals=P.readData(ans,4);result=(vals[2]<<8)|vals[3]}
-   st.regs[addr]=result;return result;
+
+ // Diagnostic only. CRC8 is displayed, never treated as independently valid
+ // until the SSP3 packet framing is verified against an Elmos reference trace.
+ const afeBits=w=>({
+  bit11:(w>>>11)&1,binary:w.toString(2).padStart(16,'0'),pga1:w&3,
+  offset:(w>>>2)&31,pga2:(w>>>7)&15,reservedHigh:(w>>>12)&15
+ });
+ async function readReg(addr){
+  if(!st.port)throw Error('SSP3-Port nicht verbunden');
+  if(!Number.isInteger(addr)||addr<0||addr>0xFE||addr%2)throw Error('Ungültige Registeradresse');
+  let result;
+  if(st.iface==='plc'){
+   const command=P.plcRead(addr,1),reply=await exchange(command);
+   const frame={at:new Date().toISOString(),address:addr,command,rawReply:reply.slice(0,1000),status:'parsing'};
+   st.lastPlcReply=frame;
+   try{
+    const bytes=P.readData(reply,3);
+    result=(bytes[0]<<8)|bytes[1];
+    Object.assign(frame,{status:'parsed',word:result,bytes:bytes.slice(),
+      crc8Rx:bytes[2],crc8IndependentCheck:'not-validated'});
+    if(addr===R_AFE||st.diagRunning)
+     logging('1-Wire 0x'+h(addr)+': Daten '+bytes.map(v=>h(v)).join(' ') +
+      ', Wort=0x'+h(result,2)+', CRC8-Byte=0x'+h(bytes[2])+' (noch nicht unabhängig geprüft)');
+   }catch(e){
+    Object.assign(frame,{status:'malformed',error:e.message});
+    logging('1-Wire 0x'+h(addr)+': ungültiges Antwortformat: '+e.message);
+    throw e
+   }
+  }else if(st.iface==='i2c'){
+   const bytes=P.readData(await exchange(P.i2cRead(addr)),2);
+   result=bytes[0]|(bytes[1]<<8)
+  }else{
+   const bytes=P.readData(await exchange(P.spiRead(addr)),4);
+   result=(bytes[2]<<8)|bytes[3]
+  }
+  st.regs[addr]=result;return result
  }
- function decodeSafeAFE(w){if(!(w&0x800))throw Error('CFG_AFE1 Bit 11 unerwartet 0; keine Schreibfreigabe');const g=P.decAFE(w);if(!P.goodG(g))throw Error('AFE-Codes unbekannt: 0x'+h(w,2));return g}
+ function decodeSafeAFE(w){
+  if(!(w&0x0800))throw Error('CFG_AFE1=0x'+h(w,2)+': Pflichtbit 11 ist 0; keine Schreibfreigabe');
+  const g=P.decAFE(w);
+  if(!P.goodG(g))throw Error('AFE-Codes in CFG_AFE1=0x'+h(w,2)+' nicht für Schreibfreigabe bestätigt');
+  return g
+ }
+ function formatChipDiag(d){
+  if(!d)return 'Noch keine Chipdiagnose.';
+  const lines=[
+   'E703.11 – lesende Chipdiagnose / '+d.reason,
+   'Zeit: '+d.at+' · Schnittstelle: '+d.interface,
+   'Kein Register wurde durch die Diagnose beschrieben.',
+   'CRC8: empfangenes Byte wird protokolliert, aber die unabhängige Prüfung der SSP3-Antwort ist noch offen.',
+   ''
+  ];
+  for(const p of d.probes){
+   const frame=p.frame;
+   if(p.error){lines.push('0x'+h(p.addr)+' '+p.name+': LESEFEHLER: '+p.error);
+    if(frame?.rawReply)lines.push('  Rohantwort: '+frame.rawReply.replace(/[\r\n]+/g,' / '));continue}
+   lines.push('0x'+h(p.addr)+' '+p.name+': 0x'+h(p.value,2)+
+    (frame?.bytes?' · RX-Bytes '+frame.bytes.map(v=>h(v)).join(' ')+' · CRC8-Byte 0x'+h(frame.crc8Rx):''));
+   if(p.addr===R_AFE){
+    const a=afeBits(p.value),g=P.decAFE(p.value);
+    lines.push('  Binär: '+a.binary+' · Bit11='+a.bit11+' · PGA1-Code='+a.pga1+
+      ' · Offset-Code='+a.offset+' · PGA2-Code='+a.pga2+
+      (a.pga2>=8?' (10×-Codierungsfamilie)':'')+' · Bits15:12='+a.reservedHigh);
+    lines.push('  UI-Decodierung: PGA1='+g.pga1+', PGA2='+g.pga2+', Offset='+g.offset);
+   }
+   if(frame?.rawReply)lines.push('  Rohantwort: '+frame.rawReply.replace(/[\r\n]+/g,' / ').slice(0,240))
+  }
+  const reads=d.probes.filter(p=>p.addr===R_AFE&&!p.error).map(p=>p.value);
+  const distinct=[...new Set(reads)];
+  lines.push('');
+  if(!reads.length)lines.push('ERGEBNIS: CFG_AFE1 konnte nicht gelesen werden.');
+  else if(distinct.length!==1)lines.push('ERGEBNIS: CFG_AFE1 wechselt zwischen Leseversuchen. Kommunikationsproblem möglich.');
+  else if(!(distinct[0]&0x0800))lines.push('ERGEBNIS: CFG_AFE1 wiederholt mit Bit11=0 gelesen. Keine Schreibfreigabe; mit Elmos-PSSC vergleichen.');
+  else lines.push('ERGEBNIS: CFG_AFE1 '+reads.length+'× gleich mit Bit11=1 gelesen.');
+  lines.push('Gleiche Bytes allein beweisen ohne geprüfte CRC8-Berechnung noch keine fehlerfreie Übertragung.');
+  return lines.join('\n')
+ }
+ async function runChipDiagnostics(reason='Manuelle Diagnose'){
+  if(!st.port||st.closing)throw Error('Zuerst den SSP3-USB-Port verbinden');
+  if(st.diagRunning||st.writing||st.nvmWorking||st.calTask||st.afeWriteActive)
+   throw Error('Diagnose nicht während eines Schreib- oder Wartungsvorgangs durchführen');
+  st.diagRunning=true;
+  const previousLive=st.live;
+  if(previousLive){stopLive();if(st.liveReadPromise)await st.liveReadPromise.catch(()=>{})}
+  const d={at:new Date().toISOString(),interface:st.iface,reason,probes:[]};
+  st.chipDiag=d;
+  $('chipDiagDetails').open=true;
+  $('chipDiagRead').disabled=true;
+  $('chipDiagResult').textContent='Nur lesende Registerdiagnose läuft …';
+  try{
+   for(const [addr,name] of [[R_AFE,'CFG_AFE1'],[R_AFE,'CFG_AFE1'],[R_AFE,'CFG_AFE1'],
+    [0x1A,'CFG_AFE0'],[0x1E,'CFG_AFE2'],[0x2A,'ADC_S']]){
+    const p={addr,name},previousFrame=st.lastPlcReply;
+    try{p.value=await readReg(addr)}catch(e){p.error=e.message}
+    if(st.iface==='plc'&&st.lastPlcReply!==previousFrame)p.frame={...st.lastPlcReply};
+    d.probes.push(p);
+    $('chipDiagResult').textContent=formatChipDiag(d)
+   }
+   logging('Chipdiagnose: '+d.probes.filter(p=>!p.error).length+'/'+d.probes.length+' Leseversuche erfolgreich.');
+   return d
+  }finally{
+   st.diagRunning=false;
+   $('chipDiagRead').disabled=false;
+   $('chipDiagResult').textContent=formatChipDiag(d);
+   if(previousLive&&!st.manualLivePause&&st.chip&&st.port&&!st.closing)startLive()
+  }
+ }
  async function detect(){const w=await readReg(R_AFE);const g=decodeSafeAFE(w);const a=await readReg(0x2A);st.afe=w;st.staged={...g};st.chip=true;gainSummary();logging(`Chip-Leseantwort: AFE=0x${h(w,2)} ADC_S=${P.sign16(a)}`);await readADC();await expert.onDetect();renderStatus();show('connMsg',demoEnabled?'Demo-Sensor verbunden. Messwerte und Schreibvorgänge sind simuliert.':'Chip-Register über '+(st.iface==='plc'?'1-Wire':st.iface.toUpperCase())+' lesbar. Antworten sind plausibel; ein physischer Hardware-Abnahmetest steht noch aus.','success');step(1);startLive();window.ELMOS_GUIDED?.onConnected?.()}
  async function connect(port,retryChipOnce=true){
   if(st.port)throw Error('Es ist bereits ein Port offen');
@@ -511,7 +611,9 @@ if(typeof document!=='undefined') (function UI(){
      renderStatus();
      return;
     }
-    show('connMsg','SSP3 erreichbar, aber auch nach einem einmaligen automatischen USB-Neuaufbau kein E703.11-Chipzugriff bestätigt: '+e.message+'. Keine weiteren Versuche. Prüfe Startfenster, Verdrahtung und Schnittstellenwahl.','warn');
+    try{await runChipDiagnostics('Automatisch nach zweiter fehlgeschlagener Chiperkennung: '+e.message)}
+    catch(diagError){logging('Lesende Zusatzdiagnose fehlgeschlagen: '+diagError.message)}
+    show('connMsg','SSP3 erreichbar, aber Chiperkennung nicht bestätigt: '+e.message+'. Die lesende Zusatzdiagnose ist unten geöffnet. Keine Schreibfreigabe.','warn');
     renderStatus();
    }
   }catch(e){
@@ -758,7 +860,7 @@ if(typeof document!=='undefined') (function UI(){
 
  function draw(){const c=$('chart');if(!c||c.closest('[hidden]'))return;const d=window.devicePixelRatio||1,w=Math.round(c.clientWidth*d),h=Math.round(c.clientHeight*d);if(w<20)return;if(c.width!==w||c.height!==h){c.width=w;c.height=h}const g=c.getContext('2d');g.clearRect(0,0,w,h);const x0=55*d,y0=10*d,yh=h-20*d,y=v=>y0+(32768-v)/65536*(yh-y0);g.font=`${11*d}px sans-serif`;for(const v of [25000,0,-25000]){g.beginPath();g.strokeStyle=v?'#e3c9aa':'#d7e4ef';g.setLineDash(v?[5*d,4*d]:[]);g.moveTo(x0,y(v));g.lineTo(w-8*d,y(v));g.stroke();g.setLineDash([]);g.fillStyle='#74849a';g.fillText((v>0?'+':'')+v,5*d,y(v)+4*d)}if(st.trend.length<1)return;const left=Date.now()-60000,x=t=>x0+(w-x0-10*d)*Math.max(0,Math.min(1,(t-left)/60000));g.beginPath();g.strokeStyle='#2867a6';g.lineWidth=2*d;st.trend.forEach((p,i)=>i?g.lineTo(x(p.x),y(p.y)):g.moveTo(x(p.x),y(p.y)));g.stroke()}
  function download(name,txt,mime='application/json'){let b=new Blob([txt],{type:mime}),u=URL.createObjectURL(b),a=document.createElement('a');a.href=u;a.download=(demoEnabled?'DEMO_':'')+name;a.click();setTimeout(()=>URL.revokeObjectURL(u),2000)}
- const report=()=>({tool:'ELMOS E703.11 Kalibrierassistent v0.6.7',created:new Date().toISOString(),connection:demoEnabled?'Demo':st.port?'USB':'offline',hardwareValidated:false,unit:pressureUnit(),pointNames:{lower:pointName('lo'),upper:pointName('hi')},interface:st.iface,firmware:st.firmware,bootProtection:'Boot-/Werks-NVM-Schreiben gesperrt; kalibrierungsbezogenes User-NVM mit Bestätigung freigegeben',ramWriteActive:!!st.ramWriteScope,registers:st.regs,bootSnapshot:st.boot,chipUID:st.uid?.hex||null,expertOutput:st.expertOutputPlan,AFE:st.afe,gains:st.staged,low:st.points.lo,high:st.points.hi,verification:st.verify,calibrationPoints:st.calpoints,plannedCalibrationPointCount:calibrationPointCount(),requestedSamplesPerPoint:Number($('calSampleCount').value),requestedDSPOutputLimit:Number($('calDspLimit').value),coefficientFit:st.calfit,calRamVerified:st.calVerified,lastDSP:st.dsp,displayRange:getActiveDSPRange(),nvmState:{backupVerified:st.nvmBackupVerified,programmed:st.nvmDone},samples:st.history.slice(-1500),trace:st.log});
+ const report=()=>({tool:'ELMOS E703.11 Kalibrierassistent v0.6.7',created:new Date().toISOString(),connection:demoEnabled?'Demo':st.port?'USB':'offline',hardwareValidated:false,unit:pressureUnit(),pointNames:{lower:pointName('lo'),upper:pointName('hi')},interface:st.iface,firmware:st.firmware,bootProtection:'Boot-/Werks-NVM-Schreiben gesperrt; kalibrierungsbezogenes User-NVM mit Bestätigung freigegeben',ramWriteActive:!!st.ramWriteScope,registers:st.regs,bootSnapshot:st.boot,chipUID:st.uid?.hex||null,expertOutput:st.expertOutputPlan,AFE:st.afe,gains:st.staged,low:st.points.lo,high:st.points.hi,verification:st.verify,calibrationPoints:st.calpoints,plannedCalibrationPointCount:calibrationPointCount(),requestedSamplesPerPoint:Number($('calSampleCount').value),requestedDSPOutputLimit:Number($('calDspLimit').value),coefficientFit:st.calfit,calRamVerified:st.calVerified,lastDSP:st.dsp,chipDiagnostic:st.chipDiag,lastPlcReply:st.lastPlcReply,displayRange:getActiveDSPRange(),nvmState:{backupVerified:st.nvmBackupVerified,programmed:st.nvmDone},samples:st.history.slice(-1500),trace:st.log});
 
  // ============ Kalibrierung + NVM (AN0203 / AN0204 / Datasheet 2023) ============
  const ca=(id,msg,type='')=>show(id,msg,type);
@@ -1466,7 +1568,15 @@ if(typeof document!=='undefined') (function UI(){
   $(k+'Down').addEventListener('click',()=>stepAFE(k,-1));
   $(k+'Up').addEventListener('click',()=>stepAFE(k,1))
  }
-  $('readBoot').addEventListener('click',()=>readBoot().catch(e=>logging('Boot-Prüfung: '+e.message)));$('readRegs').addEventListener('click',()=>registerDump());
+  $('chipDiagRead').addEventListener('click',()=>runChipDiagnostics('Manuelle Diagnose').catch(e=>show('connMsg','Chipdiagnose: '+e.message,'warn')));
+ $('chipDiagExport').addEventListener('click',()=>{
+  if(!st.chipDiag)return show('connMsg','Zuerst eine Chipdiagnose durchführen.','warn');
+  download('ELMOS_E70311_Chipdiagnose_'+Date.now()+'.json',JSON.stringify({
+   ...st.chipDiag,interpretation:formatChipDiag(st.chipDiag),lastPlcReply:st.lastPlcReply,
+   usbLog:st.log.slice(-120),crc8Note:'Byte aufgezeichnet; unabhängige Validierung ausstehend'
+  },null,2))
+ });
+ $('readBoot').addEventListener('click',()=>readBoot().catch(e=>logging('Boot-Prüfung: '+e.message)));$('readRegs').addEventListener('click',()=>registerDump());
  $('capLo').addEventListener('click',()=>capture('lo'));$('capHi').addEventListener('click',()=>capture('hi'));$('verify').addEventListener('click',()=>verify());
  $('exportJSON').addEventListener('click',()=>download('ELMOS_Kalibrierprotokoll_'+Date.now()+'.json',JSON.stringify(report(),null,2)));
  $('exportDiag').addEventListener('click',()=>download('ELMOS_USB_Diagnose_'+Date.now()+'.json',JSON.stringify(report(),null,2)));
