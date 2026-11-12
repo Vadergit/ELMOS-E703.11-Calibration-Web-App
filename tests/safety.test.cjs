@@ -188,7 +188,7 @@ test('Failed E703.11 probe keeps SSP3 open for explicit, bounded startup test',(
  assert.ok(connect.includes('await firmware();'));
  assert.ok(connect.includes('await selectChipInterface();'));
  assert.ok(connect.includes('await detect();'));
- assert.ok(connect.includes('Die SSP3-Versorgung kann über die Option in der normalen Verbindungskarte gestartet werden.') || connect.includes('Sensor beim Verbinden über SSP3 automatisch starten'));
+ assert.ok(connect.includes('Der automatische SSP3-Power-Start ist für One Wire standardmässig aktiv'));
  assert.ok(!connect.includes('await connect(port,false)'));
  assert.ok(!connect.includes('if(!await disconnect())'));
  assert.ok(!connect.includes('writeReg('));
