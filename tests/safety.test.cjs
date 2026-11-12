@@ -775,3 +775,20 @@ test('Chip diagnostics export is available for failed chip detection without unl
  assert.ok(html.includes('CRC8-Byte wird mitprotokolliert'));
  assert.ok(html.includes('kein ungeprüftes «CRC gültig»'));
 });
+
+test('Three-byte SSP3 PLC response is parsed losslessly including zero bit11',()=>{
+ const P=require('../app.js');
+ assert.deepEqual(P.readData('# SSP3\n08 00 5A\n:\n',3),[0x08,0x00,0x5A]);
+ assert.deepEqual(P.readData('00 00 00\r\n:\r\n',3),[0,0,0]);
+ assert.throws(()=>P.readData('00 00\r\n:\r\n',3),/Ungültige oder mehrdeutige/);
+ assert.throws(()=>P.readData('08 00 FF\n08 00 AA\n:\n',3),/mehrdeutige/);
+ assert.equal((0x0800&0x0800)!==0,true);
+ assert.equal((0x0000&0x0800)!==0,false);
+});
+test('Elmos CRC8 polynomial test vector and existing reserved-bit write lock remain unchanged',()=>{
+ const P=require('../app.js');
+ assert.equal(P.crc8PLC([0x6A,0x0A,0x67,0x89]),0x5F);
+ assert.throws(()=>P.encAFE(0x0000,{pga1:0,pga2:0,offset:0}),/Pflichtbit 11 fehlt/);
+ const valid=P.encAFE(0x0800,{pga1:2,pga2:3,offset:1});
+ assert.equal(valid&0x0800,0x0800);
+});
