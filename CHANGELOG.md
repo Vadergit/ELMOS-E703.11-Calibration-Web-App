@@ -1,3 +1,12 @@
+## v0.6.39 – 12.11.2026: SSP3-USB-Verlust von Sensorfehler unterscheiden und alte Log-Versuche zurücksetzen
+
+- Bei neuem USB-Port-Öffnen veraltete `startupTrials`, `chipDiag` und `lastPlcReply` zurücksetzen. Export enthält Sitzungs-ID/-Zeit und Reader-/Adapterstatus.
+- Fehlende SSP3-Antwort auf `.VERSION` wird als Adapter-/USB-Kommunikationsproblem gemeldet, nicht als Beweis für fehlenden Sensor.
+- Knopf **«SSP3-Port neu öffnen»** bei Adapter-Timeout: schliesst denselben freigegebenen WebSerial-Port und öffnet ihn auf ausdrücklichen Klick wieder – ohne F5.
+- Wenn WebSerial-Leser unerwartet endet, meldet die App den USB-Lesekanal als unterbrochen und stoppt unzuverlässige Messwerte.
+- Keine Änderung an den Sensorregistern, der NVM-Programmierung oder den vorhandenen SSP3-Startvarianten v0.6.38.
+- Eingereichte PSSC-XML enthält chipgebundene Kalibrierdaten einer anderen Chip-ID als der frühere Web-Log; Ursache und tatsächliche NVM-Übernahme bleiben zu prüfen.
+
 ## v0.6.38 – 12.11.2026: PSSC-basierte PLC_CFG-Initialisierung ergänzen
 
 - Original `ssp3_lib.dll` und Elmos AN0204 abgeglichen: Auf der bekannten SSP3-Firmware 02.08.02.04 zuerst `PLC_CFG 1 0007` (100 kHz), danach bei Bedarf `PLC_CFG 1 000E` (50 kHz).
