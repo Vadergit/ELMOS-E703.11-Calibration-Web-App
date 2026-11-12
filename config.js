@@ -133,9 +133,9 @@ const ELMOS_CONFIG=(()=>{
    reference:profile.calibration.reference,output:profile.output
   };
   const has=g=>source.include.includes(g);
-  const clean=value=>String(value).normalize('NFKD').replace(/[\u0300-\u036f]/g,'')
-   .replace(/ä/g,'ae').replace(/ö/g,'oe').replace(/ü/g,'ue')
+  const clean=value=>String(value).replace(/ä/g,'ae').replace(/ö/g,'oe').replace(/ü/g,'ue')
    .replace(/Ä/g,'Ae').replace(/Ö/g,'Oe').replace(/Ü/g,'Ue')
+   .normalize('NFKD').replace(/[\u0300-\u036f]/g,'')
    .replace(/[^a-zA-Z0-9_-]+/g,'_').replace(/^_+|_+$/g,'');
   const num=value=>{
    const n=Number(value);
@@ -152,7 +152,7 @@ const ELMOS_CONFIG=(()=>{
     plan.pCount*plan.tCount===m.pointCount&&
     (!has('dsp')||(dsp.sOrder<plan.pCount&&dsp.tOrder<plan.tCount));
    if(exactPlan)prefix.push(plan.pCount+'P_Druck',plan.tCount+'T_Temp');
-   else if(has('dsp')&&dsp.tOrder===0&&m.pointCount<=5)prefix.push(m.pointCount+'P_Druck');
+   else if(has('dsp')&&dsp.tOrder===0&&m.pointCount===2)prefix.push('2P_Druck');
    else prefix.push(m.pointCount+'Messpunkte');
   }
   if(has('reference')){
