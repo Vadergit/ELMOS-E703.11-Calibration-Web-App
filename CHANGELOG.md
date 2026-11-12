@@ -1,3 +1,11 @@
+## v0.6.35 – 12.11.2026: CRC8 unabhängig verifizieren und mehrere Register nach Fehlstart lesen
+
+- Jürgs zweites Protokoll belegt: beide Magic-Cookie-Frames werden vom SSP3 quittiert, der danach gelesene CFG_AFE1-Wert bleibt aber 0x0000.
+- Die Antwort `00 00 35` hat eine nach Datenblatt korrekt berechnete CRC8. Das wird jetzt bei jedem PLC-Registerlesen unabhängig geprüft; ungültige CRC8 führt zu einem Lesefehler statt zur Übernahme der Registerdaten.
+- Nach vollständigem **fehlgeschlagenem** automatischem SSP3-Start werden ausschliesslich lesend CFG_EN, CFG_PADS0, CFG_PADS1, CFG_AFE1 und ADC_S geprüft und im JSON-Export gespeichert. Dies geschieht **nach** der Startfenster- und Magic-Cookie-Sequenz und verändert keine RAM-/NVM-Konfiguration.
+- Die eigentliche Start-/Power-/PLC-Sequenz bleibt unverändert; erst weitere Hardwarelogs können klären, ob das Problem am Startfenster, den PLC_CFG-Parametern oder am tatsächlichen Chipzugriff liegt.
+- Klarstellung: PWR_ON 0C80 ist die Schwelle bei 3.2 V, kein fester VSUPPLY-Sollwert. Hardwaretest ausstehend.
+
 ## v0.6.34 – 12.11.2026: Nullantwort beim E703.11 erkennen und Magic-Cookie-Fallback gezielt versuchen
 
 - Jürgs SSP3-Log ergab: Power-/PLC-Start quittiert, danach `CFG_AFE1=0x0000` aus der Antwort `00 00 35`. Weil das Format parsbar war, griff die bestehende Prüfung auf `PLC nothing received` nicht.
