@@ -1,3 +1,11 @@
+## v0.6.20 – 12.11.2026: SSP3-One-Wire-Autostart ohne Checkbox und PLC-Rückkorrektur
+
+- Reales SSP3-Feedback `frame contains invalid data ( )` bestätigt, dass die separierte Form `PLC 02 6D1C0C.` ungültig ist. Wiederherstellung der korrekten ursprünglichen Form `PLC 026D1C0C.` für Firmware 02.08.02.04.
+- Für SSP3+OneWire wird der vollständige Power-/PLC-Pufferstart bei jedem Verbinden automatisch durchgeführt. Keine Browser-Checkbox, kein gespeicherter Schaltzustand, kein versehentliches Zurückfallen auf direktes Registerlesen.
+- I²C/SPI und Bridge bleiben ausserhalb des SSP3-Power-Startpfads. Bestehender Power-Off-Hilfetest, Fehlerbehandlung und Wiederherstellung des Stroms bleiben erhalten.
+- Redundante experimentelle Einmal-Start-Optionen entfernt; Experten-Diagnosebereiche weiterhin standardmässig verborgen.
+- Geprüfte NVM-Schutzmechanismen und das gespeicherte PLC-Startfenster bleiben unberührt. Softwaretests aktualisiert.
+
 ## v0.6.19 – 12.11.2026: Normalen One-Wire-Verbindungsaufbau repariert
 
 - SSP3-Version `02.08.02.04` wird aus `.VERSION` korrekt erkannt; passendes `PLC 02 6D1C0C.`-Hostformat wird beim Verbinden automatisch aktiviert. Keine ungesicherte Auto-Umstellung bei anderen Firmwareversionen.

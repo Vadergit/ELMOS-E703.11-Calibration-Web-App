@@ -455,8 +455,8 @@ html.compact-mode .foot{display:none}
 .chip-diag-report{white-space:pre-wrap;overflow-wrap:anywhere;max-height:390px;overflow:auto;border:1px solid #cbddeb;border-radius:9px;padding:13px 14px;background:#f5f9fc;color:#2d4d66;font:11px/1.55 ui-monospace,SFMono-Regular,Consolas,monospace;margin:12px 0}
 .chip-diag-details .flex{flex-wrap:wrap;gap:9px}
 .chip-diag-details .inner>p{line-height:1.55}
-</style><link rel="stylesheet" href="guided.css?v=0.6.19"><link rel="stylesheet" href="interface.css?v=0.6.19"></head><body><div class="wrap"><header class="top">
-<div class="brand"><div class="logo" aria-hidden="true">E</div><div><div class="eyebrow">E703.11 · PSSC · v0.6.19</div><h1>Kalibrierassistent</h1></div></div>
+</style><link rel="stylesheet" href="guided.css?v=0.6.20"><link rel="stylesheet" href="interface.css?v=0.6.20"></head><body><div class="wrap"><header class="top">
+<div class="brand"><div class="logo" aria-hidden="true">E</div><div><div class="eyebrow">E703.11 · PSSC · v0.6.20</div><h1>Kalibrierassistent</h1></div></div>
 <div class="live-overview" role="group" aria-label="Sensorwerte · laufende Anzeige">
   <div class="live-kpi" title="Unkompensierter Druck-ADC. Warnung bei Beträgen über 25’000 Digits."><span class="live-kpi-label">ADC_S <span id="liveAdcAlert" class="live-alert" hidden>!</span></span><span class="live-kpi-reading" id="liveAdcS">—</span><span class="live-kpi-unit">Digits</span></div>
   <div class="live-kpi" title="ADC_T · Temperatur-Rohwert, keine direkte Temperatur in °C."><span class="live-kpi-label">ADC_T</span><span class="live-kpi-reading" id="liveAdcT">—</span><span class="live-kpi-unit">Digits</span></div>
@@ -501,10 +501,6 @@ html.compact-mode .foot{display:none}
   </div>
   <div class="fieldrow" id="plcOptions" hidden><label>ESP32 PLC-Baudrate<select id="plcBaud"><option value="100000">100 kBd</option><option value="25000">25 kBd</option></select></label><label class="toggle"><input type="checkbox" id="plcPowerCycle"> Sensorversorgung steuern<span id="sensorPowerPin"></span></label></div>
   <div class="flex connectionActions"><button class="primary" id="choose">USB-Port auswählen</button><button class="connection-link" id="auto">Bekannten Port verbinden</button><button id="disconnect" disabled>Trennen</button><button id="guidedLaunch" type="button" disabled>Geführten Abgleich starten</button></div>
-  <div id="ssp3StartupOption" class="connection-auto-start">
-    <label class="toggle"><input type="checkbox" id="ssp3AutoStart"> <strong>Sensor beim Verbinden automatisch über SSP3 starten (One Wire)</strong></label>
-    <p id="ssp3StartupInfo" class="muted small" role="status">Nur aktivieren, wenn der Prüfsensor tatsächlich über die schaltbare SSP3-VSUPPLY versorgt wird. Dabei wird VDD kurz unterbrochen, und One Wire am AODO-Pin gestartet.</p>
-  </div>
   <div id="connMsg" class="callout" role="status">Wähle den USB-Port deines Adapters. Chrome fragt beim ersten Verbinden nach der Freigabe.</div>
   <dl class="connection-summary">
     <div><dt>Adapter-Firmware</dt><dd id="fw">—</dd></div>
@@ -523,7 +519,6 @@ html.compact-mode .foot{display:none}
         <p class="muted small">Zwei dokumentierte PLC-Schreibtelegramme gemäss E703.11-Datenblatt: <code>0xAC → 0x2B42</code> unmittelbar gefolgt von <code>0x0E → 0x5CFD</code>. Anschliessend prüft die Web-App, ob echte Registerantworten vom Sensor eintreffen. <strong>Keine NVM-Programmierung.</strong></p>
         <p class="muted small"><strong>Achtung:</strong> Bei erfolgreicher Freigabe wird One Wire im RAM dauerhaft aktiviert, wodurch der normale analoge 0–5-V-Ausgang bis zum Chip-Reset überlagert werden kann. Nur am Prüfplatz testen, nicht im Betrieb. Die Sequenz muss während des konfigurierten Startfensters empfangen werden. Das SSP3 wird hier nicht automatisch neu gestartet.</p>
         <label class="toggle"><input type="checkbox" id="plcMagicConfirm"> Ich akzeptiere die temporäre Umschaltung des AODO-Ausgangs am Testchip.</label>
-        <label class="toggle"><input type="checkbox" id="plcMagicOnConnect" disabled> Einmalig beim nächsten SSP3-Verbinden vor dem ersten Registerlesen testen (empfohlen für den Startversuch).</label>
         <div class="flex"><button type="button" id="plcMagicRun" disabled>Magic Cookie testen (nur RAM)</button></div>
         <p class="muted small" id="plcMagicState" role="status">Noch nicht gestartet. Es werden nur die beiden beschriebenen PLC-Frames gesendet; danach erfolgt ein Lesetest.</p>
       </div>
@@ -536,14 +531,13 @@ html.compact-mode .foot{display:none}
         <label for="plcHostFormat">PLC-Befehlsformat der SSP3-Firmware (nur für Diagnosetests)</label>
         <select id="plcHostFormat">
           <option value="legacy">AN 0204 · ein gemeinsamer Parameter: PLC 026D1C0C.</option>
-          <option value="separate">Firmwarehilfe · Slave-ID separat: PLC 02 6D1C0C.</option>
+          <option value="separate" disabled>Verworfen: PLC 02 6D1C0C. (SSP3 meldet ungültige Daten)</option>
         </select>
-        <p class="muted small">Die laufende SSP3-Firmware nennt <code>PLC &lt;slave_id&gt; &lt;data&gt;</code>. Deshalb lässt sich der zusätzliche Leerschritt zwischen <code>02</code> und dem CRC-geschützten Frame als Leseversuch testen. Die ursprüngliche Schreibweise bleibt Standard. Nach erfolgreicher Chiperkennung wird das Format für diese Verbindung gesperrt.</p>
+        <p class="muted small">Hardwaretest bestätigt: <code>PLC 02 6D1C0C.</code> erzeugt <code>frame contains invalid data ( )</code>. Daher wird für die bekannte Firmware die gültige Form <code>PLC 026D1C0C.</code> erzwungen. Der automatische SSP3-Start ist im One-Wire-Modus Bestandteil des normalen Verbindens.</p>
         <label class="toggle"><input type="checkbox" id="plcPowerConfirm"> Am Prüfplatz: E703.11 wird über schaltbare SSP3-VSUPPLY versorgt; Power-Cycle und flüchtige PLC-Freigabe sind erlaubt.</label>
-        <label class="toggle"><input type="checkbox" id="plcPowerOnConnect" disabled> Einmalig beim nächsten Verbinden nach IF_CFG (vor dem ersten PLC-Leseversuch) testen.</label>
         <div class="flex"><button type="button" id="plcPowerHelpRead" disabled>SSP3-Befehle anzeigen (?) · nur lesen</button><button type="button" id="plcPowerRun" disabled>Sensor automatisch neu starten und One Wire freigeben</button></div>
         <pre class="log small" id="plcPowerHelpOutput" style="max-height:200px;overflow:auto;white-space:pre-wrap">Noch keine Firmwarehilfe gelesen. Der Test verändert dabei keine Sensorregister.</pre>
-        <p class="muted small" id="plcPowerState" role="status">Noch nicht getestet. Bitte für den nächsten Versuch die Firmware-Variante «Slave-ID separat» wählen und am Testchip einen einzelnen Power-Starttest ausführen. Der erste Zugriff bleibt lesend.</p>
+        <p class="muted small" id="plcPowerState" role="status">Der SSP3 startet bei One Wire automatisch mit VSUPPLY-Power-Cycle und PLC P/T. Die Diagnose bleibt für Fehleranalysen im Expertenmodus verfügbar.</p>
       </div>
     </details>
   </div>
@@ -1033,5 +1027,5 @@ html.compact-mode .foot{display:none}
 </div>
 <div class="nav"><button data-next="0">Zur Verbindung</button><button data-next="6">Zum NVM-Schritt</button></div>
 </section>
-<div class="foot"><b>Version v0.6.19</b> · <a href="CHANGELOG.md" target="_blank" rel="noopener">Änderungsverlauf</a> · ELMOS E703.11 · unabhängiger Kalibrierprototyp · Sicherheitsprinzip: Factory- und Kommunikations-Bootregister gesperrt; dokumentierte AODO-Ausgangsoptionen nur nach Prüfung im NVM-Plan; Wiederherstellung nur mit passender Chip-UID.</div>
-</main></div></div><div id="tip" class="tooltip"></div><script src="calibration.js?v=0.6.19"></script><script src="eeprom-help.js?v=0.6.19"></script><script src="expert.js?v=0.6.19"></script><script src="config.js?v=0.6.19"></script><script src="guided-plan.js?v=0.6.19"></script><script src="demo.js?v=0.6.19"></script><script src="app.js?v=0.6.19"></script><script src="compact.js?v=0.6.19"></script><script src="guided.js?v=0.6.19"></script></body></html>
+<div class="foot"><b>Version v0.6.20</b> · <a href="CHANGELOG.md" target="_blank" rel="noopener">Änderungsverlauf</a> · ELMOS E703.11 · unabhängiger Kalibrierprototyp · Sicherheitsprinzip: Factory- und Kommunikations-Bootregister gesperrt; dokumentierte AODO-Ausgangsoptionen nur nach Prüfung im NVM-Plan; Wiederherstellung nur mit passender Chip-UID.</div>
+</main></div></div><div id="tip" class="tooltip"></div><script src="calibration.js?v=0.6.20"></script><script src="eeprom-help.js?v=0.6.20"></script><script src="expert.js?v=0.6.20"></script><script src="config.js?v=0.6.20"></script><script src="guided-plan.js?v=0.6.20"></script><script src="demo.js?v=0.6.20"></script><script src="app.js?v=0.6.20"></script><script src="compact.js?v=0.6.20"></script><script src="guided.js?v=0.6.20"></script></body></html>

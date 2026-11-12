@@ -177,10 +177,18 @@ Die zusätzlichen SSP3-Fehlersuchwerkzeuge bleiben technisch vorhanden, sind abe
 
 **Wichtig:** Das Update schreibt selbst nichts in den Sensor. Das Startfenster bleibt genau so lange aktiv, wie es im Original-NVM eingestellt ist, und wird nach jedem Kaltstart neu geöffnet. Eine erfolgreiche echte NVM-Programmierung mit dieser Änderung ist noch nicht hardwaregetestet.
 
-### Normaler SSP3-Verbindungsaufbau wiederhergestellt (v0.6.19, 12.11.2026)
+### Normaler SSP3-Verbindungsaufbau wiederhergestellt (v0.6.20, 12.11.2026)
 
 **Ursache der wiederkehrenden PLC-Fehlermeldung:** Die App stellte beim Öffnen eines USB-Ports das PLC-Hostformat stets erneut auf den früheren Wert `legacy`. Die reale SSP3-Firmware `@02 08 02 04` veröffentlicht jedoch `PLC <slave_id> <data>`, also getrennte Hostparameter; der zuvor erfolgreiche Test nutzte `PLC 02 6D1C0C.`. Die Web-App liest jetzt die echte Versionsantwort aus und stellt **ausschliesslich für diese bestätigte Firmware** das `separate`-Format automatisch ein. Die alte Variante bleibt für andere Firmwareversionen verfügbar.
 
 In der **normalen Verbindungskarte** steht nun eine kompakte Opt-in-Einstellung **«Sensor beim Verbinden automatisch über SSP3 starten (One Wire)»**. Diese darf nur aktiviert werden, wenn das Prüfmuster tatsächlich von der schaltbaren SSP3-VSUPPLY versorgt wird. Die explizite Zustimmung wird in diesem Browser gespeichert und kann durch Abwählen widerrufen werden. Nach dem nächsten Verbinden führt die App denselben abgesicherten Ablauf wie der zuvor manuell gestartete AN0204-Prüfplatztest aus (`?`, `PWR_OFF`, `PLC P`, `PWR_ON`, `PLC T`, Chiperkennung). Sie prüft den tatsächlichen Registerzugriff und die Chip-UID. Die Versorgung wird **nicht** ohne Opt-in automatisch geschaltet. Bei unbekannter Power-Firmware oder unbestätigtem `PWR_OFF` wird vor der Abschaltung abgebrochen.
 
 Die zuletzt hinterlegte 4/10/200-ms-Startup-Einstellung bleibt im Sensor-NVM unverändert und öffnet sich nach jedem Kaltstart wieder. Eine erfolgreiche Versorgungsschaltung und NVM-Sicherheit müssen vor der NVM-Programmierung weiterhin geprüft werden; ein echter Test der neuen Startautomatik steht noch aus. Zusatzdiagnosen bleiben hinter «Expertenparameter freischalten» verborgen.
+
+### Standard: automatischer One-Wire-Start (v0.6.20)
+
+Für den bestehenden, über SSP3-VSUPPLY versorgten Prüfsensor unter **USB & Chip** nur **SSP3** und **1-Wire (AODO)** auswählen und verbinden. Die App startet die SSP3-DUT-Versorgung automatisch neu, aktiviert die gepufferte PLC-Freigabe und liest danach die Sensorregister. Die separate Start-Checkbox wurde entfernt. Bei **I²C**, **SPI** oder **ESP32-Bridge** führt die App keine SSP3-VSUPPLY-Sequenz aus.
+
+Die SSP3-Firmware `02.08.02.04` erwartet das kompakte Host-Telegramm `PLC 026D1C0C.`; das zwischen `02` und `6D...` getrennte Format wird laut Hardwaretest mit `frame contains invalid data ( )` zurückgewiesen. Die ursprüngliche NVM-One-Wire-Startzeit und die Bootregister bleiben unverändert.
+
+**Vorsicht:** Diese Betriebsart setzt eine tatsächlich über schaltbare SSP3-VSUPPLY gespeiste Testschaltung voraus. Bei unabhängiger Versorgung oder kritischen Anwendungen ist der automatische Stromunterbruch ungeeignet.

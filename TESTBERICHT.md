@@ -128,3 +128,7 @@ Neu ist ein konkreter möglicher Syntaxunterschied: **Elmos AN 0204** dokumentie
 - **SSP3-Firmwarehilfe / Slave-ID separat:** `PLC 02 6D1C0C.`
 
 Die jeweils gewählte Hostformatierung wird nach dem ausdrücklich freigegebenen, einmaligen Versorgungstest auf die **erste reine Registerabfrage** angewendet. Erhält die App gültige Registerdaten, wird das Format für die restliche Sitzung beibehalten; auch spätere PLC-Schreibtelegramme werden dann entsprechend formatiert, aber erst nach unveränderten NVM-/RAM-Sicherheitsprüfungen. Die One-Wire-Chipdaten und CRC-Felder werden **nicht** geändert, nur das Leerzeichen im SSP3-ASCII-Kommando. Keine NVM-Programmierung beim Test. Der Vergleich klärt eine echte Firmwareabweichung, garantiert aber keine Freigabe bei 4-ms-Startfenster. Pro Durchlauf nur **eine** Variante versuchen und anschliessend das JSON-Log exportieren.
+
+### v0.6.20 – SSP3-ASCII-Format korrigiert
+
+Live-Hardwaremeldung beim v0.6.19-Verbindungsversuch: `#PLC 02 6D1C0C. !PLC frame contains invalid data ( ) !PLC nothing received`. Das zeigt einen vom SSP3 zurückgewiesenen ASCII-Telegrammaufbau. Im neuen Code ist für die bekannte Firmware nur noch das ursprüngliche `PLC 026D1C0C.` erlaubt. Der Power-Start wird automatisch auf SSP3/OneWire beschränkt, nicht auf I²C/SPI oder ESP32. **Ein erfolgreicher neuer SSP3-Hardwaretest wurde noch nicht durchgeführt; die Softwaretests ersetzen ihn nicht.**
