@@ -35,7 +35,7 @@ if(typeof document!=='undefined') (function UI(){
   lower:Number($('pmin').value),upper:Number($('pmax').value),limit:getActiveDSPRange()?.limit??32000
  })):null;
  const REG_NAMES={4:'CFG_EN',6:'CFG_SPI_I2C',8:'CFG_PADS0',10:'CFG_PADS1',12:'CFG_PADS2',16:'CFG_AODO',0x14:'CFG_ADC',0x16:'CFG_LP0',0x18:'CFG_LP1',0x1A:'CFG_AFE0',0x1C:'CFG_AFE1',0x1E:'CFG_AFE2',0x26:'ADC_TC',0x28:'ADC_T',0x2A:'ADC_S'};
- const st={chipDiag:null,diagRunning:false,lastPlcReply:null,mode:'offline',port:null,closing:false,reader:null,readerPromise:null,cmdQueue:Promise.resolve(),replyBuffer:'',responseWait:null,iface:'plc',adapterKind:'ssp3',sensorPowerEnabled:false,startupRunning:false,startupAbort:false,startupAttempts:0,magicRunning:false,magicResult:null,powerCycleRunning:false,powerCycleResult:null,firmware:'',chip:false,boot:null,afe:null,staged:{pga1:0,pga2:0,offset:0},adc:null,dsp:null,dspError:null,liveReadPromise:null,trend:[],history:[],log:[],regs:{},points:{lo:null,hi:null},verify:null,live:false,manualLivePause:false,timeout:null,consecutiveErrors:0,writing:false,pressure:5,calpoints:[],calfit:null,calImage:null,nvmBackup:null,nvmBackupVerified:false,calStaged:false,calVerified:false,calValidation:[],calTask:false,nvmWorking:false,nvmDone:false,afeWriteActive:false,ramWriteScope:null,uid:null,expertOutputPlan:null,restorePlan:null,outputOnlyPlan:null,uidShownForInput:null,profilePendingAFE:null};
+ const st={chipDiag:null,diagRunning:false,lastPlcReply:null,mode:'offline',port:null,closing:false,reader:null,readerPromise:null,cmdQueue:Promise.resolve(),replyBuffer:'',responseWait:null,iface:'plc',adapterKind:'ssp3',sensorPowerEnabled:false,startupRunning:false,startupAbort:false,startupAttempts:0,magicRunning:false,magicResult:null,powerCycleRunning:false,powerCycleResult:null,powerHelp:null,firmware:'',chip:false,boot:null,afe:null,staged:{pga1:0,pga2:0,offset:0},adc:null,dsp:null,dspError:null,liveReadPromise:null,trend:[],history:[],log:[],regs:{},points:{lo:null,hi:null},verify:null,live:false,manualLivePause:false,timeout:null,consecutiveErrors:0,writing:false,pressure:5,calpoints:[],calfit:null,calImage:null,nvmBackup:null,nvmBackupVerified:false,calStaged:false,calVerified:false,calValidation:[],calTask:false,nvmWorking:false,nvmDone:false,afeWriteActive:false,ramWriteScope:null,uid:null,expertOutputPlan:null,restorePlan:null,outputOnlyPlan:null,uidShownForInput:null,profilePendingAFE:null};
  let currentStep=0,pendingGain=null,writeTimer=null;let tipEnabled=true,liveIntervalMs=650;
  const HELP={interface:'Schnittstelle zwischen SSP3-Board und Sensorchip. 1-Wire nutzt AODO (VDD, GND und AODO). Die Einstellung IF_CFG ändert die Programmer-Pins, nicht die NVM-Konfiguration des Sensors.',baud:'Baudrate des USB-UART zwischen Chrome und dem SSP3. Die Herstellersoftware verwendet 115200 Baud als Standard.',adcs:'ADC_S ist der unkompensierte 16-Bit-Druck-ADC. ±25000 Digits ist ein vorsichtiges Ziel für den manuellen Abgleich, keine garantierte Hardwaregrenze.',dsp_live:'DSP_S (Register 0x30) ist der skalierte DSP-Sensorausgang. Die Anzeige liest den Chipwert wiederholt und rechnet ihn mit dem konfigurierten DSP-Endwert (standardmässig ±32’000 Digits) in den gewählten Anzeigebereich um. Ein DSP-Wert allein belegt keine gültige Kalibrierung.',pga1:'Erste Druckverstärkungsstufe: 3.5×, 6×, 8.5× oder 11× (typische Werte laut Datenblatt 2023). Für gutes SNR möglichst hoch ohne Übersteuerung.',pga2:'Zweite Verstärkungsstufe: typische Faktoren 2× bis 10×. Der Gesamtfaktor ist PGA1 × PGA2.',offset:'17 DAC-Stufen von −400 bis +400 mV/V bezogen auf die Brückenspannung. Die Verschiebung liegt zwischen PGA1 und PGA2.',pressureunit:'Einheit für die Referenz- und Prüfdruckwerte. Für relative Kalibrierungen kann beispielsweise % mit 0 bis 100 gewählt werden. Referenzwerte müssen zum tatsächlichen Prüfstand passen. Einheitenwechsel erfordert neue Messpunkte.',dsp_limit:'Symmetrischer DSP-Endwert für die neue Kalibrierung. Standard ±32’000 Digits. ±30’000 lässt zusätzlich Reserve. Der Wert verändert die berechneten Koeffizienten sowie DSP-Soll und Fehlerumrechnung; er ist keine Hardware-Clipping-Grenze.',ram:'PGA1, Offset und PGA2 werden mit jeder Pfeiltaste sofort ausschliesslich in CFG_AFE1 0x1C im RAM geändert und rückgelesen. Kein NVM-/EEPROM-Schreiben. Boot-/Kommunikationsregister werden kontrolliert.',};
  const h=P.hx;
@@ -54,6 +54,7 @@ if(typeof document!=='undefined') (function UI(){
    $('plcMagicOnConnect').disabled=connected||demoEnabled||!$('plcMagicConfirm').checked;
    if(!$('plcMagicConfirm').checked)$('plcMagicOnConnect').checked=false;
   }
+ if($('plcPowerHelpRead'))$('plcPowerHelpRead').disabled=!connected||st.adapterKind!=='ssp3'||st.closing||st.powerCycleRunning||st.magicRunning||st.startupRunning||st.diagRunning||st.writing||st.nvmWorking||st.calTask;
  if($('plcPowerRun'))$('plcPowerRun').disabled=!connected||st.chip||st.powerCycleRunning||st.startupRunning||st.magicRunning||st.diagRunning||st.closing||st.writing||st.nvmWorking||st.calTask||!$('plcPowerConfirm').checked;
  if($('plcPowerOnConnect')){
   $('plcPowerOnConnect').disabled=connected||demoEnabled||!$('plcPowerConfirm').checked;
@@ -664,7 +665,23 @@ if(typeof document!=='undefined') (function UI(){
   }finally{st.magicRunning=false;renderStatus()}
  }
 
- // Elmos AN0204: §3.2 gives Power_OFF / PWR_ON, §2.3.4 gives PLC P / PLC T.
+ // The user SSP3 firmware rejects "Power_OFF 03E8" (Unknown command POWER_OFF).
+ // Ask actual SSP3 firmware for its read-only '?' help before any further power operation.
+ // Only use the alternate PWR_OFF spelling if this specific firmware advertises it.
+ async function readSsp3PowerHelp(){
+  if(demoEnabled||st.adapterKind!=='ssp3'||!st.port||st.closing)
+   throw Error('SSP3-Firmwarehilfe benötigt einen verbundenen echten SSP3.');
+  if(st.magicRunning||st.startupRunning||st.diagRunning||st.writing||st.nvmWorking||st.calTask||st.afeWriteActive)
+   throw Error('SSP3-Befehlshilfe ist während eines anderen Vorgangs gesperrt.');
+  const raw=await exchange('?',5500);
+  const supported=/(?:^|[^A-Z0-9_])PWR_OFF(?:[^A-Z0-9_]|$)/i.test(raw);
+  st.powerHelp={at:new Date().toISOString(),reply:raw.slice(0,14000),pwrOffListed:supported};
+  $('plcPowerHelpOutput').textContent=raw.slice(0,14000);
+  logging('SSP3 Firmwarehilfe gelesen; PWR_OFF '+(supported?'in Liste gefunden':'NICHT bestätigt')+'.');
+  return st.powerHelp;
+ }
+ // Elmos AN0204: PLC P / PLC T and Power_OFF / PWR_ON. Test uses PWR_OFF only
+ // if advertised by the running SSP3 firmware, because Power_OFF was rejected.
  // Only a separately approved bench test on DUT powered through switchable SSP3 VSUPPLY.
  async function testSsp3PowerStartup(){
   if(demoEnabled||st.adapterKind!=='ssp3'||st.iface!=='plc'||!st.port||st.closing)throw Error('SSP3-Starttest benötigt offenen SSP3 im PLC-Modus.');
@@ -675,7 +692,7 @@ if(typeof document!=='undefined') (function UI(){
   st.powerCycleRunning=true;
   st.powerCycleResult={at:new Date().toISOString(),stage:'start',steps:[],readVerified:false,powerRestored:false};
   let powerOffAttempted=false,powerOnAcknowledged=false;
-  logging('AN0204: einzeln freigegebener Test Power_OFF -> PLC P -> PWR_ON -> PLC T -> Chiperkennung.');
+  logging('AN0204: Versuch mit geprüftem SSP3-PWR_OFF -> PLC P -> PWR_ON -> PLC T; Firmwarehilfe wird zuerst abgefragt.');
   $('plcPowerState').textContent='SSP3-Sensorversorgung und PLC-Startsequenz laufen.';
   renderStatus();
   async function send(command,ms){
@@ -692,9 +709,17 @@ if(typeof document!=='undefined') (function UI(){
    }
   }
   try{
-   // 03E8 hex = 1000 mV; below E703.11 VDD falling-reset threshold.
+   // The user's SSP3 explicitly rejected the AN0204 "Power_OFF" spelling.
+   // Do not try unverified alternative power commands unless firmware itself lists one.
+   $('plcPowerState').textContent='Lese SSP3-Befehlshilfe (?) – vorerst keine Änderung der Sensorversorgung.';
+   const help=await readSsp3PowerHelp();
+   st.powerCycleResult.steps.push({command:'?',reply:help.reply,ok:true,pwrOffListed:help.pwrOffListed});
+   if(!help.pwrOffListed)
+    throw Error('Firmwarehilfe nennt kein PWR_OFF. Power-Cycle aus Sicherheitsgründen abgebrochen; es wurden keine Ausschaltbefehle gesendet. Bitte Hilfe- und TX/RX-Protokoll exportieren.');
+   // 03E8 = 1000 mV; the documented OFF threshold is applied to the detected alias.
+   $('plcPowerState').textContent='PWR_OFF in Firmwarehilfe gefunden. SSP3-VSUPPLY wird einmalig am Prüfplatz geschaltet.';
    powerOffAttempted=true;
-   await send('Power_OFF 03E8',5500);
+   await send('PWR_OFF 03E8',5500);
    await sleep(30); // off-state settling; no delay after the subsequent power-on
    await send('PLC P',2500);
    $('plcPowerState').textContent='PLC-Puffer vorbereitet; SSP3 startet VSUPPLY und sendet PLC T.';
@@ -711,12 +736,12 @@ if(typeof document!=='undefined') (function UI(){
   }catch(e){
    st.powerCycleResult.stage='failed';
    st.powerCycleResult.error=String(e.message||e);
-   // Power_OFF can succeed even if its response times out. Recover VSUPPLY if possible.
+   // PWR_OFF may take effect even if the acknowledgment times out. Recover VSUPPLY if possible.
    if(powerOffAttempted&&!powerOnAcknowledged&&st.port===port&&!st.closing){
     try{await send('PWR_ON 0 0 0',4000);st.powerCycleResult.powerRestored=true;logging('AN0204: DUT-Versorgung mit PWR_ON 0 0 0 wieder aktiviert.')}
     catch(restore){st.powerCycleResult.restoreError=String(restore.message||restore);logging('WARNUNG: DUT-Versorgung konnte nicht bestätigt wiederhergestellt werden: '+st.powerCycleResult.restoreError);}
    }
-   const power=st.powerCycleResult.powerRestored?'DUT-Versorgung laut SSP3 eingeschaltet.':'ACHTUNG: DUT-Versorgung nicht als eingeschaltet bestätigt!';
+   const power=!powerOffAttempted?'Kein Ausschaltbefehl gesendet.':st.powerCycleResult.powerRestored?'DUT-Versorgung laut SSP3 wieder eingeschaltet.':'ACHTUNG: DUT-Versorgung nicht als eingeschaltet bestätigt!';
    const msg='AN0204-Starttest ohne Chipantwort: '+st.powerCycleResult.error+'. '+power+' Bitte TX/RX-Log exportieren.';
    $('plcPowerState').textContent=msg;
    if(st.port===port&&!st.closing)show('connMsg',msg,'warn');
@@ -728,7 +753,7 @@ if(typeof document!=='undefined') (function UI(){
   if(demoEnabled&&port!==demoPort)throw Error('Demo verwendet ausschliesslich den simulierten Adapter');
   if(!demoEnabled&&(!navigator.serial||!window.isSecureContext))throw Error('Chrome benötigt Web Serial über HTTPS oder localhost');
   await port.open({baudRate:Number($('baud').value)});
-  st.port=port;st.mode='usb';st.firmware='';st.chip=false;st.afe=null;st.boot=null;st.regs={};st.dsp=null;st.dspError=null;st.calStaged=false;st.calVerified=false;st.nvmDone=false;st.adc=null;st.manualLivePause=false;st.afeWriteActive=false;st.ramWriteScope=null;st.uid=null;st.uidShownForInput=null;st.restorePlan=null;st.expertOutputPlan=null;st.outputOnlyPlan=null;st.iface=$('iface').value;st.adapterKind=$('adapterType').value;
+  st.port=port;st.mode='usb';st.firmware='';st.powerHelp=null;st.chip=false;st.afe=null;st.boot=null;st.regs={};st.dsp=null;st.dspError=null;st.calStaged=false;st.calVerified=false;st.nvmDone=false;st.adc=null;st.manualLivePause=false;st.afeWriteActive=false;st.ramWriteScope=null;st.uid=null;st.uidShownForInput=null;st.restorePlan=null;st.expertOutputPlan=null;st.outputOnlyPlan=null;st.iface=$('iface').value;st.adapterKind=$('adapterType').value;
   st.sensorPowerEnabled=st.adapterKind==='bridge'&&!demoEnabled&&$('plcPowerCycle').checked;
   $('sensorPowerPin').textContent='';
   $('nvmRestartStatus').hidden=true;
@@ -1033,7 +1058,7 @@ if(typeof document!=='undefined') (function UI(){
 
  function draw(){const c=$('chart');if(!c||c.closest('[hidden]'))return;const d=window.devicePixelRatio||1,w=Math.round(c.clientWidth*d),h=Math.round(c.clientHeight*d);if(w<20)return;if(c.width!==w||c.height!==h){c.width=w;c.height=h}const g=c.getContext('2d');g.clearRect(0,0,w,h);const x0=55*d,y0=10*d,yh=h-20*d,y=v=>y0+(32768-v)/65536*(yh-y0);g.font=`${11*d}px sans-serif`;for(const v of [25000,0,-25000]){g.beginPath();g.strokeStyle=v?'#e3c9aa':'#d7e4ef';g.setLineDash(v?[5*d,4*d]:[]);g.moveTo(x0,y(v));g.lineTo(w-8*d,y(v));g.stroke();g.setLineDash([]);g.fillStyle='#74849a';g.fillText((v>0?'+':'')+v,5*d,y(v)+4*d)}if(st.trend.length<1)return;const left=Date.now()-60000,x=t=>x0+(w-x0-10*d)*Math.max(0,Math.min(1,(t-left)/60000));g.beginPath();g.strokeStyle='#2867a6';g.lineWidth=2*d;st.trend.forEach((p,i)=>i?g.lineTo(x(p.x),y(p.y)):g.moveTo(x(p.x),y(p.y)));g.stroke()}
  function download(name,txt,mime='application/json'){let b=new Blob([txt],{type:mime}),u=URL.createObjectURL(b),a=document.createElement('a');a.href=u;a.download=(demoEnabled?'DEMO_':'')+name;a.click();setTimeout(()=>URL.revokeObjectURL(u),2000)}
- const report=()=>({tool:'ELMOS E703.11 Kalibrierassistent v0.6.15',created:new Date().toISOString(),connection:demoEnabled?'Demo':st.port?'USB':'offline',hardwareValidated:false,unit:pressureUnit(),pointNames:{lower:pointName('lo'),upper:pointName('hi')},interface:st.iface,firmware:st.firmware,bootProtection:'Boot-/Werks-NVM-Schreiben gesperrt; kalibrierungsbezogenes User-NVM mit Bestätigung freigegeben',ramWriteActive:!!st.ramWriteScope,registers:st.regs,bootSnapshot:st.boot,chipUID:st.uid?.hex||null,expertOutput:st.expertOutputPlan,AFE:st.afe,gains:st.staged,low:st.points.lo,high:st.points.hi,verification:st.verify,calibrationPoints:st.calpoints,plannedCalibrationPointCount:calibrationPointCount(),requestedSamplesPerPoint:Number($('calSampleCount').value),requestedDSPOutputLimit:Number($('calDspLimit').value),coefficientFit:st.calfit,calRamVerified:st.calVerified,lastDSP:st.dsp,chipDiagnostic:st.chipDiag,lastPlcReply:st.lastPlcReply,displayRange:getActiveDSPRange(),nvmState:{backupVerified:st.nvmBackupVerified,programmed:st.nvmDone},samples:st.history.slice(-1500),trace:st.log});
+ const report=()=>({tool:'ELMOS E703.11 Kalibrierassistent v0.6.16',created:new Date().toISOString(),connection:demoEnabled?'Demo':st.port?'USB':'offline',hardwareValidated:false,unit:pressureUnit(),pointNames:{lower:pointName('lo'),upper:pointName('hi')},interface:st.iface,firmware:st.firmware,bootProtection:'Boot-/Werks-NVM-Schreiben gesperrt; kalibrierungsbezogenes User-NVM mit Bestätigung freigegeben',ramWriteActive:!!st.ramWriteScope,registers:st.regs,bootSnapshot:st.boot,chipUID:st.uid?.hex||null,expertOutput:st.expertOutputPlan,AFE:st.afe,gains:st.staged,low:st.points.lo,high:st.points.hi,verification:st.verify,calibrationPoints:st.calpoints,plannedCalibrationPointCount:calibrationPointCount(),requestedSamplesPerPoint:Number($('calSampleCount').value),requestedDSPOutputLimit:Number($('calDspLimit').value),coefficientFit:st.calfit,calRamVerified:st.calVerified,lastDSP:st.dsp,chipDiagnostic:st.chipDiag,lastPlcReply:st.lastPlcReply,displayRange:getActiveDSPRange(),nvmState:{backupVerified:st.nvmBackupVerified,programmed:st.nvmDone},samples:st.history.slice(-1500),trace:st.log});
 
  // ============ Kalibrierung + NVM (AN0203 / AN0204 / Datasheet 2023) ============
  const ca=(id,msg,type='')=>show(id,msg,type);
@@ -1592,11 +1617,11 @@ if(typeof document!=='undefined') (function UI(){
  });
  $('plcStartupLogExport').addEventListener('click',()=>{
   const log={
-   tool:'ELMOS E703.11 – SSP3 Startdiagnose',version:'v0.6.15',at:new Date().toISOString(),
+   tool:'ELMOS E703.11 – SSP3 Startdiagnose',version:'v0.6.16',at:new Date().toISOString(),
    source:'Web-App (NICHT PSSC Originalsoftware)',interface:st.iface,adapter:st.adapterKind,
    firmware:st.firmware,port:serialPortInfo(st.port),chipDetected:!!st.chip,
    startupAttempts:st.startupAttempts,lastPlcReply:st.lastPlcReply,
-   chipDiag:st.chipDiag,magicCookie:st.magicResult,powerCycle:st.powerCycleResult,log:st.log.slice(-500),
+   chipDiag:st.chipDiag,magicCookie:st.magicResult,powerCycle:st.powerCycleResult,powerHelp:st.powerHelp,log:st.log.slice(-500),
    note:'Der Export enthält nur die Web-App-Befehle. Für einen Vergleich wird zusätzlich ein originaler PSSC-SSP3-Trace benötigt. Keine Sensorregister werden durch den Export verändert.'
   };
   download('E70311_SSP3_Web_Log_'+Date.now()+'.json',JSON.stringify(log,null,2));
@@ -1607,6 +1632,11 @@ if(typeof document!=='undefined') (function UI(){
   $('plcPowerConfirm').addEventListener('change',renderStatus);
   $('plcPowerOnConnect').addEventListener('change',()=>{if($('plcPowerOnConnect').checked)$('plcMagicOnConnect').checked=false;renderStatus();});
   $('plcPowerRun').addEventListener('click',()=>testSsp3PowerStartup().catch(e=>{$('plcPowerState').textContent=e.message;logging(e.message);show('connMsg',e.message,'warn');}));
+  $('plcPowerHelpRead').addEventListener('click',()=>readSsp3PowerHelp().catch(e=>{
+   $('plcPowerHelpOutput').textContent='SSP3-Hilfe konnte nicht gelesen werden: '+e.message;
+   logging('SSP3-Hilfe: '+e.message);
+   show('connMsg','Firmwarehilfe fehlgeschlagen: '+e.message,'warn');
+  }));
   $('plcMagicRun').addEventListener('click',()=>testPlcMagicCookie().catch(e=>{
    logging('Magic Cookie Test nicht gestartet: '+e.message);
    $('plcMagicState').textContent=e.message;

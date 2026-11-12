@@ -1,3 +1,10 @@
+## v0.6.16 – 12.11.2026: SSP3-Firmwarehilfe und gesicherte Power-Off-Prüfung
+
+- Hardwarelog zeigt `Unknown command (POWER_OFF)` beim vorhandenen SSP3. `PWR_ON 0 0 0` wurde akzeptiert; noch keine PLC-P-/T-Freigabe ausgeführt.
+- Neue nur lesende Schaltfläche **«SSP3-Befehle anzeigen (?)»**. Das komplette Firmware-Hilfeergebnis wird angezeigt und in den JSON-Diagnoseexport übernommen.
+- Vor jeder experimentellen Power-Sequenz fragt die App `?` ab und lässt das **nur bei ausdrücklich aufgeführtem `PWR_OFF`** erfolgende alternative `PWR_OFF 03E8` zu. Fehlt es, Abbruch vor jeder Abschaltung.
+- Nach möglicher Abschaltung weiterhin dokumentierter Wiederherstellungsversuch `PWR_ON 0 0 0`; keine NVM-Änderung, keine weiteren unbekannten Power-Kommandos.
+
 ## v0.6.15 – 12.11.2026: SSP3-Sensorstart nach AN 0204
 
 - Dokumentiertes, manuell freizugebendes Power-Off/-On und PLC-Pufferfreigabe mit separatem Starttest und One-shot-Option beim nächsten Verbindungsaufbau.

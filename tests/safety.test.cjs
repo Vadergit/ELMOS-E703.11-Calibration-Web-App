@@ -180,7 +180,7 @@ test('Expert mode shows contextual settings and no modal',()=>{
  assert.ok(html.includes('data-expert-area hidden><summary>Erweitert · AODO_F'));
  assert.ok(src.includes("classList.toggle('is-expert',enabled)"));
  const scripts=Array.from(html.matchAll(/<script src="([^"]+)"/g),m=>m[1]);
- assert.deepEqual(scripts,['calibration.js?v=0.6.15','eeprom-help.js?v=0.6.15','expert.js?v=0.6.15','config.js?v=0.6.15','guided-plan.js?v=0.6.15','demo.js?v=0.6.15','app.js?v=0.6.15','compact.js?v=0.6.15','guided.js?v=0.6.15']);
+ assert.deepEqual(scripts,['calibration.js?v=0.6.16','eeprom-help.js?v=0.6.16','expert.js?v=0.6.16','config.js?v=0.6.16','guided-plan.js?v=0.6.16','demo.js?v=0.6.16','app.js?v=0.6.16','compact.js?v=0.6.16','guided.js?v=0.6.16']);
 });
 
 test('Failed E703.11 probe keeps SSP3 open for explicit, bounded startup test',()=>{
@@ -440,7 +440,7 @@ test('Guided view is optional and contains only one set of hardware inputs',()=>
  assert.ok(html.includes('id="workflowMode"'));
  assert.ok(html.includes('id="guidedLaunch"'));
  assert.ok(html.includes('id="guidedLaunchTop"'));
- assert.ok(html.includes('guided.css?v=0.6.15'));
+ assert.ok(html.includes('guided.css?v=0.6.16'));
  for(const id of ['nvmProgram','nvmPrepare','calApplyRam','calVerifyRam','expertOutputStage','configApply','configFile']){
   assert.equal(html.split('id="'+id+'"').length-1,1);
  }
@@ -837,8 +837,12 @@ test('AN0204 SSP3 power test is opt-in, ordered, recoverable and never programs 
  const code=app.split('async function testSsp3PowerStartup(){')[1]?.split('async function connect(port){')[0];
  assert.ok(code);
  assert.ok(code.includes("if(!$('plcPowerConfirm').checked)"));
+ assert.ok(code.includes("const help=await readSsp3PowerHelp()"));
+ assert.ok(code.includes("if(!help.pwrOffListed)"));
+ assert.ok(!code.includes("await send('Power_OFF 03E8'"));
+ assert.ok(code.indexOf("if(!help.pwrOffListed)")<code.indexOf("await send('PWR_OFF 03E8'"));
  assert.ok(code.includes("st.adapterKind!=='ssp3'||st.iface!=='plc'"));
- const commands=["Power_OFF 03E8","PLC P","PWR_ON 0C80 00C8 0","PLC T"];
+ const commands=["PWR_OFF 03E8","PLC P","PWR_ON 0C80 00C8 0","PLC T"];
  for(const cmd of commands)assert.ok(code.includes("await send('"+cmd+"'"));
  for(let i=1;i<commands.length;i++)assert.ok(code.indexOf("await send('"+commands[i-1]+"'")<code.indexOf("await send('"+commands[i]+"'"));
  assert.ok(code.includes("await send('PWR_ON 0 0 0',4000)"));
@@ -855,4 +859,18 @@ test('AN0204 one-shot startup runs before read, prevents simultaneous manual coo
  assert.ok(connect.indexOf('await testSsp3PowerStartup();')<connect.indexOf('await detect();'));
  assert.ok(app.includes('st.nvmWorking||st.calTask||st.writing||st.powerCycleRunning'));
  assert.ok(app.includes("if($('plcPowerOnConnect').checked)$('plcMagicOnConnect').checked=false"));
+});
+
+test('SSP3 help ? is read-only, exported and prevents unlisted power-off alias',()=>{
+ const src=read('app.js'),html=read('index.html');
+ const help=src.split('async function readSsp3PowerHelp(){')[1]?.split('async function testSsp3PowerStartup(){')[0];
+ assert.ok(help);
+ assert.ok(help.includes("exchange('?',5500)"));
+ assert.ok(help.includes("PWR_OFF(?:[^A-Z0-9_]|$)"));
+ assert.ok(help.includes("st.powerHelp={at:new Date().toISOString()"));
+ assert.ok(!help.includes("PWR_OFF 03E8"));
+ assert.ok(!help.includes('PWR_ON '));
+ assert.ok(html.includes('id="plcPowerHelpRead" disabled'));
+ assert.ok(html.includes('id="plcPowerHelpOutput"'));
+ assert.ok(src.includes('powerHelp:st.powerHelp,log:st.log.slice(-500)'));
 });

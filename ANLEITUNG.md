@@ -150,3 +150,8 @@ Der Anwender hat die Hersteller-Application-Note AN 0204 bereitgestellt, die ers
 **Achtung:** Der Abschaltbefehl heisst laut Seite 7 **`Power_OFF`**, während der Einschaltbefehl **`PWR_ON`** heisst. Bei Fehlschlag nach einem begonnenen Ausschalten versucht die App dokumentiertes `PWR_ON 0 0 0` zur Wiederherstellung. Im Log stehen die Antworten und Laufzeiten jeder Stufe.
 
 Aufruf: **USB & Chip → SSP3-Verbindungsdiagnose → Neu · SSP3-Sensorstart (AN 0204, Prüfplatz)**. Alternativ gibt es eine einmalige Opt-in-Option beim nächsten Connect **vor dem ersten Registerlesen**. Die Originalsoftware-Sequenz ist mangels Mitschnitt weiterhin nicht 1:1 belegt; insbesondere ein 4-ms-Startfenster ist durch Browser-/USB-Latenzen nicht garantiert. Nur bei über SSP3-VSUPPLY versorgtem Prüfsensor verwenden; externes VDD wird eventuell nicht geschaltet. Keine NVM-Programmierung, aber temporäre Überlagerung des analogen AODO-Ausgangs ist möglich.
+
+
+### v0.6.16: SSP3-Firmware-Befehlshilfe bei fehlerhaftem Power_OFF
+
+Das reale SSP3 meldete beim ersten Power-Test `Unknown command (POWER_OFF)`, obwohl AN0204 genau diese Schreibweise nennt. `PWR_ON` war erreichbar. Im Reiter **USB & Chip → SSP3-Verbindungsdiagnose → SSP3-Sensorstart** bitte zunächst auf **«SSP3-Befehle anzeigen (?) · nur lesen»** klicken. Die Hilfe wird unterhalb des Buttons ausgegeben und beim Web-App-Protokollexport mitgespeichert. Der eigentliche Power-Test prüft die Hilfe automatisch und sendet **nur wenn `PWR_OFF` darin ausdrücklich vorkommt** die experimentelle Alternative `PWR_OFF 03E8`; ansonsten bricht er vor jeder Stromunterbrechung ab. Keine NVM-Änderungen. Bei einer erneuten Fehlermeldung Hilfe- und Startprotokoll hochladen.

@@ -112,3 +112,8 @@ Der Anwender hat die Hersteller-Application-Note AN 0204 bereitgestellt, die ers
 Aufruf: **USB & Chip → SSP3-Verbindungsdiagnose → Neu · SSP3-Sensorstart (AN 0204, Prüfplatz)**. Alternativ gibt es eine einmalige Opt-in-Option beim nächsten Connect **vor dem ersten Registerlesen**. Die Originalsoftware-Sequenz ist mangels Mitschnitt weiterhin nicht 1:1 belegt; insbesondere ein 4-ms-Startfenster ist durch Browser-/USB-Latenzen nicht garantiert. Nur bei über SSP3-VSUPPLY versorgtem Prüfsensor verwenden; externes VDD wird eventuell nicht geschaltet. Keine NVM-Programmierung, aber temporäre Überlagerung des analogen AODO-Ausgangs ist möglich.
 
 **Hardwarestatus:** Herstellerbefehle dokumentiert, aber 4-ms-Timing und tatsächliche SSP3-Hardwarefunktion noch nicht validiert.
+
+
+### SSP3-Firmwareabweichung in v0.6.16
+
+Im realen USB-Log vom 12.11.2026 12:17 Uhr wird `Power_OFF 03E8` nach 29 ms mit `!ERROR: Unknown command (POWER_OFF)` zurückgewiesen; `PWR_ON 0 0 0` wird danach in 16 ms akzeptiert. Ein Ausschalten des E703.11 ist **nicht belegt**. `PLC P` und `PLC T` wurden in diesem Versuch nicht erreicht. Gegenprobe: Die neu implementierte reine `?`-Firmwarehilfe und das Stoppen vor einem nicht beworbenen `PWR_OFF` sind softwareseitig prüfbar. Eine reale Bestätigung des alternativen `PWR_OFF` und des One-Wire-Starts steht aus.
