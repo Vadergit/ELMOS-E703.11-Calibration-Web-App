@@ -84,7 +84,9 @@ if(typeof document!=='undefined') (function UI(){
   message.textContent=working?'Verbindung wird geprüft und initialisiert …':
    st.adapterNoReply?'Der SSP3 antwortet nicht auf USB-Befehle (auch nicht auf .VERSION). USB-Port neu öffnen; falls weiterhin keine Antwort kommt, SSP3/FTDI und andere Programme prüfen.':
    st.sensorLost?'Kommunikation zum Sensor fehlgeschlagen. Der SSP3 antwortet weiterhin über USB.':
-   'Keine gültige Sensorantwort. Sensoranschluss prüfen und erneut initialisieren.';
+   st.plcAddressProbes.length&&st.iface==='plc'
+     ? 'Keine bestätigte Chipantwort. Adressen 0x6C und 0x7C wurden geprüft. Details mit «Diagnose exportieren» sichern.'
+     : 'Keine gültige Sensorantwort. Sensoranschluss prüfen und erneut initialisieren.';
   button.disabled=working||st.writing||st.nvmWorking||st.calTask||st.afeWriteActive;
   button.textContent=working?'Initialisierung läuft …':
    st.adapterNoReply?'SSP3-Port neu öffnen':'Sensor neu initialisieren';
@@ -2478,7 +2480,7 @@ if(typeof document!=='undefined') (function UI(){
  });
  $('plcStartupLogExport').addEventListener('click',()=>{
   const log={
-   tool:'ELMOS E703.11 – SSP3 Startdiagnose',version:'v0.6.39',at:new Date().toISOString(),
+   tool:'ELMOS E703.11 – SSP3 Startdiagnose',version:'v0.6.41',at:new Date().toISOString(),
    source:'Web-App (NICHT PSSC Originalsoftware)',interface:st.iface,adapter:st.adapterKind,
     plcAddress:'0x'+h(st.plcAddress),plcAddressVerified:st.plcAddressVerified,
     plcAddressSource:st.plcAddressSource,plcAddressProbes:st.plcAddressProbes,
@@ -2677,6 +2679,7 @@ if(typeof document!=='undefined') (function UI(){
   renderStatus();
  });
  $('choose').addEventListener('click',()=>choose());$('auto').addEventListener('click',()=>auto());$('disconnect').addEventListener('click',()=>disconnect());$('sensorReconnectButton').addEventListener('click',()=>st.adapterNoReply?reopenSsp3Port():reinitializeSensor());
+ $('sensorReconnectExport').addEventListener('click',()=>$('plcStartupLogExport').click());
  $('brSupplySelect').addEventListener('change',renderBridgeSupplyState);
  $('brSupplyRead').addEventListener('click',()=>refreshBridgeSupply());
  $('brSupplyApply').addEventListener('click',()=>commitBridgeSupply(Number($('brSupplySelect').value)).catch(e=>show('writeMsg',e.message,'error')));
