@@ -1,6 +1,6 @@
 # Config-Dateien und EEPROM Viewer
 
-**Version v0.5.0 · 11. November 2026 · ELMOS E703.11 Kalibrierassistent**
+**Version v0.6.8 · 12. November 2026 · ELMOS E703.11 Kalibrierassistent**
 
 Die Web-App unterstützt die Wiederverwendung von **chipunabhängigen Konfigurationen**, ohne dass sensorspezifische Kalibrierwerte, Werksdaten oder Kommunikationsregister von einem Sensor auf einen anderen übertragen werden.
 
@@ -12,26 +12,25 @@ Wenn mehrere Sensoren dieselben Grundeinstellungen benötigen, kannst du beim er
 
 ## Config speichern
 
-In **USB & Chip → Config-Vorlagen**:
+Unter **USB & Chip → Config-Vorlagen** (auch im geführten und kompakten Modus):
 
-1. Einen sprechenden Namen eingeben, z. B. «Drucksensor 0–10 bar».
-2. Die passenden Einstellungen in AFE, Messpunkten, DSP und Ausgang auswählen.
-3. **Aktuelle Config speichern (.json)** drücken.
-4. Die heruntergeladene Datei nach Bedarf lokal archivieren oder auf einem anderen Rechner verwenden.
+1. Die gewünschten Einstellungen an den jeweiligen Stellen vornehmen.
+2. Einen Vorlagennamen vergeben.
+3. Im Bereich «Was soll in der Config-Datei gespeichert werden?» die gewünschten Gruppen auswählen: **AFE** (PGA1, Offset, PGA2), **Referenz** (Min., Max., Einheit), **Messung** (Punkte, Samples), **DSP** (Polynomordnung, Endwert) und **Ausgang** (Modus, VDD, S0/S1, Scaling).
+4. «Ausgewählte Config speichern (.json)» drücken.
 
-Der Export ist auch **ohne verbundenen Sensor** möglich. Falls eine Vorlage geladen ist und die AFE-Vorgaben noch nicht ins RAM übertragen wurden, enthält der Export diese vorgemerkten AFE-Stufen.
+Mindestens eine Gruppe muss ausgewählt sein. **Nur die angehakten Gruppen stehen im JSON.** AFE wird mit den aktuell bestätigten Verstärkungs- und Offsetwerten gespeichert, nicht mit einem vorgemerkten Fehlversuch. Messpunkte, sensorspezifische Polynomkoeffizienten und EEPROM-/Factory-Wörter werden nie exportiert.
 
-## Config laden
+## Config laden und anwenden
 
-1. Unter **USB & Chip → Config-Vorlagen** eine `.json`-Datei auswählen.
-2. Die App prüft das Format, erlaubte Felder, Zahlenbereiche, Ausgangsmodi und die Spannungs-/DSP-Skalierung. Eine EEPROM-Backup-Datei wird ausdrücklich abgelehnt.
-3. Die Anzeige zeigt die Einstellungen als Vorschau. Bis hier wurde **weder der Assistent geändert noch der Chip beschrieben**.
-4. **Geladene Config übernehmen** drücken. Jetzt werden die UI-Einstellungen gesetzt, aber **keine** Chipregister geschrieben.
-5. Zu **AFE optimieren** wechseln. Die vorgemerkten Verstärkungen/Offsetwerte sind separat vom tatsächlich aktiven Chipzustand sichtbar.
-6. Erst mit **AFE-Vorgabe jetzt ins RAM übertragen und rücklesen** wird die AFE im Chip geändert. Die App kontrolliert den Wert per Rücklesung. Diese Aktion programmiert kein EEPROM.
-7. Anschliessend pro Sensor Messpunkte aufnehmen, DSP-Koeffizienten berechnen, ins RAM übertragen, unabhängig prüfen und NVM erst nach UID-/CRC-/1-Wire-Schutzprüfung programmieren.
+1. Eine JSON-Datei auswählen und die Vorschau der enthaltenen Gruppen prüfen.
+2. Die App prüft Format, Gruppen, Zahlenbereiche und zulässige Einstellungen. Die alten vollständigen Config-Dateien **v1** bleiben lesbar.
+3. Enthält die Datei **keine AFE-Werte**, werden beim Klick auf «Ausgewählte Vorgaben übernehmen» nur die enthaltenen Einstellungen übernommen; kein RAM- oder EEPROM-Schreiben.
+4. Enthält die Datei **AFE-Werte**, heisst der Button **«Config übernehmen + AFE direkt ins RAM»**. Mit diesem ausdrücklichen Klick werden PGA1, Offset und PGA2 **sofort ins RAM des verbundenen Sensors geschrieben** und durch Rücklesung kontrolliert. Ein zusätzlicher AFE-Button ist nicht nötig.
+5. Ohne echte Chipverbindung oder wenn die RAM-Rücklesung scheitert, meldet die App einen Fehler. Die übrigen Config-Gruppen werden dann **nicht** angewendet.
+6. Falls AFE, Referenz, Messablauf oder DSP-Vorgaben übernommen wurden, sind die bisherigen Messpunkte und DSP-Koeffizienten für diesen Sensor neu zu erfassen. Für eine dauerhafte Programmierung bleibt weiterhin der separate, geschützte NVM-Schritt notwendig.
 
-Bei Fehlern bleibt die geladene AFE-Vorgabe vorgemerkt, statt ohne bestätigten Rücklesewert als erfolgreich zu gelten.
+**Wichtig:** Automatisches AFE-RAM-Schreiben erfolgt **erst nach dem bewussten Klick auf den Import-Button**, nicht bereits durch die Dateiauswahl. Eine Config programmiert niemals direkt das EEPROM.
 
 ## Was darf in eine Config?
 
@@ -48,14 +47,11 @@ Besonders wichtig: **AODO_F und AODO_O in der Config sind nur Ausgangs-Zielparam
 
 ## Dateiformat und Versionierung
 
-- JSON-Formatkennung `ELMOS-E70311-CONFIG`, Formatversion `1`.
-- Software-Version bei Einführung: **v0.4.0**.
-- Oberste Felder: `format`, `version`, `label`, `createdAt`, `afe`, `calibration`, `output`.
-- Unbekannte Felder, nicht unterstützte Modi, unzulässige AFE-Stufen, unrealistische DSP-Endwerte und ungültige Analog-Spannungsendpunkte werden abgelehnt.
-- Ein Import prüft die Daten vollständig, bevor **Geladene Config übernehmen** freigegeben wird.
-- Eine vom Hersteller-PSSC exportierte vollständige Hex-/EEPROM-Datei ist **keine** kompatible Config-Vorlage. Wir importieren bewusst keine unbekannten Herstellerregister ohne vollständige Sicherheitsprüfung.
-
-**Im optionalen Kompaktmodus** sind die Config-Vorlagen direkt neben SSP3 und AFE erreichbar. Speichern, Dateiauswahl, Vorschau und bewusste Übernahme verwenden die identischen Bedienelemente wie in der Normalansicht. Ein Import programmiert weder RAM noch EEPROM automatisch.
+- Neues JSON-Format **v2**: Kennung ELMOS-E70311-CONFIG, Version 2, Liste «include» und nur die tatsächlich ausgewählten Gruppen «afe», «reference», «measurement», «dsp» und «output».
+- Bestehendes vollständiges JSON-Format **v1** bleibt weiterhin gültig und wird als vollständige Config übernommen.
+- Die Validierung weist unerlaubte Felder, doppelte Gruppen, ungültige Codes, unzulässige Zahlen oder unbekannte Ausgangsmodi zurück.
+- Komplette EEPROM-Backups, UID, Bootregister oder Werkseinstellungen werden nicht importiert.
+- Auch im One-Pager und im geführten Assistenten werden dieselben Auswahlfelder verwendet; bei enthaltenen AFE-Werten schreibt der Import nach ausdrücklicher Bestätigung ins RAM, nicht ins EEPROM.
 
 ## EEPROM Viewer
 
