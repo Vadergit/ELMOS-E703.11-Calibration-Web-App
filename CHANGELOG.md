@@ -1,3 +1,11 @@
+## v0.6.36 – 12.11.2026: Brückenspannung SVDD im AFE auswählbar
+
+- CFG_AFE0 (0x1A), Bits 1:0, im normalen AFE-Bereich als 2,4 V / 1,6 V / 2,0 V verfügbar. Code 3 ist gesperrt, aktueller Wert wird erst vom Chip gelesen.
+- **Bewusste RAM-Übernahme** mit Soll-/Ist-Rücklesung; alle anderen CFG_AFE0-Bits, insbesondere `br_gain`, bleiben unverändert. Keine EEPROM-Programmierung.
+- Bestehende Kalibrierpunkte werden nach einer tatsächlichen Änderung ungültig. Schrittansicht und Kompaktmodus nutzen die gemeinsame AFE-Komponente.
+- CFG_AFE0 mit Datenblatt-default `0x0C40` in der Demo hinterlegt; neue Config-v2-Dateien können optional `afe.bridgeSupply` enthalten, alte Dateien bleiben kompatibel.
+- Separater Hinweis auf Mindest-VDD: 3,0 V für 2,4-V-SVDD; 2,7 V für 1,6/2,0 V. Die SSP3-Startsequenz wurde nicht geändert; der Jürg-Kommunikationsfehler ist weiterhin nicht als behoben bestätigt.
+
 ## v0.6.35 – 12.11.2026: CRC8 unabhängig verifizieren und mehrere Register nach Fehlstart lesen
 
 - Jürgs zweites Protokoll belegt: beide Magic-Cookie-Frames werden vom SSP3 quittiert, der danach gelesene CFG_AFE1-Wert bleibt aber 0x0000.
