@@ -111,6 +111,7 @@ if(typeof document!=='undefined') (function UI(){
  // SVDD is the internally regulated sensor bridge supply, NOT the SSP3 DUT VDD
  // and NOT the ratiometric AODO output voltage. DS 25DS0170E.04, CFG_AFE0
  // (0x1A) bits 1:0: 00=2.4 V, 01=1.6 V, 10=2.0 V; 11 is reserved.
+ const BRIDGE_SUPPLY_ORDER=[1,2,0]; // 1.6 V, 2.0 V, 2.4 V
  function bridgeSupplyCode(word){return Number.isInteger(word)?word&3:null}
  function renderBridgeSupplyState(){
   const select=$('brSupplySelect'),read=$('brSupplyRead'),apply=$('brSupplyApply'),status=$('brSupplyStatus');
@@ -121,11 +122,17 @@ if(typeof document!=='undefined') (function UI(){
   const code=bridgeSupplyCode(st.afe0);
   const valid=code!=null&&code<3;
   if(!active)select.value='';
-  select.disabled=!active||busy||!valid;
   read.disabled=!active||busy;
   const desired=select.value===''?null:Number(select.value);
-  apply.disabled=!active||busy||!valid||!Number.isInteger(desired)||desired<0||
-   desired>2||desired===code;
+  const index=BRIDGE_SUPPLY_ORDER.indexOf(desired);
+  const pending=valid&&index>=0&&desired!==code;
+  $('brSupplyValue').textContent=valid&&index>=0?BRIDGE_VOLTAGES[desired].toFixed(1).replace('.',',')+' V':'—';
+  $('brSupplyDown').disabled=!active||busy||index<=0;
+  $('brSupplyUp').disabled=!active||busy||index<0||index===BRIDGE_SUPPLY_ORDER.length-1;
+  $('brSupplyActions').hidden=!active||(valid&&!pending);
+  read.hidden=valid;
+  apply.hidden=!pending;
+  apply.disabled=!active||busy||!pending;
   apply.textContent=busy&&st.bridgeReadBusy?'Lese Brückenspannung …':
    busy&&st.bridgeWriteAllowed?'Übernahme läuft …':'Ins RAM übernehmen';
   status.textContent=!active?'Brückenspannung noch nicht gelesen. Zuerst den E703.11 verbinden.':
@@ -2585,7 +2592,7 @@ if(typeof document!=='undefined') (function UI(){
  });
  $('plcStartupLogExport').addEventListener('click',()=>{
   const log={
-   tool:'ELMOS E703.11 – SSP3 Startdiagnose',version:'v0.6.43',at:new Date().toISOString(),
+   tool:'ELMOS E703.11 – SSP3 Startdiagnose',version:'v0.6.44',at:new Date().toISOString(),
    source:'Web-App (NICHT PSSC Originalsoftware)',interface:st.iface,adapter:st.adapterKind,
     plcAddress:'0x'+h(st.plcAddress),plcAddressVerified:st.plcAddressVerified,
     plcAddressSource:st.plcAddressSource,plcAddressProbes:st.plcAddressProbes,psscRamRecovery:!!st.psscRamRecovery,
@@ -2785,7 +2792,16 @@ if(typeof document!=='undefined') (function UI(){
  });
  $('choose').addEventListener('click',()=>choose());$('auto').addEventListener('click',()=>auto());$('disconnect').addEventListener('click',()=>disconnect());$('sensorReconnectButton').addEventListener('click',()=>st.adapterNoReply?reopenSsp3Port():reinitializeSensor());
  $('sensorReconnectExport').addEventListener('click',()=>$('plcStartupLogExport').click());
- $('brSupplySelect').addEventListener('change',renderBridgeSupplyState);
+ for(const [id,step] of [['brSupplyDown',-1],['brSupplyUp',1]]){
+  $(id).addEventListener('click',()=>{
+   const selected=$('brSupplySelect');
+   const index=BRIDGE_SUPPLY_ORDER.indexOf(Number(selected.value));
+   const next=BRIDGE_SUPPLY_ORDER[index+step];
+   if(index<0||next===undefined||$(id).disabled)return;
+   selected.value=String(next);
+   renderBridgeSupplyState();
+  });
+ }
  $('brSupplyRead').addEventListener('click',()=>refreshBridgeSupply());
  $('brSupplyApply').addEventListener('click',()=>commitBridgeSupply(Number($('brSupplySelect').value)).catch(e=>show('writeMsg',e.message,'error')));
  $('readNow').addEventListener('click',()=>readADC().catch(e=>show('adcMsg','ADC: '+e.message,'error')));$('live').addEventListener('click',()=>{if(st.live){st.manualLivePause=true;stopLive()}else{st.manualLivePause=false;startLive()}});
