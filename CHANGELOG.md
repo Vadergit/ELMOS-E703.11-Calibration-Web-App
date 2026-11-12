@@ -1,3 +1,11 @@
+## v0.6.38 – 12.11.2026: PSSC-basierte PLC_CFG-Initialisierung ergänzen
+
+- Original `ssp3_lib.dll` und Elmos AN0204 abgeglichen: Auf der bekannten SSP3-Firmware 02.08.02.04 zuerst `PLC_CFG 1 0007` (100 kHz), danach bei Bedarf `PLC_CFG 1 000E` (50 kHz).
+- Erster Versuch nutzt einen gemeinsamen USB-Write für PWR_ON/PLC T; zweiter Versuch die bisherige Methode mit zwei USB-Writes. Maximal zwei Power-Cycles pro Verbinden/Neuinitialisieren.
+- `PLC_CFG`-Fehler werden separat protokolliert. Für unbekannte Firmware wird keine ungeprüfte Geschwindigkeit gesetzt. Kein 7/6-kHz-Autoversuch bei möglichem 4-ms-Startfenster.
+- Alle Versuche inkl. Host-Takt, Leseprüfung, Cookie und gegebenenfalls fehlender PLC_CFG-Quittung im JSON unter `startupTrials`.
+- Weder direkte historische Cookie-Frames aus der PSSC-Bibliothek noch NVM-Änderungen werden ohne dokumentierte Freigabe verwendet. Reale Hardwareprüfung offen.
+
 ## v0.6.37 – 12.11.2026: SSP3-Start in einem USB-Paket + begrenzter Retry
 
 - `PWR_ON 0C80 00C8 0` und `PLC T` werden im ersten Versuch gemeinsam in einem CR-terminierten USB-Paket versendet, statt durch zwei separate USB-Write-Aufrufe.
