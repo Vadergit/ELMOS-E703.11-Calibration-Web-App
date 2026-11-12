@@ -469,7 +469,7 @@ html.compact-mode .foot{display:none}
 .dot.missing{background:#bb7a17}
 @media(max-width:600px){.sensor-reconnect button{width:100%}}
 </style><link rel="stylesheet" href="guided.css?v=0.6.30"><link rel="stylesheet" href="interface.css?v=0.6.30"></head><body><div class="wrap"><header class="top">
-<div class="brand"><div class="logo" aria-hidden="true">E</div><div><div class="eyebrow">E703.11 · PSSC · v0.6.39</div><h1>Kalibrierassistent</h1></div></div>
+<div class="brand"><div class="logo" aria-hidden="true">E</div><div><div class="eyebrow">E703.11 · PSSC · v0.6.40</div><h1>Kalibrierassistent</h1></div></div>
 <div class="live-overview" role="group" aria-label="Sensorwerte · laufende Anzeige">
   <div class="live-kpi" title="Unkompensierter Druck-ADC. Warnung bei Beträgen über 25’000 Digits."><span class="live-kpi-label">ADC_S <span id="liveAdcAlert" class="live-alert" hidden>!</span></span><span class="live-kpi-reading" id="liveAdcS">—</span><span class="live-kpi-unit">Digits</span></div>
   <div class="live-kpi" title="ADC_T · Temperatur-Rohwert, keine direkte Temperatur in °C."><span class="live-kpi-label">ADC_T</span><span class="live-kpi-reading" id="liveAdcT">—</span><span class="live-kpi-unit">Digits</span></div>
@@ -522,10 +522,12 @@ html.compact-mode .foot{display:none}
   <dl class="connection-summary">
     <div><dt>Adapter-Firmware</dt><dd id="fw">—</dd></div>
     <div><dt>Chip-Schnittstelle</dt><dd id="ifaceLabel">1-Wire</dd></div>
+    <div id="plcAddressRow" hidden><dt>1-Wire-Adresse</dt><dd id="plcAddressLabel">—</dd></div>
     <div><dt>Chip-Register</dt><dd id="chip">—</dd></div>
   </dl>
   <div id="plcStartupTools" class="connection-startup-tools" hidden>
     <h3>SSP3-Verbindungsdiagnose · 1-Wire</h3>
+    <p class="muted small"><strong>Automatische Adresserkennung:</strong> Die Web-App prüft zuerst lesend 0x6C (Standard) und 0x7C (z. B. aus PSSC-XML mit CFG_SPI_I2C=0x7C05). Sie prüft CRC8, AFE/ADC und die im Sensor gespeicherte Adresse, bevor sie diese für weitere Befehle übernimmt. Keine NVM-Programmierung durch die Adresserkennung. Die bestätigte Adresse ist oben im Expertenmodus sichtbar und im JSON-Protokoll enthalten.</p>
     <p class="muted small"><strong>Die originale Elmos-PSSC-Software verbindet über One Wire ohne manuelles Neuanschliessen.</strong> Elmos AN 0204 dokumentiert die SSP3-Power-Befehle und die gepufferte PLC-Freigabe. Bei SSP3-Firmware 02.08.02.04 testet die App automatisch zuerst ein gemeinsames USB-Paket für PWR_ON + PLC T mit dem aus PSSC abgeleiteten PLC-Takt 100 kHz. Falls nötig folgt einmalig der bisherige Zweipaket-Ablauf mit 50 kHz. Lehnt der SSP3 PLC_CFG ab, bleibt die bestehende Geschwindigkeit erhalten. Anschliessend werden die Register geprüft – maximal zwei Versuche.</p>
     <div class="flex"><button type="button" id="plcStartupLogExport">Web-App-SSP3-Protokoll exportieren</button><button type="button" id="plcStartupProbe">PLC-Lesediagnose (12 s)</button><button type="button" id="plcStartupStop" disabled>Test abbrechen</button></div>
     <p class="muted small">Die Lesediagnose startet den Sensor <strong>nicht</strong> neu und ist nur ein Zusatztest. Im JSON-Export sind ab v0.6.37 beide automatischen Startversuche unter <code>startupTrials</code> enthalten. Es werden keine unbekannten PLC_CFG-Taktteiler oder NVM-Befehle gesendet.</p>
@@ -1066,5 +1068,5 @@ html.compact-mode .foot{display:none}
 </div>
 <div class="nav"><button data-next="0">Zur Verbindung</button><button data-next="6">Zum NVM-Schritt</button></div>
 </section>
-<div class="foot"><b>Version v0.6.39</b> · <a href="CHANGELOG.md" target="_blank" rel="noopener">Änderungsverlauf</a> · ELMOS E703.11 · unabhängiger Kalibrierprototyp · Sicherheitsprinzip: Factory- und Kommunikations-Bootregister gesperrt; dokumentierte AODO-Ausgangsoptionen nur nach Prüfung im NVM-Plan; Wiederherstellung nur mit passender Chip-UID.</div>
-</main></div></div><div id="tip" class="tooltip"></div><script src="calibration.js?v=0.6.30"></script><script src="eeprom-help.js?v=0.6.30"></script><script src="expert.js?v=0.6.30"></script><script src="config.js?v=0.6.36"></script><script src="guided-plan.js?v=0.6.30"></script><script src="demo.js?v=0.6.36"></script><script src="app.js?v=0.6.39"></script><script src="compact.js?v=0.6.30"></script><script src="guided.js?v=0.6.31"></script></body></html>
+<div class="foot"><b>Version v0.6.40</b> · <a href="CHANGELOG.md" target="_blank" rel="noopener">Änderungsverlauf</a> · ELMOS E703.11 · unabhängiger Kalibrierprototyp · Sicherheitsprinzip: Factory- und Kommunikations-Bootregister gesperrt; dokumentierte AODO-Ausgangsoptionen nur nach Prüfung im NVM-Plan; Wiederherstellung nur mit passender Chip-UID.</div>
+</main></div></div><div id="tip" class="tooltip"></div><script src="calibration.js?v=0.6.30"></script><script src="eeprom-help.js?v=0.6.30"></script><script src="expert.js?v=0.6.30"></script><script src="config.js?v=0.6.36"></script><script src="guided-plan.js?v=0.6.30"></script><script src="demo.js?v=0.6.36"></script><script src="app.js?v=0.6.40"></script><script src="compact.js?v=0.6.30"></script><script src="guided.js?v=0.6.31"></script></body></html>
