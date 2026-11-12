@@ -392,6 +392,22 @@ test('Guided matrix: 3 pressure x 2 temperature, and supported 10-point maximum'
  const max=GUIDED_PLAN.create({pCount:5,tCount:2,temperatures:[10,60]});
  assert.equal(max.total,10);assert.equal(max.orderS,3);assert.equal(max.orderT,1);
 });
+test('NVM write always releases maintenance flags and resumes live ADC/DSP unless manually paused',()=>{
+ const app=read('app.js');
+ const nvm=app.split(' async function nvmProgram(){')[1].split(' async function postBootCheck(')[0];
+ assert.ok(nvm.includes("st.nvmWorking=true;st.calTask=true;st.writing=true;st.ramWriteScope='nvm';stopLive()"));
+ assert.ok(nvm.includes("if(st.liveReadPromise)await st.liveReadPromise.catch(()=>{});"));
+ assert.ok(nvm.includes("if(st.calTask){"));
+ assert.ok(nvm.includes("await ramLock()"));
+ assert.ok(nvm.includes("}finally{\n    st.ramWriteScope=null;st.nvmWorking=false;st.calTask=false;st.writing=false;"));
+ assert.ok(nvm.includes("if(!st.manualLivePause&&st.port&&st.chip&&!st.closing){\n     startLive();"));
+ assert.ok(nvm.lastIndexOf("st.nvmWorking=false;st.calTask=false;st.writing=false")<nvm.lastIndexOf("startLive();"));
+ assert.ok(nvm.includes("Live-Messung nach NVM-Vorgang automatisch wieder gestartet"));
+ // Sensor NVM write protection, UID checks and CRC must stay intact.
+ assert.ok(nvm.includes("if(st.iface!=='plc')throw Error"));
+ assert.ok(nvm.includes("st.uid.ser0!==st.nvmBackup[0]"));
+ assert.ok(nvm.includes("CAL.crc16(after)!==after[63]"));
+});
 test('Single-temperature guide names points P1, P2 without artificial T1 prefix',()=>{
  const p=GUIDED_PLAN.create({pCount:2,tCount:1,temperatures:[25],pmin:0,pmax:100,unit:'%'});
  assert.deepEqual(p.points.map(x=>x.label),['P1','P2']);
