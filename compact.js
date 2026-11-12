@@ -18,7 +18,7 @@ const ELMOS_COMPACT=(()=>{
   '<div class="cp-board">',
   makeCard('1 · USB & Chip','connection','<div class="cp-fields cp-cols-2" id="cpUsbFields"></div><div class="cp-actions" id="cpUsbActions"></div><div class="cp-status" id="cpUsbStatus"></div><details class="cp-fold"><summary>Diagnose / Startfenster</summary><div id="cpUsbExtra" class="cp-fold-body"></div></details>'),
   makeCard('2 · AFE / RAM','afe','<div id="cpAfeSteps"></div><div class="cp-actions" id="cpAfeActions"></div><div id="cpAfeGain" class="cp-caption"></div><div class="cp-status" id="cpAfeStatus"></div><div id="cpAfeTemplate"></div>'),
-  makeCard('Config-Vorlagen','config','<div class="cp-fields cp-cols-2" id="cpCfgFields"></div><div class="cp-actions" id="cpCfgActions"></div><div class="cp-status" id="cpCfgStatus"></div>'),
+  makeCard('Config-Vorlagen','config','<div class="cp-fields cp-cols-2" id="cpCfgFields"></div><div id="cpCfgGroups"></div><div class="cp-actions" id="cpCfgActions"></div><div id="cpCfgEffect"></div><div class="cp-status" id="cpCfgStatus"></div>'),
   makeCard('3 · Messpunkte','points','<div class="cp-fields cp-points-setup" id="cpPointsSetup"></div><div class="cp-point-toolbar"><label>Messpunkt bearbeiten <select id="cpPointSelect" aria-label="Messpunkt auswählen"></select></label><div id="cpPointProgress"></div></div><div class="cp-point-edit" id="cpPointRows"></div><div class="cp-actions" id="cpPointsActions"></div><div class="cp-status" id="cpPointsStatus"></div>'),
   makeCard('4 · Berechnen / RAM','fit','<div class="cp-fields cp-cols-3" id="cpFitFields"></div><div class="cp-actions" id="cpFitActions"></div><div class="cp-status" id="cpFitStatus"></div><div id="cpFitDetails"></div>'),
   makeCard('5 · DSP prüfen','verify','<div class="cp-fields cp-cols-2" id="cpVerifyFields"></div><div class="cp-actions" id="cpVerifyActions"></div><div class="cp-caption" id="cpVerifyProgress"></div><div class="cp-status" id="cpVerifyStatus"></div><div id="cpVerifyDetails"></div>'),
@@ -65,6 +65,7 @@ const ELMOS_COMPACT=(()=>{
   moveId('configAfePending','cpAfeTemplate');
 
   for(const id of ['configLabel','configFile'])label(id,'cpCfgFields');
+  moveId('configGroups','cpCfgGroups');moveId('configImportEffect','cpCfgEffect');
   actions(['configSave','configApply'],'cpCfgActions');
   moveId('configPreview','cpCfgStatus');
 
