@@ -1,3 +1,10 @@
+## v0.6.28 – 12.11.2026: Live-Start unabhängig von NVM-Schreibfreigabe
+
+- Bei bestätigtem ADC_S darf die **nur lesende** Live-Abfrage nach Ende der SSP3-Initialisierung beginnen, auch wenn die gesonderte NVM-relevante Startfreigabe noch offen ist. Kein Aufweichen der NVM-Schutzprüfungen.
+- Die normale Kopfzeile zeigt fortlaufend erfolgreiche/gestartete Live-ADC-Abfragen und letzte Fehler. Bei nachgewiesenem `CFG_SPI_I2C.plc_en=0` wird das fehlende dauerhafte One Wire ausdrücklich angezeigt.
+- Der SSP3-Protokollexport enthält zusätzlich `liveDiagnostic` mit Zählern, letzter Antwort, Fehler und `plcEnabledInRam`. Damit lässt sich ein blockierter Browser-Poll von auslaufendem Chip-Startfenster unterscheiden.
+- Keine neuen RAM-/NVM-Schreibbefehle, kein zusätzlicher Power-Cycle. Ein echter Hardwaretest ist weiterhin erforderlich.
+
 ## v0.6.27 – 12.11.2026: Dauerhafte PLC-RAM-Freigabe nach Magic Cookie lesen
 
 - Nach bestätigter Chiperkennung `CFG_SPI_I2C (0x06)` rein lesend prüfen. `plc_en` muss nach erkannter Magic Cookie im RAM 1 sein, damit One Wire gemäss Datenblatt über das Startfenster hinaus aktiv bleibt.

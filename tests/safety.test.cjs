@@ -178,7 +178,7 @@ test('Expert mode shows contextual settings and no modal',()=>{
  assert.ok(html.includes('data-expert-area hidden><summary>Erweitert · AODO_F'));
  assert.ok(src.includes("classList.toggle('is-expert',enabled)"));
  const scripts=Array.from(html.matchAll(/<script src="([^"]+)"/g),m=>m[1]);
- assert.deepEqual(scripts,['calibration.js?v=0.6.27','eeprom-help.js?v=0.6.27','expert.js?v=0.6.27','config.js?v=0.6.27','guided-plan.js?v=0.6.27','demo.js?v=0.6.27','app.js?v=0.6.27','compact.js?v=0.6.27','guided.js?v=0.6.27']);
+ assert.deepEqual(scripts,['calibration.js?v=0.6.28','eeprom-help.js?v=0.6.28','expert.js?v=0.6.28','config.js?v=0.6.28','guided-plan.js?v=0.6.28','demo.js?v=0.6.28','app.js?v=0.6.28','compact.js?v=0.6.28','guided.js?v=0.6.28']);
 });
 
 test('Failed E703.11 probe keeps SSP3 open for explicit, bounded startup test',()=>{
@@ -438,7 +438,7 @@ test('Guided view is optional and contains only one set of hardware inputs',()=>
  assert.ok(html.includes('id="workflowMode"'));
  assert.ok(html.includes('id="guidedLaunch"'));
  assert.ok(html.includes('id="guidedLaunchTop"'));
- assert.ok(html.includes('guided.css?v=0.6.27'));
+ assert.ok(html.includes('guided.css?v=0.6.28'));
  for(const id of ['nvmProgram','nvmPrepare','calApplyRam','calVerifyRam','expertOutputStage','configApply','configFile']){
   assert.equal(html.split('id="'+id+'"').length-1,1);
  }
@@ -934,8 +934,8 @@ test('SSP3 02.08.02.04 uses hardware-proven legacy PLC host frame; split format 
  assert.ok(fw.includes("$('plcHostFormat').value='legacy'"));
  assert.ok(!fw.includes("st.plcHostFormat='separate'"));
  assert.ok(html.includes('<option value="separate" disabled>'));
- assert.ok(html.includes('<script src="app.js?v=0.6.27"'));
- assert.ok(html.includes('guided.css?v=0.6.27'));
+ assert.ok(html.includes('<script src="app.js?v=0.6.28"'));
+ assert.ok(html.includes('guided.css?v=0.6.28'));
  const p=app.split('async function testSsp3PowerStartup(){')[1]?.split('async function connect(port){')[0];
  assert.ok(p.includes("if(st.firmware==='02.08.02.04')"));
  assert.ok(p.includes("st.plcHostFormat='legacy'"));
@@ -1156,4 +1156,26 @@ test('After successful PLC startup read the volatile PLC enable bit without writ
  assert.ok(startup.includes("show('connMsg',statusText,plcRamState===false?'warn':'success')"));
  for(const forbidden of ['nvmProgram(', 'nvmWrite(', 'maintWrite(', 'writeReg(0x06', 'port.close('])
   assert.ok(!startup.includes(forbidden));
+});
+
+test('After SSP3 detection read-only live polling starts even if full NVM boot proof pending',()=>{
+ const app=read('app.js');
+ const power=app.split('async function testSsp3PowerStartup(){')[1]?.split('async function connect(port){')[0];
+ assert.ok(power.includes("st.chip&&Number.isFinite(st.adc?.s)&&!st.manualLivePause"));
+ assert.ok(power.includes("startLive();"));
+ assert.ok(!power.includes("if(st.powerCycleResult?.readVerified&&st.port===port"));
+ assert.ok(power.includes("st.powerCycleResult.readVerified=true;"));
+ assert.ok(app.includes("CAL.protectStartupCommunication(initial,modified)"));
+});
+test('Live ADC attempts and successes visible and exported without new chip writes',()=>{
+ const app=read('app.js'),html=read('index.html');
+ const f=app.split('function startLive(){')[1]?.split('function stopLive(){')[0];
+ assert.ok(f.includes('st.liveReadAttempts++'));
+ assert.ok(f.includes('st.liveReadSuccesses++'));
+ assert.ok(f.includes('st.liveLastError=String(e.message||e)'));
+ assert.ok(f.includes('renderLiveOverview()'));
+ assert.ok(html.includes('id="liveDiagnostic"'));
+ assert.ok(app.includes('liveDiagnostic:{active:st.live,attempts:st.liveReadAttempts'));
+ assert.ok(app.includes('plcEnabledInRam:st.powerCycleResult?.plcEnabledInRam??null'));
+ assert.ok(!f.includes('nvmWrite('));
 });
