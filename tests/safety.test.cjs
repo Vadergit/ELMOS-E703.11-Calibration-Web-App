@@ -1194,7 +1194,9 @@ test('SSP3 startup reads CFG_PERIOD and STATUS without changing communication co
  // The *existing* documented Magic Cookie deliberately uses address 0x0E
  // with data 0x5CFD; never reject that sequence as a CFG_PERIOD rewrite.
  assert.ok(power.includes('P.plcWrite(0x0E,0x5CFD)'));
- assert.ok(!power.includes('P.plcWrite(0x0E,0x0001)'));
+ // The new write is RAM-only and permitted solely to undo the cookie-induced period.
+ assert.ok(power.includes("st.powerCycleResult.magicCookieUsed===true&&st.measurementPeriod===0x5CFD"));
+ assert.ok(power.includes('P.plcWrite(0x0E,0x0001)'));
  assert.ok(!power.includes('P.plcWrite(0x06'));
 });
 test('Single mode triggers documented CMD.start with fresh ADC flag confirmation',()=>{
