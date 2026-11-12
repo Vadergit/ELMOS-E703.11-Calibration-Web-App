@@ -811,7 +811,7 @@ test('Explicit Magic Cookie test performs exactly two documented PLC writes then
  assert.ok(routine);
  assert.ok(routine.includes("if(!$('plcMagicConfirm').checked)"));
  assert.ok(routine.includes("st.adapterKind!=='ssp3'||st.iface!=='plc'"));
- assert.ok(routine.includes('P.plcWrite(0xAC,0x2B42),P.plcWrite(0x0E,0x5CFD)'));
+ assert.ok(routine.includes('P.plcHostCommand(P.plcWrite(0xAC,0x2B42),st.plcHostFormat),P.plcHostCommand(P.plcWrite(0x0E,0x5CFD),st.plcHostFormat)'));
  assert.ok(routine.includes('await exchange(commands[i],2000)'));
  assert.ok(routine.includes('await detect()'));
  for(const forbidden of ['nvmProgram(', 'nvmWrite(', 'maintWrite(', 'port.close(', 'port.open('])assert.ok(!routine.includes(forbidden));
@@ -872,7 +872,8 @@ test('SSP3 help ? is read-only, exported and prevents unlisted power-off alias',
  assert.ok(!help.includes('PWR_ON '));
  assert.ok(html.includes('id="plcPowerHelpRead" disabled'));
  assert.ok(html.includes('id="plcPowerHelpOutput"'));
- assert.ok(src.includes('powerHelp:st.powerHelp,log:st.log.slice(-500)'));
+ assert.ok(src.includes('powerHelp:st.powerHelp,plcHostFormat:st.plcHostFormat,log:st.log.slice(-500)'));
+ assert.ok(src.includes('powerHelp:st.powerHelp'));
 });
 
 test('New SSP3 firmware PLC separate slave-id formatting leaves chip bytes unchanged',()=>{
