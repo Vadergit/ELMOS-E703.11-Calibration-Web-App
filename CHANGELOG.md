@@ -1,3 +1,9 @@
+## v0.6.15 – 12.11.2026: SSP3-Sensorstart nach AN 0204
+
+- Dokumentiertes, manuell freizugebendes Power-Off/-On und PLC-Pufferfreigabe mit separatem Starttest und One-shot-Option beim nächsten Verbindungsaufbau.
+- Exakte Befehle `Power_OFF 03E8`, `PLC P`, `PWR_ON 0C80 00C8 0`, `PLC T` – kein NVM-Schreiben. Bei Fehler automatische Wiederherstellung mit `PWR_ON 0 0 0`.
+- SSP3-Rohantworten und Laufzeiten im Export, neue Prüfplatzwarnungen und Regressionstests.
+
 ## v0.6.14 – 12.11.2026: Experimenteller One-Wire-Magic-Cookie-Test
 
 - Option für einen einmaligen, ausdrücklich bestätigten Magic-Cookie-Test beim nächsten SSP3-Verbindungsaufbau: nach IF_CFG und vor dem ersten Registerlesen. Auswahl wird danach zurückgesetzt.

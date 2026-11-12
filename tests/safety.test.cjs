@@ -180,7 +180,7 @@ test('Expert mode shows contextual settings and no modal',()=>{
  assert.ok(html.includes('data-expert-area hidden><summary>Erweitert · AODO_F'));
  assert.ok(src.includes("classList.toggle('is-expert',enabled)"));
  const scripts=Array.from(html.matchAll(/<script src="([^"]+)"/g),m=>m[1]);
- assert.deepEqual(scripts,['calibration.js?v=0.6.14','eeprom-help.js?v=0.6.14','expert.js?v=0.6.14','config.js?v=0.6.14','guided-plan.js?v=0.6.14','demo.js?v=0.6.14','app.js?v=0.6.14','compact.js?v=0.6.14','guided.js?v=0.6.14']);
+ assert.deepEqual(scripts,['calibration.js?v=0.6.15','eeprom-help.js?v=0.6.15','expert.js?v=0.6.15','config.js?v=0.6.15','guided-plan.js?v=0.6.15','demo.js?v=0.6.15','app.js?v=0.6.15','compact.js?v=0.6.15','guided.js?v=0.6.15']);
 });
 
 test('Failed E703.11 probe keeps SSP3 open for explicit, bounded startup test',()=>{
@@ -440,7 +440,7 @@ test('Guided view is optional and contains only one set of hardware inputs',()=>
  assert.ok(html.includes('id="workflowMode"'));
  assert.ok(html.includes('id="guidedLaunch"'));
  assert.ok(html.includes('id="guidedLaunchTop"'));
- assert.ok(html.includes('guided.css?v=0.6.14'));
+ assert.ok(html.includes('guided.css?v=0.6.15'));
  for(const id of ['nvmProgram','nvmPrepare','calApplyRam','calVerifyRam','expertOutputStage','configApply','configFile']){
   assert.equal(html.split('id="'+id+'"').length-1,1);
  }
@@ -830,4 +830,29 @@ test('Experimental Magic Cookie on connect requires prior consent and is one-sho
  assert.ok(connect.indexOf('await testPlcMagicCookie()')<connect.indexOf('await detect()'));
  assert.ok(html.includes('id="plcMagicOnConnect" disabled'));
  assert.ok(app.includes("if(!$('plcMagicConfirm').checked)$('plcMagicOnConnect').checked=false"));
+});
+
+test('AN0204 SSP3 power test is opt-in, ordered, recoverable and never programs NVM',()=>{
+ const app=read('app.js'),html=read('index.html');
+ const code=app.split('async function testSsp3PowerStartup(){')[1]?.split('async function connect(port){')[0];
+ assert.ok(code);
+ assert.ok(code.includes("if(!$('plcPowerConfirm').checked)"));
+ assert.ok(code.includes("st.adapterKind!=='ssp3'||st.iface!=='plc'"));
+ const commands=["Power_OFF 03E8","PLC P","PWR_ON 0C80 00C8 0","PLC T"];
+ for(const cmd of commands)assert.ok(code.includes("await send('"+cmd+"'"));
+ for(let i=1;i<commands.length;i++)assert.ok(code.indexOf("await send('"+commands[i-1]+"'")<code.indexOf("await send('"+commands[i]+"'"));
+ assert.ok(code.includes("await send('PWR_ON 0 0 0',4000)"));
+ assert.ok(code.includes('await detect();'));
+ for(const bad of ['nvmWrite(', 'nvmProgram(', 'maintWrite(', 'port.open(', 'port.close('])assert.ok(!code.includes(bad));
+ for(const id of ['plcPowerConfirm','plcPowerOnConnect','plcPowerRun','plcPowerState'])assert.ok(html.includes('id="'+id+'"'));
+ assert.ok(app.includes('powerCycle:st.powerCycleResult'));
+});
+test('AN0204 one-shot startup runs before read, prevents simultaneous manual cookie and disconnect',()=>{
+ const app=read('app.js');
+ const connect=app.split('async function connect(port){')[1]?.split('async function disconnect()')[0];
+ assert.ok(connect.includes("$('plcPowerOnConnect').checked&&$('plcPowerConfirm').checked"));
+ assert.ok(connect.includes("$('plcPowerOnConnect').checked=false;"));
+ assert.ok(connect.indexOf('await testSsp3PowerStartup();')<connect.indexOf('await detect();'));
+ assert.ok(app.includes('st.nvmWorking||st.calTask||st.writing||st.powerCycleRunning'));
+ assert.ok(app.includes("if($('plcPowerOnConnect').checked)$('plcMagicOnConnect').checked=false"));
 });

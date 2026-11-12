@@ -145,3 +145,13 @@ Auch 200 ms sind kein Beweis, dass der SSP3-Befehl in der Herstellersequenz iden
 Bei dauerhaft angeschlossenem SSP3 kann die Originalsoftware Elmos PSSC einen mit analogem 0–5-V-Ausgang und kurzen PLC-Startfenstern programmierten E703.11 **ohne manuelles Aus-/Einstecken** erreichen. Die Web-App empfängt dagegen bei `PLC 026D1C0C.` die SSP3-Meldung `!PLC nothing received`. Damit steht **noch nicht fest**, ob der SSP3 eine intern gesteuerte DUT-Neuversorgung durchführt, ob PSSC vor dem Registerlesen die Magic-Cookie-Freigabe verwendet oder über I²C/SPI zugreift. Diese Abläufe lassen sich nicht sicher aus dem Chipdatenblatt ableiten. Der bisherige manuelle Power-Cycle-Test ist daher keine notwendige Bedienanforderung und kein vollständiger Ersatz für die originale Initialisierung.
 
 Der neue Export **«Web-App-SSP3-Protokoll exportieren»** liefert einen strukturierten Web-App-TX/RX-Trace. Für eine PSSC-kompatible Auto-Initialisierung wird zusätzlich eine echte Aufzeichnung der PSSC-Kommandos auf demselben Adapter benötigt. Die experimentellen `PLC P` / `PLC T`-Wartungskommandos aus dem bisherigen Kalibrierpfad werden **nicht** automatisch auf einen unerkannten Sensor angewendet, solange ihre Funktion und Nebenwirkungen nicht nachgewiesen wurden.
+
+## SSP3-Sensorstart nach Elmos AN 0204 (v0.6.15, 12.11.2026)
+
+Der Anwender hat die Hersteller-Application-Note AN 0204 bereitgestellt, die erstmals die zuvor unbekannten SSP3-DUT-Power-Befehle dokumentiert. Nach einer expliziten Bestätigung am isolierten Prüfplatz kann die Web-App folgenden **einmaligen Test** über schaltbare SSP3-VSUPPLY durchführen:
+
+`IF_CFG 7 0 0` → `Power_OFF 03E8` (1000 mV Abschaltschwelle) → 30 ms Ruhe → `PLC P` (Cookie vorbereiten) → `PWR_ON 0C80 00C8 0` (Herstellerbeispiel 3200 mV, 200 µs, Einzelsocket) → unmittelbar `PLC T` → bestehende Chipregister-/ADC-Erkennung.
+
+**Achtung:** Der Abschaltbefehl heisst laut Seite 7 **`Power_OFF`**, während der Einschaltbefehl **`PWR_ON`** heisst. Bei Fehlschlag nach einem begonnenen Ausschalten versucht die App dokumentiertes `PWR_ON 0 0 0` zur Wiederherstellung. Im Log stehen die Antworten und Laufzeiten jeder Stufe.
+
+Aufruf: **USB & Chip → SSP3-Verbindungsdiagnose → Neu · SSP3-Sensorstart (AN 0204, Prüfplatz)**. Alternativ gibt es eine einmalige Opt-in-Option beim nächsten Connect **vor dem ersten Registerlesen**. Die Originalsoftware-Sequenz ist mangels Mitschnitt weiterhin nicht 1:1 belegt; insbesondere ein 4-ms-Startfenster ist durch Browser-/USB-Latenzen nicht garantiert. Nur bei über SSP3-VSUPPLY versorgtem Prüfsensor verwenden; externes VDD wird eventuell nicht geschaltet. Keine NVM-Programmierung, aber temporäre Überlagerung des analogen AODO-Ausgangs ist möglich.

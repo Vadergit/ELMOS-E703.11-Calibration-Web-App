@@ -140,3 +140,13 @@ Wenn der E703.11 nach `IF_CFG` und direkter PLC-Leseabfrage nicht antwortet, **W
 ### Experimenteller Magic-Cookie-Test (v0.6.14)
 
 Nach dem erfolglosen 1-Wire-Verbindungsversuch im Reiter **USB & Chip** das Untermenü **Experimentell · One-Wire-Magic-Cookie (RAM)** öffnen. Warnhinweis beachten, das Einverständnis für die temporäre AODO-Umschaltung aktivieren und **Magic Cookie testen (nur RAM)** drücken. Der Test sendet nur die zwei im Elmos-Datenblatt dokumentierten PLC-Writes und liest anschliessend Register. **Keine NVM-Programmierung.** Bei Erfolglosigkeit das Web-App-SSP3-Protokoll exportieren. Dieser Test ersetzt keine bekannte hardwareseitige Öffnung des 4-/200-ms-Startfensters.
+
+## SSP3-Sensorstart nach Elmos AN 0204 (v0.6.15, 12.11.2026)
+
+Der Anwender hat die Hersteller-Application-Note AN 0204 bereitgestellt, die erstmals die zuvor unbekannten SSP3-DUT-Power-Befehle dokumentiert. Nach einer expliziten Bestätigung am isolierten Prüfplatz kann die Web-App folgenden **einmaligen Test** über schaltbare SSP3-VSUPPLY durchführen:
+
+`IF_CFG 7 0 0` → `Power_OFF 03E8` (1000 mV Abschaltschwelle) → 30 ms Ruhe → `PLC P` (Cookie vorbereiten) → `PWR_ON 0C80 00C8 0` (Herstellerbeispiel 3200 mV, 200 µs, Einzelsocket) → unmittelbar `PLC T` → bestehende Chipregister-/ADC-Erkennung.
+
+**Achtung:** Der Abschaltbefehl heisst laut Seite 7 **`Power_OFF`**, während der Einschaltbefehl **`PWR_ON`** heisst. Bei Fehlschlag nach einem begonnenen Ausschalten versucht die App dokumentiertes `PWR_ON 0 0 0` zur Wiederherstellung. Im Log stehen die Antworten und Laufzeiten jeder Stufe.
+
+Aufruf: **USB & Chip → SSP3-Verbindungsdiagnose → Neu · SSP3-Sensorstart (AN 0204, Prüfplatz)**. Alternativ gibt es eine einmalige Opt-in-Option beim nächsten Connect **vor dem ersten Registerlesen**. Die Originalsoftware-Sequenz ist mangels Mitschnitt weiterhin nicht 1:1 belegt; insbesondere ein 4-ms-Startfenster ist durch Browser-/USB-Latenzen nicht garantiert. Nur bei über SSP3-VSUPPLY versorgtem Prüfsensor verwenden; externes VDD wird eventuell nicht geschaltet. Keine NVM-Programmierung, aber temporäre Überlagerung des analogen AODO-Ausgangs ist möglich.

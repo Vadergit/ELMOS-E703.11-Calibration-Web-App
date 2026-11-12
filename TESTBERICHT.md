@@ -100,3 +100,15 @@ Bei 4-ms- und 200-ms-Startfenster und analogem Ausgang ist das Gerät weiterhin 
 ### v0.6.14: Magic-Cookie-Test
 
 Software-Regression für PLC-Schreibtelegramme anhand des Elmos-E703.11-Datenblattbeispiels `02 6C 6A 0A 67 89 5F`. Die spezielle Cookie-Sequenz wird nach ausdrücklicher Bestätigung im Diagnoseteil als einzelne beabsichtigte Aktion ausgeführt. Das Ergebnis gilt nur bei anschliessendem erfolgreichen E703.11-Lesetest als bestätigt. **Noch keine reale Hardwarebestätigung.** Die Web-App kann den Sensor ohne dokumentiertes SSP3-Power-Kommando nicht synchronisiert neu starten.
+
+## SSP3-Sensorstart nach Elmos AN 0204 (v0.6.15, 12.11.2026)
+
+Der Anwender hat die Hersteller-Application-Note AN 0204 bereitgestellt, die erstmals die zuvor unbekannten SSP3-DUT-Power-Befehle dokumentiert. Nach einer expliziten Bestätigung am isolierten Prüfplatz kann die Web-App folgenden **einmaligen Test** über schaltbare SSP3-VSUPPLY durchführen:
+
+`IF_CFG 7 0 0` → `Power_OFF 03E8` (1000 mV Abschaltschwelle) → 30 ms Ruhe → `PLC P` (Cookie vorbereiten) → `PWR_ON 0C80 00C8 0` (Herstellerbeispiel 3200 mV, 200 µs, Einzelsocket) → unmittelbar `PLC T` → bestehende Chipregister-/ADC-Erkennung.
+
+**Achtung:** Der Abschaltbefehl heisst laut Seite 7 **`Power_OFF`**, während der Einschaltbefehl **`PWR_ON`** heisst. Bei Fehlschlag nach einem begonnenen Ausschalten versucht die App dokumentiertes `PWR_ON 0 0 0` zur Wiederherstellung. Im Log stehen die Antworten und Laufzeiten jeder Stufe.
+
+Aufruf: **USB & Chip → SSP3-Verbindungsdiagnose → Neu · SSP3-Sensorstart (AN 0204, Prüfplatz)**. Alternativ gibt es eine einmalige Opt-in-Option beim nächsten Connect **vor dem ersten Registerlesen**. Die Originalsoftware-Sequenz ist mangels Mitschnitt weiterhin nicht 1:1 belegt; insbesondere ein 4-ms-Startfenster ist durch Browser-/USB-Latenzen nicht garantiert. Nur bei über SSP3-VSUPPLY versorgtem Prüfsensor verwenden; externes VDD wird eventuell nicht geschaltet. Keine NVM-Programmierung, aber temporäre Überlagerung des analogen AODO-Ausgangs ist möglich.
+
+**Hardwarestatus:** Herstellerbefehle dokumentiert, aber 4-ms-Timing und tatsächliche SSP3-Hardwarefunktion noch nicht validiert.
