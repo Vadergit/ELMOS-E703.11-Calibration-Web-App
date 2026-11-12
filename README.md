@@ -2,7 +2,7 @@
 
 **Ein geführter Kalibrierassistent für den ELMOS E703.11 und das SSP3-Eval-Board.** Ziel ist ein verständlicher Abgleich, der auch ohne tiefere Vorkenntnisse Schritt für Schritt funktioniert. Wer mehr benötigt, kann zusätzliche Messpunkte, DSP-Parameter und einen geschützten Expertenmodus verwenden.
 
-**Version: v0.6.10 · geführter Abgleich und klassische Ansicht** · [Änderungsverlauf](CHANGELOG.md)
+**Version: v0.6.11 · geführter Abgleich und klassische Ansicht** · [Änderungsverlauf](CHANGELOG.md)
 
 Über **Einstellungen → Demo-Modus** lässt sich der gesamte Kalibrierablauf mit simulierten Messwerten und NVM ausprobieren.
 
@@ -42,10 +42,12 @@
 | Config-Vorlagen | **JSON speichern/laden:** AFE-Gains und Offset, DSP- und Messvorgaben, Ausgang und S0/S1. Keine Seriennummern, Werksregister, EEPROM-Abbilder oder sensorspezifischen Koeffizienten. Bei enthaltenem AFE nach dem ausdrücklichen Importklick direkt ins RAM mit Rücklesung; kein EEPROM-Schreiben |\n| Diagnose | Register-/Chipanzeige, technisches Log und Dokumentation |
 
 Antwortet das SSP3, aber die Chipprüfung schlägt beim ersten Versuch fehl, führt die App automatisch **genau einen** USB-Trenn-/Neuaufbau durch. Nach einem weiteren Misserfolg stoppt sie mit Warnung und lässt den SSP3-Port für die Diagnose geöffnet. Das ersetzt keinen Sensor-Power-Cycle bei einem begrenzten 1-Wire-Startfenster.
+ 
+**Neu: Nur lesende CFG_AFE1-Verbindungsdiagnose:** Nach dem zweiten erfolglosen Chiptest zeigt die App automatisch **3× CFG_AFE1**, zusätzlich **CFG_AFE0/CFG_AFE2/ADC_S**, den tatsächlichen 16-Bit-Wert, **Bit 11**, PGA-/Offset-Rohcodes und die **empfangenen drei 1-Wire-Bytes inklusive CRC8-Byte**. Die Antwortdaten können unter «USB & Chip → Chipdiagnose» erneut gelesen und als **JSON** gespeichert werden. Alle Registerzugriffe dieser Diagnose sind **nur lesend**; eine fehlende Pflichtbit-1 wird **nicht** automatisch korrigiert und erteilt **keine** RAM-/NVM-Schreibfreigabe. Der CRC8-Inhalt wird vorerst nur protokolliert: Die exakte SSP3-Antwortbasis muss anhand eines bekannten Elmos-Traces bestätigt werden, bevor die Web-App «CRC gültig» melden darf.
 
 **Kompaktmodus:** Über ⚙ Einstellungen → «Kompaktmodus · One-Pager» einschalten. Rechts oben «Normalansicht» schaltet zurück; die Auswahl wird im Browser gespeichert. Auf ausreichend grossen Desktop-Bildschirmen werden alle Hauptschritte ohne Seitenwechsel nebeneinander gezeigt. Bei kleineren Auflösungen oder vielen Details können einzelne Karten intern scrollen. Sämtliche Eingaben, Kalibrier- und NVM-Schutzabläufe bleiben unverändert; nicht benötigte Langtexte sind gekürzt oder aufklappbar. Für selten verwendete Experten- und Diagnosefunktionen steht weiterhin die vollständige Normalansicht zur Verfügung.
 
-Für Entwickler gibt es **58 Software-Regressionstests** (Stand v0.6.10) mit Node.js: `node --test tests/safety.test.cjs`. Geprüft werden Boot-/Kommunikationsschutz, One Wire only, S0/S1-Skalierung, die sieben Kalibrierschritte, der separate EEPROM-Reiter, das Einblenden der Expertenparameter und der sichere Config-Import/-Export. Die Tests ersetzen keine Browser- und Hardwareprüfung.
+Für Entwickler gibt es **64 Software-Regressionstests** (Stand v0.6.11) mit Node.js: `node --test tests/safety.test.cjs`. Geprüft werden Boot-/Kommunikationsschutz, One Wire only, S0/S1-Skalierung, die sieben Kalibrierschritte, der separate EEPROM-Reiter, das Einblenden der Expertenparameter und der sichere Config-Import/-Export. Die Tests ersetzen keine Browser- und Hardwareprüfung.
 
 Die Browser-App verwendet eine **eigene JavaScript-Koeffizientenberechnung**, nicht die originale Elmos-Kalibrier-DLL. Eine Übereinstimmung mit der Herstellersoftware muss auf der Zielhardware verifiziert werden.
 
@@ -115,4 +117,4 @@ Verwendet wurde **E703.11 25DS0170E.04, Production Data vom 16.11.2023**: §6.3.
 
 Der Assistent erfordert für NVM-Schreibvorgänge die im Original-NVM nachweisbare PLC-Startaktivierung, Downstream- und Upstream-Kommunikation und einen persistenten Register-Lese-/Schreibzugang. Sensoren, die nur über eine kurzzeitige Magic-Cookie-Freigabe kommunizieren, werden vorsorglich nicht dauerhaft programmiert. Die App ändert keine geschützten Startup-Register, um diese Situation zu umgehen. Ein Hardware-Kaltstarttest bleibt Pflicht.
 
-**Versions- und Cache-Hinweis:** Die Skript-Dateien (inklusive `config.js`) werden in v0.6.10 mit derselben Versionskennung wie die Web-App geladen. Für die Überprüfung im Browser gegebenenfalls mit `Ctrl + F5` neu laden.
+**Versions- und Cache-Hinweis:** Die Skript-Dateien (inklusive `config.js`) werden in v0.6.11 mit derselben Versionskennung wie die Web-App geladen. Für die Überprüfung im Browser gegebenenfalls mit `Ctrl + F5` neu laden.

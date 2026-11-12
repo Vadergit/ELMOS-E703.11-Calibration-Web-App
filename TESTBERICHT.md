@@ -1,6 +1,6 @@
 # Testbericht – ELMOS E703.11 Web-Kalibrierassistent
 
-**Stand: Version v0.6.10 · 12. November 2026 · Laborprototyp, keine Hardware- oder Produktionsfreigabe**
+**Stand: Version v0.6.11 · 12. November 2026 · Laborprototyp, keine Hardware- oder Produktionsfreigabe**
 
 Dieser Bericht trennt den **im Code beziehungsweise mit simulierten Chipantworten geprüften Stand** von noch offenen Hardwareprüfungen. Ältere, überholte UI-Varianten und frühere Bestätigungswörter werden hier bewusst nicht als aktuelle Funktion beschrieben.
 
@@ -66,7 +66,9 @@ Ab v0.5.0 prüfen drei zusätzliche Regressionstests die opt-in-Konfiguration, d
 
 **v0.6.0:** Nach dem Entfernen des Demo-Modus prüfen zusätzliche Tests die ausschliesslich echte Chipfreigabe für den Wizard, die AFE-Livedarstellung mit unverändertem ADC-Canvas, die Min-/Max-/Hub-Statistik und die grosse DSP-Signalansicht. Rein synthetische Fit-Daten dienen weiterhin nur der mathematischen Regression, nicht der Simulation einer Chipverbindung.
 
-**Config v2:** 58 Softwaretests decken vollständige Config-Exporte, Auswahl der enthaltenen Gruppen beim Import, rückwärtskompatible partielle JSON-Dateien, verständliche Dateinamen mit nur bestätigten Druck-/Temperaturangaben sowie den geschützten AFE-RAM-Import ab. Ein vollständiger Hardwaretest mit E703.11 bleibt erforderlich.
+**Config v2:** 64 Softwaretests decken vollständige Config-Exporte, Auswahl der enthaltenen Gruppen beim Import, rückwärtskompatible partielle JSON-Dateien, verständliche Dateinamen mit nur bestätigten Druck-/Temperaturangaben sowie den geschützten AFE-RAM-Import ab. Ein vollständiger Hardwaretest mit E703.11 bleibt erforderlich.
+
+**v0.6.11 Chipdiagnose:** 64 Softwaretests prüfen zusätzlich, dass bei wiederholt fehlgeschlagenem SSP3-Chipzugriff nur Register gelesen werden, die Antworten inklusive CRC8-Byte angezeigt/exportiert werden und die Bit-11-Schreibsperre unverändert bleibt. Die CRC8-Bytezuordnung der SSP3-Ausgabe ist **noch nicht anhand eines physischen Referenzfalls verifiziert**; dieser Test wird ausdrücklich nicht als CRC8-Verifikation bezeichnet.
 
 ## Offene Prüfungen vor produktivem Einsatz
 

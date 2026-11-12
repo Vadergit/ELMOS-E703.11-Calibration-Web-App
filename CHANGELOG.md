@@ -2,6 +2,13 @@
 
 Versionierung nach `MAJOR.MINOR.PATCH`: Kleine Anpassungen erhöhen PATCH, neue Funktionen MINOR, inkompatible Änderungen MAJOR. Jede Änderung erhält eine neue Nummer und einen Eintrag.
 
+## v0.6.11 – 12.11.2026
+
+- **Verbindungsdiagnose bei CFG_AFE1/Bit 11:** Nach dem bereits bestehenden, einmaligen SSP3-USB-Neuaufbau führt die App bei erneutem Chiptestfehler **ausschliesslich lesende** Registerabfragen aus (3× CFG_AFE1, je 1× CFG_AFE0/CFG_AFE2/ADC_S).
+- Sichtbares Diagnosefenster unter «USB & Chip» zeigt Wortwert, 16 Bits, Bit 11, PGA-/Offset-Codes, drei 1-Wire-Antwortbytes und das empfangene CRC8-Byte; manuelle Wiederholung und strukturierter JSON-Export.
+- **Sicherheitsgrenze:** Die CRC8-Prüfgrundlage der SSP3-Rückgabe ist noch nicht hardwarevalidiert. Deshalb wird nur das empfangene CRC8-Byte angezeigt und **kein ungeprüftes CRC OK** behauptet. Weder reservierte Bits noch Chip-RAM/EEPROM werden durch die Diagnose verändert. Alle bisherigen Schreibsperren bleiben erhalten.
+- **64 Softwaretests**, einschliesslich fehlgeschlagenen Chiptests und ausschliesslich lesender Diagnoseschritte.
+
 ## v0.6.10 – 12.11.2026
 
 - Im geführten Abgleich mit **einer Temperaturstufe** werden Druckpunkte nur als **P1, P2 usw.** bezeichnet. **T1 / P1** bleibt für mehrere Temperaturstufen erhalten.

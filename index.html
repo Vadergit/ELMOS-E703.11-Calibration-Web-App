@@ -452,8 +452,11 @@ html.compact-mode .foot{display:none}
  .cp-output-grid{grid-template-columns:1fr 1fr}
  .cp-points .cp-points-setup{grid-template-columns:repeat(3,minmax(0,1fr))}
 }
-</style><link rel="stylesheet" href="guided.css?v=0.6.10"><link rel="stylesheet" href="interface.css?v=0.6.10"></head><body><div class="wrap"><header class="top">
-<div class="brand"><div class="logo" aria-hidden="true">E</div><div><div class="eyebrow">E703.11 · PSSC · v0.6.10</div><h1>Kalibrierassistent</h1></div></div>
+.chip-diag-report{white-space:pre-wrap;overflow-wrap:anywhere;max-height:390px;overflow:auto;border:1px solid #cbddeb;border-radius:9px;padding:13px 14px;background:#f5f9fc;color:#2d4d66;font:11px/1.55 ui-monospace,SFMono-Regular,Consolas,monospace;margin:12px 0}
+.chip-diag-details .flex{flex-wrap:wrap;gap:9px}
+.chip-diag-details .inner>p{line-height:1.55}
+</style><link rel="stylesheet" href="guided.css?v=0.6.11"><link rel="stylesheet" href="interface.css?v=0.6.11"></head><body><div class="wrap"><header class="top">
+<div class="brand"><div class="logo" aria-hidden="true">E</div><div><div class="eyebrow">E703.11 · PSSC · v0.6.11</div><h1>Kalibrierassistent</h1></div></div>
 <div class="live-overview" role="group" aria-label="Sensorwerte · laufende Anzeige">
   <div class="live-kpi" title="Unkompensierter Druck-ADC. Warnung bei Beträgen über 25’000 Digits."><span class="live-kpi-label">ADC_S <span id="liveAdcAlert" class="live-alert" hidden>!</span></span><span class="live-kpi-reading" id="liveAdcS">—</span><span class="live-kpi-unit">Digits</span></div>
   <div class="live-kpi" title="ADC_T · Temperatur-Rohwert, keine direkte Temperatur in °C."><span class="live-kpi-label">ADC_T</span><span class="live-kpi-reading" id="liveAdcT">—</span><span class="live-kpi-unit">Digits</span></div>
@@ -514,6 +517,18 @@ html.compact-mode .foot{display:none}
       <a href="docs/ESP32_C3_PLC_TEST.md" target="_blank" rel="noopener">ESP32 anschliessen und flashen</a>
     </div>
   </div>
+</details>
+<details id="chipDiagDetails" class="connection-advanced chip-diag-details">
+ <summary>Chipdiagnose · CFG_AFE1 / 1-Wire (nur lesen)</summary>
+ <div class="inner">
+  <p class="muted small">Bei fehlgeschlagener Chiperkennung automatisch geöffnet. Es werden CFG_AFE1 dreimal sowie CFG_AFE0, CFG_AFE2 und ADC_S ausschliesslich <strong>gelesen</strong>. Bit 11 und die empfangenen 1-Wire-Datenbytes werden angezeigt. <strong>Keine</strong> RAM- oder EEPROM-Schreibvorgänge.</p>
+  <div class="flex">
+   <button type="button" id="chipDiagRead">Chipregister erneut lesen (nur Diagnose)</button>
+   <button type="button" id="chipDiagExport">Diagnose als JSON speichern</button>
+  </div>
+  <pre id="chipDiagResult" class="chip-diag-report" aria-live="polite">Noch keine Chipdiagnose durchgeführt. Bei einem zweiten fehlgeschlagenen Verbindungsversuch wird sie automatisch gestartet.</pre>
+  <p class="muted small">Das von SSP3 empfangene CRC8-Byte wird mitprotokolliert. Eine eigenständige CRC8-Prüfung der SSP3-Antwort ist noch <strong>nicht validiert</strong>; die App zeigt deshalb kein ungeprüftes «CRC gültig» an. Ein Bit 11 = 0 wird nicht automatisch korrigiert und schaltet keine Schreibfunktionen frei.</p>
+ </div>
 </details>
 <details><summary>Verkabelung und Startfenster</summary><div class="inner"><p><b>1-Wire:</b> VDD, GND, AODO. <b>I²C:</b> VDD, GND, SCL, SDA und korrekte SA0-/EOC-Beschaltung. Die App ändert mit IF_CFG nur den SSP3, nicht die Bootkonfiguration des Chips.</p><p>Einige 1-Wire-Konfigurationen reagieren nur kurz nach dem Einschalten. Falls der Chip nicht antwortet, Versorgung und Pin-Beschaltung prüfen. Mit der ESP32-Bridge kann die Firmware beim Verbindungsaufbau einen externen Lastschalter steuern.</p><p><b>USB-Port kann nicht geöffnet werden?</b> Zuerst die originale PSSC-GUI und andere COM-Port-Programme schliessen. Im Windows-Gerätemanager unter «Anschlüsse (COM & LPT)» muss ein «USB Serial Port (COMx)» ohne Warnsymbol angezeigt werden. Falls nötig das Eval-Board kurz neu einstecken und «Bekannten Port verbinden» erneut versuchen. Fehlender COM-Port: FTDI-VCP-Treiber prüfen (Details im README).</p></div></details>
 <section class="profile-card" aria-labelledby="configTitle">
@@ -978,5 +993,5 @@ html.compact-mode .foot{display:none}
 </div>
 <div class="nav"><button data-next="0">Zur Verbindung</button><button data-next="6">Zum NVM-Schritt</button></div>
 </section>
-<div class="foot"><b>Version v0.6.10</b> · <a href="CHANGELOG.md" target="_blank" rel="noopener">Änderungsverlauf</a> · ELMOS E703.11 · unabhängiger Kalibrierprototyp · Sicherheitsprinzip: Factory- und Kommunikations-Bootregister gesperrt; dokumentierte AODO-Ausgangsoptionen nur nach Prüfung im NVM-Plan; Wiederherstellung nur mit passender Chip-UID.</div>
-</main></div></div><div id="tip" class="tooltip"></div><script src="calibration.js?v=0.6.10"></script><script src="eeprom-help.js?v=0.6.10"></script><script src="expert.js?v=0.6.10"></script><script src="config.js?v=0.6.10"></script><script src="guided-plan.js?v=0.6.10"></script><script src="demo.js?v=0.6.10"></script><script src="app.js?v=0.6.10"></script><script src="compact.js?v=0.6.10"></script><script src="guided.js?v=0.6.10"></script></body></html>
+<div class="foot"><b>Version v0.6.11</b> · <a href="CHANGELOG.md" target="_blank" rel="noopener">Änderungsverlauf</a> · ELMOS E703.11 · unabhängiger Kalibrierprototyp · Sicherheitsprinzip: Factory- und Kommunikations-Bootregister gesperrt; dokumentierte AODO-Ausgangsoptionen nur nach Prüfung im NVM-Plan; Wiederherstellung nur mit passender Chip-UID.</div>
+</main></div></div><div id="tip" class="tooltip"></div><script src="calibration.js?v=0.6.11"></script><script src="eeprom-help.js?v=0.6.11"></script><script src="expert.js?v=0.6.11"></script><script src="config.js?v=0.6.11"></script><script src="guided-plan.js?v=0.6.11"></script><script src="demo.js?v=0.6.11"></script><script src="app.js?v=0.6.11"></script><script src="compact.js?v=0.6.11"></script><script src="guided.js?v=0.6.11"></script></body></html>

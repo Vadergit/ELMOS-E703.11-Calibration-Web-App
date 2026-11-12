@@ -180,7 +180,7 @@ test('Expert mode shows contextual settings and no modal',()=>{
  assert.ok(html.includes('data-expert-area hidden><summary>Erweitert · AODO_F'));
  assert.ok(src.includes("classList.toggle('is-expert',enabled)"));
  const scripts=Array.from(html.matchAll(/<script src="([^"]+)"/g),m=>m[1]);
- assert.deepEqual(scripts,['calibration.js?v=0.6.10','eeprom-help.js?v=0.6.10','expert.js?v=0.6.10','config.js?v=0.6.10','guided-plan.js?v=0.6.10','demo.js?v=0.6.10','app.js?v=0.6.10','compact.js?v=0.6.10','guided.js?v=0.6.10']);
+ assert.deepEqual(scripts,['calibration.js?v=0.6.11','eeprom-help.js?v=0.6.11','expert.js?v=0.6.11','config.js?v=0.6.11','guided-plan.js?v=0.6.11','demo.js?v=0.6.11','app.js?v=0.6.11','compact.js?v=0.6.11','guided.js?v=0.6.11']);
 });
 
 test('Failed E703.11 probe reconnects SSP3 at most once, without NVM writes',()=>{
@@ -194,7 +194,7 @@ test('Failed E703.11 probe reconnects SSP3 at most once, without NVM writes',()=
  assert.ok(connect.includes('if(!await disconnect())return;'));
  assert.ok(connect.includes('await sleep(200);'));
  assert.ok(connect.includes('await connect(port,false);'));
- assert.ok(connect.includes('Keine weiteren Versuche.'));
+ assert.ok(connect.includes('Keine weiteren automatischen USB-Neuverbindungen.'));
  assert.ok(!connect.includes('writeReg('));
  assert.ok(!connect.includes('nvmWrite('));
 });
@@ -442,7 +442,7 @@ test('Guided view is optional and contains only one set of hardware inputs',()=>
  assert.ok(html.includes('id="workflowMode"'));
  assert.ok(html.includes('id="guidedLaunch"'));
  assert.ok(html.includes('id="guidedLaunchTop"'));
- assert.ok(html.includes('guided.css?v=0.6.10'));
+ assert.ok(html.includes('guided.css?v=0.6.11'));
  for(const id of ['nvmProgram','nvmPrepare','calApplyRam','calVerifyRam','expertOutputStage','configApply','configFile']){
   assert.equal(html.split('id="'+id+'"').length-1,1);
  }
@@ -720,4 +720,75 @@ test('AFE RAM commit returns explicit success or failure without NVM bypass',()=
  assert.ok(region.includes('st.afeWriteActive=false'));
  assert.ok(!region.includes('nvmProgram('));
  assert.ok(!region.includes('nvmScan('));
+});
+
+test('Read-only AFE1 diagnostics captures three reads, other AFE registers and raw CRC byte',()=>{
+ const src=read('app.js'),html=read('index.html');
+ const diag=src.split(' async function runChipDiagnostics(reason=')[1].split(' async function detect(){')[0];
+ assert.ok(diag.includes("[[R_AFE,'CFG_AFE1'],[R_AFE,'CFG_AFE1'],[R_AFE,'CFG_AFE1']"));
+ for(const name of ['CFG_AFE0','CFG_AFE2','ADC_S'])assert.ok(diag.includes("'"+name+"'"));
+ assert.ok(diag.includes('p.value=await readReg(addr)'));
+ assert.ok(diag.includes('p.frame={...st.lastPlcReply}'));
+ assert.ok(!diag.includes('maintWrite('));
+ assert.ok(!diag.includes('nvmProgram('));
+ assert.ok(!diag.includes('nvmWrite('));
+ assert.ok(!diag.includes('commitGain('));
+ assert.ok(diag.includes('st.writing||st.nvmWorking||st.calTask||st.afeWriteActive'));
+ for(const id of ['chipDiagDetails','chipDiagRead','chipDiagExport','chipDiagResult'])
+  assert.equal(html.split('id="'+id+'"').length-1,1);
+});
+test('Malformed and unexpected AFE1 values keep write gates while raw reply is retained',()=>{
+ const src=read('app.js');
+ const reader=src.split(' async function readReg(addr){')[1].split(' function decodeSafeAFE(w){')[0];
+ const safe=src.split(' function decodeSafeAFE(w){')[1].split(' function formatChipDiag(d){')[0];
+ assert.ok(reader.includes('const bytes=P.readData(reply,3);'));
+ assert.ok(reader.includes('crc8Rx:bytes[2]'));
+ assert.ok(reader.includes("crc8IndependentCheck:'not-validated'"));
+ assert.ok(reader.includes('rawReply:reply.slice(0,1000)'));
+ assert.ok(reader.includes("status:'malformed'"));
+ assert.ok(safe.includes('if(!(w&0x0800))throw Error('));
+ assert.ok(safe.includes('P.goodG(g)'));
+ assert.ok(src.includes("if(!(old&0x800))throw Error('Pflichtbit 11 fehlt. Schreiben gesperrt.')"));
+ assert.ok(!safe.includes('st.chip=true'));
+ assert.ok(src.includes('Chipdiagnose als JSON')===false); // label is in HTML only
+});
+test('After bounded SSP3 retry fails, diagnosis runs automatically but no reconnect loop or RAM writes',()=>{
+ const src=read('app.js');
+ const connect=src.split(' async function connect(port,retryChipOnce=true){')[1].split(' async function disconnect(){')[0];
+ assert.ok(connect.includes("if(retryChipOnce&&st.adapterKind==='ssp3'){"));
+ assert.ok(connect.includes('await connect(port,false)'));
+ assert.ok(connect.includes("await runChipDiagnostics('Automatisch nach zweiter fehlgeschlagener Chiperkennung: '"));
+ assert.ok(connect.includes('Keine Schreibfreigabe.'));
+ assert.ok(!connect.includes('maintWrite('));
+ assert.ok(!connect.includes('nvmWrite('));
+ assert.ok(!connect.includes('commitGain('));
+ assert.ok(src.includes("logging('Chipdiagnose: '"));
+ assert.ok(src.includes('CRC8: empfangenes Byte wird protokolliert'));
+});
+test('Chip diagnostics export is available for failed chip detection without unlocking access',()=>{
+ const src=read('app.js'),html=read('index.html');
+ assert.ok(src.includes("$('chipDiagRead').addEventListener('click'"));
+ assert.ok(src.includes("$('chipDiagExport').addEventListener('click'"));
+ assert.ok(src.includes("'ELMOS_E70311_Chipdiagnose_'+Date.now()+'.json'"));
+ assert.ok(src.includes('usbLog:st.log.slice(-120)'));
+ assert.ok(src.includes('chipDiagnostic:st.chipDiag'));
+ assert.ok(html.includes('CRC8-Byte wird mitprotokolliert'));
+ assert.ok(html.includes('kein ungeprüftes «CRC gültig»'));
+});
+
+test('Three-byte SSP3 PLC response is parsed losslessly including zero bit11',()=>{
+ const P=require('../app.js');
+ assert.deepEqual(P.readData('# SSP3\n08 00 5A\n:\n',3),[0x08,0x00,0x5A]);
+ assert.deepEqual(P.readData('00 00 00\r\n:\r\n',3),[0,0,0]);
+ assert.throws(()=>P.readData('00 00\r\n:\r\n',3),/Ungültige oder mehrdeutige/);
+ assert.throws(()=>P.readData('08 00 FF\n08 00 AA\n:\n',3),/mehrdeutige/);
+ assert.equal((0x0800&0x0800)!==0,true);
+ assert.equal((0x0000&0x0800)!==0,false);
+});
+test('Elmos CRC8 polynomial test vector and existing reserved-bit write lock remain unchanged',()=>{
+ const P=require('../app.js');
+ assert.equal(P.crc8PLC([0x6A,0x0A,0x67,0x89]),0x5F);
+ assert.throws(()=>P.encAFE(0x0000,{pga1:0,pga2:0,offset:0}),/Pflichtbit 11 fehlt/);
+ const valid=P.encAFE(0x0800,{pga1:2,pga2:3,offset:1});
+ assert.equal(valid&0x0800,0x0800);
 });
