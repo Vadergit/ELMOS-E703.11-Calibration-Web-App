@@ -1,3 +1,11 @@
+## v0.6.26 – 12.11.2026: Live-ADC_S unabhängig von Temperatur/DSP abfragen
+
+- Eigene zyklische Live-Abfrage: ADC_S zuerst lesen und sofort anzeigen, danach höchstens ein zusätzliches Register pro Durchlauf (ADC_T, ADC_TC, DSP_S, Pause).
+- Temperature-/DSP-Lesefehler blockieren den Druckwert nicht mehr; mehrere Timeout-Ketten werden vermieden.
+- Bei ADC_S-Kommunikationsfehlern läuft die Live-Wiederholungsprüfung im bestehenden USB-Port alle 2 s weiter; sichtbare Warnmeldung statt stillschweigendem Stop nach zehn Fehlschlägen.
+- Strenge Kalibrier-Messpunktproben, SSP3-Magic-Cookie-Start, NVM-Konfiguration und Power-Schutz unverändert.
+- Neue Regressionstests für Registerreihenfolge, Verfügbarkeit und Live-Retry-Verhalten.
+
 ## v0.6.25 – 12.11.2026: ADC-Live-Werte nach SSP3-Magic-Cookie-Verbindung
 
 - Live-Abfrage priorisiert ADC_S (0x2A) und behandelt ADC_T/ADC_TC/DSP_S als separat fehlertolerante Werte. So können fehlende Temperaturantworten die Druckanzeige nicht mehr vollständig blockieren.

@@ -178,7 +178,7 @@ test('Expert mode shows contextual settings and no modal',()=>{
  assert.ok(html.includes('data-expert-area hidden><summary>Erweitert · AODO_F'));
  assert.ok(src.includes("classList.toggle('is-expert',enabled)"));
  const scripts=Array.from(html.matchAll(/<script src="([^"]+)"/g),m=>m[1]);
- assert.deepEqual(scripts,['calibration.js?v=0.6.25','eeprom-help.js?v=0.6.25','expert.js?v=0.6.25','config.js?v=0.6.25','guided-plan.js?v=0.6.25','demo.js?v=0.6.25','app.js?v=0.6.25','compact.js?v=0.6.25','guided.js?v=0.6.25']);
+ assert.deepEqual(scripts,['calibration.js?v=0.6.26','eeprom-help.js?v=0.6.26','expert.js?v=0.6.26','config.js?v=0.6.26','guided-plan.js?v=0.6.26','demo.js?v=0.6.26','app.js?v=0.6.26','compact.js?v=0.6.26','guided.js?v=0.6.26']);
 });
 
 test('Failed E703.11 probe keeps SSP3 open for explicit, bounded startup test',()=>{
@@ -438,7 +438,7 @@ test('Guided view is optional and contains only one set of hardware inputs',()=>
  assert.ok(html.includes('id="workflowMode"'));
  assert.ok(html.includes('id="guidedLaunch"'));
  assert.ok(html.includes('id="guidedLaunchTop"'));
- assert.ok(html.includes('guided.css?v=0.6.25'));
+ assert.ok(html.includes('guided.css?v=0.6.26'));
  for(const id of ['nvmProgram','nvmPrepare','calApplyRam','calVerifyRam','expertOutputStage','configApply','configFile']){
   assert.equal(html.split('id="'+id+'"').length-1,1);
  }
@@ -934,8 +934,8 @@ test('SSP3 02.08.02.04 uses hardware-proven legacy PLC host frame; split format 
  assert.ok(fw.includes("$('plcHostFormat').value='legacy'"));
  assert.ok(!fw.includes("st.plcHostFormat='separate'"));
  assert.ok(html.includes('<option value="separate" disabled>'));
- assert.ok(html.includes('<script src="app.js?v=0.6.25"'));
- assert.ok(html.includes('guided.css?v=0.6.25'));
+ assert.ok(html.includes('<script src="app.js?v=0.6.26"'));
+ assert.ok(html.includes('guided.css?v=0.6.26'));
  const p=app.split('async function testSsp3PowerStartup(){')[1]?.split('async function connect(port){')[0];
  assert.ok(p.includes("if(st.firmware==='02.08.02.04')"));
  assert.ok(p.includes("st.plcHostFormat='legacy'"));
@@ -1085,9 +1085,37 @@ test('Live acquisition resumes after protected SSP3 power-cookie sequence and re
  assert.ok(power.includes('if(st.powerCycleResult?.readVerified&&st.port===port&&!st.closing&&st.chip&&!st.manualLivePause)'));
  assert.ok(power.includes('startLive();'));
  const loop=app.split('function startLive(){')[1]?.split('function stopLive(){')[0];
- assert.ok(loop.includes('readADC({allowPartial:true})'));
+ assert.ok(loop.includes('readLiveSample()'));
  assert.ok(loop.includes('st.powerCycleRunning||st.closing'));
- assert.ok(loop.includes('st.consecutiveErrors>=10'));
- assert.ok(loop.includes('st.consecutiveErrors>=3?2500:liveIntervalMs'));
+ assert.ok(loop.includes('st.consecutiveErrors?2000:liveIntervalMs'));
+ assert.ok(!loop.includes('st.consecutiveErrors>=10'));
  assert.ok(!loop.includes('nvmWrite('));
+});
+
+test('Live pipeline publishes ADC_S before one staggered secondary register read',()=>{
+ const app=read('app.js');
+ const live=app.split('async function readLiveSample(){')[1]?.split('function startLive(){')[0];
+ assert.ok(live);
+ assert.ok(live.indexOf('readReg(0x2A,1600)')<live.indexOf('updateADC({s,t:previous?.t??null,tc:previous?.tc??null}'));
+ assert.ok(live.indexOf('updateADC({s,t:previous?.t??null,tc:previous?.tc??null}')<live.indexOf('readReg(0x28,1100)'));
+ assert.ok(live.indexOf('updateADC({s,t:previous?.t??null,tc:previous?.tc??null}')<live.indexOf('readReg(0x26,1100)'));
+ assert.ok(live.indexOf('updateADC({s,t:previous?.t??null,tc:previous?.tc??null}')<live.indexOf('readReg(0x30,1100)'));
+ assert.ok(live.includes('liveSecondaryIndex++%4'));
+ assert.ok(live.includes('if(channel===0)'));
+ assert.ok(live.includes('}else if(channel===1)'));
+ assert.ok(live.includes('}else if(channel===2)'));
+ assert.ok(live.includes('catch(e)'));
+ for(const forbidden of ['nvmWrite(', 'nvmProgram(', 'lowLevelWrite(', 'port.close(', 'PWR_OFF', 'PLC P', 'PLC T'])assert.ok(!live.includes(forbidden));
+});
+test('Live loop does not stop silently after 10 missing ADC samples',()=>{
+ const app=read('app.js');
+ const loop=app.split('function startLive(){')[1]?.split('function stopLive(){')[0];
+ assert.ok(loop);
+ assert.ok(loop.includes('const p=readLiveSample();'));
+ assert.ok(loop.includes("st.timeout=setTimeout(loop,interval)"));
+ assert.ok(loop.includes('st.consecutiveErrors?2000:liveIntervalMs'));
+ assert.ok(loop.includes('if(st.live&&st.port&&!st.closing)'));
+ assert.ok(!loop.includes('stopLive()'));
+ assert.ok(!loop.includes('st.consecutiveErrors>=10'));
+ assert.ok(loop.includes("show('adcMsg','Live-ADC_S momentan nicht lesbar"));
 });
