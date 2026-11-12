@@ -178,7 +178,7 @@ test('Expert mode shows contextual settings and no modal',()=>{
  assert.ok(html.includes('data-expert-area hidden><summary>Erweitert · AODO_F'));
  assert.ok(src.includes("classList.toggle('is-expert',enabled)"));
  const scripts=Array.from(html.matchAll(/<script src="([^"]+)"/g),m=>m[1]);
- assert.deepEqual(scripts,['calibration.js?v=0.6.20','eeprom-help.js?v=0.6.20','expert.js?v=0.6.20','config.js?v=0.6.20','guided-plan.js?v=0.6.20','demo.js?v=0.6.20','app.js?v=0.6.20','compact.js?v=0.6.20','guided.js?v=0.6.20']);
+ assert.deepEqual(scripts,['calibration.js?v=0.6.21','eeprom-help.js?v=0.6.21','expert.js?v=0.6.21','config.js?v=0.6.21','guided-plan.js?v=0.6.21','demo.js?v=0.6.21','app.js?v=0.6.21','compact.js?v=0.6.21','guided.js?v=0.6.21']);
 });
 
 test('Failed E703.11 probe keeps SSP3 open for explicit, bounded startup test',()=>{
@@ -438,7 +438,7 @@ test('Guided view is optional and contains only one set of hardware inputs',()=>
  assert.ok(html.includes('id="workflowMode"'));
  assert.ok(html.includes('id="guidedLaunch"'));
  assert.ok(html.includes('id="guidedLaunchTop"'));
- assert.ok(html.includes('guided.css?v=0.6.20'));
+ assert.ok(html.includes('guided.css?v=0.6.21'));
  for(const id of ['nvmProgram','nvmPrepare','calApplyRam','calVerifyRam','expertOutputStage','configApply','configFile']){
   assert.equal(html.split('id="'+id+'"').length-1,1);
  }
@@ -830,9 +830,13 @@ test('AN0204 SSP3 power test is opt-in, ordered, recoverable and never programs 
  assert.ok(!code.includes("await send('Power_OFF 03E8'"));
  assert.ok(code.indexOf("if(!help.pwrOffListed)")<code.indexOf("await send('PWR_OFF 03E8'"));
  assert.ok(code.includes("st.adapterKind!=='ssp3'||st.iface!=='plc'"));
- const commands=["PWR_OFF 03E8","PLC P","PWR_ON 0C80 00C8 0","PLC T"];
+ const commands=["PWR_OFF 03E8","PLC P"];
  for(const cmd of commands)assert.ok(code.includes("await send('"+cmd+"'"));
- for(let i=1;i<commands.length;i++)assert.ok(code.indexOf("await send('"+commands[i-1]+"'")<code.indexOf("await send('"+commands[i]+"'"));
+ assert.ok(code.indexOf("await send('PWR_OFF 03E8'")<code.indexOf("await send('PLC P'"));
+ assert.ok(code.indexOf("await send('PLC P'")<code.indexOf("await exchangeSsp3StartupBurst()"));
+ assert.ok(code.includes("await exchangeSsp3StartupBurst()"));
+ assert.ok(!code.includes("await send('PWR_ON 0C80 00C8 0'"));
+ assert.ok(!code.includes("await send('PLC T'"));
  assert.ok(code.includes("await send('PWR_ON 0 0 0',4000)"));
  assert.ok(code.includes('await detect();'));
  for(const bad of ['nvmWrite(', 'nvmProgram(', 'maintWrite(', 'port.open(', 'port.close('])assert.ok(!code.includes(bad));
@@ -874,7 +878,7 @@ test('PLC host format can only be manually selected and applies to post-power re
  assert.ok(src.includes("P.plcHostCommand(P.plcWrite(addr,word),st.plcHostFormat)"));
  const power=src.split('async function testSsp3PowerStartup(){')[1]?.split('async function connect(port){')[0];
  assert.ok(power?.includes("st.powerCycleResult={at:new Date().toISOString(),stage:'start',plcHostFormat:st.plcHostFormat"));
- assert.ok(power?.includes("await send('PLC T',2500)"));
+ assert.ok(power?.includes("await exchangeSsp3StartupBurst()"));
  assert.ok(power?.includes('await detect()'));
  assert.ok(!power.includes("plcHostFormat='separate'"));
 });
@@ -930,8 +934,8 @@ test('SSP3 02.08.02.04 uses hardware-proven legacy PLC host frame; split format 
  assert.ok(fw.includes("$('plcHostFormat').value='legacy'"));
  assert.ok(!fw.includes("st.plcHostFormat='separate'"));
  assert.ok(html.includes('<option value="separate" disabled>'));
- assert.ok(html.includes('<script src="app.js?v=0.6.20"'));
- assert.ok(html.includes('guided.css?v=0.6.20'));
+ assert.ok(html.includes('<script src="app.js?v=0.6.21"'));
+ assert.ok(html.includes('guided.css?v=0.6.21'));
  const p=app.split('async function testSsp3PowerStartup(){')[1]?.split('async function connect(port){')[0];
  assert.ok(p.includes("if(st.firmware==='02.08.02.04')"));
  assert.ok(p.includes("st.plcHostFormat='legacy'"));
@@ -953,4 +957,31 @@ test('SSP3+PLC always power-starts before register reads without user checkbox',
  assert.ok(connect.includes("st.adapterKind==='ssp3'&&st.iface==='plc'"));
  assert.ok(app.includes('powerCycle:st.powerCycleResult'));
  assert.ok(app.includes('CAL.protectStartupCommunication(initial,modified)'));
+});
+
+test('SSP3 prompt counter correctly counts independent command acknowledgements',()=>{
+ const P=require('../app.js');
+ assert.equal(P.ssp3PromptCount('#PWR_ON 0c80 00c8 0000\r:\r'),1);
+ assert.equal(P.ssp3PromptCount('#PWR_ON 0c80 00c8 0000\r:\r#PLC T\r:\r'),2);
+ assert.equal(P.ssp3PromptCount('#PWR_ON 0c80 00c8 0000\r:\r#PLC T\r'),1);
+ assert.equal(P.ssp3PromptCount('#PLC 026D1C0C.\r!PLC nothing received\r:\r'),1);
+});
+test('Short-window power-on and PLC transmit are sent in one USB write',()=>{
+ const app=read('app.js');
+ const routine=app.split('async function exchangeSsp3StartupBurst(){')[1]?.split('async function firmware(){')[0];
+ assert.ok(routine);
+ assert.ok(routine.includes("const commands=['PWR_ON 0C80 00C8 0','PLC T']"));
+ assert.ok(routine.includes("commands.join('\\r')+'\\r'"));
+ assert.ok(routine.includes("writer.write(new TextEncoder().encode("));
+ assert.ok(routine.includes("prompts:2"));
+ assert.ok(routine.includes("P.ssp3PromptCount(response)!==2"));
+ assert.ok(routine.includes('/^#PWR_ON'));
+ assert.ok(routine.includes('/^#PLC T'));
+ assert.ok(!routine.includes('await exchange('));
+ assert.ok(!routine.includes('nvm'));
+ const power=app.split('async function testSsp3PowerStartup(){')[1]?.split('async function connect(port){')[0];
+ assert.ok(power.indexOf("await send('PLC P'")<power.indexOf('await exchangeSsp3StartupBurst()'));
+ assert.ok(power.includes("powerOnAcknowledged=true"));
+ assert.ok(power.includes("await send('PWR_ON 0 0 0',4000)"));
+ assert.ok(power.includes('await detect()'));
 });

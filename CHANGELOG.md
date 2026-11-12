@@ -1,3 +1,10 @@
+## v0.6.21 – 12.11.2026: One-Wire-Cookie zeitnah nach Power-On senden
+
+- Bisherige 15-ms-USB-Roundtrip-Pause zwischen `PWR_ON` und `PLC T` entfernt.
+- `PWR_ON 0C80 00C8 0` und `PLC T` werden in **einem** USB-Write als zwei CR-getrennte SSP3-Befehle gesendet. Ein gemeinsamer Response-Waiter sammelt ausdrücklich zwei Firmware-Prompts und prüft beide Quittungen.
+- Normale SSP3-/One-Wire-Startsequenz, CRC-Telegrammformat, I²C/SPI-Trennung, NVM-Schutz und Wiederherstellung der Versorgung bei Fehlern bleiben erhalten.
+- 4-ms-Startfenster erfordert hardwareseitige Timingprüfung; mehrere CR-Kommandos in einem USB-Write noch nicht am echten SSP3 bestätigt.
+
 ## v0.6.20 – 12.11.2026: SSP3-One-Wire-Autostart ohne Checkbox und PLC-Rückkorrektur
 
 - Reales SSP3-Feedback `frame contains invalid data ( )` bestätigt, dass die separierte Form `PLC 02 6D1C0C.` ungültig ist. Wiederherstellung der korrekten ursprünglichen Form `PLC 026D1C0C.` für Firmware 02.08.02.04.

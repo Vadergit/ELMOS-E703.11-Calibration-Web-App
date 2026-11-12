@@ -132,3 +132,11 @@ Die jeweils gewählte Hostformatierung wird nach dem ausdrücklich freigegebenen
 ### v0.6.20 – SSP3-ASCII-Format korrigiert
 
 Live-Hardwaremeldung beim v0.6.19-Verbindungsversuch: `#PLC 02 6D1C0C. !PLC frame contains invalid data ( ) !PLC nothing received`. Das zeigt einen vom SSP3 zurückgewiesenen ASCII-Telegrammaufbau. Im neuen Code ist für die bekannte Firmware nur noch das ursprüngliche `PLC 026D1C0C.` erlaubt. Der Power-Start wird automatisch auf SSP3/OneWire beschränkt, nicht auf I²C/SPI oder ESP32. **Ein erfolgreicher neuer SSP3-Hardwaretest wurde noch nicht durchgeführt; die Softwaretests ersetzen ihn nicht.**
+
+### v0.6.21 – schneller SSP3-PLC-Start bei 4-ms-Fenster (12.11.2026)
+
+Das bisherige Hostprotokoll wartete zwischen `PWR_ON 0C80 00C8 0` und `PLC T` auf eine komplette USB-Antwort. Frühere reale Logs zeigten dabei rund **15 ms**, was das beim E703.11 auf **4 ms** programmierte Startfenster bereits überschreitet. Die Elmos AN 0204 §2.3.4 dokumentiert, dass `PLC P` den Cookie-Frame vorbereitet und `PLC T` den Puffer überträgt. Das Datenblatt 25DS0170E.04 §6.4.5.8 verlangt, dass die Cookie-Sequenz vollständig während des Startfensters übertragen wird.
+
+Für den **normalen SSP3 + 1-Wire**-Verbindungsaufbau bleibt daher die dokumentierte Reihenfolge `IF_CFG 7 0 0`, `PWR_OFF 03E8`, `PLC P` erhalten. Neu werden `PWR_ON 0C80 00C8 0\rPLC T\r` **ohne USB-Antwort-Wartezeit in einer einzigen seriellen Schreiboperation** an die SSP3-Firmware übermittelt. Die Software erwartet anschliessend **zwei getrennte Firmware-Prompts**, prüft die Quittung beider Kommandos und liest erst danach die E703.11-Register. Bei Fehlern wird die bisherige Strom-Wiederherstellungsroutine angewendet. Es werden **keine NVM-Werte verändert** und keine undokumentierten Sensorbefehle gesendet.
+
+**Hardwarevorbehalt:** Die SSP3-Firmware muss mehrere CR-getrennte Befehle in einer USB-Schreiboperation korrekt puffern und verarbeiten; dies ist aus AN 0204 nicht ausdrücklich garantiert. Ein erfolgreicher Hardwaretest steht noch aus. Auch mit schnellerem Hostversand kann insbesondere bei 4 ms das zeitliche Verhalten der SSP3-Firmware oder die PLC-Bitrate weiterhin einen Zugriff verhindern. Dann sind die tatsächlichen SSP3-Antworten auszuwerten und nötigenfalls die PLC_CFG-Einstellungen beziehungsweise ein Original-PSSC-Trace zu vergleichen.
