@@ -263,7 +263,7 @@ const ELMOS_GUIDED=(()=>{
   fieldValue('calTOrder',p.orderT);
   fieldValue('calDspLimit',p.outputLimit);
   for(const point of p.points){
-   const index=point.index+1,name='T'+(point.temperatureIndex+1)+' / P'+(point.pressureIndex+1)+' · '+point.pressure+' '+p.unit;
+   const name=point.label+' · '+point.pressure+' '+p.unit;
    if(point.slot==='lo'){
     $('pointLoName').value=name;$('pointLoName').dataset.userEdited='1';
     fieldValue('calLoTemp',point.temperature);
@@ -278,7 +278,7 @@ const ELMOS_GUIDED=(()=>{
     fieldValue('calExtra'+k+'Temp',point.temperature);
    }
   }
-  fieldValue('calVerifyCount',p.tCount>1?Math.min(3,p.tCount):2);
+  fieldValue('calVerifyCount',1);
   signature=nextSignature;selectedPoint=0;plan=p;
   return p;
  }
