@@ -55,7 +55,7 @@ if(typeof document!=='undefined') (function UI(){
   lower:Number($('pmin').value),upper:Number($('pmax').value),limit:getActiveDSPRange()?.limit??32000
  })):null;
  const REG_NAMES={4:'CFG_EN',6:'CFG_SPI_I2C',8:'CFG_PADS0',10:'CFG_PADS1',12:'CFG_PADS2',16:'CFG_AODO',0x14:'CFG_ADC',0x16:'CFG_LP0',0x18:'CFG_LP1',0x1A:'CFG_AFE0',0x1C:'CFG_AFE1',0x1E:'CFG_AFE2',0x26:'ADC_TC',0x28:'ADC_T',0x2A:'ADC_S'};
- const st={chipDiag:null,diagRunning:false,lastPlcReply:null,mode:'offline',port:null,closing:false,reader:null,readerPromise:null,cmdQueue:Promise.resolve(),replyBuffer:'',responseWait:null,iface:'plc',adapterKind:'ssp3',sensorPowerEnabled:false,startupRunning:false,startupAbort:false,startupAttempts:0,magicRunning:false,magicResult:null,powerCycleRunning:false,powerCycleResult:null,powerHelp:null,plcHostFormat:'legacy',firmware:'',chip:false,sensorLost:false,reinitRunning:false,boot:null,afe:null,afe0:null,bridgeWriteAllowed:false,bridgeReadBusy:false,staged:{pga1:0,pga2:0,offset:0},adc:null,dsp:null,dspError:null,liveReadPromise:null,trend:[],history:[],log:[],regs:{},points:{lo:null,hi:null},verify:null,live:false,manualLivePause:false,timeout:null,consecutiveErrors:0,liveReadAttempts:0,liveReadSuccesses:0,liveLastError:null,liveLastAttemptAt:null,measurementPeriod:null,measurementStatus:null,measurementError:null,measurementStarts:0,measurementFreshCount:0,measurementLastChangedAt:null,writing:false,pressure:5,calpoints:[],calfit:null,calImage:null,nvmBackup:null,nvmBackupVerified:false,calStaged:false,calVerified:false,calValidation:[],calTask:false,nvmWorking:false,nvmDone:false,afeWriteActive:false,ramWriteScope:null,uid:null,expertOutputPlan:null,restorePlan:null,outputOnlyPlan:null,uidShownForInput:null,profilePendingAFE:null};
+ const st={chipDiag:null,diagRunning:false,lastPlcReply:null,mode:'offline',port:null,closing:false,reader:null,readerPromise:null,cmdQueue:Promise.resolve(),replyBuffer:'',responseWait:null,iface:'plc',adapterKind:'ssp3',sensorPowerEnabled:false,startupRunning:false,startupAbort:false,startupAttempts:0,magicRunning:false,magicResult:null,powerCycleRunning:false,powerCycleResult:null,startupTrials:[],powerHelp:null,plcHostFormat:'legacy',firmware:'',chip:false,sensorLost:false,reinitRunning:false,boot:null,afe:null,afe0:null,bridgeWriteAllowed:false,bridgeReadBusy:false,staged:{pga1:0,pga2:0,offset:0},adc:null,dsp:null,dspError:null,liveReadPromise:null,trend:[],history:[],log:[],regs:{},points:{lo:null,hi:null},verify:null,live:false,manualLivePause:false,timeout:null,consecutiveErrors:0,liveReadAttempts:0,liveReadSuccesses:0,liveLastError:null,liveLastAttemptAt:null,measurementPeriod:null,measurementStatus:null,measurementError:null,measurementStarts:0,measurementFreshCount:0,measurementLastChangedAt:null,writing:false,pressure:5,calpoints:[],calfit:null,calImage:null,nvmBackup:null,nvmBackupVerified:false,calStaged:false,calVerified:false,calValidation:[],calTask:false,nvmWorking:false,nvmDone:false,afeWriteActive:false,ramWriteScope:null,uid:null,expertOutputPlan:null,restorePlan:null,outputOnlyPlan:null,uidShownForInput:null,profilePendingAFE:null};
  let currentStep=0,pendingGain=null,writeTimer=null;let tipEnabled=true,liveIntervalMs=650;
  let liveSecondaryIndex=0;
  const HELP={interface:'Schnittstelle zwischen SSP3-Board und Sensorchip. 1-Wire nutzt AODO (VDD, GND und AODO). Die Einstellung IF_CFG ändert die Programmer-Pins, nicht die NVM-Konfiguration des Sensors.',baud:'Baudrate des USB-UART zwischen Chrome und dem SSP3. Die Herstellersoftware verwendet 115200 Baud als Standard.',adcs:'ADC_S ist der unkompensierte 16-Bit-Druck-ADC. ±25000 Digits ist ein vorsichtiges Ziel für den manuellen Abgleich, keine garantierte Hardwaregrenze.',dsp_live:'DSP_S (Register 0x30) ist der skalierte DSP-Sensorausgang. Die Anzeige liest den Chipwert wiederholt und rechnet ihn mit dem konfigurierten DSP-Endwert (standardmässig ±32’000 Digits) in den gewählten Anzeigebereich um. Ein DSP-Wert allein belegt keine gültige Kalibrierung.',pga1:'Erste Druckverstärkungsstufe: 3.5×, 6×, 8.5× oder 11× (typische Werte laut Datenblatt 2023). Für gutes SNR möglichst hoch ohne Übersteuerung.',pga2:'Zweite Verstärkungsstufe: typische Faktoren 2× bis 10×. Der Gesamtfaktor ist PGA1 × PGA2.',offset:'17 DAC-Stufen von −400 bis +400 mV/V bezogen auf die Brückenspannung. Die Verschiebung liegt zwischen PGA1 und PGA2.',bridgeSupply:'Interne Brückenversorgung SVDD gemäss E703.11 CFG_AFE0 (0x1A), Bits 1:0: 2,4 V (Standard), 1,6 V oder 2,0 V. Die externe Sensorversorgung VDD muss bei 2,4 V mindestens 3,0 V, sonst mindestens 2,7 V betragen. Beim Wechsel bleiben die übrigen AFE0-Bits inklusive Brückengain unverändert. Nur nach Klick wird ins RAM geschrieben; EEPROM bleibt unverändert.',pressureunit:'Einheit für die Referenz- und Prüfdruckwerte. Für relative Kalibrierungen kann beispielsweise % mit 0 bis 100 gewählt werden. Referenzwerte müssen zum tatsächlichen Prüfstand passen. Einheitenwechsel erfordert neue Messpunkte.',dsp_limit:'Symmetrischer DSP-Endwert für die neue Kalibrierung. Standard ±32’000 Digits. ±30’000 lässt zusätzlich Reserve. Der Wert verändert die berechneten Koeffizienten sowie DSP-Soll und Fehlerumrechnung; er ist keine Hardware-Clipping-Grenze.',ram:'PGA1, Offset und PGA2 werden mit jeder Pfeiltaste sofort ausschliesslich in CFG_AFE1 0x1C im RAM geändert und rückgelesen. Kein NVM-/EEPROM-Schreiben. Boot-/Kommunikationsregister werden kontrolliert.',};
@@ -615,7 +615,8 @@ if(typeof document!=='undefined') (function UI(){
  // firmware may accept only one CR-terminated command per UART/USB packet.
  // Do not WAIT for PWR_ON's firmware response before sending PLC T.
  // Command and chip timing is experimental; no claims about 4-ms guarantee.
- async function exchangeSsp3StartupBurst(){
+ async function exchangeSsp3StartupBurst(mode='combined'){
+  if(!['combined','split'].includes(mode))throw Error('Unbekannter SSP3-Starttransport');
   const commands=['PWR_ON 0C80 00C8 0','PLC T'];
   return serialize(async()=>{
    if(st.closing||!st.port?.writable||st.adapterKind!=='ssp3'||st.iface!=='plc')
@@ -643,15 +644,28 @@ if(typeof document!=='undefined') (function UI(){
    let secondQueued=false;
    const firstAt=Date.now();
    try{
-    logging('TX PWR_ON 0C80 00C8 0 (schnelle Einzelausgabe)');
-    await writer.write(new TextEncoder().encode(commands[0]+'\r'));
-    // UART command parser can process this as a distinct frame. No wait for ':'.
-    secondQueued=true;
-    logging('TX PLC T (direkt danach, ohne SSP3-Antwort abzuwarten)');
-    await writer.write(new TextEncoder().encode(commands[1]+'\r'));
+    if(mode==='combined'){
+     // Both CR-terminated SSP3 commands in ONE USB write. Reduces the risk
+     // that a 4-ms E703.11 startup window is missed by a second USB packet.
+     // The SSP3 parser still executes PWR_ON before PLC T.
+     const payload=commands.join('\r')+'\r';
+     logging('TX COMBINED USB: PWR_ON 0C80 00C8 0\\rPLC T\\r');
+     secondQueued=true;
+     await writer.write(new TextEncoder().encode(payload));
+    }else{
+     logging('TX PWR_ON 0C80 00C8 0 (getrennte USB-Ausgabe)');
+     await writer.write(new TextEncoder().encode(commands[0]+'\r'));
+     secondQueued=true;
+     logging('TX PLC T (sofortige zweite USB-Ausgabe, ohne Antwort abzuwarten)');
+     await writer.write(new TextEncoder().encode(commands[1]+'\r'));
+    }
     const sendDuration=Date.now()-firstAt;
-    if(st.powerCycleResult)st.powerCycleResult.burstSendDurationMs=sendDuration;
-    logging('SSP3 PWR_ON/PLC T: zwei serielle Writes in '+sendDuration+' ms; warte auf 2 Antworten.');
+    if(st.powerCycleResult){
+     st.powerCycleResult.burstSendDurationMs=sendDuration;
+     st.powerCycleResult.usbWriteMode=mode;
+    }
+    logging('SSP3 PWR_ON/PLC T: '+(mode==='combined'?'ein gemeinsamer':'zwei getrennte')+
+     ' USB-Schreibvorgang/-vorgänge in '+sendDuration+' ms; warte auf 2 SSP3-Antworten.');
    }catch(e){
     if(st.powerCycleResult){
      st.powerCycleResult.burstWriteError=String(e.message||e);
@@ -979,7 +993,8 @@ if(typeof document!=='undefined') (function UI(){
  // Elmos AN0204: PLC P / PLC T and Power_OFF / PWR_ON. Test uses PWR_OFF only
  // if advertised by the running SSP3 firmware, because Power_OFF was rejected.
  // Only a separately approved bench test on DUT powered through switchable SSP3 VSUPPLY.
- async function testSsp3PowerStartup(){
+ async function testSsp3PowerStartup(burstMode='combined'){
+  if(!['combined','split'].includes(burstMode))throw Error('Ungültiger SSP3-Startmodus');
   if(demoEnabled||st.adapterKind!=='ssp3'||st.iface!=='plc'||!st.port||st.closing)throw Error('SSP3-Starttest benötigt offenen SSP3 im PLC-Modus.');
   if(st.chip)throw Error('Chip bereits erkannt; kein Power-Cycle erforderlich.');
   if(!$('plcPowerConfirm').checked)throw Error('SSP3-VSUPPLY-Versorgung des isolierten Testchips zuerst bestätigen.');
@@ -996,7 +1011,7 @@ if(typeof document!=='undefined') (function UI(){
   if(!['legacy','separate'].includes(st.plcHostFormat))throw Error('Ungültiger SSP3-PLC-Hostformatwert');
   logging('SSP3 PLC-Hostformat beim automatischen Power-Start: '+st.plcHostFormat);
   st.powerCycleRunning=true;
-  st.powerCycleResult={at:new Date().toISOString(),stage:'start',plcHostFormat:st.plcHostFormat,steps:[],readVerified:false,powerRestored:false};
+  st.powerCycleResult={at:new Date().toISOString(),stage:'start',burstMode,plcHostFormat:st.plcHostFormat,steps:[],readVerified:false,powerRestored:false};
   let powerOffAttempted=false,powerOnAcknowledged=false;
   logging('AN0204: Versuch mit geprüftem SSP3-PWR_OFF -> PLC P -> PWR_ON -> PLC T; Firmwarehilfe wird zuerst abgefragt.');
   $('plcPowerState').textContent='SSP3-Sensorversorgung und PLC-Startsequenz laufen.';
@@ -1029,17 +1044,19 @@ if(typeof document!=='undefined') (function UI(){
    await sleep(30); // off-state settling; no delay after the subsequent power-on
    await send('PLC P',2500);
    $('plcPowerState').textContent='PLC-Puffer vorbereitet; SSP3 startet VSUPPLY und sendet PLC T.';
-   // A 15-ms USB response wait after PWR_ON is longer than the 4-ms
-   // E703.11 startup window. Write each command separately, but do not
-   // wait for PWR_ON's firmware reply before queueing PLC T.
-   st.powerCycleResult.stage='PWR_ON + PLC T (two fast serial writes)';
+   // E703.11 startup window can be only 4 ms. The default keeps both
+   // serial commands within ONE USB packet. If needed, the outer bounded
+   // recovery tries the previously used split-write variant once.
+   st.powerCycleResult.stage='PWR_ON + PLC T ('+burstMode+')';
    const burstStarted=Date.now();
-   const burstResponse=await exchangeSsp3StartupBurst();
+   const burstResponse=await exchangeSsp3StartupBurst(burstMode);
    st.powerCycleResult.steps.push({
-    command:'PWR_ON 0C80 00C8 0 -> PLC T',mode:'two-fast-serial-writes',
+    command:'PWR_ON 0C80 00C8 0 -> PLC T',
+    mode:burstMode==='combined'?'single-combined-usb-write':'two-fast-serial-writes',
     elapsedMs:Date.now()-burstStarted,reply:burstResponse.slice(0,1000),ok:true
    });
-   logging('AN0204: SSP3 quittierte beide getrennt gesendeten Startbefehle ('+(Date.now()-burstStarted)+' ms).');
+   logging('AN0204: SSP3 quittierte beide Startbefehle mit Transport '+burstMode+
+    ' ('+(Date.now()-burstStarted)+' ms).');
    powerOnAcknowledged=true;
    st.powerCycleResult.powerRestored=true;
    st.powerCycleResult.stage='readback';
@@ -1230,6 +1247,33 @@ if(typeof document!=='undefined') (function UI(){
   }
  }
 
+ // One explicit connection/recovery action can exercise both documented
+ // CR-separated USB transports without making Jürg perform two manual tests.
+ // Exactly two full controlled DUT power cycles at most; stop after success
+ // or any failure where the DUT supply was not positively restored.
+ async function startSsp3WithBoundedRetry(){
+  const port=st.port;
+  if(!port||st.closing)throw Error('SSP3-Port nicht offen');
+  st.startupTrials=[];
+  st.magicResult=null;
+  for(const mode of ['combined','split']){
+   if(st.port!==port||st.closing||st.chip)break;
+   st.magicResult=null;
+   logging('SSP3-Startversuch '+(mode==='combined'?'1/2: ein USB-Paket':'2/2: zwei USB-Pakete')+
+    ' mit unverändertem PLC-Protokoll; keine EEPROM-Programmierung.');
+   await testSsp3PowerStartup(mode);
+   st.startupTrials.push({...st.powerCycleResult,
+    magicCookie:st.magicResult?{...st.magicResult}:null});
+   if(st.chip)return true;
+   const prev=st.powerCycleResult;
+   if(mode==='combined'&&prev?.powerRestored===true&&st.port===port&&!st.closing){
+    logging('Erster SSP3-Start ohne Chipantwort. Einmaliger zweiter Start mit bewährtem getrenntem USB-Transport.');
+    $('plcPowerState').textContent='Erster Startversuch ohne Chipantwort. Zweiter, letzter Versuch läuft …';
+   }else break;
+  }
+  logging('SSP3-Start beendet: '+st.startupTrials.length+' Versuch(e), Chip erkannt='+!!st.chip+'.');
+  return !!st.chip;
+ }
  // A serial port can remain open while the DUT disappears. Never keep stale
  // ADC readings, chip approvals or calibration results associated with it.
  function markSensorUnavailable(reason){
@@ -1274,7 +1318,7 @@ if(typeof document!=='undefined') (function UI(){
     // Same guarded VSUPPLY / PLC P/T / Magic-Cookie sequence used at first connect.
     // Only volatile RAM configuration is touched; no automatic NVM writes.
     $('plcPowerConfirm').checked=true;
-    await testSsp3PowerStartup();
+    await startSsp3WithBoundedRetry();
    }else{
     if(st.adapterKind==='bridge'){
      const ready=await bridgeHello();
@@ -1334,7 +1378,7 @@ if(typeof document!=='undefined') (function UI(){
      // there is no stale user setting or checkbox.
      $('plcPowerConfirm').checked=true;
      logging('SSP3 + One Wire: automatischer Sensorstart über VSUPPLY; PLC-Format '+st.plcHostFormat+'.');
-     await testSsp3PowerStartup();
+     await startSsp3WithBoundedRetry();
      return;
     }
     await detect();
@@ -2279,10 +2323,10 @@ if(typeof document!=='undefined') (function UI(){
  });
  $('plcStartupLogExport').addEventListener('click',()=>{
   const log={
-   tool:'ELMOS E703.11 – SSP3 Startdiagnose',version:'v0.6.36',at:new Date().toISOString(),
+   tool:'ELMOS E703.11 – SSP3 Startdiagnose',version:'v0.6.37',at:new Date().toISOString(),
    source:'Web-App (NICHT PSSC Originalsoftware)',interface:st.iface,adapter:st.adapterKind,
    firmware:st.firmware,port:serialPortInfo(st.port),chipDetected:!!st.chip,
-   startupAttempts:st.startupAttempts,lastPlcReply:st.lastPlcReply,
+   startupTrials:st.startupTrials,startupAttempts:st.startupAttempts,lastPlcReply:st.lastPlcReply,
    chipDiag:st.chipDiag,magicCookie:st.magicResult,powerCycle:st.powerCycleResult,powerHelp:st.powerHelp,plcHostFormat:st.plcHostFormat,
     liveDiagnostic:{active:st.live,attempts:st.liveReadAttempts,successes:st.liveReadSuccesses,
      failures:st.consecutiveErrors,lastError:st.liveLastError,lastAttemptAt:st.liveLastAttemptAt,
@@ -2311,7 +2355,7 @@ if(typeof document!=='undefined') (function UI(){
    logging('PLC Host-Telegrammformat für nächsten Lese-/Power-Test: '+st.plcHostFormat);
   });
 
-  $('plcPowerRun').addEventListener('click',()=>testSsp3PowerStartup().catch(e=>{$('plcPowerState').textContent=e.message;logging(e.message);show('connMsg',e.message,'warn');}));
+  $('plcPowerRun').addEventListener('click',()=>startSsp3WithBoundedRetry().catch(e=>{$('plcPowerState').textContent=e.message;logging(e.message);show('connMsg',e.message,'warn');}));
   $('plcPowerHelpRead').addEventListener('click',()=>readSsp3PowerHelp().catch(e=>{
    $('plcPowerHelpOutput').textContent='SSP3-Hilfe konnte nicht gelesen werden: '+e.message;
    logging('SSP3-Hilfe: '+e.message);
