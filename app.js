@@ -772,6 +772,8 @@ if(typeof document!=='undefined') (function UI(){
   const caps=match[1].split(',');
   st.bridgePsscRam=caps.includes('PSSC_RAM');
   st.bridgeRxDiag=caps.includes('PLC_RX_DIAG');
+  st.bridgeGpio4Io=caps.includes('PLC_GPIO4_IO');
+  $('plcGpio4Mode').disabled=!st.bridgeGpio4Io;
   st.firmware='USB-CDC Bridge v1 · '+caps.join('/');
   renderStatus();logging('USB-Bridge CAPS: '+caps.join(','));
   const ready=['PLC_READ','PLC_WRITE','NVM'].every(cap=>caps.includes(cap));
@@ -799,7 +801,9 @@ if(typeof document!=='undefined') (function UI(){
    for(const row of reply.split(/\r?\n/).filter(l=>l.includes('# RX ')))logging(row);
    const readings=[...reply.matchAll(/ECHO=(BOTH|LOW|HIGH) EDGES=(\d+)/g)];
    if(readings.length!==2)return;
-   if(readings.every(m=>m[1]!=='BOTH'&&Number(m[2])===0))
+   if(st.bridgeSinglePin&&readings.every(m=>Number(m[2])===0))
+    st.bridgeRxNote='ESP32 per USB erreichbar. Nach dem Senden auf GPIO4 wurde keine Sensorantwort erkannt.';
+   else if(readings.every(m=>m[1]!=='BOTH'&&Number(m[2])===0))
     st.bridgeRxNote='ESP32 per USB erreichbar. GPIO6 sieht weder das eigene Sendesignal noch eine Sensorantwort. AODO-Treiber und RX-Anschluss prüfen.';
    else if(readings.every(m=>Number(m[2])===0))
     st.bridgeRxNote='ESP32 empfängt sein eigenes Sendesignal, aber keine Sensorantwort auf AODO. Startfenster und Sensorversorgung prüfen.';
@@ -808,6 +812,9 @@ if(typeof document!=='undefined') (function UI(){
  }
  async function connectBridgeChip(){
   st.bridgeRxNote='';
+  st.bridgeSinglePin=$('plcGpio4Mode').checked;
+  if(st.bridgeSinglePin&&!st.bridgeGpio4Io)throw Error('GPIO4 Senden/Empfangen benötigt ESP32-Firmware ab v0.6');
+  if(st.bridgeGpio4Io)await exchange(st.bridgeSinglePin?'PLC IO GPIO4':'PLC IO SPLIT');
   await exchange('PLC_BAUD '+$('plcBaud').value);
   try{await bridgeAccess({power:st.sensorPowerEnabled})}
   catch(e){
@@ -2627,7 +2634,7 @@ if(typeof document!=='undefined') (function UI(){
  });
  $('plcStartupLogExport').addEventListener('click',()=>{
   const log={
-   tool:'ELMOS E703.11 – SSP3 Startdiagnose',version:'v0.6.47',at:new Date().toISOString(),
+   tool:'ELMOS E703.11 – SSP3 Startdiagnose',version:'v0.6.48',at:new Date().toISOString(),
    source:'Web-App (NICHT PSSC Originalsoftware)',interface:st.iface,adapter:st.adapterKind,
     plcAddress:'0x'+h(st.plcAddress),plcAddressVerified:st.plcAddressVerified,
     plcAddressSource:st.plcAddressSource,plcAddressProbes:st.plcAddressProbes,psscRamRecovery:!!st.psscRamRecovery,

@@ -1,6 +1,6 @@
 # ESP32-C3 SuperMini mit E703.11 testen
 
-Firmware v0.5.1 unterstützt den PLC-Zugriff über AODO und stellt der lokalen Web-App die bestehenden Abläufe für Registerlesen, AFE/DSP im RAM und User-NVM bereit. Das PLC-Timing und die elektrische Schaltung müssen am Sensor geprüft werden. Den ersten Test auf Chip-Erkennung, Live-Werte und das Lesen des Original-NVM beschränken. RAM-Schreiben anschliessend an einem Testchip prüfen. Vor permanentem Schreiben das Original-NVM exportieren.
+Firmware v0.6 unterstützt den PLC-Zugriff über AODO und stellt der lokalen Web-App die bestehenden Abläufe für Registerlesen, AFE/DSP im RAM und User-NVM bereit. Das PLC-Timing und die elektrische Schaltung müssen am Sensor geprüft werden. Den ersten Test auf Chip-Erkennung, Live-Werte und das Lesen des Original-NVM beschränken. RAM-Schreiben anschliessend an einem Testchip prüfen. Vor permanentem Schreiben das Original-NVM exportieren.
 
 ## Anschluss über eine externe Treiberstufe
 
@@ -17,6 +17,10 @@ Bei Firmware v0.3 liegt der Lastschalter an GPIO7. Nach dem Flashen von v0.4 die
 AODO an der Sensorseite mit dem Tri-State-Ausgang über einen Schutzwiderstand und mit dem RX-Eingang verbinden. AODO kann bis zur Sensorversorgung aussteuern. GPIOs des ESP32 nur mit 3,3-V-Logik betreiben.
 
 Für einen bestätigten 3,3-V-Sensoraufbau eignet sich als Ausgangspunkt ein [SN74LVC1G126](https://www.ti.com/product/SN74LVC1G126) an 3,3 V für TX und ein [SN74LVC1G17](https://www.ti.com/product/SN74LVC1G17) an 3,3 V für RX. Bei einem bestätigten 5-V-Aufbau kann TX über einen [SN74AHCT1G126](https://www.ti.com/product/SN74AHCT1G126) an 5 V erfolgen, während der SN74LVC1G17 auf 3,3 V bleibt. Sein Eingang toleriert bis 5,5 V. Dimensioniere den Serienwiderstand nach zulässigem AODO-Strom bei Treiberkonflikt und tatsächlicher Leitungskapazität. Prüfe am Oszilloskop, dass die Signale die Schwellen erreichen und der ESP den Treiber vor der Sensorantwort freigibt. Bei aktiv geschalteter Sensorversorgung müssen Treiber und Schutzbeschaltung Rückspeisung bei ausgeschaltetem Sensor verhindern.
+
+## Alternativ: Senden und Empfangen auf GPIO4
+
+Bei Firmware ab v0.6 in der Web-App **GPIO4 für Senden und Empfangen** wählen, wenn die bidirektionale AODO-Schnittstelle auf GPIO4 liegt. GPIO5 bleibt dabei deaktiviert, und GPIO6 wird nicht als Empfänger verwendet. GPIO4 schaltet nach dem Senden auf Eingang. Die Schaltung muss den GPIO4-Pegel auf 3,3-V-Logik begrenzen und den Strom bei einem Treiberkonflikt begrenzen. Bei unbekanntem Pegel oder 5 V auf AODO GPIO4 nicht direkt verbinden.
 
 ## Ablauf
 

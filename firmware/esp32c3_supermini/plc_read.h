@@ -17,6 +17,7 @@ constexpr gpio_num_t Power = GPIO_NUM_10;
 constexpr uint32_t TxMask = 1u << Tx;
 constexpr uint32_t EnableMask = 1u << Enable;
 constexpr uint32_t RxMask = 1u << Rx;
+inline bool singlePin = false;
 constexpr uint8_t Preamble = 0x02;
 constexpr uint8_t ReadAddress = 0x6D;
 constexpr size_t ReplyBits = 32;
@@ -104,10 +105,14 @@ inline bool decode(const Edge *edges, size_t count, uint32_t bitTime, uint8_t ad
 inline void configurePins() {
   gpio_set_level(Enable, 0);
   gpio_set_level(Tx, 0);
-  gpio_set_pull_mode(Rx, GPIO_FLOATING);
-  gpio_set_direction(Enable, GPIO_MODE_OUTPUT);
-  gpio_set_direction(Tx, GPIO_MODE_OUTPUT);
-  gpio_set_direction(Rx, GPIO_MODE_INPUT);
+  // Select GPIO in the IO mux explicitly; GPIO4–GPIO7 also carry JTAG.
+  gpio_config_t pins{};
+  pins.pin_bit_mask = uint64_t(TxMask | RxMask);
+  pins.mode = GPIO_MODE_INPUT;
+  gpio_config(&pins);
+  pins.pin_bit_mask = uint64_t(EnableMask);
+  pins.mode = GPIO_MODE_OUTPUT;
+  gpio_config(&pins);
 }
 
 inline size_t transfer(const uint8_t *request, size_t length, unsigned baud,
@@ -117,10 +122,12 @@ inline size_t transfer(const uint8_t *request, size_t length, unsigned baud,
   const uint32_t half = esp_clk_cpu_freq() / baud;
   const uint32_t bitTime = 2 * half;
   size_t count = 0;
+  const uint32_t rxMask = singlePin ? TxMask : RxMask;
 
   // Establish a stable low IFG, including the initial autobaud gap.
   txLevel(false);
-  GPIO.out_w1ts.val = EnableMask;
+  GPIO.enable_w1ts.val = TxMask;
+  if (!singlePin) GPIO.out_w1ts.val = EnableMask;
   if (startup) {
     gpio_set_level(Power, 1);
     delayMicroseconds(500);
@@ -137,7 +144,7 @@ inline size_t transfer(const uint8_t *request, size_t length, unsigned baud,
       txLevel(one);
       next += half;
       waitUntil(next);
-      if (txEcho) *txEcho |= (GPIO.in.val & RxMask) ? 2 : 1;
+      if (txEcho) *txEcho |= (GPIO.in.val & rxMask) ? 2 : 1;
       txLevel(!one);
       next += half;
       waitUntil(next);
@@ -146,14 +153,15 @@ inline size_t transfer(const uint8_t *request, size_t length, unsigned baud,
   txLevel(true);
   waitUntil(next + half);
   GPIO.out_w1tc.val = EnableMask;
+  GPIO.enable_w1tc.val = TxMask;
 
-  bool last = GPIO.in.val & RxMask;
+  bool last = GPIO.in.val & rxMask;
   if (rxStart) *rxStart = last;
   const uint32_t end = next + 48 * bitTime;
   while (count < capacity) {
     const uint32_t now = esp_cpu_get_cycle_count();
     if (static_cast<int32_t>(now - end) >= 0) break;
-    const bool high = GPIO.in.val & RxMask;
+    const bool high = GPIO.in.val & rxMask;
     if (high != last) {
       edges[count++] = {now, high};
       last = high;
@@ -189,7 +197,10 @@ static_assert(writeCrc(0x06, 0x07, 0x6C, 0x04) == 0x4E);
 inline void enableAccess(unsigned baud, bool powerCycle, bool recover, uint8_t slave = ReadAddress) {
   if (powerCycle) {
     gpio_set_level(Power, 0);
-    gpio_set_direction(Power, GPIO_MODE_OUTPUT);
+    gpio_config_t power{};
+    power.pin_bit_mask = 1ULL << Power;
+    power.mode = GPIO_MODE_OUTPUT;
+    gpio_config(&power);
     delay(100);
   }
   writeWord(0xAC, 0x2B42, baud, powerCycle, false, slave);

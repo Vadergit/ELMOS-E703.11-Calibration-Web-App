@@ -1,3 +1,7 @@
+## v0.6.48 – AODO senden und empfangen über GPIO4
+
+- ESP32-Firmware v0.6 kann für AODO alternativ GPIO4 als gemeinsamen Sende- und Empfangspin nutzen. GPIO4 wird nach jedem Senden hochohmig. Für die bestehende externe Treiberstufe bleibt der Modus mit GPIO6 als RX der Standard.
+
 ## v0.6.47 – ESP32-Empfangsdiagnose
 
 - Firmware v0.5.1 synchronisiert sich auf die tatsächliche Sensorantwort und prüft den CRC. Bei fehlender Chipantwort zeigt die Web-App, ob GPIO6 das eigene Sendesignal und anschliessende Flanken erkannt hat.

@@ -180,8 +180,8 @@ static void diagnoseRx() {
     uint8_t echo = 0;
     const char *error = plc::readWord(0x1C, plcBaud, word, nullptr, slave, &edges, &initial, &echo);
     delay(2);
-    Serial.printf("# RX %u kBd ADDR=%02X GPIO6=%u ECHO=%s EDGES=%u RESULT=%s WORD=%04X\r\n",
-                  plcBaud / 1000, unsigned(slave & 0xFE), unsigned(initial),
+    Serial.printf("# RX %u kBd ADDR=%02X GPIO%u=%u ECHO=%s EDGES=%u RESULT=%s WORD=%04X\r\n",
+                  plcBaud / 1000, unsigned(slave & 0xFE), unsigned(plc::singlePin ? plc::Tx : plc::Rx), unsigned(initial),
                   echo == 3 ? "BOTH" : echo == 2 ? "HIGH" : "LOW", unsigned(edges), error ? error + 8 : "CRC_OK", unsigned(word));
   }
   Serial.print(":\r\n");
@@ -190,9 +190,9 @@ static void diagnoseRx() {
 static void onCommand(const char *command) {
   ++requests;
   if (strcmp(command, "BRIDGE_INFO") == 0) {
-    answer("# E70311-BRIDGE V1 CAPS=PLC_UID,PLC_READ,PLC_WRITE,NVM,POWER_GPIO_10,PSSC_RAM,PLC_RX_DIAG");
+    answer("# E70311-BRIDGE V1 CAPS=PLC_UID,PLC_READ,PLC_WRITE,NVM,POWER_GPIO_10,PSSC_RAM,PLC_RX_DIAG,PLC_GPIO4_IO");
   } else if (strcmp(command, ".VERSION") == 0) {
-    answer("# ESP32-C3 SuperMini ELMOS PLC bridge v0.5.1");
+    answer("# ESP32-C3 SuperMini ELMOS PLC bridge v0.6");
   } else if (strcmp(command, "BRIDGE_PING") == 0) {
     answer("# PONG ESP32-C3 SUPERMini PLC_UID");
   } else if (strcmp(command, "BRIDGE_STATS") == 0) {
@@ -200,6 +200,10 @@ static void onCommand(const char *command) {
                   static_cast<unsigned long>(requests),
                   static_cast<unsigned long>(ESP.getFreeHeap()));
     Serial.flush();
+  } else if (strcmp(command, "PLC IO GPIO4") == 0 || strcmp(command, "PLC IO SPLIT") == 0) {
+    plc::singlePin = strcmp(command, "PLC IO GPIO4") == 0;
+    activeSlave = plc::ReadAddress;
+    answer(plc::singlePin ? "# PLC IO GPIO4" : "# PLC IO SPLIT");
   } else if (strcmp(command, "PLC RX DIAG") == 0) {
     diagnoseRx();
   } else if (strcmp(command, "PLC_UID 25000") == 0) {
