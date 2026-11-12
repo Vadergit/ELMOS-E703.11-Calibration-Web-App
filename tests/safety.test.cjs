@@ -180,7 +180,7 @@ test('Expert mode shows contextual settings and no modal',()=>{
  assert.ok(html.includes('data-expert-area hidden><summary>Erweitert · AODO_F'));
  assert.ok(src.includes("classList.toggle('is-expert',enabled)"));
  const scripts=Array.from(html.matchAll(/<script src="([^"]+)"/g),m=>m[1]);
- assert.deepEqual(scripts,['calibration.js?v=0.6.16','eeprom-help.js?v=0.6.16','expert.js?v=0.6.16','config.js?v=0.6.16','guided-plan.js?v=0.6.16','demo.js?v=0.6.16','app.js?v=0.6.16','compact.js?v=0.6.16','guided.js?v=0.6.16']);
+ assert.deepEqual(scripts,['calibration.js?v=0.6.17','eeprom-help.js?v=0.6.17','expert.js?v=0.6.17','config.js?v=0.6.17','guided-plan.js?v=0.6.17','demo.js?v=0.6.17','app.js?v=0.6.17','compact.js?v=0.6.17','guided.js?v=0.6.17']);
 });
 
 test('Failed E703.11 probe keeps SSP3 open for explicit, bounded startup test',()=>{
@@ -440,7 +440,7 @@ test('Guided view is optional and contains only one set of hardware inputs',()=>
  assert.ok(html.includes('id="workflowMode"'));
  assert.ok(html.includes('id="guidedLaunch"'));
  assert.ok(html.includes('id="guidedLaunchTop"'));
- assert.ok(html.includes('guided.css?v=0.6.16'));
+ assert.ok(html.includes('guided.css?v=0.6.17'));
  for(const id of ['nvmProgram','nvmPrepare','calApplyRam','calVerifyRam','expertOutputStage','configApply','configFile']){
   assert.equal(html.split('id="'+id+'"').length-1,1);
  }
@@ -873,4 +873,27 @@ test('SSP3 help ? is read-only, exported and prevents unlisted power-off alias',
  assert.ok(html.includes('id="plcPowerHelpRead" disabled'));
  assert.ok(html.includes('id="plcPowerHelpOutput"'));
  assert.ok(src.includes('powerHelp:st.powerHelp,log:st.log.slice(-500)'));
+});
+
+test('New SSP3 firmware PLC separate slave-id formatting leaves chip bytes unchanged',()=>{
+ const P=require('../app.js');
+ assert.equal(P.plcHostCommand(P.plcRead(0x1C),'legacy'),'PLC 026D1C0C.');
+ assert.equal(P.plcHostCommand(P.plcRead(0x1C),'separate'),'PLC 02 6D1C0C.');
+ assert.equal(P.plcHostCommand(P.plcWrite(0xAC,0x2B42),'separate'),'PLC 02 6CAC0F2B4299');
+ assert.equal(P.plcHostCommand(P.plcWrite(0x0E,0x5CFD),'separate'),'PLC 02 6C0E095CFDCA');
+ assert.throws(()=>P.plcHostCommand('PLC P','separate'));
+});
+test('PLC host format can only be manually selected and applies to post-power register check',()=>{
+ const src=read('app.js'),html=read('index.html');
+ assert.ok(html.includes('id="plcHostFormat"'));
+ assert.ok(html.includes('<option value="legacy">'));
+ assert.ok(html.includes('<option value="separate">'));
+ assert.ok(src.includes("st.plcHostFormat=$('plcHostFormat').value;"));
+ assert.ok(src.includes("P.plcHostCommand(P.plcRead(addr,1),st.plcHostFormat)"));
+ assert.ok(src.includes("P.plcHostCommand(P.plcWrite(addr,word),st.plcHostFormat)"));
+ const power=src.split('async function testSsp3PowerStartup(){')[1]?.split('async function connect(port){')[0];
+ assert.ok(power?.includes("st.powerCycleResult={at:new Date().toISOString(),stage:'start',plcHostFormat:st.plcHostFormat"));
+ assert.ok(power?.includes("await send('PLC T',2500)"));
+ assert.ok(power?.includes('await detect()'));
+ assert.ok(!power.includes("plcHostFormat='separate'"));
 });

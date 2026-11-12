@@ -1,3 +1,10 @@
+## v0.6.17 – 12.11.2026: Experimentelles SSP3-PLC-Hostformat
+
+- Reales Hardwarelog bestätigt Hostannahme von `PWR_OFF`, `PLC P`, `PWR_ON` und `PLC T`; E703.11 antwortet noch nicht.
+- Die aktuelle SSP3-Firmware zeigt `PLC <slave_id> <data>`, AN0204 dagegen die Form `PLC 026D1C0C.`. Neuer, expliziter Select zwischen `PLC 026D1C0C.` und `PLC 02 6D1C0C.` für das nächste Lese-/Startfenster-Experiment.
+- Neue Formatierungsfunktion ändert ausschliesslich die Trennung der ASCII-Hostparameter, nicht Chipbytes/CRC. Legacy bleibt Standard; Format nach Chiperkennung gesperrt.
+- Neue Regressionstests. Kein NVM-Schreiben im Starttest, keine automatische zweite Stromunterbrechung.
+
 ## v0.6.16 – 12.11.2026: SSP3-Firmwarehilfe und gesicherte Power-Off-Prüfung
 
 - Hardwarelog zeigt `Unknown command (POWER_OFF)` beim vorhandenen SSP3. `PWR_ON 0 0 0` wurde akzeptiert; noch keine PLC-P-/T-Freigabe ausgeführt.

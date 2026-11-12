@@ -160,3 +160,14 @@ Aufruf: **USB & Chip → SSP3-Verbindungsdiagnose → Neu · SSP3-Sensorstart (A
 ## Firmwarevariante / Power_OFF unbekannt (v0.6.16)
 
 Der tatsächliche SSP3 (`.VERSION` antwortet mit `@02 08 02 04`) lehnt `Power_OFF 03E8` entgegen der gedruckten AN0204 mit `Unknown command (POWER_OFF)` ab. `PWR_ON 0 0 0` wird akzeptiert. Daher fragt die Web-App zuerst die firmwareeigene Befehlsliste mit dem nur lesenden `?` ab. Nur wenn dort `PWR_OFF` nachweisbar ist, darf die ausdrücklich freigegebene Prüfplatz-Routine dieses **noch nicht bestätigte** alternative Ausschaltkommando versuchen. Andernfalls keine Stromunterbrechung und kein PLC-Puffertest. SSP3-Befehlshilfe sowie Fehlversuche werden exportiert.
+
+## Experimenteller PLC-Syntaxvergleich für SSP3-Firmware v02.08.02.04 (v0.6.17, 12.11.2026)
+
+Das reale SSP3-Log belegt einen bestätigten Host-Handshake für `PWR_OFF 03E8` (15 ms), `PLC P` (18 ms), `PWR_ON 0C80 00C8 0` (15 ms) und `PLC T` (16 ms). **Ein Chipregister konnte danach noch nicht gelesen werden.** Der Schluss, die Stromversorgung sei elektrisch tatsächlich ein- und ausgeschaltet worden, ist allein aus der Hostbestätigung nicht beweisbar. Die aktuelle Originalsoftware-PLC-Startsequenz ist weiterhin nicht mitgeschnitten.
+
+Neu ist ein konkreter möglicher Syntaxunterschied: **Elmos AN 0204** dokumentiert `PLC 026D1C0C.` als zusammenhängendes Hostargument, die vom vorhandenen SSP3 selbst ausgegebene `?`-Hilfe nennt dagegen `PLC <slave_id> <data>`. Deshalb bietet **USB & Chip → SSP3-Sensorstart → PLC-Befehlsformat** die beiden Testvarianten:
+
+- **AN0204 / Legacy (Standard):** `PLC 026D1C0C.`
+- **SSP3-Firmwarehilfe / Slave-ID separat:** `PLC 02 6D1C0C.`
+
+Die jeweils gewählte Hostformatierung wird nach dem ausdrücklich freigegebenen, einmaligen Versorgungstest auf die **erste reine Registerabfrage** angewendet. Erhält die App gültige Registerdaten, wird das Format für die restliche Sitzung beibehalten; auch spätere PLC-Schreibtelegramme werden dann entsprechend formatiert, aber erst nach unveränderten NVM-/RAM-Sicherheitsprüfungen. Die One-Wire-Chipdaten und CRC-Felder werden **nicht** geändert, nur das Leerzeichen im SSP3-ASCII-Kommando. Keine NVM-Programmierung beim Test. Der Vergleich klärt eine echte Firmwareabweichung, garantiert aber keine Freigabe bei 4-ms-Startfenster. Pro Durchlauf nur **eine** Variante versuchen und anschliessend das JSON-Log exportieren.
