@@ -1,3 +1,11 @@
+## v0.6.32 – 12.11.2026: Geschützte Live-Temperaturanzeige in °C
+
+- Zusätzliches, responsives KPI **Temperatur (°C)** oben neben ADC_S, ADC_T, DSP_S und Sensorwert.
+- Liest DSP_T (0x2E) als separaten Sekundärwert. ADC_S bleibt der primäre Live-Wert und darf durch Fehler der Temperaturabfrage nicht verloren gehen.
+- Prüft CFG_EN.t_abs_en und Temperaturkoeffizienten. Umrechnung nur bei der Elmos-Standardbeispielkonfiguration mit interner Quelle (100 Digits/°C) oder nach bestätigter RAM-Temperaturkalibrierung mit der speziellen Skalierung des Assistenten.
+- Unbekannte oder deaktivierte Skalierung sowie veraltete/ungültige Messwerte werden nicht fälschlich als °C dargestellt; ≈ kennzeichnet die Näherung. Demo bildet die bekannte Assistenten-Skalierung nach.
+- Bei Sensorwechsel werden Temperaturwert und Skalierung zurückgesetzt. Keine NVM-Schreibvorgänge.
+
 ## v0.6.31 – 12.11.2026: Sensorverlust erkennen und ohne F5 neu initialisieren
 
 - Nach zwei aufeinanderfolgenden fehlgeschlagenen ADC_S-Live-Abfragen wird der Chipzustand auf «nicht verbunden» gesetzt, die Live-Abfrage gestoppt und der letzte Messwert ausgeblendet. Ein einzelner Lesefehler wird lediglich erneut geprüft.
