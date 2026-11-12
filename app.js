@@ -1208,9 +1208,9 @@ if(typeof document!=='undefined') (function UI(){
  $('configSave').addEventListener('click',()=>{
   try{
    const profile=configFromUi(ELMOS_CONFIG.GROUPS);
-   const label=profile.label.replace(/[^a-z0-9_-]+/gi,'_').slice(0,46)||'Profil';
-   download('ELMOS_E70311_Config_'+label+'.json',JSON.stringify(profile,null,2));
-   show('configPreview','Vollständige Config «'+profile.label+'» gespeichert. Alle fünf wiederverwendbaren Gruppen enthalten. Beim späteren Import kannst du auswählen, welche übernommen werden. Keine UID, EEPROM-Daten, Messwerte oder DSP-Koeffizienten.','success');
+   const fileName=ELMOS_CONFIG.fileName(profile,window.ELMOS_GUIDED?.appliedPlanForConfig?.());
+   download(fileName,JSON.stringify(profile,null,2));
+   show('configPreview','Config «'+profile.label+'» vollständig gespeichert als '+fileName+'. Alle fünf wiederverwendbaren Gruppen enthalten. Beim Import wählst du aus, welche übernommen werden. Keine UID, EEPROM-Daten, Messwerte oder DSP-Koeffizienten.','success');
   }catch(e){show('configPreview','Config konnte nicht gespeichert werden: '+e.message,'error')}
  });
  $('configFile').addEventListener('change',async()=>{
