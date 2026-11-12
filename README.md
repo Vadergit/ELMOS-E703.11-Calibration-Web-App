@@ -2,7 +2,7 @@
 
 **Ein geführter Kalibrierassistent für den ELMOS E703.11 und das SSP3-Eval-Board.** Ziel ist ein verständlicher Abgleich, der auch ohne tiefere Vorkenntnisse Schritt für Schritt funktioniert. Wer mehr benötigt, kann zusätzliche Messpunkte, DSP-Parameter und einen geschützten Expertenmodus verwenden.
 
-**Version: v0.6.32 · geführter Abgleich und klassische Ansicht** · [Änderungsverlauf](CHANGELOG.md)
+**Version: v0.6.33 · geführter Abgleich und klassische Ansicht** · [Änderungsverlauf](CHANGELOG.md)
 
 Über **Einstellungen → Demo-Modus** lässt sich der gesamte Kalibrierablauf mit simulierten Messwerten und NVM ausprobieren.
 
@@ -14,14 +14,11 @@
 >
 > [Geführter Abgleich](docs/GEFUEHRTER_ASSISTENT.md) · [USB-Bridge](docs/USB_BRIDGE_GUIDE.md) · [ESP-Boards](docs/ESP_BOARD_OPTIONS.md) · [ESP32-C3 SuperMini Sketch](firmware/esp32c3_supermini/esp32c3_supermini.ino)
 
-## Temperaturanzeige oben (v0.6.32)
+## Rücknahme der Temperaturanzeige (v0.6.33)
 
-- Der Kopf zeigt jetzt fünf Messwertfelder: **ADC_S**, **ADC_T**, **DSP_S**, **Temperatur (°C)** und **Sensorwert**. In schmalen Ansichten werden die Felder umgebrochen.
-- Die Temperatur wird **separat aus DSP_T (RAM 0x2E)** ausgelesen, nicht aus ADC_T geschätzt. ADC_S wird weiterhin in jedem Live-Zyklus zuerst gelesen; DSP_T folgt nur in einem von fünf Sekundärzyklen.
-- Vor der Umrechnung prüft die App **CFG_EN.t_abs_en** (Bit 12) und die vorhandenen Temperaturkoeffizienten. Die interne Elmos-Beispielkalibrierung (T0–T3 aus dem Datenblatt, interne Temperaturquelle) verwendet **DSP_T / 100** für °C. Die vom Kalibrierassistenten selbst erfolgreich ins RAM übertragene Temperaturkalibrierung verwendet dagegen **(DSP_T + 16485) / 387.88**. Die simulierte Demo entspricht ebenfalls der zweiten Skalierung.
-- Bei fremden Koeffizienten, abgeschalteter Absoluttemperaturberechnung, veralteten Daten, ungültigem Temperaturbereich oder Kommunikationsfehler erscheint **«—»**. Eine ungeprüfte Skalierung wird nicht als °C ausgegeben.
-- Alle angezeigten Temperaturen werden als **ungefähr (≈)** markiert. Die Elmos-Beispielkoeffizienten sind laut Datenblatt 25DS0170E.04 (S. 83) keine garantierte kalibrierte Temperaturmessung. Nach Sensorwechsel wird die Skalierung erneut geprüft. Kein zusätzliches RAM-/NVM-Schreiben für die Anzeige.
-- Hardwaretest am realen E703.11 weiterhin erforderlich.
+Die zusätzliche Temperaturanzeige in °C aus v0.6.32 wurde auf Wunsch zurückgenommen. Oben werden wieder nur **ADC_S, ADC_T, DSP_S und Sensorwert** angezeigt. DSP_T wird nicht mehr im Live-Zyklus abgefragt. Die Sensor-Neuinitialisierung ohne Seitenneuladen aus v0.6.31 bleibt erhalten.
+
+Wenn SSP3 zwar über USB erreichbar ist, aber vom E703.11 nur eine nicht plausible Antwort wie CFG_AFE1=0x0000 zurückkommt, zeigt die App einen verständlichen Hinweis zur Prüfung von Sensor, Versorgung und 1-Wire-Verbindung. Die vollständige technische Fehlermeldung bleibt im TX/RX-Protokoll. Dies ersetzt keinen Hardwaretest und bestätigt nicht die eigentliche Ursache.
 
 ## Sensor getrennt / erneut anschliessen (v0.6.31)
 
