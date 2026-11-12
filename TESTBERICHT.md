@@ -1,6 +1,6 @@
 # Testbericht – ELMOS E703.11 Web-Kalibrierassistent
 
-**Stand: Version v0.6.9 · 12. November 2026 · Laborprototyp, keine Hardware- oder Produktionsfreigabe**
+**Stand: Version v0.6.10 · 12. November 2026 · Laborprototyp, keine Hardware- oder Produktionsfreigabe**
 
 Dieser Bericht trennt den **im Code beziehungsweise mit simulierten Chipantworten geprüften Stand** von noch offenen Hardwareprüfungen. Ältere, überholte UI-Varianten und frühere Bestätigungswörter werden hier bewusst nicht als aktuelle Funktion beschrieben.
 
@@ -66,7 +66,7 @@ Ab v0.5.0 prüfen drei zusätzliche Regressionstests die opt-in-Konfiguration, d
 
 **v0.6.0:** Nach dem Entfernen des Demo-Modus prüfen zusätzliche Tests die ausschliesslich echte Chipfreigabe für den Wizard, die AFE-Livedarstellung mit unverändertem ADC-Canvas, die Min-/Max-/Hub-Statistik und die grosse DSP-Signalansicht. Rein synthetische Fit-Daten dienen weiterhin nur der mathematischen Regression, nicht der Simulation einer Chipverbindung.
 
-**Config v2:** 55 Softwaretests decken vollständige Config-Exporte, Auswahl der enthaltenen Gruppen beim Import, rückwärtskompatible partielle JSON-Dateien, verständliche Dateinamen mit nur bestätigten Druck-/Temperaturangaben sowie den geschützten AFE-RAM-Import ab. Ein vollständiger Hardwaretest mit E703.11 bleibt erforderlich.
+**Config v2:** 57 Softwaretests decken vollständige Config-Exporte, Auswahl der enthaltenen Gruppen beim Import, rückwärtskompatible partielle JSON-Dateien, verständliche Dateinamen mit nur bestätigten Druck-/Temperaturangaben sowie den geschützten AFE-RAM-Import ab. Ein vollständiger Hardwaretest mit E703.11 bleibt erforderlich.
 
 ## Offene Prüfungen vor produktivem Einsatz
 
