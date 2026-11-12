@@ -465,11 +465,14 @@ html.compact-mode .foot{display:none}
 .sensor-reconnect strong{display:block;font-size:14px}
 .sensor-reconnect span{font-size:13px;line-height:1.5}
 .sensor-reconnect button{background:#075f7a;border-color:#075f7a;color:#fff;white-space:nowrap}
+.sensor-reconnect-actions{display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end}
+.sensor-reconnect .sensor-export{background:white;color:#075f7a;border-color:#99c1cb}
+.sensor-reconnect .sensor-export:hover:not(:disabled){background:#f0f7fa;color:#044d62;border-color:#075f7a}
 .sensor-reconnect button:hover:not(:disabled){background:#044d62;border-color:#044d62;color:#fff}
 .dot.missing{background:#bb7a17}
 @media(max-width:600px){.sensor-reconnect button{width:100%}}
 </style><link rel="stylesheet" href="guided.css?v=0.6.30"><link rel="stylesheet" href="interface.css?v=0.6.30"></head><body><div class="wrap"><header class="top">
-<div class="brand"><div class="logo" aria-hidden="true">E</div><div><div class="eyebrow">E703.11 · PSSC · v0.6.40</div><h1>Kalibrierassistent</h1></div></div>
+<div class="brand"><div class="logo" aria-hidden="true">E</div><div><div class="eyebrow">E703.11 · PSSC · v0.6.41</div><h1>Kalibrierassistent</h1></div></div>
 <div class="live-overview" role="group" aria-label="Sensorwerte · laufende Anzeige">
   <div class="live-kpi" title="Unkompensierter Druck-ADC. Warnung bei Beträgen über 25’000 Digits."><span class="live-kpi-label">ADC_S <span id="liveAdcAlert" class="live-alert" hidden>!</span></span><span class="live-kpi-reading" id="liveAdcS">—</span><span class="live-kpi-unit">Digits</span></div>
   <div class="live-kpi" title="ADC_T · Temperatur-Rohwert, keine direkte Temperatur in °C."><span class="live-kpi-label">ADC_T</span><span class="live-kpi-reading" id="liveAdcT">—</span><span class="live-kpi-unit">Digits</span></div>
@@ -480,7 +483,10 @@ html.compact-mode .foot{display:none}
 </header>
 <div id="sensorReconnectBanner" class="sensor-reconnect" role="status" aria-live="polite" hidden>
  <div><strong>Sensor nicht verbunden</strong><span id="sensorReconnectMessage">Keine gültige Sensorantwort. Sensoranschluss prüfen.</span></div>
+ <div class="sensor-reconnect-actions">
  <button type="button" id="sensorReconnectButton">Sensor neu initialisieren</button>
+ <button type="button" id="sensorReconnectExport" class="sensor-export">Diagnose exportieren</button>
+ </div>
 </div>
 <div id="demoNotice" class="demo-notice" hidden><span><strong>Demo-Modus</strong> · Simulierte Messwerte und Schreibvorgänge</span><button type="button" id="demoExit">Demo beenden</button></div>
 <section class="settings-panel" id="settingsPanel" hidden aria-label="App-Einstellungen">
@@ -1068,5 +1074,5 @@ html.compact-mode .foot{display:none}
 </div>
 <div class="nav"><button data-next="0">Zur Verbindung</button><button data-next="6">Zum NVM-Schritt</button></div>
 </section>
-<div class="foot"><b>Version v0.6.40</b> · <a href="CHANGELOG.md" target="_blank" rel="noopener">Änderungsverlauf</a> · ELMOS E703.11 · unabhängiger Kalibrierprototyp · Sicherheitsprinzip: Factory- und Kommunikations-Bootregister gesperrt; dokumentierte AODO-Ausgangsoptionen nur nach Prüfung im NVM-Plan; Wiederherstellung nur mit passender Chip-UID.</div>
-</main></div></div><div id="tip" class="tooltip"></div><script src="calibration.js?v=0.6.30"></script><script src="eeprom-help.js?v=0.6.30"></script><script src="expert.js?v=0.6.30"></script><script src="config.js?v=0.6.36"></script><script src="guided-plan.js?v=0.6.30"></script><script src="demo.js?v=0.6.36"></script><script src="app.js?v=0.6.40"></script><script src="compact.js?v=0.6.30"></script><script src="guided.js?v=0.6.31"></script></body></html>
+<div class="foot"><b>Version v0.6.41</b> · <a href="CHANGELOG.md" target="_blank" rel="noopener">Änderungsverlauf</a> · ELMOS E703.11 · unabhängiger Kalibrierprototyp · Sicherheitsprinzip: Factory- und Kommunikations-Bootregister gesperrt; dokumentierte AODO-Ausgangsoptionen nur nach Prüfung im NVM-Plan; Wiederherstellung nur mit passender Chip-UID.</div>
+</main></div></div><div id="tip" class="tooltip"></div><script src="calibration.js?v=0.6.30"></script><script src="eeprom-help.js?v=0.6.30"></script><script src="expert.js?v=0.6.30"></script><script src="config.js?v=0.6.36"></script><script src="guided-plan.js?v=0.6.30"></script><script src="demo.js?v=0.6.36"></script><script src="app.js?v=0.6.41"></script><script src="compact.js?v=0.6.30"></script><script src="guided.js?v=0.6.31"></script></body></html>
