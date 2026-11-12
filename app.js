@@ -638,7 +638,13 @@ if(typeof document!=='undefined') (function UI(){
   st.regs[addr]=result;return result
  }
  function decodeSafeAFE(w){
-  if(w===0)throw Error('E703.11 antwortet nicht plausibel (CFG_AFE1=0x0000). Sensor, Versorgung und 1-Wire-Verbindung prüfen. Keine Schreibfreigabe.');
+  if(w===0){
+   // SSP3 may return a parsed 00 00 35 despite no usable E703.11 access.
+   // Treat exactly this AFE readback as missing chip access, NOT a valid AFE.
+   const missing=Error('E703.11 antwortet nicht plausibel (CFG_AFE1=0x0000). Sensor, Versorgung und 1-Wire-Verbindung prüfen. Keine Schreibfreigabe.');
+   missing.code='AFE_ZERO_READBACK';
+   throw missing;
+  }
   if(!(w&0x0800))throw Error('CFG_AFE1=0x'+h(w,2)+': Pflichtbit 11 ist 0; keine Schreibfreigabe');
   const g=P.decAFE(w);
   if(!P.goodG(g))throw Error('AFE-Codes in CFG_AFE1=0x'+h(w,2)+' nicht für Schreibfreigabe bestätigt');
@@ -917,16 +923,23 @@ if(typeof document!=='undefined') (function UI(){
    try{
     await detect(); // First try the documented PLC P/T access without extra writes.
    }catch(firstReadError){
-    // This SSP3/E703.11 pair has now been observed to work after the explicit
-    // two-frame PLC Magic Cookie. Retry only if the chip did not answer at all.
-    // Do NOT bypass invalid AFE values, CRC/parsing errors, or UID mismatch.
-    if(!/\bPLC nothing received\b/i.test(String(firstReadError.message||firstReadError)))
-     throw firstReadError;
+    // The SSP3 may report either "!PLC nothing received" or an apparently
+    // parsed 00 00 35 frame for a missing/locked chip. Jürg's 2026-11-12
+    // trace demonstrates the latter: AFE1=0x0000 with no fallback.
+    // Only the exact typed zero-AFE case or explicit "nothing received" may
+    // trigger the previously bench-tested one-time RAM cookie fallback.
+    // Never bypass arbitrary invalid AFE codes, malformed frames or UID checks.
+    const missingReply=/\bPLC nothing received\b/i.test(String(firstReadError.message||firstReadError));
+    const zeroAFE=firstReadError?.code==='AFE_ZERO_READBACK'&&
+     st.lastPlcReply?.address===R_AFE&&st.lastPlcReply?.status==='parsed'&&st.lastPlcReply?.word===0;
+    if(!missingReply&&!zeroAFE)throw firstReadError;
     if(st.closing||st.port!==port)throw firstReadError;
     st.powerCycleResult.firstReadError=String(firstReadError.message||firstReadError);
+    st.powerCycleResult.fallbackReason=zeroAFE?'afe-zero-readback':'plc-nothing-received';
     st.powerCycleResult.stage='magic-cookie-fallback';
-    $('plcPowerState').textContent='SSP3 hat keine Sensorantwort erhalten. Magic Cookie wird einmalig im RAM aktiviert.';
-    logging('AN0204: Erstes Lesen ohne PLC-Antwort; versuche genau einmal die bereits manuell erfolgreiche Magic Cookie (nur RAM).');
+    $('plcPowerState').textContent='Kein plausibler E703.11-Registerwert. Einmaliger RAM-Magic-Cookie-Versuch läuft.';
+    logging('AN0204: '+(zeroAFE?'AFE1=0x0000 trotz formal lesbarer PLC-Antwort':'Keine PLC-Antwort')+
+     '; versuche einmal die dokumentierte Magic Cookie (nur RAM).');
     const cookieFrames=[
      P.plcHostCommand(P.plcWrite(0xAC,0x2B42),st.plcHostFormat),
      P.plcHostCommand(P.plcWrite(0x0E,0x5CFD),st.plcHostFormat)
@@ -2105,7 +2118,7 @@ if(typeof document!=='undefined') (function UI(){
  });
  $('plcStartupLogExport').addEventListener('click',()=>{
   const log={
-   tool:'ELMOS E703.11 – SSP3 Startdiagnose',version:'v0.6.30',at:new Date().toISOString(),
+   tool:'ELMOS E703.11 – SSP3 Startdiagnose',version:'v0.6.34',at:new Date().toISOString(),
    source:'Web-App (NICHT PSSC Originalsoftware)',interface:st.iface,adapter:st.adapterKind,
    firmware:st.firmware,port:serialPortInfo(st.port),chipDetected:!!st.chip,
    startupAttempts:st.startupAttempts,lastPlcReply:st.lastPlcReply,
