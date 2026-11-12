@@ -1119,3 +1119,27 @@ test('Live loop does not stop silently after 10 missing ADC samples',()=>{
  assert.ok(!loop.includes('st.consecutiveErrors>=10'));
  assert.ok(loop.includes("show('adcMsg','Live-ADC_S momentan nicht lesbar"));
 });
+
+test('Runtime live sampler publishes four fresh ADC_S readings despite secondary timeouts',async()=>{
+ const app=read('app.js');
+ const body=app.split('async function readLiveSample(){')[1]?.split('function startLive(){')[0];
+ assert.ok(body);
+ const st={port:{},chip:true,adc:null,dsp:null,dspError:null,lastSecondaryError:0};
+ const samples=[],log=[],regCalls=[],values=[101,105,112,118];
+ const readReg=async(address)=>{
+  regCalls.push(address);
+  if(address===0x2A)return values.shift();
+  throw Error('Simulierter optionaler SSP3-Timeout');
+ };
+ const protocol={sign16:n=>n};
+ const updateADC=(data)=>{st.adc={...data,time:Date.now()};samples.push(data.s)};
+ const updateDSP=()=>{throw Error('Nicht erwartet')};
+ const reader=new Function('st','P','readReg','updateADC','updateDSP','renderStatus','renderDSPLive','logging','fmt','show',
+  'let liveSecondaryIndex=0; async function readLiveSample(){'+body+';return readLiveSample');
+ const fn=reader(st,protocol,readReg,updateADC,updateDSP,()=>{},()=>{},v=>log.push(v),String,()=>{});
+ for(let i=0;i<4;i++)assert.equal(await fn(),[101,105,112,118][i]);
+ assert.deepEqual(samples,[101,105,112,118]);
+ assert.deepEqual(regCalls,[0x2A,0x28,0x2A,0x26,0x2A,0x30,0x2A]);
+ assert.equal(st.adc.s,118);
+ assert.ok(log.some(x=>x.includes('ADC_S wird weiterhin aktualisiert')));
+});
