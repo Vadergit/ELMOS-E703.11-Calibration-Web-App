@@ -1,3 +1,11 @@
+## v0.6.37 – 12.11.2026: SSP3-Start in einem USB-Paket + begrenzter Retry
+
+- `PWR_ON 0C80 00C8 0` und `PLC T` werden im ersten Versuch gemeinsam in einem CR-terminierten USB-Paket versendet, statt durch zwei separate USB-Write-Aufrufe.
+- Bei fehlender gültiger Chipantwort und bestätigter SSP3-Einschaltquittung wird nur einmal mit der bisherigen Zweipaket-Variante neu gestartet, ohne ungesicherte PLC_CFG-Parameter oder NVM-Operationen.
+- Beide Startversuche mit Startmodus, SSP3-Antworten, Magic Cookie und Lese-Diagnose werden im Exportfeld `startupTrials` dokumentiert.
+- Die SSP3-Diagnose zeigt eine kompakte Vorabprüfung von FTDI-Latenz (1 ms), USB-Transfergrössen (512) sowie korrekter Unterscheidung zwischen VDD, SVDD und dem PWR_ON-Schwellwert.
+- Hardwaretest des neuen Einpaketmodus steht aus.
+
 ## v0.6.36 – 12.11.2026: Brückenspannung SVDD im AFE auswählbar
 
 - CFG_AFE0 (0x1A), Bits 1:0, im normalen AFE-Bereich als 2,4 V / 1,6 V / 2,0 V verfügbar. Code 3 ist gesperrt, aktueller Wert wird erst vom Chip gelesen.
