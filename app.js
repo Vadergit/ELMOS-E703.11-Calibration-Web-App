@@ -55,7 +55,7 @@ if(typeof document!=='undefined') (function UI(){
   lower:Number($('pmin').value),upper:Number($('pmax').value),limit:getActiveDSPRange()?.limit??32000
  })):null;
  const REG_NAMES={4:'CFG_EN',6:'CFG_SPI_I2C',8:'CFG_PADS0',10:'CFG_PADS1',12:'CFG_PADS2',16:'CFG_AODO',0x14:'CFG_ADC',0x16:'CFG_LP0',0x18:'CFG_LP1',0x1A:'CFG_AFE0',0x1C:'CFG_AFE1',0x1E:'CFG_AFE2',0x26:'ADC_TC',0x28:'ADC_T',0x2A:'ADC_S'};
- const st={chipDiag:null,diagRunning:false,lastPlcReply:null,mode:'offline',port:null,closing:false,reader:null,readerPromise:null,cmdQueue:Promise.resolve(),replyBuffer:'',responseWait:null,iface:'plc',adapterKind:'ssp3',sensorPowerEnabled:false,startupRunning:false,startupAbort:false,startupAttempts:0,magicRunning:false,magicResult:null,powerCycleRunning:false,powerCycleResult:null,startupTrials:[],powerHelp:null,plcHostFormat:'legacy',firmware:'',chip:false,sensorLost:false,reinitRunning:false,boot:null,afe:null,afe0:null,bridgeWriteAllowed:false,bridgeReadBusy:false,staged:{pga1:0,pga2:0,offset:0},adc:null,dsp:null,dspError:null,liveReadPromise:null,trend:[],history:[],log:[],regs:{},points:{lo:null,hi:null},verify:null,live:false,manualLivePause:false,timeout:null,consecutiveErrors:0,liveReadAttempts:0,liveReadSuccesses:0,liveLastError:null,liveLastAttemptAt:null,measurementPeriod:null,measurementStatus:null,measurementError:null,measurementStarts:0,measurementFreshCount:0,measurementLastChangedAt:null,writing:false,pressure:5,calpoints:[],calfit:null,calImage:null,nvmBackup:null,nvmBackupVerified:false,calStaged:false,calVerified:false,calValidation:[],calTask:false,nvmWorking:false,nvmDone:false,afeWriteActive:false,ramWriteScope:null,uid:null,expertOutputPlan:null,restorePlan:null,outputOnlyPlan:null,uidShownForInput:null,profilePendingAFE:null};
+ const st={chipDiag:null,diagRunning:false,lastPlcReply:null,mode:'offline',port:null,closing:false,reader:null,readerPromise:null,readerAlive:false,adapterNoReply:false,sessionStartedAt:null,sessionIndex:0,cmdQueue:Promise.resolve(),replyBuffer:'',responseWait:null,iface:'plc',adapterKind:'ssp3',sensorPowerEnabled:false,startupRunning:false,startupAbort:false,startupAttempts:0,magicRunning:false,magicResult:null,powerCycleRunning:false,powerCycleResult:null,startupTrials:[],powerHelp:null,plcHostFormat:'legacy',firmware:'',chip:false,sensorLost:false,reinitRunning:false,boot:null,afe:null,afe0:null,bridgeWriteAllowed:false,bridgeReadBusy:false,staged:{pga1:0,pga2:0,offset:0},adc:null,dsp:null,dspError:null,liveReadPromise:null,trend:[],history:[],log:[],regs:{},points:{lo:null,hi:null},verify:null,live:false,manualLivePause:false,timeout:null,consecutiveErrors:0,liveReadAttempts:0,liveReadSuccesses:0,liveLastError:null,liveLastAttemptAt:null,measurementPeriod:null,measurementStatus:null,measurementError:null,measurementStarts:0,measurementFreshCount:0,measurementLastChangedAt:null,writing:false,pressure:5,calpoints:[],calfit:null,calImage:null,nvmBackup:null,nvmBackupVerified:false,calStaged:false,calVerified:false,calValidation:[],calTask:false,nvmWorking:false,nvmDone:false,afeWriteActive:false,ramWriteScope:null,uid:null,expertOutputPlan:null,restorePlan:null,outputOnlyPlan:null,uidShownForInput:null,profilePendingAFE:null};
  let currentStep=0,pendingGain=null,writeTimer=null;let tipEnabled=true,liveIntervalMs=650;
  let liveSecondaryIndex=0;
  const HELP={interface:'Schnittstelle zwischen SSP3-Board und Sensorchip. 1-Wire nutzt AODO (VDD, GND und AODO). Die Einstellung IF_CFG ändert die Programmer-Pins, nicht die NVM-Konfiguration des Sensors.',baud:'Baudrate des USB-UART zwischen Chrome und dem SSP3. Die Herstellersoftware verwendet 115200 Baud als Standard.',adcs:'ADC_S ist der unkompensierte 16-Bit-Druck-ADC. ±25000 Digits ist ein vorsichtiges Ziel für den manuellen Abgleich, keine garantierte Hardwaregrenze.',dsp_live:'DSP_S (Register 0x30) ist der skalierte DSP-Sensorausgang. Die Anzeige liest den Chipwert wiederholt und rechnet ihn mit dem konfigurierten DSP-Endwert (standardmässig ±32’000 Digits) in den gewählten Anzeigebereich um. Ein DSP-Wert allein belegt keine gültige Kalibrierung.',pga1:'Erste Druckverstärkungsstufe: 3.5×, 6×, 8.5× oder 11× (typische Werte laut Datenblatt 2023). Für gutes SNR möglichst hoch ohne Übersteuerung.',pga2:'Zweite Verstärkungsstufe: typische Faktoren 2× bis 10×. Der Gesamtfaktor ist PGA1 × PGA2.',offset:'17 DAC-Stufen von −400 bis +400 mV/V bezogen auf die Brückenspannung. Die Verschiebung liegt zwischen PGA1 und PGA2.',bridgeSupply:'Interne Brückenversorgung SVDD gemäss E703.11 CFG_AFE0 (0x1A), Bits 1:0: 2,4 V (Standard), 1,6 V oder 2,0 V. Die externe Sensorversorgung VDD muss bei 2,4 V mindestens 3,0 V, sonst mindestens 2,7 V betragen. Beim Wechsel bleiben die übrigen AFE0-Bits inklusive Brückengain unverändert. Nur nach Klick wird ins RAM geschrieben; EEPROM bleibt unverändert.',pressureunit:'Einheit für die Referenz- und Prüfdruckwerte. Für relative Kalibrierungen kann beispielsweise % mit 0 bis 100 gewählt werden. Referenzwerte müssen zum tatsächlichen Prüfstand passen. Einheitenwechsel erfordert neue Messpunkte.',dsp_limit:'Symmetrischer DSP-Endwert für die neue Kalibrierung. Standard ±32’000 Digits. ±30’000 lässt zusätzlich Reserve. Der Wert verändert die berechneten Koeffizienten sowie DSP-Soll und Fehlerumrechnung; er ist keine Hardware-Clipping-Grenze.',ram:'PGA1, Offset und PGA2 werden mit jeder Pfeiltaste sofort ausschliesslich in CFG_AFE1 0x1C im RAM geändert und rückgelesen. Kein NVM-/EEPROM-Schreiben. Boot-/Kommunikationsregister werden kontrolliert.',};
@@ -74,13 +74,15 @@ if(typeof document!=='undefined') (function UI(){
   banner.hidden=!visible;
   if(!visible)return;
   const working=st.reinitRunning||st.powerCycleRunning||st.magicRunning||st.startupRunning||st.diagRunning;
-  message.textContent=working?'Sensor wird geprüft und initialisiert …':
-   st.sensorLost?'Kommunikation fehlgeschlagen – Sensor nicht mehr verbunden oder nicht erreichbar. SSP3 über USB weiterhin verbunden.':
-   'Keine gültige Sensorantwort. Sensoranschluss prüfen und die Initialisierung erneut starten.';
+  message.textContent=working?'Verbindung wird geprüft und initialisiert …':
+   st.adapterNoReply?'Der SSP3 antwortet nicht auf USB-Befehle (auch nicht auf .VERSION). USB-Port neu öffnen; falls weiterhin keine Antwort kommt, SSP3/FTDI und andere Programme prüfen.':
+   st.sensorLost?'Kommunikation zum Sensor fehlgeschlagen. Der SSP3 antwortet weiterhin über USB.':
+   'Keine gültige Sensorantwort. Sensoranschluss prüfen und erneut initialisieren.';
   button.disabled=working||st.writing||st.nvmWorking||st.calTask||st.afeWriteActive;
-  button.textContent=working?'Initialisierung läuft …':'Sensor neu initialisieren';
+  button.textContent=working?'Initialisierung läuft …':
+   st.adapterNoReply?'SSP3-Port neu öffnen':'Sensor neu initialisieren';
  }
- function renderStatus(){let connected=!!st.port;$('status').textContent=demoEnabled?'Demo · Simulation':st.chip?'Sensor verbunden':st.reinitRunning||st.powerCycleRunning?'Sensor wird initialisiert':connected?(st.sensorLost?'Sensor nicht verbunden':'USB verbunden · Sensor nicht erkannt'):'Nicht verbunden';$('statusDot').className='dot'+(st.chip?' active':connected?' missing':'');$('fw').textContent=st.firmware?st.firmware.slice(0,19):'—';$('chip').textContent=st.chip?'Antwort erhalten':'—';$('ifaceLabel').textContent=st.iface==='plc'?'1-Wire':st.iface==='i2c'?'I²C':'SPI';$('srcLabel').textContent=st.adc?.source==='usb'?'USB / Chip':'Keine Messdaten';$('choose').disabled=connected||demoEnabled;$('auto').hidden=demoEnabled;$('disconnect').hidden=demoEnabled;$('adapterType').disabled=demoEnabled;$('iface').disabled=demoEnabled;$('guidedLaunch').disabled=!st.chip||st.closing;$('guidedLaunch').classList.toggle('primary',st.chip&&!st.closing);$('auto').disabled=connected;$('disconnect').disabled=!connected||st.closing;$('readNow').disabled=!st.chip||st.magicRunning||st.powerCycleRunning;$('live').disabled=!connected||st.magicRunning||st.powerCycleRunning;$('live').textContent=st.live?'Live-Messung stoppen':'Live-Messung starten';$('readBoot').disabled=!st.chip;$('readRegs').disabled=!st.chip;$('afeWord').textContent=st.afe===null?'CFG_AFE1: —':'CFG_AFE1: 0x'+h(st.afe,2);const startupTools=$('plcStartupTools');if(startupTools)startupTools.hidden=demoEnabled||st.adapterKind!=='ssp3'||st.iface!=='plc'||!$('expertMode').checked;
+ function renderStatus(){let connected=!!st.port;$('status').textContent=demoEnabled?'Demo · Simulation':st.chip?'Sensor verbunden':st.reinitRunning||st.powerCycleRunning?'Sensor wird initialisiert':connected?(st.adapterNoReply?'SSP3 antwortet nicht':st.sensorLost?'Sensor nicht verbunden':'USB verbunden · Sensor nicht erkannt'):'Nicht verbunden';$('statusDot').className='dot'+(st.chip?' active':connected?' missing':'');$('fw').textContent=st.firmware?st.firmware.slice(0,19):'—';$('chip').textContent=st.chip?'Antwort erhalten':'—';$('ifaceLabel').textContent=st.iface==='plc'?'1-Wire':st.iface==='i2c'?'I²C':'SPI';$('srcLabel').textContent=st.adc?.source==='usb'?'USB / Chip':'Keine Messdaten';$('choose').disabled=connected||demoEnabled;$('auto').hidden=demoEnabled;$('disconnect').hidden=demoEnabled;$('adapterType').disabled=demoEnabled;$('iface').disabled=demoEnabled;$('guidedLaunch').disabled=!st.chip||st.closing;$('guidedLaunch').classList.toggle('primary',st.chip&&!st.closing);$('auto').disabled=connected;$('disconnect').disabled=!connected||st.closing;$('readNow').disabled=!st.chip||st.magicRunning||st.powerCycleRunning;$('live').disabled=!connected||st.magicRunning||st.powerCycleRunning;$('live').textContent=st.live?'Live-Messung stoppen':'Live-Messung starten';$('readBoot').disabled=!st.chip;$('readRegs').disabled=!st.chip;$('afeWord').textContent=st.afe===null?'CFG_AFE1: —':'CFG_AFE1: 0x'+h(st.afe,2);const startupTools=$('plcStartupTools');if(startupTools)startupTools.hidden=demoEnabled||st.adapterKind!=='ssp3'||st.iface!=='plc'||!$('expertMode').checked;
  if($('chipDiagDetails'))$('chipDiagDetails').hidden=!$('expertMode').checked;
  if($('usbAdvancedDetails'))$('usbAdvancedDetails').hidden=!$('expertMode').checked;
  if($('wiringStartDetails'))$('wiringStartDetails').hidden=!$('expertMode').checked;
@@ -607,7 +609,14 @@ if(typeof document!=='undefined') (function UI(){
  };
 
  const rawLine=s=>{st.log.push(now()+'  '+s);if(st.log.length>500)st.log.shift();$('usbLog').textContent=st.log.slice(-90).join('\n')};
- async function readerLoop(port){try{let r=port.readable.getReader();st.reader=r;try{while(st.port===port&&!st.closing){const{value,done}=await r.read();if(done)break;if(!value)continue;let txt=new TextDecoder().decode(value);rawLine('RX '+txt.replace(/\r/g,'\\r').replace(/\n/g,'\\n'));if(st.responseWait){st.replyBuffer+=txt;const complete=P.ssp3PromptCount(st.replyBuffer)>=(st.responseWait.prompts||1);if(complete){const waiter=st.responseWait;st.responseWait=null;clearTimeout(waiter.timer);const out=st.replyBuffer;st.replyBuffer='';waiter.resolve(out)}else if(st.replyBuffer.length>16000){const waiter=st.responseWait;st.responseWait=null;clearTimeout(waiter.timer);waiter.reject(Error('SSP3-Antwort zu lang'))}}}}finally{r.releaseLock();if(st.reader===r)st.reader=null}}catch(e){if(st.port===port){logging('USB-Lesefehler: '+e.message);st.chip=false;stopLive();renderStatus();show('connMsg','USB-Lesefehler: '+e.message,'error')}}}
+ async function readerLoop(port){try{let r=port.readable.getReader();st.readerAlive=true;st.reader=r;try{while(st.port===port&&!st.closing){const{value,done}=await r.read();if(done)break;if(!value)continue;let txt=new TextDecoder().decode(value);rawLine('RX '+txt.replace(/\r/g,'\\r').replace(/\n/g,'\\n'));if(st.responseWait){st.replyBuffer+=txt;const complete=P.ssp3PromptCount(st.replyBuffer)>=(st.responseWait.prompts||1);if(complete){const waiter=st.responseWait;st.responseWait=null;clearTimeout(waiter.timer);const out=st.replyBuffer;st.replyBuffer='';waiter.resolve(out)}else if(st.replyBuffer.length>16000){const waiter=st.responseWait;st.responseWait=null;clearTimeout(waiter.timer);waiter.reject(Error('SSP3-Antwort zu lang'))}}} }finally{r.releaseLock();if(st.reader===r)st.reader=null}}catch(e){
+   if(st.port===port&&!st.closing)logging('USB-Lesefehler: '+e.message);
+  }finally{
+   if(st.port===port&&!st.closing){
+    st.readerAlive=false;st.adapterNoReply=true;st.chip=false;stopLive();renderStatus();
+    show('connMsg','USB-Lesekanal zum SSP3 ist beendet. Kein zuverlässiger Adapterzugriff mehr. «SSP3-Port neu öffnen» verwenden.','warn');
+   }
+  }}
  function serialize(fn){const run=st.cmdQueue.then(fn,fn);st.cmdQueue=run.catch(()=>{});return run}
  async function exchange(text,timeout=2500){return serialize(async()=>{if(!st.closing&&demoPort&&st.port===demoPort)return demoPort.exchange(text);if(st.closing||!st.port?.writable)throw Error('USB-Verbindung nicht geöffnet');if(st.responseWait)throw Error('Interner Befehlskonflikt');st.replyBuffer='';let resolver,rejecter;const future=new Promise((res,rej)=>{resolver=res;rejecter=rej});const ticket={resolve:resolver,reject:rejecter,timer:setTimeout(()=>{if(st.responseWait===ticket){st.responseWait=null;ticket.reject(Error((st.adapterKind==='bridge'?'ESP32':'SSP3')+' antwortet nicht auf '+text.slice(0,18))) }},timeout)};st.responseWait=ticket;future.catch(()=>{});const writer=st.port.writable.getWriter();try{logging('TX '+text);await writer.write(new TextEncoder().encode(text+'\r'))}catch(e){if(st.responseWait===ticket){st.responseWait=null;clearTimeout(ticket.timer);rejecter(e)}throw e}finally{writer.releaseLock()}const ans=await future;if(ans.split(/[\r\n]+/).some(l=>l.trim().startsWith('!')))throw Error((st.adapterKind==='bridge'?'ESP32':'SSP3')+' meldet Fehler: '+ans.slice(0,140));return ans})}
 
@@ -690,7 +699,17 @@ if(typeof document!=='undefined') (function UI(){
   });
  }
  async function firmware(){
-  const reply=await exchange('.VERSION',1600);
+  let reply;
+  try{
+   reply=await exchange('.VERSION',1600);
+   st.adapterNoReply=false;
+  }catch(error){
+   st.adapterNoReply=true;st.chip=false;stopLive();
+   logging('SSP3-Handshake fehlgeschlagen: '+String(error.message||error));
+   renderStatus();
+   show('connMsg','SSP3 antwortet nicht auf .VERSION. Das ist ein USB-/Programmieradapterproblem, noch kein Nachweis für einen Sensorfehler. «SSP3-Port neu öffnen» wählen oder andere Programme am COM-Port schliessen.','warn');
+   throw error;
+  }
   // SSP3 firmware replies as @02 08 02 04; retain the actual firmware version.
   const match=reply.match(/(?:^|[\r\n])\s*@([0-9A-F]{2})\s+([0-9A-F]{2})\s+([0-9A-F]{2})\s+([0-9A-F]{2})(?=[\s\r\n:]|$)/i);
   st.firmware=match?match.slice(1,5).join('.'):'Antwort erhalten';
@@ -1369,11 +1388,29 @@ if(typeof document!=='undefined') (function UI(){
    show('connMsg','Sensor erfolgreich neu initialisiert. Die Verbindung und Live-Messung sind wieder bereit. Keine NVM-Programmierung durchgeführt.','success');
    logging('E703.11 ohne Seitenneuladen erneut erkannt.');
   }catch(e){
-   st.chip=false;st.sensorLost=true;stopLive();
+   st.chip=false;st.sensorLost=!st.adapterNoReply;stopLive();
    logging('Sensor-Neuinitialisierung fehlgeschlagen: '+String(e.message||e));
-   show('connMsg','Kommunikation fehlgeschlagen. Sensor und Verkabelung prüfen und «Sensor neu initialisieren» erneut wählen. Technische Details im USB-Protokoll.','warn');
+   show('connMsg',st.adapterNoReply?
+    'SSP3 meldet keine Antwort auf .VERSION. Dies betrifft bereits den USB-Programmieradapter. Bitte «SSP3-Port neu öffnen» wählen; bei erneutem Fehlschlag FTDI/COM-Port prüfen.':
+    'Sensor-Kommunikation fehlgeschlagen. Sensor und Verkabelung prüfen und «Sensor neu initialisieren» erneut wählen. Technische Details im USB-Protokoll.','warn');
   }finally{
    st.reinitRunning=false;renderStatus();
+  }
+ }
+ // Reopen the SAME previously authorised Web Serial port, without F5
+ // or requesting fresh permissions. Only invoked by a deliberate click.
+ async function reopenSsp3Port(){
+  const port=st.port;
+  if(!port||!st.adapterNoReply||st.closing)return;
+  if(st.writing||st.calTask||st.nvmWorking||st.powerCycleRunning||st.magicRunning||st.afeWriteActive){
+   show('connMsg','USB-Port erst nach Abschluss laufender Chipvorgänge neu öffnen.','warn');return;
+  }
+  logging('SSP3-Port wird nach fehlendem .VERSION-Handshake neu geöffnet.');
+  const closed=await disconnect();
+  if(!closed)return;
+  try{await connect(port)}catch(e){
+   logging('SSP3-Port konnte nicht erneut geöffnet werden: '+String(e.message||e));
+   show('connMsg',serialOpenError(e,port),'error');
   }
  }
  async function connect(port){
@@ -1382,7 +1419,10 @@ if(typeof document!=='undefined') (function UI(){
   if(!demoEnabled&&(!navigator.serial||!window.isSecureContext))throw Error('Chrome benötigt Web Serial über HTTPS oder localhost');
   await port.open({baudRate:Number($('baud').value)});
   liveSecondaryIndex=0;
-  st.port=port;st.mode='usb';st.sensorLost=false;st.reinitRunning=false;st.firmware='';st.powerHelp=null;st.powerCycleResult=null;st.magicResult=null;st.liveReadAttempts=0;st.liveReadSuccesses=0;st.liveLastError=null;st.liveLastAttemptAt=null;st.measurementPeriod=null;st.measurementStatus=null;st.measurementError=null;st.measurementStarts=0;st.measurementFreshCount=0;st.measurementLastChangedAt=null;st.plcHostFormat=$('plcHostFormat').value;st.chip=false;st.afe=null;st.afe0=null;st.boot=null;st.regs={};st.dsp=null;st.dspError=null;st.calStaged=false;st.calVerified=false;st.nvmDone=false;st.adc=null;st.manualLivePause=false;st.afeWriteActive=false;st.ramWriteScope=null;st.uid=null;st.uidShownForInput=null;st.restorePlan=null;st.expertOutputPlan=null;st.outputOnlyPlan=null;st.iface=$('iface').value;st.adapterKind=$('adapterType').value;
+  st.port=port;st.mode='usb';st.sensorLost=false;st.adapterNoReply=false;
+  st.sessionIndex++;st.sessionStartedAt=new Date().toISOString();
+  st.startupTrials=[];st.chipDiag=null;st.lastPlcReply=null;st.readerAlive=false;
+  st.reinitRunning=false;st.firmware='';st.powerHelp=null;st.powerCycleResult=null;st.magicResult=null;st.liveReadAttempts=0;st.liveReadSuccesses=0;st.liveLastError=null;st.liveLastAttemptAt=null;st.measurementPeriod=null;st.measurementStatus=null;st.measurementError=null;st.measurementStarts=0;st.measurementFreshCount=0;st.measurementLastChangedAt=null;st.plcHostFormat=$('plcHostFormat').value;st.chip=false;st.afe=null;st.afe0=null;st.boot=null;st.regs={};st.dsp=null;st.dspError=null;st.calStaged=false;st.calVerified=false;st.nvmDone=false;st.adc=null;st.manualLivePause=false;st.afeWriteActive=false;st.ramWriteScope=null;st.uid=null;st.uidShownForInput=null;st.restorePlan=null;st.expertOutputPlan=null;st.outputOnlyPlan=null;st.iface=$('iface').value;st.adapterKind=$('adapterType').value;
   st.sensorPowerEnabled=st.adapterKind==='bridge'&&!demoEnabled&&$('plcPowerCycle').checked;
   $('sensorPowerPin').textContent='';
   $('nvmRestartStatus').hidden=true;
@@ -1475,7 +1515,7 @@ if(typeof document!=='undefined') (function UI(){
    await st.cmdQueue;
    await port.close();
    Object.assign(st,{
-    port:null,readerPromise:null,chip:false,sensorLost:false,reinitRunning:false,afe0:null,sensorPowerEnabled:false,mode:'offline',firmware:'',boot:null,afe:null,
+    port:null,readerPromise:null,readerAlive:false,chip:false,sensorLost:false,adapterNoReply:false,reinitRunning:false,afe0:null,sensorPowerEnabled:false,mode:'offline',firmware:'',boot:null,afe:null,
     nvmBackup:null,nvmBackupVerified:false,calImage:null,calVerified:false,calStaged:false,nvmDone:false,
     dsp:null,adc:null,dspError:null,manualLivePause:false,afeWriteActive:false,ramWriteScope:null,
     uid:null,uidShownForInput:null,restorePlan:null,expertOutputPlan:null,outputOnlyPlan:null
@@ -2359,10 +2399,10 @@ if(typeof document!=='undefined') (function UI(){
  });
  $('plcStartupLogExport').addEventListener('click',()=>{
   const log={
-   tool:'ELMOS E703.11 – SSP3 Startdiagnose',version:'v0.6.38',at:new Date().toISOString(),
+   tool:'ELMOS E703.11 – SSP3 Startdiagnose',version:'v0.6.39',at:new Date().toISOString(),
    source:'Web-App (NICHT PSSC Originalsoftware)',interface:st.iface,adapter:st.adapterKind,
    firmware:st.firmware,port:serialPortInfo(st.port),chipDetected:!!st.chip,
-   startupTrials:st.startupTrials,startupAttempts:st.startupAttempts,lastPlcReply:st.lastPlcReply,
+   startupTrials:st.startupTrials,sessionStartedAt:st.sessionStartedAt,sessionIndex:st.sessionIndex,adapterNoReply:st.adapterNoReply,readerAlive:st.readerAlive,startupAttempts:st.startupAttempts,lastPlcReply:st.lastPlcReply,
    chipDiag:st.chipDiag,magicCookie:st.magicResult,powerCycle:st.powerCycleResult,powerHelp:st.powerHelp,plcHostFormat:st.plcHostFormat,
     liveDiagnostic:{active:st.live,attempts:st.liveReadAttempts,successes:st.liveReadSuccesses,
      failures:st.consecutiveErrors,lastError:st.liveLastError,lastAttemptAt:st.liveLastAttemptAt,
@@ -2555,7 +2595,7 @@ if(typeof document!=='undefined') (function UI(){
   show('connMsg',st.adapterKind==='bridge'?'ESP32-C3-Bridge ausgewählt. PLC-Baudrate und Sensorversorgung prüfen.':'SSP3 Evaluation Board ausgewählt. Die originale Kommunikation bleibt unverändert.','warn');
   renderStatus();
  });
- $('choose').addEventListener('click',()=>choose());$('auto').addEventListener('click',()=>auto());$('disconnect').addEventListener('click',()=>disconnect());$('sensorReconnectButton').addEventListener('click',()=>reinitializeSensor());
+ $('choose').addEventListener('click',()=>choose());$('auto').addEventListener('click',()=>auto());$('disconnect').addEventListener('click',()=>disconnect());$('sensorReconnectButton').addEventListener('click',()=>st.adapterNoReply?reopenSsp3Port():reinitializeSensor());
  $('brSupplySelect').addEventListener('change',renderBridgeSupplyState);
  $('brSupplyRead').addEventListener('click',()=>refreshBridgeSupply());
  $('brSupplyApply').addEventListener('click',()=>commitBridgeSupply(Number($('brSupplySelect').value)).catch(e=>show('writeMsg',e.message,'error')));
