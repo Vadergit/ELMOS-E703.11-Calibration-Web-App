@@ -14,6 +14,7 @@ const ELMOS_CONFIG=(()=>{
  const options=(v,allowed,label)=>{if(!allowed.includes(v))throw Error(label+': nicht unterstützt');return v};
  const text=(v,max,label)=>{if(typeof v!=='string'||v.length>max||!v.trim())throw Error(label+': Text fehlt oder ist zu lang');return v.trim()};
  function validate(obj,cal){
+  if(obj?.version===2)return validateSelective(obj,cal);
   exact(obj,['format','version','label','createdAt','afe','calibration','output'],'Config');
   if(obj.format!==FORMAT||obj.version!==VERSION)throw Error('Nur E703.11 Config-Dateien im Format '+FORMAT+' v1 werden akzeptiert (keine EEPROM-Backups)');
   const label=text(obj.label,80,'Profilname');
@@ -52,9 +53,87 @@ const ELMOS_CONFIG=(()=>{
   }
   return {format:FORMAT,version:VERSION,label,createdAt:obj.createdAt,afe,calibration:calSettings,output};
  }
+
+ const GROUPS=['afe','reference','measurement','dsp','output'];
+ function validateSelective(obj,cal){
+  exact(obj,['format','version','label','createdAt','include',...GROUPS],'Config v2');
+  if(obj.format!==FORMAT||obj.version!==2)throw Error('Nur E703.11 Config v2 erlaubt');
+  const label=text(obj.label,80,'Profilname');
+  if(typeof obj.createdAt!=='string'||obj.createdAt.length>40||!Number.isFinite(Date.parse(obj.createdAt)))throw Error('Erstellungsdatum fehlt');
+  if(!Array.isArray(obj.include)||!obj.include.length||obj.include.length>GROUPS.length||
+     new Set(obj.include).size!==obj.include.length||obj.include.some(g=>!GROUPS.includes(g)))
+   throw Error('Config v2: Mindestens eine gültige Einstellungsgruppe auswählen');
+  for(const g of GROUPS)if(Object.hasOwn(obj,g)!==obj.include.includes(g))
+   throw Error('Config v2: Feld '+g+' stimmt nicht mit der Gruppenauswahl überein');
+  const out={format:FORMAT,version:2,label,createdAt:obj.createdAt,include:obj.include.slice()};
+  if(obj.include.includes('afe')){
+   const a=obj.afe;exact(a,['pga1','pga2','offset'],'AFE');
+   out.afe={pga1:integer(a.pga1,0,3,'PGA1'),pga2:integer(a.pga2,0,8,'PGA2'),
+    offset:integer(a.offset,-8,8,'AFE-Offset')};
+  }
+  if(obj.include.includes('reference')){
+   const r=obj.reference;exact(r,['min','max','unit','customUnit'],'Referenz');
+   const unit=options(r.unit,['bar','%','mbar','kPa','psi','custom'],'Einheit');
+   out.reference={min:number(r.min,-1e9,1e9,'Referenz Min'),max:number(r.max,-1e9,1e9,'Referenz Max'),
+    unit,customUnit:r.customUnit===''?'':text(r.customUnit,14,'Eigene Einheit')};
+   if(!(out.reference.min<out.reference.max))throw Error('Referenz Max muss grösser als Min sein');
+   if(unit==='custom'&&!out.reference.customUnit)throw Error('Eigene Einheit fehlt');
+  }
+  if(obj.include.includes('measurement')){
+   const m=obj.measurement;exact(m,['pointCount','samples'],'Messparameter');
+   out.measurement={pointCount:integer(m.pointCount,2,10,'Messpunkte'),samples:integer(m.samples,1,100,'Samples')};
+  }
+  if(obj.include.includes('dsp')){
+   const d=obj.dsp;exact(d,['sOrder','tOrder','dspLimit'],'DSP-Einstellungen');
+   out.dsp={sOrder:integer(d.sOrder,1,3,'Druck-Polynomgrad'),
+    tOrder:integer(d.tOrder,0,3,'Temperatur-Polynomgrad'),dspLimit:integer(d.dspLimit,1000,32000,'DSP-Endwert')};
+  }
+  if(out.measurement&&out.dsp&&out.measurement.pointCount<=out.dsp.sOrder)
+   throw Error('Für die Polynomordnung fehlen Messpunkte');
+  if(obj.include.includes('output')){
+   const o=obj.output;exact(o,['mode','scaleEnabled','vdd','s0','s1','gain','offset','pwmPeriod'],'Ausgang');
+   const mode=options(String(o.mode),['keep','1','2','3','4','5','onewire'],'Ausgangstyp');
+   if(typeof o.scaleEnabled!=='boolean')throw Error('Ausgang: scaleEnabled muss true/false sein');
+   out.output={mode,scaleEnabled:o.scaleEnabled,vdd:number(o.vdd,2.7,5.5,'VDD'),
+    s0:number(o.s0,0,5.5,'S0'),s1:number(o.s1,0,5.5,'S1'),
+    gain:number(o.gain,-7.9,7.9,'AODO_F'),offset:number(o.offset,-7.9,7.9,'AODO_O'),
+    pwmPeriod:integer(o.pwmPeriod,2,65535,'PWM-Periode')};
+   if(['1','2','3'].includes(mode)){
+    if(!cal||typeof cal.analogScaling!=='function')throw Error('Skalierungsprüfung nicht verfügbar');
+    // For output-only profiles, the active sensor DSP limit is resolved on application.
+    // Validate voltage endpoints against a safe full-scale limit without writing registers.
+    const derived=cal.analogScaling(out.output.s0,out.output.s1,out.output.vdd,
+     out.dsp?.dspLimit??32000);
+    out.output.gain=derived.gain;out.output.offset=derived.offset;out.output.scaleEnabled=true;
+   }
+   if(['4','5'].includes(mode)&&(!out.output.scaleEnabled||out.output.gain<=0))
+    throw Error('PWM/FM benötigt aktivierte Skalierung und positiven Gain');
+  }
+  return out;
+ }
+ function createSelective(fields,include,cal){
+  if(!Array.isArray(include)||!include.length)throw Error('Mindestens eine Einstellungsgruppe auswählen');
+  const input={format:FORMAT,version:2,label:fields.label,createdAt:new Date().toISOString(),include:include.slice()};
+  const c=fields.calibration;
+  if(include.includes('afe'))input.afe=fields.afe;
+  if(include.includes('reference'))input.reference=c.reference;
+  if(include.includes('measurement'))input.measurement={pointCount:c.pointCount,samples:c.samples};
+  if(include.includes('dsp'))input.dsp={sOrder:c.sOrder,tOrder:c.tOrder,dspLimit:c.dspLimit};
+  if(include.includes('output'))input.output=fields.output;
+  return validateSelective(input,cal);
+ }
  function create(fields,cal){return validate({format:FORMAT,version:VERSION,label:fields.label,
   createdAt:new Date().toISOString(),afe:fields.afe,calibration:fields.calibration,output:fields.output},cal);}
- function describe(p){const c=p.calibration,o=p.output;return [
+ function describe(p){
+  if(p.version===2){
+   const names={afe:'AFE (PGA1 / Offset / PGA2)',reference:'Druckbereich / Einheit',
+    measurement:'Messpunkte / Samples',dsp:'DSP-Ordnung / Endwert',output:'Ausgang / S0 / S1'};
+   return p.include.map(g=>names[g]+(g==='afe'?': '+p.afe.pga1+' / '+p.afe.offset*50+' mV/V / '+p.afe.pga2:
+    g==='reference'?': '+p.reference.min+'–'+p.reference.max+' '+p.reference.unit:
+    g==='measurement'?': '+p.measurement.pointCount+' Punkte, '+p.measurement.samples+' Samples':
+    g==='dsp'?': ±'+p.dsp.dspLimit+' Digits':g==='output'?': '+p.output.mode:'' )).join('\n');
+  }
+  const c=p.calibration,o=p.output;return [
   'AFE: PGA1 Stufe '+p.afe.pga1+', Offset '+(p.afe.offset*50)+' mV/V, PGA2 Stufe '+p.afe.pga2,
   'DSP: ±'+c.dspLimit+' Digits; Druckgrad '+c.sOrder+', Temperaturgrad '+c.tOrder,
   'Referenz: '+c.reference.min+' bis '+c.reference.max+' '+(c.reference.unit==='custom'?c.reference.customUnit:c.reference.unit),
@@ -62,6 +141,6 @@ const ELMOS_CONFIG=(()=>{
   'Ausgang: '+(o.mode==='onewire'?'One Wire only (nur bei bestehendem PLC)':o.mode==='keep'?'Unverändert':o.mode)+
    (['1','2','3'].includes(o.mode)?', S0 '+o.s0+' V / S1 '+o.s1+' V bei VDD '+o.vdd+' V':'')
  ].join('\n');}
- return {FORMAT,VERSION,validate,create,describe};
+ return {FORMAT,VERSION,GROUPS,validate,create,createSelective,describe};
 })();
 if(typeof module!=='undefined'&&module.exports)module.exports=ELMOS_CONFIG;
