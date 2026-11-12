@@ -1,3 +1,10 @@
+## v0.6.33 – 12.11.2026: Temperaturanzeige zurückgenommen und Verbindungsfehler verständlicher
+
+- Die in v0.6.32 eingeführte Celsius-Anzeige wurde vollständig entfernt. Der Kopf zeigt wieder **ADC_S, ADC_T, DSP_S und Sensorwert**.
+- Keine zyklische DSP_T-Zusatzabfrage und keine Temperaturkoeffizienten-Leseprüfung mehr. Live-Abfrage und Sensor-Neuinitialisierung aus v0.6.31 bleiben erhalten.
+- Bei einer nicht plausiblen Chip-Leseantwort CFG_AFE1=0x0000 erfolgt eine verständliche Fehlerbeschreibung. In der normalen Verbindungsanzeige stehen bei gescheitertem Start die Prüfung von Sensor/Versorgung/1-Wire und der Button «Sensor neu initialisieren» im Vordergrund. Technische Details bleiben im TX/RX-Protokoll.
+- Ein realer Hardwaretest am betroffenen Prüfplatz ist weiterhin erforderlich.
+
 ## v0.6.32 – 12.11.2026: Geschützte Live-Temperaturanzeige in °C
 
 - Zusätzliches, responsives KPI **Temperatur (°C)** oben neben ADC_S, ADC_T, DSP_S und Sensorwert.
