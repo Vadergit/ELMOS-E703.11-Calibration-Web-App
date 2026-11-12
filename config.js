@@ -67,9 +67,12 @@ const ELMOS_CONFIG=(()=>{
    throw Error('Config v2: Feld '+g+' stimmt nicht mit der Gruppenauswahl überein');
   const out={format:FORMAT,version:2,label,createdAt:obj.createdAt,include:obj.include.slice()};
   if(obj.include.includes('afe')){
-   const a=obj.afe;exact(a,['pga1','pga2','offset'],'AFE');
+   const a=obj.afe;exact(a,['pga1','pga2','offset','bridgeSupply'],'AFE');
    out.afe={pga1:integer(a.pga1,0,3,'PGA1'),pga2:integer(a.pga2,0,8,'PGA2'),
     offset:integer(a.offset,-8,8,'AFE-Offset')};
+   // Optional field: old v2 files remain valid. Code 3 is reserved.
+   if(Object.hasOwn(a,'bridgeSupply'))
+    out.afe.bridgeSupply=integer(a.bridgeSupply,0,2,'Brückenspannung SVDD');
   }
   if(obj.include.includes('reference')){
    const r=obj.reference;exact(r,['min','max','unit','customUnit'],'Referenz');
@@ -171,9 +174,10 @@ const ELMOS_CONFIG=(()=>{
   createdAt:new Date().toISOString(),afe:fields.afe,calibration:fields.calibration,output:fields.output},cal);}
  function describe(p){
   if(p.version===2){
-   const names={afe:'AFE (PGA1 / Offset / PGA2)',reference:'Druckbereich / Einheit',
+   const names={afe:'AFE (PGA1 / Offset / PGA2 / Brückenspannung)',reference:'Druckbereich / Einheit',
     measurement:'Messpunkte / Samples',dsp:'DSP-Ordnung / Endwert',output:'Ausgang / S0 / S1'};
-   return p.include.map(g=>names[g]+(g==='afe'?': '+p.afe.pga1+' / '+p.afe.offset*50+' mV/V / '+p.afe.pga2:
+   return p.include.map(g=>names[g]+(g==='afe'?': '+p.afe.pga1+' / '+p.afe.offset*50+' mV/V / '+p.afe.pga2+
+     (Number.isInteger(p.afe.bridgeSupply)?' / SVDD '+[2.4,1.6,2.0][p.afe.bridgeSupply]+' V':''):
     g==='reference'?': '+p.reference.min+'–'+p.reference.max+' '+p.reference.unit:
     g==='measurement'?': '+p.measurement.pointCount+' Punkte, '+p.measurement.samples+' Samples':
     g==='dsp'?': ±'+p.dsp.dspLimit+' Digits':g==='output'?': '+p.output.mode:'' )).join('\n');
