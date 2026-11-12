@@ -48,7 +48,7 @@ test('The Web-app probes before DUT power cycling and uses confirmed address for
 });
 test('Address detection does not remove protected boot/NVM write restrictions',()=>{
  const app=read('app.js');
- assert.ok(app.includes('CAL.protectStartupCommunication(initial,modified)'));
+ assert.ok(app.includes('CAL.protectStartupCommunication(initial,modified,{allowSvdd})'));
  assert.ok(app.includes("if(configured!==candidate)throw Error"));
  assert.ok(app.includes("if(!/\\bPLC nothing received\\b/i.test(record.error)"));
  assert.ok(app.includes('st.plcAddressVerified=false;st.mode='));
@@ -60,7 +60,7 @@ test('PSSC recovery permits calibration only after a verified restart of the sam
  const guard=app.slice(app.indexOf(' function psscRecoveryProven()'),app.indexOf(' function renderFlowState()'));
  const state={psscRamRecovery:true,regs:{6:0x6C04},plcAddressVerified:true,plcAddress:0x6C,
   uid:{hex:'0020011DBBE7'},startupTrials:[]};
- const block=require('node:vm').runInNewContext(guard+'; psscNvmBlock',{st:state});
+ const block=require('node:vm').runInNewContext(guard+'; psscNvmBlock',{st:state,CAL:require('../calibration.js')});
  const initial=Array(64).fill(0);
  initial[17]=0x7C05;
  const plan=initial.slice();
@@ -70,11 +70,14 @@ test('PSSC recovery permits calibration only after a verified restart of the sam
  const trial={stage:'PSSC-RAM-Start',powerRestored:true,readVerified:true,verifiedUid:'0020011DBBE7'};
  state.startupTrials.push(trial);
  assert.equal(block(initial,plan),'');
- for(const protectedWord of [16,17,18,19,22,27,57,58]){
+ for(const protectedWord of [16,17,18,19,22,57,58]){
   const changed=plan.slice();
   changed[protectedWord]^=1;
   assert.match(block(initial,changed),/nur Kalibrierdaten/);
  }
+ const withSvdd=plan.slice();
+ withSvdd[27]=2;
+ assert.equal(block(initial,withSvdd),'');
  assert.match(block(initial,plan,true),/nur Kalibrierdaten/);
  state.psscRamRecovery=false;
  trial.verifiedUid='00200109F7DB';

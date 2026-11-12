@@ -109,7 +109,8 @@ const ELMOS_CAL = (() => {
    errors.push('One Wire only benötigt CFG_SPI_I2C.plc_en = 1 im Original-NVM (permanenter 1-Wire-Betrieb); ein kurzes Startup-Zeitfenster allein genügt nicht');
   return {...startup,ok:errors.length===0,errors};
  }
- function protectStartupCommunication(before,after){
+ const SVDD_INDEX=0x36/2, SVDD_MASK=0x0003;
+ function protectStartupCommunication(before,after,{allowSvdd=false}={}){
   if(!Array.isArray(before)||!Array.isArray(after)||before.length!==64||after.length!==64||
    [...before,...after].some(v=>!Number.isInteger(v)||v<0||v>65535))
    throw Error('1-Wire-Startschutz: Ungültiges 64-Wort-NVM-Abbild');
@@ -117,6 +118,9 @@ const ELMOS_CAL = (() => {
    if(i===16){
     const allowed=((7<<9)|(1<<6));
     if(((before[i]^after[i])&~allowed)!==0)throw Error('1-Wire-Startschutz: Nicht erlaubte CFG_EN-Bits verändert');
+   }else if(i===SVDD_INDEX&&allowSvdd&&before[i]!==after[i]){
+    if(((before[i]^after[i])&~SVDD_MASK)!==0||(after[i]&SVDD_MASK)===SVDD_MASK)
+     throw Error('CFG_AFE0: Nur dokumentierte SVDD-Bits dürfen geändert werden');
    }else if(i!==22&&before[i]!==after[i]){
     throw Error('1-Wire-Startschutz: Kommunikations-, Boot- oder Factory-Wort '+i+' verändert');
    }
@@ -196,17 +200,21 @@ const ELMOS_CAL = (() => {
   function configFrom(original,solution,afeWord,opts={}){
   if(!Array.isArray(original)||original.length!==64||original.some(v=>!Number.isInteger(v)||v<0||v>65535))throw Error('NVM-Abbild muss exakt 64 gültige 16-Bit-Wörter enthalten');
   const cfg=prepareOutputConfig(original,opts.output,solution.outputLimit??32000),r=solution.registers;
-  // Reserved/factory and ALL boot/interface words 0..27 are carried over bit-for-bit.
+  if(opts.bridgeSupply!==undefined){
+   if(![0,1,2].includes(opts.bridgeSupply))throw Error('Ungültige SVDD-Einstellung');
+   cfg[SVDD_INDEX]=(cfg[SVDD_INDEX]&~SVDD_MASK)|opts.bridgeSupply;
+  }
+  // Preserve factory and communication settings outside validated fields.
   cfg[28]=(cfg[28]&~0x7FF)|(afeWord&0x7FF); // only AFE gain/offset bits
   cfg[33]=r.so;cfg[34]=r.sf;for(let i=0;i<16;i++)cfg[35+i]=r.coeffs[i];
   if(r.tcoeffs){cfg[31]=r.to;cfg[32]=r.tf;for(let i=0;i<4;i++)cfg[51+i]=r.tcoeffs[i]}
   cfg[63]=crc16(cfg);
-  for(let i=0;i<=27;i++)if(cfg[i]!==original[i]&&![16,22].includes(i))throw Error('Sicherheitsfehler: schreibgeschützter NVM-Bereich verändert');
+  for(let i=0;i<=27;i++)if(cfg[i]!==original[i]&&![16,22,SVDD_INDEX].includes(i))throw Error('Sicherheitsfehler: schreibgeschützter NVM-Bereich verändert');
   if(cfg[16]!==original[16]&&(((cfg[16]^original[16])&~((7<<9)|(1<<6)))!==0))throw Error('CFG_EN: fremde Bits dürfen nicht verändert werden');
   if(cfg.slice(0,16).some((v,i)=>v!==original[i]))throw Error('Werkskalibrierung verändert');
-  protectStartupCommunication(original,cfg);
+  protectStartupCommunication(original,cfg,{allowSvdd:opts.bridgeSupply!==undefined});
   return {before:original.slice(),after:cfg,changes:cfg.map((v,i)=>v!==original[i]?{index:i,address:i*2,from:original[i],to:v}:null).filter(Boolean)};
  }
- return {fit,solveFit,crc16,crc8,configFrom,prepareOutputConfig,protectStartupCommunication,oneWireStartupStatus,oneWireOnlyStatus,analogScaling,fromQ,q,signed};
+ return {SVDD_INDEX,SVDD_MASK,fit,solveFit,crc16,crc8,configFrom,prepareOutputConfig,protectStartupCommunication,oneWireStartupStatus,oneWireOnlyStatus,analogScaling,fromQ,q,signed};
 })();
 if(typeof module!=='undefined'&&module.exports)module.exports=ELMOS_CAL;

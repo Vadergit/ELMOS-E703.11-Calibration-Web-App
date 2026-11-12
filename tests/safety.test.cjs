@@ -29,6 +29,23 @@ test('Only AODO settings may change inside boot area',()=>{
  const before=safeNvm(),after=before.slice();after[16]=(1<<9)|(1<<6);after[22]=16384;
  assert.equal(CAL.protectStartupCommunication(before,after),true);
 });
+test('Calibration persists only confirmed SVDD bits, with CRC and protection intact',()=>{
+ const before=safeNvm();
+ before[CAL.SVDD_INDEX]=0x0C80;
+ const solution={registers:{so:0,sf:0,coeffs:Array(16).fill(0)}};
+ const plan=CAL.configFrom(before,solution,0,{bridgeSupply:2});
+ assert.equal(plan.after[CAL.SVDD_INDEX],0x0C82);
+ assert.deepEqual(plan.changes.map(change=>change.address),[0x36,0x7E]);
+ assert.equal(plan.after[63],CAL.crc16(plan.after));
+ assert.throws(()=>CAL.protectStartupCommunication(before,plan.after),/Startschutz/);
+ for(const bad of [0x0C83,0x0C86]){
+  const changed=plan.after.slice();
+  changed[CAL.SVDD_INDEX]=bad;
+  assert.throws(()=>CAL.protectStartupCommunication(before,changed,{allowSvdd:true}),/SVDD/);
+ }
+ assert.equal(CAL.configFrom(before,solution,0).after[CAL.SVDD_INDEX],0x0C80);
+ assert.throws(()=>CAL.configFrom(before,solution,0,{bridgeSupply:3}),/SVDD/);
+});
 test('AODO mode preparation preserves communication',()=>{
  const before=safeNvm(),after=CAL.prepareOutputConfig(before,{mode:'1',scaleEnabled:true,gain:0.7,offset:0,pwmPeriod:16384},30000);
  assert.notEqual(after[16],before[16]);
@@ -52,7 +69,7 @@ test('Seven calibration steps plus an independent EEPROM viewer',()=>{
 test('NVM write path requires one-wire + preservation check',()=>{
  const src=read('app.js');
  assert.ok(src.includes("st.iface!=='plc')throw Error('1-Wire-Startschutz"));
- assert.ok(src.includes('CAL.protectStartupCommunication(initial,modified)'));
+ assert.ok(src.includes('CAL.protectStartupCommunication(initial,modified,{allowSvdd})'));
 });
 
 test('PSSC S0/S1 quantization stays inside analog range',()=>{
@@ -458,7 +475,7 @@ test('Guided app uses read-only status, and the original NVM protections remain'
  assert.ok(app.includes("window.ELMOS_GUIDED?.onConnected?.()"));
  assert.ok(app.includes("const approvalGranted=nvmReason===''"));
  assert.ok(app.includes("$('nvmProgram').disabled=!approvalGranted"));
- assert.ok(app.includes('CAL.protectStartupCommunication(initial,modified)'));
+ assert.ok(app.includes('CAL.protectStartupCommunication(initial,modified,{allowSvdd})'));
 });
 test('USB bridge fails closed until a truly compatible PLC firmware is available',()=>{
  const app=read('app.js'),fw=read('firmware/usb_bridge_cdc/usb_bridge_cdc.ino');
@@ -913,7 +930,7 @@ test('Cookie-only NVM gated by physical SSP3 startup proof and matching UID',()=
  assert.ok(app.includes('startup.requiresCookie&&!(st.powerCycleResult?.readVerified'));
  assert.ok(app.includes('st.powerCycleResult.verifiedUid===st.uid.hex'));
  assert.ok(app.includes('st.powerCycleResult.verifiedUid===id'));
- assert.ok(app.includes('CAL.protectStartupCommunication(initial,modified)'));
+ assert.ok(app.includes('CAL.protectStartupCommunication(initial,modified,{allowSvdd})'));
  assert.ok(html.includes('id="plcStartupTools"'));
 });
 test('Troubleshooting tools hidden by default; recoverable in expert mode',()=>{
@@ -957,7 +974,7 @@ test('SSP3+PLC always power-starts before register reads without user checkbox',
  // Remains conditional: I2C/SPI/bridge must not power-cycle.
  assert.ok(connect.includes("st.adapterKind==='ssp3'&&st.iface==='plc'"));
  assert.ok(app.includes('powerCycle:st.powerCycleResult'));
- assert.ok(app.includes('CAL.protectStartupCommunication(initial,modified)'));
+ assert.ok(app.includes('CAL.protectStartupCommunication(initial,modified,{allowSvdd})'));
 });
 
 test('SSP3 prompt counter correctly counts independent command acknowledgements',()=>{
@@ -1049,7 +1066,7 @@ test('Magic-Cookie auto startup retains protected NVM and does not touch other i
  assert.ok(connect.includes("await testSsp3PowerStartup()"));
  assert.ok(!connect.includes('P.plcWrite(0xAC'));
  assert.ok(cal.includes('for(const index of [17,18,19])'));
- assert.ok(app.includes('CAL.protectStartupCommunication(initial,modified)'));
+ assert.ok(app.includes('CAL.protectStartupCommunication(initial,modified,{allowSvdd})'));
  assert.ok(app.includes('st.powerCycleResult.verifiedUid===st.uid.hex'));
 });
 
@@ -1166,7 +1183,7 @@ test('After SSP3 detection read-only live polling starts even if full NVM boot p
  assert.ok(power.includes("startLive();"));
  assert.ok(!power.includes("if(st.powerCycleResult?.readVerified&&st.port===port"));
  assert.ok(power.includes("st.powerCycleResult.readVerified=true;"));
- assert.ok(app.includes("CAL.protectStartupCommunication(initial,modified)"));
+ assert.ok(app.includes("CAL.protectStartupCommunication(initial,modified,{allowSvdd})"));
 });
 test('Live ADC attempts and successes visible and exported without new chip writes',()=>{
  const app=read('app.js'),html=read('index.html');

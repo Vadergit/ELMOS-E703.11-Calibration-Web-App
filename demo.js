@@ -2,17 +2,18 @@
 
 const ELMOS_DEMO = {
  create(protocol, calibration, readStimulus) {
-  const bootRegisters = [[16, 4], [17, 6], [18, 8], [19, 10], [20, 12], [22, 16]];
+  const bootRegisters = [[16, 4], [17, 6], [18, 8], [19, 10], [20, 12], [22, 16], [calibration.SVDD_INDEX, 0x1A]];
   const nvm = Array(64).fill(0);
   nvm[0] = 0xDE01;
   nvm[1] = 0x600D;
   nvm[16] = 0x0200;
   nvm[17] = 4;
   nvm[19] = 0x0980;
+  nvm[calibration.SVDD_INDEX] = 0x0C40;
   nvm[15] = calibration.crc8(nvm) << 8;
   nvm[63] = calibration.crc16(nvm);
 
-  const ram = new Map([[0x1A, 0x0C40], [0x1C, 0x0800], [0x38, 0x0703], [0x50, nvm[0]], [0x52, nvm[1]]]);
+  const ram = new Map([[0x1C, 0x0800], [0x38, 0x0703], [0x50, nvm[0]], [0x52, nvm[1]]]);
   let opened = false;
   let readback = 0;
   let pendingWord = 0;

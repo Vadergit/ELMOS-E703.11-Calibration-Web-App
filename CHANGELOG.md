@@ -1,3 +1,7 @@
+## v0.6.49 – Brückenspannung mit der Kalibrierung speichern
+
+- Beim SSP3-Abgleich übernimmt der NVM-Plan die rückgelesene SVDD-Einstellung. Die Änderungsliste zeigt beide Spannungen. Nach dem Neustart wird die Einstellung erneut aus dem Sensor-RAM gelesen.
+
 ## v0.6.48 – AODO senden und empfangen über GPIO4
 
 - ESP32-Firmware v0.6 kann für AODO alternativ GPIO4 als gemeinsamen Sende- und Empfangspin nutzen. GPIO4 wird nach jedem Senden hochohmig. Für die bestehende externe Treiberstufe bleibt der Modus mit GPIO6 als RX der Standard.
