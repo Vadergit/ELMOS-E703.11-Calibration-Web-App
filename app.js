@@ -1182,43 +1182,64 @@ if(typeof document!=='undefined') (function UI(){
    dsp:{sOrder:c.sOrder,tOrder:c.tOrder,dspLimit:c.dspLimit}};
  }
  function showConfigImportEffect(profile){
-  const includes=configIncluded(profile),hasAfe=includes.includes('afe');
+  const selected=profile?configSelectedGroups():[];
+  const hasAfe=selected.includes('afe');
+  $('configApply').disabled=!profile||!selected.length;
   $('configApply').textContent=hasAfe?'Config übernehmen + AFE direkt ins RAM':'Ausgewählte Vorgaben übernehmen';
-  $('configImportEffect').textContent=hasAfe?
-   'Enthält AFE: Beim Klick auf «Übernehmen» werden PGA1, Offset und PGA2 sofort in den verbundenen Chip ins RAM geschrieben und rückgelesen. Keine EEPROM-Programmierung.':
-   'Kein AFE enthalten: Es werden ausschliesslich die gewählten Vorgaben im Assistenten aktualisiert. Kein RAM- oder EEPROM-Schreibvorgang.';
+  $('configImportEffect').textContent=!profile?
+   'Datei auswählen, danach die zu übernehmenden Einstellungsgruppen bestimmen.':
+   !selected.length?'Bitte mindestens eine Einstellungsgruppe für den Import auswählen.':
+   hasAfe?'AFE ausgewählt: Mit «Übernehmen» werden PGA1, Offset und PGA2 direkt ins Chip-RAM geschrieben und rückgelesen. Keine EEPROM-Programmierung.':
+   'AFE nicht ausgewählt: Nur die angehakten Gruppen werden als Vorgaben übernommen. Kein AFE-RAM- oder EEPROM-Schreibvorgang.';
  }
+ function resetConfigImportSelection(profile){
+  const available=new Set(profile?configIncluded(profile):[]);
+  for(const [group,id] of Object.entries(CONFIG_GROUP_CONTROLS)){
+   const checkbox=$(id);
+   checkbox.checked=available.has(group);
+   checkbox.disabled=!available.has(group);
+  }
+  $('configGroups').hidden=!profile;
+  showConfigImportEffect(profile);
+ }
+ for(const id of Object.values(CONFIG_GROUP_CONTROLS))
+  $(id).addEventListener('change',()=>showConfigImportEffect(selectedConfig));
+ resetConfigImportSelection(null);
  $('configSave').addEventListener('click',()=>{
   try{
-   const profile=configFromUi(configSelectedGroups());
-   const label=profile.label.replace(/[^a-z0-9_-]+/gi,'_').slice(0,46)||'Profil';
-   download('ELMOS_E70311_Config_'+label+'.json',JSON.stringify(profile,null,2));
-   show('configPreview','Config «'+profile.label+'» gespeichert. Enthält: '+ELMOS_CONFIG.describe(profile)+'. Keine UID, EEPROM-Daten, Messwerte oder DSP-Koeffizienten.','success');
+   const profile=configFromUi(ELMOS_CONFIG.GROUPS);
+   const fileName=ELMOS_CONFIG.fileName(profile,window.ELMOS_GUIDED?.appliedPlanForConfig?.());
+   download(fileName,JSON.stringify(profile,null,2));
+   show('configPreview','Config «'+profile.label+'» vollständig gespeichert als '+fileName+'. Alle fünf wiederverwendbaren Gruppen enthalten. Beim Import wählst du aus, welche übernommen werden. Keine UID, EEPROM-Daten, Messwerte oder DSP-Koeffizienten.','success');
   }catch(e){show('configPreview','Config konnte nicht gespeichert werden: '+e.message,'error')}
  });
  $('configFile').addEventListener('change',async()=>{
-  selectedConfig=null;$('configApply').disabled=true;$('configApply').textContent='Geladene Config übernehmen';
+  selectedConfig=null;resetConfigImportSelection(null);
   const file=$('configFile').files?.[0];if(!file)return;
   try{
    if(file.size>65536)throw Error('Config-Datei ist zu gross (max. 64 kB)');
    const profile=ELMOS_CONFIG.validate(JSON.parse(await file.text()),CAL);
    selectedConfig=profile;
-   $('configApply').disabled=false;showConfigImportEffect(profile);
+   resetConfigImportSelection(profile);
    show('configPreview','Datei geprüft – noch NICHT übernommen.\n'+ELMOS_CONFIG.describe(profile)+
     '\nEs werden keine Messpunkte, Kalibrierkoeffizienten, EEPROM- oder Boot-/Kommunikationsdaten importiert.','success');
-  }catch(e){selectedConfig=null;show('configPreview','Config-Laden abgelehnt: '+e.message,'error')}
+  }catch(e){selectedConfig=null;resetConfigImportSelection(null);show('configPreview','Config-Laden abgelehnt: '+e.message,'error')}
  });
  $('configApply').addEventListener('click',async()=>{
   const button=$('configApply'),fileInput=$('configFile');
   try{
    if(!selectedConfig)throw Error('Zuerst eine gültige Config-Datei wählen');
    if(st.writing||st.nvmWorking||st.calTask||st.afeWriteActive)throw Error('Chipvorgang läuft. Config erst danach übernehmen.');
-   const profile=selectedConfig,values=configGroupValues(profile),included=values.include;
+   const profile=selectedConfig,values=configGroupValues(profile),included=configSelectedGroups();
+   if(!included.length)throw Error('Bitte mindestens eine Einstellungsgruppe auswählen');
+   if(included.some(group=>!values.include.includes(group)))
+    throw Error('Die Auswahl enthält eine Gruppe, die in der Config-Datei fehlt');
    const has=(group)=>included.includes(group);
    const target=has('afe')?{...values.afe}:null;
    if(target&&(!st.port||!st.chip||st.mode!=='usb'))
-    throw Error('Die Datei enthält AFE-Verstärkungen. Für das direkte RAM-Laden zuerst einen echten Sensor verbinden. Alternativ AFE beim Speichern abwählen.');
+    throw Error('AFE wurde für den Import ausgewählt. Für das direkte RAM-Laden zuerst einen echten Sensor verbinden oder AFE beim Import abwählen.');
    button.disabled=true;fileInput.disabled=true;
+   for(const id of Object.values(CONFIG_GROUP_CONTROLS))$(id).disabled=true;
    // The click itself explicitly authorises the immediate AFE RAM transfer.
    // Existing commitGain checks the boot state and reads the written register back.
    if(target){
@@ -1256,6 +1277,7 @@ if(typeof document!=='undefined') (function UI(){
     fillIntermediateReferences();refreshUnitLabels();updateDSPOutputLimit();renderDSPLive();
    }
    if(has('output'))expert.applyOutputProfile(values.output);
+   if(!target){st.profilePendingAFE=null;profileSummary()}
    $('configLabel').value=profile.label;
    renderFlowState();
    show('configPreview','Config «'+profile.label+'» übernommen. Gruppen: '+included.join(', ')+'.\n'+
@@ -1268,7 +1290,10 @@ if(typeof document!=='undefined') (function UI(){
    show('configPreview','Config-Übernahme fehlgeschlagen: '+e.message,'error');
   }finally{
    fileInput.disabled=false;
-   button.disabled=!selectedConfig;
+   const available=new Set(selectedConfig?configIncluded(selectedConfig):[]);
+   for(const [group,id] of Object.entries(CONFIG_GROUP_CONTROLS))
+    $(id).disabled=!available.has(group);
+   button.disabled=!selectedConfig||!configSelectedGroups().length;
   }
  });
  // controls

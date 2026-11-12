@@ -1,6 +1,6 @@
 # Bedienungsanleitung – ELMOS E703.11
 
-**Dokumentationsstand v0.6.8** Kalibrierassistent
+**Dokumentationsstand v0.6.9** Kalibrierassistent
 
 **[Web-App öffnen](https://vadergit.github.io/ELMOS-E703.11-Calibration-Web-App/)** · **[Projektübersicht](README.md)** · **[Config-Dateien & EEPROM Viewer](CONFIG_DATEIEN.md)** · **[Testbericht](TESTBERICHT.md)**
 
@@ -51,13 +51,13 @@ In **Schritt 1 – Verbindung**:
 
 Config-Dateien sind **wiederverwendbare Einrichtungsvorlagen**, keine EEPROM-Backups.
 
-**Speichern:** Die gewünschten Einstellungen vornehmen und mit den Auswahlfeldern **AFE**, **Referenz**, **Messung**, **DSP** und/oder **Ausgang** festlegen, welche Werte exportiert werden. «Ausgewählte Config speichern (.json)» drücken. Nicht ausgewählte Gruppen sind nicht in der JSON-Datei enthalten.
+**Speichern:** Alle wiederverwendbaren Einstellungen werden immer vollständig gespeichert: AFE, Referenz, Messung, DSP und Ausgang. «Gesamte Config speichern (.json)» klicken. Der Dateiname erhält automatisch einen aussagekräftigen Präfix, zum Beispiel `2P_Druck_3T_Temp_0-10bar_0p5-4p5V_ELMOS_E70311_Standardprofil.json`. Der eigene Profilname bleibt erhalten; bei unbekanntem Druck-/Temperaturplan verwendet die App eine neutrale Messpunktangabe.
 
-**Laden:** Datei auswählen, die Vorschau prüfen und anschliessend bewusst übernehmen. Ohne AFE werden nur die im File enthaltenen Vorgaben in der Oberfläche aktualisiert.
+**Laden:** Datei auswählen, danach bestimmen, welche der enthaltenen Gruppen **tatsächlich übernommen** werden sollen. Alle vorhandenen Gruppen sind standardmässig angehakt. Nicht gewünschte Gruppen abwählen; mindestens eine auswählen. Ältere partielle Configs (v2) sowie vollständige Dateien (v1) sind weiterhin lesbar.
 
-**Bei enthaltenen AFE-Werten** heisst der Button «Config übernehmen + AFE direkt ins RAM». Nach dem Klick werden PGA1/Offset/PGA2 **automatisch ins Chip-RAM übertragen und rückgelesen**. Dafür muss ein echter Sensor verbunden sein. Bei fehlender Rücklesebestätigung wird der Import nicht als erfolgreich gemeldet. **Keine EEPROM-Programmierung.**
+**AFE-RAM:** Nur wenn beim **Import AFE ausgewählt ist**, heisst der Button «Config übernehmen + AFE direkt ins RAM». Nach dem Klick werden PGA1, Offset und PGA2 im verbundenen Sensor ins RAM geschrieben und rückgelesen. Wird AFE abgewählt, erfolgt keine AFE-RAM-Übernahme. **Ein EEPROM-Schreibvorgang wird dabei nie ausgelöst.**
 
-Alte vollständige Config-Dateien (v1) bleiben kompatibel. Neue Dateien (v2) enthalten nur ausgewählte Gruppen. [Beispiel-Datei](examples/Beispiel_0-10bar.json) · [Details](CONFIG_DATEIEN.md).
+[Beispiel-Datei](examples/Beispiel_0-10bar.json) · [Technische Details](CONFIG_DATEIEN.md).
 
 
 ### «One Wire only» prüfen und auswählen

@@ -2,7 +2,7 @@
 
 **Ein geführter Kalibrierassistent für den ELMOS E703.11 und das SSP3-Eval-Board.** Ziel ist ein verständlicher Abgleich, der auch ohne tiefere Vorkenntnisse Schritt für Schritt funktioniert. Wer mehr benötigt, kann zusätzliche Messpunkte, DSP-Parameter und einen geschützten Expertenmodus verwenden.
 
-**Version: v0.6.8 · geführter Abgleich und klassische Ansicht** · [Änderungsverlauf](CHANGELOG.md)
+**Version: v0.6.9 · geführter Abgleich und klassische Ansicht** · [Änderungsverlauf](CHANGELOG.md)
 
 Über **Einstellungen → Demo-Modus** lässt sich der gesamte Kalibrierablauf mit simulierten Messwerten und NVM ausprobieren.
 
@@ -45,7 +45,7 @@ Antwortet das SSP3, aber die Chipprüfung schlägt beim ersten Versuch fehl, fü
 
 **Kompaktmodus:** Über ⚙ Einstellungen → «Kompaktmodus · One-Pager» einschalten. Rechts oben «Normalansicht» schaltet zurück; die Auswahl wird im Browser gespeichert. Auf ausreichend grossen Desktop-Bildschirmen werden alle Hauptschritte ohne Seitenwechsel nebeneinander gezeigt. Bei kleineren Auflösungen oder vielen Details können einzelne Karten intern scrollen. Sämtliche Eingaben, Kalibrier- und NVM-Schutzabläufe bleiben unverändert; nicht benötigte Langtexte sind gekürzt oder aufklappbar. Für selten verwendete Experten- und Diagnosefunktionen steht weiterhin die vollständige Normalansicht zur Verfügung.
 
-Für Entwickler gibt es **51 Software-Regressionstests** (Stand v0.6.8) mit Node.js: `node --test tests/safety.test.cjs`. Geprüft werden Boot-/Kommunikationsschutz, One Wire only, S0/S1-Skalierung, die sieben Kalibrierschritte, der separate EEPROM-Reiter, das Einblenden der Expertenparameter und der sichere Config-Import/-Export. Die Tests ersetzen keine Browser- und Hardwareprüfung.
+Für Entwickler gibt es **55 Software-Regressionstests** (Stand v0.6.9) mit Node.js: `node --test tests/safety.test.cjs`. Geprüft werden Boot-/Kommunikationsschutz, One Wire only, S0/S1-Skalierung, die sieben Kalibrierschritte, der separate EEPROM-Reiter, das Einblenden der Expertenparameter und der sichere Config-Import/-Export. Die Tests ersetzen keine Browser- und Hardwareprüfung.
 
 Die Browser-App verwendet eine **eigene JavaScript-Koeffizientenberechnung**, nicht die originale Elmos-Kalibrier-DLL. Eine Übereinstimmung mit der Herstellersoftware muss auf der Zielhardware verifiziert werden.
 
@@ -63,7 +63,7 @@ Die Browser-App verwendet eine **eigene JavaScript-Koeffizientenberechnung**, ni
 
 ## Config-Vorlagen und EEPROM Viewer
 
-**Config laden und speichern** ist unter **USB & Chip → Config-Vorlagen** verfügbar. Beim Speichern lassen sich **AFE, Referenz, Messung, DSP und Ausgang einzeln auswählen**. Der Import verändert nur enthaltene Gruppen. Falls AFE enthalten ist, werden PGA1, Offset und PGA2 nach dem bestätigten Importklick sofort ins Sensor-RAM geschrieben und rückgelesen. Es werden **keine** Chip-IDs, Factory-Daten, NVM-Wörter oder spezifischen Polynomkoeffizienten kopiert. Nach dem Import wird zuerst nur eine Vorschau angezeigt. Mit «Geladene Config übernehmen» gelangen die Werte in die Eingabefelder; **erst der separate Knopf im AFE-Reiter** schreibt die vorgemerkten AFE-Gains und den Offset ins RAM und prüft den Rücklesewert. Die Druckkalibrierung muss pro Sensor erneut ausgeführt werden.
+**Config laden und speichern** unter **USB & Chip → Config-Vorlagen**: Beim **Speichern werden immer alle fünf Gruppen** (AFE, Referenz, Messung, DSP und Ausgang) in der JSON-Datei gesichert. Der Downloadname enthält automatisch erkennbare Merkmale wie **`2P_Druck_3T_Temp_0-10bar_0p5-4p5V`** und den selbst gewählten Profilnamen. **Erst beim Import** wählt man aus, welche der enthaltenen Gruppen übernommen werden. Wird AFE angehakt, werden PGA1, Offset und PGA2 nach dem ausdrücklich bestätigten Import direkt ins Sensor-RAM geschrieben und rückgelesen. Ohne AFE erfolgt kein AFE-RAM-Schreiben. **Keine** Chip-ID, Factory-Daten, NVM-Wörter oder sensorspezifische Polynomkoeffizienten werden kopiert; eine Config programmiert nie automatisch das EEPROM.
 
 **[Beispiel-Config für 0–10 bar](examples/Beispiel_0-10bar.json)** · **[Details zu Format, Import und Sicherheit](CONFIG_DATEIEN.md)**
 
@@ -115,4 +115,4 @@ Verwendet wurde **E703.11 25DS0170E.04, Production Data vom 16.11.2023**: §6.3.
 
 Der Assistent erfordert für NVM-Schreibvorgänge die im Original-NVM nachweisbare PLC-Startaktivierung, Downstream- und Upstream-Kommunikation und einen persistenten Register-Lese-/Schreibzugang. Sensoren, die nur über eine kurzzeitige Magic-Cookie-Freigabe kommunizieren, werden vorsorglich nicht dauerhaft programmiert. Die App ändert keine geschützten Startup-Register, um diese Situation zu umgehen. Ein Hardware-Kaltstarttest bleibt Pflicht.
 
-**Versions- und Cache-Hinweis:** Die Skript-Dateien (inklusive `config.js`) werden in v0.6.8 mit derselben Versionskennung wie die Web-App geladen. Für die Überprüfung im Browser gegebenenfalls mit `Ctrl + F5` neu laden.
+**Versions- und Cache-Hinweis:** Die Skript-Dateien (inklusive `config.js`) werden in v0.6.9 mit derselben Versionskennung wie die Web-App geladen. Für die Überprüfung im Browser gegebenenfalls mit `Ctrl + F5` neu laden.

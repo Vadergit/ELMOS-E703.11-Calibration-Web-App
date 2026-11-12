@@ -2,6 +2,14 @@
 
 Versionierung nach `MAJOR.MINOR.PATCH`: Kleine Anpassungen erhöhen PATCH, neue Funktionen MINOR, inkompatible Änderungen MAJOR. Jede Änderung erhält eine neue Nummer und einen Eintrag.
 
+## v0.6.9 – 12.11.2026
+
+- **Immer vollständige Config-Dateien:** Der Export enthält die fünf wiederverwendbaren Gruppen AFE, Referenz, Messung, DSP und Ausgang.
+- **Gruppenauswahl beim Import:** Nach dem Laden erscheinen alle in der Datei verfügbaren Gruppen als einzeln wählbare Checkboxen. Fehlende Gruppen in älteren partiellen v2-Dateien sind nicht anwählbar. Vollständige alte v1-Dateien bleiben kompatibel.
+- **AFE nur bei Auswahl ins RAM:** Wenn AFE beim Import angehakt ist, schreibt der bestätigte Importklick mit der bestehenden Boot-/Rückleseprüfung direkt ins Sensor-RAM. Ohne AFE kein AFE-RAM-Schreiben, niemals automatische EEPROM-Programmierung.
+- **Automatisch erkennbarer Config-Dateiname:** Druckpunktanzahl, Temperaturstufen (nur bei bekanntem angewendetem Messplan), Druckbereich, analoge Ausgangsspannungen und selbst gewählter Profilname als Präfix-/Namenskombination, zum Beispiel `2P_Druck_3T_Temp_0-10bar_0p5-4p5V_ELMOS_E70311_Standardprofil.json`.
+- **55 Software-Regressionstests**, einschliesslich Vollprofil-Export, importseitiger Gruppenauswahl, überprüfbarer Dateinamensmerkmale und bestehender Hardware-Sicherheitsfunktionen.
+
 ## v0.6.8 – 12.11.2026
 
 - **Config-Export mit Gruppenauswahl:** AFE, Referenz, Messung, DSP und Ausgang sind einzeln wählbar. Neue selektive JSON-Configs im Format v2; vollständige ältere v1-Dateien bleiben lesbar.

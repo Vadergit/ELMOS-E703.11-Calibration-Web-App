@@ -122,6 +122,51 @@ const ELMOS_CONFIG=(()=>{
   if(include.includes('output'))input.output=fields.output;
   return validateSelective(input,cal);
  }
+
+ // Display-only, deterministic download filename. Never used to infer or change calibration.
+ // If the precise guided matrix is unknown, use an honest measurement-count label.
+ function fileName(profile,appliedPlan=null){
+  const source=profile.version===2?profile:{
+   label:profile.label,include:GROUPS,
+   measurement:{pointCount:profile.calibration.pointCount,samples:profile.calibration.samples},
+   dsp:{sOrder:profile.calibration.sOrder,tOrder:profile.calibration.tOrder,dspLimit:profile.calibration.dspLimit},
+   reference:profile.calibration.reference,output:profile.output
+  };
+  const has=g=>source.include.includes(g);
+  const clean=value=>String(value).replace(/ä/g,'ae').replace(/ö/g,'oe').replace(/ü/g,'ue')
+   .replace(/Ä/g,'Ae').replace(/Ö/g,'Oe').replace(/Ü/g,'Ue')
+   .normalize('NFKD').replace(/[\u0300-\u036f]/g,'')
+   .replace(/[^a-zA-Z0-9_-]+/g,'_').replace(/^_+|_+$/g,'');
+  const num=value=>{
+   const n=Number(value);
+   if(!Number.isFinite(n))return null;
+   // File-system safe: −10.5 -> m10p5, 0.5 -> 0p5.
+   return (n<0?'m':'')+String(Math.abs(n)).replace(/\./g,'p');
+  };
+  const prefix=[];
+  if(has('measurement')){
+   const m=source.measurement,ref=source.reference,dsp=source.dsp;
+   const plan=appliedPlan&&typeof appliedPlan==='object'?appliedPlan:null;
+   const exactPlan=plan&&Number.isInteger(plan.pCount)&&Number.isInteger(plan.tCount)&&
+    plan.pCount>=2&&plan.pCount<=5&&plan.tCount>=1&&plan.tCount<=3&&
+    plan.pCount*plan.tCount===m.pointCount&&
+    (!has('dsp')||(dsp.sOrder<plan.pCount&&dsp.tOrder<plan.tCount));
+   if(exactPlan)prefix.push(plan.pCount+'P_Druck',plan.tCount+'T_Temp');
+   else if(has('dsp')&&dsp.tOrder===0&&m.pointCount===2)prefix.push('2P_Druck');
+   else prefix.push(m.pointCount+'Messpunkte');
+  }
+  if(has('reference')){
+   const r=source.reference,unit=r.unit==='custom'?r.customUnit:r.unit;
+   prefix.push(clean(num(r.min)+'-'+num(r.max)+unit));
+  }
+  if(has('output')&&['1','2','3'].includes(source.output.mode)){
+   const o=source.output;
+   prefix.push(num(o.s0)+'-'+num(o.s1)+'V');
+  }
+  const label=clean(source.label)||'Standardprofil';
+  // Semantic terms first, user-provided name last; safe on Windows/macOS/Linux.
+  return [...prefix,'ELMOS_E70311',label].filter(Boolean).join('_').slice(0,164)+'.json';
+ }
  function create(fields,cal){return validate({format:FORMAT,version:VERSION,label:fields.label,
   createdAt:new Date().toISOString(),afe:fields.afe,calibration:fields.calibration,output:fields.output},cal);}
  function describe(p){
@@ -141,6 +186,6 @@ const ELMOS_CONFIG=(()=>{
   'Ausgang: '+(o.mode==='onewire'?'One Wire only (nur bei bestehendem PLC)':o.mode==='keep'?'Unverändert':o.mode)+
    (['1','2','3'].includes(o.mode)?', S0 '+o.s0+' V / S1 '+o.s1+' V bei VDD '+o.vdd+' V':'')
  ].join('\n');}
- return {FORMAT,VERSION,GROUPS,validate,create,createSelective,describe};
+ return {FORMAT,VERSION,GROUPS,validate,create,createSelective,describe,fileName};
 })();
 if(typeof module!=='undefined'&&module.exports)module.exports=ELMOS_CONFIG;

@@ -569,7 +569,19 @@ const ELMOS_GUIDED=(()=>{
   $('guidedLaunchTop')?.addEventListener('click',open);
   // A previously saved recipe is intentionally not applied to chip automatically.
  }
- return {init,open,close,onConnected,makePlan,isOpen:()=>mode};
+ function appliedPlanForConfig(){
+  // Only report a matrix that was actually applied, never an editable draft.
+  if(!plan||!signature||signature!==JSON.stringify(plan))return null;
+  if(Number($('calPointCount').value)!==plan.total||
+     Number($('calSOrder').value)!==plan.orderS||
+     Number($('calTOrder').value)!==plan.orderT||
+     Number($('calSampleCount').value)!==plan.samples||
+     Number($('pmin').value)!==plan.pmin||
+     Number($('pmax').value)!==plan.pmax||
+     $('calUnit').value!==plan.unit)return null;
+  return {pCount:plan.pCount,tCount:plan.tCount};
+ }
+ return {init,open,close,onConnected,makePlan,isOpen:()=>mode,appliedPlanForConfig};
 })();
 if(typeof window!=='undefined')window.ELMOS_GUIDED=ELMOS_GUIDED;
 if(typeof document!=='undefined'){
