@@ -1,3 +1,11 @@
+## v0.6.34 – 12.11.2026: Nullantwort beim E703.11 erkennen und Magic-Cookie-Fallback gezielt versuchen
+
+- Jürgs SSP3-Log ergab: Power-/PLC-Start quittiert, danach `CFG_AFE1=0x0000` aus der Antwort `00 00 35`. Weil das Format parsbar war, griff die bestehende Prüfung auf `PLC nothing received` nicht.
+- Nur bei exakt bestätigtem AFE-Nullwert oder expliziter No-Reply-Meldung einmaligen vorhandenen RAM-Magic-Cookie-Fallback ausführen. Andere ungültige AFE- und Parsingfehler bleiben gesperrt.
+- Nach Fallback weiterhin echte Register-/ADC-Rücklesung verlangen; kein NVM-Schreiben.
+- Protokollexport meldet jetzt die tatsächliche Web-App-Version v0.6.34 statt des alten statischen Werts v0.6.30; der Auslösegrund wird im Power-Cycle-Ergebnis protokolliert.
+- Hardwaretest mit Jürgs Sensor und Prüfung von 1-Wire-Startfenster und tatsächlicher Versorgung stehen aus.
+
 ## v0.6.33 – 12.11.2026: Temperaturanzeige zurückgenommen und Verbindungsfehler verständlicher
 
 - Die in v0.6.32 eingeführte Celsius-Anzeige wurde vollständig entfernt. Der Kopf zeigt wieder **ADC_S, ADC_T, DSP_S und Sensorwert**.
