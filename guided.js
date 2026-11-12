@@ -549,6 +549,13 @@ const ELMOS_GUIDED=(()=>{
   restore();root.hidden=true;root.replaceChildren();document.documentElement.classList.remove('guided-active');
   window.ELMOS_GUIDED_API?.refresh?.();
  }
+ function onSensorReset(){
+  if(!mode)return;
+  if(pendingCapture){window.clearInterval(pendingCapture);pendingCapture=null}
+  plan=null;signature=null;selectedPoint=0;stage=0;visited=new Set([0]);
+  render();
+  msg('Die Sensorverbindung wurde unterbrochen. Die bisherigen Kalibrierpunkte sind nicht mehr freigegeben. Nach der Neuinitialisierung einen neuen Abgleich starten.','warn');
+ }
  function onConnected(){
   // Only on beta branch. Normal/main has no guided module.
   const preference=$('workflowMode')?.value||'guided';
@@ -581,7 +588,7 @@ const ELMOS_GUIDED=(()=>{
      $('calUnit').value!==plan.unit)return null;
   return {pCount:plan.pCount,tCount:plan.tCount};
  }
- return {init,open,close,onConnected,makePlan,isOpen:()=>mode,appliedPlanForConfig};
+ return {init,open,close,onConnected,onSensorReset,makePlan,isOpen:()=>mode,appliedPlanForConfig};
 })();
 if(typeof window!=='undefined')window.ELMOS_GUIDED=ELMOS_GUIDED;
 if(typeof document!=='undefined'){
