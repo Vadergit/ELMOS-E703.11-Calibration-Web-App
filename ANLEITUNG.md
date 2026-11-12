@@ -1,12 +1,18 @@
 # Bedienungsanleitung – ELMOS E703.11
 
-**Dokumentationsstand v0.6.37** Kalibrierassistent
+**Dokumentationsstand v0.6.38** Kalibrierassistent
 
 **[Web-App öffnen](https://vadergit.github.io/ELMOS-E703.11-Calibration-Web-App/)** · **[Projektübersicht](README.md)** · **[Config-Dateien & EEPROM Viewer](CONFIG_DATEIEN.md)** · **[Testbericht](TESTBERICHT.md)**
 
 Diese Anleitung beschreibt die derzeitige Benutzeroberfläche der browserbasierten App für den **ELMOS E703.11** mit **SSP3-Eval-Board**. Ziel ist ein geführter Abgleich mit möglichst wenig Vorwissen und optionalen Expertenfunktionen.
 
 > **Laborprototyp, keine Produktionsfreigabe.** Der vollständige Kalibrier- und NVM-Schreibablauf wurde noch nicht am realen E703.11 als Gesamtsystem validiert. Permanente Änderungen zunächst nur an einem entbehrlichen Testchip erproben.
+
+## Verfeinerter SSP3-Test in v0.6.38
+
+Für die bekannte SSP3-Firmware 02.08.02.04 konfiguriert die Web-App beim ersten Start die PLC-Hostgeschwindigkeit mit `PLC_CFG 1 0007` (100 kHz, aus originaler PSSC-Bibliothek abgeleitet) und sendet PWR_ON/PLC T in einem USB-Paket. Falls nötig folgt einmalig ein geregelter Start mit `PLC_CFG 1 000E` (50 kHz) und zwei unmittelbaren USB-Paketen. Abgelehnte PLC_CFG-Befehle werden protokolliert, statt eine erfolgreiche Einstellung vorzutäuschen. Die Exportdatei enthält im Feld `startupTrials` beide Versuche und alle Rohantworten.
+
+Die Werte ändern nur die SSP3-Pin-Signalgeschwindigkeit. Sie legen weder die DUT-VDD-Spannung noch die interne SVDD-Brückenspannung oder NVM-Inhalte fest. Bei unbekannter Firmware bleiben die Host-Geschwindigkeitsparameter unverändert. Das Ergebnis ist am echten Prüfstand noch nicht bestätigt.
 
 ## Einmaliger Wiederholungstest für Jürg (v0.6.37)
 
