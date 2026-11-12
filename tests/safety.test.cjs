@@ -1191,7 +1191,10 @@ test('SSP3 startup reads CFG_PERIOD and STATUS without changing communication co
  const power=app.split('async function testSsp3PowerStartup(){')[1]?.split('async function connect(port){')[0];
  assert.ok(power.includes('st.measurementPeriod=await readReg(0x0E,1800)'));
  assert.ok(power.includes('st.measurementStatus=await readReg(0x36,1800)'));
- assert.ok(!power.includes('P.plcWrite(0x0E'));
+ // The *existing* documented Magic Cookie deliberately uses address 0x0E
+ // with data 0x5CFD; never reject that sequence as a CFG_PERIOD rewrite.
+ assert.ok(power.includes('P.plcWrite(0x0E,0x5CFD)'));
+ assert.ok(!power.includes('P.plcWrite(0x0E,0x0001)'));
  assert.ok(!power.includes('P.plcWrite(0x06'));
 });
 test('Single mode triggers documented CMD.start with fresh ADC flag confirmation',()=>{
