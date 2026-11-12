@@ -1,12 +1,18 @@
 # Bedienungsanleitung – ELMOS E703.11
 
-**Dokumentationsstand v0.6.38** Kalibrierassistent
+**Dokumentationsstand v0.6.40** Kalibrierassistent
 
 **[Web-App öffnen](https://vadergit.github.io/ELMOS-E703.11-Calibration-Web-App/)** · **[Projektübersicht](README.md)** · **[Config-Dateien & EEPROM Viewer](CONFIG_DATEIEN.md)** · **[Testbericht](TESTBERICHT.md)**
 
 Diese Anleitung beschreibt die derzeitige Benutzeroberfläche der browserbasierten App für den **ELMOS E703.11** mit **SSP3-Eval-Board**. Ziel ist ein geführter Abgleich mit möglichst wenig Vorwissen und optionalen Expertenfunktionen.
 
 > **Laborprototyp, keine Produktionsfreigabe.** Der vollständige Kalibrier- und NVM-Schreibablauf wurde noch nicht am realen E703.11 als Gesamtsystem validiert. Permanente Änderungen zunächst nur an einem entbehrlichen Testchip erproben.
+
+## Automatische 1-Wire-Adresse v0.6.40
+
+Der E703.11 nutzt die 1-Wire-Slave-Adresse aus `CFG_SPI_I2C.i2c_address` zusammen mit `CFG_PADS1.plc_upper_addr`. Der Standard ist **0x6C**. Für die eingereichte Original-PSSC-XML (`0x7C05` / `0x099F`) wäre es **0x7C**. Die Web-App versucht bei jeder neuen SSP3-Verbindung und nach einem Sensorwechsel zunächst beide Adressen **ausschliesslich lesend**, prüft CRC8 und die Konfigurationsregister und übernimmt nur eine bestätigte Adresse. Erst falls beide Prüfungen scheitern, läuft der begrenzte bisherige Starttest. Er sendet bei fehlender Chipantwort nur die dokumentierten RAM-Magic-Cookie-Folgen für diese beiden Adressen und schreibt nie automatisch ins NVM.
+
+In **Einstellungen → Expertenparameter freischalten** zeigt **USB & Chip** die bestätigte 1-Wire-Adresse. Der Diagnoseexport listet alle Adressversuche. Eine gespeicherte XML-Datei allein beweist nicht, dass sie zum aktuell angeschlossenen Chip gehört. Die neue Erkennung ist softwareseitig geprüft, aber noch nicht durch einen echten Chiptest bestätigt.
 
 ## Verfeinerter SSP3-Test in v0.6.38
 
