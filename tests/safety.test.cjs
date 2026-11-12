@@ -194,7 +194,7 @@ test('Failed E703.11 probe reconnects SSP3 at most once, without NVM writes',()=
  assert.ok(connect.includes('if(!await disconnect())return;'));
  assert.ok(connect.includes('await sleep(200);'));
  assert.ok(connect.includes('await connect(port,false);'));
- assert.ok(connect.includes('Keine weiteren Versuche.'));
+ assert.ok(connect.includes('Keine weiteren automatischen USB-Neuverbindungen.'));
  assert.ok(!connect.includes('writeReg('));
  assert.ok(!connect.includes('nvmWrite('));
 });
