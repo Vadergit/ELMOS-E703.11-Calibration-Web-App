@@ -2,7 +2,7 @@
 
 **Ein geführter Kalibrierassistent für den ELMOS E703.11 und das SSP3-Eval-Board.** Ziel ist ein verständlicher Abgleich, der auch ohne tiefere Vorkenntnisse Schritt für Schritt funktioniert. Wer mehr benötigt, kann zusätzliche Messpunkte, DSP-Parameter und einen geschützten Expertenmodus verwenden.
 
-**Version: v0.6.38 · geführter Abgleich und klassische Ansicht** · [Änderungsverlauf](CHANGELOG.md)
+**Version: v0.6.39 · geführter Abgleich und klassische Ansicht** · [Änderungsverlauf](CHANGELOG.md)
 
 Über **Einstellungen → Demo-Modus** lässt sich der gesamte Kalibrierablauf mit simulierten Messwerten und NVM ausprobieren.
 
@@ -13,6 +13,14 @@
 > **Geführter Assistent:** Nach der bestätigten SSP3-Verbindung stehen die neue Schritt-für-Schritt-Führung, die klassische Ansicht und der optionale Kompaktmodus zur Verfügung. Ein E703.11-Chip muss für den Abgleich verbunden sein. Die USB-CDC-Bridge bleibt als experimenteller Verbindungstest ohne Sensorprogrammierung gesperrt.
 >
 > [Geführter Abgleich](docs/GEFUEHRTER_ASSISTENT.md) · [USB-Bridge](docs/USB_BRIDGE_GUIDE.md) · [ESP-Boards](docs/ESP_BOARD_OPTIONS.md) · [ESP32-C3 SuperMini Sketch](firmware/esp32c3_supermini/esp32c3_supermini.ino)
+
+## USB-Port-Fehler und Protokoll-Sitzungen trennen (v0.6.39)
+
+Im Testprotokoll des Anwenders vom 12.11.2026 ist ein früherer, erfolgreicher Chipstart um 15:54 UTC enthalten, während nach dem fehlgeschlagenen SSP3-Handshake um 16:03 UTC `chipDetected=false` und `firmware=""` gemeldet werden. Grund: Bei der neuen USB-Verbindung wurde der gespeicherte `startupTrials`-Verlauf bisher nicht zurückgesetzt. Ab v0.6.39 beginnen `startupTrials`, Chiplayout-/Lese-Diagnosen und Sitzungszeit bei jedem neuen Öffnen des USB-Ports neu. Im JSON stehen `sessionStartedAt`, `sessionIndex`, `adapterNoReply` und `readerAlive`.
+
+Wenn der **SSP3 selbst auf `.VERSION` nicht antwortet**, zeigt die App nun **«SSP3 antwortet nicht»** statt nur **«Sensor nicht verbunden»**. Die Aktion **«SSP3-Port neu öffnen»** schliesst auf ausdrücklichen Klick den bereits berechtigten WebSerial-Port und öffnet ihn neu, ohne F5 oder neue Browser-Permission. Dabei wird der reguläre kontrollierte SSP3-/Sensorstart durchgeführt. Ein spontanes Ende des USB-Reader-Loops wird ebenfalls als Adapterunterbruch angezeigt. Die Unterscheidung ist für die Fehlersuche wichtig: Ein USB-Handshake-Timeout beweist nicht, dass der Sensor falsch konfiguriert ist.
+
+Die hochgeladene Datei `ConfigFile_Save.xml` ist ein **originales PSSC-Sensor-Konfigurationsarchiv** und enthält Kalibrier-/NVM-Daten für die Chip-ID `0x200109F7DB`. Im Web-Log wurde zuvor `0020011DBBE7` erkannt. Die IDs sind verschieden. **Die Datei ist nicht mit einer chipunabhängigen Web-Config-Datei gleichzusetzen und darf nicht ungeprüft als NVM-Abbild eines anderen Sensors programmiert werden.** Ob und welche EEPROM-Daten tatsächlich auf den getesteten Chip geschrieben wurden, geht aus dem Web-Log nicht hervor.
 
 ## SSP3 PSSC-Bibliothek: PLC-Geschwindigkeiten für bekannten Adapter (v0.6.38)
 
