@@ -1,6 +1,6 @@
 # Bedienungsanleitung – ELMOS E703.11
 
-**Dokumentationsstand v0.6.11** Kalibrierassistent
+**Dokumentationsstand v0.6.36** Kalibrierassistent
 
 **[Web-App öffnen](https://vadergit.github.io/ELMOS-E703.11-Calibration-Web-App/)** · **[Projektübersicht](README.md)** · **[Config-Dateien & EEPROM Viewer](CONFIG_DATEIEN.md)** · **[Testbericht](TESTBERICHT.md)**
 
