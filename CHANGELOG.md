@@ -1,3 +1,11 @@
+## v0.6.13 – 12.11.2026: SSP3-Handshake genauer eingrenzen
+
+- Hardware-Rückmeldung berücksichtigt: Die Originalsoftware verbindet Sensoren mit kurzem PLC-Startfenster ohne manuelles Neuanschliessen.
+- Fehlermeldungen und Startdiagnose stellen nicht mehr den manuellen VDD-Power-Cycle als normalen Lösungsweg dar. Die 12-s-Lesediagnose bleibt optional und wird korrekt als rein lesender Versuch ohne automatischen Sensor-Neustart bezeichnet.
+- Unter USB & Chip kann jetzt das komplette Web-App-SSP3-TX/RX-Protokoll mit Firmware, Chipstatus, letzten PLC-Rohdaten und Diagnose als JSON exportiert werden. Für die Umsetzung eines automatischen PSSC-kompatiblen Startablaufs fehlt weiterhin ein **originaler SSP3-Trace**.
+- Keine neuen Register- oder NVM-Schreibbefehle; keine unbestätigten SSP3-Power-Befehle.
+- Software-Regressionstests entsprechend erweitert.
+
 ## v0.6.12 – 12.11.2026: One-Wire-Startfenster am SSP3
 
 - Der bisherige automatische USB-Trenn-/Neuverbindungsversuch nach fehlgeschlagener Chiperkennung wurde entfernt; er startet den Sensor nicht neu.

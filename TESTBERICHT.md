@@ -90,3 +90,8 @@ Ab v0.5.0 prüfen drei zusätzliche Regressionstests die opt-in-Konfiguration, d
 ### SSP3-Startfenster-Recovery (v0.6.12, 12.11.2026)
 
 Der automatische USB-Neuaufbau wurde durch einen manuell ausgelösten, zeitlich und in der Anzahl begrenzten PLC-Lesetest ersetzt. Dieser hält die USB-Verbindung offen und erwartet einen **separaten** Sensor-VDD-Neustart, während die Abfragen laufen. Die Software enthält keine unbestätigten SSP3-Power-Control-Kommandos und keine Register-Schreibvorgänge in diesem Pfad. Browser- und Code-Regressionen sind prüfbar; der vollständige elektrische SSP3-Kaltstart mit 4/200 ms und die Hersteller-PLC-Referenzantwort wurden **nicht an Hardware validiert**. Ein Fehlschlag muss anhand eines seriellen SSP3-Traces bewertet werden.
+
+
+### Hardwarebefund v0.6.13 (12.11.2026)
+
+Bei 4-ms- und 200-ms-Startfenster und analogem Ausgang ist das Gerät weiterhin über die **Originalsoftware Elmos PSSC ohne manuellen Neuanschluss** erreichbar. Die Web-App bekommt nach einem formal plausiblen PLC-Lese-Telegramm vom SSP3 nur `!PLC nothing received`. Der neue Export liefert einen Web-App-TX/RX-Trace, **aber keinen Trace der Originalsoftware**. Die genaue originale SSP3-Power-/Freigabe-/Schnittstellensequenz bleibt offen. Keine ungesicherten Start- oder NVM-Befehle wurden ergänzt.

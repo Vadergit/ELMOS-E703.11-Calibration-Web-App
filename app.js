@@ -572,8 +572,8 @@ if(typeof document!=='undefined') (function UI(){
   const port=st.port,started=Date.now(),maxDurationMs=12000,maxAttempts=75;
   st.startupRunning=true;st.startupAbort=false;st.startupAttempts=0;
   let success=false,lastError='Keine Antwort';
-  $('plcStartupState').textContent='Starttest läuft. Jetzt NUR die Sensorversorgung VDD aus- und wieder einschalten (SSP3-USB verbunden lassen).';
-  show('connMsg','Startfenster-Test aktiv. Sensor VDD jetzt neu einschalten; SSP3-USB verbunden lassen. Es werden nur Register gelesen.','warn');
+  $('plcStartupState').textContent='Diagnose läuft. Wiederholte PLC-Leseversuche bei offenem SSP3. Ohne neue Sensorinitialisierung bleibt ein abgelaufenes Startfenster geschlossen.';
+  show('connMsg','PLC-Lesediagnose läuft. Diese Funktion startet den Sensor NICHT automatisch neu. Die Originalsoftware verwendet möglicherweise zusätzliche SSP3-Befehle oder eine andere Schnittstelle.','warn');
   renderStatus();
   logging('PLC-Starttest gestartet: SSP3 bleibt offen, maximal 12 s / 75 Versuche, keine Schreibbefehle.');
   try{
@@ -595,7 +595,7 @@ if(typeof document!=='undefined') (function UI(){
      if(st.startupAttempts===1||st.startupAttempts%10===0)
       logging('PLC-Starttest '+st.startupAttempts+': '+lastError);
      if(st.startupAttempts%5===0)
-      $('plcStartupState').textContent=st.startupAttempts+' Zugriffsversuche, bisher kein bestätigter Sensor. Versorgung VDD während des Tests neu einschalten.';
+      $('plcStartupState').textContent=st.startupAttempts+' PLC-Leseversuche, bisher kein bestätigter Sensor. Für den automatischen Start fehlt noch die verifizierte PSSC-Initialisierung.';
     }
     if(!st.startupAbort&&!st.closing&&st.port===port)await sleep(20);
    }
@@ -603,7 +603,7 @@ if(typeof document!=='undefined') (function UI(){
     if(st.startupAbort) $('plcStartupState').textContent='Startfenster-Test manuell abgebrochen; keine Änderung am Sensor.';
     else $('plcStartupState').textContent='Kein Sensor erkannt ('+st.startupAttempts+' Versuche). Letzter Fehler: '+lastError+'. SSP3-Port bleibt offen.';
     if(!st.closing&&st.port===port)
-     show('connMsg','Kein bestätigter One-Wire-Zugriff. Prüfe 1-Wire-Antwortformat, SSP3-Startsequenz und Sensorversorgung. Bei 4 ms ist ein vom Adapter synchronisierter Power-Cycle nötig; die Web-App kann das SSP3-VDD noch nicht steuern.','warn');
+     show('connMsg','SSP3 nimmt den PLC-Befehl an, aber E703.11 antwortet nicht. Da Elmos PSSC ohne manuelle Trennung verbinden kann, fehlt vermutlich eine Initialisierung / Freigabe / automatische Sensorsteuerung. Das wiederholte Lesen allein öffnet kein abgelaufenes Startfenster. Original-SSP3-Befehlsfolge muss verglichen werden.','warn');
     logging('PLC-Starttest beendet ohne Chiperkennung: '+lastError);
    }
   }finally{
@@ -645,8 +645,8 @@ if(typeof document!=='undefined') (function UI(){
     logging('Chiptest: '+e.message);
     if(st.adapterKind==='ssp3'&&st.iface==='plc'){
      logging('SSP3 und IF_CFG bereit, Chipzugriff fehlgeschlagen. USB bleibt offen. Startfenster-Test manuell aktivierbar.');
-     $('plcStartupState').textContent='SSP3 bereit, aber der Sensor hat nicht geantwortet. Startfenster-Test starten und währenddessen nur Sensor-VDD neu einschalten. Erster Fehler: '+e.message;
-     show('connMsg','SSP3 erreichbar, E703.11 nicht. Die USB-Verbindung bleibt offen. «Startfenster testen» starten und Sensor-VDD neu einschalten. Es werden keine Register geschrieben.','warn');
+     $('plcStartupState').textContent='SSP3 bereit; PLC-Lesezugriff noch ohne Sensorantwort. Elmos PSSC kann bei gleicher Verkabelung verbinden. Wahrscheinlich fehlt dessen Initialisierungssequenz. Original-SSP3-Befehlsfolge vergleichen. Erster Fehler: '+e.message;
+     show('connMsg','SSP3 erreichbar, aber keine E703.11-PLC-Antwort. Kein manueller USB-/VDD-Neustart erforderlich, solange die Originalsoftware den Sensor ohne diesen erreicht. Für die gleiche Funktion benötigen wir ihre SSP3-Initialisierung. USB-Protokoll bitte exportieren.','warn');
      renderStatus();
      return;
     }
@@ -908,7 +908,7 @@ if(typeof document!=='undefined') (function UI(){
 
  function draw(){const c=$('chart');if(!c||c.closest('[hidden]'))return;const d=window.devicePixelRatio||1,w=Math.round(c.clientWidth*d),h=Math.round(c.clientHeight*d);if(w<20)return;if(c.width!==w||c.height!==h){c.width=w;c.height=h}const g=c.getContext('2d');g.clearRect(0,0,w,h);const x0=55*d,y0=10*d,yh=h-20*d,y=v=>y0+(32768-v)/65536*(yh-y0);g.font=`${11*d}px sans-serif`;for(const v of [25000,0,-25000]){g.beginPath();g.strokeStyle=v?'#e3c9aa':'#d7e4ef';g.setLineDash(v?[5*d,4*d]:[]);g.moveTo(x0,y(v));g.lineTo(w-8*d,y(v));g.stroke();g.setLineDash([]);g.fillStyle='#74849a';g.fillText((v>0?'+':'')+v,5*d,y(v)+4*d)}if(st.trend.length<1)return;const left=Date.now()-60000,x=t=>x0+(w-x0-10*d)*Math.max(0,Math.min(1,(t-left)/60000));g.beginPath();g.strokeStyle='#2867a6';g.lineWidth=2*d;st.trend.forEach((p,i)=>i?g.lineTo(x(p.x),y(p.y)):g.moveTo(x(p.x),y(p.y)));g.stroke()}
  function download(name,txt,mime='application/json'){let b=new Blob([txt],{type:mime}),u=URL.createObjectURL(b),a=document.createElement('a');a.href=u;a.download=(demoEnabled?'DEMO_':'')+name;a.click();setTimeout(()=>URL.revokeObjectURL(u),2000)}
- const report=()=>({tool:'ELMOS E703.11 Kalibrierassistent v0.6.7',created:new Date().toISOString(),connection:demoEnabled?'Demo':st.port?'USB':'offline',hardwareValidated:false,unit:pressureUnit(),pointNames:{lower:pointName('lo'),upper:pointName('hi')},interface:st.iface,firmware:st.firmware,bootProtection:'Boot-/Werks-NVM-Schreiben gesperrt; kalibrierungsbezogenes User-NVM mit Bestätigung freigegeben',ramWriteActive:!!st.ramWriteScope,registers:st.regs,bootSnapshot:st.boot,chipUID:st.uid?.hex||null,expertOutput:st.expertOutputPlan,AFE:st.afe,gains:st.staged,low:st.points.lo,high:st.points.hi,verification:st.verify,calibrationPoints:st.calpoints,plannedCalibrationPointCount:calibrationPointCount(),requestedSamplesPerPoint:Number($('calSampleCount').value),requestedDSPOutputLimit:Number($('calDspLimit').value),coefficientFit:st.calfit,calRamVerified:st.calVerified,lastDSP:st.dsp,chipDiagnostic:st.chipDiag,lastPlcReply:st.lastPlcReply,displayRange:getActiveDSPRange(),nvmState:{backupVerified:st.nvmBackupVerified,programmed:st.nvmDone},samples:st.history.slice(-1500),trace:st.log});
+ const report=()=>({tool:'ELMOS E703.11 Kalibrierassistent v0.6.13',created:new Date().toISOString(),connection:demoEnabled?'Demo':st.port?'USB':'offline',hardwareValidated:false,unit:pressureUnit(),pointNames:{lower:pointName('lo'),upper:pointName('hi')},interface:st.iface,firmware:st.firmware,bootProtection:'Boot-/Werks-NVM-Schreiben gesperrt; kalibrierungsbezogenes User-NVM mit Bestätigung freigegeben',ramWriteActive:!!st.ramWriteScope,registers:st.regs,bootSnapshot:st.boot,chipUID:st.uid?.hex||null,expertOutput:st.expertOutputPlan,AFE:st.afe,gains:st.staged,low:st.points.lo,high:st.points.hi,verification:st.verify,calibrationPoints:st.calpoints,plannedCalibrationPointCount:calibrationPointCount(),requestedSamplesPerPoint:Number($('calSampleCount').value),requestedDSPOutputLimit:Number($('calDspLimit').value),coefficientFit:st.calfit,calRamVerified:st.calVerified,lastDSP:st.dsp,chipDiagnostic:st.chipDiag,lastPlcReply:st.lastPlcReply,displayRange:getActiveDSPRange(),nvmState:{backupVerified:st.nvmBackupVerified,programmed:st.nvmDone},samples:st.history.slice(-1500),trace:st.log});
 
  // ============ Kalibrierung + NVM (AN0203 / AN0204 / Datasheet 2023) ============
  const ca=(id,msg,type='')=>show(id,msg,type);
@@ -1464,6 +1464,18 @@ if(typeof document!=='undefined') (function UI(){
     $(id).disabled=!available.has(group);
    button.disabled=!selectedConfig||!configSelectedGroups().length;
   }
+ });
+ $('plcStartupLogExport').addEventListener('click',()=>{
+  const log={
+   tool:'ELMOS E703.11 – SSP3 Startdiagnose',version:'v0.6.13',at:new Date().toISOString(),
+   source:'Web-App (NICHT PSSC Originalsoftware)',interface:st.iface,adapter:st.adapterKind,
+   firmware:st.firmware,port:serialPortInfo(st.port),chipDetected:!!st.chip,
+   startupAttempts:st.startupAttempts,lastPlcReply:st.lastPlcReply,
+   chipDiag:st.chipDiag,log:st.log.slice(-500),
+   note:'Der Export enthält nur die Web-App-Befehle. Für einen Vergleich wird zusätzlich ein originaler PSSC-SSP3-Trace benötigt. Keine Sensorregister werden durch den Export verändert.'
+  };
+  download('E70311_SSP3_Web_Log_'+Date.now()+'.json',JSON.stringify(log,null,2));
+  $('plcStartupState').textContent='Web-App-Protokoll gespeichert. Für die fehlende Initialisierung wird auch die Befehlsfolge der Originalsoftware benötigt.';
  });
  $('plcStartupProbe').addEventListener('click',()=>recoverOneWireStartup().catch(e=>{
   logging('PLC-Starttest konnte nicht gestartet werden: '+e.message);

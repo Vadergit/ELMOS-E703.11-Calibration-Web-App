@@ -138,3 +138,10 @@ Die Web-App verwendet beim ELMOS SSP3 weiterhin das bekannte `IF_CFG 7 0 0` zum 
 - **Grenze:** Bei 4 ms kann ein Browser mit manuell eingeschalteter Sensorversorgung keine zeitlich garantierte Aktivierung bieten. Dafür muss die Versorgung durch einen nachweislich kompatiblen Adapter synchronisiert geschaltet und der erste PLC-Frame unmittelbar gesendet werden. Ein solcher SSP3-Stromsteuerbefehl wurde nicht verifiziert und wurde deshalb bewusst **nicht erfunden**. Für die ESP32-Bridge bleibt `PLC START` der gesonderte hardwarebezogene Weg, sofern die Bridge die entsprechende Funktion unterstützt.
 
 Auch 200 ms sind kein Beweis, dass der SSP3-Befehl in der Herstellersequenz identisch ist. Bleibt die Erkennung aus, die RX-Rohantwort und den SSP3-Log mit der originalen PSSC-Software vergleichen. Erst dann einen unbekannten Hardware-Befehl oder ein anderes PLC-Frame ergänzen.
+
+
+## Rückmeldung aus dem Hardwaretest (v0.6.13)
+
+Bei dauerhaft angeschlossenem SSP3 kann die Originalsoftware Elmos PSSC einen mit analogem 0–5-V-Ausgang und kurzen PLC-Startfenstern programmierten E703.11 **ohne manuelles Aus-/Einstecken** erreichen. Die Web-App empfängt dagegen bei `PLC 026D1C0C.` die SSP3-Meldung `!PLC nothing received`. Damit steht **noch nicht fest**, ob der SSP3 eine intern gesteuerte DUT-Neuversorgung durchführt, ob PSSC vor dem Registerlesen die Magic-Cookie-Freigabe verwendet oder über I²C/SPI zugreift. Diese Abläufe lassen sich nicht sicher aus dem Chipdatenblatt ableiten. Der bisherige manuelle Power-Cycle-Test ist daher keine notwendige Bedienanforderung und kein vollständiger Ersatz für die originale Initialisierung.
+
+Der neue Export **«Web-App-SSP3-Protokoll exportieren»** liefert einen strukturierten Web-App-TX/RX-Trace. Für eine PSSC-kompatible Auto-Initialisierung wird zusätzlich eine echte Aufzeichnung der PSSC-Kommandos auf demselben Adapter benötigt. Die experimentellen `PLC P` / `PLC T`-Wartungskommandos aus dem bisherigen Kalibrierpfad werden **nicht** automatisch auf einen unerkannten Sensor angewendet, solange ihre Funktion und Nebenwirkungen nicht nachgewiesen wurden.

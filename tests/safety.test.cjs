@@ -180,7 +180,7 @@ test('Expert mode shows contextual settings and no modal',()=>{
  assert.ok(html.includes('data-expert-area hidden><summary>Erweitert · AODO_F'));
  assert.ok(src.includes("classList.toggle('is-expert',enabled)"));
  const scripts=Array.from(html.matchAll(/<script src="([^"]+)"/g),m=>m[1]);
- assert.deepEqual(scripts,['calibration.js?v=0.6.12','eeprom-help.js?v=0.6.12','expert.js?v=0.6.12','config.js?v=0.6.12','guided-plan.js?v=0.6.12','demo.js?v=0.6.12','app.js?v=0.6.12','compact.js?v=0.6.12','guided.js?v=0.6.12']);
+ assert.deepEqual(scripts,['calibration.js?v=0.6.13','eeprom-help.js?v=0.6.13','expert.js?v=0.6.13','config.js?v=0.6.13','guided-plan.js?v=0.6.13','demo.js?v=0.6.13','app.js?v=0.6.13','compact.js?v=0.6.13','guided.js?v=0.6.13']);
 });
 
 test('Failed E703.11 probe keeps SSP3 open for explicit, bounded startup test',()=>{
@@ -440,7 +440,7 @@ test('Guided view is optional and contains only one set of hardware inputs',()=>
  assert.ok(html.includes('id="workflowMode"'));
  assert.ok(html.includes('id="guidedLaunch"'));
  assert.ok(html.includes('id="guidedLaunchTop"'));
- assert.ok(html.includes('guided.css?v=0.6.12'));
+ assert.ok(html.includes('guided.css?v=0.6.13'));
  for(const id of ['nvmProgram','nvmPrepare','calApplyRam','calVerifyRam','expertOutputStage','configApply','configFile']){
   assert.equal(html.split('id="'+id+'"').length-1,1);
  }
@@ -765,6 +765,9 @@ test('Startfenster-Test is bounded, read-only, cancellable and does not re-open 
  assert.ok(!startup.includes('port.close('));
  assert.ok(html.includes('id="plcStartupProbe"'));
  assert.ok(html.includes('id="plcStartupStop"'));
+ assert.ok(html.includes('id="plcStartupLogExport"'));
+ assert.ok(src.includes("download('E70311_SSP3_Web_Log_'"));
+ assert.ok(src.includes("source:'Web-App (NICHT PSSC Originalsoftware)'"));
  assert.ok(src.includes("st.startupAbort=true;\n  st.closing=true;"));
 });
 test('Chip diagnostics export is available for failed chip detection without unlocking access',()=>{

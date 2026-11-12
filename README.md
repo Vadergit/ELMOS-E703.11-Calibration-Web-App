@@ -2,7 +2,7 @@
 
 **Ein geführter Kalibrierassistent für den ELMOS E703.11 und das SSP3-Eval-Board.** Ziel ist ein verständlicher Abgleich, der auch ohne tiefere Vorkenntnisse Schritt für Schritt funktioniert. Wer mehr benötigt, kann zusätzliche Messpunkte, DSP-Parameter und einen geschützten Expertenmodus verwenden.
 
-**Version: v0.6.12 · geführter Abgleich und klassische Ansicht** · [Änderungsverlauf](CHANGELOG.md)
+**Version: v0.6.13 · geführter Abgleich und klassische Ansicht** · [Änderungsverlauf](CHANGELOG.md)
 
 Über **Einstellungen → Demo-Modus** lässt sich der gesamte Kalibrierablauf mit simulierten Messwerten und NVM ausprobieren.
 
@@ -47,7 +47,7 @@ Antwortet das SSP3, aber der E703.11 nach der 1-Wire-Initialisierung nicht, blei
 
 **Kompaktmodus:** Über ⚙ Einstellungen → «Kompaktmodus · One-Pager» einschalten. Rechts oben «Normalansicht» schaltet zurück; die Auswahl wird im Browser gespeichert. Auf ausreichend grossen Desktop-Bildschirmen werden alle Hauptschritte ohne Seitenwechsel nebeneinander gezeigt. Bei kleineren Auflösungen oder vielen Details können einzelne Karten intern scrollen. Sämtliche Eingaben, Kalibrier- und NVM-Schutzabläufe bleiben unverändert; nicht benötigte Langtexte sind gekürzt oder aufklappbar. Für selten verwendete Experten- und Diagnosefunktionen steht weiterhin die vollständige Normalansicht zur Verfügung.
 
-Für Entwickler gibt es **64 Software-Regressionstests** (Stand v0.6.12) mit Node.js: `node --test tests/safety.test.cjs`. Geprüft werden Boot-/Kommunikationsschutz, One Wire only, S0/S1-Skalierung, die sieben Kalibrierschritte, der separate EEPROM-Reiter, das Einblenden der Expertenparameter und der sichere Config-Import/-Export. Die Tests ersetzen keine Browser- und Hardwareprüfung.
+Für Entwickler gibt es **64 Software-Regressionstests** (Stand v0.6.13) mit Node.js: `node --test tests/safety.test.cjs`. Geprüft werden Boot-/Kommunikationsschutz, One Wire only, S0/S1-Skalierung, die sieben Kalibrierschritte, der separate EEPROM-Reiter, das Einblenden der Expertenparameter und der sichere Config-Import/-Export. Die Tests ersetzen keine Browser- und Hardwareprüfung.
 
 Die Browser-App verwendet eine **eigene JavaScript-Koeffizientenberechnung**, nicht die originale Elmos-Kalibrier-DLL. Eine Übereinstimmung mit der Herstellersoftware muss auf der Zielhardware verifiziert werden.
 
@@ -117,4 +117,13 @@ Verwendet wurde **E703.11 25DS0170E.04, Production Data vom 16.11.2023**: §6.3.
 
 Der Assistent erfordert für NVM-Schreibvorgänge die im Original-NVM nachweisbare PLC-Startaktivierung, Downstream- und Upstream-Kommunikation und einen persistenten Register-Lese-/Schreibzugang. Sensoren, die nur über eine kurzzeitige Magic-Cookie-Freigabe kommunizieren, werden vorsorglich nicht dauerhaft programmiert. Die App ändert keine geschützten Startup-Register, um diese Situation zu umgehen. Ein Hardware-Kaltstarttest bleibt Pflicht.
 
-**Versions- und Cache-Hinweis:** Die Skript-Dateien (inklusive `config.js`) werden in v0.6.12 mit derselben Versionskennung wie die Web-App geladen. Für die Überprüfung im Browser gegebenenfalls mit `Ctrl + F5` neu laden.
+**Versions- und Cache-Hinweis:** Die Skript-Dateien (inklusive `config.js`) werden in v0.6.13 mit derselben Versionskennung wie die Web-App geladen. Für die Überprüfung im Browser gegebenenfalls mit `Ctrl + F5` neu laden.
+
+
+### Aktueller SSP3-Verbindungsbefund (12.11.2026, v0.6.13)
+
+In der originalen Elmos-PSSC-Software lässt sich ein Sensor mit analogem 0–5-V-Ausgang und 4-ms- oder 200-ms-PLC-Startfenster **ohne manuelle Unterbrechung der Versorgung** weiterhin programmieren. Die Web-App verwendet momentan `IF_CFG 7 0 0` und sendet dann `PLC 026D1C0C.`; SSP3 antwortet dabei mit `!PLC nothing received`. Das bedeutet: Der SSP3 verarbeitet das Hostkommando, aber es wurde **keine Sensorantwort** empfangen; es liegt weder ein verifiziertes Chip- noch ein CRC-Problem vor.
+
+**Noch nicht gelöst:** Die unbekannte Original-SSP3-Start-/Freigabesequenz kann nicht aus dem E703.11-Datenblatt allein abgeleitet werden. PSSC könnte die DUT-Versorgung über das SSP3 neu starten, eine PLC-Magic-Cookie-Freigabe verwenden oder I²C/SPI nutzen. Eine entsprechende Funktion wird erst integriert, wenn ihre Befehle und Nebenwirkungen anhand eines echten PSSC-Protokoll-Traces geprüft wurden.
+
+Unter **USB & Chip → SSP3-Verbindungsdiagnose** gibt es jetzt den **Export des Web-App-SSP3-Protokolls** für den Vergleich. Die ergänzende 12-s-PLC-Lesediagnose ist optional und ersetzt keinen Boot-Handshake. **Kein Sensor muss manuell abgesteckt werden, bloss weil die Web-App keine Antwort erhält.**
