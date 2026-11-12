@@ -1,3 +1,11 @@
+## v0.6.25 – 12.11.2026: ADC-Live-Werte nach SSP3-Magic-Cookie-Verbindung
+
+- Live-Abfrage priorisiert ADC_S (0x2A) und behandelt ADC_T/ADC_TC/DSP_S als separat fehlertolerante Werte. So können fehlende Temperaturantworten die Druckanzeige nicht mehr vollständig blockieren.
+- Erste bestätigte ADC_S-Messung wird sofort angezeigt. Strenge Kalibrierproben bleiben unverändert und verlangen weiterhin alle ADC-Werte.
+- Kontinuierliche Live-Messung startet erst nach Abschluss des SSP3-Power-/Magic-Cookie-Startvorgangs, um überlappende Registerabfragen zu vermeiden.
+- Kurze PLC-Lesefehler werden mit begrenzten, verlangsamten Wiederholungen behandelt (maximal zehn aufeinanderfolgende Fehler); deutlichere Statusmeldungen.
+- Keine neuen Sensor-Schreibtelegramme, kein Neustart während Live, keine NVM-Änderungen.
+
 ## v0.6.24 – 12.11.2026: Magic-Cookie-Freigabe im normalen SSP3-One-Wire-Verbindungsweg
 
 - Der Nutzer meldet erfolgreiche One-Wire-Chiperkennung nach manuell aktivierter Magic Cookie.

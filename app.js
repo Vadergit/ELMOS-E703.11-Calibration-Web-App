@@ -672,7 +672,34 @@ if(typeof document!=='undefined') (function UI(){
    if(previousLive&&!st.manualLivePause&&st.chip&&st.port&&!st.closing)startLive()
   }
  }
- async function detect(){const w=await readReg(R_AFE);const g=decodeSafeAFE(w);const a=await readReg(0x2A);st.afe=w;st.staged={...g};st.chip=true;gainSummary();logging(`Chip-Leseantwort: AFE=0x${h(w,2)} ADC_S=${P.sign16(a)}`);await readADC();await expert.onDetect();renderStatus();show('connMsg',demoEnabled?'Demo-Sensor verbunden. Messwerte und Schreibvorgänge sind simuliert.':'Chip-Register über '+(st.iface==='plc'?'1-Wire':st.iface.toUpperCase())+' lesbar. Antworten sind plausibel; ein physischer Hardware-Abnahmetest steht noch aus.','success');step(1);startLive();window.ELMOS_GUIDED?.onConnected?.()}
+ async function detect(){
+  // AFE and ADC_S form the minimum real chip-presence proof.
+  // Do not make the entire live display dependent on less reliable temperature
+  // or DSP registers. A full calibration capture remains strict and separate.
+  const w=await readReg(R_AFE),g=decodeSafeAFE(w);
+  const rawS=await readReg(0x2A),s=P.sign16(rawS);
+  st.afe=w;st.staged={...g};st.chip=true;
+  gainSummary();
+  logging('Chip-Leseantwort: AFE=0x'+h(w,2)+' ADC_S='+s);
+  // Publish the already confirmed ADC_S value immediately, even if subsequent
+  // ADC_T / ADC_TC requests are temporarily unavailable.
+  updateADC({s,t:null,tc:null},'usb');
+  try{
+   await readADC({allowPartial:true});
+  }catch(e){
+   logging('Erster Live-Messzyklus teilweise fehlgeschlagen: '+e.message);
+   show('adcMsg','ADC_S erkannt; weitere Live-Register sind noch nicht verfügbar: '+e.message,'warn');
+  }
+  await expert.onDetect();
+  renderStatus();
+  show('connMsg',demoEnabled?'Demo-Sensor verbunden. Messwerte und Schreibvorgänge sind simuliert.':
+   'Chip-Register über '+(st.iface==='plc'?'1-Wire':st.iface.toUpperCase())+' lesbar. ADC_S bestätigt; Live-Werte werden separat aktualisiert.','success');
+  step(1);
+  // During power-start and Magic-Cookie recovery, defer the continuous loop
+  // until the entire startup process has completed.
+  if(!st.powerCycleRunning&&!st.manualLivePause)startLive();
+  window.ELMOS_GUIDED?.onConnected?.();
+ }
 
  // Repeated, bounded READ-only PLC probes on an ALREADY configured SSP3.
  // No undocumented SSP3 power commands: the user must power-cycle VDD externally.
@@ -924,7 +951,13 @@ if(typeof document!=='undefined') (function UI(){
    $('plcPowerState').textContent=msg;
    if(st.port===port&&!st.closing)show('connMsg',msg,'warn');
    logging(msg);
-  }finally{st.powerCycleRunning=false;renderStatus();}
+  }finally{
+   st.powerCycleRunning=false;renderStatus();
+   // Never poll ADC while SSP3 power/cookie setup still owns the interface.
+   // Start live acquisition only once a genuine readback was verified.
+   if(st.powerCycleResult?.readVerified&&st.port===port&&!st.closing&&st.chip&&!st.manualLivePause)
+    startLive();
+  }
  }
  async function connect(port){
   if(st.port)throw Error('Es ist bereits ein Port offen');
@@ -1075,9 +1108,22 @@ if(typeof document!=='undefined') (function UI(){
   }catch(e){logging('Bekannten USB-Port öffnen: '+String(e));show('connMsg',serialOpenError(e,port),'error')}
  }
  function updateADC(a,source){st.adc={...a,source,time:Date.now()};st.trend.push({x:Date.now(),y:a.s});st.trend=st.trend.filter(v=>Date.now()-v.x<60000);st.history.push({time:new Date().toISOString(),adc_s:a.s,adc_t:a.t,adc_tc:a.tc,source:demoEnabled?'Demo':source,gains:{...st.staged}});if(st.history.length>5000)st.history.shift();$('adc').textContent=fmt(a.s);$('adct').textContent=fmt(a.t);$('adctc').textContent=fmt(a.tc);show('adcMsg',Math.abs(a.s)>25000?'ADC_S liegt ausserhalb des vorsichtigen ±25’000-Arbeitsbereichs. Gain reduzieren oder Offset kontrollieren.':`ADC_S ${fmt(a.s)} Digits · USB / E703.11 · ${new Date().toLocaleTimeString('de-CH')}`,Math.abs(a.s)>25000?'warn':'success');renderStatus();draw();return a.s}
- async function readADC(){
+ async function readADC({allowPartial=false}={}){
   if(!st.chip)throw Error('Chip-Lesezugriff noch nicht bestätigt');
-  const tc=P.sign16(await readReg(0x26)),t=P.sign16(await readReg(0x28)),s=P.sign16(await readReg(0x2A));
+  // ADC_S first: a missing temperature reply must never hide a valid pressure
+  // live value. Strict callers (calibration/verification) still require both
+  // temperature registers; the live loop uses allowPartial:true only.
+  const s=P.sign16(await readReg(0x2A));
+  let t=null,tc=null,temperatureError=null;
+  if(allowPartial){
+   try{t=P.sign16(await readReg(0x28))}
+   catch(e){temperatureError='ADC_T: '+e.message}
+   try{tc=P.sign16(await readReg(0x26))}
+   catch(e){temperatureError=(temperatureError?temperatureError+'; ':'')+'ADC_TC: '+e.message}
+  }else{
+   t=P.sign16(await readReg(0x28));
+   tc=P.sign16(await readReg(0x26));
+  }
   try{
    const dsp=P.sign16(await readReg(0x30));
    updateDSP(dsp,'usb');
@@ -1087,23 +1133,42 @@ if(typeof document!=='undefined') (function UI(){
     logging('DSP_S kann nicht gelesen werden: '+e.message);st.lastDspError=Date.now()
    }
   }
-  return updateADC({s,t,tc},'usb').s
+  const value=updateADC({s,t,tc},'usb').s;
+  if(temperatureError){
+   if(!st.lastTempError||Date.now()-st.lastTempError>12000){
+    logging('Live-ADC_S verfügbar, Temperaturregister teilweise nicht lesbar: '+temperatureError);
+    st.lastTempError=Date.now();
+   }
+   show('adcMsg','ADC_S live: '+fmt(s)+' Digits. Temperatur noch nicht vollständig lesbar: '+temperatureError,'warn');
+  }
+  return value;
  }
  function startLive(){
-  if(st.live||st.calTask||!st.chip)return;
+  if(st.live||st.calTask||!st.chip||st.powerCycleRunning||st.closing)return;
   st.live=true;st.consecutiveErrors=0;renderStatus();
   (async function loop(){
    if(!st.live)return;
    try{
     if(!st.writing&&!st.calTask){
-     const p=readADC();st.liveReadPromise=p;
+     const p=readADC({allowPartial:true});st.liveReadPromise=p;
      try{await p}finally{if(st.liveReadPromise===p)st.liveReadPromise=null}
     }
-    st.consecutiveErrors=0
+    st.consecutiveErrors=0;
    }catch(e){
-    st.consecutiveErrors++;logging('ADC-/DSP-Livefehler: '+e.message);
-    if(st.consecutiveErrors>=3){stopLive();show('adcMsg','Live-Messung gestoppt: '+e.message,'error');return}
-   }finally{if(st.live)st.timeout=setTimeout(loop,liveIntervalMs)}
+    st.consecutiveErrors++;
+    logging('ADC_S-Livefehler ('+st.consecutiveErrors+'): '+e.message);
+    // Allow brief PLC communication dropouts without requiring a new user
+    // connection or power-cycle. Never claim a failed sample as current.
+    if(st.consecutiveErrors>=10){
+     stopLive();
+     show('adcMsg','Live-Messung nach 10 fehlgeschlagenen ADC_S-Abfragen gestoppt: '+e.message+'. SSP3-Protokoll im Expertenmodus exportieren.','error');
+     return;
+    }
+    if(st.consecutiveErrors>=3)
+     show('adcMsg','Live-Messwerte vorübergehend nicht erreichbar ('+st.consecutiveErrors+'/10). Automatischer erneuter Leseversuch; letzter Fehler: '+e.message,'warn');
+   }finally{
+    if(st.live)st.timeout=setTimeout(loop,st.consecutiveErrors>=3?2500:liveIntervalMs);
+   }
   })()
  }
  function stopLive(){st.live=false;clearTimeout(st.timeout);st.timeout=null;renderStatus()}
@@ -1237,7 +1302,7 @@ if(typeof document!=='undefined') (function UI(){
 
  function draw(){const c=$('chart');if(!c||c.closest('[hidden]'))return;const d=window.devicePixelRatio||1,w=Math.round(c.clientWidth*d),h=Math.round(c.clientHeight*d);if(w<20)return;if(c.width!==w||c.height!==h){c.width=w;c.height=h}const g=c.getContext('2d');g.clearRect(0,0,w,h);const x0=55*d,y0=10*d,yh=h-20*d,y=v=>y0+(32768-v)/65536*(yh-y0);g.font=`${11*d}px sans-serif`;for(const v of [25000,0,-25000]){g.beginPath();g.strokeStyle=v?'#e3c9aa':'#d7e4ef';g.setLineDash(v?[5*d,4*d]:[]);g.moveTo(x0,y(v));g.lineTo(w-8*d,y(v));g.stroke();g.setLineDash([]);g.fillStyle='#74849a';g.fillText((v>0?'+':'')+v,5*d,y(v)+4*d)}if(st.trend.length<1)return;const left=Date.now()-60000,x=t=>x0+(w-x0-10*d)*Math.max(0,Math.min(1,(t-left)/60000));g.beginPath();g.strokeStyle='#2867a6';g.lineWidth=2*d;st.trend.forEach((p,i)=>i?g.lineTo(x(p.x),y(p.y)):g.moveTo(x(p.x),y(p.y)));g.stroke()}
  function download(name,txt,mime='application/json'){let b=new Blob([txt],{type:mime}),u=URL.createObjectURL(b),a=document.createElement('a');a.href=u;a.download=(demoEnabled?'DEMO_':'')+name;a.click();setTimeout(()=>URL.revokeObjectURL(u),2000)}
- const report=()=>({tool:'ELMOS E703.11 Kalibrierassistent v0.6.24',created:new Date().toISOString(),connection:demoEnabled?'Demo':st.port?'USB':'offline',hardwareValidated:false,unit:pressureUnit(),pointNames:{lower:pointName('lo'),upper:pointName('hi')},interface:st.iface,firmware:st.firmware,bootProtection:'Boot-/Werks-NVM-Schreiben gesperrt; kalibrierungsbezogenes User-NVM mit Bestätigung freigegeben',ramWriteActive:!!st.ramWriteScope,registers:st.regs,bootSnapshot:st.boot,chipUID:st.uid?.hex||null,expertOutput:st.expertOutputPlan,AFE:st.afe,gains:st.staged,low:st.points.lo,high:st.points.hi,verification:st.verify,calibrationPoints:st.calpoints,plannedCalibrationPointCount:calibrationPointCount(),requestedSamplesPerPoint:Number($('calSampleCount').value),requestedDSPOutputLimit:Number($('calDspLimit').value),coefficientFit:st.calfit,calRamVerified:st.calVerified,lastDSP:st.dsp,chipDiagnostic:st.chipDiag,lastPlcReply:st.lastPlcReply,displayRange:getActiveDSPRange(),nvmState:{backupVerified:st.nvmBackupVerified,programmed:st.nvmDone},samples:st.history.slice(-1500),trace:st.log});
+ const report=()=>({tool:'ELMOS E703.11 Kalibrierassistent v0.6.25',created:new Date().toISOString(),connection:demoEnabled?'Demo':st.port?'USB':'offline',hardwareValidated:false,unit:pressureUnit(),pointNames:{lower:pointName('lo'),upper:pointName('hi')},interface:st.iface,firmware:st.firmware,bootProtection:'Boot-/Werks-NVM-Schreiben gesperrt; kalibrierungsbezogenes User-NVM mit Bestätigung freigegeben',ramWriteActive:!!st.ramWriteScope,registers:st.regs,bootSnapshot:st.boot,chipUID:st.uid?.hex||null,expertOutput:st.expertOutputPlan,AFE:st.afe,gains:st.staged,low:st.points.lo,high:st.points.hi,verification:st.verify,calibrationPoints:st.calpoints,plannedCalibrationPointCount:calibrationPointCount(),requestedSamplesPerPoint:Number($('calSampleCount').value),requestedDSPOutputLimit:Number($('calDspLimit').value),coefficientFit:st.calfit,calRamVerified:st.calVerified,lastDSP:st.dsp,chipDiagnostic:st.chipDiag,lastPlcReply:st.lastPlcReply,displayRange:getActiveDSPRange(),nvmState:{backupVerified:st.nvmBackupVerified,programmed:st.nvmDone},samples:st.history.slice(-1500),trace:st.log});
 
  // ============ Kalibrierung + NVM (AN0203 / AN0204 / Datasheet 2023) ============
  const ca=(id,msg,type='')=>show(id,msg,type);
@@ -1803,7 +1868,7 @@ if(typeof document!=='undefined') (function UI(){
  });
  $('plcStartupLogExport').addEventListener('click',()=>{
   const log={
-   tool:'ELMOS E703.11 – SSP3 Startdiagnose',version:'v0.6.24',at:new Date().toISOString(),
+   tool:'ELMOS E703.11 – SSP3 Startdiagnose',version:'v0.6.25',at:new Date().toISOString(),
    source:'Web-App (NICHT PSSC Originalsoftware)',interface:st.iface,adapter:st.adapterKind,
    firmware:st.firmware,port:serialPortInfo(st.port),chipDetected:!!st.chip,
    startupAttempts:st.startupAttempts,lastPlcReply:st.lastPlcReply,

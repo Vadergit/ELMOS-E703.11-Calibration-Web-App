@@ -178,7 +178,7 @@ test('Expert mode shows contextual settings and no modal',()=>{
  assert.ok(html.includes('data-expert-area hidden><summary>Erweitert · AODO_F'));
  assert.ok(src.includes("classList.toggle('is-expert',enabled)"));
  const scripts=Array.from(html.matchAll(/<script src="([^"]+)"/g),m=>m[1]);
- assert.deepEqual(scripts,['calibration.js?v=0.6.24','eeprom-help.js?v=0.6.24','expert.js?v=0.6.24','config.js?v=0.6.24','guided-plan.js?v=0.6.24','demo.js?v=0.6.24','app.js?v=0.6.24','compact.js?v=0.6.24','guided.js?v=0.6.24']);
+ assert.deepEqual(scripts,['calibration.js?v=0.6.25','eeprom-help.js?v=0.6.25','expert.js?v=0.6.25','config.js?v=0.6.25','guided-plan.js?v=0.6.25','demo.js?v=0.6.25','app.js?v=0.6.25','compact.js?v=0.6.25','guided.js?v=0.6.25']);
 });
 
 test('Failed E703.11 probe keeps SSP3 open for explicit, bounded startup test',()=>{
@@ -438,7 +438,7 @@ test('Guided view is optional and contains only one set of hardware inputs',()=>
  assert.ok(html.includes('id="workflowMode"'));
  assert.ok(html.includes('id="guidedLaunch"'));
  assert.ok(html.includes('id="guidedLaunchTop"'));
- assert.ok(html.includes('guided.css?v=0.6.24'));
+ assert.ok(html.includes('guided.css?v=0.6.25'));
  for(const id of ['nvmProgram','nvmPrepare','calApplyRam','calVerifyRam','expertOutputStage','configApply','configFile']){
   assert.equal(html.split('id="'+id+'"').length-1,1);
  }
@@ -934,8 +934,8 @@ test('SSP3 02.08.02.04 uses hardware-proven legacy PLC host frame; split format 
  assert.ok(fw.includes("$('plcHostFormat').value='legacy'"));
  assert.ok(!fw.includes("st.plcHostFormat='separate'"));
  assert.ok(html.includes('<option value="separate" disabled>'));
- assert.ok(html.includes('<script src="app.js?v=0.6.24"'));
- assert.ok(html.includes('guided.css?v=0.6.24'));
+ assert.ok(html.includes('<script src="app.js?v=0.6.25"'));
+ assert.ok(html.includes('guided.css?v=0.6.25'));
  const p=app.split('async function testSsp3PowerStartup(){')[1]?.split('async function connect(port){')[0];
  assert.ok(p.includes("if(st.firmware==='02.08.02.04')"));
  assert.ok(p.includes("st.plcHostFormat='legacy'"));
@@ -1050,4 +1050,44 @@ test('Magic-Cookie auto startup retains protected NVM and does not touch other i
  assert.ok(cal.includes('for(const index of [17,18,19])'));
  assert.ok(app.includes('CAL.protectStartupCommunication(initial,modified)'));
  assert.ok(app.includes('st.powerCycleResult.verifiedUid===st.uid.hex'));
+});
+
+test('Live read prioritises ADC_S and tolerates missing temperature while strict path remains strict',()=>{
+ const app=read('app.js');
+ const read=app.split('async function readADC({allowPartial=false}={}){')[1]?.split('function startLive(){')[0];
+ assert.ok(read);
+ assert.ok(read.indexOf("readReg(0x2A)")<read.indexOf("readReg(0x28)"));
+ assert.ok(read.indexOf("readReg(0x2A)")<read.indexOf("readReg(0x26)"));
+ assert.ok(read.includes('if(allowPartial)'));
+ assert.ok(read.includes('temperatureError'));
+ assert.ok(read.includes('return value;'));
+ assert.ok(read.includes('updateADC({s,t,tc},\'usb\')'));
+ assert.ok(read.includes("t=P.sign16(await readReg(0x28));"));
+ assert.ok(read.includes("tc=P.sign16(await readReg(0x26));"));
+ // The capture function still reads all three registers without partial mode.
+ const capture=app.split('async function measureCalibrationSamples(label){')[1]?.split('function renderCalibrationPlan(){')[0];
+ assert.ok(capture?.includes("value={s:P.sign16(await readReg(0x2A)),t:P.sign16(await readReg(0x28)),tc:P.sign16(await readReg(0x26))}"));
+});
+test('Chip detect publishes first ADC_S even if secondary registers fail',()=>{
+ const app=read('app.js');
+ const detect=app.split('async function detect(){')[1]?.split('async function recoverOneWireStartup(){')[0];
+ assert.ok(detect);
+ assert.ok(detect.indexOf("const rawS=await readReg(0x2A)")<detect.indexOf('updateADC({s,t:null,tc:null},\'usb\')'));
+ assert.ok(detect.includes('await readADC({allowPartial:true})'));
+ assert.ok(detect.includes("if(!st.powerCycleRunning&&!st.manualLivePause)startLive();"));
+ assert.ok(detect.includes('await expert.onDetect();'));
+ assert.ok(!detect.includes('nvmProgram('));
+});
+test('Live acquisition resumes after protected SSP3 power-cookie sequence and retries transient PLC failures',()=>{
+ const app=read('app.js');
+ const power=app.split('async function testSsp3PowerStartup(){')[1]?.split('async function connect(port){')[0];
+ assert.ok(power.includes('st.powerCycleRunning=false;renderStatus();'));
+ assert.ok(power.includes('if(st.powerCycleResult?.readVerified&&st.port===port&&!st.closing&&st.chip&&!st.manualLivePause)'));
+ assert.ok(power.includes('startLive();'));
+ const loop=app.split('function startLive(){')[1]?.split('function stopLive(){')[0];
+ assert.ok(loop.includes('readADC({allowPartial:true})'));
+ assert.ok(loop.includes('st.powerCycleRunning||st.closing'));
+ assert.ok(loop.includes('st.consecutiveErrors>=10'));
+ assert.ok(loop.includes('st.consecutiveErrors>=3?2500:liveIntervalMs'));
+ assert.ok(!loop.includes('nvmWrite('));
 });
