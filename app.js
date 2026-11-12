@@ -53,8 +53,8 @@ if(typeof document!=='undefined') (function UI(){
  const demoPort=demoEnabled?ELMOS_DEMO.create(P,CAL,()=>({
   lower:Number($('pmin').value),upper:Number($('pmax').value),limit:getActiveDSPRange()?.limit??32000
  })):null;
- const REG_NAMES={4:'CFG_EN',6:'CFG_SPI_I2C',8:'CFG_PADS0',10:'CFG_PADS1',12:'CFG_PADS2',16:'CFG_AODO',0x14:'CFG_ADC',0x16:'CFG_LP0',0x18:'CFG_LP1',0x1A:'CFG_AFE0',0x1C:'CFG_AFE1',0x1E:'CFG_AFE2',0x26:'ADC_TC',0x28:'ADC_T',0x2A:'ADC_S'};
- const st={chipDiag:null,diagRunning:false,lastPlcReply:null,mode:'offline',port:null,closing:false,reader:null,readerPromise:null,cmdQueue:Promise.resolve(),replyBuffer:'',responseWait:null,iface:'plc',adapterKind:'ssp3',sensorPowerEnabled:false,startupRunning:false,startupAbort:false,startupAttempts:0,magicRunning:false,magicResult:null,powerCycleRunning:false,powerCycleResult:null,powerHelp:null,plcHostFormat:'legacy',firmware:'',chip:false,sensorLost:false,reinitRunning:false,boot:null,afe:null,staged:{pga1:0,pga2:0,offset:0},adc:null,dsp:null,dspError:null,liveReadPromise:null,trend:[],history:[],log:[],regs:{},points:{lo:null,hi:null},verify:null,live:false,manualLivePause:false,timeout:null,consecutiveErrors:0,liveReadAttempts:0,liveReadSuccesses:0,liveLastError:null,liveLastAttemptAt:null,measurementPeriod:null,measurementStatus:null,measurementError:null,measurementStarts:0,measurementFreshCount:0,measurementLastChangedAt:null,writing:false,pressure:5,calpoints:[],calfit:null,calImage:null,nvmBackup:null,nvmBackupVerified:false,calStaged:false,calVerified:false,calValidation:[],calTask:false,nvmWorking:false,nvmDone:false,afeWriteActive:false,ramWriteScope:null,uid:null,expertOutputPlan:null,restorePlan:null,outputOnlyPlan:null,uidShownForInput:null,profilePendingAFE:null};
+ const REG_NAMES={4:'CFG_EN',6:'CFG_SPI_I2C',8:'CFG_PADS0',10:'CFG_PADS1',12:'CFG_PADS2',16:'CFG_AODO',0x14:'CFG_ADC',0x16:'CFG_LP0',0x18:'CFG_LP1',0x1A:'CFG_AFE0',0x1C:'CFG_AFE1',0x1E:'CFG_AFE2',0x26:'ADC_TC',0x28:'ADC_T',0x2A:'ADC_S',0x2E:'DSP_T'};
+ const st={chipDiag:null,diagRunning:false,lastPlcReply:null,mode:'offline',port:null,closing:false,reader:null,readerPromise:null,cmdQueue:Promise.resolve(),replyBuffer:'',responseWait:null,iface:'plc',adapterKind:'ssp3',sensorPowerEnabled:false,startupRunning:false,startupAbort:false,startupAttempts:0,magicRunning:false,magicResult:null,powerCycleRunning:false,powerCycleResult:null,powerHelp:null,plcHostFormat:'legacy',firmware:'',chip:false,sensorLost:false,reinitRunning:false,boot:null,afe:null,staged:{pga1:0,pga2:0,offset:0},adc:null,dsp:null,dspError:null,tempValue:null,tempConfig:null,liveReadPromise:null,trend:[],history:[],log:[],regs:{},points:{lo:null,hi:null},verify:null,live:false,manualLivePause:false,timeout:null,consecutiveErrors:0,liveReadAttempts:0,liveReadSuccesses:0,liveLastError:null,liveLastAttemptAt:null,measurementPeriod:null,measurementStatus:null,measurementError:null,measurementStarts:0,measurementFreshCount:0,measurementLastChangedAt:null,writing:false,pressure:5,calpoints:[],calfit:null,calImage:null,nvmBackup:null,nvmBackupVerified:false,calStaged:false,calVerified:false,calValidation:[],calTask:false,nvmWorking:false,nvmDone:false,afeWriteActive:false,ramWriteScope:null,uid:null,expertOutputPlan:null,restorePlan:null,outputOnlyPlan:null,uidShownForInput:null,profilePendingAFE:null};
  let currentStep=0,pendingGain=null,writeTimer=null;let tipEnabled=true,liveIntervalMs=650;
  let liveSecondaryIndex=0;
  const HELP={interface:'Schnittstelle zwischen SSP3-Board und Sensorchip. 1-Wire nutzt AODO (VDD, GND und AODO). Die Einstellung IF_CFG ändert die Programmer-Pins, nicht die NVM-Konfiguration des Sensors.',baud:'Baudrate des USB-UART zwischen Chrome und dem SSP3. Die Herstellersoftware verwendet 115200 Baud als Standard.',adcs:'ADC_S ist der unkompensierte 16-Bit-Druck-ADC. ±25000 Digits ist ein vorsichtiges Ziel für den manuellen Abgleich, keine garantierte Hardwaregrenze.',dsp_live:'DSP_S (Register 0x30) ist der skalierte DSP-Sensorausgang. Die Anzeige liest den Chipwert wiederholt und rechnet ihn mit dem konfigurierten DSP-Endwert (standardmässig ±32’000 Digits) in den gewählten Anzeigebereich um. Ein DSP-Wert allein belegt keine gültige Kalibrierung.',pga1:'Erste Druckverstärkungsstufe: 3.5×, 6×, 8.5× oder 11× (typische Werte laut Datenblatt 2023). Für gutes SNR möglichst hoch ohne Übersteuerung.',pga2:'Zweite Verstärkungsstufe: typische Faktoren 2× bis 10×. Der Gesamtfaktor ist PGA1 × PGA2.',offset:'17 DAC-Stufen von −400 bis +400 mV/V bezogen auf die Brückenspannung. Die Verschiebung liegt zwischen PGA1 und PGA2.',pressureunit:'Einheit für die Referenz- und Prüfdruckwerte. Für relative Kalibrierungen kann beispielsweise % mit 0 bis 100 gewählt werden. Referenzwerte müssen zum tatsächlichen Prüfstand passen. Einheitenwechsel erfordert neue Messpunkte.',dsp_limit:'Symmetrischer DSP-Endwert für die neue Kalibrierung. Standard ±32’000 Digits. ±30’000 lässt zusätzlich Reserve. Der Wert verändert die berechneten Koeffizienten sowie DSP-Soll und Fehlerumrechnung; er ist keine Hardware-Clipping-Grenze.',ram:'PGA1, Offset und PGA2 werden mit jeder Pfeiltaste sofort ausschliesslich in CFG_AFE1 0x1C im RAM geändert und rückgelesen. Kein NVM-/EEPROM-Schreiben. Boot-/Kommunikationsregister werden kontrolliert.',};
@@ -148,6 +148,15 @@ if(typeof document!=='undefined') (function UI(){
   $('liveAdcS').textContent=activeADC?fmt(st.adc.s):'—';
   $('liveAdcT').textContent=activeADC&&Number.isFinite(st.adc.t)?fmt(st.adc.t):'—';
   $('liveDspS').textContent=activeDSP?fmt(st.dsp.raw):'—';
+  const tempFresh=connected&&st.tempValue&&Date.now()-st.tempValue.time<12000;
+  const currentTempMode=temperatureMode();
+  const shownTemp=tempFresh&&st.tempValue.mode===currentTempMode&&Number.isFinite(st.tempValue.celsius);
+  $('liveTempC').textContent=shownTemp?'≈ '+st.tempValue.celsius.toLocaleString('de-CH',{minimumFractionDigits:1,maximumFractionDigits:1}):'—';
+  $('liveTempC').parentElement.title=shownTemp?
+   'Näherungswert aus DSP_T (0x2E), '+(currentTempMode==='standard'?'Elmos-Beispielskalierung: 100 Digits/°C':'Kalibrierassistent-Skalierung: −40 bis +125 °C auf ca. ±32’000 Digits')+'. Keine bestätigte Temperaturgenauigkeit.':
+   st.tempConfig?.enabled===false?'Absolute Temperaturberechnung (CFG_EN.t_abs_en) ist deaktiviert.':
+   st.tempConfig?.mode==='unknown'?'Temperaturskalierung unbekannt. DSP_T wird nicht als °C ausgegeben.':
+   'Noch keine gültige temperaturkompensierte DSP_T-Antwort. Es wird nicht aus ADC_T geschätzt.';
   $('livePressure').textContent=Number.isFinite(converted)?dspNumber(converted):'—';
   $('livePressureUnit').textContent=range?.unit||'—';
   const highADC=!!activeADC&&Math.abs(st.adc.s)>25000;
@@ -1073,7 +1082,7 @@ if(typeof document!=='undefined') (function UI(){
   logging('Sensor-Kommunikation abgebrochen: '+reason);
   st.sensorLost=true;st.chip=false;st.mode='usb';
   stopLive();
-  st.adc=null;st.dsp=null;st.dspError=null;st.afe=null;st.boot=null;st.regs={};
+  st.adc=null;st.dsp=null;st.dspError=null;st.tempValue=null;st.tempConfig=null;st.afe=null;st.boot=null;st.regs={};
   st.uid=null;st.uidShownForInput=null;
   st.powerCycleResult=null;st.measurementPeriod=null;st.measurementStatus=null;
   st.calStaged=false;st.calVerified=false;st.calImage=null;st.calfit=null;st.nvmDone=false;
@@ -1094,7 +1103,7 @@ if(typeof document!=='undefined') (function UI(){
   st.reinitRunning=true;
   st.chip=false;stopLive();
   if(st.liveReadPromise)await st.liveReadPromise.catch(()=>{});
-  st.adc=null;st.dsp=null;st.dspError=null;st.afe=null;st.boot=null;st.regs={};
+  st.adc=null;st.dsp=null;st.dspError=null;st.tempValue=null;st.tempConfig=null;st.afe=null;st.boot=null;st.regs={};
   st.uid=null;st.uidShownForInput=null;st.powerCycleResult=null;
   st.measurementPeriod=null;st.measurementStatus=null;
   st.calStaged=false;st.calVerified=false;st.nvmDone=false;
@@ -1138,7 +1147,7 @@ if(typeof document!=='undefined') (function UI(){
   if(!demoEnabled&&(!navigator.serial||!window.isSecureContext))throw Error('Chrome benötigt Web Serial über HTTPS oder localhost');
   await port.open({baudRate:Number($('baud').value)});
   liveSecondaryIndex=0;
-  st.port=port;st.mode='usb';st.sensorLost=false;st.reinitRunning=false;st.firmware='';st.powerHelp=null;st.powerCycleResult=null;st.magicResult=null;st.liveReadAttempts=0;st.liveReadSuccesses=0;st.liveLastError=null;st.liveLastAttemptAt=null;st.measurementPeriod=null;st.measurementStatus=null;st.measurementError=null;st.measurementStarts=0;st.measurementFreshCount=0;st.measurementLastChangedAt=null;st.plcHostFormat=$('plcHostFormat').value;st.chip=false;st.afe=null;st.boot=null;st.regs={};st.dsp=null;st.dspError=null;st.calStaged=false;st.calVerified=false;st.nvmDone=false;st.adc=null;st.manualLivePause=false;st.afeWriteActive=false;st.ramWriteScope=null;st.uid=null;st.uidShownForInput=null;st.restorePlan=null;st.expertOutputPlan=null;st.outputOnlyPlan=null;st.iface=$('iface').value;st.adapterKind=$('adapterType').value;
+  st.port=port;st.mode='usb';st.sensorLost=false;st.reinitRunning=false;st.firmware='';st.powerHelp=null;st.powerCycleResult=null;st.magicResult=null;st.liveReadAttempts=0;st.liveReadSuccesses=0;st.liveLastError=null;st.liveLastAttemptAt=null;st.measurementPeriod=null;st.measurementStatus=null;st.measurementError=null;st.measurementStarts=0;st.measurementFreshCount=0;st.measurementLastChangedAt=null;st.plcHostFormat=$('plcHostFormat').value;st.chip=false;st.afe=null;st.boot=null;st.regs={};st.dsp=null;st.dspError=null;st.tempValue=null;st.tempConfig=null;st.calStaged=false;st.calVerified=false;st.nvmDone=false;st.adc=null;st.manualLivePause=false;st.afeWriteActive=false;st.ramWriteScope=null;st.uid=null;st.uidShownForInput=null;st.restorePlan=null;st.expertOutputPlan=null;st.outputOnlyPlan=null;st.iface=$('iface').value;st.adapterKind=$('adapterType').value;
   st.sensorPowerEnabled=st.adapterKind==='bridge'&&!demoEnabled&&$('plcPowerCycle').checked;
   $('sensorPowerPin').textContent='';
   $('nvmRestartStatus').hidden=true;
@@ -1233,7 +1242,7 @@ if(typeof document!=='undefined') (function UI(){
    Object.assign(st,{
     port:null,readerPromise:null,chip:false,sensorLost:false,reinitRunning:false,sensorPowerEnabled:false,mode:'offline',firmware:'',boot:null,afe:null,
     nvmBackup:null,nvmBackupVerified:false,calImage:null,calVerified:false,calStaged:false,nvmDone:false,
-    dsp:null,adc:null,dspError:null,manualLivePause:false,afeWriteActive:false,ramWriteScope:null,
+    dsp:null,adc:null,dspError:null,tempValue:null,tempConfig:null,manualLivePause:false,afeWriteActive:false,ramWriteScope:null,
     uid:null,uidShownForInput:null,restorePlan:null,expertOutputPlan:null,outputOnlyPlan:null
    });
    $('nvmRestartStatus').hidden=true;
@@ -1321,6 +1330,56 @@ if(typeof document!=='undefined') (function UI(){
  // calibration sampling. Each cycle publishes a NEW ADC_S immediately. One
  // secondary channel is sampled per cycle; missing ADC_T/ADC_TC/DSP_S cannot
  // suppress subsequent pressure readings. No RAM/NVM writes or power cycles.
+ // DSP_T is a Q0.15 signed register, not inherently a Celsius value.
+ // Elmos' standard diode example uses 100 digits/°C. This assistant's own
+ // temperature fit uses a DIFFERENT full-range mapping; other customer
+ // coefficients cannot safely be interpreted without known scale metadata.
+ const ELMOS_TEMP_EXAMPLE=[0x0F4D,0xBC8E,0xFC54,0x0000];
+ function temperatureMode(){
+  if(demoEnabled)return 'demo';
+  if(!st.tempConfig?.enabled)return null;
+  if(st.calStaged&&st.calfit?.orderT>0&&st.calfit?.registers?.tcoeffs)return 'calibrated-range';
+  return st.tempConfig.mode==='standard'?'standard':null;
+ }
+ function temperatureToCelsius(raw,mode){
+  if(!Number.isInteger(raw))return null;
+  const value=mode==='standard'?raw/100:
+   (mode==='calibrated-range'||mode==='demo')?(raw+16485)/387.88:NaN;
+  return Number.isFinite(value)&&value>=-40&&value<=125?value:null;
+ }
+ async function readTemperatureConfig(){
+  if(demoEnabled){st.tempConfig={enabled:true,mode:'demo',checkedAt:Date.now()};return}
+  const cfgEn=await readReg(0x04,1300);
+  const enabled=!!(cfgEn&0x1000); // DS 25DS0170E.04, CFG_EN bit 12
+  let mode='disabled',source=null,coefficients=null;
+  if(enabled){
+   source=(await readReg(0x1E,1300))&3; // CFG_AFE2.t_adc_src
+   if(st.iface==='plc'){
+    // One documented multiword PLC read rather than four serial requests.
+    const cmd=P.plcHostCommand(P.plcRead(0x94,4),st.plcHostFormat);
+    const bytes=P.readData(await exchange(cmd,1800),9); // 4 x 16-bit + CRC8
+    coefficients=Array.from({length:4},(_,i)=>(bytes[i*2]<<8)|bytes[i*2+1]);
+    coefficients.forEach((word,i)=>{st.regs[0x94+i*2]=word});
+   }else{
+    coefficients=[];
+    for(let i=0;i<4;i++)coefficients.push(await readReg(0x94+i*2,1300));
+   }
+   mode=source===0&&coefficients.every((w,i)=>w===ELMOS_TEMP_EXAMPLE[i])?'standard':'unknown';
+  }
+  st.tempConfig={enabled,mode,source,coefficients,checkedAt:Date.now()};
+  logging('DSP_T-Temperaturskalierung: '+mode+'; t_abs_en='+(enabled?1:0)+(source!=null?'; AFE2-Quelle='+source:'')+'.');
+ }
+ async function readLiveTemperature(){
+  // Temperature checks never invalidate a valid pressure sample or
+  // block subsequent pressure polls.
+  if(!st.tempConfig||Date.now()-st.tempConfig.checkedAt>60000)await readTemperatureConfig();
+  const mode=temperatureMode();
+  if(!mode){st.tempValue=null;renderLiveOverview();return}
+  const raw=P.sign16(await readReg(0x2E,1300));
+  const celsius=temperatureToCelsius(raw,mode);
+  st.tempValue=celsius==null?null:{raw,celsius,mode,time:Date.now()};
+  renderLiveOverview();
+ }
  async function readLiveSample(){
   if(!st.chip||!st.port)throw Error('Kein bestätigter Chip für Live-Messung');
   const previous=st.adc;
@@ -1347,7 +1406,7 @@ if(typeof document!=='undefined') (function UI(){
    st.measurementLastChangedAt=Date.now();
   }
   updateADC({s,t:previous?.t??null,tc:previous?.tc??null},'usb');
-  const channel=liveSecondaryIndex++%4;
+  const channel=liveSecondaryIndex++%5;
   try{
    if(channel===0){
     const t=P.sign16(await readReg(0x28,1100));
@@ -1357,11 +1416,14 @@ if(typeof document!=='undefined') (function UI(){
     if(st.adc){st.adc.tc=tc;renderStatus()}
    }else if(channel===2){
     updateDSP(P.sign16(await readReg(0x30,1100)),'usb');
+   }else if(channel===3){
+    await readLiveTemperature();
    }
-   // channel 3: ADC_S only, to guarantee a short polling cycle.
+   // channel 4: ADC_S only, to guarantee a short polling cycle.
   }catch(e){
-   const name=channel===0?'ADC_T':channel===1?'ADC_TC':'DSP_S';
+   const name=channel===0?'ADC_T':channel===1?'ADC_TC':channel===2?'DSP_S':'DSP_T';
    if(name==='DSP_S'){st.dsp=null;st.dspError=e.message;renderDSPLive()}
+   if(name==='DSP_T'){st.tempValue=null;renderLiveOverview()}
    if(!st.lastSecondaryError||Date.now()-st.lastSecondaryError>12000){
     logging('Live '+name+' separat nicht lesbar: '+e.message+'; ADC_S wird weiterhin aktualisiert.');
     st.lastSecondaryError=Date.now();
