@@ -908,6 +908,12 @@ if(typeof document!=='undefined') (function UI(){
     st.plcAddressProbes.push(record);
     logging('PLC-Adresse 0x'+h(candidate)+' bei '+stage+' nicht bestätigt: '+record.error);
     st.chip=false;st.plcAddressVerified=false;st.uid=null;st.boot=null;
+    // Do not continue into RAM cookie/power recovery after CRC, plausibility,
+    // programming or other errors that are not an absent chip response.
+    if(!/\\bPLC nothing received\\b/i.test(record.error)&&
+       error?.code!=='AFE_ZERO_READBACK'){
+     st.plcAddress=previous;throw error;
+    }
    }
   }
   st.plcAddress=previous;renderStatus();return false;
@@ -1174,35 +1180,54 @@ if(typeof document!=='undefined') (function UI(){
     $('plcPowerState').textContent='Kein plausibler E703.11-Registerwert. Einmaliger RAM-Magic-Cookie-Versuch läuft.';
     logging('AN0204: '+(zeroAFE?'AFE1=0x0000 trotz formal lesbarer PLC-Antwort':'Keine PLC-Antwort')+
      '; versuche einmal die dokumentierte Magic Cookie (nur RAM).');
-    const cookieFrames=[
-     P.plcHostCommand(P.plcWrite(0xAC,0x2B42,st.plcAddress),st.plcHostFormat),
-     P.plcHostCommand(P.plcWrite(0x0E,0x5CFD,st.plcAddress),st.plcHostFormat)
-    ];
     st.magicResult={at:new Date().toISOString(),stage:'automatic-after-power-start',
-     commands:cookieFrames.slice(),responses:[],readVerified:false,automatic:true};
-    for(let i=0;i<cookieFrames.length;i++){
-     if(st.closing||st.port!==port)throw Error('SSP3 während der Magic-Cookie-Sequenz getrennt.');
-     const frame=cookieFrames[i],started=Date.now();
-     const reply=await exchange(frame,2000);
-     const step={command:frame,elapsedMs:Date.now()-started,reply:reply.slice(0,800),ok:true,kind:'magic-cookie-ram'};
-     st.magicResult.responses.push({command:frame,rawReply:reply.slice(0,1000)});
-     st.powerCycleResult.steps.push(step);
-     logging('AN0204: Magic Cookie '+(i+1)+'/2 über SSP3 übertragen; Quittung allein beweist keine Chipübernahme.');
+     commands:[],responses:[],attempts:[],readVerified:false,automatic:true};
+    let lastCookieError=null;
+    // Only two known addresses, two consecutive cookie frames per address.
+    // No arbitrary register writes; no NVM programming.
+    for(const address of P.plcProbeOrder(st.plcAddress)){
+     if(st.port!==port||st.closing)throw Error('SSP3 während der Magic-Cookie-Sequenz getrennt.');
+     st.plcAddress=address;
+     const cookieFrames=[
+      P.plcHostCommand(P.plcWrite(0xAC,0x2B42,st.plcAddress),st.plcHostFormat),
+      P.plcHostCommand(P.plcWrite(0x0E,0x5CFD,st.plcAddress),st.plcHostFormat)
+     ];
+     const trial={address:'0x'+h(address),commands:cookieFrames.slice(),readVerified:false};
+     st.magicResult.attempts.push(trial);
+     st.magicResult.commands.push(...cookieFrames);
+     try{
+      for(const frame of cookieFrames){
+       if(st.closing||st.port!==port)throw Error('SSP3 während Magic Cookie getrennt.');
+       const started=Date.now();
+       const reply=await exchange(frame,2000);
+       st.magicResult.responses.push({address:trial.address,command:frame,rawReply:reply.slice(0,1000)});
+       st.powerCycleResult.steps.push({command:frame,elapsedMs:Date.now()-started,
+        reply:reply.slice(0,800),ok:true,kind:'magic-cookie-ram',address:trial.address});
+      }
+      st.powerCycleResult.stage='magic-cookie-readback';
+      $('plcPowerState').textContent='Magic Cookie bei '+trial.address+' übertragen – Sensor-Rücklesung läuft.';
+      if(!await probePlcAddresses('Nach Magic Cookie '+trial.address))
+       throw Error('PLC nothing received nach Magic Cookie '+trial.address);
+      trial.readVerified=true;
+      st.magicResult.stage='verified';
+      st.magicResult.readVerified=true;
+      st.magicResult.verifiedUid=st.uid?.hex||null;
+      st.powerCycleResult.magicCookieUsed=true;
+      logging('AN0204: Magic Cookie bei '+trial.address+
+       ' erfolgreich, PLC-Adresse 0x'+h(st.plcAddress)+' durch Register bestätigt.');
+      break;
+     }catch(cookieError){
+      lastCookieError=cookieError;
+      trial.error=String(cookieError.message||cookieError);
+      logging('Magic Cookie bei '+trial.address+' nicht bestätigt: '+trial.error);
+      if(!/\bPLC nothing received\b/i.test(trial.error)&&
+         cookieError?.code!=='AFE_ZERO_READBACK')throw cookieError;
+     }
     }
-    if(st.closing||st.port!==port)throw Error('SSP3 vor der Magic-Cookie-Leseprüfung getrennt.');
-    st.powerCycleResult.stage='magic-cookie-readback';
-    $('plcPowerState').textContent='Magic Cookie übertragen – E703.11-Registerzugriff wird erneut geprüft.';
-    try{
-     await detect(); // This is the only success proof; no assumed access from #PLC echo.
-     st.magicResult.stage='verified';
-     st.magicResult.readVerified=true;
-     st.magicResult.verifiedUid=st.uid?.hex||null;
-     st.powerCycleResult.magicCookieUsed=true;
-     logging('AN0204: Magic-Cookie-Fallback erfolgreich; echte Registerantwort erhalten.');
-    }catch(cookieReadError){
+    if(!st.magicResult.readVerified){
      st.magicResult.stage='failed';
-     st.magicResult.error=String(cookieReadError.message||cookieReadError);
-     throw cookieReadError;
+     st.magicResult.error=String(lastCookieError?.message||lastCookieError||'Keine Sensorantwort');
+     throw lastCookieError||Error('PLC nothing received nach Adresssuche');
     }
    }
    st.powerCycleResult.plcAddress='0x'+h(st.plcAddress);
