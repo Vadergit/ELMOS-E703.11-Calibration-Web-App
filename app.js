@@ -38,7 +38,7 @@ const PROTOCOL = (() => {
  const goodG=g=>Number.isInteger(g.pga1)&&g.pga1>=0&&g.pga1<=3&&Number.isInteger(g.pga2)&&g.pga2>=0&&g.pga2<=8&&Number.isInteger(g.offset)&&g.offset>=-8&&g.offset<=8;
  const AFE_BITS=0x7FF;
  const encAFE=(old,g)=>{if(!goodG(g))throw Error('Ungültiger Gain/Offset');if(!(old&0x800))throw Error('Pflichtbit 11 fehlt. Schreiben gesperrt.');let n=((old&(~AFE_BITS))|(g.pga1&3)|(offsetEncode(g.offset)<<2)|((g.pga2&15)<<7))&0xffff;if(((n^old)&~AFE_BITS)!==0)throw Error('Fremde AFE-Bits betroffen');return n};
- return {hx,crc,crc4,crc8PLC,plcRead,plcWrite,plcHostCommand,ssp3PromptCount,ssp3StartupAcks,i2cRead,i2cWrite,spiRead,spiWrite,readData,sign16,decAFE,goodG};
+ return {hx,crc,crc4,crc8PLC,plcRead,plcWrite,plcHostCommand,ssp3PromptCount,ssp3StartupAcks,i2cRead,i2cWrite,spiRead,spiWrite,readData,sign16,decAFE,encAFE,goodG};
 })();
 if(typeof module!=='undefined'&&module.exports)module.exports=PROTOCOL;
 if(typeof document!=='undefined') (function UI(){
