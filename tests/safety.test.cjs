@@ -601,6 +601,36 @@ test('Import checkbox selection controls which groups are applied and gates AFE 
   assert.equal(html.split('id="'+id+'"').length-1,1);
  assert.ok(app.includes('button.disabled=!selectedConfig||!configSelectedGroups().length;'));
 });
+test('Config filenames include truthful pressure/temperature/range/output prefixes and user label',()=>{
+ const data={label:'Prüfgerät Grün',afe:{pga1:1,pga2:2,offset:0},
+  calibration:{sOrder:1,tOrder:2,dspLimit:25000,pointCount:6,samples:12,
+   reference:{min:0,max:10,unit:'bar',customUnit:''}},
+  output:{mode:'1',scaleEnabled:true,vdd:5,s0:0.5,s1:4.5,gain:0,offset:0,pwmPeriod:16384}};
+ const p=CFG.createSelective(data,CFG.GROUPS,CAL);
+ assert.equal(CFG.fileName(p,{pCount:2,tCount:3}),
+  '2P_Druck_3T_Temp_0-10bar_0p5-4p5V_ELMOS_E70311_Pruefgeraet_Gruen.json');
+ const noPlan=CFG.fileName(p);
+ assert.ok(noPlan.startsWith('6Messpunkte_0-10bar_'));
+ assert.ok(!noPlan.startsWith('6P_Druck'));
+ assert.equal(CFG.fileName(p,{pCount:5,tCount:1}),noPlan);
+ assert.ok(!CFG.fileName(p).includes('/'));
+ assert.ok(!CFG.fileName(p).includes(' '));
+ const p2=CFG.createSelective({...data,calibration:{...data.calibration,
+  tOrder:0,pointCount:2}},CFG.GROUPS,CAL);
+ assert.ok(CFG.fileName(p2).startsWith('2P_Druck_'));
+ const onlyAFE=CFG.createSelective(data,['afe'],CAL);
+ assert.ok(CFG.fileName(onlyAFE).startsWith('ELMOS_E70311_'));
+ assert.ok(!CFG.fileName(onlyAFE).includes('0-10bar'));
+});
+test('Filename pressure-temperature matrix comes only from genuinely applied guide settings',()=>{
+ const app=read('app.js'),guide=read('guided.js');
+ assert.ok(app.includes('ELMOS_CONFIG.fileName(profile,window.ELMOS_GUIDED?.appliedPlanForConfig?.())'));
+ assert.ok(guide.includes('function appliedPlanForConfig(){'));
+ assert.ok(guide.includes('signature!==JSON.stringify(plan)'));
+ assert.ok(guide.includes("Number($('calPointCount').value)!==plan.total"));
+ assert.ok(guide.includes("Number($('calSOrder').value)!==plan.orderS"));
+ assert.ok(guide.includes("Number($('calTOrder').value)!==plan.orderT"));
+});
 test('V2 selective config roundtrip preserves only requested sections',()=>{
  const input={label:'Gains',afe:{pga1:2,pga2:6,offset:4},
   calibration:{sOrder:1,tOrder:0,dspLimit:25000,pointCount:2,samples:12,
