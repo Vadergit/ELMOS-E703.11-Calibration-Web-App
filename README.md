@@ -2,7 +2,7 @@
 
 **Ein geführter Kalibrierassistent für den ELMOS E703.11 und das SSP3-Eval-Board.** Ziel ist ein verständlicher Abgleich, der auch ohne tiefere Vorkenntnisse Schritt für Schritt funktioniert. Wer mehr benötigt, kann zusätzliche Messpunkte, DSP-Parameter und einen geschützten Expertenmodus verwenden.
 
-**Version: v0.6.40 · geführter Abgleich und klassische Ansicht** · [Änderungsverlauf](CHANGELOG.md)
+**Version: v0.6.41 · geführter Abgleich und klassische Ansicht** · [Änderungsverlauf](CHANGELOG.md)
 
 Über **Einstellungen → Demo-Modus** lässt sich der gesamte Kalibrierablauf mit simulierten Messwerten und NVM ausprobieren.
 
@@ -14,9 +14,11 @@
 >
 > [Geführter Abgleich](docs/GEFUEHRTER_ASSISTENT.md) · [USB-Bridge](docs/USB_BRIDGE_GUIDE.md) · [ESP-Boards](docs/ESP_BOARD_OPTIONS.md) · [ESP32-C3 SuperMini Sketch](firmware/esp32c3_supermini/esp32c3_supermini.ino)
 
-## PLC-Adresse 0x6C / 0x7C automatisch erkennen (v0.6.40)
+## PLC-Adresse 0x6C / 0x7C automatisch erkennen (ab v0.6.40; Diagnose v0.6.41)
 
 Beim Verbinden und unter **Sensor neu initialisieren** prüft die Web-App beim echten SSP3/1-Wire zuerst ohne Power-Cycle, ob der Sensor auf **0x6C** oder **0x7C** antwortet. Für die eingereichte Original-PSSC-XML ergibt sich aus `CFG_SPI_I2C=0x7C05` und `CFG_PADS1=0x099F` die Adresse **0x7C**, jedoch nur dann, wenn diese Konfiguration im betreffenden Chip wirklich aktiv ist. CRC8, AFE1, ADC_S und die konfigurierten Adressbits werden verifiziert. Anschliessend wird dieselbe Adresse für Live-Reads, RAM-Änderungen und protokollierte Freigabesequenzen verwendet. Schlägt der direkte Zugriff fehl, greift weiterhin der begrenzte SSP3-Startablauf. **Keine automatische NVM-Programmierung.**
+
+Falls beide Adressen weiterhin keine gültige Antwort liefern, ist ab v0.6.41 oben im Sensor-Warnbanner **«Diagnose exportieren»** direkt verfügbar. Die JSON-Datei erlaubt den Vergleich der gesendeten Befehle und Rückmeldungen. Der frühere Web-Log gehört zu einer anderen Chip-ID als die eingereichte PSSC-XML, deshalb bleibt die tatsächliche Hardware-Adresse unbestätigt. 
 
 Die erkannte Adresse steht bei aktivierten Experteneinstellungen unter **USB & Chip** sowie im SSP3-JSON-Diagnoseexport. Bestehende Tests am echten SSP3 sind weiterhin erforderlich.
 
