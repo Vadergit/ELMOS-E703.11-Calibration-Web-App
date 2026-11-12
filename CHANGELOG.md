@@ -1,3 +1,10 @@
+## v0.6.23 – 12.11.2026: SSP3-Power-/PLC-Antworten ohne Zeilenumbrüche korrekt auswerten
+
+- Reales SSP3-Feedback `#PWR_ON ... :#PLC T :` zeigt, dass beide Startkommandos bestätigt wurden. Die bisherige strenge Zeilenprüfung lieferte fälschlich 1/2 Prompts.
+- SSP3-Prompt-Zähler erkennt direkt verkettete Doppelpunkt-Prompts vor dem nächsten Echo; separate Quittungsprüfung erkennt beide Kommandos auch ohne CR/LF dazwischen.
+- Regressionstest mit tatsächlicher SSP3-Teilantwort ergänzt; kein Wechsel von ASCII-Befehlen, Power-Ablauf, PLC-Encoder oder NVM-Konfiguration.
+- Echtes E703.11-Registerlesen nach dem Burst bleibt bis Hardwaretest offen.
+
 ## v0.6.22 – 12.11.2026: SSP3 nimmt kombinierten Startbefehl nicht zuverlässig an
 
 - Nach Hardwarefehler «Bei PWR_ON + PLC T wurden nicht beide Antworten empfangen» das kombinierte ASCII-Paket in zwei einzelne CR-terminierte serielle Schreibaufrufe aufgeteilt, **ohne** auf die erste SSP3-Antwort zu warten.
