@@ -4,9 +4,13 @@
 
 Die Web-App unterstützt die Wiederverwendung von **chipunabhängigen Konfigurationen**, ohne dass sensorspezifische Kalibrierwerte, Werksdaten oder Kommunikationsregister von einem Sensor auf einen anderen übertragen werden.
 
+## SVDD-Brückenspannung in Config v2 (ab v0.6.36)
+
+Wenn der Sensor eine gültige CFG_AFE0-Rücklesung liefert, enthält die neu gespeicherte AFE-Gruppe optional das Feld `bridgeSupply`: `0` = 2,4 V, `1` = 1,6 V, `2` = 2,0 V. Alte Config-Dateien ohne dieses Feld sind weiterhin gültig. Der Import übernimmt die Brückenspannung nur dann, wenn die AFE-Gruppe bewusst ausgewählt und ein gültiger Chip verbunden ist. Die Änderung erfolgt ausschliesslich im RAM mit anschliessender Rücklesung; NVM bleibt unverändert. Für SVDD 2,4 V muss VDD mindestens 3,0 V betragen, für 1,6 V bzw. 2,0 V mindestens 2,7 V. `br_gain` bleibt unverändert und muss zum Brückenstrom passen.
+
 ## Anwendungsfall: mehrere gleiche Sensoren kalibrieren
 
-Wenn mehrere Sensoren dieselben Grundeinstellungen benötigen, kannst du beim ersten Sensor beispielsweise PGA1, PGA2, den AFE-Offset, Referenzbereich, DSP-Sollspanne und Ausgangsskalierung einstellen. Die Werte exportierst du als `.json`-Config. Anschliessend lädst du diese Vorlage bei weiteren Sensoren, übernimmst die Eingaben und führst **pro Sensor eine neue Messpunktaufnahme, Koeffizientenberechnung und DSP-Prüfung** durch.
+Wenn mehrere Sensoren dieselben Grundeinstellungen benötigen, kannst du beim ersten Sensor beispielsweise PGA1, PGA2, den AFE-Offset, die Brückenspannung (SVDD), Referenzbereich, DSP-Sollspanne und Ausgangsskalierung einstellen. Die Werte exportierst du als `.json`-Config. Anschliessend lädst du diese Vorlage bei weiteren Sensoren, übernimmst die Eingaben und führst **pro Sensor eine neue Messpunktaufnahme, Koeffizientenberechnung und DSP-Prüfung** durch.
 
 **Beispiel-Config:** [Beispiel_0-10bar.json](examples/Beispiel_0-10bar.json). Die Datei enthält nur Beispielwerte und ist **keine Kalibrierung**.
 
