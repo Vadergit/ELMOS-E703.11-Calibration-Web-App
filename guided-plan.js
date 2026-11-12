@@ -28,7 +28,7 @@ const ELMOS_GUIDED_PLAN=(()=>{
    const slot=position===0?'lo':position===pCount*tCount-1?'hi':'extra'+position;
    points.push({index:position,slot,pressureIndex:i,temperatureIndex:j,
     pressure:pressureValues[i],temperature:temperatures[j],
-    label:'T'+(j+1)+' / P'+(i+1),title:'Temperatur '+(j+1)+' · Druck '+(i+1)});
+    label:(tCount===1?'P'+(i+1):'T'+(j+1)+' / P'+(i+1)),title:(tCount===1?'Druck '+(i+1):'Temperatur '+(j+1)+' · Druck '+(i+1))});
   }
   const requestedS=spec.orderS===undefined?Math.min(3,pCount-1):Number(spec.orderS);
   const requestedT=spec.orderT===undefined?tCount-1:Number(spec.orderT);
