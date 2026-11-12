@@ -180,7 +180,7 @@ test('Expert mode shows contextual settings and no modal',()=>{
  assert.ok(html.includes('data-expert-area hidden><summary>Erweitert · AODO_F'));
  assert.ok(src.includes("classList.toggle('is-expert',enabled)"));
  const scripts=Array.from(html.matchAll(/<script src="([^"]+)"/g),m=>m[1]);
- assert.deepEqual(scripts,['calibration.js?v=0.6.9','eeprom-help.js?v=0.6.9','expert.js?v=0.6.9','config.js?v=0.6.9','guided-plan.js?v=0.6.9','demo.js?v=0.6.9','app.js?v=0.6.9','compact.js?v=0.6.9','guided.js?v=0.6.9']);
+ assert.deepEqual(scripts,['calibration.js?v=0.6.10','eeprom-help.js?v=0.6.10','expert.js?v=0.6.10','config.js?v=0.6.10','guided-plan.js?v=0.6.10','demo.js?v=0.6.10','app.js?v=0.6.10','compact.js?v=0.6.10','guided.js?v=0.6.10']);
 });
 
 test('Failed E703.11 probe reconnects SSP3 at most once, without NVM writes',()=>{
@@ -392,6 +392,26 @@ test('Guided matrix: 3 pressure x 2 temperature, and supported 10-point maximum'
  const max=GUIDED_PLAN.create({pCount:5,tCount:2,temperatures:[10,60]});
  assert.equal(max.total,10);assert.equal(max.orderS,3);assert.equal(max.orderT,1);
 });
+test('Single-temperature guide names points P1, P2 without artificial T1 prefix',()=>{
+ const p=GUIDED_PLAN.create({pCount:2,tCount:1,temperatures:[25],pmin:0,pmax:100,unit:'%'});
+ assert.deepEqual(p.points.map(x=>x.label),['P1','P2']);
+ assert.deepEqual(p.points.map(x=>x.title),['Druck 1','Druck 2']);
+ const p3=GUIDED_PLAN.create({pCount:3,tCount:1,temperatures:[25]});
+ assert.deepEqual(p3.points.map(x=>x.label),['P1','P2','P3']);
+ const p23=GUIDED_PLAN.create({pCount:2,tCount:3,temperatures:[0,25,60]});
+ assert.deepEqual(p23.points.map(x=>x.label),
+  ['T1 / P1','T1 / P2','T2 / P1','T2 / P2','T3 / P1','T3 / P2']);
+ const ui=read('guided.js');
+ assert.ok(ui.includes("name=point.label+' · '+point.pressure+' '+p.unit"));
+ assert.ok(!ui.includes("name='T'+(point.temperatureIndex+1)"));
+});
+test('Guided plan defaults independent DSP verification to one point',()=>{
+ const ui=read('guided.js'),html=read('index.html');
+ assert.ok(ui.includes("fieldValue('calVerifyCount',1)"));
+ assert.ok(!ui.includes("p.tCount>1?Math.min(3,p.tCount):2"));
+ assert.ok(html.includes('id="calVerifyCount" min="1" max="10" step="1" value="1"'));
+ assert.ok(html.includes('Anzahl Prüfpunkte (Standard: 1)'));
+});
 test('Guided planner rejects >10, nonascending temperatures, invalid pressure and overfit',()=>{
  assert.throws(()=>GUIDED_PLAN.create({pCount:4,tCount:3,temperatures:[0,25,65]}),/höchstens 10/);
  assert.throws(()=>GUIDED_PLAN.create({pCount:2,tCount:3,temperatures:[25,15,60]}),/aufsteigend/);
@@ -406,7 +426,7 @@ test('Guided view is optional and contains only one set of hardware inputs',()=>
  assert.ok(html.includes('id="workflowMode"'));
  assert.ok(html.includes('id="guidedLaunch"'));
  assert.ok(html.includes('id="guidedLaunchTop"'));
- assert.ok(html.includes('guided.css?v=0.6.9'));
+ assert.ok(html.includes('guided.css?v=0.6.10'));
  for(const id of ['nvmProgram','nvmPrepare','calApplyRam','calVerifyRam','expertOutputStage','configApply','configFile']){
   assert.equal(html.split('id="'+id+'"').length-1,1);
  }
