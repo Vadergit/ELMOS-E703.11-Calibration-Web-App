@@ -2,7 +2,7 @@
 
 **Ein geführter Kalibrierassistent für den ELMOS E703.11 und das SSP3-Eval-Board.** Ziel ist ein verständlicher Abgleich, der auch ohne tiefere Vorkenntnisse Schritt für Schritt funktioniert. Wer mehr benötigt, kann zusätzliche Messpunkte, DSP-Parameter und einen geschützten Expertenmodus verwenden.
 
-**Version: v0.6.30 · geführter Abgleich und klassische Ansicht** · [Änderungsverlauf](CHANGELOG.md)
+**Version: v0.6.31 · geführter Abgleich und klassische Ansicht** · [Änderungsverlauf](CHANGELOG.md)
 
 Über **Einstellungen → Demo-Modus** lässt sich der gesamte Kalibrierablauf mit simulierten Messwerten und NVM ausprobieren.
 
@@ -13,6 +13,14 @@
 > **Geführter Assistent:** Nach der bestätigten SSP3-Verbindung stehen die neue Schritt-für-Schritt-Führung, die klassische Ansicht und der optionale Kompaktmodus zur Verfügung. Ein E703.11-Chip muss für den Abgleich verbunden sein. Die USB-CDC-Bridge bleibt als experimenteller Verbindungstest ohne Sensorprogrammierung gesperrt.
 >
 > [Geführter Abgleich](docs/GEFUEHRTER_ASSISTENT.md) · [USB-Bridge](docs/USB_BRIDGE_GUIDE.md) · [ESP-Boards](docs/ESP_BOARD_OPTIONS.md) · [ESP32-C3 SuperMini Sketch](firmware/esp32c3_supermini/esp32c3_supermini.ino)
+
+## Sensor getrennt / erneut anschliessen (v0.6.31)
+
+Wenn während der Live-Messung zweimal hintereinander keine gültige ADC_S-Antwort vom E703.11 ankommt, stoppt die App die Live-Abfrage. Im Kopf erscheint «Sensor nicht verbunden» und darunter der Knopf **«Sensor neu initialisieren»**. Der USB-Port des SSP3 bleibt offen; ein F5-Neuladen ist nicht nötig. Einzelne kurzzeitige Lesefehler lösen noch keinen Sensorwechsel aus.
+
+Nach dem Wiederanschliessen den Knopf verwenden. Für SSP3 + 1-Wire wird der bereits vorhandene, kontrollierte VSUPPLY/PLC-Start einschliesslich des geprüften RAM-Magic-Cookie-Fallbacks wiederholt. Das kann den analogen Ausgang während des Tests beeinflussen, programmiert aber **kein NVM/EEPROM**. Für andere Adapter/Schnittstellen wird die jeweilige Schnittstelle neu konfiguriert und der Chip erneut erkannt.
+
+**Sicherheitsregel:** Bei Kommunikationsverlust werden aktuelle Messwerte, RAM-/NVM-Schreibfreigaben und erfasste Kalibrierpunkte in der aktuellen Sitzung zurückgesetzt. Vor erneuter Programmierung ist eine neue Prüfung erforderlich. Technische Details bleiben im USB-Protokoll. Die Wiederinitialisierung ist noch nicht mit einem realen Sensorwechsel als vollständiger Hardwaretest bestätigt.
 
 ## Projektziel
 
