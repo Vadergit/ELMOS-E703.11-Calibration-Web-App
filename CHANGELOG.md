@@ -1,3 +1,12 @@
+## v0.6.40 – 12.11.2026: 1-Wire-Adresse aus PSSC-Konfiguration erkennen
+
+- Erkennt beim SSP3/1-Wire-Verbinden und beim erneuten Initialisieren zunächst **rein lesend** die beiden bekannten PLC-Adressen **0x6C** (Elmos-Standard) und **0x7C** (aus dem eingereichten PSSC-XML: CFG_SPI_I2C=0x7C05, CFG_PADS1=0x099F). Kein unnötiger Power-Cycle, wenn der Chip bereits antwortet.
+- Bestätigt eine Adresse erst bei korrekter **PLC-CRC8**, plausibler **AFE1-/ADC_S-Antwort** und Übereinstimmung mit der aus **CFG_SPI_I2C/CFG_PADS1** berechneten Chipadresse. Bei Konflikt: keine Schreibfreigabe.
+- Alle PLC-Lese-, RAM-/Magic-Cookie-Schreibbefehle und die CRC-Prüfung benutzen in dieser Sitzung die bestätigte Adresse. Die automatische SSP3-Startprozedur prüft beide Kandidaten und nutzt bei fehlender Chipantwort pro Adresse höchstens eine dokumentierte Magic-Cookie-Sequenz (zwei aufeinanderfolgende RAM-Frames); insgesamt weiterhin höchstens zwei geregelte Versorgungszyklen.
+- Zeigt im Expertenmodus die tatsächlich aus Sensorregistern bestätigte Adresse. Der JSON-Export enthält `plcAddress`, `plcAddressVerified`, `plcAddressSource` und `plcAddressProbes` mit den getesteten Adressen und deren Ergebnissen.
+- Eine originale PSSC-XML ist **kein Nachweis für die aktuell aktive Chipkonfiguration**; ausserdem waren im früheren Log und in dieser XML unterschiedliche Chip-IDs vorhanden. Der Verbindungstest entscheidet deshalb anhand aktueller Registerantworten und übernimmt keine XML-Kalibrierwerte oder EEPROM-Inhalte.
+- Kein automatisches EEPROM-/NVM-Schreiben. Browser-Logik und CRC-Vektoren geprüft; ein echter SSP3-Hardwaretest bleibt notwendig.
+
 ## v0.6.39 – 12.11.2026: SSP3-USB-Verlust von Sensorfehler unterscheiden und alte Log-Versuche zurücksetzen
 
 - Bei neuem USB-Port-Öffnen veraltete `startupTrials`, `chipDiag` und `lastPlcReply` zurücksetzen. Export enthält Sitzungs-ID/-Zeit und Reader-/Adapterstatus.
