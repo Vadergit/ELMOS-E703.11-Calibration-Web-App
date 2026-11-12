@@ -89,7 +89,12 @@ if(typeof document!=='undefined') (function UI(){
   button.textContent=working?'Initialisierung läuft …':
    st.adapterNoReply?'SSP3-Port neu öffnen':'Sensor neu initialisieren';
  }
- function renderStatus(){let connected=!!st.port;$('status').textContent=demoEnabled?'Demo · Simulation':st.chip?'Sensor verbunden':st.reinitRunning||st.powerCycleRunning?'Sensor wird initialisiert':connected?(st.adapterNoReply?'SSP3 antwortet nicht':st.sensorLost?'Sensor nicht verbunden':'USB verbunden · Sensor nicht erkannt'):'Nicht verbunden';$('statusDot').className='dot'+(st.chip?' active':connected?' missing':'');$('fw').textContent=st.firmware?st.firmware.slice(0,19):'—';$('chip').textContent=st.chip?'Antwort erhalten':'—';$('ifaceLabel').textContent=st.iface==='plc'?'1-Wire':st.iface==='i2c'?'I²C':'SPI';$('srcLabel').textContent=st.adc?.source==='usb'?'USB / Chip':'Keine Messdaten';$('choose').disabled=connected||demoEnabled;$('auto').hidden=demoEnabled;$('disconnect').hidden=demoEnabled;$('adapterType').disabled=demoEnabled;$('iface').disabled=demoEnabled;$('guidedLaunch').disabled=!st.chip||st.closing;$('guidedLaunch').classList.toggle('primary',st.chip&&!st.closing);$('auto').disabled=connected;$('disconnect').disabled=!connected||st.closing;$('readNow').disabled=!st.chip||st.magicRunning||st.powerCycleRunning;$('live').disabled=!connected||st.magicRunning||st.powerCycleRunning;$('live').textContent=st.live?'Live-Messung stoppen':'Live-Messung starten';$('readBoot').disabled=!st.chip;$('readRegs').disabled=!st.chip;$('afeWord').textContent=st.afe===null?'CFG_AFE1: —':'CFG_AFE1: 0x'+h(st.afe,2);const startupTools=$('plcStartupTools');if(startupTools)startupTools.hidden=demoEnabled||st.adapterKind!=='ssp3'||st.iface!=='plc'||!$('expertMode').checked;
+ function renderStatus(){let connected=!!st.port;
+  const addrRow=$('plcAddressRow');
+  if(addrRow)addrRow.hidden=st.iface!=='plc'||!$('expertMode').checked;
+  if($('plcAddressLabel'))$('plcAddressLabel').textContent=st.chip&&st.plcAddressVerified?
+   '0x'+h(st.plcAddress)+' (Sensorregister bestätigt)':
+   connected?'Suche: 0x6C / 0x7C':'—';$('status').textContent=demoEnabled?'Demo · Simulation':st.chip?'Sensor verbunden':st.reinitRunning||st.powerCycleRunning?'Sensor wird initialisiert':connected?(st.adapterNoReply?'SSP3 antwortet nicht':st.sensorLost?'Sensor nicht verbunden':'USB verbunden · Sensor nicht erkannt'):'Nicht verbunden';$('statusDot').className='dot'+(st.chip?' active':connected?' missing':'');$('fw').textContent=st.firmware?st.firmware.slice(0,19):'—';$('chip').textContent=st.chip?'Antwort erhalten':'—';$('ifaceLabel').textContent=st.iface==='plc'?'1-Wire':st.iface==='i2c'?'I²C':'SPI';$('srcLabel').textContent=st.adc?.source==='usb'?'USB / Chip':'Keine Messdaten';$('choose').disabled=connected||demoEnabled;$('auto').hidden=demoEnabled;$('disconnect').hidden=demoEnabled;$('adapterType').disabled=demoEnabled;$('iface').disabled=demoEnabled;$('guidedLaunch').disabled=!st.chip||st.closing;$('guidedLaunch').classList.toggle('primary',st.chip&&!st.closing);$('auto').disabled=connected;$('disconnect').disabled=!connected||st.closing;$('readNow').disabled=!st.chip||st.magicRunning||st.powerCycleRunning;$('live').disabled=!connected||st.magicRunning||st.powerCycleRunning;$('live').textContent=st.live?'Live-Messung stoppen':'Live-Messung starten';$('readBoot').disabled=!st.chip;$('readRegs').disabled=!st.chip;$('afeWord').textContent=st.afe===null?'CFG_AFE1: —':'CFG_AFE1: 0x'+h(st.afe,2);const startupTools=$('plcStartupTools');if(startupTools)startupTools.hidden=demoEnabled||st.adapterKind!=='ssp3'||st.iface!=='plc'||!$('expertMode').checked;
  if($('chipDiagDetails'))$('chipDiagDetails').hidden=!$('expertMode').checked;
  if($('usbAdvancedDetails'))$('usbAdvancedDetails').hidden=!$('expertMode').checked;
  if($('wiringStartDetails'))$('wiringStartDetails').hidden=!$('expertMode').checked;
@@ -873,6 +878,40 @@ if(typeof document!=='undefined') (function UI(){
    if(previousLive&&!st.manualLivePause&&st.chip&&st.port&&!st.closing)startLive()
   }
  }
+ // Read-only automatic PLC address discovery. Valid CRC8, plausible AFE
+ // and ADC data plus the chip's own address registers must agree.
+ async function probePlcAddresses(stage){
+  const previous=st.plcAddress;
+  for(const candidate of P.plcProbeOrder(previous)){
+   if(!st.port||st.closing)throw Error('USB-Verbindung während PLC-Adresserkennung beendet');
+   st.plcAddress=candidate;
+   const record={at:new Date().toISOString(),stage,address:'0x'+h(candidate),verified:false};
+   try{
+    const afe=await readReg(R_AFE,1350);
+    decodeSafeAFE(afe);
+    const adc=await readReg(0x2A,1350);
+    const cfg=await readReg(0x06,1350);
+    const pads=await readReg(0x0A,1350);
+    const configured=P.plcAddressFromConfig(cfg,pads);
+    record.configuredAddress='0x'+h(configured);
+    record.cfgSpiI2c='0x'+h(cfg,2);record.cfgPads1='0x'+h(pads,2);
+    if(configured!==candidate)throw Error('PLC-Adresskonflikt: gelesen über 0x'+h(candidate)+
+     ', Sensorregister nennen 0x'+h(configured)+'. Keine Schreibfreigabe.');
+    await detect();
+    st.plcAddressVerified=true;st.plcAddressSource='CFG_SPI_I2C + CFG_PADS1 / CRC8';
+    record.verified=true;record.afe='0x'+h(afe,2);record.adcS=P.sign16(adc);
+    st.plcAddressProbes.push(record);
+    logging('PLC-Adresse 0x'+h(candidate)+' durch Sensor-Rücklesung bestätigt ('+stage+').');
+    renderStatus();return true;
+   }catch(error){
+    record.error=String(error.message||error);
+    st.plcAddressProbes.push(record);
+    logging('PLC-Adresse 0x'+h(candidate)+' bei '+stage+' nicht bestätigt: '+record.error);
+    st.chip=false;st.plcAddressVerified=false;st.uid=null;st.boot=null;
+   }
+  }
+  st.plcAddress=previous;renderStatus();return false;
+ }
  async function detect(){
   // AFE and ADC_S form the minimum real chip-presence proof.
   // Do not make the entire live display dependent on less reliable temperature
@@ -1165,6 +1204,7 @@ if(typeof document!=='undefined') (function UI(){
      throw cookieReadError;
     }
    }
+   st.powerCycleResult.plcAddress='0x'+h(st.plcAddress);
    st.powerCycleResult.readVerified=true;
    st.powerCycleResult.verifiedUid=st.uid?.hex||null;
    // DS 6.4.5.8: a recognised magic cookie must set CFG_SPI_I2C.plc_en
@@ -1341,7 +1381,7 @@ if(typeof document!=='undefined') (function UI(){
  function markSensorUnavailable(reason){
   if(!st.port||st.closing||!st.chip)return;
   logging('Sensor-Kommunikation abgebrochen: '+reason);
-  st.sensorLost=true;st.chip=false;st.mode='usb';st.afe0=null;
+  st.sensorLost=true;st.chip=false;st.plcAddressVerified=false;st.mode='usb';st.afe0=null;
   stopLive();
   st.adc=null;st.dsp=null;st.dspError=null;st.afe=null;st.afe0=null;st.boot=null;st.regs={};
   st.uid=null;st.uidShownForInput=null;
@@ -1362,7 +1402,7 @@ if(typeof document!=='undefined') (function UI(){
    show('connMsg','Neuinitialisierung erst nach Abschluss des laufenden Chipvorgangs möglich.','warn');return;
   }
   st.reinitRunning=true;
-  st.chip=false;stopLive();
+  st.chip=false;st.plcAddressVerified=false;st.plcAddressProbes=[];stopLive();
   if(st.liveReadPromise)await st.liveReadPromise.catch(()=>{});
   st.adc=null;st.dsp=null;st.dspError=null;st.afe=null;st.afe0=null;st.boot=null;st.regs={};
   st.uid=null;st.uidShownForInput=null;st.powerCycleResult=null;
@@ -1429,6 +1469,7 @@ if(typeof document!=='undefined') (function UI(){
   st.port=port;st.mode='usb';st.sensorLost=false;st.adapterNoReply=false;
   st.sessionIndex++;st.sessionStartedAt=new Date().toISOString();
   st.startupTrials=[];st.chipDiag=null;st.lastPlcReply=null;st.readerAlive=false;
+  st.plcAddress=0x6C;st.plcAddressVerified=false;st.plcAddressSource='';st.plcAddressProbes=[];
   st.reinitRunning=false;st.firmware='';st.powerHelp=null;st.powerCycleResult=null;st.magicResult=null;st.liveReadAttempts=0;st.liveReadSuccesses=0;st.liveLastError=null;st.liveLastAttemptAt=null;st.measurementPeriod=null;st.measurementStatus=null;st.measurementError=null;st.measurementStarts=0;st.measurementFreshCount=0;st.measurementLastChangedAt=null;st.plcHostFormat=$('plcHostFormat').value;st.chip=false;st.afe=null;st.afe0=null;st.boot=null;st.regs={};st.dsp=null;st.dspError=null;st.calStaged=false;st.calVerified=false;st.nvmDone=false;st.adc=null;st.manualLivePause=false;st.afeWriteActive=false;st.ramWriteScope=null;st.uid=null;st.uidShownForInput=null;st.restorePlan=null;st.expertOutputPlan=null;st.outputOnlyPlan=null;st.iface=$('iface').value;st.adapterKind=$('adapterType').value;
   st.sensorPowerEnabled=st.adapterKind==='bridge'&&!demoEnabled&&$('plcPowerCycle').checked;
   $('sensorPowerPin').textContent='';
@@ -2408,6 +2449,8 @@ if(typeof document!=='undefined') (function UI(){
   const log={
    tool:'ELMOS E703.11 – SSP3 Startdiagnose',version:'v0.6.39',at:new Date().toISOString(),
    source:'Web-App (NICHT PSSC Originalsoftware)',interface:st.iface,adapter:st.adapterKind,
+    plcAddress:'0x'+h(st.plcAddress),plcAddressVerified:st.plcAddressVerified,
+    plcAddressSource:st.plcAddressSource,plcAddressProbes:st.plcAddressProbes,
    firmware:st.firmware,port:serialPortInfo(st.port),chipDetected:!!st.chip,
    startupTrials:st.startupTrials,sessionStartedAt:st.sessionStartedAt,sessionIndex:st.sessionIndex,adapterNoReply:st.adapterNoReply,readerAlive:st.readerAlive,startupAttempts:st.startupAttempts,lastPlcReply:st.lastPlcReply,
    chipDiag:st.chipDiag,magicCookie:st.magicResult,powerCycle:st.powerCycleResult,powerHelp:st.powerHelp,plcHostFormat:st.plcHostFormat,
