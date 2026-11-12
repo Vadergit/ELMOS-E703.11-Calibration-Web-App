@@ -2110,7 +2110,9 @@ if(typeof document!=='undefined') (function UI(){
   if(proposed){
    $('configAfeSummary').textContent='PGA1 '+GAINS1[proposed.pga1]+'× · Offset '+(proposed.offset*50)+' mV/V · PGA2 '+
     GAINS2[proposed.pga2]+'×. Aktuell im Chip: PGA1 '+GAINS1[st.staged.pga1]+'×, Offset '+(st.staged.offset*50)+
-    ' mV/V, PGA2 '+GAINS2[st.staged.pga2]+'×. Erst nach einem bestätigten RAM-Schreibvorgang werden die Vorgaben aktiv.';
+    ' mV/V, PGA2 '+GAINS2[st.staged.pga2]+'×.'+
+    (Number.isInteger(proposed.bridgeSupply)?' Brückenspannung SVDD '+BRIDGE_VOLTAGES[proposed.bridgeSupply].toFixed(1)+' V.':'')+
+    ' Erst nach bestätigter RAM-Rücklesung werden die Vorgaben aktiv.';
   }
  }
  function configFromUi(include){
@@ -2118,7 +2120,9 @@ if(typeof document!=='undefined') (function UI(){
   const p=st.staged;
   const cf=ELMOS_CONFIG.createSelective({
    label:$('configLabel').value.trim()||'Standardprofil',
-   afe:{pga1:p.pga1,pga2:p.pga2,offset:p.offset},
+   afe:{pga1:p.pga1,pga2:p.pga2,offset:p.offset,
+    ...(Number.isInteger(st.afe0)&&bridgeSupplyCode(st.afe0)<3?
+      {bridgeSupply:bridgeSupplyCode(st.afe0)}:{})},
    calibration:{
     sOrder:Number($('calSOrder').value),tOrder:Number($('calTOrder').value),
     dspLimit:Number($('calDspLimit').value),pointCount:Number($('calPointCount').value),
@@ -2158,7 +2162,7 @@ if(typeof document!=='undefined') (function UI(){
   $('configImportEffect').textContent=!profile?
    'Datei auswählen, danach die zu übernehmenden Einstellungsgruppen bestimmen.':
    !selected.length?'Bitte mindestens eine Einstellungsgruppe für den Import auswählen.':
-   hasAfe?'AFE ausgewählt: Mit «Übernehmen» werden PGA1, Offset und PGA2 direkt ins Chip-RAM geschrieben und rückgelesen. Keine EEPROM-Programmierung.':
+   hasAfe?'AFE ausgewählt: Mit «Übernehmen» werden PGA1, Offset, PGA2 und eine eventuell enthaltene Brückenspannung (SVDD) direkt ins Chip-RAM geschrieben und rückgelesen. Keine EEPROM-Programmierung.':
    'AFE nicht ausgewählt: Nur die angehakten Gruppen werden als Vorgaben übernommen. Kein AFE-RAM- oder EEPROM-Schreibvorgang.';
  }
  function resetConfigImportSelection(profile){
@@ -2212,11 +2216,19 @@ if(typeof document!=='undefined') (function UI(){
    // The click itself explicitly authorises the immediate AFE RAM transfer.
    // Existing commitGain checks the boot state and reads the written register back.
    if(target){
-    show('configPreview','AFE-Übernahme läuft: PGA1/Offset/PGA2 werden in das Sensor-RAM geschrieben und rückgelesen. Noch kein EEPROM-Schreiben.','warn');
-    const ok=await commitGain(target);
+    show('configPreview','AFE-Übernahme läuft: PGA1/Offset/PGA2 und gegebenenfalls SVDD werden im RAM rückgelesen. Kein EEPROM-Schreiben.','warn');
+    const gains={pga1:target.pga1,pga2:target.pga2,offset:target.offset};
+    const ok=await commitGain(gains);
     if(!ok||!st.chip||!['pga1','pga2','offset'].every(k=>st.staged[k]===target[k])){
      st.profilePendingAFE={...target};profileSummary();
      throw Error('AFE-RAM-Übernahme nicht bestätigt. Chip prüfen und Config erneut übernehmen. Die anderen Einstellungen wurden nicht verändert.');
+    }
+    if(Number.isInteger(target.bridgeSupply)&&bridgeSupplyCode(st.afe0)!==target.bridgeSupply){
+     const bridgeOk=await commitBridgeSupply(target.bridgeSupply);
+     if(!bridgeOk||bridgeSupplyCode(st.afe0)!==target.bridgeSupply){
+      st.profilePendingAFE={...target};profileSummary();
+      throw Error('Brückenspannung aus dem Profil wurde nicht bestätigt. Chipzustand prüfen. Bereits übernommene PGA-Werte können im RAM aktiv sein; Messpunkte vorsorglich neu erfassen.');
+     }
     }
     st.profilePendingAFE=null;profileSummary();
    }
