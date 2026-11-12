@@ -1,3 +1,11 @@
+## v0.6.31 – 12.11.2026: Sensorverlust erkennen und ohne F5 neu initialisieren
+
+- Nach zwei aufeinanderfolgenden fehlgeschlagenen ADC_S-Live-Abfragen wird der Chipzustand auf «nicht verbunden» gesetzt, die Live-Abfrage gestoppt und der letzte Messwert ausgeblendet. Ein einzelner Lesefehler wird lediglich erneut geprüft.
+- Der Kopfbereich zeigt einen verständlichen Sensorstatus anstelle einer dauerhaften technischen PLC-Fehlerzeile. Ausführliche Fehler bleiben im USB-/TX-RX-Protokoll.
+- Ein jederzeit sichtbarer Knopf **«Sensor neu initialisieren»** bei fehlender Sensorantwort startet die vorhandene geprüfte SSP3-/1-Wire-Initialisierung über denselben offenen USB-Port (ohne Seitenneuladen). Andere Schnittstellen führen ihren bestehenden Erkennungspfad erneut aus.
+- Frühere Messpunkte, RAM-Koeffizientenfreigaben und NVM-Freigaben werden bei Sensorverlust oder Wiederinitialisierung ungültig. Keine automatische NVM-Programmierung.
+- Statische JavaScript-Syntax und die Verknüpfung zwischen Reconnect-Banner und Handler geprüft; Hardwaretest mit abgezogenem/neu angestecktem E703.11 steht noch aus.
+
 ## v0.6.30 – 12.11.2026: Kontinuierliche RAM-Konversion nach Magic-Cookie-Zugriff wieder starten
 
 - Das zweite Magic-Cookie-Telegramm schreibt 0x5CFD auf die CFG_PERIOD-Adresse 0x0E; der Screenshot zeigt den exakt übereinstimmenden RAM-Wert.
