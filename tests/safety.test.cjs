@@ -178,7 +178,7 @@ test('Expert mode shows contextual settings and no modal',()=>{
  assert.ok(html.includes('data-expert-area hidden><summary>Erweitert · AODO_F'));
  assert.ok(src.includes("classList.toggle('is-expert',enabled)"));
  const scripts=Array.from(html.matchAll(/<script src="([^"]+)"/g),m=>m[1]);
- assert.deepEqual(scripts,['calibration.js?v=0.6.18','eeprom-help.js?v=0.6.18','expert.js?v=0.6.18','config.js?v=0.6.18','guided-plan.js?v=0.6.18','demo.js?v=0.6.18','app.js?v=0.6.18','compact.js?v=0.6.18','guided.js?v=0.6.18']);
+ assert.deepEqual(scripts,['calibration.js?v=0.6.19','eeprom-help.js?v=0.6.19','expert.js?v=0.6.19','config.js?v=0.6.19','guided-plan.js?v=0.6.19','demo.js?v=0.6.19','app.js?v=0.6.19','compact.js?v=0.6.19','guided.js?v=0.6.19']);
 });
 
 test('Failed E703.11 probe keeps SSP3 open for explicit, bounded startup test',()=>{
@@ -438,7 +438,7 @@ test('Guided view is optional and contains only one set of hardware inputs',()=>
  assert.ok(html.includes('id="workflowMode"'));
  assert.ok(html.includes('id="guidedLaunch"'));
  assert.ok(html.includes('id="guidedLaunchTop"'));
- assert.ok(html.includes('guided.css?v=0.6.18'));
+ assert.ok(html.includes('guided.css?v=0.6.19'));
  for(const id of ['nvmProgram','nvmPrepare','calApplyRam','calVerifyRam','expertOutputStage','configApply','configFile']){
   assert.equal(html.split('id="'+id+'"').length-1,1);
  }
@@ -935,4 +935,27 @@ test('Troubleshooting tools hidden by default; recoverable in expert mode',()=>{
  assert.ok(app.includes("$('expertMode').addEventListener('change',renderStatus)"));
  for(const id of ['chipDiagDetails','usbAdvancedDetails','wiringStartDetails'])assert.ok(html.includes('id="'+id+'"'));
  assert.ok(html.includes('id="plcStartupTools"'));
+});
+
+test('Known SSP3 firmware enables correct separated PLC host syntax at handshake',()=>{
+ const app=read('app.js'),html=read('index.html');
+ const fw=app.split('async function firmware(){')[1]?.split('const ifcfg=')[0];
+ assert.ok(fw);
+ assert.ok(fw.includes("match.slice(1,5).join(' ').toUpperCase()==='02 08 02 04'"));
+ assert.ok(fw.includes("st.plcHostFormat='separate'"));
+ assert.ok(fw.includes("$('plcHostFormat').value='separate'"));
+ assert.ok(html.includes('<script src="app.js?v=0.6.19"'));
+ assert.ok(html.includes('guided.css?v=0.6.19'));
+});
+test('Explicit normal-UI SSP3 auto-start uses protected power startup and can be revoked',()=>{
+ const app=read('app.js'),html=read('index.html');
+ assert.ok(html.includes('id="ssp3StartupOption"'));
+ assert.ok(html.includes('id="ssp3AutoStart"'));
+ assert.ok(app.includes("lsGet('elmos-ssp3-auto-start-v1')==='1'"));
+ assert.ok(app.includes("lsSet('elmos-ssp3-auto-start-v1',enabled?'1':'0')"));
+ const c=app.split('async function connect(port){')[1]?.split('async function disconnect()')[0];
+ assert.ok(c.includes("if(!demoEnabled&&st.adapterKind==='ssp3'&&st.iface==='plc'&&$('ssp3AutoStart').checked)"));
+ assert.ok(c.includes('await testSsp3PowerStartup()'));
+ assert.ok(c.indexOf('await testSsp3PowerStartup()')<c.indexOf('await detect()'));
+ assert.ok(app.includes("!$('expertMode').checked"));
 });

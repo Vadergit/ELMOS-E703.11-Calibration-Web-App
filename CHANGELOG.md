@@ -1,3 +1,10 @@
+## v0.6.19 – 12.11.2026: Normalen One-Wire-Verbindungsaufbau repariert
+
+- SSP3-Version `02.08.02.04` wird aus `.VERSION` korrekt erkannt; passendes `PLC 02 6D1C0C.`-Hostformat wird beim Verbinden automatisch aktiviert. Keine ungesicherte Auto-Umstellung bei anderen Firmwareversionen.
+- Einzelne explizite, widerrufbare Opt-in-Option «Sensor beim Verbinden automatisch über SSP3 starten (One Wire)» in der normalen Verbindungsansicht. Nutzt ausschliesslich den vorhandenen geprüften Power-Start-Ablauf, nie NVM-Programmierung.
+- JS-/CSS-Cache-Parameter auf die aktuelle Version gesetzt, damit kein veraltetes Skript weiter ausgeführt wird.
+- E703.11-Startup-NVM-Konfiguration bleibt unverändert; Diagnosewerkzeuge weiter verborgen.
+
 ## v0.6.18 – 12.11.2026: PLC-Startfenster bleibt erhalten; Diagnose ausgeblendet
 
 - Zeitlich begrenzte PLC-Starts mit Magic-Cookie-Verfahren korrekt als möglich erkannt, auch wenn plc_us_en/plc_rw_en im Original-NVM 0 sind.

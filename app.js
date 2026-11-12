@@ -56,7 +56,10 @@ if(typeof document!=='undefined') (function UI(){
  const hexWords=arr=>arr.map(x=>P.hx(x,2)).join(' ');
  const sleep=ms=>new Promise(r=>setTimeout(r,ms));
  const sameBoot=(a,b)=>!!a&&!!b&&LOCKED.every(k=>a[k]===b[k]);
- function renderStatus(){let connected=!!st.port;$('status').textContent=demoEnabled?'Demo · Simulation':st.chip?'Chip-Leseantwort plausibel':connected?'USB verbunden · Chipprüfung offen':'Nicht verbunden';$('statusDot').className='dot'+(st.chip?' active':'');$('fw').textContent=st.firmware?st.firmware.slice(0,19):'—';$('chip').textContent=st.chip?'Antwort erhalten':'—';$('ifaceLabel').textContent=st.iface==='plc'?'1-Wire':st.iface==='i2c'?'I²C':'SPI';$('srcLabel').textContent=st.adc?.source==='usb'?'USB / Chip':'Keine Messdaten';$('choose').disabled=connected||demoEnabled;$('auto').hidden=demoEnabled;$('disconnect').hidden=demoEnabled;$('adapterType').disabled=demoEnabled;$('iface').disabled=demoEnabled;$('guidedLaunch').disabled=!st.chip||st.closing;$('guidedLaunch').classList.toggle('primary',st.chip&&!st.closing);$('auto').disabled=connected;$('disconnect').disabled=!connected||st.closing;$('readNow').disabled=!connected||st.magicRunning||st.powerCycleRunning;$('live').disabled=!connected||st.magicRunning||st.powerCycleRunning;$('live').textContent=st.live?'Live-Messung stoppen':'Live-Messung starten';$('readBoot').disabled=!st.chip;$('readRegs').disabled=!st.chip;$('afeWord').textContent=st.afe===null?'CFG_AFE1: —':'CFG_AFE1: 0x'+h(st.afe,2);const startupTools=$('plcStartupTools');if(startupTools)startupTools.hidden=demoEnabled||st.adapterKind!=='ssp3'||st.iface!=='plc'||!$('expertMode').checked;
+ function renderStatus(){let connected=!!st.port;
+ const startupOption=$('ssp3StartupOption');
+ if(startupOption)startupOption.hidden=demoEnabled||$('adapterType').value!=='ssp3'||$('iface').value!=='plc';
+ if($('ssp3AutoStart'))$('ssp3AutoStart').disabled=connected||st.closing||st.powerCycleRunning||st.nvmWorking||st.writing||st.calTask;$('status').textContent=demoEnabled?'Demo · Simulation':st.chip?'Chip-Leseantwort plausibel':connected?'USB verbunden · Chipprüfung offen':'Nicht verbunden';$('statusDot').className='dot'+(st.chip?' active':'');$('fw').textContent=st.firmware?st.firmware.slice(0,19):'—';$('chip').textContent=st.chip?'Antwort erhalten':'—';$('ifaceLabel').textContent=st.iface==='plc'?'1-Wire':st.iface==='i2c'?'I²C':'SPI';$('srcLabel').textContent=st.adc?.source==='usb'?'USB / Chip':'Keine Messdaten';$('choose').disabled=connected||demoEnabled;$('auto').hidden=demoEnabled;$('disconnect').hidden=demoEnabled;$('adapterType').disabled=demoEnabled;$('iface').disabled=demoEnabled;$('guidedLaunch').disabled=!st.chip||st.closing;$('guidedLaunch').classList.toggle('primary',st.chip&&!st.closing);$('auto').disabled=connected;$('disconnect').disabled=!connected||st.closing;$('readNow').disabled=!connected||st.magicRunning||st.powerCycleRunning;$('live').disabled=!connected||st.magicRunning||st.powerCycleRunning;$('live').textContent=st.live?'Live-Messung stoppen':'Live-Messung starten';$('readBoot').disabled=!st.chip;$('readRegs').disabled=!st.chip;$('afeWord').textContent=st.afe===null?'CFG_AFE1: —':'CFG_AFE1: 0x'+h(st.afe,2);const startupTools=$('plcStartupTools');if(startupTools)startupTools.hidden=demoEnabled||st.adapterKind!=='ssp3'||st.iface!=='plc'||!$('expertMode').checked;
  if($('chipDiagDetails'))$('chipDiagDetails').hidden=!$('expertMode').checked;
  if($('usbAdvancedDetails'))$('usbAdvancedDetails').hidden=!$('expertMode').checked;
  if($('wiringStartDetails'))$('wiringStartDetails').hidden=!$('expertMode').checked;
@@ -465,7 +468,22 @@ if(typeof document!=='undefined') (function UI(){
  async function readerLoop(port){try{let r=port.readable.getReader();st.reader=r;try{while(st.port===port&&!st.closing){const{value,done}=await r.read();if(done)break;if(!value)continue;let txt=new TextDecoder().decode(value);rawLine('RX '+txt.replace(/\r/g,'\\r').replace(/\n/g,'\\n'));if(st.responseWait){st.replyBuffer+=txt;const colon=st.replyBuffer.match(/(?:^|[\r\n])\s*:\s*(?:\r|\n|$)/);if(colon){const waiter=st.responseWait;st.responseWait=null;clearTimeout(waiter.timer);const out=st.replyBuffer;st.replyBuffer='';waiter.resolve(out)}else if(st.replyBuffer.length>16000){const waiter=st.responseWait;st.responseWait=null;clearTimeout(waiter.timer);waiter.reject(Error('SSP3-Antwort zu lang'))}}}}finally{r.releaseLock();if(st.reader===r)st.reader=null}}catch(e){if(st.port===port){logging('USB-Lesefehler: '+e.message);st.chip=false;stopLive();renderStatus();show('connMsg','USB-Lesefehler: '+e.message,'error')}}}
  function serialize(fn){const run=st.cmdQueue.then(fn,fn);st.cmdQueue=run.catch(()=>{});return run}
  async function exchange(text,timeout=2500){return serialize(async()=>{if(!st.closing&&demoPort&&st.port===demoPort)return demoPort.exchange(text);if(st.closing||!st.port?.writable)throw Error('USB-Verbindung nicht geöffnet');if(st.responseWait)throw Error('Interner Befehlskonflikt');st.replyBuffer='';let resolver,rejecter;const future=new Promise((res,rej)=>{resolver=res;rejecter=rej});const ticket={resolve:resolver,reject:rejecter,timer:setTimeout(()=>{if(st.responseWait===ticket){st.responseWait=null;ticket.reject(Error((st.adapterKind==='bridge'?'ESP32':'SSP3')+' antwortet nicht auf '+text.slice(0,18))) }},timeout)};st.responseWait=ticket;future.catch(()=>{});const writer=st.port.writable.getWriter();try{logging('TX '+text);await writer.write(new TextEncoder().encode(text+'\r'))}catch(e){if(st.responseWait===ticket){st.responseWait=null;clearTimeout(ticket.timer);rejecter(e)}throw e}finally{writer.releaseLock()}const ans=await future;if(ans.split(/[\r\n]+/).some(l=>l.trim().startsWith('!')))throw Error((st.adapterKind==='bridge'?'ESP32':'SSP3')+' meldet Fehler: '+ans.slice(0,140));return ans})}
- async function firmware(){let a=await exchange('.VERSION',1600);let lines=a.split(/[\r\n]+/).map(x=>x.trim()).filter(x=>x&&!x.startsWith('#')&&x!==':'&&!x.startsWith('@'));st.firmware=lines.join(' ').replace(/^\.VERSION/i,'').trim().slice(0,80)||'Antwort erhalten';renderStatus()}
+ async function firmware(){
+  const reply=await exchange('.VERSION',1600);
+  // SSP3 firmware replies as @02 08 02 04; retain the actual firmware version.
+  const match=reply.match(/(?:^|[\r\n])\s*@([0-9A-F]{2})\s+([0-9A-F]{2})\s+([0-9A-F]{2})\s+([0-9A-F]{2})(?=[\s\r\n:]|$)/i);
+  st.firmware=match?match.slice(1,5).join('.'):'Antwort erhalten';
+  if(st.adapterKind==='ssp3'&&st.iface==='plc'&&match&&match.slice(1,5).join(' ').toUpperCase()==='02 08 02 04'){
+   // Confirmed firmware publishes "PLC <slave_id> <data>", not AN0204 legacy
+   // concatenated host argument. Do NOT change the E703.11 CRC or data bytes.
+   st.plcHostFormat='separate';
+   $('plcHostFormat').value='separate';
+   logging('SSP3 Firmware '+st.firmware+': korrektes PLC-Hostformat mit separater Slave-ID automatisch aktiviert.');
+  }else if(st.adapterKind==='ssp3'&&st.iface==='plc'){
+   logging('SSP3 Firmware '+st.firmware+': Hostformat '+st.plcHostFormat+'. Für unbekannte Firmware keine automatische Umstellung.');
+  }
+  renderStatus();
+ }
  const ifcfg={plc:'IF_CFG 7 0 0',i2c:'IF_CFG 2 1 0',spi:'IF_CFG 1 1 0'};
  async function selectChipInterface(){await exchange(ifcfg[st.iface]);logging('Programmieradapter-Schnittstellenmodus '+st.iface+' gesetzt (nicht NVM).')}
  async function bridgeHello(){
@@ -803,6 +821,16 @@ if(typeof document!=='undefined') (function UI(){
      await exchange('PLC_BAUD '+$('plcBaud').value);
      await exchange(st.sensorPowerEnabled?'PLC START':'PLC ACCESS');
     }
+    if(!demoEnabled&&st.adapterKind==='ssp3'&&st.iface==='plc'&&$('ssp3AutoStart').checked){
+     // User explicitly opted in for switchable SSP3-VSUPPLY on their isolated DUT.
+     // Use exactly the existing protected startup path and UID-bound verification.
+     $('plcPowerConfirm').checked=true;
+     $('plcPowerOnConnect').checked=false;
+     $('plcMagicOnConnect').checked=false;
+     logging('Automatischer SSP3-VSUPPLY-Start: vom Nutzer am Prüfplatz ausdrücklich aktiviert.');
+     await testSsp3PowerStartup();
+     return;
+    }
     if(!demoEnabled&&st.adapterKind==='ssp3'&&st.iface==='plc'&&$('plcPowerOnConnect').checked&&$('plcPowerConfirm').checked){
      $('plcPowerOnConnect').checked=false; // explicitly one-shot
      $('plcMagicOnConnect').checked=false;
@@ -823,7 +851,10 @@ if(typeof document!=='undefined') (function UI(){
     if(st.adapterKind==='ssp3'&&st.iface==='plc'){
      logging('SSP3 und IF_CFG bereit, Chipzugriff fehlgeschlagen. USB bleibt offen. Startfenster-Test manuell aktivierbar.');
      $('plcStartupState').textContent='SSP3 bereit; PLC-Lesezugriff noch ohne Sensorantwort. Elmos PSSC kann bei gleicher Verkabelung verbinden. Wahrscheinlich fehlt dessen Initialisierungssequenz. Original-SSP3-Befehlsfolge vergleichen. Erster Fehler: '+e.message;
-     show('connMsg','SSP3 erreichbar, aber keine E703.11-PLC-Antwort. Kein manueller USB-/VDD-Neustart erforderlich, solange die Originalsoftware den Sensor ohne diesen erreicht. Für die gleiche Funktion benötigen wir ihre SSP3-Initialisierung. USB-Protokoll bitte exportieren.','warn');
+     const msg=st.plcHostFormat==='separate'?
+      'SSP3 '+st.firmware+' erreichbar, aber noch keine Sensorantwort. Das separate PLC-Hostformat ist aktiv. Falls der Testchip über SSP3-VSUPPLY versorgt wird, «Sensor beim Verbinden über SSP3 automatisch starten» aktivieren, trennen und neu verbinden. Dadurch öffnet der SSP3 das konfigurierte 1-Wire-Startfenster.':
+      'SSP3 erreichbar, E703.11 nicht. Für diese SSP3-Firmware ist das korrekte PLC-Hostformat noch nicht bestätigt. Unter Einstellungen → Expertenparameter können die Diagnosen eingeblendet werden.';
+     show('connMsg',msg,'warn');
      renderStatus();
      return;
     }
@@ -1085,7 +1116,7 @@ if(typeof document!=='undefined') (function UI(){
 
  function draw(){const c=$('chart');if(!c||c.closest('[hidden]'))return;const d=window.devicePixelRatio||1,w=Math.round(c.clientWidth*d),h=Math.round(c.clientHeight*d);if(w<20)return;if(c.width!==w||c.height!==h){c.width=w;c.height=h}const g=c.getContext('2d');g.clearRect(0,0,w,h);const x0=55*d,y0=10*d,yh=h-20*d,y=v=>y0+(32768-v)/65536*(yh-y0);g.font=`${11*d}px sans-serif`;for(const v of [25000,0,-25000]){g.beginPath();g.strokeStyle=v?'#e3c9aa':'#d7e4ef';g.setLineDash(v?[5*d,4*d]:[]);g.moveTo(x0,y(v));g.lineTo(w-8*d,y(v));g.stroke();g.setLineDash([]);g.fillStyle='#74849a';g.fillText((v>0?'+':'')+v,5*d,y(v)+4*d)}if(st.trend.length<1)return;const left=Date.now()-60000,x=t=>x0+(w-x0-10*d)*Math.max(0,Math.min(1,(t-left)/60000));g.beginPath();g.strokeStyle='#2867a6';g.lineWidth=2*d;st.trend.forEach((p,i)=>i?g.lineTo(x(p.x),y(p.y)):g.moveTo(x(p.x),y(p.y)));g.stroke()}
  function download(name,txt,mime='application/json'){let b=new Blob([txt],{type:mime}),u=URL.createObjectURL(b),a=document.createElement('a');a.href=u;a.download=(demoEnabled?'DEMO_':'')+name;a.click();setTimeout(()=>URL.revokeObjectURL(u),2000)}
- const report=()=>({tool:'ELMOS E703.11 Kalibrierassistent v0.6.18',created:new Date().toISOString(),connection:demoEnabled?'Demo':st.port?'USB':'offline',hardwareValidated:false,unit:pressureUnit(),pointNames:{lower:pointName('lo'),upper:pointName('hi')},interface:st.iface,firmware:st.firmware,bootProtection:'Boot-/Werks-NVM-Schreiben gesperrt; kalibrierungsbezogenes User-NVM mit Bestätigung freigegeben',ramWriteActive:!!st.ramWriteScope,registers:st.regs,bootSnapshot:st.boot,chipUID:st.uid?.hex||null,expertOutput:st.expertOutputPlan,AFE:st.afe,gains:st.staged,low:st.points.lo,high:st.points.hi,verification:st.verify,calibrationPoints:st.calpoints,plannedCalibrationPointCount:calibrationPointCount(),requestedSamplesPerPoint:Number($('calSampleCount').value),requestedDSPOutputLimit:Number($('calDspLimit').value),coefficientFit:st.calfit,calRamVerified:st.calVerified,lastDSP:st.dsp,chipDiagnostic:st.chipDiag,lastPlcReply:st.lastPlcReply,displayRange:getActiveDSPRange(),nvmState:{backupVerified:st.nvmBackupVerified,programmed:st.nvmDone},samples:st.history.slice(-1500),trace:st.log});
+ const report=()=>({tool:'ELMOS E703.11 Kalibrierassistent v0.6.19',created:new Date().toISOString(),connection:demoEnabled?'Demo':st.port?'USB':'offline',hardwareValidated:false,unit:pressureUnit(),pointNames:{lower:pointName('lo'),upper:pointName('hi')},interface:st.iface,firmware:st.firmware,bootProtection:'Boot-/Werks-NVM-Schreiben gesperrt; kalibrierungsbezogenes User-NVM mit Bestätigung freigegeben',ramWriteActive:!!st.ramWriteScope,registers:st.regs,bootSnapshot:st.boot,chipUID:st.uid?.hex||null,expertOutput:st.expertOutputPlan,AFE:st.afe,gains:st.staged,low:st.points.lo,high:st.points.hi,verification:st.verify,calibrationPoints:st.calpoints,plannedCalibrationPointCount:calibrationPointCount(),requestedSamplesPerPoint:Number($('calSampleCount').value),requestedDSPOutputLimit:Number($('calDspLimit').value),coefficientFit:st.calfit,calRamVerified:st.calVerified,lastDSP:st.dsp,chipDiagnostic:st.chipDiag,lastPlcReply:st.lastPlcReply,displayRange:getActiveDSPRange(),nvmState:{backupVerified:st.nvmBackupVerified,programmed:st.nvmDone},samples:st.history.slice(-1500),trace:st.log});
 
  // ============ Kalibrierung + NVM (AN0203 / AN0204 / Datasheet 2023) ============
  const ca=(id,msg,type='')=>show(id,msg,type);
@@ -1651,7 +1682,7 @@ if(typeof document!=='undefined') (function UI(){
  });
  $('plcStartupLogExport').addEventListener('click',()=>{
   const log={
-   tool:'ELMOS E703.11 – SSP3 Startdiagnose',version:'v0.6.18',at:new Date().toISOString(),
+   tool:'ELMOS E703.11 – SSP3 Startdiagnose',version:'v0.6.19',at:new Date().toISOString(),
    source:'Web-App (NICHT PSSC Originalsoftware)',interface:st.iface,adapter:st.adapterKind,
    firmware:st.firmware,port:serialPortInfo(st.port),chipDetected:!!st.chip,
    startupAttempts:st.startupAttempts,lastPlcReply:st.lastPlcReply,
@@ -1665,6 +1696,29 @@ if(typeof document!=='undefined') (function UI(){
  $('plcMagicConfirm').addEventListener('change',renderStatus);
   $('plcMagicOnConnect').addEventListener('change',()=>{if($('plcMagicOnConnect').checked)$('plcPowerOnConnect').checked=false;renderStatus();});
   $('plcPowerConfirm').addEventListener('change',renderStatus);
+  // Explicit consent is required; do not infer DUT power wiring from a USB port.
+  // A saved approval is limited to this browser, can be revoked at any time,
+  // and never changes the chip NVM.
+  const ssp3StartupSaved=lsGet('elmos-ssp3-auto-start-v1')==='1';
+  $('ssp3AutoStart').checked=!demoEnabled&&ssp3StartupSaved;
+  $('ssp3AutoStart').addEventListener('change',()=>{
+   const enabled=$('ssp3AutoStart').checked;
+   if(st.port){
+    $('ssp3AutoStart').checked=!enabled;
+    show('connMsg','Die automatische Sensorversorgung kann nur vor dem Verbinden geändert werden.','warn');
+    return;
+   }
+   lsSet('elmos-ssp3-auto-start-v1',enabled?'1':'0');
+   $('plcPowerConfirm').checked=enabled;
+   $('ssp3StartupInfo').textContent=enabled?
+    'Aktiv: Beim nächsten Verbinden wird nur die bestätigte SSP3-VSUPPLY am Prüfplatz einmal neu gestartet. Danach wird One Wire über AODO aktiviert. Das NVM bleibt unverändert.':
+    'Deaktiviert: Die App liest den Sensor direkt. Bei kurzem Startfenster kann der Zugriff dann nicht funktionieren.';
+   renderStatus();
+  });
+  $('plcPowerConfirm').checked=$('ssp3AutoStart').checked;
+  $('ssp3StartupInfo').textContent=$('ssp3AutoStart').checked?
+   'Aktiv: Die SSP3-VSUPPLY wird beim Verbinden am Prüfplatz einmal geschaltet. Keine NVM-Änderung.':
+   'Nur aktivieren, wenn der Prüfsensor tatsächlich über die schaltbare SSP3-VSUPPLY versorgt wird. Die Zustimmung bleibt in diesem Browser gespeichert.';
   $('plcHostFormat').addEventListener('change',()=>{
    if(st.chip||st.powerCycleRunning||st.startupRunning||st.magicRunning||st.nvmWorking||st.writing||st.calTask){
     $('plcHostFormat').value=st.plcHostFormat;
