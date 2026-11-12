@@ -353,6 +353,11 @@ test('Selective config includes only requested groups and AFE imports auto-apply
  assert.ok(app.includes("if(has('output'))expert.applyOutputProfile(values.output)"));
  assert.ok(app.includes("document.dispatchEvent(new CustomEvent('elmos-config-applied'"));
  assert.ok(guide.includes("subscribe(document,'elmos-config-applied',syncImportedConfig)"));
+ assert.ok(guide.includes("moveId('configGroups','gwConfigGroups')"));
+ assert.ok(guide.includes("moveId('configImportEffect','gwConfigEffect')"));
+ const compact=read('compact.js');
+ assert.ok(compact.includes("moveId('configGroups','cpCfgGroups')"));
+ assert.ok(compact.includes("moveId('configImportEffect','cpCfgEffect')"));
  assert.ok(!guide.includes("subscribe($('configApply'),'click',syncImportedConfig)"));
  assert.ok(!app.includes("$('configAfeApplyRam').addEventListener"));
  assert.ok(app.includes('invalidateCalculation('));
