@@ -993,8 +993,11 @@ if(typeof document!=='undefined') (function UI(){
  // Elmos AN0204: PLC P / PLC T and Power_OFF / PWR_ON. Test uses PWR_OFF only
  // if advertised by the running SSP3 firmware, because Power_OFF was rejected.
  // Only a separately approved bench test on DUT powered through switchable SSP3 VSUPPLY.
- async function testSsp3PowerStartup(burstMode='combined'){
+ async function testSsp3PowerStartup(burstMode='combined',speedProfile=null){
   if(!['combined','split'].includes(burstMode))throw Error('Ungültiger SSP3-Startmodus');
+  if(speedProfile!==null&&(![100,50].includes(speedProfile.khz)||
+       ![7,14].includes(speedProfile.delay)|| (speedProfile.khz===100)!==(speedProfile.delay===7)))
+   throw Error('Ungültiges SSP3-PLC-Testprofil');
   if(demoEnabled||st.adapterKind!=='ssp3'||st.iface!=='plc'||!st.port||st.closing)throw Error('SSP3-Starttest benötigt offenen SSP3 im PLC-Modus.');
   if(st.chip)throw Error('Chip bereits erkannt; kein Power-Cycle erforderlich.');
   if(!$('plcPowerConfirm').checked)throw Error('SSP3-VSUPPLY-Versorgung des isolierten Testchips zuerst bestätigen.');
@@ -1011,7 +1014,9 @@ if(typeof document!=='undefined') (function UI(){
   if(!['legacy','separate'].includes(st.plcHostFormat))throw Error('Ungültiger SSP3-PLC-Hostformatwert');
   logging('SSP3 PLC-Hostformat beim automatischen Power-Start: '+st.plcHostFormat);
   st.powerCycleRunning=true;
-  st.powerCycleResult={at:new Date().toISOString(),stage:'start',burstMode,plcHostFormat:st.plcHostFormat,steps:[],readVerified:false,powerRestored:false};
+  st.powerCycleResult={at:new Date().toISOString(),stage:'start',burstMode,
+   plcTestSpeedKhz:speedProfile?.khz??null,plcTestDelay:speedProfile?.delay??null,
+   plcHostFormat:st.plcHostFormat,steps:[],readVerified:false,powerRestored:false};
   let powerOffAttempted=false,powerOnAcknowledged=false;
   logging('AN0204: Versuch mit geprüftem SSP3-PWR_OFF -> PLC P -> PWR_ON -> PLC T; Firmwarehilfe wird zuerst abgefragt.');
   $('plcPowerState').textContent='SSP3-Sensorversorgung und PLC-Startsequenz laufen.';
@@ -1037,6 +1042,28 @@ if(typeof document!=='undefined') (function UI(){
    st.powerCycleResult.steps.push({command:'?',reply:help.reply,ok:true,pwrOffListed:help.pwrOffListed});
    if(!help.pwrOffListed)
     throw Error('Firmwarehilfe nennt kein PWR_OFF. Power-Cycle aus Sicherheitsgründen abgebrochen; es wurden keine Ausschaltbefehle gesendet. Bitte Hilfe- und TX/RX-Protokoll exportieren.');
+   // PSSC's original ssp3_lib.dll initializes the PLC host via
+   // "PLC_CFG 1 %04X". The current board firmware 02.08.02.04 follows
+   // the newer calibrated delay formula; vendor presets map 100 kHz->0007
+   // and 50 kHz->000E. This changes ONLY the SSP3 line clock, never NVM.
+   // A failed command is recorded and falls back to the previous host speed.
+   if(speedProfile&&st.firmware==='02.08.02.04'){
+    const command='PLC_CFG 1 '+P.hx(speedProfile.delay,2);
+    try{
+     const raw=await exchange(command,1900);
+     if(/(?:^|[\r\n])\s*!/m.test(raw)||!/\#PLC_CFG\b/i.test(raw))
+      throw Error('SSP3 hat PLC_CFG nicht plausibel bestätigt: '+raw.slice(0,180));
+     st.powerCycleResult.plcSpeedApplied=true;
+     st.powerCycleResult.steps.push({command,reply:raw.slice(0,500),ok:true,kind:'ssp3-host-plc-speed'});
+     logging('SSP3 PLC_CFG bestätigt: '+speedProfile.khz+' kHz, Delay=0x'+P.hx(speedProfile.delay,2)+
+      ' (nur SSP3-Kommunikation, kein Sensorregister).');
+    }catch(configError){
+     st.powerCycleResult.plcSpeedApplied=false;
+     st.powerCycleResult.plcSpeedError=String(configError.message||configError);
+     logging('SSP3 PLC_CFG-Preset nicht bestätigt; behalte bisherigen Host-Takt bei: '+
+      st.powerCycleResult.plcSpeedError);
+    }
+   }
    // 03E8 = 1000 mV; the documented OFF threshold is applied to the detected alias.
    $('plcPowerState').textContent='PWR_OFF in Firmwarehilfe gefunden. SSP3-VSUPPLY wird einmalig am Prüfplatz geschaltet.';
    powerOffAttempted=true;
@@ -1256,18 +1283,27 @@ if(typeof document!=='undefined') (function UI(){
   if(!port||st.closing)throw Error('SSP3-Port nicht offen');
   st.startupTrials=[];
   st.magicResult=null;
-  for(const mode of ['combined','split']){
+  const knownFirmware=st.firmware==='02.08.02.04';
+  const profiles=knownFirmware?[
+   {mode:'combined',speed:{khz:100,delay:7}},
+   {mode:'split',speed:{khz:50,delay:14}}
+  ]:[
+   {mode:'combined',speed:null},{mode:'split',speed:null}
+  ];
+  for(const [i,profile] of profiles.entries()){
    if(st.port!==port||st.closing||st.chip)break;
    st.magicResult=null;
-   logging('SSP3-Startversuch '+(mode==='combined'?'1/2: ein USB-Paket':'2/2: zwei USB-Pakete')+
-    ' mit unverändertem PLC-Protokoll; keine EEPROM-Programmierung.');
-   await testSsp3PowerStartup(mode);
+   logging('SSP3-Startversuch '+(i+1)+'/2: '+profile.mode+
+    (profile.speed?' / PSSC-PLC-Testprofil '+profile.speed.khz+' kHz':' / unveränderter PLC-Takt')+
+    '. Keine EEPROM-Programmierung.');
+   await testSsp3PowerStartup(profile.mode,profile.speed);
    st.startupTrials.push({...st.powerCycleResult,
     magicCookie:st.magicResult?{...st.magicResult}:null});
    if(st.chip)return true;
    const prev=st.powerCycleResult;
-   if(mode==='combined'&&prev?.powerRestored===true&&st.port===port&&!st.closing){
-    logging('Erster SSP3-Start ohne Chipantwort. Einmaliger zweiter Start mit bewährtem getrenntem USB-Transport.');
+   if(i===0&&prev?.powerRestored===true&&st.port===port&&!st.closing){
+    logging('Erster SSP3-Start ohne Chipantwort. Zweiter und letzter Versuch mit '+
+     (knownFirmware?'PSSC-PLC 50 kHz und ':'')+'getrenntem USB-Transport.');
     $('plcPowerState').textContent='Erster Startversuch ohne Chipantwort. Zweiter, letzter Versuch läuft …';
    }else break;
   }
@@ -2323,7 +2359,7 @@ if(typeof document!=='undefined') (function UI(){
  });
  $('plcStartupLogExport').addEventListener('click',()=>{
   const log={
-   tool:'ELMOS E703.11 – SSP3 Startdiagnose',version:'v0.6.37',at:new Date().toISOString(),
+   tool:'ELMOS E703.11 – SSP3 Startdiagnose',version:'v0.6.38',at:new Date().toISOString(),
    source:'Web-App (NICHT PSSC Originalsoftware)',interface:st.iface,adapter:st.adapterKind,
    firmware:st.firmware,port:serialPortInfo(st.port),chipDetected:!!st.chip,
    startupTrials:st.startupTrials,startupAttempts:st.startupAttempts,lastPlcReply:st.lastPlcReply,
