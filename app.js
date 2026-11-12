@@ -910,7 +910,7 @@ if(typeof document!=='undefined') (function UI(){
     st.chip=false;st.plcAddressVerified=false;st.uid=null;st.boot=null;
     // Do not continue into RAM cookie/power recovery after CRC, plausibility,
     // programming or other errors that are not an absent chip response.
-    if(!/\\bPLC nothing received\\b/i.test(record.error)&&
+    if(!/\bPLC nothing received\b/i.test(record.error)&&
        error?.code!=='AFE_ZERO_READBACK'){
      st.plcAddress=previous;throw error;
     }
@@ -1030,7 +1030,8 @@ if(typeof document!=='undefined') (function UI(){
    if(st.closing||st.port!==port)throw Error('SSP3 wurde nach der Sequenz getrennt.');
    st.magicResult.stage='readback';
    $('plcMagicState').textContent='Beide Frames gesendet; jetzt echten Register-Lesezugriff prüfen.';
-   await detect();
+   if(!await probePlcAddresses('Manueller Magic-Cookie-Test'))
+    throw Error('PLC nothing received: 0x6C und 0x7C nicht bestätigt');
    st.magicResult.stage='verified';
    st.magicResult.readVerified=true;
    $('plcMagicState').textContent='Magic Cookie bestätigt: E703.11 konnte anschliessend gelesen werden. One Wire vorübergehend im RAM aktiv, AODO-Analogsignal eventuell überlagert.';
@@ -1382,13 +1383,14 @@ if(typeof document!=='undefined') (function UI(){
   ]:[
    {mode:'combined',speed:null},{mode:'split',speed:null}
   ];
+  const firstAddress=st.plcAddress;
   for(const [i,profile] of profiles.entries()){
    if(st.port!==port||st.closing||st.chip)break;
    st.magicResult=null;
    logging('SSP3-Startversuch '+(i+1)+'/2: '+profile.mode+
     (profile.speed?' / PSSC-PLC-Testprofil '+profile.speed.khz+' kHz':' / unveränderter PLC-Takt')+
     '. Keine EEPROM-Programmierung.');
-   if(i===1)st.plcAddress=st.plcAddress===0x6C?0x7C:0x6C;
+   if(i===1)st.plcAddress=firstAddress===0x6C?0x7C:0x6C;
     await testSsp3PowerStartup(profile.mode,profile.speed);
    st.startupTrials.push({...st.powerCycleResult,
     magicCookie:st.magicResult?{...st.magicResult}:null});
