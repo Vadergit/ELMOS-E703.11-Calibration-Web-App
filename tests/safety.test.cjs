@@ -115,9 +115,7 @@ test('Datasheet 6.4.5.7: 1-Wire startup prerequisites are mandatory',()=>{
   w=>{w[16]=0},                       // high-Z
   w=>{w[16]=6<<9},                    // ALARM
   w=>{w[17]=0;w[18]=3<<12},          // no PLC / no startup window
-  w=>{w[19]&=~(1<<11)},              // downstream disabled
-  w=>{w[19]&=~(1<<8)},               // write/read only via magic cookie
-  w=>{w[19]&=~(1<<7)}                // no upstream
+  w=>{w[19]&=~(1<<11)}               // downstream disabled
  ]){
   const broken=valid.slice();change(broken);
   assert.equal(CAL.oneWireStartupStatus(broken).ok,false);
@@ -180,7 +178,7 @@ test('Expert mode shows contextual settings and no modal',()=>{
  assert.ok(html.includes('data-expert-area hidden><summary>Erweitert · AODO_F'));
  assert.ok(src.includes("classList.toggle('is-expert',enabled)"));
  const scripts=Array.from(html.matchAll(/<script src="([^"]+)"/g),m=>m[1]);
- assert.deepEqual(scripts,['calibration.js?v=0.6.17','eeprom-help.js?v=0.6.17','expert.js?v=0.6.17','config.js?v=0.6.17','guided-plan.js?v=0.6.17','demo.js?v=0.6.17','app.js?v=0.6.17','compact.js?v=0.6.17','guided.js?v=0.6.17']);
+ assert.deepEqual(scripts,['calibration.js?v=0.6.18','eeprom-help.js?v=0.6.18','expert.js?v=0.6.18','config.js?v=0.6.18','guided-plan.js?v=0.6.18','demo.js?v=0.6.18','app.js?v=0.6.18','compact.js?v=0.6.18','guided.js?v=0.6.18']);
 });
 
 test('Failed E703.11 probe keeps SSP3 open for explicit, bounded startup test',()=>{
@@ -440,7 +438,7 @@ test('Guided view is optional and contains only one set of hardware inputs',()=>
  assert.ok(html.includes('id="workflowMode"'));
  assert.ok(html.includes('id="guidedLaunch"'));
  assert.ok(html.includes('id="guidedLaunchTop"'));
- assert.ok(html.includes('guided.css?v=0.6.17'));
+ assert.ok(html.includes('guided.css?v=0.6.18'));
  for(const id of ['nvmProgram','nvmPrepare','calApplyRam','calVerifyRam','expertOutputStage','configApply','configFile']){
   assert.equal(html.split('id="'+id+'"').length-1,1);
  }
@@ -897,4 +895,44 @@ test('PLC host format can only be manually selected and applies to post-power re
  assert.ok(power?.includes("await send('PLC T',2500)"));
  assert.ok(power?.includes('await detect()'));
  assert.ok(!power.includes("plcHostFormat='separate'"));
+});
+
+test('Cookie-only analog startup remains enabled 4/10/200ms in NVM',()=>{
+ for(const window of [0,1,2]){
+  const b=safeNvm();b[17]&=~4;b[18]=(b[18]&~0x3000)|(window<<12);b[19]&=~((1<<8)|(1<<7));
+  const status=CAL.oneWireStartupStatus(b);
+  assert.equal(status.ok,true);
+  assert.equal(status.requiresCookie,true);
+  assert.equal(status.startupWindow,window);
+  const a=b.slice();a[35]=1234;a[63]=CAL.crc16(a);
+  assert.equal(CAL.protectStartupCommunication(b,a),true);
+  for(const index of [17,18,19])assert.equal(a[index],b[index]);
+ }
+});
+test('Disabled or altered PLC window cannot be programmed as safe',()=>{
+ const b=safeNvm();b[17]&=~4;b[19]&=~((1<<8)|(1<<7));
+ const off=b.slice();off[18]=(off[18]&~0x3000)|0x3000;
+ assert.equal(CAL.oneWireStartupStatus(off).ok,false);
+ for(const index of [17,18,19]){
+  const a=b.slice();a[index]^=index===18?0x3000:1;
+  assert.throws(()=>CAL.protectStartupCommunication(b,a),/1-Wire-Startschutz/);
+ }
+ assert.equal(CAL.oneWireOnlyStatus(b).ok,false);
+});
+test('Cookie-only NVM gated by physical SSP3 startup proof and matching UID',()=>{
+ const app=read('app.js'),html=read('index.html');
+ assert.ok(app.includes('st.powerCycleResult.verifiedUid=st.uid?.hex||null;'));
+ assert.ok(app.includes('st.powerCycleResult=null;st.magicResult=null;'));
+ assert.ok(app.includes('startup.requiresCookie&&!(st.powerCycleResult?.readVerified'));
+ assert.ok(app.includes('st.powerCycleResult.verifiedUid===st.uid.hex'));
+ assert.ok(app.includes('st.powerCycleResult.verifiedUid===id'));
+ assert.ok(app.includes('CAL.protectStartupCommunication(initial,modified)'));
+ assert.ok(html.includes('id="plcStartupTools"'));
+});
+test('Troubleshooting tools hidden by default; recoverable in expert mode',()=>{
+ const app=read('app.js'),html=read('index.html');
+ assert.ok(app.includes("startupTools.hidden=demoEnabled||st.adapterKind!=='ssp3'||st.iface!=='plc'||!$('expertMode').checked"));
+ assert.ok(app.includes("$('expertMode').addEventListener('change',renderStatus)"));
+ for(const id of ['chipDiagDetails','usbAdvancedDetails','wiringStartDetails'])assert.ok(html.includes('id="'+id+'"'));
+ assert.ok(html.includes('id="plcStartupTools"'));
 });

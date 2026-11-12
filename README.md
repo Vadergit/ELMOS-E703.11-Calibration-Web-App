@@ -2,7 +2,7 @@
 
 **Ein geführter Kalibrierassistent für den ELMOS E703.11 und das SSP3-Eval-Board.** Ziel ist ein verständlicher Abgleich, der auch ohne tiefere Vorkenntnisse Schritt für Schritt funktioniert. Wer mehr benötigt, kann zusätzliche Messpunkte, DSP-Parameter und einen geschützten Expertenmodus verwenden.
 
-**Version: v0.6.17 · geführter Abgleich und klassische Ansicht** · [Änderungsverlauf](CHANGELOG.md)
+**Version: v0.6.18 · geführter Abgleich und klassische Ansicht** · [Änderungsverlauf](CHANGELOG.md)
 
 Über **Einstellungen → Demo-Modus** lässt sich der gesamte Kalibrierablauf mit simulierten Messwerten und NVM ausprobieren.
 
@@ -47,7 +47,7 @@ Antwortet das SSP3, aber der E703.11 nach der 1-Wire-Initialisierung nicht, blei
 
 **Kompaktmodus:** Über ⚙ Einstellungen → «Kompaktmodus · One-Pager» einschalten. Rechts oben «Normalansicht» schaltet zurück; die Auswahl wird im Browser gespeichert. Auf ausreichend grossen Desktop-Bildschirmen werden alle Hauptschritte ohne Seitenwechsel nebeneinander gezeigt. Bei kleineren Auflösungen oder vielen Details können einzelne Karten intern scrollen. Sämtliche Eingaben, Kalibrier- und NVM-Schutzabläufe bleiben unverändert; nicht benötigte Langtexte sind gekürzt oder aufklappbar. Für selten verwendete Experten- und Diagnosefunktionen steht weiterhin die vollständige Normalansicht zur Verfügung.
 
-Für Entwickler gibt es **64 Software-Regressionstests** (Stand v0.6.17) mit Node.js: `node --test tests/safety.test.cjs`. Geprüft werden Boot-/Kommunikationsschutz, One Wire only, S0/S1-Skalierung, die sieben Kalibrierschritte, der separate EEPROM-Reiter, das Einblenden der Expertenparameter und der sichere Config-Import/-Export. Die Tests ersetzen keine Browser- und Hardwareprüfung.
+Für Entwickler gibt es **64 Software-Regressionstests** (Stand v0.6.18) mit Node.js: `node --test tests/safety.test.cjs`. Geprüft werden Boot-/Kommunikationsschutz, One Wire only, S0/S1-Skalierung, die sieben Kalibrierschritte, der separate EEPROM-Reiter, das Einblenden der Expertenparameter und der sichere Config-Import/-Export. Die Tests ersetzen keine Browser- und Hardwareprüfung.
 
 Die Browser-App verwendet eine **eigene JavaScript-Koeffizientenberechnung**, nicht die originale Elmos-Kalibrier-DLL. Eine Übereinstimmung mit der Herstellersoftware muss auf der Zielhardware verifiziert werden.
 
@@ -117,10 +117,10 @@ Verwendet wurde **E703.11 25DS0170E.04, Production Data vom 16.11.2023**: §6.3.
 
 Der Assistent erfordert für NVM-Schreibvorgänge die im Original-NVM nachweisbare PLC-Startaktivierung, Downstream- und Upstream-Kommunikation und einen persistenten Register-Lese-/Schreibzugang. Sensoren, die nur über eine kurzzeitige Magic-Cookie-Freigabe kommunizieren, werden vorsorglich nicht dauerhaft programmiert. Die App ändert keine geschützten Startup-Register, um diese Situation zu umgehen. Ein Hardware-Kaltstarttest bleibt Pflicht.
 
-**Versions- und Cache-Hinweis:** Die Skript-Dateien (inklusive `config.js`) werden in v0.6.17 mit derselben Versionskennung wie die Web-App geladen. Für die Überprüfung im Browser gegebenenfalls mit `Ctrl + F5` neu laden.
+**Versions- und Cache-Hinweis:** Die Skript-Dateien (inklusive `config.js`) werden in v0.6.18 mit derselben Versionskennung wie die Web-App geladen. Für die Überprüfung im Browser gegebenenfalls mit `Ctrl + F5` neu laden.
 
 
-### Aktueller SSP3-Verbindungsbefund (12.11.2026, v0.6.17)
+### Aktueller SSP3-Verbindungsbefund (12.11.2026, v0.6.18)
 
 In der originalen Elmos-PSSC-Software lässt sich ein Sensor mit analogem 0–5-V-Ausgang und 4-ms- oder 200-ms-PLC-Startfenster **ohne manuelle Unterbrechung der Versorgung** weiterhin programmieren. Die Web-App verwendet momentan `IF_CFG 7 0 0` und sendet dann `PLC 026D1C0C.`; SSP3 antwortet dabei mit `!PLC nothing received`. Das bedeutet: Der SSP3 verarbeitet das Hostkommando, aber es wurde **keine Sensorantwort** empfangen; es liegt weder ein verifiziertes Chip- noch ein CRC-Problem vor.
 
@@ -129,7 +129,7 @@ In der originalen Elmos-PSSC-Software lässt sich ein Sensor mit analogem 0–5-
 Unter **USB & Chip → SSP3-Verbindungsdiagnose** gibt es jetzt den **Export des Web-App-SSP3-Protokolls** für den Vergleich. Die ergänzende 12-s-PLC-Lesediagnose ist optional und ersetzt keinen Boot-Handshake. **Kein Sensor muss manuell abgesteckt werden, bloss weil die Web-App keine Antwort erhält.**
 
 
-### Experimenteller Magic-Cookie-Test v0.6.17 (12.11.2026)
+### Experimenteller Magic-Cookie-Test v0.6.18 (12.11.2026)
 
 Unter **USB & Chip → SSP3-Verbindungsdiagnose → Experimentell · One-Wire-Magic-Cookie (RAM)** kann eine einzige exakt definierte E703.11-Magic-Cookie-Sequenz manuell getestet werden. Sie ist nicht Teil des automatischen Verbindungsaufbaus. Nach ausdrücklicher Warnbestätigung sendet die Web-App über den bereits geöffneten SSP3 direkt nacheinander `PLC 026CAC0F2B4299` (0xAC → 0x2B42) und `PLC 026C0E095CFDCA` (0x0E → 0x5CFD), dann versucht sie die bestehenden Register-/ADC-Abfragen. Keine NVM-Programmierung. Das PLC-Write-Format wurde gegen das Elmos-Datenblatt 25DS0170E.04 §6.4.5.6.2 geprüft (`PLC 026C6A0A67895F`). Ein SSP3-Prompt belegt die erfolgreiche Übernahme durch den Sensor **nicht**; nur echtes erfolgreiches Registerlesen bestätigt den Zugriff. Die Antwort und beide Befehle werden im USB-Protokoll exportiert.
 
@@ -138,7 +138,7 @@ Unter **USB & Chip → SSP3-Verbindungsdiagnose → Experimentell · One-Wire-Ma
 
 **Zusätzliche einmalige Startvariante:** Vor dem USB-Verbinden im experimentellen Bereich zuerst den Warnhinweis bestätigen, dann «Einmalig beim nächsten SSP3-Verbinden vor dem ersten Registerlesen testen» anhaken. Die App sendet nach dem SSP3-Handshake und `IF_CFG` die beiden Magic-Cookie-Frames *vor* jedem Chip-Leseversuch. Die Auswahl wird sofort gelöscht und bei der nächsten Verbindung nicht ohne erneute Freigabe ausgeführt. Auch diese Variante kann ein zuvor abgelaufenes NVM-PLC-Startfenster nicht eigenständig wieder öffnen.
 
-## SSP3-Sensorstart nach Elmos AN 0204 (v0.6.17, 12.11.2026)
+## SSP3-Sensorstart nach Elmos AN 0204 (v0.6.18, 12.11.2026)
 
 Der Anwender hat die Hersteller-Application-Note AN 0204 bereitgestellt, die erstmals die zuvor unbekannten SSP3-DUT-Power-Befehle dokumentiert. Nach einer expliziten Bestätigung am isolierten Prüfplatz kann die Web-App folgenden **einmaligen Test** über schaltbare SSP3-VSUPPLY durchführen:
 
@@ -149,15 +149,15 @@ Der Anwender hat die Hersteller-Application-Note AN 0204 bereitgestellt, die ers
 Aufruf: **USB & Chip → SSP3-Verbindungsdiagnose → Neu · SSP3-Sensorstart (AN 0204, Prüfplatz)**. Alternativ gibt es eine einmalige Opt-in-Option beim nächsten Connect **vor dem ersten Registerlesen**. Die Originalsoftware-Sequenz ist mangels Mitschnitt weiterhin nicht 1:1 belegt; insbesondere ein 4-ms-Startfenster ist durch Browser-/USB-Latenzen nicht garantiert. Nur bei über SSP3-VSUPPLY versorgtem Prüfsensor verwenden; externes VDD wird eventuell nicht geschaltet. Keine NVM-Programmierung, aber temporäre Überlagerung des analogen AODO-Ausgangs ist möglich.
 
 
-### Firmwareabweichung SSP3 / AN0204 (v0.6.17, 12.11.2026)
+### Firmwareabweichung SSP3 / AN0204 (v0.6.18, 12.11.2026)
 
 **Echter SSP3-Test:** Das dokumentierte `Power_OFF 03E8` wurde von der vorhandenen SSP3-Firmware ausdrücklich als `Unknown command (POWER_OFF)` abgewiesen. Der Notfallbefehl `PWR_ON 0 0 0` wurde dagegen bestätigt. Die PLC-Pufferbefehle `PLC P` und `PLC T` wurden deshalb im letzten Test noch überhaupt nicht ausgeführt; es gab keinen nachgewiesenen Sensor-Power-Cycle.
 
-Die v0.6.17 erlaubt die **rein lesende Firmware-Befehlsauskunft mit `?`** im SSP3-Diagnosebereich. Die vollständige Antwort wird angezeigt und exportiert. Der experimentelle Power-Starttest liest die Hilfe vor dem ersten Ausschaltversuch selbständig und läuft nur weiter, wenn diese konkrete Firmware ausdrücklich `PWR_OFF` aufführt. Nur dann wird mit bestätigter Prüfplatzfreigabe das alternative `PWR_OFF 03E8` gesendet und anschliessend `PLC P`, `PWR_ON 0C80 00C8 0`, `PLC T` und der echte Chip-Lesetest. Fehlt der Befehl, stoppt der Test **ohne** Ausschaltbefehl; bei begonnener Abschaltung wird nach Fehler ein `PWR_ON 0 0 0` zur Wiederherstellung versucht. Diese PWR_OFF-Schreibweise ist eine **bedingte, noch nicht an Hardware bestätigte Abweichung von AN0204**, nicht als dokumentiert ausgegeben.
+Die v0.6.18 erlaubt die **rein lesende Firmware-Befehlsauskunft mit `?`** im SSP3-Diagnosebereich. Die vollständige Antwort wird angezeigt und exportiert. Der experimentelle Power-Starttest liest die Hilfe vor dem ersten Ausschaltversuch selbständig und läuft nur weiter, wenn diese konkrete Firmware ausdrücklich `PWR_OFF` aufführt. Nur dann wird mit bestätigter Prüfplatzfreigabe das alternative `PWR_OFF 03E8` gesendet und anschliessend `PLC P`, `PWR_ON 0C80 00C8 0`, `PLC T` und der echte Chip-Lesetest. Fehlt der Befehl, stoppt der Test **ohne** Ausschaltbefehl; bei begonnener Abschaltung wird nach Fehler ein `PWR_ON 0 0 0` zur Wiederherstellung versucht. Diese PWR_OFF-Schreibweise ist eine **bedingte, noch nicht an Hardware bestätigte Abweichung von AN0204**, nicht als dokumentiert ausgegeben.
 
 Die originale PSSC-Firmwaresequenz bleibt bis zum Vergleich eines PSSC-Traces unbewiesen. Die Bereitstellung von `?` allein ist noch keine Bestätigung, dass die betreffende Firmware eine unterbrechbare SSP3-VSUPPLY unterstützt.
 
-## Experimenteller PLC-Syntaxvergleich für SSP3-Firmware v02.08.02.04 (v0.6.17, 12.11.2026)
+## Experimenteller PLC-Syntaxvergleich für SSP3-Firmware v02.08.02.04 (v0.6.18, 12.11.2026)
 
 Das reale SSP3-Log belegt einen bestätigten Host-Handshake für `PWR_OFF 03E8` (15 ms), `PLC P` (18 ms), `PWR_ON 0C80 00C8 0` (15 ms) und `PLC T` (16 ms). **Ein Chipregister konnte danach noch nicht gelesen werden.** Der Schluss, die Stromversorgung sei elektrisch tatsächlich ein- und ausgeschaltet worden, ist allein aus der Hostbestätigung nicht beweisbar. Die aktuelle Originalsoftware-PLC-Startsequenz ist weiterhin nicht mitgeschnitten.
 
@@ -167,3 +167,13 @@ Neu ist ein konkreter möglicher Syntaxunterschied: **Elmos AN 0204** dokumentie
 - **SSP3-Firmwarehilfe / Slave-ID separat:** `PLC 02 6D1C0C.`
 
 Die jeweils gewählte Hostformatierung wird nach dem ausdrücklich freigegebenen, einmaligen Versorgungstest auf die **erste reine Registerabfrage** angewendet. Erhält die App gültige Registerdaten, wird das Format für die restliche Sitzung beibehalten; auch spätere PLC-Schreibtelegramme werden dann entsprechend formatiert, aber erst nach unveränderten NVM-/RAM-Sicherheitsprüfungen. Die One-Wire-Chipdaten und CRC-Felder werden **nicht** geändert, nur das Leerzeichen im SSP3-ASCII-Kommando. Keine NVM-Programmierung beim Test. Der Vergleich klärt eine echte Firmwareabweichung, garantiert aber keine Freigabe bei 4-ms-Startfenster. Pro Durchlauf nur **eine** Variante versuchen und anschliessend das JSON-Log exportieren.
+
+## Startfenster im NVM beibehalten · Diagnose verborgen (v0.6.18)
+
+Ein E703.11 kann nach jedem Einschalten ein One-Wire-Zeitfenster von 4, 10 oder 200 ms auf AODO öffnen. Danach erscheint der konfigurierte Analogausgang. Die im NVM vorhandene `CFG_PADS0.startup_plc`-Einstellung (CM-Wort 18) wird bei jeder normalen Kalibrier-NVM-Programmierung **bitgenau beibehalten**, ebenso `CFG_SPI_I2C` (CM-Wort 17) und `CFG_PADS1` (CM-Wort 19). Die App programmiert diese geschützten Interface-/Bootregister nicht automatisch um.
+
+Das Datenblatt 25DS0170E.04 §§6.4.5.7–8 erlaubt einen Magic-Cookie-basierten Start auch mit im NVM deaktivierten `plc_us_en` und `plc_rw_en`, sofern ein zeitlich begrenztes Fenster vorhanden ist. Der alte Startschutz verwechselte dies mit vollständig deaktiviertem One Wire. Die neue Prüfung akzeptiert diesen Zustand **nur dann für dauerhaftes Kalibrier-NVM-Schreiben**, wenn die schaltbare SSP3-Versorgung, die anschliessende One-Wire-Lesung und die **gleiche Chip-UID** in dieser Sitzung bestätigt sind. Ohne diesen Nachweis bleiben NVM-Programmierung und Boot-Änderungen gesperrt.
+
+Die zusätzlichen SSP3-Fehlersuchwerkzeuge bleiben technisch vorhanden, sind aber im normalen Arbeitsablauf ausgeblendet. Sie lassen sich über **⚙ Einstellungen → Expertenparameter freischalten → USB & Chip** erneut öffnen. Der EEPROM-Viewer und die normalen Kalibrierfunktionen bleiben unverändert.
+
+**Wichtig:** Das Update schreibt selbst nichts in den Sensor. Das Startfenster bleibt genau so lange aktiv, wie es im Original-NVM eingestellt ist, und wird nach jedem Kaltstart neu geöffnet. Eine erfolgreiche echte NVM-Programmierung mit dieser Änderung ist noch nicht hardwaregetestet.

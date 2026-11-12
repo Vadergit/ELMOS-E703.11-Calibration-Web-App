@@ -56,7 +56,10 @@ if(typeof document!=='undefined') (function UI(){
  const hexWords=arr=>arr.map(x=>P.hx(x,2)).join(' ');
  const sleep=ms=>new Promise(r=>setTimeout(r,ms));
  const sameBoot=(a,b)=>!!a&&!!b&&LOCKED.every(k=>a[k]===b[k]);
- function renderStatus(){let connected=!!st.port;$('status').textContent=demoEnabled?'Demo · Simulation':st.chip?'Chip-Leseantwort plausibel':connected?'USB verbunden · Chipprüfung offen':'Nicht verbunden';$('statusDot').className='dot'+(st.chip?' active':'');$('fw').textContent=st.firmware?st.firmware.slice(0,19):'—';$('chip').textContent=st.chip?'Antwort erhalten':'—';$('ifaceLabel').textContent=st.iface==='plc'?'1-Wire':st.iface==='i2c'?'I²C':'SPI';$('srcLabel').textContent=st.adc?.source==='usb'?'USB / Chip':'Keine Messdaten';$('choose').disabled=connected||demoEnabled;$('auto').hidden=demoEnabled;$('disconnect').hidden=demoEnabled;$('adapterType').disabled=demoEnabled;$('iface').disabled=demoEnabled;$('guidedLaunch').disabled=!st.chip||st.closing;$('guidedLaunch').classList.toggle('primary',st.chip&&!st.closing);$('auto').disabled=connected;$('disconnect').disabled=!connected||st.closing;$('readNow').disabled=!connected||st.magicRunning||st.powerCycleRunning;$('live').disabled=!connected||st.magicRunning||st.powerCycleRunning;$('live').textContent=st.live?'Live-Messung stoppen':'Live-Messung starten';$('readBoot').disabled=!st.chip;$('readRegs').disabled=!st.chip;$('afeWord').textContent=st.afe===null?'CFG_AFE1: —':'CFG_AFE1: 0x'+h(st.afe,2);const startupTools=$('plcStartupTools');if(startupTools)startupTools.hidden=demoEnabled||st.adapterKind!=='ssp3'||st.iface!=='plc';
+ function renderStatus(){let connected=!!st.port;$('status').textContent=demoEnabled?'Demo · Simulation':st.chip?'Chip-Leseantwort plausibel':connected?'USB verbunden · Chipprüfung offen':'Nicht verbunden';$('statusDot').className='dot'+(st.chip?' active':'');$('fw').textContent=st.firmware?st.firmware.slice(0,19):'—';$('chip').textContent=st.chip?'Antwort erhalten':'—';$('ifaceLabel').textContent=st.iface==='plc'?'1-Wire':st.iface==='i2c'?'I²C':'SPI';$('srcLabel').textContent=st.adc?.source==='usb'?'USB / Chip':'Keine Messdaten';$('choose').disabled=connected||demoEnabled;$('auto').hidden=demoEnabled;$('disconnect').hidden=demoEnabled;$('adapterType').disabled=demoEnabled;$('iface').disabled=demoEnabled;$('guidedLaunch').disabled=!st.chip||st.closing;$('guidedLaunch').classList.toggle('primary',st.chip&&!st.closing);$('auto').disabled=connected;$('disconnect').disabled=!connected||st.closing;$('readNow').disabled=!connected||st.magicRunning||st.powerCycleRunning;$('live').disabled=!connected||st.magicRunning||st.powerCycleRunning;$('live').textContent=st.live?'Live-Messung stoppen':'Live-Messung starten';$('readBoot').disabled=!st.chip;$('readRegs').disabled=!st.chip;$('afeWord').textContent=st.afe===null?'CFG_AFE1: —':'CFG_AFE1: 0x'+h(st.afe,2);const startupTools=$('plcStartupTools');if(startupTools)startupTools.hidden=demoEnabled||st.adapterKind!=='ssp3'||st.iface!=='plc'||!$('expertMode').checked;
+ if($('chipDiagDetails'))$('chipDiagDetails').hidden=!$('expertMode').checked;
+ if($('usbAdvancedDetails'))$('usbAdvancedDetails').hidden=!$('expertMode').checked;
+ if($('wiringStartDetails'))$('wiringStartDetails').hidden=!$('expertMode').checked;
  if($('plcStartupProbe'))$('plcStartupProbe').disabled=!connected||st.chip||st.startupRunning||st.magicRunning||st.powerCycleRunning||st.closing||st.writing||st.nvmWorking||st.calTask;
  if($('plcStartupStop'))$('plcStartupStop').disabled=!st.startupRunning;
   if($('plcMagicRun'))$('plcMagicRun').disabled=!connected||st.chip||st.magicRunning||st.startupRunning||st.powerCycleRunning||st.diagRunning||st.closing||st.writing||st.nvmWorking||st.calTask||!$('plcMagicConfirm').checked;
@@ -360,19 +363,27 @@ if(typeof document!=='undefined') (function UI(){
   else if(!/^[0-9A-Fa-f]{12}$/.test($('nvmConfirmId').value.trim()))nvmReason='Chip-UID muss genau 12 Hex-Ziffern enthalten.';
   else if($('nvmConfirmId').value.trim().toUpperCase()!==recognizedUid)nvmReason='Die editierte UID stimmt nicht mit dem aktuell verbundenen Chip überein. Programmierung gesperrt.';
   const outputStatus=$('outputOneWireStatus');
+  const startup=st.nvmBackupVerified&&st.nvmBackup?.length===64?CAL.oneWireStartupStatus(st.nvmBackup):null;
+  const cookieVerified=!!(st.powerCycleResult?.readVerified&&st.powerCycleResult.verifiedUid&&
+   st.powerCycleResult.verifiedUid===st.uid?.hex&&st.iface==='plc'&&st.port&&st.chip);
   if(outputStatus){
    const connected=st.mode==='usb'&&st.iface==='plc'&&st.chip;
-   const saved=st.nvmBackupVerified&&st.nvmBackup?.length===64?CAL.oneWireStartupStatus(st.nvmBackup):null;
-   const safeSaved=!!saved?.ok;
+   const saved=startup;
+   const safeSaved=!!(saved?.ok&&(!saved.requiresCookie||cookieVerified));
    outputStatus.textContent=!connected?
     '1-Wire-Verbindung zum Chip nicht bestätigt. Dauerhaftes NVM-Schreiben gesperrt.':
     saved?
-     safeSaved?'1-Wire aktuell verbunden. NVM-Startup geprüft: AODO-Modus '+saved.mode+
-      ', PLC-Zeitfenster '+saved.windowLabel+', Downstream/Upstream und persistenter Registerzugriff aktiv. Nach NVM-Schreiben trotzdem Kaltstart am Testchip prüfen.':
-      '1-Wire aktuell verbunden, aber das gesicherte NVM erfüllt den Datenblatt-Startschutz nicht: '+saved.errors.join('; ')+'. NVM-Schreiben gesperrt.':
+     safeSaved?'One-Wire-Startfenster '+saved.windowLabel+' bleibt im NVM erhalten (AODO-Modus '+saved.mode+'). '+
+       (saved.requiresCookie?'Magic-Cookie-Start am aktuellen Chip bestätigt.':'Direkter Registerzugriff aktiv.')+
+       ' Boot-/Interface-Register bleiben unverändert. Nach dem Schreiben Kaltstart prüfen.':
+      saved.ok&&saved.requiresCookie?
+       'One Wire ist bei jedem Einschalten '+saved.windowLabel+' aktiv. Danach ist für RAM-Zugriff die Magic Cookie erforderlich. NVM-Schreiben nur nach erfolgreichem SSP3-Starttest am aktuellen Chip freigegeben.':
+       '1-Wire-Startschutz: '+saved.errors.join('; ')+'. NVM-Schreiben gesperrt.':
      '1-Wire aktuell verbunden. Für die Startschutz-Prüfung zuerst das Original-NVM vollständig auslesen. Das momentane Erreichen des Chips garantiert keinen Zugriff nach Neustart.';
    outputStatus.className='callout '+(connected&&safeSaved?'success':'warn');
-   if(saved&&!safeSaved&&!nvmReason)nvmReason='1-Wire-Startschutz: '+saved.errors.join('; ')+'. NVM-Schreiben gesperrt.';
+   if(saved&&!safeSaved&&!nvmReason)nvmReason=saved.ok&&saved.requiresCookie?
+    '1-Wire-Startschutz: Das '+saved.windowLabel+'-Startfenster bleibt erhalten; vor dem NVM-Schreiben Magic-Cookie-Zugriff über SSP3-Power-Start am aktuellen Chip nachweisen.':
+    '1-Wire-Startschutz: '+saved.errors.join('; ')+'. NVM-Schreiben gesperrt.';
   }
   const eepromReadBtn=$('eepromRead');
   if(eepromReadBtn)eepromReadBtn.disabled=!st.port||!st.chip||st.calTask||st.writing||st.nvmWorking;
@@ -745,6 +756,7 @@ if(typeof document!=='undefined') (function UI(){
    logging('AN0204: erste Chip-Leseabfrage im Host-Format '+st.plcHostFormat+' (nur Register-READ).');
    await detect(); // existing register & ADC readback gate
    st.powerCycleResult.readVerified=true;
+   st.powerCycleResult.verifiedUid=st.uid?.hex||null;
    st.powerCycleResult.stage='verified';
    $('plcPowerState').textContent='One Wire nach SSP3-Power-Cycle erfolgreich erkannt. NVM unverändert.';
    show('connMsg','AN0204-Starttest erfolgreich: E703.11 antwortet nach SSP3-gesteuertem Neustart. Keine NVM-Programmierung.','success');
@@ -768,7 +780,7 @@ if(typeof document!=='undefined') (function UI(){
   if(demoEnabled&&port!==demoPort)throw Error('Demo verwendet ausschliesslich den simulierten Adapter');
   if(!demoEnabled&&(!navigator.serial||!window.isSecureContext))throw Error('Chrome benötigt Web Serial über HTTPS oder localhost');
   await port.open({baudRate:Number($('baud').value)});
-  st.port=port;st.mode='usb';st.firmware='';st.powerHelp=null;st.plcHostFormat=$('plcHostFormat').value;st.chip=false;st.afe=null;st.boot=null;st.regs={};st.dsp=null;st.dspError=null;st.calStaged=false;st.calVerified=false;st.nvmDone=false;st.adc=null;st.manualLivePause=false;st.afeWriteActive=false;st.ramWriteScope=null;st.uid=null;st.uidShownForInput=null;st.restorePlan=null;st.expertOutputPlan=null;st.outputOnlyPlan=null;st.iface=$('iface').value;st.adapterKind=$('adapterType').value;
+  st.port=port;st.mode='usb';st.firmware='';st.powerHelp=null;st.powerCycleResult=null;st.magicResult=null;st.plcHostFormat=$('plcHostFormat').value;st.chip=false;st.afe=null;st.boot=null;st.regs={};st.dsp=null;st.dspError=null;st.calStaged=false;st.calVerified=false;st.nvmDone=false;st.adc=null;st.manualLivePause=false;st.afeWriteActive=false;st.ramWriteScope=null;st.uid=null;st.uidShownForInput=null;st.restorePlan=null;st.expertOutputPlan=null;st.outputOnlyPlan=null;st.iface=$('iface').value;st.adapterKind=$('adapterType').value;
   st.sensorPowerEnabled=st.adapterKind==='bridge'&&!demoEnabled&&$('plcPowerCycle').checked;
   $('sensorPowerPin').textContent='';
   $('nvmRestartStatus').hidden=true;
@@ -1073,7 +1085,7 @@ if(typeof document!=='undefined') (function UI(){
 
  function draw(){const c=$('chart');if(!c||c.closest('[hidden]'))return;const d=window.devicePixelRatio||1,w=Math.round(c.clientWidth*d),h=Math.round(c.clientHeight*d);if(w<20)return;if(c.width!==w||c.height!==h){c.width=w;c.height=h}const g=c.getContext('2d');g.clearRect(0,0,w,h);const x0=55*d,y0=10*d,yh=h-20*d,y=v=>y0+(32768-v)/65536*(yh-y0);g.font=`${11*d}px sans-serif`;for(const v of [25000,0,-25000]){g.beginPath();g.strokeStyle=v?'#e3c9aa':'#d7e4ef';g.setLineDash(v?[5*d,4*d]:[]);g.moveTo(x0,y(v));g.lineTo(w-8*d,y(v));g.stroke();g.setLineDash([]);g.fillStyle='#74849a';g.fillText((v>0?'+':'')+v,5*d,y(v)+4*d)}if(st.trend.length<1)return;const left=Date.now()-60000,x=t=>x0+(w-x0-10*d)*Math.max(0,Math.min(1,(t-left)/60000));g.beginPath();g.strokeStyle='#2867a6';g.lineWidth=2*d;st.trend.forEach((p,i)=>i?g.lineTo(x(p.x),y(p.y)):g.moveTo(x(p.x),y(p.y)));g.stroke()}
  function download(name,txt,mime='application/json'){let b=new Blob([txt],{type:mime}),u=URL.createObjectURL(b),a=document.createElement('a');a.href=u;a.download=(demoEnabled?'DEMO_':'')+name;a.click();setTimeout(()=>URL.revokeObjectURL(u),2000)}
- const report=()=>({tool:'ELMOS E703.11 Kalibrierassistent v0.6.17',created:new Date().toISOString(),connection:demoEnabled?'Demo':st.port?'USB':'offline',hardwareValidated:false,unit:pressureUnit(),pointNames:{lower:pointName('lo'),upper:pointName('hi')},interface:st.iface,firmware:st.firmware,bootProtection:'Boot-/Werks-NVM-Schreiben gesperrt; kalibrierungsbezogenes User-NVM mit Bestätigung freigegeben',ramWriteActive:!!st.ramWriteScope,registers:st.regs,bootSnapshot:st.boot,chipUID:st.uid?.hex||null,expertOutput:st.expertOutputPlan,AFE:st.afe,gains:st.staged,low:st.points.lo,high:st.points.hi,verification:st.verify,calibrationPoints:st.calpoints,plannedCalibrationPointCount:calibrationPointCount(),requestedSamplesPerPoint:Number($('calSampleCount').value),requestedDSPOutputLimit:Number($('calDspLimit').value),coefficientFit:st.calfit,calRamVerified:st.calVerified,lastDSP:st.dsp,chipDiagnostic:st.chipDiag,lastPlcReply:st.lastPlcReply,displayRange:getActiveDSPRange(),nvmState:{backupVerified:st.nvmBackupVerified,programmed:st.nvmDone},samples:st.history.slice(-1500),trace:st.log});
+ const report=()=>({tool:'ELMOS E703.11 Kalibrierassistent v0.6.18',created:new Date().toISOString(),connection:demoEnabled?'Demo':st.port?'USB':'offline',hardwareValidated:false,unit:pressureUnit(),pointNames:{lower:pointName('lo'),upper:pointName('hi')},interface:st.iface,firmware:st.firmware,bootProtection:'Boot-/Werks-NVM-Schreiben gesperrt; kalibrierungsbezogenes User-NVM mit Bestätigung freigegeben',ramWriteActive:!!st.ramWriteScope,registers:st.regs,bootSnapshot:st.boot,chipUID:st.uid?.hex||null,expertOutput:st.expertOutputPlan,AFE:st.afe,gains:st.staged,low:st.points.lo,high:st.points.hi,verification:st.verify,calibrationPoints:st.calpoints,plannedCalibrationPointCount:calibrationPointCount(),requestedSamplesPerPoint:Number($('calSampleCount').value),requestedDSPOutputLimit:Number($('calDspLimit').value),coefficientFit:st.calfit,calRamVerified:st.calVerified,lastDSP:st.dsp,chipDiagnostic:st.chipDiag,lastPlcReply:st.lastPlcReply,displayRange:getActiveDSPRange(),nvmState:{backupVerified:st.nvmBackupVerified,programmed:st.nvmDone},samples:st.history.slice(-1500),trace:st.log});
 
  // ============ Kalibrierung + NVM (AN0203 / AN0204 / Datasheet 2023) ============
  const ca=(id,msg,type='')=>show(id,msg,type);
@@ -1274,6 +1286,10 @@ if(typeof document!=='undefined') (function UI(){
    const readOK=await nvmScan({preview:true});
    if(!readOK||!st.nvmBackupVerified||!st.nvmBackup)throw Error('NVM konnte nicht vollständig und CRC-geprüft gelesen werden');
    if(!st.uid||st.uid.ser0!==st.nvmBackup[0]||st.uid.ser1!==st.nvmBackup[1])throw Error('Chip-UID kann dem aktuellen NVM nicht eindeutig zugeordnet werden');
+   const startup=CAL.oneWireStartupStatus(st.nvmBackup);
+   if(!startup.ok)throw Error('1-Wire-Startfenster nicht sicher: '+startup.errors.join('; '));
+   if(startup.requiresCookie&&!(st.powerCycleResult?.readVerified&&st.powerCycleResult.verifiedUid===st.uid.hex))
+    throw Error('One-Wire-Startfenster '+startup.windowLabel+' vorhanden, Magic-Cookie-Start am aktuellen Chip nicht bestätigt. Kein NVM-Schreiben.');
    const image=CAL.configFrom(st.nvmBackup,st.calfit,st.afe??0x800,{output:st.expertOutputPlan});
    if(image.changes.some(c=>(c.index<28&&![16,22].includes(c.index))||c.index===29||c.index===30))throw Error('Unzulässiges NVM-Register im Änderungsplan');
    if(!image.changes.length)throw Error('Keine NVM-Änderungen nötig');
@@ -1299,6 +1315,9 @@ if(typeof document!=='undefined') (function UI(){
    if($('nvmConfirmId').value.trim().toUpperCase()!==id)throw Error('48-Bit-Chip-UID stimmt nicht');
    const initial=st.calImage.before,modified=st.calImage.after;
    CAL.protectStartupCommunication(initial,modified);
+   const startup=CAL.oneWireStartupStatus(initial);
+   if(startup.requiresCookie&&!(st.powerCycleResult?.readVerified&&st.powerCycleResult.verifiedUid===id))
+    throw Error('1-Wire-Startschutz: Cookie-Start für die aktuelle Chip-UID nicht verifiziert. NVM-Schreiben gesperrt.');
    if(CAL.crc16(initial)!==initial[63]||CAL.crc16(modified)!==modified[63])throw Error('CRC16-Prüfung fehlgeschlagen');
    if(!restoring&&!outputOnly&&st.calfit.stats.maxDigits>100)throw Error('Fitfehler zu gross (>100 Digits)');
    const allowedNormal=new Set([16,22,28,31,32,33,34,...Array.from({length:16},(_,i)=>35+i),51,52,53,54,57,58,63]);
@@ -1632,7 +1651,7 @@ if(typeof document!=='undefined') (function UI(){
  });
  $('plcStartupLogExport').addEventListener('click',()=>{
   const log={
-   tool:'ELMOS E703.11 – SSP3 Startdiagnose',version:'v0.6.17',at:new Date().toISOString(),
+   tool:'ELMOS E703.11 – SSP3 Startdiagnose',version:'v0.6.18',at:new Date().toISOString(),
    source:'Web-App (NICHT PSSC Originalsoftware)',interface:st.iface,adapter:st.adapterKind,
    firmware:st.firmware,port:serialPortInfo(st.port),chipDetected:!!st.chip,
    startupAttempts:st.startupAttempts,lastPlcReply:st.lastPlcReply,
@@ -1642,6 +1661,7 @@ if(typeof document!=='undefined') (function UI(){
   download('E70311_SSP3_Web_Log_'+Date.now()+'.json',JSON.stringify(log,null,2));
   $('plcStartupState').textContent='Web-App-Protokoll gespeichert. Für die fehlende Initialisierung wird auch die Befehlsfolge der Originalsoftware benötigt.';
  });
+ $('expertMode').addEventListener('change',renderStatus);
  $('plcMagicConfirm').addEventListener('change',renderStatus);
   $('plcMagicOnConnect').addEventListener('change',()=>{if($('plcMagicOnConnect').checked)$('plcPowerOnConnect').checked=false;renderStatus();});
   $('plcPowerConfirm').addEventListener('change',renderStatus);

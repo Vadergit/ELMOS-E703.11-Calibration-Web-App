@@ -1,3 +1,10 @@
+## v0.6.18 – 12.11.2026: PLC-Startfenster bleibt erhalten; Diagnose ausgeblendet
+
+- Zeitlich begrenzte PLC-Starts mit Magic-Cookie-Verfahren korrekt als möglich erkannt, auch wenn plc_us_en/plc_rw_en im Original-NVM 0 sind.
+- NVM-Kalibrierschreiben bleibt nur mit bestätigtem SSP3-Hardwarestart und identischer UID möglich. Alle Interface- und Startup-NVM-Bits erhalten.
+- Temporäre Diagnosefunktionen im Standardmodus verborgen und im Expertenmodus weiterhin zugänglich.
+- Neue Schutz- und Regressionstests.
+
 ## v0.6.17 – 12.11.2026: Experimentelles SSP3-PLC-Hostformat
 
 - Reales Hardwarelog bestätigt Hostannahme von `PWR_OFF`, `PLC P`, `PWR_ON` und `PLC T`; E703.11 antwortet noch nicht.

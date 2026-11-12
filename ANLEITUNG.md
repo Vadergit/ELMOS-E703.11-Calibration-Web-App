@@ -166,3 +166,13 @@ Neu ist ein konkreter möglicher Syntaxunterschied: **Elmos AN 0204** dokumentie
 - **SSP3-Firmwarehilfe / Slave-ID separat:** `PLC 02 6D1C0C.`
 
 Die jeweils gewählte Hostformatierung wird nach dem ausdrücklich freigegebenen, einmaligen Versorgungstest auf die **erste reine Registerabfrage** angewendet. Erhält die App gültige Registerdaten, wird das Format für die restliche Sitzung beibehalten; auch spätere PLC-Schreibtelegramme werden dann entsprechend formatiert, aber erst nach unveränderten NVM-/RAM-Sicherheitsprüfungen. Die One-Wire-Chipdaten und CRC-Felder werden **nicht** geändert, nur das Leerzeichen im SSP3-ASCII-Kommando. Keine NVM-Programmierung beim Test. Der Vergleich klärt eine echte Firmwareabweichung, garantiert aber keine Freigabe bei 4-ms-Startfenster. Pro Durchlauf nur **eine** Variante versuchen und anschliessend das JSON-Log exportieren.
+
+## Startfenster im NVM beibehalten · Diagnose verborgen (v0.6.18)
+
+Ein E703.11 kann nach jedem Einschalten ein One-Wire-Zeitfenster von 4, 10 oder 200 ms auf AODO öffnen. Danach erscheint der konfigurierte Analogausgang. Die im NVM vorhandene `CFG_PADS0.startup_plc`-Einstellung (CM-Wort 18) wird bei jeder normalen Kalibrier-NVM-Programmierung **bitgenau beibehalten**, ebenso `CFG_SPI_I2C` (CM-Wort 17) und `CFG_PADS1` (CM-Wort 19). Die App programmiert diese geschützten Interface-/Bootregister nicht automatisch um.
+
+Das Datenblatt 25DS0170E.04 §§6.4.5.7–8 erlaubt einen Magic-Cookie-basierten Start auch mit im NVM deaktivierten `plc_us_en` und `plc_rw_en`, sofern ein zeitlich begrenztes Fenster vorhanden ist. Der alte Startschutz verwechselte dies mit vollständig deaktiviertem One Wire. Die neue Prüfung akzeptiert diesen Zustand **nur dann für dauerhaftes Kalibrier-NVM-Schreiben**, wenn die schaltbare SSP3-Versorgung, die anschliessende One-Wire-Lesung und die **gleiche Chip-UID** in dieser Sitzung bestätigt sind. Ohne diesen Nachweis bleiben NVM-Programmierung und Boot-Änderungen gesperrt.
+
+Die zusätzlichen SSP3-Fehlersuchwerkzeuge bleiben technisch vorhanden, sind aber im normalen Arbeitsablauf ausgeblendet. Sie lassen sich über **⚙ Einstellungen → Expertenparameter freischalten → USB & Chip** erneut öffnen. Der EEPROM-Viewer und die normalen Kalibrierfunktionen bleiben unverändert.
+
+**Wichtig:** Das Update schreibt selbst nichts in den Sensor. Das Startfenster bleibt genau so lange aktiv, wie es im Original-NVM eingestellt ist, und wird nach jedem Kaltstart neu geöffnet. Eine erfolgreiche echte NVM-Programmierung mit dieser Änderung ist noch nicht hardwaregetestet.

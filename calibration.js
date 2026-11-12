@@ -89,11 +89,13 @@ const ELMOS_CAL = (() => {
   if(mode<1||mode>5)errors.push('CFG_EN.aodo_en muss 1–5 sein (Analog/PWM/FM, nicht High-Z/Alarm)');
   if(!permanent&&startupWindow===3)errors.push('Weder PLC dauerhaft noch Startup-1-Wire-Zeitfenster aktiv');
   if(!downstream)errors.push('CFG_PADS1.plc_downsel deaktiviert');
-  if(!upstream)errors.push('CFG_PADS1.plc_us_en deaktiviert');
-  if(!registerAccess)errors.push('CFG_PADS1.plc_rw_en deaktiviert (nur Magic-Cookie-Zugriff möglich)');
+  // DS 6.4.5.7–8: with a finite startup window, PLC P/T can use the
+  // magic cookie even when upstream / R/W are disabled in the original NVM.
+  const requiresCookie=!upstream||!registerAccess;
+  if(permanent&&requiresCookie)errors.push('Permanentes PLC benötigt Upstream und Registerfreigabe');
+  const windowLabel=permanent?'dauerhaft':startupWindow===0?'4 ms':startupWindow===1?'10 ms':startupWindow===2?'200 ms':'aus';
   return {ok:errors.length===0,errors,mode,permanent,startupWindow,
-   windowLabel:permanent?'dauerhaft':startupWindow===0?'4 ms':startupWindow===1?'10 ms':startupWindow===2?'200 ms':'aus',
-   downstream,upstream,registerAccess};
+   windowLabel,downstream,upstream,registerAccess,requiresCookie,startupAvailable:permanent||startupWindow<3};
  }
  /** Pure check for the PSSC-style "One Wire only" choice.
   * On the E703.11 it is not a CFG_EN.aodo_en value. With permanent PLC=1
@@ -122,6 +124,9 @@ const ELMOS_CAL = (() => {
   const initial=oneWireStartupStatus(before),final=oneWireStartupStatus(after);
   if(!initial.ok)throw Error('1-Wire-Startschutz: Original-NVM erfüllt die Voraussetzungen für den 1-Wire-Start nicht: '+initial.errors.join('; ')+'. NVM-Schreiben gesperrt.');
   if(!final.ok)throw Error('1-Wire-Startschutz: Geplantes NVM würde den 1-Wire-Start gefährden: '+final.errors.join('; '));
+  // Always preserve the original PLC window, interface flags and bitrate.
+  for(const index of [17,18,19])if(before[index]!==after[index])
+   throw Error('1-Wire-Startschutz: Geschützte PLC-Startkonfiguration NVM '+index+' verändert');
   return true;
  }
  /** Convert PSSC-style analog endpoints to validated E703.11 Q3.12 AODO scaling.

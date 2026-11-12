@@ -456,7 +456,7 @@ html.compact-mode .foot{display:none}
 .chip-diag-details .flex{flex-wrap:wrap;gap:9px}
 .chip-diag-details .inner>p{line-height:1.55}
 </style><link rel="stylesheet" href="guided.css?v=0.6.17"><link rel="stylesheet" href="interface.css?v=0.6.17"></head><body><div class="wrap"><header class="top">
-<div class="brand"><div class="logo" aria-hidden="true">E</div><div><div class="eyebrow">E703.11 · PSSC · v0.6.17</div><h1>Kalibrierassistent</h1></div></div>
+<div class="brand"><div class="logo" aria-hidden="true">E</div><div><div class="eyebrow">E703.11 · PSSC · v0.6.18</div><h1>Kalibrierassistent</h1></div></div>
 <div class="live-overview" role="group" aria-label="Sensorwerte · laufende Anzeige">
   <div class="live-kpi" title="Unkompensierter Druck-ADC. Warnung bei Beträgen über 25’000 Digits."><span class="live-kpi-label">ADC_S <span id="liveAdcAlert" class="live-alert" hidden>!</span></span><span class="live-kpi-reading" id="liveAdcS">—</span><span class="live-kpi-unit">Digits</span></div>
   <div class="live-kpi" title="ADC_T · Temperatur-Rohwert, keine direkte Temperatur in °C."><span class="live-kpi-label">ADC_T</span><span class="live-kpi-reading" id="liveAdcT">—</span><span class="live-kpi-unit">Digits</span></div>
@@ -544,7 +544,7 @@ html.compact-mode .foot{display:none}
     </details>
   </div>
 </div>
-<details class="connection-advanced">
+<details id="usbAdvancedDetails" class="connection-advanced" hidden>
   <summary>USB-Einstellungen und Diagnose</summary>
   <div class="inner">
     <label>USB-Baudrate <span class="help" data-help="baud">?</span><select id="baud"><option>115200</option><option>57600</option><option>230400</option><option>460800</option><option>921600</option></select></label>
@@ -554,7 +554,7 @@ html.compact-mode .foot{display:none}
     </div>
   </div>
 </details>
-<details id="chipDiagDetails" class="connection-advanced chip-diag-details">
+<details id="chipDiagDetails" class="connection-advanced chip-diag-details" hidden>
  <summary>Chipdiagnose · CFG_AFE1 / 1-Wire (nur lesen)</summary>
  <div class="inner">
   <p class="muted small">Bei fehlgeschlagener Chiperkennung automatisch geöffnet. Es werden CFG_AFE1 dreimal sowie CFG_AFE0, CFG_AFE2 und ADC_S ausschliesslich <strong>gelesen</strong>. Bit 11 und die empfangenen 1-Wire-Datenbytes werden angezeigt. <strong>Keine</strong> RAM- oder EEPROM-Schreibvorgänge.</p>
@@ -566,7 +566,7 @@ html.compact-mode .foot{display:none}
   <p class="muted small">Das von SSP3 empfangene CRC8-Byte wird mitprotokolliert. Eine eigenständige CRC8-Prüfung der SSP3-Antwort ist noch <strong>nicht validiert</strong>; die App zeigt deshalb kein ungeprüftes «CRC gültig» an. Ein Bit 11 = 0 wird nicht automatisch korrigiert und schaltet keine Schreibfunktionen frei.</p>
  </div>
 </details>
-<details><summary>Verkabelung und Startfenster</summary><div class="inner"><p><b>1-Wire:</b> VDD, GND, AODO. <b>I²C:</b> VDD, GND, SCL, SDA und korrekte SA0-/EOC-Beschaltung. Die App ändert mit IF_CFG nur den SSP3, nicht die Bootkonfiguration des Chips.</p><p>Einige 1-Wire-Konfigurationen reagieren nur kurz nach dem Einschalten. Die originale Elmos-PSSC-Software kann die Verbindung bei unveränderter Verkabelung herstellen; unsere Web-App verwendet noch nicht deren vollständigen SSP3-Startablauf. Die ESP32-Bridge kann mit passender Firmware einen externen Lastschalter steuern, der SSP3-Power-Befehl ist hingegen noch nicht verifiziert.</p><p><b>USB-Port kann nicht geöffnet werden?</b> Zuerst die originale PSSC-GUI und andere COM-Port-Programme schliessen. Im Windows-Gerätemanager unter «Anschlüsse (COM & LPT)» muss ein «USB Serial Port (COMx)» ohne Warnsymbol angezeigt werden. Falls nötig das Eval-Board kurz neu einstecken und «Bekannten Port verbinden» erneut versuchen. Fehlender COM-Port: FTDI-VCP-Treiber prüfen (Details im README).</p></div></details>
+<details id="wiringStartDetails" hidden><summary>Verkabelung und Startfenster</summary><div class="inner"><p><b>1-Wire:</b> VDD, GND, AODO. <b>I²C:</b> VDD, GND, SCL, SDA und korrekte SA0-/EOC-Beschaltung. Die App ändert mit IF_CFG nur den SSP3, nicht die Bootkonfiguration des Chips.</p><p>Einige 1-Wire-Konfigurationen reagieren nur kurz nach dem Einschalten. Die originale Elmos-PSSC-Software kann die Verbindung bei unveränderter Verkabelung herstellen; unsere Web-App verwendet noch nicht deren vollständigen SSP3-Startablauf. Die ESP32-Bridge kann mit passender Firmware einen externen Lastschalter steuern, der SSP3-Power-Befehl ist hingegen noch nicht verifiziert.</p><p><b>USB-Port kann nicht geöffnet werden?</b> Zuerst die originale PSSC-GUI und andere COM-Port-Programme schliessen. Im Windows-Gerätemanager unter «Anschlüsse (COM & LPT)» muss ein «USB Serial Port (COMx)» ohne Warnsymbol angezeigt werden. Falls nötig das Eval-Board kurz neu einstecken und «Bekannten Port verbinden» erneut versuchen. Fehlender COM-Port: FTDI-VCP-Treiber prüfen (Details im README).</p></div></details>
 <section class="profile-card" aria-labelledby="configTitle">
 <div class="between"><h3 id="configTitle">Config-Vorlagen</h3><span class="pill">Chipunabhängig</span></div>
 <p class="muted small">Beim Speichern werden alle wiederverwendbaren Einstellungen gesichert. Erst beim Import bestimmst du, welche davon du übernehmen möchtest. <b>Keine</b> Chip-ID, Werksdaten, Messwerte, DSP-Koeffizienten oder EEPROM-Register werden kopiert. Wenn AFE enthalten ist, werden diese Werte beim bestätigten Import <b>sofort ins Sensor-RAM geschrieben und rückgelesen</b> – niemals ins EEPROM.</p>
@@ -1029,5 +1029,5 @@ html.compact-mode .foot{display:none}
 </div>
 <div class="nav"><button data-next="0">Zur Verbindung</button><button data-next="6">Zum NVM-Schritt</button></div>
 </section>
-<div class="foot"><b>Version v0.6.17</b> · <a href="CHANGELOG.md" target="_blank" rel="noopener">Änderungsverlauf</a> · ELMOS E703.11 · unabhängiger Kalibrierprototyp · Sicherheitsprinzip: Factory- und Kommunikations-Bootregister gesperrt; dokumentierte AODO-Ausgangsoptionen nur nach Prüfung im NVM-Plan; Wiederherstellung nur mit passender Chip-UID.</div>
+<div class="foot"><b>Version v0.6.18</b> · <a href="CHANGELOG.md" target="_blank" rel="noopener">Änderungsverlauf</a> · ELMOS E703.11 · unabhängiger Kalibrierprototyp · Sicherheitsprinzip: Factory- und Kommunikations-Bootregister gesperrt; dokumentierte AODO-Ausgangsoptionen nur nach Prüfung im NVM-Plan; Wiederherstellung nur mit passender Chip-UID.</div>
 </main></div></div><div id="tip" class="tooltip"></div><script src="calibration.js?v=0.6.17"></script><script src="eeprom-help.js?v=0.6.17"></script><script src="expert.js?v=0.6.17"></script><script src="config.js?v=0.6.17"></script><script src="guided-plan.js?v=0.6.17"></script><script src="demo.js?v=0.6.17"></script><script src="app.js?v=0.6.17"></script><script src="compact.js?v=0.6.17"></script><script src="guided.js?v=0.6.17"></script></body></html>
