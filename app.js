@@ -1154,7 +1154,8 @@ if(typeof document!=='undefined') (function UI(){
    st.powerCycleResult.stage='readback';
    logging('AN0204: erste Chip-Leseabfrage im Host-Format '+st.plcHostFormat+' (nur Register-READ).');
    try{
-    await detect(); // First try the documented PLC P/T access without extra writes.
+    if(!await probePlcAddresses('Nach SSP3 PLC P/T'))
+     throw Error('PLC nothing received: E703.11 antwortet weder mit 0x6C noch mit 0x7C nach PLC P/T.');
    }catch(firstReadError){
     // The SSP3 may report either "!PLC nothing received" or an apparently
     // parsed 00 00 35 frame for a missing/locked chip. Jürg's 2026-11-12
@@ -1362,7 +1363,8 @@ if(typeof document!=='undefined') (function UI(){
    logging('SSP3-Startversuch '+(i+1)+'/2: '+profile.mode+
     (profile.speed?' / PSSC-PLC-Testprofil '+profile.speed.khz+' kHz':' / unveränderter PLC-Takt')+
     '. Keine EEPROM-Programmierung.');
-   await testSsp3PowerStartup(profile.mode,profile.speed);
+   if(i===1)st.plcAddress=st.plcAddress===0x6C?0x7C:0x6C;
+    await testSsp3PowerStartup(profile.mode,profile.speed);
    st.startupTrials.push({...st.powerCycleResult,
     magicCookie:st.magicResult?{...st.magicResult}:null});
    if(st.chip)return true;
@@ -1420,7 +1422,8 @@ if(typeof document!=='undefined') (function UI(){
     // Same guarded VSUPPLY / PLC P/T / Magic-Cookie sequence used at first connect.
     // Only volatile RAM configuration is touched; no automatic NVM writes.
     $('plcPowerConfirm').checked=true;
-    await startSsp3WithBoundedRetry();
+    if(!await probePlcAddresses('Neuinitialisierung ohne Power-Cycle'))
+     await startSsp3WithBoundedRetry();
    }else{
     if(st.adapterKind==='bridge'){
      const ready=await bridgeHello();
@@ -1502,7 +1505,8 @@ if(typeof document!=='undefined') (function UI(){
      // there is no stale user setting or checkbox.
      $('plcPowerConfirm').checked=true;
      logging('SSP3 + One Wire: automatischer Sensorstart über VSUPPLY; PLC-Format '+st.plcHostFormat+'.');
-     await startSsp3WithBoundedRetry();
+     if(!await probePlcAddresses('Erstverbindung ohne Power-Cycle'))
+      await startSsp3WithBoundedRetry();
      return;
     }
     await detect();
