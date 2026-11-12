@@ -204,6 +204,11 @@ button.danger{background:#9e3e34;border-color:#9e3e34;color:#fff}button.danger:h
 .afe-step-panel{border:1px solid #d8e3ef;border-radius:10px;background:#fbfdff;margin:10px 0 9px;overflow:hidden}
 .afe-step-row{display:grid;grid-template-columns:minmax(150px,1fr) 240px;align-items:center;gap:16px;padding:10px 13px;border-bottom:1px solid #e6edf4}
 .afe-step-row:last-child{border-bottom:0}
+.afe-bridge-actions{display:flex;flex-wrap:wrap;align-items:center;gap:6px;min-width:0}
+.afe-bridge-actions select{flex:1 1 120px;min-width:110px;width:auto;margin:0}
+.afe-bridge-actions button{font-size:11px;padding:8px 10px}
+.afe-bridge-status{font-size:11px;color:#576f84;grid-column:1/-1;line-height:1.45}
+@media(max-width:740px){.afe-bridge-row{grid-template-columns:1fr}.afe-bridge-status{grid-column:1}}
 .afe-step-description{display:flex;align-items:center;flex-wrap:wrap;column-gap:14px;row-gap:3px}
 .afe-step-title{display:flex;align-items:center;gap:5px;color:#163756;font-size:13px;font-weight:750;min-width:66px}
 .afe-step-subtitle{font-size:11px;color:#687e93}
@@ -464,7 +469,7 @@ html.compact-mode .foot{display:none}
 .dot.missing{background:#bb7a17}
 @media(max-width:600px){.sensor-reconnect button{width:100%}}
 </style><link rel="stylesheet" href="guided.css?v=0.6.30"><link rel="stylesheet" href="interface.css?v=0.6.30"></head><body><div class="wrap"><header class="top">
-<div class="brand"><div class="logo" aria-hidden="true">E</div><div><div class="eyebrow">E703.11 · PSSC · v0.6.35</div><h1>Kalibrierassistent</h1></div></div>
+<div class="brand"><div class="logo" aria-hidden="true">E</div><div><div class="eyebrow">E703.11 · PSSC · v0.6.36</div><h1>Kalibrierassistent</h1></div></div>
 <div class="live-overview" role="group" aria-label="Sensorwerte · laufende Anzeige">
   <div class="live-kpi" title="Unkompensierter Druck-ADC. Warnung bei Beträgen über 25’000 Digits."><span class="live-kpi-label">ADC_S <span id="liveAdcAlert" class="live-alert" hidden>!</span></span><span class="live-kpi-reading" id="liveAdcS">—</span><span class="live-kpi-unit">Digits</span></div>
   <div class="live-kpi" title="ADC_T · Temperatur-Rohwert, keine direkte Temperatur in °C."><span class="live-kpi-label">ADC_T</span><span class="live-kpi-reading" id="liveAdcT">—</span><span class="live-kpi-unit">Digits</span></div>
@@ -611,7 +616,22 @@ html.compact-mode .foot{display:none}
 </div>
 <div class="small muted" id="dspDisplayHint">Standard 0–100 %. Nach einer neuen RAM-Kalibrierung wird stattdessen deren gewählter Referenzbereich verwendet.</div>
 </div></details>
-<canvas id="chart" width="1000" height="230" aria-label="ADC-Verlauf"></canvas><div class="flex" style="margin:13px 0"><button id="readNow">ADC jetzt lesen</button><button id="live">Live-Messung starten</button><span class="pill" id="srcLabel">Keine Messdaten</span></div><div class="mutedline"></div><div class="between"><h3>Verstärkung und Offset</h3><span class="pill" id="afeWord">CFG_AFE1: —</span></div><div class="afe-step-panel" aria-label="Diskrete AFE-Verstärkungs- und Offseteinstellung">
+<canvas id="chart" width="1000" height="230" aria-label="ADC-Verlauf"></canvas><div class="flex" style="margin:13px 0"><button id="readNow">ADC jetzt lesen</button><button id="live">Live-Messung starten</button><span class="pill" id="srcLabel">Keine Messdaten</span></div><div class="mutedline"></div><div class="between"><h3>Verstärkung und Offset</h3><span class="pill" id="afeWord">CFG_AFE1: —</span></div><div class="afe-step-panel" aria-label="Brückenspannung und diskrete AFE-Verstärkungs- und Offseteinstellung">
+<div class="afe-step-row afe-bridge-row">
+ <div class="afe-step-description"><div class="afe-step-title">Brückenspannung <span class="help" data-help="bridgeSupply">?</span></div>
+ <span class="afe-step-subtitle">SVDD · interne Speisung der Messbrücke (nicht VDD/AODO)</span></div>
+ <div class="afe-bridge-actions">
+  <select id="brSupplySelect" aria-label="Brückenspannung wählen" disabled>
+   <option value="">— erst aus Sensor lesen —</option>
+   <option value="0">2,4 V · Standard (VDD ≥ 3,0 V)</option>
+   <option value="1">1,6 V (VDD ≥ 2,7 V)</option>
+   <option value="2">2,0 V (VDD ≥ 2,7 V)</option>
+  </select>
+  <button type="button" id="brSupplyRead" disabled>Aktuellen Wert lesen</button>
+  <button type="button" id="brSupplyApply" class="primary" disabled>Brückenspannung ins RAM übernehmen</button>
+ </div>
+ <div class="afe-bridge-status" id="brSupplyStatus" role="status">Brückenspannung noch nicht gelesen. Zuerst E703.11 verbinden.</div>
+</div>
 <div class="afe-step-row">
   <div class="afe-step-description"><div class="afe-step-title">PGA1 <span class="help" data-help="pga1">?</span></div><span class="afe-step-subtitle">Vorverstärkung</span></div>
   <div class="afe-stepper" role="group" aria-label="PGA1-Verstärkung in diskreten Stufen einstellen">
@@ -1039,5 +1059,5 @@ html.compact-mode .foot{display:none}
 </div>
 <div class="nav"><button data-next="0">Zur Verbindung</button><button data-next="6">Zum NVM-Schritt</button></div>
 </section>
-<div class="foot"><b>Version v0.6.35</b> · <a href="CHANGELOG.md" target="_blank" rel="noopener">Änderungsverlauf</a> · ELMOS E703.11 · unabhängiger Kalibrierprototyp · Sicherheitsprinzip: Factory- und Kommunikations-Bootregister gesperrt; dokumentierte AODO-Ausgangsoptionen nur nach Prüfung im NVM-Plan; Wiederherstellung nur mit passender Chip-UID.</div>
-</main></div></div><div id="tip" class="tooltip"></div><script src="calibration.js?v=0.6.30"></script><script src="eeprom-help.js?v=0.6.30"></script><script src="expert.js?v=0.6.30"></script><script src="config.js?v=0.6.30"></script><script src="guided-plan.js?v=0.6.30"></script><script src="demo.js?v=0.6.30"></script><script src="app.js?v=0.6.35"></script><script src="compact.js?v=0.6.30"></script><script src="guided.js?v=0.6.31"></script></body></html>
+<div class="foot"><b>Version v0.6.36</b> · <a href="CHANGELOG.md" target="_blank" rel="noopener">Änderungsverlauf</a> · ELMOS E703.11 · unabhängiger Kalibrierprototyp · Sicherheitsprinzip: Factory- und Kommunikations-Bootregister gesperrt; dokumentierte AODO-Ausgangsoptionen nur nach Prüfung im NVM-Plan; Wiederherstellung nur mit passender Chip-UID.</div>
+</main></div></div><div id="tip" class="tooltip"></div><script src="calibration.js?v=0.6.30"></script><script src="eeprom-help.js?v=0.6.30"></script><script src="expert.js?v=0.6.30"></script><script src="config.js?v=0.6.30"></script><script src="guided-plan.js?v=0.6.30"></script><script src="demo.js?v=0.6.30"></script><script src="app.js?v=0.6.36"></script><script src="compact.js?v=0.6.30"></script><script src="guided.js?v=0.6.31"></script></body></html>
