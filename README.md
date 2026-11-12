@@ -2,7 +2,7 @@
 
 **Ein geführter Kalibrierassistent für den ELMOS E703.11 und das SSP3-Eval-Board.** Ziel ist ein verständlicher Abgleich, der auch ohne tiefere Vorkenntnisse Schritt für Schritt funktioniert. Wer mehr benötigt, kann zusätzliche Messpunkte, DSP-Parameter und einen geschützten Expertenmodus verwenden.
 
-**Version: v0.6.31 · geführter Abgleich und klassische Ansicht** · [Änderungsverlauf](CHANGELOG.md)
+**Version: v0.6.32 · geführter Abgleich und klassische Ansicht** · [Änderungsverlauf](CHANGELOG.md)
 
 Über **Einstellungen → Demo-Modus** lässt sich der gesamte Kalibrierablauf mit simulierten Messwerten und NVM ausprobieren.
 
@@ -13,6 +13,15 @@
 > **Geführter Assistent:** Nach der bestätigten SSP3-Verbindung stehen die neue Schritt-für-Schritt-Führung, die klassische Ansicht und der optionale Kompaktmodus zur Verfügung. Ein E703.11-Chip muss für den Abgleich verbunden sein. Die USB-CDC-Bridge bleibt als experimenteller Verbindungstest ohne Sensorprogrammierung gesperrt.
 >
 > [Geführter Abgleich](docs/GEFUEHRTER_ASSISTENT.md) · [USB-Bridge](docs/USB_BRIDGE_GUIDE.md) · [ESP-Boards](docs/ESP_BOARD_OPTIONS.md) · [ESP32-C3 SuperMini Sketch](firmware/esp32c3_supermini/esp32c3_supermini.ino)
+
+## Temperaturanzeige oben (v0.6.32)
+
+- Der Kopf zeigt jetzt fünf Messwertfelder: **ADC_S**, **ADC_T**, **DSP_S**, **Temperatur (°C)** und **Sensorwert**. In schmalen Ansichten werden die Felder umgebrochen.
+- Die Temperatur wird **separat aus DSP_T (RAM 0x2E)** ausgelesen, nicht aus ADC_T geschätzt. ADC_S wird weiterhin in jedem Live-Zyklus zuerst gelesen; DSP_T folgt nur in einem von fünf Sekundärzyklen.
+- Vor der Umrechnung prüft die App **CFG_EN.t_abs_en** (Bit 12) und die vorhandenen Temperaturkoeffizienten. Die interne Elmos-Beispielkalibrierung (T0–T3 aus dem Datenblatt, interne Temperaturquelle) verwendet **DSP_T / 100** für °C. Die vom Kalibrierassistenten selbst erfolgreich ins RAM übertragene Temperaturkalibrierung verwendet dagegen **(DSP_T + 16485) / 387.88**. Die simulierte Demo entspricht ebenfalls der zweiten Skalierung.
+- Bei fremden Koeffizienten, abgeschalteter Absoluttemperaturberechnung, veralteten Daten, ungültigem Temperaturbereich oder Kommunikationsfehler erscheint **«—»**. Eine ungeprüfte Skalierung wird nicht als °C ausgegeben.
+- Alle angezeigten Temperaturen werden als **ungefähr (≈)** markiert. Die Elmos-Beispielkoeffizienten sind laut Datenblatt 25DS0170E.04 (S. 83) keine garantierte kalibrierte Temperaturmessung. Nach Sensorwechsel wird die Skalierung erneut geprüft. Kein zusätzliches RAM-/NVM-Schreiben für die Anzeige.
+- Hardwaretest am realen E703.11 weiterhin erforderlich.
 
 ## Sensor getrennt / erneut anschliessen (v0.6.31)
 
