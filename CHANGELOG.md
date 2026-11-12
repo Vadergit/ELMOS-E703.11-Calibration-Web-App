@@ -1,3 +1,11 @@
+## v0.6.41 – 12.11.2026: Diagnose nach weiterhin fehlgeschlagener Verbindung vereinfachen
+
+- Bei fehlender Sensorverbindung steht **«Diagnose exportieren» direkt im oberen Warnbanner** neben «Sensor neu initialisieren» zur Verfügung – auch ohne Expertenmodus.
+- Fehlermeldung weist darauf hin, dass die beiden PLC-Adressen getestet wurden und die Chipantwort weiterhin unbestätigt ist.
+- Der Export trägt die Versionsnummer v0.6.41 und enthält die gesendeten Befehle, Rohantworten sowie alle Adressversuche.
+- **Hardwareverbindung ist noch nicht als gelöst bestätigt.** Die originale XML enthält Chip-ID `0x200109F7DB`, die ältere Web-Log-Erkennung nennt eine andere Chip-ID `0020011DBBE7`; die im XML gespeicherte Adresse kann deshalb nicht ohne Chip-Rücklesung als aktiv vorausgesetzt werden.
+- Software-Regressionen für CRC und PLC-Adresssuche erfolgreich; weiterer Hardware-Log erforderlich. Keine weiteren NVM-Schreibvorgänge eingeführt.
+
 ## v0.6.40 – 12.11.2026: 1-Wire-Adresse aus PSSC-Konfiguration erkennen
 
 - Erkennt beim SSP3/1-Wire-Verbinden und beim erneuten Initialisieren zunächst **rein lesend** die beiden bekannten PLC-Adressen **0x6C** (Elmos-Standard) und **0x7C** (aus dem eingereichten PSSC-XML: CFG_SPI_I2C=0x7C05, CFG_PADS1=0x099F). Kein unnötiger Power-Cycle, wenn der Chip bereits antwortet.
