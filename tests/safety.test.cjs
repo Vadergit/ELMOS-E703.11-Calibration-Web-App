@@ -178,7 +178,7 @@ test('Expert mode shows contextual settings and no modal',()=>{
  assert.ok(html.includes('data-expert-area hidden><summary>Erweitert · AODO_F'));
  assert.ok(src.includes("classList.toggle('is-expert',enabled)"));
  const scripts=Array.from(html.matchAll(/<script src="([^"]+)"/g),m=>m[1]);
- assert.deepEqual(scripts,['calibration.js?v=0.6.28','eeprom-help.js?v=0.6.28','expert.js?v=0.6.28','config.js?v=0.6.28','guided-plan.js?v=0.6.28','demo.js?v=0.6.28','app.js?v=0.6.28','compact.js?v=0.6.28','guided.js?v=0.6.28']);
+ assert.deepEqual(scripts,['calibration.js?v=0.6.29','eeprom-help.js?v=0.6.29','expert.js?v=0.6.29','config.js?v=0.6.29','guided-plan.js?v=0.6.29','demo.js?v=0.6.29','app.js?v=0.6.29','compact.js?v=0.6.29','guided.js?v=0.6.29']);
 });
 
 test('Failed E703.11 probe keeps SSP3 open for explicit, bounded startup test',()=>{
@@ -438,7 +438,7 @@ test('Guided view is optional and contains only one set of hardware inputs',()=>
  assert.ok(html.includes('id="workflowMode"'));
  assert.ok(html.includes('id="guidedLaunch"'));
  assert.ok(html.includes('id="guidedLaunchTop"'));
- assert.ok(html.includes('guided.css?v=0.6.28'));
+ assert.ok(html.includes('guided.css?v=0.6.29'));
  for(const id of ['nvmProgram','nvmPrepare','calApplyRam','calVerifyRam','expertOutputStage','configApply','configFile']){
   assert.equal(html.split('id="'+id+'"').length-1,1);
  }
@@ -935,8 +935,8 @@ test('SSP3 02.08.02.04 uses hardware-proven legacy PLC host frame; split format 
  assert.ok(fw.includes("$('plcHostFormat').value='legacy'"));
  assert.ok(!fw.includes("st.plcHostFormat='separate'"));
  assert.ok(html.includes('<option value="separate" disabled>'));
- assert.ok(html.includes('<script src="app.js?v=0.6.28"'));
- assert.ok(html.includes('guided.css?v=0.6.28'));
+ assert.ok(html.includes('<script src="app.js?v=0.6.29"'));
+ assert.ok(html.includes('guided.css?v=0.6.29'));
  const p=app.split('async function testSsp3PowerStartup(){')[1]?.split('async function connect(port){')[0];
  assert.ok(p.includes("if(st.firmware==='02.08.02.04')"));
  assert.ok(p.includes("st.plcHostFormat='legacy'"));
@@ -1179,4 +1179,33 @@ test('Live ADC attempts and successes visible and exported without new chip writ
  assert.ok(app.includes('liveDiagnostic:{active:st.live,attempts:st.liveReadAttempts'));
  assert.ok(app.includes('plcEnabledInRam:st.powerCycleResult?.plcEnabledInRam??null'));
  assert.ok(!f.includes('nvmWrite('));
+});
+
+test('E703.11 CFG_PERIOD maps to documented conversion modes',()=>{
+ const P=require('../app.js');
+ for(const [raw,mode] of [[0,'disabled'],[1,'continuous'],[2,'single'],[3,'periodic'],[65535,'periodic'],[null,'unknown']])
+  assert.equal(P.periodMode(raw),mode);
+});
+test('SSP3 startup reads CFG_PERIOD and STATUS without changing communication config',()=>{
+ const app=read('app.js');
+ const power=app.split('async function testSsp3PowerStartup(){')[1]?.split('async function connect(port){')[0];
+ assert.ok(power.includes('st.measurementPeriod=await readReg(0x0E,1800)'));
+ assert.ok(power.includes('st.measurementStatus=await readReg(0x36,1800)'));
+ assert.ok(!power.includes('P.plcWrite(0x0E'));
+ assert.ok(!power.includes('P.plcWrite(0x06'));
+});
+test('Single mode triggers documented CMD.start with fresh ADC flag confirmation',()=>{
+ const app=read('app.js'),live=app.split('async function readLiveSample(){')[1]?.split('function startLive(){')[0];
+ assert.ok(live.includes("st.adapterKind==='ssp3'&&st.iface==='plc'&&st.measurementPeriod===2"));
+ assert.ok(live.includes('P.plcWrite(0x22,0x8B93)'));
+ assert.ok(live.includes('const flags=await readReg(0x36,1600)'));
+ assert.ok(live.includes('if(flags&0x0002){fresh=true;break}'));
+ assert.ok(live.indexOf('if(!fresh)throw Error(')<live.indexOf('readReg(0x2A,1600)'));
+ for(const forbidden of ['P.plcWrite(0x0E','P.plcWrite(0x06','nvmWrite(','nvmProgram(','PWR_OFF'])assert.ok(!live.includes(forbidden));
+});
+test('Period mode, single-shot starts and actual ADC changes exported for diagnosis',()=>{
+ const app=read('app.js');
+ assert.ok(app.includes("CFG_PERIOD '+(st.measurementPeriod==null"));
+ assert.ok(app.includes('startCommandsSent:st.measurementStarts,adcChanges:st.measurementFreshCount'));
+ assert.ok(app.includes('st.measurementFreshCount++'));
 });

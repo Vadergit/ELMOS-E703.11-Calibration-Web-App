@@ -1,3 +1,10 @@
+## v0.6.29 – 12.11.2026: Live-Messung bei CFG_PERIOD-Einzelmodus
+
+- Prüft CFG_PERIOD 0x0E und STATUS 0x36 nach der Chiperkennung lesend und zeigt den Modus im Live-Kopf an.
+- Bei bestätigtem CFG_PERIOD=2 erzeugt pro Live-Abfrage CMD.start (0x22=0x8B93) einen neuen Messzyklus; anschliessend wird STATUS.adc_s_up=1 verlangt.
+- Bei anderen Werten keine automatischen neuen Schreibbefehle. Verbindungsaufbau, Magic Cookie und NVM unverändert.
+- Diagnoseexport ergänzt um Periodenmodus, Status, Anzahl CMD-Starts und tatsächlicher ADC-Wertänderungen. Hardwaretest ausstehend.
+
 ## v0.6.28 – 12.11.2026: Live-Start unabhängig von NVM-Schreibfreigabe
 
 - Bei bestätigtem ADC_S darf die **nur lesende** Live-Abfrage nach Ende der SSP3-Initialisierung beginnen, auch wenn die gesonderte NVM-relevante Startfreigabe noch offen ist. Kein Aufweichen der NVM-Schutzprüfungen.
