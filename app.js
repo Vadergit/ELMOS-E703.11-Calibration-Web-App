@@ -549,6 +549,7 @@ if(typeof document!=='undefined') (function UI(){
   const eepromReadBtn=$('eepromRead');
   if(eepromReadBtn)eepromReadBtn.disabled=!st.port||!st.chip||st.calTask||st.writing||st.nvmWorking;
   const outputNvmRead=$('outputNvmRead');if(outputNvmRead)outputNvmRead.disabled=!st.port||!st.chip||st.writing||st.calTask||st.nvmWorking;
+  if(st.psscRamRecovery)nvmReason='EEPROM-Schreiben nach PSSC-RAM-Freigabe gesperrt.';
   const approvalGranted=nvmReason==='';
   $('nvmProgram').disabled=!approvalGranted;
   const bootCheckBusy=st.closing||st.nvmWorking||st.writing||st.calTask;
@@ -638,9 +639,9 @@ if(typeof document!=='undefined') (function UI(){
  // firmware may accept only one CR-terminated command per UART/USB packet.
  // Do not WAIT for PWR_ON's firmware response before sending PLC T.
  // Command and chip timing is experimental; no claims about 4-ms guarantee.
- async function exchangeSsp3StartupBurst(mode='combined'){
+ async function exchangeSsp3StartupBurst(mode='combined',pssc=false){
   if(!['combined','split'].includes(mode))throw Error('Unbekannter SSP3-Starttransport');
-  const commands=['PWR_ON 0C80 00C8 0','PLC T'];
+  const commands=[pssc?'PWR_ON FFFF 0 0':'PWR_ON 0C80 00C8 0','PLC T'];
   return serialize(async()=>{
    if(st.closing||!st.port?.writable||st.adapterKind!=='ssp3'||st.iface!=='plc')
     throw Error('SSP3 PLC-Start benötigt einen verbundenen SSP3 im One-Wire-Modus.');
@@ -740,7 +741,16 @@ if(typeof document!=='undefined') (function UI(){
   renderStatus();
  }
  const ifcfg={plc:'IF_CFG 7 0 0',i2c:'IF_CFG 2 1 0',spi:'IF_CFG 1 1 0'};
- async function selectChipInterface(){await exchange(ifcfg[st.iface]);logging('Programmieradapter-Schnittstellenmodus '+st.iface+' gesetzt (nicht NVM).')}
+ async function selectChipInterface(){
+  await exchange(ifcfg[st.iface]);
+  if(st.adapterKind==='ssp3'&&st.iface==='plc'&&st.firmware==='02.08.02.04'){
+   // Match ssp3_plc_init in the Elmos PSSC 3.2.1 library. These commands
+   // clear the SSP3 transmit buffer and configure the SSP3 transceiver.
+   await exchange('PLC R');
+   await exchange('PLC_CFG 020A 0');
+  }
+  logging('Programmieradapter-Schnittstellenmodus '+st.iface+' gesetzt (nicht NVM).');
+ }
  async function bridgeHello(){
   const response=await exchange('BRIDGE_INFO',1600);
   const match=response.match(/E70311-BRIDGE\s+V1\s+CAPS=([A-Z0-9_,]+)/);
@@ -1369,6 +1379,64 @@ if(typeof document!=='undefined') (function UI(){
   }
  }
 
+ // PSSC 3.2.1 single-socket E703.11 startup, verified on SSP3 firmware 2824.
+ // Channel #0 is the adapter's internal bus. The identifier read verifies
+ // the extension before using its GPIO routing or the RAM-only broadcast.
+ async function tryPsscRamStartup(){
+  if(st.firmware!=='02.08.02.04'||st.adapterKind!=='ssp3'||st.iface!=='plc')return false;
+  let boardId;
+  try{
+   await exchange('I2C_CFG 3 01 01');
+   boardId=P.readData(await exchange('I2C #0 SA200RA3....P'),4);
+  }catch(e){
+   logging('PSSC-Start: SSP3-Erweiterung konnte nicht bestätigt werden: '+e.message);
+   return false;
+  }
+  if(boardId.join(',')!=='17,0,7,1')return false;
+  const port=st.port;
+  const trial={stage:'PSSC-RAM-Start',readVerified:false,powerRestored:false,steps:[]};
+  st.startupTrials.push(trial);
+  st.powerCycleRunning=true;
+  renderStatus();
+  try{
+   for(const command of ['GPIO_SET 00C0','GPIO_CFG B81E','IF_CFG 7 0 0',
+    'PLC_CFG 0404 0','PLC R','PLC_CFG 020A 0','PLC_CFG 1 0007','PWR_OFF 0','PLC P']){
+    trial.steps.push({command,reply:await exchange(command)});
+   }
+   trial.steps.push({command:'PWR_ON FFFF 0 0 / PLC T',reply:await exchangeSsp3StartupBurst('combined',true)});
+   trial.powerRestored=true;
+   if(await probePlcAddresses('PSSC-Start vor RAM-Freigabe')){
+    trial.readVerified=true;
+    trial.verifiedUid=st.uid?.hex||null;
+    return true;
+   }
+   // Fixed PSSC frame. Broadcasts only CFG_SPI_I2C RAM=0x6C04,
+   // which enables PLC and assigns address 0x6C. Never writes NVM.
+   st.psscRamRecovery=true;
+   const command='PLC 02FE06076C044E';
+   trial.steps.push({command,reply:await exchange(command)});
+   st.plcAddress=0x6C;
+   if(!await probePlcAddresses('PSSC-RAM-Freigabe'))
+    throw Error('PSSC-RAM-Freigabe ohne gültige Sensorantwort');
+   trial.readVerified=true;
+   trial.verifiedUid=st.uid?.hex||null;
+   show('connMsg','Sensor über PSSC-RAM-Freigabe verbunden. EEPROM-Schreiben ist in dieser Sitzung gesperrt.','success');
+   return true;
+  }catch(e){
+   trial.error=String(e.message||e);
+   logging('PSSC-Start: '+trial.error);
+   if(!trial.powerRestored&&st.port===port&&!st.closing){
+    try{await exchange('PWR_ON 0 0 0');trial.powerRestored=true}
+    catch(restoreError){throw Error('SSP3-Versorgung konnte nicht wiederhergestellt werden: '+restoreError.message)}
+   }
+   return false;
+  }finally{
+   st.powerCycleRunning=false;
+   renderStatus();
+   if(st.port===port&&!st.closing&&st.chip&&!st.manualLivePause)startLive();
+  }
+ }
+
  // One explicit connection/recovery action can exercise both documented
  // CR-separated USB transports without making Jürg perform two manual tests.
  // Exactly two full controlled DUT power cycles at most; stop after success
@@ -1378,6 +1446,7 @@ if(typeof document!=='undefined') (function UI(){
   if(!port||st.closing)throw Error('SSP3-Port nicht offen');
   st.startupTrials=[];
   st.magicResult=null;
+  if(await tryPsscRamStartup())return true;
   const knownFirmware=st.firmware==='02.08.02.04';
   const profiles=knownFirmware?[
    {mode:'combined',speed:{khz:100,delay:7}},
@@ -1500,6 +1569,7 @@ if(typeof document!=='undefined') (function UI(){
   liveSecondaryIndex=0;
   st.port=port;st.mode='usb';st.sensorLost=false;st.adapterNoReply=false;
   st.sessionIndex++;st.sessionStartedAt=new Date().toISOString();
+  st.psscRamRecovery=false;
   st.startupTrials=[];st.chipDiag=null;st.lastPlcReply=null;st.readerAlive=false;
   st.plcAddress=0x6C;st.plcAddressVerified=false;st.plcAddressSource='';st.plcAddressProbes=[];
   st.reinitRunning=false;st.firmware='';st.powerHelp=null;st.powerCycleResult=null;st.magicResult=null;st.liveReadAttempts=0;st.liveReadSuccesses=0;st.liveLastError=null;st.liveLastAttemptAt=null;st.measurementPeriod=null;st.measurementStatus=null;st.measurementError=null;st.measurementStarts=0;st.measurementFreshCount=0;st.measurementLastChangedAt=null;st.plcHostFormat=$('plcHostFormat').value;st.chip=false;st.afe=null;st.afe0=null;st.boot=null;st.regs={};st.dsp=null;st.dspError=null;st.calStaged=false;st.calVerified=false;st.nvmDone=false;st.adc=null;st.manualLivePause=false;st.afeWriteActive=false;st.ramWriteScope=null;st.uid=null;st.uidShownForInput=null;st.restorePlan=null;st.expertOutputPlan=null;st.outputOnlyPlan=null;st.iface=$('iface').value;st.adapterKind=$('adapterType').value;
@@ -2131,6 +2201,8 @@ if(typeof document!=='undefined') (function UI(){
    if(!id||st.uid.ser0!==st.nvmBackup[0]||st.uid.ser1!==st.nvmBackup[1])throw Error('48-Bit-Chip-UID muss vor dem Schreiben verifiziert werden');
    if($('nvmConfirmId').value.trim().toUpperCase()!==id)throw Error('48-Bit-Chip-UID stimmt nicht');
    const initial=st.calImage.before,modified=st.calImage.after;
+   if(st.psscRamRecovery||(st.regs[0x06]===0x6C04&&initial[17]!==0x6C04))
+    throw Error('EEPROM-Schreiben nach PSSC-RAM-Freigabe gesperrt');
    CAL.protectStartupCommunication(initial,modified);
    const startup=CAL.oneWireStartupStatus(initial);
    if(startup.requiresCookie&&!(st.powerCycleResult?.readVerified&&st.powerCycleResult.verifiedUid===id))
@@ -2480,10 +2552,10 @@ if(typeof document!=='undefined') (function UI(){
  });
  $('plcStartupLogExport').addEventListener('click',()=>{
   const log={
-   tool:'ELMOS E703.11 – SSP3 Startdiagnose',version:'v0.6.41',at:new Date().toISOString(),
+   tool:'ELMOS E703.11 – SSP3 Startdiagnose',version:'v0.6.42',at:new Date().toISOString(),
    source:'Web-App (NICHT PSSC Originalsoftware)',interface:st.iface,adapter:st.adapterKind,
     plcAddress:'0x'+h(st.plcAddress),plcAddressVerified:st.plcAddressVerified,
-    plcAddressSource:st.plcAddressSource,plcAddressProbes:st.plcAddressProbes,
+    plcAddressSource:st.plcAddressSource,plcAddressProbes:st.plcAddressProbes,psscRamRecovery:!!st.psscRamRecovery,
    firmware:st.firmware,port:serialPortInfo(st.port),chipDetected:!!st.chip,
    startupTrials:st.startupTrials,sessionStartedAt:st.sessionStartedAt,sessionIndex:st.sessionIndex,adapterNoReply:st.adapterNoReply,readerAlive:st.readerAlive,startupAttempts:st.startupAttempts,lastPlcReply:st.lastPlcReply,
    chipDiag:st.chipDiag,magicCookie:st.magicResult,powerCycle:st.powerCycleResult,powerHelp:st.powerHelp,plcHostFormat:st.plcHostFormat,

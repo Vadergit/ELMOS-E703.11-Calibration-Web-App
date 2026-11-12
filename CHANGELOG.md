@@ -1,3 +1,9 @@
+## v0.6.42 – SSP3-Start wie im Elmos-GUI
+
+- Bei der erkannten SSP3-Einzelsockel-Erweiterung für den E703.11 kann die Web-App bei fehlender One-Wire-Antwort den Startablauf von PSSC 3.2.1 verwenden. Die Freigabe setzt die temporäre One-Wire-Adresse 0x6C im Sensor-RAM. Der Zugriff gilt erst nach gültigen Registerantworten als bestätigt.
+- EEPROM-Schreiben ist nach dieser RAM-Freigabe gesperrt. Die USB-Baudrate kann direkt im Verbindungsdialog gewählt werden. PSSC kann den SSP3 auf 921600 Baud hinterlassen.
+- Der Ablauf wurde am SSP3 über COM4 mit gültigen CFG-, AFE- und ADC-Antworten geprüft.
+
 ## v0.6.41 – 12.11.2026: Diagnose nach weiterhin fehlgeschlagener Verbindung vereinfachen
 
 - Bei fehlender Sensorverbindung steht **«Diagnose exportieren» direkt im oberen Warnbanner** neben «Sensor neu initialisieren» zur Verfügung – auch ohne Expertenmodus.
