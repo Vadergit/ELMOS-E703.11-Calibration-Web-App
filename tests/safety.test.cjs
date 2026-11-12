@@ -178,7 +178,7 @@ test('Expert mode shows contextual settings and no modal',()=>{
  assert.ok(html.includes('data-expert-area hidden><summary>Erweitert · AODO_F'));
  assert.ok(src.includes("classList.toggle('is-expert',enabled)"));
  const scripts=Array.from(html.matchAll(/<script src="([^"]+)"/g),m=>m[1]);
- assert.deepEqual(scripts,['calibration.js?v=0.6.29','eeprom-help.js?v=0.6.29','expert.js?v=0.6.29','config.js?v=0.6.29','guided-plan.js?v=0.6.29','demo.js?v=0.6.29','app.js?v=0.6.29','compact.js?v=0.6.29','guided.js?v=0.6.29']);
+ assert.deepEqual(scripts,['calibration.js?v=0.6.30','eeprom-help.js?v=0.6.30','expert.js?v=0.6.30','config.js?v=0.6.30','guided-plan.js?v=0.6.30','demo.js?v=0.6.30','app.js?v=0.6.30','compact.js?v=0.6.30','guided.js?v=0.6.30']);
 });
 
 test('Failed E703.11 probe keeps SSP3 open for explicit, bounded startup test',()=>{
@@ -438,7 +438,7 @@ test('Guided view is optional and contains only one set of hardware inputs',()=>
  assert.ok(html.includes('id="workflowMode"'));
  assert.ok(html.includes('id="guidedLaunch"'));
  assert.ok(html.includes('id="guidedLaunchTop"'));
- assert.ok(html.includes('guided.css?v=0.6.29'));
+ assert.ok(html.includes('guided.css?v=0.6.30'));
  for(const id of ['nvmProgram','nvmPrepare','calApplyRam','calVerifyRam','expertOutputStage','configApply','configFile']){
   assert.equal(html.split('id="'+id+'"').length-1,1);
  }
@@ -935,8 +935,8 @@ test('SSP3 02.08.02.04 uses hardware-proven legacy PLC host frame; split format 
  assert.ok(fw.includes("$('plcHostFormat').value='legacy'"));
  assert.ok(!fw.includes("st.plcHostFormat='separate'"));
  assert.ok(html.includes('<option value="separate" disabled>'));
- assert.ok(html.includes('<script src="app.js?v=0.6.29"'));
- assert.ok(html.includes('guided.css?v=0.6.29'));
+ assert.ok(html.includes('<script src="app.js?v=0.6.30"'));
+ assert.ok(html.includes('guided.css?v=0.6.30'));
  const p=app.split('async function testSsp3PowerStartup(){')[1]?.split('async function connect(port){')[0];
  assert.ok(p.includes("if(st.firmware==='02.08.02.04')"));
  assert.ok(p.includes("st.plcHostFormat='legacy'"));
@@ -1211,4 +1211,26 @@ test('Period mode, single-shot starts and actual ADC changes exported for diagno
  assert.ok(app.includes("CFG_PERIOD '+(st.measurementPeriod==null"));
  assert.ok(app.includes('startCommandsSent:st.measurementStarts,adcChanges:st.measurementFreshCount'));
  assert.ok(app.includes('st.measurementFreshCount++'));
+});
+
+test('Cookie-only SSP3 live setup repairs CFG_PERIOD only in RAM with readback',()=>{
+ const app=read('app.js');
+ const power=app.split('async function testSsp3PowerStartup(){')[1]?.split('async function connect(port){')[0];
+ assert.ok(power.includes("st.powerCycleResult.magicCookieUsed===true&&st.measurementPeriod===0x5CFD"));
+ assert.ok(power.includes('P.plcHostCommand(P.plcWrite(0x0E,0x0001),st.plcHostFormat)'));
+ assert.ok(power.includes('const check=await readReg(0x0E,1800)'));
+ assert.ok(power.includes('if(check!==0x0001)throw Error('));
+ assert.ok(power.includes('P.plcHostCommand(P.plcWrite(0x22,0x8B93),st.plcHostFormat)'));
+ assert.ok(power.includes('st.powerCycleResult.livePeriodAdjustedInRam=true'));
+ assert.ok(power.includes('st.powerCycleResult.livePeriodAdjustmentError=st.measurementError'));
+ const block=power.split('// Magic Cookie writes its second frame to 0x0E')[1]?.split("st.powerCycleResult.stage='verified'")[0];
+ for(const bad of ['nvmScan(', 'nvmProgram(', 'nvmWrite(', 'maintWrite(', 'P.plcWrite(0x06', 'P.plcWrite(0x08', 'P.plcWrite(0x0A'])assert.ok(!block.includes(bad));
+});
+test('Manual pause respected, RAM-only live correction exported and NVM gates unchanged',()=>{
+ const app=read('app.js'),cal=read('calibration.js');
+ assert.ok(app.includes('st.manualLivePause=true;stopLive()'));
+ assert.ok(app.includes('st.manualLivePause=false;startLive()'));
+ assert.ok(app.includes("st.powerCycleResult?.livePeriodAdjustedInRam?' (RAM-Live-Modus)'"));
+ assert.ok(app.includes('cookiePeriodAdjusted:st.powerCycleResult?.livePeriodAdjustedInRam??false'));
+ assert.ok(cal.includes('for(const index of [17,18,19])'));
 });

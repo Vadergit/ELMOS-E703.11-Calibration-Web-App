@@ -157,6 +157,7 @@ if(typeof document!=='undefined') (function UI(){
   if($('liveDiagnostic'))$('liveDiagnostic').textContent=connected?
    'ADC '+st.liveReadSuccesses+'/'+st.liveReadAttempts+
    ' · CFG_PERIOD '+(st.measurementPeriod==null?'?':'0x'+P.hx(st.measurementPeriod,2))+
+   (st.powerCycleResult?.livePeriodAdjustedInRam?' (RAM-Live-Modus)':'')+
    (periodMode==='single'?' (Einzelmessung)':'')+
    (periodMode==='disabled'?' (deaktiviert)':'')+
    (st.measurementStatus!=null?' · STATUS '+(st.measurementStatus&1?'idle':'run'):'')+
@@ -972,6 +973,40 @@ if(typeof document!=='undefined') (function UI(){
     st.measurementError=String(e.message||e);
     logging('CFG_PERIOD/STATUS Diagnose: '+st.measurementError);
    }
+   // Magic Cookie writes its second frame to 0x0E with 0x5CFD, which is
+   // CFG_PERIOD. Restore a known, temporary continuous RUN configuration
+   // only after verifying the cookie caused this exact RAM register value.
+   if(st.adapterKind==='ssp3'&&st.iface==='plc'&&
+      st.powerCycleResult.magicCookieUsed===true&&st.measurementPeriod===0x5CFD){
+    st.powerCycleResult.livePeriodBefore=st.measurementPeriod;
+    st.powerCycleResult.stage='restore-live-conversion-after-cookie';
+    logging('Magic Cookie hinterliess CFG_PERIOD=0x5CFD. Setze nur RAM-CFG_PERIOD=0x0001 und CMD.start fuer kontinuierliche Kalibrierung.');
+    try{
+     if(st.closing||st.port!==port||!st.chip)throw Error('Sensor beim RAM-Messstart nicht verbunden.');
+     const command=P.plcHostCommand(P.plcWrite(0x0E,0x0001),st.plcHostFormat);
+     const reply=await exchange(command,2500);
+     st.powerCycleResult.steps.push({command,reply:reply.slice(0,800),ok:true,kind:'ram-live-period-only'});
+     const check=await readReg(0x0E,1800);
+     if(check!==0x0001)throw Error('CFG_PERIOD RAM-Ruecklesung 0x'+h(check,2)+' statt 0x0001.');
+     st.measurementPeriod=check;
+     const start=P.plcHostCommand(P.plcWrite(0x22,0x8B93),st.plcHostFormat);
+     const startReply=await exchange(start,2500);
+     st.powerCycleResult.steps.push({command:start,reply:startReply.slice(0,800),ok:true,kind:'ram-cmd-start-only'});
+     st.measurementStarts++;
+     await sleep(65);
+     st.measurementStatus=await readReg(0x36,1800);
+     st.powerCycleResult.measurementPeriod=check;
+     st.powerCycleResult.measurementStatus=st.measurementStatus;
+     st.powerCycleResult.livePeriodAdjustedInRam=true;
+     logging('RAM-Live-Konversion aktiviert: CFG_PERIOD=0x0001, STATUS=0x'+h(st.measurementStatus,2)+'. NVM bleibt unveraendert.');
+    }catch(err){
+     st.measurementError='RAM-Live-Konversion konnte nicht gestartet werden: '+String(err.message||err);
+     st.powerCycleResult.livePeriodAdjustmentError=st.measurementError;
+     logging(st.measurementError);
+     show('adcMsg',st.measurementError+' · Chip weiterhin verbunden, kein NVM-Schreiben.','warn');
+     try{st.measurementPeriod=await readReg(0x0E,1800)}catch(_){st.measurementPeriod=null}
+    }
+   }
    st.powerCycleResult.stage='verified';
    const usedCookie=!!st.powerCycleResult.magicCookieUsed;
    $('plcPowerState').textContent=usedCookie?
@@ -1419,7 +1454,7 @@ if(typeof document!=='undefined') (function UI(){
 
  function draw(){const c=$('chart');if(!c||c.closest('[hidden]'))return;const d=window.devicePixelRatio||1,w=Math.round(c.clientWidth*d),h=Math.round(c.clientHeight*d);if(w<20)return;if(c.width!==w||c.height!==h){c.width=w;c.height=h}const g=c.getContext('2d');g.clearRect(0,0,w,h);const x0=55*d,y0=10*d,yh=h-20*d,y=v=>y0+(32768-v)/65536*(yh-y0);g.font=`${11*d}px sans-serif`;for(const v of [25000,0,-25000]){g.beginPath();g.strokeStyle=v?'#e3c9aa':'#d7e4ef';g.setLineDash(v?[5*d,4*d]:[]);g.moveTo(x0,y(v));g.lineTo(w-8*d,y(v));g.stroke();g.setLineDash([]);g.fillStyle='#74849a';g.fillText((v>0?'+':'')+v,5*d,y(v)+4*d)}if(st.trend.length<1)return;const left=Date.now()-60000,x=t=>x0+(w-x0-10*d)*Math.max(0,Math.min(1,(t-left)/60000));g.beginPath();g.strokeStyle='#2867a6';g.lineWidth=2*d;st.trend.forEach((p,i)=>i?g.lineTo(x(p.x),y(p.y)):g.moveTo(x(p.x),y(p.y)));g.stroke()}
  function download(name,txt,mime='application/json'){let b=new Blob([txt],{type:mime}),u=URL.createObjectURL(b),a=document.createElement('a');a.href=u;a.download=(demoEnabled?'DEMO_':'')+name;a.click();setTimeout(()=>URL.revokeObjectURL(u),2000)}
- const report=()=>({tool:'ELMOS E703.11 Kalibrierassistent v0.6.29',created:new Date().toISOString(),connection:demoEnabled?'Demo':st.port?'USB':'offline',hardwareValidated:false,unit:pressureUnit(),pointNames:{lower:pointName('lo'),upper:pointName('hi')},interface:st.iface,firmware:st.firmware,bootProtection:'Boot-/Werks-NVM-Schreiben gesperrt; kalibrierungsbezogenes User-NVM mit Bestätigung freigegeben',ramWriteActive:!!st.ramWriteScope,registers:st.regs,bootSnapshot:st.boot,chipUID:st.uid?.hex||null,expertOutput:st.expertOutputPlan,AFE:st.afe,gains:st.staged,low:st.points.lo,high:st.points.hi,verification:st.verify,calibrationPoints:st.calpoints,plannedCalibrationPointCount:calibrationPointCount(),requestedSamplesPerPoint:Number($('calSampleCount').value),requestedDSPOutputLimit:Number($('calDspLimit').value),coefficientFit:st.calfit,calRamVerified:st.calVerified,lastDSP:st.dsp,chipDiagnostic:st.chipDiag,lastPlcReply:st.lastPlcReply,displayRange:getActiveDSPRange(),nvmState:{backupVerified:st.nvmBackupVerified,programmed:st.nvmDone},samples:st.history.slice(-1500),trace:st.log});
+ const report=()=>({tool:'ELMOS E703.11 Kalibrierassistent v0.6.30',created:new Date().toISOString(),connection:demoEnabled?'Demo':st.port?'USB':'offline',hardwareValidated:false,unit:pressureUnit(),pointNames:{lower:pointName('lo'),upper:pointName('hi')},interface:st.iface,firmware:st.firmware,bootProtection:'Boot-/Werks-NVM-Schreiben gesperrt; kalibrierungsbezogenes User-NVM mit Bestätigung freigegeben',ramWriteActive:!!st.ramWriteScope,registers:st.regs,bootSnapshot:st.boot,chipUID:st.uid?.hex||null,expertOutput:st.expertOutputPlan,AFE:st.afe,gains:st.staged,low:st.points.lo,high:st.points.hi,verification:st.verify,calibrationPoints:st.calpoints,plannedCalibrationPointCount:calibrationPointCount(),requestedSamplesPerPoint:Number($('calSampleCount').value),requestedDSPOutputLimit:Number($('calDspLimit').value),coefficientFit:st.calfit,calRamVerified:st.calVerified,lastDSP:st.dsp,chipDiagnostic:st.chipDiag,lastPlcReply:st.lastPlcReply,displayRange:getActiveDSPRange(),nvmState:{backupVerified:st.nvmBackupVerified,programmed:st.nvmDone},samples:st.history.slice(-1500),trace:st.log});
 
  // ============ Kalibrierung + NVM (AN0203 / AN0204 / Datasheet 2023) ============
  const ca=(id,msg,type='')=>show(id,msg,type);
@@ -1985,7 +2020,7 @@ if(typeof document!=='undefined') (function UI(){
  });
  $('plcStartupLogExport').addEventListener('click',()=>{
   const log={
-   tool:'ELMOS E703.11 – SSP3 Startdiagnose',version:'v0.6.29',at:new Date().toISOString(),
+   tool:'ELMOS E703.11 – SSP3 Startdiagnose',version:'v0.6.30',at:new Date().toISOString(),
    source:'Web-App (NICHT PSSC Originalsoftware)',interface:st.iface,adapter:st.adapterKind,
    firmware:st.firmware,port:serialPortInfo(st.port),chipDetected:!!st.chip,
    startupAttempts:st.startupAttempts,lastPlcReply:st.lastPlcReply,
@@ -1995,6 +2030,8 @@ if(typeof document!=='undefined') (function UI(){
      lastADC:st.adc?.s??null,lastADCTime:st.adc?.time??null,plcEnabledInRam:st.powerCycleResult?.plcEnabledInRam??null,
      cfgPeriod:st.measurementPeriod,cfgPeriodMode:P.periodMode(st.measurementPeriod),status:st.measurementStatus,
      startCommandsSent:st.measurementStarts,adcChanges:st.measurementFreshCount,
+     cookiePeriodAdjusted:st.powerCycleResult?.livePeriodAdjustedInRam??false,
+     cookiePeriodBefore:st.powerCycleResult?.livePeriodBefore??null,
      lastADCChangedAt:st.measurementLastChangedAt,measurementError:st.measurementError},
     log:st.log.slice(-500),
    note:'Der Export enthält nur die Web-App-Befehle. Für einen Vergleich wird zusätzlich ein originaler PSSC-SSP3-Trace benötigt. Keine Sensorregister werden durch den Export verändert.'

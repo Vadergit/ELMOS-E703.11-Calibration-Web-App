@@ -1,3 +1,10 @@
+## v0.6.30 – 12.11.2026: Kontinuierliche RAM-Konversion nach Magic-Cookie-Zugriff wieder starten
+
+- Das zweite Magic-Cookie-Telegramm schreibt 0x5CFD auf die CFG_PERIOD-Adresse 0x0E; der Screenshot zeigt den exakt übereinstimmenden RAM-Wert.
+- Nur im nachgewiesenen Cookie-Pfad und bei diesem Rücklesewert wird CFG_PERIOD=0x0001 im RAM geschrieben, rückgelesen und CMD.start für die kontinuierliche Kalibrierung gesendet.
+- Keine NVM-Änderung, keine Änderung von One-Wire-Startkonfiguration, keine Rücksetzung der manuell gewählten Live-Pause.
+- Zusätzlicher Rücklese-/Fehlerstatus und Regressionstests. Hardwaretest folgt.
+
 ## v0.6.29 – 12.11.2026: Live-Messung bei CFG_PERIOD-Einzelmodus
 
 - Prüft CFG_PERIOD 0x0E und STATUS 0x36 nach der Chiperkennung lesend und zeigt den Modus im Live-Kopf an.
