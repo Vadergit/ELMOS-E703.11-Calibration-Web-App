@@ -6,7 +6,8 @@ Versionierung nach `MAJOR.MINOR.PATCH`: Kleine Anpassungen erhöhen PATCH, neue 
 
 - Im geführten Abgleich mit **einer Temperaturstufe** werden Druckpunkte nur als **P1, P2 usw.** bezeichnet. **T1 / P1** bleibt für mehrere Temperaturstufen erhalten.
 - **Unabhängige DSP-Nachprüfung:** Standardmässig wird **1 Prüfpunkt** gewählt, unabhängig vom Temperaturplan. Weitere Prüfpunkte können weiterhin manuell eingestellt werden.
-- 57 Software-Regressionstests, inklusive Punktbezeichnungen und Prüfpunkt-Voreinstellung.
+- **NVM-Live-Messung:** Nach dem geschützten NVM-Schreib-/Rückleseablauf startet die ADC-/DSP-Live-Messung automatisch wieder, sobald alle Wartungs-/Schreibsperrflags freigegeben sind. Absichtlich manuell pausierte Messungen bleiben pausiert. Vor Beginn des NVM-Vorgangs wird eine noch laufende Live-Abfrage abgewartet.
+- **58 Software-Regressionstests**, inklusive Punktbezeichnungen, Prüfpunkt-Voreinstellung und gesichertem Live-Neustart nach NVM.
 
 ## v0.6.9 – 12.11.2026
 
