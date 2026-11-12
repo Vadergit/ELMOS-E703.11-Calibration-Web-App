@@ -459,15 +459,15 @@ if(typeof document!=='undefined') (function UI(){
  function serialize(fn){const run=st.cmdQueue.then(fn,fn);st.cmdQueue=run.catch(()=>{});return run}
  async function exchange(text,timeout=2500){return serialize(async()=>{if(!st.closing&&demoPort&&st.port===demoPort)return demoPort.exchange(text);if(st.closing||!st.port?.writable)throw Error('USB-Verbindung nicht geöffnet');if(st.responseWait)throw Error('Interner Befehlskonflikt');st.replyBuffer='';let resolver,rejecter;const future=new Promise((res,rej)=>{resolver=res;rejecter=rej});const ticket={resolve:resolver,reject:rejecter,timer:setTimeout(()=>{if(st.responseWait===ticket){st.responseWait=null;ticket.reject(Error((st.adapterKind==='bridge'?'ESP32':'SSP3')+' antwortet nicht auf '+text.slice(0,18))) }},timeout)};st.responseWait=ticket;future.catch(()=>{});const writer=st.port.writable.getWriter();try{logging('TX '+text);await writer.write(new TextEncoder().encode(text+'\r'))}catch(e){if(st.responseWait===ticket){st.responseWait=null;clearTimeout(ticket.timer);rejecter(e)}throw e}finally{writer.releaseLock()}const ans=await future;if(ans.split(/[\r\n]+/).some(l=>l.trim().startsWith('!')))throw Error((st.adapterKind==='bridge'?'ESP32':'SSP3')+' meldet Fehler: '+ans.slice(0,140));return ans})}
 
- // Send both ASCII commands in a SINGLE serial write, without host-side
- // USB request/response roundtrip between PWR_ON and PLC T.
- // Intended for finite 4/10/200 ms 1-Wire startup windows only.
- // SSP3 acknowledges BOTH commands separately; do not stop at the first ':'.
+ // Two fast serial writes, not two commands in one write. The actual SSP3
+ // firmware may accept only one CR-terminated command per UART/USB packet.
+ // Do not WAIT for PWR_ON's firmware response before sending PLC T.
+ // Command and chip timing is experimental; no claims about 4-ms guarantee.
  async function exchangeSsp3StartupBurst(){
   const commands=['PWR_ON 0C80 00C8 0','PLC T'];
   return serialize(async()=>{
    if(st.closing||!st.port?.writable||st.adapterKind!=='ssp3'||st.iface!=='plc')
-    throw Error('SSP3 PLC-Startburst benötigt einen verbundenen SSP3 im One-Wire-Modus.');
+    throw Error('SSP3 PLC-Start benötigt einen verbundenen SSP3 im One-Wire-Modus.');
    if(st.responseWait)throw Error('Interner SSP3-Befehlskonflikt');
    st.replyBuffer='';
    let resolver,rejecter;
@@ -475,32 +475,50 @@ if(typeof document!=='undefined') (function UI(){
    const ticket={resolve:resolver,reject:rejecter,prompts:2,timer:null};
    ticket.timer=setTimeout(()=>{
     if(st.responseWait===ticket){
+     const partial=st.replyBuffer.slice(0,1300);
+     const received=P.ssp3PromptCount(partial);
      st.responseWait=null;
-     rejecter(Error('SSP3: Bei PWR_ON + PLC T wurden nicht beide Antworten empfangen.'));
+     if(st.powerCycleResult){
+      st.powerCycleResult.burstPartialReply=partial;
+      st.powerCycleResult.burstPromptCount=received;
+     }
+     rejecter(Error('SSP3 bestätigte '+received+'/2 Startbefehle. Teilantwort: '+(partial||'(keine)')));
     }
    },6000);
    st.responseWait=ticket;
    future.catch(()=>{});
    const writer=st.port.writable.getWriter();
+   let secondQueued=false;
+   const firstAt=Date.now();
    try{
-    // Exactly one USB write. The SSP3 parses the CR-delimited commands in order.
-    logging('TX(BURST) PWR_ON 0C80 00C8 0');
-    logging('TX(BURST) PLC T');
-    await writer.write(new TextEncoder().encode(commands.join('\r')+'\r'));
+    logging('TX PWR_ON 0C80 00C8 0 (schnelle Einzelausgabe)');
+    await writer.write(new TextEncoder().encode(commands[0]+'\r'));
+    // UART command parser can process this as a distinct frame. No wait for ':'.
+    secondQueued=true;
+    logging('TX PLC T (direkt danach, ohne SSP3-Antwort abzuwarten)');
+    await writer.write(new TextEncoder().encode(commands[1]+'\r'));
+    const sendDuration=Date.now()-firstAt;
+    if(st.powerCycleResult)st.powerCycleResult.burstSendDurationMs=sendDuration;
+    logging('SSP3 PWR_ON/PLC T: zwei serielle Writes in '+sendDuration+' ms; warte auf 2 Antworten.');
    }catch(e){
+    if(st.powerCycleResult){
+     st.powerCycleResult.burstWriteError=String(e.message||e);
+     st.powerCycleResult.burstSecondQueued=secondQueued;
+     st.powerCycleResult.burstPartialReply=st.replyBuffer.slice(0,1300);
+    }
     if(st.responseWait===ticket){
      st.responseWait=null;clearTimeout(ticket.timer);rejecter(e);
     }
     throw e;
    }finally{writer.releaseLock()}
    const response=await future;
-   if(P.ssp3PromptCount(response)!==2)
-    throw Error('SSP3-Startburst: erwartete zwei vollständig bestätigte Befehle.');
+   if(P.ssp3PromptCount(response)<2)
+    throw Error('SSP3-Start: beide Firmwareantworten fehlen.');
    const lines=response.split(/[\r\n]+/).map(line=>line.trim());
    if(lines.some(line=>line.startsWith('!')))
-    throw Error('SSP3-Startburst meldet Fehler: '+response.slice(0,300));
+    throw Error('SSP3-Start meldet Fehler: '+response.slice(0,300));
    if(!lines.some(line=>/^#PWR_ON\b/i.test(line))||!lines.some(line=>/^#PLC T\b/i.test(line)))
-    throw Error('SSP3-Startburst: Antwort-Quittungen PWR_ON und PLC T nicht eindeutig.');
+    throw Error('SSP3-Start: Bestätigung für PWR_ON und PLC T fehlt. RX: '+response.slice(0,300));
    return response;
   });
  }
@@ -811,16 +829,16 @@ if(typeof document!=='undefined') (function UI(){
    await send('PLC P',2500);
    $('plcPowerState').textContent='PLC-Puffer vorbereitet; SSP3 startet VSUPPLY und sendet PLC T.';
    // A 15-ms USB response wait after PWR_ON is longer than the 4-ms
-   // E703.11 startup window. Send CR-delimited PWR_ON and PLC T in one
-   // USB transfer, then wait for BOTH SSP3 replies.
+   // E703.11 startup window. Write each command separately, but do not
+   // wait for PWR_ON's firmware reply before queueing PLC T.
    st.powerCycleResult.stage='PWR_ON + PLC T (single USB burst)';
    const burstStarted=Date.now();
    const burstResponse=await exchangeSsp3StartupBurst();
    st.powerCycleResult.steps.push({
-    command:'PWR_ON 0C80 00C8 0\\rPLC T',mode:'single-usb-write',
+    command:'PWR_ON 0C80 00C8 0 -> PLC T',mode:'two-fast-serial-writes',
     elapsedMs:Date.now()-burstStarted,reply:burstResponse.slice(0,1000),ok:true
    });
-   logging('AN0204: SSP3 quittierte PWR_ON + PLC T nach einer gemeinsamen USB-Übertragung ('+(Date.now()-burstStarted)+' ms).');
+   logging('AN0204: SSP3 quittierte beide getrennt gesendeten Startbefehle ('+(Date.now()-burstStarted)+' ms).');
    powerOnAcknowledged=true;
    st.powerCycleResult.powerRestored=true;
    st.powerCycleResult.stage='readback';
@@ -1159,7 +1177,7 @@ if(typeof document!=='undefined') (function UI(){
 
  function draw(){const c=$('chart');if(!c||c.closest('[hidden]'))return;const d=window.devicePixelRatio||1,w=Math.round(c.clientWidth*d),h=Math.round(c.clientHeight*d);if(w<20)return;if(c.width!==w||c.height!==h){c.width=w;c.height=h}const g=c.getContext('2d');g.clearRect(0,0,w,h);const x0=55*d,y0=10*d,yh=h-20*d,y=v=>y0+(32768-v)/65536*(yh-y0);g.font=`${11*d}px sans-serif`;for(const v of [25000,0,-25000]){g.beginPath();g.strokeStyle=v?'#e3c9aa':'#d7e4ef';g.setLineDash(v?[5*d,4*d]:[]);g.moveTo(x0,y(v));g.lineTo(w-8*d,y(v));g.stroke();g.setLineDash([]);g.fillStyle='#74849a';g.fillText((v>0?'+':'')+v,5*d,y(v)+4*d)}if(st.trend.length<1)return;const left=Date.now()-60000,x=t=>x0+(w-x0-10*d)*Math.max(0,Math.min(1,(t-left)/60000));g.beginPath();g.strokeStyle='#2867a6';g.lineWidth=2*d;st.trend.forEach((p,i)=>i?g.lineTo(x(p.x),y(p.y)):g.moveTo(x(p.x),y(p.y)));g.stroke()}
  function download(name,txt,mime='application/json'){let b=new Blob([txt],{type:mime}),u=URL.createObjectURL(b),a=document.createElement('a');a.href=u;a.download=(demoEnabled?'DEMO_':'')+name;a.click();setTimeout(()=>URL.revokeObjectURL(u),2000)}
- const report=()=>({tool:'ELMOS E703.11 Kalibrierassistent v0.6.21',created:new Date().toISOString(),connection:demoEnabled?'Demo':st.port?'USB':'offline',hardwareValidated:false,unit:pressureUnit(),pointNames:{lower:pointName('lo'),upper:pointName('hi')},interface:st.iface,firmware:st.firmware,bootProtection:'Boot-/Werks-NVM-Schreiben gesperrt; kalibrierungsbezogenes User-NVM mit Bestätigung freigegeben',ramWriteActive:!!st.ramWriteScope,registers:st.regs,bootSnapshot:st.boot,chipUID:st.uid?.hex||null,expertOutput:st.expertOutputPlan,AFE:st.afe,gains:st.staged,low:st.points.lo,high:st.points.hi,verification:st.verify,calibrationPoints:st.calpoints,plannedCalibrationPointCount:calibrationPointCount(),requestedSamplesPerPoint:Number($('calSampleCount').value),requestedDSPOutputLimit:Number($('calDspLimit').value),coefficientFit:st.calfit,calRamVerified:st.calVerified,lastDSP:st.dsp,chipDiagnostic:st.chipDiag,lastPlcReply:st.lastPlcReply,displayRange:getActiveDSPRange(),nvmState:{backupVerified:st.nvmBackupVerified,programmed:st.nvmDone},samples:st.history.slice(-1500),trace:st.log});
+ const report=()=>({tool:'ELMOS E703.11 Kalibrierassistent v0.6.22',created:new Date().toISOString(),connection:demoEnabled?'Demo':st.port?'USB':'offline',hardwareValidated:false,unit:pressureUnit(),pointNames:{lower:pointName('lo'),upper:pointName('hi')},interface:st.iface,firmware:st.firmware,bootProtection:'Boot-/Werks-NVM-Schreiben gesperrt; kalibrierungsbezogenes User-NVM mit Bestätigung freigegeben',ramWriteActive:!!st.ramWriteScope,registers:st.regs,bootSnapshot:st.boot,chipUID:st.uid?.hex||null,expertOutput:st.expertOutputPlan,AFE:st.afe,gains:st.staged,low:st.points.lo,high:st.points.hi,verification:st.verify,calibrationPoints:st.calpoints,plannedCalibrationPointCount:calibrationPointCount(),requestedSamplesPerPoint:Number($('calSampleCount').value),requestedDSPOutputLimit:Number($('calDspLimit').value),coefficientFit:st.calfit,calRamVerified:st.calVerified,lastDSP:st.dsp,chipDiagnostic:st.chipDiag,lastPlcReply:st.lastPlcReply,displayRange:getActiveDSPRange(),nvmState:{backupVerified:st.nvmBackupVerified,programmed:st.nvmDone},samples:st.history.slice(-1500),trace:st.log});
 
  // ============ Kalibrierung + NVM (AN0203 / AN0204 / Datasheet 2023) ============
  const ca=(id,msg,type='')=>show(id,msg,type);
@@ -1725,7 +1743,7 @@ if(typeof document!=='undefined') (function UI(){
  });
  $('plcStartupLogExport').addEventListener('click',()=>{
   const log={
-   tool:'ELMOS E703.11 – SSP3 Startdiagnose',version:'v0.6.21',at:new Date().toISOString(),
+   tool:'ELMOS E703.11 – SSP3 Startdiagnose',version:'v0.6.22',at:new Date().toISOString(),
    source:'Web-App (NICHT PSSC Originalsoftware)',interface:st.iface,adapter:st.adapterKind,
    firmware:st.firmware,port:serialPortInfo(st.port),chipDetected:!!st.chip,
    startupAttempts:st.startupAttempts,lastPlcReply:st.lastPlcReply,

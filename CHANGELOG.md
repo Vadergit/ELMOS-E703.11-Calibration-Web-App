@@ -1,3 +1,10 @@
+## v0.6.22 – 12.11.2026: SSP3 nimmt kombinierten Startbefehl nicht zuverlässig an
+
+- Nach Hardwarefehler «Bei PWR_ON + PLC T wurden nicht beide Antworten empfangen» das kombinierte ASCII-Paket in zwei einzelne CR-terminierte serielle Schreibaufrufe aufgeteilt, **ohne** auf die erste SSP3-Antwort zu warten.
+- Beide Firmwareprompts und die Kommandobestätigungen werden anschliessend geprüft; Teilantwort und Laufzeit werden bei Timeout in der exportierten Diagnose gespeichert.
+- Keine NVM- oder Bootregisteränderung. Power-Wiederherstellung bei Abbruch bleibt aktiv.
+- 4-ms-Timing bleibt bis Hardwaretest unbestätigt.
+
 ## v0.6.21 – 12.11.2026: One-Wire-Cookie zeitnah nach Power-On senden
 
 - Bisherige 15-ms-USB-Roundtrip-Pause zwischen `PWR_ON` und `PLC T` entfernt.

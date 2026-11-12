@@ -178,7 +178,7 @@ test('Expert mode shows contextual settings and no modal',()=>{
  assert.ok(html.includes('data-expert-area hidden><summary>Erweitert · AODO_F'));
  assert.ok(src.includes("classList.toggle('is-expert',enabled)"));
  const scripts=Array.from(html.matchAll(/<script src="([^"]+)"/g),m=>m[1]);
- assert.deepEqual(scripts,['calibration.js?v=0.6.21','eeprom-help.js?v=0.6.21','expert.js?v=0.6.21','config.js?v=0.6.21','guided-plan.js?v=0.6.21','demo.js?v=0.6.21','app.js?v=0.6.21','compact.js?v=0.6.21','guided.js?v=0.6.21']);
+ assert.deepEqual(scripts,['calibration.js?v=0.6.22','eeprom-help.js?v=0.6.22','expert.js?v=0.6.22','config.js?v=0.6.22','guided-plan.js?v=0.6.22','demo.js?v=0.6.22','app.js?v=0.6.22','compact.js?v=0.6.22','guided.js?v=0.6.22']);
 });
 
 test('Failed E703.11 probe keeps SSP3 open for explicit, bounded startup test',()=>{
@@ -438,7 +438,7 @@ test('Guided view is optional and contains only one set of hardware inputs',()=>
  assert.ok(html.includes('id="workflowMode"'));
  assert.ok(html.includes('id="guidedLaunch"'));
  assert.ok(html.includes('id="guidedLaunchTop"'));
- assert.ok(html.includes('guided.css?v=0.6.21'));
+ assert.ok(html.includes('guided.css?v=0.6.22'));
  for(const id of ['nvmProgram','nvmPrepare','calApplyRam','calVerifyRam','expertOutputStage','configApply','configFile']){
   assert.equal(html.split('id="'+id+'"').length-1,1);
  }
@@ -934,8 +934,8 @@ test('SSP3 02.08.02.04 uses hardware-proven legacy PLC host frame; split format 
  assert.ok(fw.includes("$('plcHostFormat').value='legacy'"));
  assert.ok(!fw.includes("st.plcHostFormat='separate'"));
  assert.ok(html.includes('<option value="separate" disabled>'));
- assert.ok(html.includes('<script src="app.js?v=0.6.21"'));
- assert.ok(html.includes('guided.css?v=0.6.21'));
+ assert.ok(html.includes('<script src="app.js?v=0.6.22"'));
+ assert.ok(html.includes('guided.css?v=0.6.22'));
  const p=app.split('async function testSsp3PowerStartup(){')[1]?.split('async function connect(port){')[0];
  assert.ok(p.includes("if(st.firmware==='02.08.02.04')"));
  assert.ok(p.includes("st.plcHostFormat='legacy'"));
@@ -966,15 +966,16 @@ test('SSP3 prompt counter correctly counts independent command acknowledgements'
  assert.equal(P.ssp3PromptCount('#PWR_ON 0c80 00c8 0000\r:\r#PLC T\r'),1);
  assert.equal(P.ssp3PromptCount('#PLC 026D1C0C.\r!PLC nothing received\r:\r'),1);
 });
-test('Short-window power-on and PLC transmit are sent in one USB write',()=>{
+test('Short-window power-on and PLC transmit are distinct serial writes without waiting for response',()=>{
  const app=read('app.js');
  const routine=app.split('async function exchangeSsp3StartupBurst(){')[1]?.split('async function firmware(){')[0];
  assert.ok(routine);
  assert.ok(routine.includes("const commands=['PWR_ON 0C80 00C8 0','PLC T']"));
- assert.ok(routine.includes("commands.join('\\r')+'\\r'"));
- assert.ok(routine.includes("writer.write(new TextEncoder().encode("));
+ assert.ok(routine.includes("writer.write(new TextEncoder().encode(commands[0]+'\\r'))"));
+ assert.ok(routine.includes("writer.write(new TextEncoder().encode(commands[1]+'\\r'))"));
+ assert.ok(routine.indexOf("commands[0]+'\\r'")<routine.indexOf("commands[1]+'\\r'"));
  assert.ok(routine.includes("prompts:2"));
- assert.ok(routine.includes("P.ssp3PromptCount(response)!==2"));
+ assert.ok(routine.includes("P.ssp3PromptCount(response)<2"));
  assert.ok(routine.includes('/^#PWR_ON'));
  assert.ok(routine.includes('/^#PLC T'));
  assert.ok(!routine.includes('await exchange('));
@@ -984,4 +985,16 @@ test('Short-window power-on and PLC transmit are sent in one USB write',()=>{
  assert.ok(power.includes("powerOnAcknowledged=true"));
  assert.ok(power.includes("await send('PWR_ON 0 0 0',4000)"));
  assert.ok(power.includes('await detect()'));
+});
+
+test('Partial SSP3 startup response retained for diagnosing one-command firmware parser',()=>{
+ const app=read('app.js');
+ const routine=app.split('async function exchangeSsp3StartupBurst(){')[1]?.split('async function firmware(){')[0];
+ assert.ok(routine.includes('st.powerCycleResult.burstPartialReply=partial'));
+ assert.ok(routine.includes('st.powerCycleResult.burstPromptCount=received'));
+ assert.ok(routine.includes('st.powerCycleResult.burstSendDurationMs=sendDuration'));
+ assert.ok(routine.includes('st.powerCycleResult.burstSecondQueued=secondQueued'));
+ assert.ok(routine.includes("future.catch(()=>{})"));
+ assert.ok(routine.includes("if(st.responseWait===ticket)"));
+ assert.ok(!routine.includes("commands.join("));
 });
