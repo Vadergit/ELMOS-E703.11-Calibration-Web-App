@@ -601,8 +601,10 @@ if(typeof document!=='undefined') (function UI(){
  }
 
 
- // Diagnostic only. CRC8 is displayed, never treated as independently valid
- // until the SSP3 packet framing is verified against an Elmos reference trace.
+ // CRC8 verification follows DS 25DS0170E.04, chapter 6.4.5.6.1:
+ // CRC8 over read address, header/CRC4, slave preamble 0x02 and data.
+ // Confirmed against the datasheet 0x6A/0x1234 => 0x65 example and
+ // Jürg's 0x1C/0x0000 => 0x35 frame. CRC valid != plausible register.
  const afeBits=w=>({
   bit11:(w>>>11)&1,binary:w.toString(2).padStart(16,'0'),pga1:w&3,
   offset:(w>>>2)&31,pga2:(w>>>7)&15,reservedHigh:(w>>>12)&15
@@ -618,11 +620,17 @@ if(typeof document!=='undefined') (function UI(){
    try{
     const bytes=P.readData(reply,3);
     result=(bytes[0]<<8)|bytes[1];
+    const readHeader=P.crc4([0x6D,addr,0],20);
+    const crc8Expected=P.crc8PLC([addr,readHeader,0x02,bytes[0],bytes[1]]);
+    const crc8Valid=bytes[2]===crc8Expected;
     Object.assign(frame,{status:'parsed',word:result,bytes:bytes.slice(),
-      crc8Rx:bytes[2],crc8IndependentCheck:'not-validated'});
+      crc8Rx:bytes[2],crc8Expected,crc8IndependentCheck:crc8Valid?'valid':'invalid'});
     if(addr===R_AFE||st.diagRunning)
      logging('1-Wire 0x'+h(addr)+': Daten '+bytes.map(v=>h(v)).join(' ') +
-      ', Wort=0x'+h(result,2)+', CRC8-Byte=0x'+h(bytes[2])+' (noch nicht unabhängig geprüft)');
+      ', Wort=0x'+h(result,2)+', CRC8 '+(crc8Valid?'OK':'FEHLER')+
+      ' (erwartet 0x'+h(crc8Expected)+')');
+    if(!crc8Valid)throw Error('CRC8-Prüfung fehlgeschlagen bei Register 0x'+h(addr)+
+      ': empfangen 0x'+h(bytes[2])+', erwartet 0x'+h(crc8Expected));
    }catch(e){
     Object.assign(frame,{status:'malformed',error:e.message});
     logging('1-Wire 0x'+h(addr)+': ungültiges Antwortformat: '+e.message);
@@ -656,7 +664,7 @@ if(typeof document!=='undefined') (function UI(){
    'E703.11 – lesende Chipdiagnose / '+d.reason,
    'Zeit: '+d.at+' · Schnittstelle: '+d.interface,
    'Kein Register wurde durch die Diagnose beschrieben.',
-   'CRC8: empfangenes Byte wird protokolliert, aber die unabhängige Prüfung der SSP3-Antwort ist noch offen.',
+   'CRC8: wird anhand der dokumentierten 1-Wire-Leseantwort unabhängig geprüft; gültige CRC8 allein garantiert keine plausible Chipkonfiguration.',
    ''
   ];
   for(const p of d.probes){
@@ -672,6 +680,7 @@ if(typeof document!=='undefined') (function UI(){
       (a.pga2>=8?' (10×-Codierungsfamilie)':'')+' · Bits15:12='+a.reservedHigh);
     lines.push('  UI-Decodierung: PGA1='+g.pga1+', PGA2='+g.pga2+', Offset='+g.offset);
    }
+   if(frame?.crc8IndependentCheck)lines.push('  CRC8: '+frame.crc8IndependentCheck+' · erwartet 0x'+h(frame.crc8Expected??0));
    if(frame?.rawReply)lines.push('  Rohantwort: '+frame.rawReply.replace(/[\r\n]+/g,' / ').slice(0,240))
   }
   const reads=d.probes.filter(p=>p.addr===R_AFE&&!p.error).map(p=>p.value);
@@ -681,7 +690,7 @@ if(typeof document!=='undefined') (function UI(){
   else if(distinct.length!==1)lines.push('ERGEBNIS: CFG_AFE1 wechselt zwischen Leseversuchen. Kommunikationsproblem möglich.');
   else if(!(distinct[0]&0x0800))lines.push('ERGEBNIS: CFG_AFE1 wiederholt mit Bit11=0 gelesen. Keine Schreibfreigabe; mit Elmos-PSSC vergleichen.');
   else lines.push('ERGEBNIS: CFG_AFE1 '+reads.length+'× gleich mit Bit11=1 gelesen.');
-  lines.push('Gleiche Bytes allein beweisen ohne geprüfte CRC8-Berechnung noch keine fehlerfreie Übertragung.');
+  lines.push('Gültige CRC8 bestätigt nur die Datenintegrität des Frames. Die Register-Plausibilität muss separat geprüft werden.');
   return lines.join('\n')
  }
  async function runChipDiagnostics(reason='Manuelle Diagnose'){
@@ -1059,6 +1068,31 @@ if(typeof document!=='undefined') (function UI(){
    if(powerOffAttempted&&!powerOnAcknowledged&&st.port===port&&!st.closing){
     try{await send('PWR_ON 0 0 0',4000);st.powerCycleResult.powerRestored=true;logging('AN0204: DUT-Versorgung mit PWR_ON 0 0 0 wieder aktiviert.')}
     catch(restore){st.powerCycleResult.restoreError=String(restore.message||restore);logging('WARNUNG: DUT-Versorgung konnte nicht bestätigt wiederhergestellt werden: '+st.powerCycleResult.restoreError);}
+   }
+   // After BOTH the buffered start and guarded Cookie have failed,
+   // probe a few distinct register addresses READ-ONLY. This never
+   // delays the time-critical power-on window or modifies sensor RAM/NVM.
+   // Distinguishes all-register 0000 from a single invalid CFG_AFE1.
+   if(st.port===port&&!st.closing&&st.adapterKind==='ssp3'&&st.iface==='plc'&&
+      !st.chip&&powerOnAcknowledged){
+    const diagnostic={at:new Date().toISOString(),interface:st.iface,
+     reason:'Automatisch nach fehlgeschlagenem SSP3-Start (nur lesen)',probes:[]};
+    st.chipDiag=diagnostic;
+    st.powerCycleResult.failureProbes=diagnostic.probes;
+    for(const [addr,name] of [[0x04,'CFG_EN'],[0x08,'CFG_PADS0'],[0x0A,'CFG_PADS1'],
+                                [0x1C,'CFG_AFE1'],[0x2A,'ADC_S']]){
+     if(st.port!==port||st.closing)break;
+     const entry={addr,name},previousFrame=st.lastPlcReply;
+     try{entry.value=await readReg(addr,1250)}
+     catch(probeErr){entry.error=String(probeErr.message||probeErr)}
+     if(st.lastPlcReply!==previousFrame)entry.frame={...st.lastPlcReply};
+     diagnostic.probes.push(entry);
+     logging('SSP3 Read-only-Probe '+name+' (0x'+h(addr)+'): '+
+      (entry.error?'Fehler '+entry.error:'0x'+h(entry.value,2)+
+       ', CRC8 '+(entry.frame?.crc8IndependentCheck||'unbekannt')));
+    }
+    $('chipDiagDetails').open=true;
+    $('chipDiagResult').textContent=formatChipDiag(diagnostic);
    }
    const power=!powerOffAttempted?'Kein Ausschaltbefehl gesendet.':st.powerCycleResult.powerRestored?'DUT-Versorgung laut SSP3 wieder eingeschaltet.':'ACHTUNG: DUT-Versorgung nicht als eingeschaltet bestätigt!';
    const msg='AN0204-Starttest ohne Chipantwort: '+st.powerCycleResult.error+'. '+power+' Bitte TX/RX-Log exportieren.';
@@ -2118,7 +2152,7 @@ if(typeof document!=='undefined') (function UI(){
  });
  $('plcStartupLogExport').addEventListener('click',()=>{
   const log={
-   tool:'ELMOS E703.11 – SSP3 Startdiagnose',version:'v0.6.34',at:new Date().toISOString(),
+   tool:'ELMOS E703.11 – SSP3 Startdiagnose',version:'v0.6.35',at:new Date().toISOString(),
    source:'Web-App (NICHT PSSC Originalsoftware)',interface:st.iface,adapter:st.adapterKind,
    firmware:st.firmware,port:serialPortInfo(st.port),chipDetected:!!st.chip,
    startupAttempts:st.startupAttempts,lastPlcReply:st.lastPlcReply,
