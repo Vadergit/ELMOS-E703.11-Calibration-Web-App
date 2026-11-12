@@ -2,7 +2,7 @@
 
 **Ein geführter Kalibrierassistent für den ELMOS E703.11 und das SSP3-Eval-Board.** Ziel ist ein verständlicher Abgleich, der auch ohne tiefere Vorkenntnisse Schritt für Schritt funktioniert. Wer mehr benötigt, kann zusätzliche Messpunkte, DSP-Parameter und einen geschützten Expertenmodus verwenden.
 
-**Version: v0.6.37 · geführter Abgleich und klassische Ansicht** · [Änderungsverlauf](CHANGELOG.md)
+**Version: v0.6.38 · geführter Abgleich und klassische Ansicht** · [Änderungsverlauf](CHANGELOG.md)
 
 Über **Einstellungen → Demo-Modus** lässt sich der gesamte Kalibrierablauf mit simulierten Messwerten und NVM ausprobieren.
 
@@ -13,6 +13,18 @@
 > **Geführter Assistent:** Nach der bestätigten SSP3-Verbindung stehen die neue Schritt-für-Schritt-Führung, die klassische Ansicht und der optionale Kompaktmodus zur Verfügung. Ein E703.11-Chip muss für den Abgleich verbunden sein. Die USB-CDC-Bridge bleibt als experimenteller Verbindungstest ohne Sensorprogrammierung gesperrt.
 >
 > [Geführter Abgleich](docs/GEFUEHRTER_ASSISTENT.md) · [USB-Bridge](docs/USB_BRIDGE_GUIDE.md) · [ESP-Boards](docs/ESP_BOARD_OPTIONS.md) · [ESP32-C3 SuperMini Sketch](firmware/esp32c3_supermini/esp32c3_supermini.ino)
+
+## SSP3 PSSC-Bibliothek: PLC-Geschwindigkeiten für bekannten Adapter (v0.6.38)
+
+Beim Prüfen der vom Anwender bereitgestellten Original-Bibliothek `ssp3_lib.dll` zeigte sich, dass die PSSC über `ssp3_plc_set_bit_rate` die dokumentierte `PLC_CFG 1 %04X`-Schnittstelle verwendet. Die darin implementierte neuere Delay-Umrechnung ergibt für die bekannte Firmware `02.08.02.04` die Presets **100 kHz → Delay 0x0007** und **50 kHz → Delay 0x000E**. Diese Werte entsprechen PSSC-Optionen aus der Evaluation-Kit-Einführung (100/50/7/6 kHz).
+
+Die Web-App verwendet ab v0.6.38 beim **ersten** geregelten Startversuch `PLC_CFG 1 0007` und ein gemeinsames USB-Paket `PWR_ON …\rPLC T\r`. Scheitert die Chiperkennung, testet sie bei quittierter VSUPPLY genau **einmal** mit `PLC_CFG 1 000E` und dem bisherigen Zweipaketverfahren. Ein Fehler oder fehlende Quittung bei PLC_CFG wird protokolliert; der bisherige SSP3-Takt bleibt dann unangetastet. Auf anderen oder unbekannten Firmwareversionen wird `PLC_CFG` **nicht** verändert.
+
+Die langsameren PSSC-Modi 7/6 kHz werden bewusst nicht automatisch ausprobiert, weil die Freigabesequenz bei einem möglichen **4-ms-Startfenster** zu lang sein kann. Auch die in der Bibliothek sichtbaren historischen, speziellen Cookie-Telegramme werden ohne experimentell bestätigten Protokollvergleich **nicht** automatisch übertragen; die dokumentierte AN0204-Methode `PLC P/T` bleibt erhalten. `PLC_CFG` verändert **nur den Host-Signaltakt**, keine Chipregister oder NVM-Daten.
+
+Die beiden Versuche sind unter `startupTrials` im JSON enthalten, jeweils mit `plcTestSpeedKhz`, `plcTestDelay`, `plcSpeedApplied`, `plcSpeedError`, `usbWriteMode` sowie den vollständigen bisherigen Antworten. `PWR_ON 0C80 00C8 0` ist weiterhin ein Spannungsschwellwert von 3,2 V mit 200-µs-Wartezeit und **keine VDD-Programmierung**. Für den Hardwareversuch auch die FTDI-Latenz (1 ms) und USB-Transfergrössen (512) prüfen. Änderungen an den Windows-Treibereinstellungen erfordern ausreichende Berechtigungen und erneutes Verbinden.
+
+**Noch nicht mit Jürgs SSP3 verifiziert.** Kein NVM-Schreiben, aber geregelte Labor-Versorgungsschaltvorgänge und temporäre RAM-/AODO-Einflüsse sind möglich. Test nur am vorgesehenen isolierten Prüfaufbau.
 
 ## Testbereit für Jürg – Startfenster und FTDI-Latenz (v0.6.37)
 
