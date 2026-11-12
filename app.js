@@ -81,15 +81,17 @@ if(typeof document!=='undefined') (function UI(){
   banner.hidden=!visible;
   if(!visible)return;
   const working=st.reinitRunning||st.powerCycleRunning||st.magicRunning||st.startupRunning||st.diagRunning;
+  const adapter=st.adapterKind==='bridge'?'ESP32':'SSP3';
   message.textContent=working?'Verbindung wird geprüft und initialisiert …':
-   st.adapterNoReply?'Der SSP3 antwortet nicht auf USB-Befehle (auch nicht auf .VERSION). USB-Port neu öffnen; falls weiterhin keine Antwort kommt, SSP3/FTDI und andere Programme prüfen.':
-   st.sensorLost?'Kommunikation zum Sensor fehlgeschlagen. Der SSP3 antwortet weiterhin über USB.':
+   st.adapterNoReply?`Der ${adapter} antwortet nicht auf USB-Befehle. USB-Port neu öffnen und prüfen, ob ein anderes Programm den Port verwendet.`:
+   st.adapterKind==='bridge'&&st.bridgeRxNote?st.bridgeRxNote:
+   st.sensorLost?`Kommunikation zum Sensor fehlgeschlagen. Der ${adapter} antwortet weiterhin über USB.`:
    st.plcAddressProbes.length&&st.iface==='plc'
      ? 'Keine bestätigte Chipantwort. Adressen 0x6C und 0x7C wurden geprüft. Details mit «Diagnose exportieren» sichern.'
      : 'Keine gültige Sensorantwort. Sensoranschluss prüfen und erneut initialisieren.';
   button.disabled=working||st.writing||st.nvmWorking||st.calTask||st.afeWriteActive;
   button.textContent=working?'Initialisierung läuft …':
-   st.adapterNoReply?'SSP3-Port neu öffnen':'Sensor neu initialisieren';
+   st.adapterNoReply?'USB-Port neu öffnen':'Sensor neu initialisieren';
  }
  function renderStatus(){let connected=!!st.port;
   const addrRow=$('plcAddressRow');
@@ -769,6 +771,7 @@ if(typeof document!=='undefined') (function UI(){
   if(!match)throw Error('Kein kompatibler E703.11 USB-CDC-Bridge-Handshake. Bitte Bridge-Firmware prüfen.');
   const caps=match[1].split(',');
   st.bridgePsscRam=caps.includes('PSSC_RAM');
+  st.bridgeRxDiag=caps.includes('PLC_RX_DIAG');
   st.firmware='USB-CDC Bridge v1 · '+caps.join('/');
   renderStatus();logging('USB-Bridge CAPS: '+caps.join(','));
   const ready=['PLC_READ','PLC_WRITE','NVM'].every(cap=>caps.includes(cap));
@@ -789,14 +792,33 @@ if(typeof document!=='undefined') (function UI(){
   st.plcAddress=parseInt(status[1],16);
   if(status[2]==='1')st.psscRamRecovery=true;
  }
+ async function noteBridgeRx(){
+  if(!st.bridgeRxDiag||!st.port||st.closing)return;
+  try{
+   const reply=await exchange('PLC RX DIAG');
+   for(const row of reply.split(/\r?\n/).filter(l=>l.includes('# RX ')))logging(row);
+   const readings=[...reply.matchAll(/ECHO=(BOTH|LOW|HIGH) EDGES=(\d+)/g)];
+   if(readings.length!==2)return;
+   if(readings.every(m=>m[1]!=='BOTH'&&Number(m[2])===0))
+    st.bridgeRxNote='ESP32 per USB erreichbar. GPIO6 sieht weder das eigene Sendesignal noch eine Sensorantwort. AODO-Treiber und RX-Anschluss prüfen.';
+   else if(readings.every(m=>Number(m[2])===0))
+    st.bridgeRxNote='ESP32 empfängt sein eigenes Sendesignal, aber keine Sensorantwort auf AODO. Startfenster und Sensorversorgung prüfen.';
+   else st.bridgeRxNote='ESP32 erkennt Signalwechsel am AODO-Empfänger, aber keine bestätigte Chipantwort. Details im USB-Protokoll.';
+  }catch(e){logging('ESP32 RX-Diagnose: '+e.message)}
+ }
  async function connectBridgeChip(){
+  st.bridgeRxNote='';
   await exchange('PLC_BAUD '+$('plcBaud').value);
   try{await bridgeAccess({power:st.sensorPowerEnabled})}
   catch(e){
    if(!st.bridgePsscRam||!e.message.includes('PLC_NO_VALID_FRAME')||st.closing||!st.port)throw e;
    st.psscRamRecovery=true;
    logging('ESP32: normale PLC-Adressen ohne Antwort; PSSC-Freigabe im Sensor-RAM.');
-   await bridgeAccess({power:st.sensorPowerEnabled,recover:true});
+   try{await bridgeAccess({power:st.sensorPowerEnabled,recover:true})}
+   catch(recoveryError){
+    if(recoveryError.message.includes('PLC_NO_VALID_FRAME'))await noteBridgeRx();
+    throw recoveryError;
+   }
   }
   if(st.bridgePsscRam){
    // The bridge has already verified address and CRC on AFE, ADC and CFG.
@@ -1665,9 +1687,9 @@ if(typeof document!=='undefined') (function UI(){
      return;
     }
     if(st.adapterKind==='bridge'){
-     const message=e.message.includes('PLC_NO_VALID_FRAME')
+     const message=st.bridgeRxNote||(e.message.includes('PLC_NO_VALID_FRAME')
       ?'ESP32 verbunden. Warte auf E703.11. Prüfe Versorgung und AODO-Verkabelung und verbinde den Adapter erneut.'
-      :'ESP32 erreichbar. E703.11-Zugriff fehlgeschlagen: '+e.message;
+      :'ESP32 erreichbar. E703.11-Zugriff fehlgeschlagen: '+e.message);
      show('connMsg',message,'warn');
      renderStatus();
      return;
@@ -2605,7 +2627,7 @@ if(typeof document!=='undefined') (function UI(){
  });
  $('plcStartupLogExport').addEventListener('click',()=>{
   const log={
-   tool:'ELMOS E703.11 – SSP3 Startdiagnose',version:'v0.6.46',at:new Date().toISOString(),
+   tool:'ELMOS E703.11 – SSP3 Startdiagnose',version:'v0.6.47',at:new Date().toISOString(),
    source:'Web-App (NICHT PSSC Originalsoftware)',interface:st.iface,adapter:st.adapterKind,
     plcAddress:'0x'+h(st.plcAddress),plcAddressVerified:st.plcAddressVerified,
     plcAddressSource:st.plcAddressSource,plcAddressProbes:st.plcAddressProbes,psscRamRecovery:!!st.psscRamRecovery,

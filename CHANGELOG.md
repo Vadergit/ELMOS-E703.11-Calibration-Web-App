@@ -1,3 +1,7 @@
+## v0.6.47 – ESP32-Empfangsdiagnose
+
+- Firmware v0.5.1 synchronisiert sich auf die tatsächliche Sensorantwort und prüft den CRC. Bei fehlender Chipantwort zeigt die Web-App, ob GPIO6 das eigene Sendesignal und anschliessende Flanken erkannt hat.
+
 ## v0.6.46 – ESP32-Start für E703.11 mit abweichender One-Wire-Konfiguration
 
 - ESP32-C3-Firmware v0.5 prüft die PLC-Adressen 0x6C und 0x7C. Erst gültige CRCs und übereinstimmende Sensorregister bestätigen die Verbindung.

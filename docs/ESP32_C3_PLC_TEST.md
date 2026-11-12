@@ -1,6 +1,6 @@
 # ESP32-C3 SuperMini mit E703.11 testen
 
-Firmware v0.5 unterstützt den PLC-Zugriff über AODO und stellt der lokalen Web-App die bestehenden Abläufe für Registerlesen, AFE/DSP im RAM und User-NVM bereit. Das PLC-Timing und die elektrische Schaltung müssen am Sensor geprüft werden. Den ersten Test auf Chip-Erkennung, Live-Werte und das Lesen des Original-NVM beschränken. RAM-Schreiben anschliessend an einem Testchip prüfen. Vor permanentem Schreiben das Original-NVM exportieren.
+Firmware v0.5.1 unterstützt den PLC-Zugriff über AODO und stellt der lokalen Web-App die bestehenden Abläufe für Registerlesen, AFE/DSP im RAM und User-NVM bereit. Das PLC-Timing und die elektrische Schaltung müssen am Sensor geprüft werden. Den ersten Test auf Chip-Erkennung, Live-Werte und das Lesen des Original-NVM beschränken. RAM-Schreiben anschliessend an einem Testchip prüfen. Vor permanentem Schreiben das Original-NVM exportieren.
 
 ## Anschluss über eine externe Treiberstufe
 
@@ -29,3 +29,5 @@ Für einen bestätigten 3,3-V-Sensoraufbau eignet sich als Ausgangspunkt ein [SN
 Wenn GPIO10 den externen Lastschalter steuert, aktiviere vor dem Verbinden **Sensorversorgung steuern**. Nach erfolgreichem NVM-Schreiben startet **Sensor neu starten und NVM prüfen** den E703.11 bei bestehender USB-Verbindung neu. Die Web-App prüft die Chip-ID, liest alle 64 NVM-Wörter mit CRC-Prüfung zurück und vergleicht die Bootregister. Bei separater Sensorversorgung steht die manuelle Neustartprüfung zur Verfügung.
 
 Ohne Web-App kann im seriellen Monitor mit 115200 Baud und Zeilenende `Newline` die Firmware per `BRIDGE_INFO` geprüft werden. Ein Sensor mit bereits aktivem PLC-Registerzugriff lässt sich mit `PLC_UID 100000` oder `PLC_UID 25000` identifizieren.
+
+Mit `PLC RX DIAG` prüft die Bridge bei der aktuell gewählten Baudrate beide Adressen lesend. `ECHO=BOTH` bedeutet, dass GPIO6 beim eigenen Senden beide Pegel gesehen hat. `EDGES` zählt die Signalwechsel nach Freigabe der Leitung. Erst `CRC_OK` bestätigt ein gültiges Antworttelegramm.

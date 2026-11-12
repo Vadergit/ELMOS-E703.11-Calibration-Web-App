@@ -59,11 +59,27 @@ struct Edge {
   bool high;
 };
 
-inline bool decode(const Edge *edges, size_t count, uint32_t bitTime, uint8_t (&reply)[4]) {
+inline bool decode(const Edge *edges, size_t count, uint32_t bitTime, uint8_t address,
+                   uint8_t header, uint8_t (&reply)[4], bool &badCrc) {
   // The first six zero bits provide six rising midpoint edges.
   const uint32_t tolerance = bitTime / 4;
   for (size_t start = 0; start < count; ++start) {
     if (!edges[start].high) continue;
+    // The first six rising midpoints are spaced one sensor bit apart.
+    // Recover the sensor's actual clock from this run, rather than assuming
+    // the master and sensor use exactly the same oscillator frequency.
+    uint32_t last = edges[start].time;
+    size_t sync = start + 1;
+    unsigned intervals = 0;
+    for (; sync < count && intervals < 5; ++sync) {
+      if (!edges[sync].high) continue;
+      const uint32_t spacing = edges[sync].time - last;
+      if (spacing < bitTime - tolerance || spacing > bitTime + tolerance) break;
+      last = edges[sync].time;
+      ++intervals;
+    }
+    if (intervals != 5) continue;
+    const uint32_t recoveredBitTime = (last - edges[start].time + 2) / 5;
     memset(reply, 0, sizeof(reply));
     size_t index = start;
     uint32_t expected = edges[start].time;
@@ -74,10 +90,13 @@ inline bool decode(const Edge *edges, size_t count, uint32_t bitTime, uint8_t (&
       if (index == count || static_cast<int32_t>(edges[index].time - expected) >
                                 static_cast<int32_t>(tolerance)) break;
       reply[bit / 8] = (reply[bit / 8] << 1) | !edges[index].high;
-      expected = edges[index++].time + bitTime;
+      expected = edges[index++].time + recoveredBitTime;
       if (bit == 7 && reply[0] != Preamble) break;
     }
-    if (bit == ReplyBits) return true;
+    if (bit == ReplyBits) {
+      if (replyCrc(address, header, reply) == reply[3]) return true;
+      badCrc = true;
+    }
   }
   return false;
 }
@@ -92,7 +111,8 @@ inline void configurePins() {
 }
 
 inline size_t transfer(const uint8_t *request, size_t length, unsigned baud,
-                       Edge *edges, size_t capacity, bool startup = false, bool shortGap = false) {
+                       Edge *edges, size_t capacity, bool startup = false, bool shortGap = false,
+                       bool *rxStart = nullptr, uint8_t *txEcho = nullptr) {
   static portMUX_TYPE timingLock = portMUX_INITIALIZER_UNLOCKED;
   const uint32_t half = esp_clk_cpu_freq() / baud;
   const uint32_t bitTime = 2 * half;
@@ -117,6 +137,7 @@ inline size_t transfer(const uint8_t *request, size_t length, unsigned baud,
       txLevel(one);
       next += half;
       waitUntil(next);
+      if (txEcho) *txEcho |= (GPIO.in.val & RxMask) ? 2 : 1;
       txLevel(!one);
       next += half;
       waitUntil(next);
@@ -127,7 +148,8 @@ inline size_t transfer(const uint8_t *request, size_t length, unsigned baud,
   GPIO.out_w1tc.val = EnableMask;
 
   bool last = GPIO.in.val & RxMask;
-  const uint32_t end = next + 42 * bitTime;
+  if (rxStart) *rxStart = last;
+  const uint32_t end = next + 48 * bitTime;
   while (count < capacity) {
     const uint32_t now = esp_cpu_get_cycle_count();
     if (static_cast<int32_t>(now - end) >= 0) break;
@@ -177,15 +199,19 @@ inline void enableAccess(unsigned baud, bool powerCycle, bool recover, uint8_t s
   if (recover) transfer(PsscRamAccess, sizeof(PsscRamAccess), baud, nullptr, 0, false, powerCycle);
 }
 
-inline const char *readWord(uint8_t address, unsigned baud, uint16_t &word, uint8_t *checksum = nullptr, uint8_t slave = ReadAddress) {
+inline const char *readWord(uint8_t address, unsigned baud, uint16_t &word, uint8_t *checksum = nullptr, uint8_t slave = ReadAddress,
+                            size_t *rxEdges = nullptr, bool *rxStart = nullptr,
+                            uint8_t *txEcho = nullptr) {
   const uint8_t header = readHeader(address, slave);
   const uint8_t request[] = {Preamble, slave, address, header};
   Edge edges[80];
-  const size_t count = transfer(request, sizeof(request), baud, edges, 80);
+  const size_t count = transfer(request, sizeof(request), baud, edges, 80, false, false, rxStart, txEcho);
+  if (rxEdges) *rxEdges = count;
   const uint32_t bitTime = 2 * (esp_clk_cpu_freq() / baud);
   uint8_t reply[4];
-  if (!decode(edges, count, bitTime, reply)) return "!BRIDGE PLC_NO_VALID_FRAME";
-  if (replyCrc(address, header, reply) != reply[3]) return "!BRIDGE PLC_BAD_CRC";
+  bool badCrc = false;
+  if (!decode(edges, count, bitTime, address, header, reply, badCrc))
+    return badCrc ? "!BRIDGE PLC_BAD_CRC" : "!BRIDGE PLC_NO_VALID_FRAME";
   if (checksum) *checksum = reply[3];
   word = (static_cast<uint16_t>(reply[1]) << 8) | reply[2];
   return nullptr;
