@@ -1054,16 +1054,16 @@ test('Magic-Cookie auto startup retains protected NVM and does not touch other i
 
 test('Live read prioritises ADC_S and tolerates missing temperature while strict path remains strict',()=>{
  const app=read('app.js');
- const read=app.split('async function readADC({allowPartial=false}={}){')[1]?.split('function startLive(){')[0];
- assert.ok(read);
- assert.ok(read.indexOf("readReg(0x2A)")<read.indexOf("readReg(0x28)"));
- assert.ok(read.indexOf("readReg(0x2A)")<read.indexOf("readReg(0x26)"));
- assert.ok(read.includes('if(allowPartial)'));
- assert.ok(read.includes('temperatureError'));
- assert.ok(read.includes('return value;'));
- assert.ok(read.includes('updateADC({s,t,tc},\'usb\')'));
- assert.ok(read.includes("t=P.sign16(await readReg(0x28));"));
- assert.ok(read.includes("tc=P.sign16(await readReg(0x26));"));
+ const liveRead=app.split('async function readADC({allowPartial=false}={}){')[1]?.split('function startLive(){')[0];
+ assert.ok(liveRead);
+ assert.ok(liveRead.indexOf("readReg(0x2A)")<liveRead.indexOf("readReg(0x28)"));
+ assert.ok(liveRead.indexOf("readReg(0x2A)")<liveRead.indexOf("readReg(0x26)"));
+ assert.ok(liveRead.includes('if(allowPartial)'));
+ assert.ok(liveRead.includes('temperatureError'));
+ assert.ok(liveRead.includes('return value;'));
+ assert.ok(liveRead.includes('updateADC({s,t,tc},\'usb\')'));
+ assert.ok(liveRead.includes("t=P.sign16(await readReg(0x28));"));
+ assert.ok(liveRead.includes("tc=P.sign16(await readReg(0x26));"));
  // The capture function still reads all three registers without partial mode.
  const capture=app.split('async function measureCalibrationSamples(label){')[1]?.split('function renderCalibrationPlan(){')[0];
  assert.ok(capture?.includes("value={s:P.sign16(await readReg(0x2A)),t:P.sign16(await readReg(0x28)),tc:P.sign16(await readReg(0x26))}"));
