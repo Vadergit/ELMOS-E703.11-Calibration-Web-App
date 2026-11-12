@@ -1,12 +1,20 @@
 # Bedienungsanleitung – ELMOS E703.11
 
-**Dokumentationsstand v0.6.36** Kalibrierassistent
+**Dokumentationsstand v0.6.37** Kalibrierassistent
 
 **[Web-App öffnen](https://vadergit.github.io/ELMOS-E703.11-Calibration-Web-App/)** · **[Projektübersicht](README.md)** · **[Config-Dateien & EEPROM Viewer](CONFIG_DATEIEN.md)** · **[Testbericht](TESTBERICHT.md)**
 
 Diese Anleitung beschreibt die derzeitige Benutzeroberfläche der browserbasierten App für den **ELMOS E703.11** mit **SSP3-Eval-Board**. Ziel ist ein geführter Abgleich mit möglichst wenig Vorwissen und optionalen Expertenfunktionen.
 
 > **Laborprototyp, keine Produktionsfreigabe.** Der vollständige Kalibrier- und NVM-Schreibablauf wurde noch nicht am realen E703.11 als Gesamtsystem validiert. Permanente Änderungen zunächst nur an einem entbehrlichen Testchip erproben.
+
+## Einmaliger Wiederholungstest für Jürg (v0.6.37)
+
+Am bekannten, isolierten SSP3-Prüfplatz zuerst im **Windows Geräte-Manager** unter **Anschlüsse (COM & LPT) → USB Serial Port → Eigenschaften → Anschlusseinstellungen → Erweitert** den FTDI-Latency-Timer prüfen (Elmos-Empfehlung: 1 ms; USB Transfer Sizes je 512). Nach der Anpassung den Port neu verbinden.
+
+Dann die **Web-App v0.6.37** laden, in der klassischen Ansicht **USB & Chip** den Adapter **ELMOS SSP3 Evaluation Board · Standard** und die Schnittstelle **1-Wire · AODO (Standard)** verwenden und auf **Bekannten Port verbinden** klicken. Die Software versucht bei fehlender Chipantwort höchstens zweimal, die One-Wire-Initialisierung abzuschliessen: zuerst mit einem gemeinsamen USB-Paket für `PWR_ON + PLC T`, dann gegebenenfalls mit dem alten Zweipaketverfahren. Sind beide erfolglos, schliessen sich automatisch nur lesende Diagnoseabfragen an. Es ist kein weiteres manuelles Ein-/Ausstecken erforderlich.
+
+Für den Export: oben auf **Einstellungen** gehen, **Expertenparameter freischalten** aktivieren, zur **Klassischen Ansicht** und zu **USB & Chip** wechseln, im Abschnitt **SSP3-Verbindungsdiagnose · 1-Wire** auf **Web-App-SSP3-Protokoll exportieren** klicken und die heruntergeladene JSON-Datei senden. Das Feld `startupTrials` enthält beide Varianten. Keine automatische EEPROM-Programmierung; physische Versorgung und AODO-Ausgang sind während eines kontrollierten Power-Cycles zu beachten.
 
 ## Neue geführte Ansicht
 
