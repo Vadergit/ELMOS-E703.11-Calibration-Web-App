@@ -1,3 +1,10 @@
+## v0.6.14 – 12.11.2026: Experimenteller One-Wire-Magic-Cookie-Test
+
+- Separater Opt-in-Test im SSP3-Diagnosebereich mit Warnung zum vorübergehend unterdrückten Analogausgang.
+- Zwei dokumentierte PLC-Random-Writes `0xAC = 0x2B42` und `0x0E = 0x5CFD` direkt nacheinander. Anschliessende Registerprüfung statt falscher SSP3-Prompt-Erfolgsmeldung.
+- CRC-Schreibtelegramm gegen Herstellerbeispiel validiert. Keine NVM-Schreibbefehle, keine unbestätigten SSP3-Power-Befehle.
+- Ergebnisse und TX/RX-Befehle in bestehendem Diagnoseexport. Ein abgelaufenes PLC-Startfenster kann der Test nicht automatisch öffnen.
+
 ## v0.6.13 – 12.11.2026: SSP3-Handshake genauer eingrenzen
 
 - Hardware-Rückmeldung berücksichtigt: Die Originalsoftware verbindet Sensoren mit kurzem PLC-Startfenster ohne manuelles Neuanschliessen.

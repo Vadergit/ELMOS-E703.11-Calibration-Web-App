@@ -135,3 +135,8 @@ Die lokale Browser-Backup-Historie kann beim Löschen von Website-Daten verloren
 ## One-Wire beim Sensorstart (v0.6.13)
 
 Wenn der E703.11 nach `IF_CFG` und direkter PLC-Leseabfrage nicht antwortet, **Web-App-SSP3-Protokoll exportieren**. Die Originalsoftware PSSC verbindet mit unveränderter Verkabelung und kurzem 4-ms-Startfenster; eine manuelle VDD-Unterbrechung ist deshalb keine notwendige Voraussetzung. Die verbleibende Differenz ist die unbekannte Original-SSP3-Initialisierung / Zugriffsfreigabe. Eine optionale 12-s-PLC-Lesediagnose kann zusätzliche Sensorantworten aufzeichnen, stellt das abgelaufene Startfenster aber nicht wieder her. Kein automatischer Hardware-Reset oder Magic-Cookie-Schreibversuch ohne bestätigten Herstellerablauf.
+
+
+### Experimenteller Magic-Cookie-Test (v0.6.14)
+
+Nach dem erfolglosen 1-Wire-Verbindungsversuch im Reiter **USB & Chip** das Untermenü **Experimentell · One-Wire-Magic-Cookie (RAM)** öffnen. Warnhinweis beachten, das Einverständnis für die temporäre AODO-Umschaltung aktivieren und **Magic Cookie testen (nur RAM)** drücken. Der Test sendet nur die zwei im Elmos-Datenblatt dokumentierten PLC-Writes und liest anschliessend Register. **Keine NVM-Programmierung.** Bei Erfolglosigkeit das Web-App-SSP3-Protokoll exportieren. Dieser Test ersetzt keine bekannte hardwareseitige Öffnung des 4-/200-ms-Startfensters.

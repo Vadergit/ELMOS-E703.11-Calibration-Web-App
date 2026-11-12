@@ -95,3 +95,8 @@ Der automatische USB-Neuaufbau wurde durch einen manuell ausgelösten, zeitlich 
 ### Hardwarebefund v0.6.13 (12.11.2026)
 
 Bei 4-ms- und 200-ms-Startfenster und analogem Ausgang ist das Gerät weiterhin über die **Originalsoftware Elmos PSSC ohne manuellen Neuanschluss** erreichbar. Die Web-App bekommt nach einem formal plausiblen PLC-Lese-Telegramm vom SSP3 nur `!PLC nothing received`. Der neue Export liefert einen Web-App-TX/RX-Trace, **aber keinen Trace der Originalsoftware**. Die genaue originale SSP3-Power-/Freigabe-/Schnittstellensequenz bleibt offen. Keine ungesicherten Start- oder NVM-Befehle wurden ergänzt.
+
+
+### v0.6.14: Magic-Cookie-Test
+
+Software-Regression für PLC-Schreibtelegramme anhand des Elmos-E703.11-Datenblattbeispiels `02 6C 6A 0A 67 89 5F`. Die spezielle Cookie-Sequenz wird nach ausdrücklicher Bestätigung im Diagnoseteil als einzelne beabsichtigte Aktion ausgeführt. Das Ergebnis gilt nur bei anschliessendem erfolgreichen E703.11-Lesetest als bestätigt. **Noch keine reale Hardwarebestätigung.** Die Web-App kann den Sensor ohne dokumentiertes SSP3-Power-Kommando nicht synchronisiert neu starten.

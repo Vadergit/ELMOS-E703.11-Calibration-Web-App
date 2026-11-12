@@ -180,7 +180,7 @@ test('Expert mode shows contextual settings and no modal',()=>{
  assert.ok(html.includes('data-expert-area hidden><summary>Erweitert · AODO_F'));
  assert.ok(src.includes("classList.toggle('is-expert',enabled)"));
  const scripts=Array.from(html.matchAll(/<script src="([^"]+)"/g),m=>m[1]);
- assert.deepEqual(scripts,['calibration.js?v=0.6.13','eeprom-help.js?v=0.6.13','expert.js?v=0.6.13','config.js?v=0.6.13','guided-plan.js?v=0.6.13','demo.js?v=0.6.13','app.js?v=0.6.13','compact.js?v=0.6.13','guided.js?v=0.6.13']);
+ assert.deepEqual(scripts,['calibration.js?v=0.6.14','eeprom-help.js?v=0.6.14','expert.js?v=0.6.14','config.js?v=0.6.14','guided-plan.js?v=0.6.14','demo.js?v=0.6.14','app.js?v=0.6.14','compact.js?v=0.6.14','guided.js?v=0.6.14']);
 });
 
 test('Failed E703.11 probe keeps SSP3 open for explicit, bounded startup test',()=>{
@@ -440,7 +440,7 @@ test('Guided view is optional and contains only one set of hardware inputs',()=>
  assert.ok(html.includes('id="workflowMode"'));
  assert.ok(html.includes('id="guidedLaunch"'));
  assert.ok(html.includes('id="guidedLaunchTop"'));
- assert.ok(html.includes('guided.css?v=0.6.13'));
+ assert.ok(html.includes('guided.css?v=0.6.14'));
  for(const id of ['nvmProgram','nvmPrepare','calApplyRam','calVerifyRam','expertOutputStage','configApply','configFile']){
   assert.equal(html.split('id="'+id+'"').length-1,1);
  }
@@ -796,4 +796,26 @@ test('Elmos CRC8 polynomial test vector and existing reserved-bit write lock rem
  assert.throws(()=>P.encAFE(0x0000,{pga1:0,pga2:0,offset:0}),/Pflichtbit 11 fehlt/);
  const valid=P.encAFE(0x0800,{pga1:2,pga2:3,offset:1});
  assert.equal(valid&0x0800,0x0800);
+});
+
+test('PLC Magic Cookie encoder uses datasheet CRC write example',()=>{
+ const P=require('../app.js');
+ assert.equal(P.plcRead(0x6A),'PLC 026D6A0A.');
+ assert.equal(P.plcWrite(0x6A,0x6789),'PLC 026C6A0A67895F');
+ assert.equal(P.plcWrite(0xAC,0x2B42),'PLC 026CAC0F2B4299');
+ assert.equal(P.plcWrite(0x0E,0x5CFD),'PLC 026C0E095CFDCA');
+});
+test('Explicit Magic Cookie test performs exactly two documented PLC writes then reads',()=>{
+ const app=read('app.js'),html=read('index.html');
+ const routine=app.split('async function testPlcMagicCookie(){')[1]?.split('async function connect(port){')[0];
+ assert.ok(routine);
+ assert.ok(routine.includes("if(!$('plcMagicConfirm').checked)"));
+ assert.ok(routine.includes("st.adapterKind!=='ssp3'||st.iface!=='plc'"));
+ assert.ok(routine.includes('P.plcWrite(0xAC,0x2B42),P.plcWrite(0x0E,0x5CFD)'));
+ assert.ok(routine.includes('await exchange(commands[i],2000)'));
+ assert.ok(routine.includes('await detect()'));
+ for(const forbidden of ['nvmProgram(', 'nvmWrite(', 'maintWrite(', 'port.close(', 'port.open('])assert.ok(!routine.includes(forbidden));
+ assert.ok(html.includes('id="plcMagicRun" disabled'));
+ assert.ok(html.includes('id="plcMagicConfirm"'));
+ assert.ok(app.includes('magicCookie:st.magicResult'));
 });
