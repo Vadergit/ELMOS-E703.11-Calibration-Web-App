@@ -190,7 +190,7 @@ test('Failed E703.11 probe keeps SSP3 open for explicit, bounded startup test',(
  assert.ok(connect.includes('await firmware();'));
  assert.ok(connect.includes('await selectChipInterface();'));
  assert.ok(connect.includes('await detect();'));
- assert.ok(connect.includes('Startfenster testen'));
+ assert.ok(connect.includes('USB-Protokoll bitte exportieren.'));
  assert.ok(!connect.includes('await connect(port,false)'));
  assert.ok(!connect.includes('if(!await disconnect())'));
  assert.ok(!connect.includes('writeReg('));
