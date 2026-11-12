@@ -99,7 +99,7 @@ button.danger{background:#9e3e34;border-color:#9e3e34;color:#fff}button.danger:h
 /* Permanente Messwertübersicht – eine Zeile mit sauberen Spalten auf Desktop. */
 .top{display:grid;grid-template-columns:minmax(205px,245px) minmax(0,1fr) auto;align-items:center;gap:16px;padding:8px 0 15px;position:sticky;top:0;z-index:24;background:var(--bg);border-bottom:1px solid var(--line)}
 .brand{min-width:0}
-.live-overview{min-width:0;display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:6px;align-items:stretch}
+.live-overview{min-width:0;display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:6px;align-items:stretch}
 .live-kpi{display:flex;flex-direction:column;justify-content:center;min-width:0;padding:6px 10px;border:1px solid var(--line);background:#fff;border-radius:8px}
 .live-kpi-primary{border-color:#b9d3ea;background:#f1f7fd}
 .live-kpi-label{font-size:10px;line-height:1.15;letter-spacing:.025em;font-weight:750;color:#536b81}
@@ -128,7 +128,7 @@ button.danger{background:#9e3e34;border-color:#9e3e34;color:#fff}button.danger:h
  .live-connection{min-width:0}
  .live-connection .chip{font-size:10px;padding:4px 6px}
  .live-meta{font-size:9px}
- .live-overview{grid-template-columns:repeat(3,minmax(0,1fr));gap:4px}
+ .live-overview{gap:4px}
  .live-kpi{padding:5px 6px}
  .live-kpi-reading{font-size:14px}
  .live-kpi-label,.live-kpi-unit{font-size:9px}
@@ -464,12 +464,11 @@ html.compact-mode .foot{display:none}
 .dot.missing{background:#bb7a17}
 @media(max-width:600px){.sensor-reconnect button{width:100%}}
 </style><link rel="stylesheet" href="guided.css?v=0.6.30"><link rel="stylesheet" href="interface.css?v=0.6.30"></head><body><div class="wrap"><header class="top">
-<div class="brand"><div class="logo" aria-hidden="true">E</div><div><div class="eyebrow">E703.11 · PSSC · v0.6.32</div><h1>Kalibrierassistent</h1></div></div>
+<div class="brand"><div class="logo" aria-hidden="true">E</div><div><div class="eyebrow">E703.11 · PSSC · v0.6.33</div><h1>Kalibrierassistent</h1></div></div>
 <div class="live-overview" role="group" aria-label="Sensorwerte · laufende Anzeige">
   <div class="live-kpi" title="Unkompensierter Druck-ADC. Warnung bei Beträgen über 25’000 Digits."><span class="live-kpi-label">ADC_S <span id="liveAdcAlert" class="live-alert" hidden>!</span></span><span class="live-kpi-reading" id="liveAdcS">—</span><span class="live-kpi-unit">Digits</span></div>
   <div class="live-kpi" title="ADC_T · Temperatur-Rohwert, keine direkte Temperatur in °C."><span class="live-kpi-label">ADC_T</span><span class="live-kpi-reading" id="liveAdcT">—</span><span class="live-kpi-unit">Digits</span></div>
   <div class="live-kpi" title="DSP_S · kalibrierter digitaler Ausgang in Digits."><span class="live-kpi-label">DSP_S</span><span class="live-kpi-reading" id="liveDspS">—</span><span class="live-kpi-unit">Digits</span></div>
-  <div class="live-kpi" title="Ungefähre Temperatur aus DSP_T (0x2E), nur wenn die Skalierung bekannt ist. Keine Genauigkeitsbestätigung."><span class="live-kpi-label">Temperatur</span><span class="live-kpi-reading" id="liveTempC">—</span><span class="live-kpi-unit">°C · ca.</span></div>
   <div class="live-kpi live-kpi-primary" title="DSP_S auf den eingestellten Druck- oder Prozentbereich umgerechnet. Der Wert ersetzt keine DSP-Verifikation."><span class="live-kpi-label">Sensorwert</span><span class="live-kpi-reading" id="livePressure">—</span><span class="live-kpi-unit" id="livePressureUnit">%</span></div>
 </div>
 <div class="live-connection"><div class="connection-actions"><button type="button" id="guidedLaunchTop" class="settings-gear" title="Geführten Abgleich starten">◇ Geführt</button><button type="button" id="settingsOpen" class="settings-gear" aria-expanded="false" aria-controls="settingsPanel" title="App-Einstellungen öffnen">⚙ Einstellungen</button><span class="chip"><span class="dot" id="statusDot"></span><span id="status">Nicht verbunden</span></span><span class="live-meta"><span class="live-meta-dot" id="liveStateDot"></span><span id="liveState">Keine Live-Messung</span><span aria-hidden="true">·</span><span id="liveLastRead">—</span><span id="liveDiagnostic" title="Erfolgreiche ADC_S-Live-Abfragen / Versuche" style="font-size:10px;opacity:.85"></span></span></div></div>
@@ -1040,5 +1039,5 @@ html.compact-mode .foot{display:none}
 </div>
 <div class="nav"><button data-next="0">Zur Verbindung</button><button data-next="6">Zum NVM-Schritt</button></div>
 </section>
-<div class="foot"><b>Version v0.6.32</b> · <a href="CHANGELOG.md" target="_blank" rel="noopener">Änderungsverlauf</a> · ELMOS E703.11 · unabhängiger Kalibrierprototyp · Sicherheitsprinzip: Factory- und Kommunikations-Bootregister gesperrt; dokumentierte AODO-Ausgangsoptionen nur nach Prüfung im NVM-Plan; Wiederherstellung nur mit passender Chip-UID.</div>
-</main></div></div><div id="tip" class="tooltip"></div><script src="calibration.js?v=0.6.30"></script><script src="eeprom-help.js?v=0.6.30"></script><script src="expert.js?v=0.6.30"></script><script src="config.js?v=0.6.30"></script><script src="guided-plan.js?v=0.6.30"></script><script src="demo.js?v=0.6.30"></script><script src="app.js?v=0.6.32"></script><script src="compact.js?v=0.6.30"></script><script src="guided.js?v=0.6.31"></script></body></html>
+<div class="foot"><b>Version v0.6.33</b> · <a href="CHANGELOG.md" target="_blank" rel="noopener">Änderungsverlauf</a> · ELMOS E703.11 · unabhängiger Kalibrierprototyp · Sicherheitsprinzip: Factory- und Kommunikations-Bootregister gesperrt; dokumentierte AODO-Ausgangsoptionen nur nach Prüfung im NVM-Plan; Wiederherstellung nur mit passender Chip-UID.</div>
+</main></div></div><div id="tip" class="tooltip"></div><script src="calibration.js?v=0.6.30"></script><script src="eeprom-help.js?v=0.6.30"></script><script src="expert.js?v=0.6.30"></script><script src="config.js?v=0.6.30"></script><script src="guided-plan.js?v=0.6.30"></script><script src="demo.js?v=0.6.30"></script><script src="app.js?v=0.6.33"></script><script src="compact.js?v=0.6.30"></script><script src="guided.js?v=0.6.31"></script></body></html>
