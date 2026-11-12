@@ -1,12 +1,16 @@
 # Bedienungsanleitung – ELMOS E703.11
 
-**Dokumentationsstand v0.6.40** Kalibrierassistent
+**Dokumentationsstand v0.6.41** Kalibrierassistent
 
 **[Web-App öffnen](https://vadergit.github.io/ELMOS-E703.11-Calibration-Web-App/)** · **[Projektübersicht](README.md)** · **[Config-Dateien & EEPROM Viewer](CONFIG_DATEIEN.md)** · **[Testbericht](TESTBERICHT.md)**
 
 Diese Anleitung beschreibt die derzeitige Benutzeroberfläche der browserbasierten App für den **ELMOS E703.11** mit **SSP3-Eval-Board**. Ziel ist ein geführter Abgleich mit möglichst wenig Vorwissen und optionalen Expertenfunktionen.
 
 > **Laborprototyp, keine Produktionsfreigabe.** Der vollständige Kalibrier- und NVM-Schreibablauf wurde noch nicht am realen E703.11 als Gesamtsystem validiert. Permanente Änderungen zunächst nur an einem entbehrlichen Testchip erproben.
+
+## Verbindungsdiagnose bei fehlender Sensorantwort v0.6.41
+
+Falls nach dem Verbinden weiterhin «Sensor nicht verbunden» erscheint, oben im Warnbanner **«Diagnose exportieren»** klicken. Diese JSON-Datei enthält alle SSP3-/PLC-Kommandos und Antworten einschliesslich `plcAddressProbes`. Bei Bedarf die Dateiversion vor dem Test oben links kontrollieren (v0.6.41). Eine Original-PSSC-XML kann zu einem anderen Chip gehören; die App schreibt deshalb keine Adress-/Bootwerte ungeprüft ins EEPROM. Ein Hardwaretest muss die tatsächliche Adresse erst bestätigen.
 
 ## Automatische 1-Wire-Adresse v0.6.40
 
