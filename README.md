@@ -2,7 +2,7 @@
 
 **Ein geführter Kalibrierassistent für den ELMOS E703.11 und das SSP3-Eval-Board.** Ziel ist ein verständlicher Abgleich, der auch ohne tiefere Vorkenntnisse Schritt für Schritt funktioniert. Wer mehr benötigt, kann zusätzliche Messpunkte, DSP-Parameter und einen geschützten Expertenmodus verwenden.
 
-**Version: v0.6.34 · geführter Abgleich und klassische Ansicht** · [Änderungsverlauf](CHANGELOG.md)
+**Version: v0.6.35 · geführter Abgleich und klassische Ansicht** · [Änderungsverlauf](CHANGELOG.md)
 
 Über **Einstellungen → Demo-Modus** lässt sich der gesamte Kalibrierablauf mit simulierten Messwerten und NVM ausprobieren.
 
@@ -13,6 +13,16 @@
 > **Geführter Assistent:** Nach der bestätigten SSP3-Verbindung stehen die neue Schritt-für-Schritt-Führung, die klassische Ansicht und der optionale Kompaktmodus zur Verfügung. Ein E703.11-Chip muss für den Abgleich verbunden sein. Die USB-CDC-Bridge bleibt als experimenteller Verbindungstest ohne Sensorprogrammierung gesperrt.
 >
 > [Geführter Abgleich](docs/GEFUEHRTER_ASSISTENT.md) · [USB-Bridge](docs/USB_BRIDGE_GUIDE.md) · [ESP-Boards](docs/ESP_BOARD_OPTIONS.md) · [ESP32-C3 SuperMini Sketch](firmware/esp32c3_supermini/esp32c3_supermini.ino)
+
+## Weitere Diagnose nach Jürgs zweitem SSP3-Protokoll (v0.6.35)
+
+Im zweiten Protokoll wird die Magic Cookie jetzt korrekt ausgelöst und beide Telegramme werden vom SSP3 quittiert. Trotzdem liefert CFG_AFE1 vor **und** nach dem Fallback die Daten `00 00 35` (Registerwert `0x0000`). Die CRC8 `0x35` stimmt für das Antwortformat [Registeradresse 0x1C, CRC4-Header 0x0C, Slave-Präambel 0x02, Daten 00 00] überein. Der Web-App-CRC8-Algorithmus wurde mit dem E703.11-Datenblattbeispiel (Adresse 0x6A, Daten 0x1234, CRC8 0x65) verifiziert.
+
+Die Web-App prüft CRC8 ab v0.6.35 selbst. **Eine gültige CRC bestätigt nur das Datenformat und die Integrität des Frames, nicht die Plausibilität des Sensors oder den Erfolg der Magic Cookie.**
+
+Wenn die Initialisierung nach dem vorhandenen PLC P/T-Start und dem RAM-Fallback weiterhin scheitert, werden **erst danach** fünf verschiedene Register `CFG_EN`, `CFG_PADS0`, `CFG_PADS1`, `CFG_AFE1` und `ADC_S` nur lesend geprüft. Proben, Rohantworten und CRC-Ergebnisse werden im SSP3-JSON-Protokoll unter `powerCycle.failureProbes` sowie `chipDiag.probes` gespeichert. Es werden keine zusätzlichen Start-/RAM-/NVM-Schreibbefehle ausgeführt und das kurze One-Wire-Startfenster wird nicht durch die Diagnose verzögert.
+
+Offene Punkte: Unterschied der PLC_CFG-/Startsequenz der Original-PSSC-Software, tatsächliches One-Wire-Startfenster (4/10/200 ms), reales VSUPPLY-Verhalten am AODO-Prüfplatz. In AN 0204 ist `PWR_ON 0C80 00C8 0` ein **3.2-V-Spannungsschwellwert plus 200-µs-Verzögerung**, keine Einstellung einer Ausgangsspannung auf 3.2 V.
 
 ## SSP3-Protokoll von Jürg: 0x0000-Fallback (v0.6.34)
 
