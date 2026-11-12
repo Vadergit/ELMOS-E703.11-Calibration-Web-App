@@ -1,3 +1,8 @@
+## v0.6.43 – Brückenspannung und Kalibrierdaten nach SSP3-RAM-Start
+
+- Brückenspannung mit vollständiger Auswahlliste und kompakten Aktionen im AFE-Schritt.
+- Nach bestätigtem SSP3-Neustart derselben Chip-UID können geprüfte Kalibrierdaten ins NVM geschrieben werden. Ausgang und One-Wire-Start bleiben im Originalzustand. Das vollständige NVM wird unmittelbar vor dem Schreiben nochmals verglichen.
+
 ## v0.6.42 – SSP3-Start wie im Elmos-GUI
 
 - Bei der erkannten SSP3-Einzelsockel-Erweiterung für den E703.11 kann die Web-App bei fehlender One-Wire-Antwort den Startablauf von PSSC 3.2.1 verwenden. Die Freigabe setzt die temporäre One-Wire-Adresse 0x6C im Sensor-RAM. Der Zugriff gilt erst nach gültigen Registerantworten als bestätigt.

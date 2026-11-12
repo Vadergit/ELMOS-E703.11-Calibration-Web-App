@@ -127,14 +127,12 @@ if(typeof document!=='undefined') (function UI(){
   apply.disabled=!active||busy||!valid||!Number.isInteger(desired)||desired<0||
    desired>2||desired===code;
   apply.textContent=busy&&st.bridgeReadBusy?'Lese Brückenspannung …':
-   busy&&st.bridgeWriteAllowed?'Übernahme läuft …':'Brückenspannung ins RAM übernehmen';
+   busy&&st.bridgeWriteAllowed?'Übernahme läuft …':'Ins RAM übernehmen';
   status.textContent=!active?'Brückenspannung noch nicht gelesen. Zuerst den E703.11 verbinden.':
-   st.afe0==null?'Noch keine gültige CFG_AFE0-Rücklesung. «Aktuellen Wert lesen» verwenden.':
+   st.afe0==null?'Noch keine gültige CFG_AFE0-Rücklesung. «Wert lesen» verwenden.':
    !valid?'CFG_AFE0 enthält den reservierten br_supply-Code 3 – keine Änderung freigegeben.':
-   'Im Chip-RAM: '+BRIDGE_VOLTAGES[code].toFixed(1)+' V (CFG_AFE0=0x'+h(st.afe0,2)+
-   '). '+(desired!==null&&desired!==code?'Ausgewählt: '+BRIDGE_VOLTAGES[desired].toFixed(1)+' V – noch NICHT übernommen. ':
-   'Keine Änderung vorgemerkt. ')+
-   'Brückenverstärkung br_gain bleibt unverändert.';
+   'Aktiv im Sensor: '+BRIDGE_VOLTAGES[code].toFixed(1).replace('.',',')+' V'+
+   (desired!==null&&desired!==code?' · Auswahl noch nicht übernommen.':'.');
  }
  async function loadBridgeSupply(){
   const word=await readReg(R_BRIDGE,1800);
@@ -489,6 +487,24 @@ if(typeof document!=='undefined') (function UI(){
   if(n>=6&&!verificationComplete()&&!expert.restoreReady())return 'NVM bleibt gesperrt: Zuerst '+(Number.isFinite(verificationRequiredCount())?verificationRequiredCount()+' Prüfpunkte':'eine gültige Anzahl Prüfpunkte')+' über DSP_S im RAM erfolgreich verifizieren.';
   return ''
  }
+ // The recovery changes a RAM address, so require a fresh cold-start proof
+ // and keep every factory, boot and output word identical to the original NVM.
+ function psscRecoveryProven(){
+  return !!st.uid?.hex&&st.plcAddressVerified&&st.plcAddress===0x6C&&
+   st.startupTrials.some(trial=>trial.stage==='PSSC-RAM-Start'&&
+    trial.powerRestored&&trial.readVerified&&trial.verifiedUid===st.uid.hex);
+ }
+ function psscNvmBlock(initial,modified,restoring=false,outputOnly=false){
+  const recovered=st.psscRamRecovery||(st.regs[0x06]===0x6C04&&initial?.[17]!==0x6C04);
+  if(!recovered)return '';
+  if(!psscRecoveryProven())
+   return 'Für die PSSC-RAM-Verbindung fehlt der bestätigte Neustart dieses Chips. Sensor neu initialisieren und erneut prüfen.';
+  if(!initial||!modified)return '';
+  const calibrationWords=new Set([28,31,32,33,34,...Array.from({length:16},(_,i)=>35+i),51,52,53,54,63]);
+  if(restoring||outputOnly||modified.some((word,index)=>word!==initial[index]&&!calibrationWords.has(index)))
+   return 'Nach PSSC-RAM-Freigabe lassen sich nur Kalibrierdaten speichern. Ausgangs- und Starteinstellungen müssen unverändert bleiben.';
+  return '';
+ }
  function renderFlowState(){
   updateVerificationProgress();
   const ready=coefficientSettingsCurrent()&&calEndpointsReady();
@@ -526,7 +542,7 @@ if(typeof document!=='undefined') (function UI(){
   const outputStatus=$('outputOneWireStatus');
   const startup=st.nvmBackupVerified&&st.nvmBackup?.length===64?CAL.oneWireStartupStatus(st.nvmBackup):null;
   const cookieVerified=!!(st.powerCycleResult?.readVerified&&st.powerCycleResult.verifiedUid&&
-   st.powerCycleResult.verifiedUid===st.uid?.hex&&st.iface==='plc'&&st.port&&st.chip);
+   st.powerCycleResult.verifiedUid===st.uid?.hex&&st.iface==='plc'&&st.port&&st.chip)||psscRecoveryProven();
   if(outputStatus){
    const connected=st.mode==='usb'&&st.iface==='plc'&&st.chip;
    const saved=startup;
@@ -549,7 +565,7 @@ if(typeof document!=='undefined') (function UI(){
   const eepromReadBtn=$('eepromRead');
   if(eepromReadBtn)eepromReadBtn.disabled=!st.port||!st.chip||st.calTask||st.writing||st.nvmWorking;
   const outputNvmRead=$('outputNvmRead');if(outputNvmRead)outputNvmRead.disabled=!st.port||!st.chip||st.writing||st.calTask||st.nvmWorking;
-  if(st.psscRamRecovery)nvmReason='EEPROM-Schreiben nach PSSC-RAM-Freigabe gesperrt.';
+  if(!nvmReason)nvmReason=psscNvmBlock(st.calImage?.before,st.calImage?.after,restoring,outputOnly);
   const approvalGranted=nvmReason==='';
   $('nvmProgram').disabled=!approvalGranted;
   const bootCheckBusy=st.closing||st.nvmWorking||st.writing||st.calTask;
@@ -892,7 +908,7 @@ if(typeof document!=='undefined') (function UI(){
  }
  // Read-only automatic PLC address discovery. Valid CRC8, plausible AFE
  // and ADC data plus the chip's own address registers must agree.
- async function probePlcAddresses(stage){
+ async function probePlcAddresses(stage,verifyPsscStartup=false){
   const previous=st.plcAddress;
   for(const candidate of P.plcProbeOrder(previous)){
    if(!st.port||st.closing)throw Error('USB-Verbindung während PLC-Adresserkennung beendet');
@@ -906,6 +922,11 @@ if(typeof document!=='undefined') (function UI(){
     const pads=await readReg(0x0A,1350);
     const configured=P.plcAddressFromConfig(cfg,pads);
     record.configuredAddress='0x'+h(configured);
+    if(verifyPsscStartup&&st.adapterKind==='ssp3'&&st.firmware==='02.08.02.04'&&cfg===0x6C04){
+     st.plcAddress=previous;
+     logging('PSSC-RAM-Adresse bereits aktiv. Neustart wird vor der Kalibrierung geprüft.');
+     return false;
+    }
     record.cfgSpiI2c='0x'+h(cfg,2);record.cfgPads1='0x'+h(pads,2);
     if(configured!==candidate)throw Error('PLC-Adresskonflikt: gelesen über 0x'+h(candidate)+
      ', Sensorregister nennen 0x'+h(configured)+'. Keine Schreibfreigabe.');
@@ -1420,7 +1441,7 @@ if(typeof document!=='undefined') (function UI(){
     throw Error('PSSC-RAM-Freigabe ohne gültige Sensorantwort');
    trial.readVerified=true;
    trial.verifiedUid=st.uid?.hex||null;
-   show('connMsg','Sensor über PSSC-RAM-Freigabe verbunden. EEPROM-Schreiben ist in dieser Sitzung gesperrt.','success');
+   show('connMsg','Sensor über PSSC-RAM-Freigabe verbunden. NVM-Schreiben ist auf geprüfte Kalibrierdaten begrenzt.','success');
    return true;
   }catch(e){
    trial.error=String(e.message||e);
@@ -1502,6 +1523,8 @@ if(typeof document!=='undefined') (function UI(){
    show('connMsg','Neuinitialisierung erst nach Abschluss des laufenden Chipvorgangs möglich.','warn');return;
   }
   st.reinitRunning=true;
+  st.psscRamRecovery=false;
+  st.startupTrials=[];
   st.chip=false;st.plcAddressVerified=false;st.plcAddressProbes=[];stopLive();
   if(st.liveReadPromise)await st.liveReadPromise.catch(()=>{});
   st.adc=null;st.dsp=null;st.dspError=null;st.afe=null;st.afe0=null;st.boot=null;st.regs={};
@@ -1520,7 +1543,7 @@ if(typeof document!=='undefined') (function UI(){
     // Same guarded VSUPPLY / PLC P/T / Magic-Cookie sequence used at first connect.
     // Only volatile RAM configuration is touched; no automatic NVM writes.
     $('plcPowerConfirm').checked=true;
-    if(!await probePlcAddresses('Neuinitialisierung ohne Power-Cycle'))
+    if(!await probePlcAddresses('Neuinitialisierung ohne Power-Cycle',true))
      await startSsp3WithBoundedRetry();
    }else{
     if(st.adapterKind==='bridge'){
@@ -1604,7 +1627,7 @@ if(typeof document!=='undefined') (function UI(){
      // there is no stale user setting or checkbox.
      $('plcPowerConfirm').checked=true;
      logging('SSP3 + One Wire: automatischer Sensorstart über VSUPPLY; PLC-Format '+st.plcHostFormat+'.');
-     if(!await probePlcAddresses('Erstverbindung ohne Power-Cycle'))
+     if(!await probePlcAddresses('Erstverbindung ohne Power-Cycle',true))
       await startSsp3WithBoundedRetry();
      return;
     }
@@ -2175,15 +2198,19 @@ if(typeof document!=='undefined') (function UI(){
    if(!st.uid||st.uid.ser0!==st.nvmBackup[0]||st.uid.ser1!==st.nvmBackup[1])throw Error('Chip-UID kann dem aktuellen NVM nicht eindeutig zugeordnet werden');
    const startup=CAL.oneWireStartupStatus(st.nvmBackup);
    if(!startup.ok)throw Error('1-Wire-Startfenster nicht sicher: '+startup.errors.join('; '));
-   if(startup.requiresCookie&&!(st.powerCycleResult?.readVerified&&st.powerCycleResult.verifiedUid===st.uid.hex))
+   if(startup.requiresCookie&&!(st.powerCycleResult?.readVerified&&st.powerCycleResult.verifiedUid===st.uid.hex)&&!psscRecoveryProven())
     throw Error('One-Wire-Startfenster '+startup.windowLabel+' vorhanden, Magic-Cookie-Start am aktuellen Chip nicht bestätigt. Kein NVM-Schreiben.');
-   const image=CAL.configFrom(st.nvmBackup,st.calfit,st.afe??0x800,{output:st.expertOutputPlan});
+   const recovery=st.psscRamRecovery||(st.regs[0x06]===0x6C04&&st.nvmBackup[17]!==0x6C04);
+   const image=CAL.configFrom(st.nvmBackup,st.calfit,st.afe??0x800,{output:recovery?null:st.expertOutputPlan});
+   const recoveryBlock=psscNvmBlock(image.before,image.after);
+   if(recoveryBlock)throw Error(recoveryBlock);
    if(image.changes.some(c=>(c.index<28&&![16,22].includes(c.index))||c.index===29||c.index===30))throw Error('Unzulässiges NVM-Register im Änderungsplan');
    if(!image.changes.length)throw Error('Keine NVM-Änderungen nötig');
    st.calImage=image;
    $('nvmDiff').textContent=image.changes.map(c=>`NVM 0x${h(c.address)} [${c.index}] 0x${h(c.from,2)} → 0x${h(c.to,2)}`).join('\n');
    ca('nvmMsg',image.changes.length+' von 64 NVM-Wörtern werden verändert (CRC16 zuletzt). Factory-/Bootschutz geprüft.'+
-     (verificationRequiredCount()===1?' Nur ein unabhängiger DSP-Prüfpunkt wurde verifiziert.':''),'warn');
+     (verificationRequiredCount()===1?' Nur ein unabhängiger DSP-Prüfpunkt wurde verifiziert.':'')+
+     (recovery?' Nur Kalibrierdaten werden gespeichert. Ausgangs- und One-Wire-Einstellungen bleiben erhalten.':''),'warn');
    $('nvmProgress').textContent='NVM gelesen · Änderungsliste bereit';
   }catch(e){
    st.calImage=null;
@@ -2201,11 +2228,11 @@ if(typeof document!=='undefined') (function UI(){
    if(!id||st.uid.ser0!==st.nvmBackup[0]||st.uid.ser1!==st.nvmBackup[1])throw Error('48-Bit-Chip-UID muss vor dem Schreiben verifiziert werden');
    if($('nvmConfirmId').value.trim().toUpperCase()!==id)throw Error('48-Bit-Chip-UID stimmt nicht');
    const initial=st.calImage.before,modified=st.calImage.after;
-   if(st.psscRamRecovery||(st.regs[0x06]===0x6C04&&initial[17]!==0x6C04))
-    throw Error('EEPROM-Schreiben nach PSSC-RAM-Freigabe gesperrt');
+   const recoveryBlock=psscNvmBlock(initial,modified,restoring,outputOnly);
+   if(recoveryBlock)throw Error(recoveryBlock);
    CAL.protectStartupCommunication(initial,modified);
    const startup=CAL.oneWireStartupStatus(initial);
-   if(startup.requiresCookie&&!(st.powerCycleResult?.readVerified&&st.powerCycleResult.verifiedUid===id))
+   if(startup.requiresCookie&&!(st.powerCycleResult?.readVerified&&st.powerCycleResult.verifiedUid===id)&&!psscRecoveryProven())
     throw Error('1-Wire-Startschutz: Cookie-Start für die aktuelle Chip-UID nicht verifiziert. NVM-Schreiben gesperrt.');
    if(CAL.crc16(initial)!==initial[63]||CAL.crc16(modified)!==modified[63])throw Error('CRC16-Prüfung fehlgeschlagen');
    if(!restoring&&!outputOnly&&st.calfit.stats.maxDigits>100)throw Error('Fitfehler zu gross (>100 Digits)');
@@ -2236,7 +2263,13 @@ if(typeof document!=='undefined') (function UI(){
    // Never start NVM commands while a previous ADC/DSP live read is still in flight.
    if(st.liveReadPromise)await st.liveReadPromise.catch(()=>{});
    const beforeBoot=await bootSnapshot();await ramGrant();
-   for(const i of [0,1,16,17,18,19,20,21,22,23,27,28,63]){const check=await nvmReadWord(i*2);if(check!==initial[i])throw Error(`Chip-NVM hat sich seit dem Backup verändert (Index ${i})`)}
+   const verifyWords=st.psscRamRecovery?Array.from({length:64},(_,i)=>i):[0,1,16,17,18,19,20,21,22,23,27,28,63];
+   for(const i of verifyWords){
+    const check=await nvmReadWord(i*2);
+    if(check!==initial[i])throw Error(`Chip-NVM hat sich seit dem Backup verändert (Index ${i})`);
+   }
+   const finalRecoveryBlock=psscNvmBlock(initial,modified,restoring,outputOnly);
+   if(finalRecoveryBlock)throw Error(finalRecoveryBlock);
    CAL.protectStartupCommunication(initial,modified);
    for(let i=0;i<28;i++)if(modified[i]!==initial[i]&&(restoring||![16,22].includes(i)))throw Error('Boot-/Werksbereich verändert');
    // Only USER region access is authorized; NEVER unlock factory calibration area.
@@ -2552,7 +2585,7 @@ if(typeof document!=='undefined') (function UI(){
  });
  $('plcStartupLogExport').addEventListener('click',()=>{
   const log={
-   tool:'ELMOS E703.11 – SSP3 Startdiagnose',version:'v0.6.42',at:new Date().toISOString(),
+   tool:'ELMOS E703.11 – SSP3 Startdiagnose',version:'v0.6.43',at:new Date().toISOString(),
    source:'Web-App (NICHT PSSC Originalsoftware)',interface:st.iface,adapter:st.adapterKind,
     plcAddress:'0x'+h(st.plcAddress),plcAddressVerified:st.plcAddressVerified,
     plcAddressSource:st.plcAddressSource,plcAddressProbes:st.plcAddressProbes,psscRamRecovery:!!st.psscRamRecovery,

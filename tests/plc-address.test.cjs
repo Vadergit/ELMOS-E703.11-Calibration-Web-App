@@ -25,7 +25,7 @@ test('Legacy 0x6C and configured 0x7C produce correct CRC protected PLC frames',
 });
 test('The Web-app probes before DUT power cycling and uses confirmed address for every PLC operation',()=>{
  const app=read('app.js'),html=read('index.html');
- const scan=app.split('async function probePlcAddresses(stage){')[1]?.split('async function detect(){')[0];
+ const scan=app.split('async function probePlcAddresses(stage,verifyPsscStartup=false){')[1]?.split('async function detect(){')[0];
  assert.ok(scan);
  assert.ok(scan.includes('await readReg(R_AFE,1350)'));
  assert.ok(scan.includes('decodeSafeAFE(afe)'));
@@ -33,8 +33,8 @@ test('The Web-app probes before DUT power cycling and uses confirmed address for
  assert.ok(scan.includes('P.plcAddressFromConfig(cfg,pads)'));
  assert.ok(scan.includes('configured!==candidate'));
  assert.ok(scan.includes('st.plcAddressVerified=true'));
- assert.ok(app.includes("probePlcAddresses('Erstverbindung ohne Power-Cycle')"));
- assert.ok(app.includes("probePlcAddresses('Neuinitialisierung ohne Power-Cycle')"));
+ assert.ok(app.includes("probePlcAddresses('Erstverbindung ohne Power-Cycle',true)"));
+ assert.ok(app.includes("probePlcAddresses('Neuinitialisierung ohne Power-Cycle',true)"));
  assert.ok(app.includes("probePlcAddresses('Nach SSP3 PLC P/T')"));
  assert.ok(app.includes('P.plcRead(addr,1,st.plcAddress)'));
  assert.ok(app.includes('P.crc4([st.plcAddress|1,addr,0],20)'));
@@ -53,4 +53,30 @@ test('Address detection does not remove protected boot/NVM write restrictions',(
  assert.ok(app.includes("if(!/\\bPLC nothing received\\b/i.test(record.error)"));
  assert.ok(app.includes('st.plcAddressVerified=false;st.mode='));
  assert.ok(!app.includes('P.plcWrite(0x06,'));
+});
+
+test('PSSC recovery permits calibration only after a verified restart of the same chip',()=>{
+ const app=read('app.js');
+ const guard=app.slice(app.indexOf(' function psscRecoveryProven()'),app.indexOf(' function renderFlowState()'));
+ const state={psscRamRecovery:true,regs:{6:0x6C04},plcAddressVerified:true,plcAddress:0x6C,
+  uid:{hex:'0020011DBBE7'},startupTrials:[]};
+ const block=require('node:vm').runInNewContext(guard+'; psscNvmBlock',{st:state});
+ const initial=Array(64).fill(0);
+ initial[17]=0x7C05;
+ const plan=initial.slice();
+ plan[35]=123;
+ plan[63]=456;
+ assert.match(block(initial,plan),/Neustart/);
+ const trial={stage:'PSSC-RAM-Start',powerRestored:true,readVerified:true,verifiedUid:'0020011DBBE7'};
+ state.startupTrials.push(trial);
+ assert.equal(block(initial,plan),'');
+ for(const protectedWord of [16,17,18,19,22,27,57,58]){
+  const changed=plan.slice();
+  changed[protectedWord]^=1;
+  assert.match(block(initial,changed),/nur Kalibrierdaten/);
+ }
+ assert.match(block(initial,plan,true),/nur Kalibrierdaten/);
+ state.psscRamRecovery=false;
+ trial.verifiedUid='00200109F7DB';
+ assert.match(block(initial,plan),/Neustart/);
 });
