@@ -180,7 +180,7 @@ test('Expert mode shows contextual settings and no modal',()=>{
  assert.ok(html.includes('data-expert-area hidden><summary>Erweitert · AODO_F'));
  assert.ok(src.includes("classList.toggle('is-expert',enabled)"));
  const scripts=Array.from(html.matchAll(/<script src="([^"]+)"/g),m=>m[1]);
- assert.deepEqual(scripts,['calibration.js?v=0.6.11','eeprom-help.js?v=0.6.11','expert.js?v=0.6.11','config.js?v=0.6.11','guided-plan.js?v=0.6.11','demo.js?v=0.6.11','app.js?v=0.6.11','compact.js?v=0.6.11','guided.js?v=0.6.11']);
+ assert.deepEqual(scripts,['calibration.js?v=0.6.12','eeprom-help.js?v=0.6.12','expert.js?v=0.6.12','config.js?v=0.6.12','guided-plan.js?v=0.6.12','demo.js?v=0.6.12','app.js?v=0.6.12','compact.js?v=0.6.12','guided.js?v=0.6.12']);
 });
 
 test('Failed E703.11 probe keeps SSP3 open for explicit, bounded startup test',()=>{
@@ -440,7 +440,7 @@ test('Guided view is optional and contains only one set of hardware inputs',()=>
  assert.ok(html.includes('id="workflowMode"'));
  assert.ok(html.includes('id="guidedLaunch"'));
  assert.ok(html.includes('id="guidedLaunchTop"'));
- assert.ok(html.includes('guided.css?v=0.6.11'));
+ assert.ok(html.includes('guided.css?v=0.6.12'));
  for(const id of ['nvmProgram','nvmPrepare','calApplyRam','calVerifyRam','expertOutputStage','configApply','configFile']){
   assert.equal(html.split('id="'+id+'"').length-1,1);
  }
@@ -737,7 +737,7 @@ test('Read-only AFE1 diagnostics captures three reads, other AFE registers and r
 });
 test('Malformed and unexpected AFE1 values keep write gates while raw reply is retained',()=>{
  const src=read('app.js');
- const reader=src.split(' async function readReg(addr){')[1].split(' function decodeSafeAFE(w){')[0];
+ const reader=src.split(' async function readReg(addr,timeoutMs=2500){')[1].split(' function decodeSafeAFE(w){')[0];
  const safe=src.split(' function decodeSafeAFE(w){')[1].split(' function formatChipDiag(d){')[0];
  assert.ok(reader.includes('const bytes=P.readData(reply,3);'));
  assert.ok(reader.includes('crc8Rx:bytes[2]'));
