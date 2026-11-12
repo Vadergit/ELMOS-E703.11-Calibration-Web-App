@@ -1,6 +1,6 @@
 # Config-Dateien und EEPROM Viewer
 
-**Version v0.6.8 · 12. November 2026 · ELMOS E703.11 Kalibrierassistent**
+**Version v0.6.9 · 12. November 2026 · ELMOS E703.11 Kalibrierassistent**
 
 Die Web-App unterstützt die Wiederverwendung von **chipunabhängigen Konfigurationen**, ohne dass sensorspezifische Kalibrierwerte, Werksdaten oder Kommunikationsregister von einem Sensor auf einen anderen übertragen werden.
 
@@ -10,27 +10,33 @@ Wenn mehrere Sensoren dieselben Grundeinstellungen benötigen, kannst du beim er
 
 **Beispiel-Config:** [Beispiel_0-10bar.json](examples/Beispiel_0-10bar.json). Die Datei enthält nur Beispielwerte und ist **keine Kalibrierung**.
 
-## Config speichern
+## Config speichern – immer vollständig
 
 Unter **USB & Chip → Config-Vorlagen** (auch im geführten und kompakten Modus):
 
-1. Die gewünschten Einstellungen an den jeweiligen Stellen vornehmen.
-2. Einen Vorlagennamen vergeben.
-3. Im Bereich «Was soll in der Config-Datei gespeichert werden?» die gewünschten Gruppen auswählen: **AFE** (PGA1, Offset, PGA2), **Referenz** (Min., Max., Einheit), **Messung** (Punkte, Samples), **DSP** (Polynomordnung, Endwert) und **Ausgang** (Modus, VDD, S0/S1, Scaling).
-4. «Ausgewählte Config speichern (.json)» drücken.
+1. Die gewünschten Grundeinstellungen für den Sensortyp setzen: **AFE**, **Druck-/Einheitenreferenz**, **Messpunkte und Samples**, **DSP-Parameter** und **Ausgang**.
+2. Einen eigenen Profilnamen eingeben, z. B. «Standardprofil».
+3. **«Gesamte Config speichern (.json)»** klicken. Die Datei enthält automatisch **alle fünf Gruppen**. Es gibt bewusst keine Auswahl mehr beim Export.
 
-Mindestens eine Gruppe muss ausgewählt sein. **Nur die angehakten Gruppen stehen im JSON.** AFE wird mit den aktuell bestätigten Verstärkungs- und Offsetwerten gespeichert, nicht mit einem vorgemerkten Fehlversuch. Messpunkte, sensorspezifische Polynomkoeffizienten und EEPROM-/Factory-Wörter werden nie exportiert.
+Die heruntergeladene Datei erhält einen **aussagekräftigen Präfix** aus den bekannten Merkmalen. Beispielsweise:
 
-## Config laden und anwenden
+`2P_Druck_3T_Temp_0-10bar_0p5-4p5V_ELMOS_E70311_Standardprofil.json`
 
-1. Eine JSON-Datei auswählen und die Vorschau der enthaltenen Gruppen prüfen.
-2. Die App prüft Format, Gruppen, Zahlenbereiche und zulässige Einstellungen. Die alten vollständigen Config-Dateien **v1** bleiben lesbar.
-3. Enthält die Datei **keine AFE-Werte**, werden beim Klick auf «Ausgewählte Vorgaben übernehmen» nur die enthaltenen Einstellungen übernommen; kein RAM- oder EEPROM-Schreiben.
-4. Enthält die Datei **AFE-Werte**, heisst der Button **«Config übernehmen + AFE direkt ins RAM»**. Mit diesem ausdrücklichen Klick werden PGA1, Offset und PGA2 **sofort ins RAM des verbundenen Sensors geschrieben** und durch Rücklesung kontrolliert. Ein zusätzlicher AFE-Button ist nicht nötig.
-5. Ohne echte Chipverbindung oder wenn die RAM-Rücklesung scheitert, meldet die App einen Fehler. Die übrigen Config-Gruppen werden dann **nicht** angewendet.
-6. Falls AFE, Referenz, Messablauf oder DSP-Vorgaben übernommen wurden, sind die bisherigen Messpunkte und DSP-Koeffizienten für diesen Sensor neu zu erfassen. Für eine dauerhafte Programmierung bleibt weiterhin der separate, geschützte NVM-Schritt notwendig.
+Der Präfix bedeutet 2 Druckpunkte × 3 Temperaturstufen, Referenzbereich 0–10 bar und gewünschte Ausgangsspannung 0,5–4,5 V. Der eigene Profilname bleibt am Ende bestehen. Die genauen Druck-/Temperaturstufen werden **nur** genannt, wenn der angewendete Messplan zweifelsfrei bekannt ist. Ansonsten verwendet die App eine neutrale Angabe wie `6Messpunkte` statt einer geratenen Anzahl Druckpunkte.
 
-**Wichtig:** Automatisches AFE-RAM-Schreiben erfolgt **erst nach dem bewussten Klick auf den Import-Button**, nicht bereits durch die Dateiauswahl. Eine Config programmiert niemals direkt das EEPROM.
+Die exportierten AFE-Werte stammen aus den aktuell bestätigten Einstellungen. Chip-ID, Werks-/EEPROM-Daten, sensorspezifische Kalibriermesswerte und fertige DSP-Koeffizienten gehören weiterhin **nicht** in eine wiederverwendbare Config.
+
+## Config laden – erst jetzt auswählen
+
+1. Eine Config-Datei auswählen. Die Anwendung validiert Struktur, Zahlenwerte und die enthaltenen Gruppen. **Noch wird kein Register verändert.**
+2. **Nach erfolgreichem Laden** erscheinen die fünf Auswahlfelder: **AFE**, **Referenz**, **Messung**, **DSP** und **Ausgang**. Bei vollständigen Configs sind zunächst alle aktiviert; unerwünschte Gruppen einfach abhaken.
+3. Alte partielle v2-Dateien bleiben gültig: **Nur vorhandene Gruppen** sind aktivierbar, nicht vorhandene Gruppen sind deaktiviert.
+4. **Mindestens eine Gruppe** für den Import aktiv lassen. Der Import-Button zeigt die Wirkung der aktuellen Auswahl an.
+5. **Wenn AFE nicht ausgewählt wurde:** «Ausgewählte Vorgaben übernehmen» aktualisiert nur die gewählten UI-Einstellungen. **Kein AFE-RAM- oder EEPROM-Schreibvorgang.**
+6. **Wenn AFE ausgewählt wurde:** «Config übernehmen + AFE direkt ins RAM» schreibt PGA1, Offset und PGA2 nach dem ausdrücklichen Klick ins RAM eines verbundenen Sensors und liest zur Bestätigung zurück. Bei fehlender Verbindung oder gescheiterter Rücklesung wird der Import abgebrochen und die anderen Gruppen werden nicht übernommen.
+7. Bei übernommenen AFE-, Referenz-, Mess- oder DSP-Einstellungen müssen sensorspezifische Messpunkte und Kalibrierkoeffizienten neu erfasst werden. Die dauerhafte NVM-/EEPROM-Programmierung bleibt ein separater, geschützter Vorgang.
+
+**Das Abhaken von AFE beim Import verhindert einen AFE-Schreibvorgang.** Die Dateiauswahl selbst löst grundsätzlich kein RAM- oder EEPROM-Schreiben aus.
 
 ## Was darf in eine Config?
 
@@ -47,11 +53,11 @@ Besonders wichtig: **AODO_F und AODO_O in der Config sind nur Ausgangs-Zielparam
 
 ## Dateiformat und Versionierung
 
-- Neues JSON-Format **v2**: Kennung ELMOS-E70311-CONFIG, Version 2, Liste «include» und nur die tatsächlich ausgewählten Gruppen «afe», «reference», «measurement», «dsp» und «output».
+- JSON-Format **v2**: Kennung ELMOS-E70311-CONFIG, Version 2, Liste «include» und die fünf Gruppen «afe», «reference», «measurement», «dsp» und «output». Neue Exporte enthalten **alle fünf**; ältere partielle v2-Dateien bleiben weiterhin importierbar.
 - Bestehendes vollständiges JSON-Format **v1** bleibt weiterhin gültig und wird als vollständige Config übernommen.
 - Die Validierung weist unerlaubte Felder, doppelte Gruppen, ungültige Codes, unzulässige Zahlen oder unbekannte Ausgangsmodi zurück.
 - Komplette EEPROM-Backups, UID, Bootregister oder Werkseinstellungen werden nicht importiert.
-- Auch im One-Pager und im geführten Assistenten werden dieselben Auswahlfelder verwendet; bei enthaltenen AFE-Werten schreibt der Import nach ausdrücklicher Bestätigung ins RAM, nicht ins EEPROM.
+- Die Importauswahl funktioniert auch im One-Pager und im geführten Assistenten. **Nur wenn AFE beim Import angehakt ist**, wird nach ausdrücklicher Bestätigung ins Sensor-RAM geschrieben; niemals automatisch ins EEPROM.
 
 ## EEPROM Viewer
 
