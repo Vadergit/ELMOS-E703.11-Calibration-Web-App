@@ -5,8 +5,8 @@ const PROTOCOL = (() => {
  const crc = (data,bits,width,seed,poly)=>{let c=seed;for(let k=0;k<bits;k++){let a=(c>>(width-1))&1,b=(data[Math.floor(k/8)]>>(7-k%8))&1;c=(c<<1)^((a^b)?poly:0)}return c&((1<<width)-1)};
  const crc4=(data,bits)=>crc(data,bits,4,0xF,0x03);
  const crc8PLC=data=>crc(data,data.length*8,8,0xF3,0x07);
- const plcRead=(addr,count=1,slave=0x6C)=>{if(!Number.isInteger(addr)||addr<0||addr>0xFE||addr%2||count<1||count>16||addr+2*(count-1)>0xFE)throw Error('Ungültige PLC-Leseadresse/Anzahl'); const a=slave|1,h=(count-1)<<4,c=crc4([a,addr,h],20);return `PLC 02${hx(a)}${hx(addr)}${hx(h|c)}.`};
- const plcWrite=(addr,word,slave=0x6C)=>{if(!Number.isInteger(addr)||addr<0||addr>0xFE||addr%2||!Number.isInteger(word)||word<0||word>65535)throw Error('Ungültiger PLC-Schreibwert');let head=crc4([slave|1,addr,0],20),h=(word>>8)&255,l=word&255;return `PLC 02${hx(slave&~1)}${hx(addr)}${hx(head)}${hx(h)}${hx(l)}${hx(crc8PLC([addr,head,h,l]))}`};
+ const plcRead=(addr,count=1,slave=0x6C)=>{if(!Number.isInteger(slave)||slave<0||slave>0xFE||(slave&1))throw Error('Ungültige PLC-Slave-Adresse');if(!Number.isInteger(addr)||addr<0||addr>0xFE||addr%2||count<1||count>16||addr+2*(count-1)>0xFE)throw Error('Ungültige PLC-Leseadresse/Anzahl'); const a=slave|1,h=(count-1)<<4,c=crc4([a,addr,h],20);return `PLC 02${hx(a)}${hx(addr)}${hx(h|c)}.`};
+ const plcWrite=(addr,word,slave=0x6C)=>{if(!Number.isInteger(slave)||slave<0||slave>0xFE||(slave&1))throw Error('Ungültige PLC-Slave-Adresse');if(!Number.isInteger(addr)||addr<0||addr>0xFE||addr%2||!Number.isInteger(word)||word<0||word>65535)throw Error('Ungültiger PLC-Schreibwert');let head=crc4([slave|1,addr,0],20),h=(word>>8)&255,l=word&255;return `PLC 02${hx(slave&~1)}${hx(addr)}${hx(head)}${hx(h)}${hx(l)}${hx(crc8PLC([addr,head,h,l]))}`};
  // Firmware variant seen on SSP3 v02.08.02.04: 'PLC <slave_id> <data>'.
  // Only split the two-character host slave-id token; leave the CRC-protected
  // E703.11 frame data unchanged. Preserve bare PLC P / PLC T control commands.
@@ -17,6 +17,13 @@ const PROTOCOL = (() => {
   if(!match)throw Error('PLC-Telegramm nicht für getrennte Slave-ID geeignet');
   return 'PLC '+match[1]+' '+match[2];
  };
+ // PLC [7:1] = CFG_PADS1.plc_upper_addr : CFG_SPI_I2C.i2c_address[5:0].
+ const plcAddressFromConfig=(cfg,pads)=>{
+  if(!Number.isInteger(cfg)||!Number.isInteger(pads))throw Error('Ungültige PLC-Konfiguration');
+  return (((pads>>12)&1)<<7)|(((cfg>>9)&0x3F)<<1);
+ };
+ const plcProbeOrder=(preferred=0x6C)=>[...new Set([preferred,0x6C,0x7C])].filter(
+  a=>Number.isInteger(a)&&a>=0&&a<=0xFE&&!(a&1));
  const i2cRead=(addr,slave=0xD8)=>`I2C #1 S${hx(slave&~1)}${hx(addr)}R${hx(slave|1)}..P`;
  const i2cWrite=(addr,word,slave=0xD8)=>`I2C #1 S${hx(slave&~1)}${hx(addr)}${hx(word&255)}${hx(word>>8)}P`;
  const spiRead=addr=>`SPI ${hx(addr|1)}000000`;
@@ -39,7 +46,7 @@ const PROTOCOL = (() => {
  const goodG=g=>Number.isInteger(g.pga1)&&g.pga1>=0&&g.pga1<=3&&Number.isInteger(g.pga2)&&g.pga2>=0&&g.pga2<=8&&Number.isInteger(g.offset)&&g.offset>=-8&&g.offset<=8;
  const AFE_BITS=0x7FF;
  const encAFE=(old,g)=>{if(!goodG(g))throw Error('Ungültiger Gain/Offset');if(!(old&0x800))throw Error('Pflichtbit 11 fehlt. Schreiben gesperrt.');let n=((old&(~AFE_BITS))|(g.pga1&3)|(offsetEncode(g.offset)<<2)|((g.pga2&15)<<7))&0xffff;if(((n^old)&~AFE_BITS)!==0)throw Error('Fremde AFE-Bits betroffen');return n};
- return {hx,crc,crc4,crc8PLC,plcRead,plcWrite,plcHostCommand,ssp3PromptCount,ssp3StartupAcks,periodMode,i2cRead,i2cWrite,spiRead,spiWrite,readData,sign16,decAFE,encAFE,goodG};
+ return {hx,crc,crc4,crc8PLC,plcRead,plcWrite,plcAddressFromConfig,plcProbeOrder,plcHostCommand,ssp3PromptCount,ssp3StartupAcks,periodMode,i2cRead,i2cWrite,spiRead,spiWrite,readData,sign16,decAFE,encAFE,goodG};
 })();
 if(typeof module!=='undefined'&&module.exports)module.exports=PROTOCOL;
 if(typeof document!=='undefined') (function UI(){
@@ -55,7 +62,7 @@ if(typeof document!=='undefined') (function UI(){
   lower:Number($('pmin').value),upper:Number($('pmax').value),limit:getActiveDSPRange()?.limit??32000
  })):null;
  const REG_NAMES={4:'CFG_EN',6:'CFG_SPI_I2C',8:'CFG_PADS0',10:'CFG_PADS1',12:'CFG_PADS2',16:'CFG_AODO',0x14:'CFG_ADC',0x16:'CFG_LP0',0x18:'CFG_LP1',0x1A:'CFG_AFE0',0x1C:'CFG_AFE1',0x1E:'CFG_AFE2',0x26:'ADC_TC',0x28:'ADC_T',0x2A:'ADC_S'};
- const st={chipDiag:null,diagRunning:false,lastPlcReply:null,mode:'offline',port:null,closing:false,reader:null,readerPromise:null,readerAlive:false,adapterNoReply:false,sessionStartedAt:null,sessionIndex:0,cmdQueue:Promise.resolve(),replyBuffer:'',responseWait:null,iface:'plc',adapterKind:'ssp3',sensorPowerEnabled:false,startupRunning:false,startupAbort:false,startupAttempts:0,magicRunning:false,magicResult:null,powerCycleRunning:false,powerCycleResult:null,startupTrials:[],powerHelp:null,plcHostFormat:'legacy',firmware:'',chip:false,sensorLost:false,reinitRunning:false,boot:null,afe:null,afe0:null,bridgeWriteAllowed:false,bridgeReadBusy:false,staged:{pga1:0,pga2:0,offset:0},adc:null,dsp:null,dspError:null,liveReadPromise:null,trend:[],history:[],log:[],regs:{},points:{lo:null,hi:null},verify:null,live:false,manualLivePause:false,timeout:null,consecutiveErrors:0,liveReadAttempts:0,liveReadSuccesses:0,liveLastError:null,liveLastAttemptAt:null,measurementPeriod:null,measurementStatus:null,measurementError:null,measurementStarts:0,measurementFreshCount:0,measurementLastChangedAt:null,writing:false,pressure:5,calpoints:[],calfit:null,calImage:null,nvmBackup:null,nvmBackupVerified:false,calStaged:false,calVerified:false,calValidation:[],calTask:false,nvmWorking:false,nvmDone:false,afeWriteActive:false,ramWriteScope:null,uid:null,expertOutputPlan:null,restorePlan:null,outputOnlyPlan:null,uidShownForInput:null,profilePendingAFE:null};
+ const st={chipDiag:null,diagRunning:false,lastPlcReply:null,mode:'offline',port:null,closing:false,reader:null,readerPromise:null,readerAlive:false,adapterNoReply:false,sessionStartedAt:null,sessionIndex:0,cmdQueue:Promise.resolve(),replyBuffer:'',responseWait:null,iface:'plc',adapterKind:'ssp3',sensorPowerEnabled:false,startupRunning:false,startupAbort:false,startupAttempts:0,magicRunning:false,magicResult:null,powerCycleRunning:false,powerCycleResult:null,startupTrials:[],powerHelp:null,plcHostFormat:'legacy',plcAddress:0x6C,plcAddressVerified:false,plcAddressSource:'',plcAddressProbes:[],firmware:'',chip:false,sensorLost:false,reinitRunning:false,boot:null,afe:null,afe0:null,bridgeWriteAllowed:false,bridgeReadBusy:false,staged:{pga1:0,pga2:0,offset:0},adc:null,dsp:null,dspError:null,liveReadPromise:null,trend:[],history:[],log:[],regs:{},points:{lo:null,hi:null},verify:null,live:false,manualLivePause:false,timeout:null,consecutiveErrors:0,liveReadAttempts:0,liveReadSuccesses:0,liveLastError:null,liveLastAttemptAt:null,measurementPeriod:null,measurementStatus:null,measurementError:null,measurementStarts:0,measurementFreshCount:0,measurementLastChangedAt:null,writing:false,pressure:5,calpoints:[],calfit:null,calImage:null,nvmBackup:null,nvmBackupVerified:false,calStaged:false,calVerified:false,calValidation:[],calTask:false,nvmWorking:false,nvmDone:false,afeWriteActive:false,ramWriteScope:null,uid:null,expertOutputPlan:null,restorePlan:null,outputOnlyPlan:null,uidShownForInput:null,profilePendingAFE:null};
  let currentStep=0,pendingGain=null,writeTimer=null;let tipEnabled=true,liveIntervalMs=650;
  let liveSecondaryIndex=0;
  const HELP={interface:'Schnittstelle zwischen SSP3-Board und Sensorchip. 1-Wire nutzt AODO (VDD, GND und AODO). Die Einstellung IF_CFG ändert die Programmer-Pins, nicht die NVM-Konfiguration des Sensors.',baud:'Baudrate des USB-UART zwischen Chrome und dem SSP3. Die Herstellersoftware verwendet 115200 Baud als Standard.',adcs:'ADC_S ist der unkompensierte 16-Bit-Druck-ADC. ±25000 Digits ist ein vorsichtiges Ziel für den manuellen Abgleich, keine garantierte Hardwaregrenze.',dsp_live:'DSP_S (Register 0x30) ist der skalierte DSP-Sensorausgang. Die Anzeige liest den Chipwert wiederholt und rechnet ihn mit dem konfigurierten DSP-Endwert (standardmässig ±32’000 Digits) in den gewählten Anzeigebereich um. Ein DSP-Wert allein belegt keine gültige Kalibrierung.',pga1:'Erste Druckverstärkungsstufe: 3.5×, 6×, 8.5× oder 11× (typische Werte laut Datenblatt 2023). Für gutes SNR möglichst hoch ohne Übersteuerung.',pga2:'Zweite Verstärkungsstufe: typische Faktoren 2× bis 10×. Der Gesamtfaktor ist PGA1 × PGA2.',offset:'17 DAC-Stufen von −400 bis +400 mV/V bezogen auf die Brückenspannung. Die Verschiebung liegt zwischen PGA1 und PGA2.',bridgeSupply:'Interne Brückenversorgung SVDD gemäss E703.11 CFG_AFE0 (0x1A), Bits 1:0: 2,4 V (Standard), 1,6 V oder 2,0 V. Die externe Sensorversorgung VDD muss bei 2,4 V mindestens 3,0 V, sonst mindestens 2,7 V betragen. Beim Wechsel bleiben die übrigen AFE0-Bits inklusive Brückengain unverändert. Nur nach Klick wird ins RAM geschrieben; EEPROM bleibt unverändert.',pressureunit:'Einheit für die Referenz- und Prüfdruckwerte. Für relative Kalibrierungen kann beispielsweise % mit 0 bis 100 gewählt werden. Referenzwerte müssen zum tatsächlichen Prüfstand passen. Einheitenwechsel erfordert neue Messpunkte.',dsp_limit:'Symmetrischer DSP-Endwert für die neue Kalibrierung. Standard ±32’000 Digits. ±30’000 lässt zusätzlich Reserve. Der Wert verändert die berechneten Koeffizienten sowie DSP-Soll und Fehlerumrechnung; er ist keine Hardware-Clipping-Grenze.',ram:'PGA1, Offset und PGA2 werden mit jeder Pfeiltaste sofort ausschliesslich in CFG_AFE1 0x1C im RAM geändert und rückgelesen. Kein NVM-/EEPROM-Schreiben. Boot-/Kommunikationsregister werden kontrolliert.',};
@@ -757,13 +764,13 @@ if(typeof document!=='undefined') (function UI(){
   if(!Number.isInteger(addr)||addr<0||addr>0xFE||addr%2)throw Error('Ungültige Registeradresse');
   let result;
   if(st.iface==='plc'){
-   const command=P.plcHostCommand(P.plcRead(addr,1),st.plcHostFormat),reply=await exchange(command,timeoutMs);
+   const command=P.plcHostCommand(P.plcRead(addr,1,st.plcAddress),st.plcHostFormat),reply=await exchange(command,timeoutMs);
    const frame={at:new Date().toISOString(),address:addr,command,rawReply:reply.slice(0,1000),status:'parsing'};
    st.lastPlcReply=frame;
    try{
     const bytes=P.readData(reply,3);
     result=(bytes[0]<<8)|bytes[1];
-    const readHeader=P.crc4([0x6D,addr,0],20);
+    const readHeader=P.crc4([st.plcAddress|1,addr,0],20);
     const crc8Expected=P.crc8PLC([addr,readHeader,0x02,bytes[0],bytes[1]]);
     const crc8Valid=bytes[2]===crc8Expected;
     Object.assign(frame,{status:'parsed',word:result,bytes:bytes.slice(),
@@ -961,7 +968,7 @@ if(typeof document!=='undefined') (function UI(){
   if(st.magicRunning||st.powerCycleRunning||st.startupRunning||st.diagRunning||st.writing||st.nvmWorking||st.calTask||st.afeWriteActive)
    throw Error('Ein anderer Chipvorgang läuft bereits.');
   const port=st.port;
-  const commands=[P.plcHostCommand(P.plcWrite(0xAC,0x2B42),st.plcHostFormat),P.plcHostCommand(P.plcWrite(0x0E,0x5CFD),st.plcHostFormat)];
+  const commands=[P.plcHostCommand(P.plcWrite(0xAC,0x2B42,st.plcAddress),st.plcHostFormat),P.plcHostCommand(P.plcWrite(0x0E,0x5CFD,st.plcAddress),st.plcHostFormat)];
   st.magicRunning=true;
   st.magicResult={at:new Date().toISOString(),stage:'start',commands:commands.slice(),responses:[],readVerified:false};
   $('plcMagicState').textContent='Magic Cookie wird gesendet: 2 spezielle PLC-Schreibtelegramme, nur flüchtiger RAM-Zustand.';
@@ -1128,8 +1135,8 @@ if(typeof document!=='undefined') (function UI(){
     logging('AN0204: '+(zeroAFE?'AFE1=0x0000 trotz formal lesbarer PLC-Antwort':'Keine PLC-Antwort')+
      '; versuche einmal die dokumentierte Magic Cookie (nur RAM).');
     const cookieFrames=[
-     P.plcHostCommand(P.plcWrite(0xAC,0x2B42),st.plcHostFormat),
-     P.plcHostCommand(P.plcWrite(0x0E,0x5CFD),st.plcHostFormat)
+     P.plcHostCommand(P.plcWrite(0xAC,0x2B42,st.plcAddress),st.plcHostFormat),
+     P.plcHostCommand(P.plcWrite(0x0E,0x5CFD,st.plcAddress),st.plcHostFormat)
     ];
     st.magicResult={at:new Date().toISOString(),stage:'automatic-after-power-start',
      commands:cookieFrames.slice(),responses:[],readVerified:false,automatic:true};
@@ -1197,13 +1204,13 @@ if(typeof document!=='undefined') (function UI(){
     logging('Magic Cookie hinterliess CFG_PERIOD=0x5CFD. Setze nur RAM-CFG_PERIOD=0x0001 und CMD.start fuer kontinuierliche Kalibrierung.');
     try{
      if(st.closing||st.port!==port||!st.chip)throw Error('Sensor beim RAM-Messstart nicht verbunden.');
-     const command=P.plcHostCommand(P.plcWrite(0x0E,0x0001),st.plcHostFormat);
+     const command=P.plcHostCommand(P.plcWrite(0x0E,0x0001,st.plcAddress),st.plcHostFormat);
      const reply=await exchange(command,2500);
      st.powerCycleResult.steps.push({command,reply:reply.slice(0,800),ok:true,kind:'ram-live-period-only'});
      const check=await readReg(0x0E,1800);
      if(check!==0x0001)throw Error('CFG_PERIOD RAM-Ruecklesung 0x'+h(check,2)+' statt 0x0001.');
      st.measurementPeriod=check;
-     const start=P.plcHostCommand(P.plcWrite(0x22,0x8B93),st.plcHostFormat);
+     const start=P.plcHostCommand(P.plcWrite(0x22,0x8B93,st.plcAddress),st.plcHostFormat);
      const startReply=await exchange(start,2500);
      st.powerCycleResult.steps.push({command:start,reply:startReply.slice(0,800),ok:true,kind:'ram-cmd-start-only'});
      st.measurementStarts++;
@@ -1613,7 +1620,7 @@ if(typeof document!=='undefined') (function UI(){
   if(st.adapterKind==='ssp3'&&st.iface==='plc'&&st.measurementPeriod===2){
    if(st.writing||st.calTask||st.nvmWorking||st.afeWriteActive||st.powerCycleRunning||st.closing)
     throw Error('CMD start während eines anderen Chipvorgangs gesperrt.');
-   const command=P.plcHostCommand(P.plcWrite(0x22,0x8B93),st.plcHostFormat);
+   const command=P.plcHostCommand(P.plcWrite(0x22,0x8B93,st.plcAddress),st.plcHostFormat);
    await exchange(command,1600);
    st.measurementStarts++;
    let fresh=false;
@@ -1696,7 +1703,7 @@ if(typeof document!=='undefined') (function UI(){
  async function readBoot(){try{const a=await bootSnapshot(),b=await bootSnapshot();if(!sameBoot(a,b))throw Error('Bootregister nicht stabil');st.boot=a;$('regdump').textContent=bootString(a);show('bootMsg','Bootregister zweifach gelesen. Boot-/Schnittstellenregister schreibgeschützt; NVM-Bereich nur im gesicherten Kalibrierablauf programmierbar.','success');return a}catch(e){st.boot=null;show('bootMsg','Bootregister-Prüfung fehlgeschlagen: '+e.message,'error');throw e}finally{renderStatus()}}
  async function registerDump(){try{if(!st.chip)throw Error('Chip-Lesezugriff nicht bestätigt');const regs=[...LOCKED,0x14,0x16,0x18,0x1A,0x1C,0x1E,0x26,0x28,0x2A];for(const a of regs)st.regs[a]=await readReg(a);$('regdump').textContent=regs.map(a=>`0x${h(a)}  ${REG_NAMES[a]||'Register'}  0x${h(st.regs[a],2)} ${LOCKED.includes(a)?'GESCHÜTZT':''}`).join('\n');show('bootMsg','Diagnoseregister gelesen. Bootregister bleiben schreibgeschützt.','success')}catch(e){show('bootMsg','Registerlesen: '+e.message,'error')}}
  async function unlockRAM(){if(st.adapterKind==='bridge'){await exchange('PLC ACCESS',3500)}else if(st.iface==='plc'){await exchange('PLC P',3500);await exchange('PLC T',3500)}else {for(const w of [0xF75A,0x0CC7,0xD21E])await lowLevelWrite(0x22,w,true)}}
- async function lowLevelWrite(addr,word,forUnlock=false){if(!st.port||!st.afeWriteActive||!st.chip)throw Error('AFE-Schreibzugriff nur während expliziter RAM-Übernahme zulässig');if(addr!==R_AFE&&!(addr===R_BRIDGE&&st.bridgeWriteAllowed)&&!(forUnlock&&addr===0x22))throw Error('Nur freigegebene AFE0/AFE1-RAM-Bits und RAM-Freigabecookies zulässig');if(addr===0x22&&!([0xF75A,0x0CC7,0xD21E].includes(word)))throw Error('Nicht erlaubtes CMD-Cookie');let cmd;if(st.iface==='plc'){if(addr!==R_AFE&&addr!==R_BRIDGE)throw Error('PLC nutzt PLC P / PLC T für RAM-Freigabe');cmd=P.plcWrite(addr,word)}else if(st.iface==='i2c'){cmd=P.i2cWrite(addr,word)}else{cmd=P.spiWrite(addr,word)}await exchange(cmd,2300)}
+ async function lowLevelWrite(addr,word,forUnlock=false){if(!st.port||!st.afeWriteActive||!st.chip)throw Error('AFE-Schreibzugriff nur während expliziter RAM-Übernahme zulässig');if(addr!==R_AFE&&!(addr===R_BRIDGE&&st.bridgeWriteAllowed)&&!(forUnlock&&addr===0x22))throw Error('Nur freigegebene AFE0/AFE1-RAM-Bits und RAM-Freigabecookies zulässig');if(addr===0x22&&!([0xF75A,0x0CC7,0xD21E].includes(word)))throw Error('Nicht erlaubtes CMD-Cookie');let cmd;if(st.iface==='plc'){if(addr!==R_AFE&&addr!==R_BRIDGE)throw Error('PLC nutzt PLC P / PLC T für RAM-Freigabe');cmd=P.plcWrite(addr,word,st.plcAddress)}else if(st.iface==='i2c'){cmd=P.i2cWrite(addr,word)}else{cmd=P.spiWrite(addr,word)}await exchange(cmd,2300)}
  async function commitGain(target){
   if(st.writing||st.calTask||st.nvmWorking){
    show('writeMsg','Ein anderer Schreib- oder Kalibriervorgang läuft.','warn');
@@ -1891,7 +1898,7 @@ if(typeof document!=='undefined') (function UI(){
    if((word&0xFF00)===0xA300&&!st.nvmWorking)throw Error('NVM-Programmierung nicht freigegeben');
   }
   if(addr===0x4A&&!st.nvmWorking)throw Error('CM_WDATA nur während des NVM-Programmierens');
-  const cmd=st.iface==='plc'?P.plcHostCommand(P.plcWrite(addr,word),st.plcHostFormat):st.iface==='i2c'?P.i2cWrite(addr,word):P.spiWrite(addr,word);
+  const cmd=st.iface==='plc'?P.plcHostCommand(P.plcWrite(addr,word,st.plcAddress),st.plcHostFormat):st.iface==='i2c'?P.i2cWrite(addr,word):P.spiWrite(addr,word);
   await exchange(cmd,4000);
  }
  async function ramGrant(){
