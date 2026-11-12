@@ -50,6 +50,10 @@ if(typeof document!=='undefined') (function UI(){
  if($('plcStartupProbe'))$('plcStartupProbe').disabled=!connected||st.chip||st.startupRunning||st.magicRunning||st.closing||st.writing||st.nvmWorking||st.calTask;
  if($('plcStartupStop'))$('plcStartupStop').disabled=!st.startupRunning;
   if($('plcMagicRun'))$('plcMagicRun').disabled=!connected||st.chip||st.magicRunning||st.startupRunning||st.diagRunning||st.closing||st.writing||st.nvmWorking||st.calTask||!$('plcMagicConfirm').checked;
+  if($('plcMagicOnConnect')){
+   $('plcMagicOnConnect').disabled=connected||demoEnabled||!$('plcMagicConfirm').checked;
+   if(!$('plcMagicConfirm').checked)$('plcMagicOnConnect').checked=false;
+  }
  renderAFEStepperState();renderFlowState();renderDSPLive()};
  function gainSummary(){
   const g=st.staged;
@@ -681,6 +685,12 @@ if(typeof document!=='undefined') (function UI(){
     if(st.adapterKind==='bridge'){
      await exchange('PLC_BAUD '+$('plcBaud').value);
      await exchange(st.sensorPowerEnabled?'PLC START':'PLC ACCESS');
+    }
+    if(!demoEnabled&&st.adapterKind==='ssp3'&&st.iface==='plc'&&$('plcMagicOnConnect').checked&&$('plcMagicConfirm').checked){
+     $('plcMagicOnConnect').checked=false; // one-shot, never silently repeat the test
+     logging('Einmaliger, ausdrücklich ausgewählter PLC-Magic-Cookie-Test unmittelbar nach SSP3 IF_CFG.');
+     await testPlcMagicCookie();
+     return; // the experimental test has its own readback/result; no extra PLC frame
     }
     await detect();
    }catch(e){
@@ -1522,6 +1532,7 @@ if(typeof document!=='undefined') (function UI(){
   $('plcStartupState').textContent='Web-App-Protokoll gespeichert. Für die fehlende Initialisierung wird auch die Befehlsfolge der Originalsoftware benötigt.';
  });
  $('plcMagicConfirm').addEventListener('change',renderStatus);
+  $('plcMagicOnConnect').addEventListener('change',renderStatus);
   $('plcMagicRun').addEventListener('click',()=>testPlcMagicCookie().catch(e=>{
    logging('Magic Cookie Test nicht gestartet: '+e.message);
    $('plcMagicState').textContent=e.message;

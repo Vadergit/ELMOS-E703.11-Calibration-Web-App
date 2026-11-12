@@ -519,6 +519,7 @@ html.compact-mode .foot{display:none}
         <p class="muted small">Zwei dokumentierte PLC-Schreibtelegramme gemäss E703.11-Datenblatt: <code>0xAC → 0x2B42</code> unmittelbar gefolgt von <code>0x0E → 0x5CFD</code>. Anschliessend prüft die Web-App, ob echte Registerantworten vom Sensor eintreffen. <strong>Keine NVM-Programmierung.</strong></p>
         <p class="muted small"><strong>Achtung:</strong> Bei erfolgreicher Freigabe wird One Wire im RAM dauerhaft aktiviert, wodurch der normale analoge 0–5-V-Ausgang bis zum Chip-Reset überlagert werden kann. Nur am Prüfplatz testen, nicht im Betrieb. Die Sequenz muss während des konfigurierten Startfensters empfangen werden. Das SSP3 wird hier nicht automatisch neu gestartet.</p>
         <label class="toggle"><input type="checkbox" id="plcMagicConfirm"> Ich akzeptiere die temporäre Umschaltung des AODO-Ausgangs am Testchip.</label>
+        <label class="toggle"><input type="checkbox" id="plcMagicOnConnect" disabled> Einmalig beim nächsten SSP3-Verbinden vor dem ersten Registerlesen testen (empfohlen für den Startversuch).</label>
         <div class="flex"><button type="button" id="plcMagicRun" disabled>Magic Cookie testen (nur RAM)</button></div>
         <p class="muted small" id="plcMagicState" role="status">Noch nicht gestartet. Es werden nur die beiden beschriebenen PLC-Frames gesendet; danach erfolgt ein Lesetest.</p>
       </div>

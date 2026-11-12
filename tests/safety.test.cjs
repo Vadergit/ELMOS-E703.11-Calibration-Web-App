@@ -819,3 +819,15 @@ test('Explicit Magic Cookie test performs exactly two documented PLC writes then
  assert.ok(html.includes('id="plcMagicConfirm"'));
  assert.ok(app.includes('magicCookie:st.magicResult'));
 });
+
+test('Experimental Magic Cookie on connect requires prior consent and is one-shot',()=>{
+ const app=read('app.js'),html=read('index.html');
+ const connect=app.split('async function connect(port){')[1]?.split('async function disconnect()')[0];
+ assert.ok(connect);
+ assert.ok(connect.includes("st.adapterKind==='ssp3'&&st.iface==='plc'&&$('plcMagicOnConnect').checked&&$('plcMagicConfirm').checked"));
+ assert.ok(connect.includes("$('plcMagicOnConnect').checked=false;"));
+ assert.ok(connect.includes('await testPlcMagicCookie()'));
+ assert.ok(connect.indexOf('await testPlcMagicCookie()')<connect.indexOf('await detect()'));
+ assert.ok(html.includes('id="plcMagicOnConnect" disabled'));
+ assert.ok(app.includes("if(!$('plcMagicConfirm').checked)$('plcMagicOnConnect').checked=false"));
+});

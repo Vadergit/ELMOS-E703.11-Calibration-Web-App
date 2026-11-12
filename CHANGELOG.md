@@ -1,5 +1,7 @@
 ## v0.6.14 – 12.11.2026: Experimenteller One-Wire-Magic-Cookie-Test
 
+- Option für einen einmaligen, ausdrücklich bestätigten Magic-Cookie-Test beim nächsten SSP3-Verbindungsaufbau: nach IF_CFG und vor dem ersten Registerlesen. Auswahl wird danach zurückgesetzt.
+
 - Separater Opt-in-Test im SSP3-Diagnosebereich mit Warnung zum vorübergehend unterdrückten Analogausgang.
 - Zwei dokumentierte PLC-Random-Writes `0xAC = 0x2B42` und `0x0E = 0x5CFD` direkt nacheinander. Anschliessende Registerprüfung statt falscher SSP3-Prompt-Erfolgsmeldung.
 - CRC-Schreibtelegramm gegen Herstellerbeispiel validiert. Keine NVM-Schreibbefehle, keine unbestätigten SSP3-Power-Befehle.
