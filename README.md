@@ -2,7 +2,7 @@
 
 **Ein geführter Kalibrierassistent für den ELMOS E703.11 und das SSP3-Eval-Board.** Ziel ist ein verständlicher Abgleich, der auch ohne tiefere Vorkenntnisse Schritt für Schritt funktioniert. Wer mehr benötigt, kann zusätzliche Messpunkte, DSP-Parameter und einen geschützten Expertenmodus verwenden.
 
-**Version: v0.6.33 · geführter Abgleich und klassische Ansicht** · [Änderungsverlauf](CHANGELOG.md)
+**Version: v0.6.34 · geführter Abgleich und klassische Ansicht** · [Änderungsverlauf](CHANGELOG.md)
 
 Über **Einstellungen → Demo-Modus** lässt sich der gesamte Kalibrierablauf mit simulierten Messwerten und NVM ausprobieren.
 
@@ -13,6 +13,14 @@
 > **Geführter Assistent:** Nach der bestätigten SSP3-Verbindung stehen die neue Schritt-für-Schritt-Führung, die klassische Ansicht und der optionale Kompaktmodus zur Verfügung. Ein E703.11-Chip muss für den Abgleich verbunden sein. Die USB-CDC-Bridge bleibt als experimenteller Verbindungstest ohne Sensorprogrammierung gesperrt.
 >
 > [Geführter Abgleich](docs/GEFUEHRTER_ASSISTENT.md) · [USB-Bridge](docs/USB_BRIDGE_GUIDE.md) · [ESP-Boards](docs/ESP_BOARD_OPTIONS.md) · [ESP32-C3 SuperMini Sketch](firmware/esp32c3_supermini/esp32c3_supermini.ino)
+
+## SSP3-Protokoll von Jürg: 0x0000-Fallback (v0.6.34)
+
+Das am 12.11.2026 exportierte Web-App-Protokoll zeigt, dass die SSP3-Kommandos PWR_OFF, PLC P, PWR_ON und PLC T quittiert wurden. Die erste Registerabfrage von CFG_AFE1 (0x1C) lieferte jedoch die formal parsebare Antwort `00 00 35` und damit `0x0000`. Der bisherige automatische Magic-Cookie-Fallback behandelte ausschliesslich `PLC nothing received`; er wurde in diesem Fall **nicht aufgerufen**.
+
+v0.6.34 behandelt **ausschliesslich** einen tatsächlich gelesenen AFE-Nullwert (`AFE_ZERO_READBACK` mit passendem PLC-Antwortdatensatz) zusätzlich zum expliziten `PLC nothing received` als einmaligen Auslöser für den bereits vorhandenen, dokumentierten Magic-Cookie-RAM-Fallback. Alle anderen unplausiblen AFE-Werte, Parsing- und Kommunikationsfehler bleiben gesperrt. Nach dem Fallback muss die Chiperkennung den AFE-Wert und ADC_S erneut erfolgreich lesen. Eine blosse SSP3-Befehlsquittung genügt nicht.
+
+**Noch nicht auf Jürgs Prüfplatz verifiziert.** Im E703.11-Datenblatt ist für die PLC-Freigabe ein konfigurierbares 4/10/200-ms-Startfenster dokumentiert. Falls die Cookie-Sequenz nach der ersten fehlgeschlagenen Leseabfrage zu spät eintrifft, kann der Fehler trotz Anpassung bestehen bleiben. Keine automatische NVM-Programmierung; RAM-/Ausgangsänderungen während der One-Wire-Freigabe sind möglich. Die Startspannung ist derzeit `PWR_ON 0C80` (3.2 V); bei weiteren Fehlern mit der originalen PSSC-Einstellung abgleichen. Für die weitere Diagnose nach einem erneuten Versuch das SSP3-Web-Log aus dem Expertenmodus exportieren.
 
 ## Rücknahme der Temperaturanzeige (v0.6.33)
 
