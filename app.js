@@ -1260,7 +1260,9 @@ if(typeof document!=='undefined') (function UI(){
    renderFlowState();
    show('configPreview','Config «'+profile.label+'» übernommen. Gruppen: '+included.join(', ')+'.\n'+
     (target?'AFE: Im Chip-RAM geschrieben und rückgelesen – Werte aktiv. ':'Keine AFE-Änderung am Chip. ')+
-    'Keine EEPROM-Programmierung. Neue Messpunkte und DSP-Koeffizienten müssen pro Sensor aufgenommen werden.','success');
+    'Keine EEPROM-Programmierung. '+(affectsCalibration?
+     'Messpunkte und DSP-Koeffizienten für diesen Sensor neu aufnehmen.':
+     'Bestehende Messpunkte und DSP-Koeffizienten wurden durch diesen reinen Ausgangsimport nicht verändert.'),'success');
    document.dispatchEvent(new CustomEvent('elmos-config-applied',{detail:{included:included.slice(),version:profile.version}}));
   }catch(e){
    show('configPreview','Config-Übernahme fehlgeschlagen: '+e.message,'error');
