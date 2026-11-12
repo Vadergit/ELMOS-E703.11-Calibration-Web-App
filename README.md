@@ -2,7 +2,7 @@
 
 **Ein geführter Kalibrierassistent für den ELMOS E703.11 und das SSP3-Eval-Board.** Ziel ist ein verständlicher Abgleich, der auch ohne tiefere Vorkenntnisse Schritt für Schritt funktioniert. Wer mehr benötigt, kann zusätzliche Messpunkte, DSP-Parameter und einen geschützten Expertenmodus verwenden.
 
-**Version: v0.6.35 · geführter Abgleich und klassische Ansicht** · [Änderungsverlauf](CHANGELOG.md)
+**Version: v0.6.36 · geführter Abgleich und klassische Ansicht** · [Änderungsverlauf](CHANGELOG.md)
 
 Über **Einstellungen → Demo-Modus** lässt sich der gesamte Kalibrierablauf mit simulierten Messwerten und NVM ausprobieren.
 
@@ -13,6 +13,14 @@
 > **Geführter Assistent:** Nach der bestätigten SSP3-Verbindung stehen die neue Schritt-für-Schritt-Führung, die klassische Ansicht und der optionale Kompaktmodus zur Verfügung. Ein E703.11-Chip muss für den Abgleich verbunden sein. Die USB-CDC-Bridge bleibt als experimenteller Verbindungstest ohne Sensorprogrammierung gesperrt.
 >
 > [Geführter Abgleich](docs/GEFUEHRTER_ASSISTENT.md) · [USB-Bridge](docs/USB_BRIDGE_GUIDE.md) · [ESP-Boards](docs/ESP_BOARD_OPTIONS.md) · [ESP32-C3 SuperMini Sketch](firmware/esp32c3_supermini/esp32c3_supermini.ino)
+
+## Brückenspannung SVDD im AFE einstellen (v0.6.36)
+
+Im AFE-Reiter steht nun **Brückenspannung SVDD** als Auswahl mit 2,4 V (Code 0, Standard), 1,6 V (Code 1) und 2,0 V (Code 2). Die Auswahl liest den Istwert aus **CFG_AFE0 (0x1A), Bits 1:0**; Code 3 bleibt gesperrt. Die Versorgung **VDD** des Chips ist davon verschieden: Für SVDD 2,4 V benötigt VDD mindestens 3,0 V, für 1,6/2,0 V mindestens 2,7 V (siehe E703.11 25DS0170E.04, Kapitel 6.2.1.2, Tabelle 4.4-1 und CFG_AFE0).
+
+Erst **«Brückenspannung ins RAM übernehmen»** schreibt den gewünschten Code. Vorher erfolgt eine frische CFG_AFE0-Lesung, die Schreiboperation verändert ausschliesslich Bits 1:0 und bewahrt **br_gain und sämtliche übrigen Bits**. Die Rücklesung wird mit dem Sollregister verglichen, Boot-/Kommunikationsregister bleiben überwacht; Messpunkte werden nach Änderung verworfen. Keine automatische NVM-Programmierung. Der Wert wird im Demo-Modus simuliert und optional in neuen Config-v2-Dateien gespeichert. Alte Config-Dateien ohne `bridgeSupply` lassen den Istwert unverändert.
+
+Wichtig: **Die Änderung hilft nicht beim Initialisieren eines Chips, der überhaupt nicht erkannt wird**, denn zum Schreiben von CFG_AFE0 ist bereits ein bestätigter Registerzugriff nötig. Ein unpassendes SVDD kann Messsignal und Brückendiagnose beeinflussen, aber die bisherigen Jürg-Logs beweisen keine solche Ursache. Die bestehende SSP3-Initialisierung und die dortigen PWR_ON-Schwellen bleiben unverändert. Die Kombination aus Brückenspannung und br_gain muss zum zulässigen Brückenstrom passen. Hardwaretest ausstehend.
 
 ## Weitere Diagnose nach Jürgs zweitem SSP3-Protokoll (v0.6.35)
 
