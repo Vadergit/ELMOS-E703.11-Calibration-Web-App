@@ -351,8 +351,6 @@ if(typeof document!=='undefined') (function UI(){
   }
   const eepromReadBtn=$('eepromRead');
   if(eepromReadBtn)eepromReadBtn.disabled=!st.port||!st.chip||st.calTask||st.writing||st.nvmWorking;
-  const configAfeRam=$('configAfeApplyRam');
-  if(configAfeRam)configAfeRam.disabled=!st.profilePendingAFE||!st.port||!st.chip||st.mode!=='usb'||st.calTask||st.writing||st.nvmWorking;
   const outputNvmRead=$('outputNvmRead');if(outputNvmRead)outputNvmRead.disabled=!st.port||!st.chip||st.writing||st.calTask||st.nvmWorking;
   const approvalGranted=nvmReason==='';
   $('nvmProgram').disabled=!approvalGranted;
@@ -639,15 +637,15 @@ if(typeof document!=='undefined') (function UI(){
  async function commitGain(target){
   if(st.writing||st.calTask||st.nvmWorking){
    show('writeMsg','Ein anderer Schreib- oder Kalibriervorgang läuft.','warn');
-   return
+   return false
   }
   if(!st.port||!st.chip||st.mode!=='usb'){
    show('writeMsg','Keine bestätigte Chipverbindung – AFE-Einstellung nicht verändert.','error');
-   return
+   return false
   }
   if(!P.goodG(target)){
    show('writeMsg','Ungültiger AFE-Stufencode.','error');
-   return
+   return false
   }
   const resumeLive=st.live&&!st.manualLivePause;
   let writeAttempted=false;
@@ -670,7 +668,7 @@ if(typeof document!=='undefined') (function UI(){
     st.staged={...original};
     gainSummary();
     show('writeMsg','AFE-Einstellung ist im Chip-RAM bereits aktiv.','success');
-    return
+    return true
    }
    const adcBefore=P.sign16(await readReg(0x2A));
    await unlockRAM();
@@ -687,7 +685,8 @@ if(typeof document!=='undefined') (function UI(){
    try{adcAfter=await readADC()}catch(e){logging('ADC-Lesung nach AFE-RAM-Änderung: '+e.message)}
    show('writeMsg','AFE automatisch ins RAM geschrieben und bestätigt. '+
     (Number.isFinite(adcAfter)?'ADC_S: '+fmt(adcBefore)+' → '+fmt(adcAfter)+' Digits. ':'')+
-    'Weitere Stufen können direkt eingestellt werden. Bereits aufgenommene Kalibrierpunkte wurden zurückgesetzt.','success')
+    'Weitere Stufen können direkt eingestellt werden. Bereits aufgenommene Kalibrierpunkte wurden zurückgesetzt.','success');
+   return true
   }catch(e){
    st.boot=null;
    logging('AFE-RAM-Schreibfehler: '+e.message);
@@ -705,7 +704,8 @@ if(typeof document!=='undefined') (function UI(){
    }
    show('writeMsg','AFE-RAM-Übernahme fehlgeschlagen: '+e.message+
     '. '+(writeAttempted?'Messpunkte vorsorglich verworfen.':'Keine AFE-Schreibbestätigung.')+
-    ' Bitte Chipzustand kontrollieren.','error')
+    ' Bitte Chipzustand kontrollieren.','error');
+   return false
   }finally{
    st.afeWriteActive=false;
    st.writing=false;
@@ -1144,9 +1144,10 @@ if(typeof document!=='undefined') (function UI(){
     ' mV/V, PGA2 '+GAINS2[st.staged.pga2]+'×. Erst nach einem bestätigten RAM-Schreibvorgang werden die Vorgaben aktiv.';
   }
  }
- function configFromUi(){
-  const p=st.profilePendingAFE||st.staged;
-  const cf=ELMOS_CONFIG.create({
+ function configFromUi(include){
+  // Save the actual currently confirmed AFE settings, never a pending failed import.
+  const p=st.staged;
+  const cf=ELMOS_CONFIG.createSelective({
    label:$('configLabel').value.trim()||'Standardprofil',
    afe:{pga1:p.pga1,pga2:p.pga2,offset:p.offset},
    calibration:{
@@ -1160,64 +1161,115 @@ if(typeof document!=='undefined') (function UI(){
     vdd:Number($('psscVdd').value),s0:Number($('psscS0').value),s1:Number($('psscS1').value),
     gain:Number($('expertScaleGain').value),offset:Number($('expertScaleOffset').value),
     pwmPeriod:Number($('expertPwmPeriod').value)}
-  },CAL);
+  },include,CAL);
   return cf;
+ }
+ const CONFIG_GROUP_CONTROLS={
+  afe:'configIncludeAfe',reference:'configIncludeReference',
+  measurement:'configIncludeMeasurement',dsp:'configIncludeDsp',output:'configIncludeOutput'
+ };
+ function configSelectedGroups(){
+  return Object.entries(CONFIG_GROUP_CONTROLS).filter(([,id])=>$(id).checked).map(([group])=>group);
+ }
+ function configIncluded(profile){
+  return profile.version===2?profile.include.slice():ELMOS_CONFIG.GROUPS.slice();
+ }
+ function configGroupValues(profile){
+  if(profile.version===2)return profile;
+  const c=profile.calibration;
+  return {...profile,include:ELMOS_CONFIG.GROUPS.slice(),
+   reference:c.reference,measurement:{pointCount:c.pointCount,samples:c.samples},
+   dsp:{sOrder:c.sOrder,tOrder:c.tOrder,dspLimit:c.dspLimit}};
+ }
+ function showConfigImportEffect(profile){
+  const includes=configIncluded(profile),hasAfe=includes.includes('afe');
+  $('configApply').textContent=hasAfe?'Config übernehmen + AFE direkt ins RAM':'Ausgewählte Vorgaben übernehmen';
+  $('configImportEffect').textContent=hasAfe?
+   'Enthält AFE: Beim Klick auf «Übernehmen» werden PGA1, Offset und PGA2 sofort in den verbundenen Chip ins RAM geschrieben und rückgelesen. Keine EEPROM-Programmierung.':
+   'Kein AFE enthalten: Es werden ausschliesslich die gewählten Vorgaben im Assistenten aktualisiert. Kein RAM- oder EEPROM-Schreibvorgang.';
  }
  $('configSave').addEventListener('click',()=>{
   try{
-   const profile=configFromUi();
+   const profile=configFromUi(configSelectedGroups());
    const label=profile.label.replace(/[^a-z0-9_-]+/gi,'_').slice(0,46)||'Profil';
    download('ELMOS_E70311_Config_'+label+'.json',JSON.stringify(profile,null,2));
-   show('configPreview','Config «'+profile.label+'» gespeichert. Enthält nur AFE-Stufen, DSP- und Messvorgaben und Ausgangsparameter. Keine UID, keine EEPROM-Daten und keine DSP-Koeffizienten.','success');
+   show('configPreview','Config «'+profile.label+'» gespeichert. Enthält: '+ELMOS_CONFIG.describe(profile)+'. Keine UID, EEPROM-Daten, Messwerte oder DSP-Koeffizienten.','success');
   }catch(e){show('configPreview','Config konnte nicht gespeichert werden: '+e.message,'error')}
  });
  $('configFile').addEventListener('change',async()=>{
-  selectedConfig=null;$('configApply').disabled=true;
+  selectedConfig=null;$('configApply').disabled=true;$('configApply').textContent='Geladene Config übernehmen';
   const file=$('configFile').files?.[0];if(!file)return;
   try{
    if(file.size>65536)throw Error('Config-Datei ist zu gross (max. 64 kB)');
    const profile=ELMOS_CONFIG.validate(JSON.parse(await file.text()),CAL);
    selectedConfig=profile;
-   $('configApply').disabled=false;
+   $('configApply').disabled=false;showConfigImportEffect(profile);
    show('configPreview','Datei geprüft – noch NICHT übernommen.\n'+ELMOS_CONFIG.describe(profile)+
     '\nEs werden keine Messpunkte, Kalibrierkoeffizienten, EEPROM- oder Boot-/Kommunikationsdaten importiert.','success');
   }catch(e){selectedConfig=null;show('configPreview','Config-Laden abgelehnt: '+e.message,'error')}
  });
- $('configApply').addEventListener('click',()=>{
+ $('configApply').addEventListener('click',async()=>{
+  const button=$('configApply'),fileInput=$('configFile');
   try{
    if(!selectedConfig)throw Error('Zuerst eine gültige Config-Datei wählen');
    if(st.writing||st.nvmWorking||st.calTask||st.afeWriteActive)throw Error('Chipvorgang läuft. Config erst danach übernehmen.');
-   // Reusing a profile must never transfer sensor-specific calibration or stale NVM plans.
-   erasePoints();
-   invalidateCalculation('Config-Vorlage übernommen. Messpunkte und Koeffizienten müssen für diesen Sensor neu aufgenommen/berechnet werden.');
-   st.restorePlan=null;st.outputOnlyPlan=null;st.expertOutputPlan=null;
-   const c=selectedConfig.calibration;
-   $('calPointCount').value=String(c.pointCount);
-   $('calSampleCount').value=String(c.samples);
-   $('settingsSampleCount').value=String(c.samples);
-   $('calUnit').value=c.reference.unit;
-   $('calUnitOther').value=c.reference.customUnit;
-   $('pmin').value=String(c.reference.min);$('pmax').value=String(c.reference.max);
-   $('calSOrder').value=String(c.sOrder);$('calTOrder').value=String(c.tOrder);
-   $('calDspLimit').value=String(c.dspLimit);$('calDspLimit').dataset.userEdited='1';
-   fillIntermediateReferences();refreshUnitLabels();updateDSPOutputLimit();renderDSPLive();
-   expert.applyOutputProfile(selectedConfig.output);
-   st.profilePendingAFE={...selectedConfig.afe};profileSummary();
-   $('configLabel').value=selectedConfig.label;
-   lsSet('elmos-cal-sample-count-v1',String(c.samples));
+   const profile=selectedConfig,values=configGroupValues(profile),included=values.include;
+   const has=(group)=>included.includes(group);
+   const target=has('afe')?{...values.afe}:null;
+   if(target&&(!st.port||!st.chip||st.mode!=='usb'))
+    throw Error('Die Datei enthält AFE-Verstärkungen. Für das direkte RAM-Laden zuerst einen echten Sensor verbinden. Alternativ AFE beim Speichern abwählen.');
+   button.disabled=true;fileInput.disabled=true;
+   // The click itself explicitly authorises the immediate AFE RAM transfer.
+   // Existing commitGain checks the boot state and reads the written register back.
+   if(target){
+    show('configPreview','AFE-Übernahme läuft: PGA1/Offset/PGA2 werden in das Sensor-RAM geschrieben und rückgelesen. Noch kein EEPROM-Schreiben.','warn');
+    const ok=await commitGain(target);
+    if(!ok||!st.chip||!['pga1','pga2','offset'].every(k=>st.staged[k]===target[k])){
+     st.profilePendingAFE={...target};profileSummary();
+     throw Error('AFE-RAM-Übernahme nicht bestätigt. Chip prüfen und Config erneut übernehmen. Die anderen Einstellungen wurden nicht verändert.');
+    }
+    st.profilePendingAFE=null;profileSummary();
+   }
+   // Groups absent from the imported file must remain untouched.
+   const affectsCalibration=has('afe')||has('measurement')||has('reference')||has('dsp');
+   if(affectsCalibration){
+    erasePoints();
+    invalidateCalculation('Config übernommen. Messpunkte und DSP-Koeffizienten für diesen Sensor neu erfassen.');
+    st.restorePlan=null;st.outputOnlyPlan=null;st.expertOutputPlan=null;
+   }
+   if(has('measurement')){
+    $('calPointCount').value=String(values.measurement.pointCount);
+    $('calSampleCount').value=String(values.measurement.samples);
+    $('settingsSampleCount').value=String(values.measurement.samples);
+    lsSet('elmos-cal-sample-count-v1',String(values.measurement.samples));
+   }
+   if(has('reference')){
+    $('calUnit').value=values.reference.unit;
+    $('calUnitOther').value=values.reference.customUnit;
+    $('pmin').value=String(values.reference.min);$('pmax').value=String(values.reference.max);
+   }
+   if(has('dsp')){
+    $('calSOrder').value=String(values.dsp.sOrder);$('calTOrder').value=String(values.dsp.tOrder);
+    $('calDspLimit').value=String(values.dsp.dspLimit);$('calDspLimit').dataset.userEdited='1';
+   }
+   if(has('measurement')||has('reference')||has('dsp')){
+    fillIntermediateReferences();refreshUnitLabels();updateDSPOutputLimit();renderDSPLive();
+   }
+   if(has('output'))expert.applyOutputProfile(values.output);
+   $('configLabel').value=profile.label;
    renderFlowState();
-   show('configPreview','Config «'+selectedConfig.label+'» in den Assistenten übernommen. Noch KEINE Chip- oder EEPROM-Werte geschrieben.\n'+
-    'AFE-Vorgabe unter «AFE optimieren» ausdrücklich ins RAM übertragen. Messpunkte und DSP-Kalibrierung anschliessend pro Sensor neu durchführen.','success');
-  }catch(e){show('configPreview','Config-Übernahme fehlgeschlagen: '+e.message,'error')}
- });
- $('configAfeApplyRam').addEventListener('click',async()=>{
-  const target=st.profilePendingAFE;if(!target)return;
-  if(!st.port||!st.chip||st.mode!=='usb')return show('writeMsg','Geladene AFE-Config kann erst mit echter USB-Chipverbindung ins RAM übertragen werden.','warn');
-  await commitGain({...target});
-  if(st.afe!==null&&P.goodG(st.staged)&&['pga1','pga2','offset'].every(k=>st.staged[k]===target[k])){
-   st.profilePendingAFE=null;profileSummary();renderFlowState();
-   show('writeMsg','Geladene AFE-Config erfolgreich ins Chip-RAM geschrieben und rückgelesen. Keine EEPROM-Programmierung.','success');
-  }else{profileSummary();show('writeMsg','AFE-Config ist weiterhin nur vorgemerkt: RAM-Rücklesung nicht bestätigt.','warn')}
+   show('configPreview','Config «'+profile.label+'» übernommen. Gruppen: '+included.join(', ')+'.\n'+
+    (target?'AFE: Im Chip-RAM geschrieben und rückgelesen – Werte aktiv. ':'Keine AFE-Änderung am Chip. ')+
+    'Keine EEPROM-Programmierung. '+(affectsCalibration?
+     'Messpunkte und DSP-Koeffizienten für diesen Sensor neu aufnehmen.':
+     'Bestehende Messpunkte und DSP-Koeffizienten wurden durch diesen reinen Ausgangsimport nicht verändert.'),'success');
+   document.dispatchEvent(new CustomEvent('elmos-config-applied',{detail:{included:included.slice(),version:profile.version}}));
+  }catch(e){
+   show('configPreview','Config-Übernahme fehlgeschlagen: '+e.message,'error');
+  }finally{
+   fileInput.disabled=false;
+   button.disabled=!selectedConfig;
+  }
  });
  // controls
  const savedSampleCount=Number(lsGet('elmos-cal-sample-count-v1'));

@@ -180,7 +180,7 @@ test('Expert mode shows contextual settings and no modal',()=>{
  assert.ok(html.includes('data-expert-area hidden><summary>Erweitert · AODO_F'));
  assert.ok(src.includes("classList.toggle('is-expert',enabled)"));
  const scripts=Array.from(html.matchAll(/<script src="([^"]+)"/g),m=>m[1]);
- assert.deepEqual(scripts,['calibration.js?v=0.6.7','eeprom-help.js?v=0.6.7','expert.js?v=0.6.7','config.js?v=0.6.7','guided-plan.js?v=0.6.7','demo.js?v=0.6.7','app.js?v=0.6.7','compact.js?v=0.6.7','guided.js?v=0.6.7']);
+ assert.deepEqual(scripts,['calibration.js?v=0.6.8','eeprom-help.js?v=0.6.8','expert.js?v=0.6.8','config.js?v=0.6.8','guided-plan.js?v=0.6.8','demo.js?v=0.6.8','app.js?v=0.6.8','compact.js?v=0.6.8','guided.js?v=0.6.8']);
 });
 
 test('Failed E703.11 probe reconnects SSP3 at most once, without NVM writes',()=>{
@@ -339,16 +339,29 @@ test('Config importer rejects NVM backups, foreign keys and unsafe modes',()=>{
  assert.throws(()=>CFG.validate({...p,afe:{...p.afe,pga1:10}},CAL),/ungültiger Wert/);
  assert.throws(()=>CFG.validate({...p,output:{...p.output,s0:0.0,s1:4.5}},CAL));
 });
-test('Profile only stages AFE, never automatically writes hardware or EEPROM',()=>{
- const app=read('app.js');
- assert.ok(app.includes('st.profilePendingAFE={...selectedConfig.afe}'));
- assert.ok(app.includes("$('configAfeApplyRam').addEventListener('click',async()=>"));
- assert.ok(app.includes('await commitGain({...target})'));
+test('Selective config includes only requested groups and AFE imports auto-apply to verified RAM',()=>{
+ const app=read('app.js'),html=read('index.html'),guide=read('guided.js');
+ for(const id of ['configSave','configFile','configApply','configLabel','configPreview','configIncludeAfe','configIncludeReference','configIncludeMeasurement','configIncludeDsp','configIncludeOutput'])
+  assert.equal(html.split('id="'+id+'"').length-1,1);
+ assert.ok(!html.includes('id="configAfeApplyRam"'));
+ assert.ok(app.includes('ELMOS_CONFIG.createSelective('));
+ assert.ok(app.includes('const p=st.staged;'));
+ assert.ok(app.includes("if(target&&(!st.port||!st.chip||st.mode!=='usb'))"));
+ assert.ok(app.includes('const ok=await commitGain(target)'));
+ assert.ok(app.includes("if(!ok||!st.chip||!['pga1','pga2','offset'].every"));
+ assert.ok(app.includes("throw Error('AFE-RAM-Übernahme nicht bestätigt."));
+ assert.ok(app.includes("if(has('output'))expert.applyOutputProfile(values.output)"));
+ assert.ok(app.includes("document.dispatchEvent(new CustomEvent('elmos-config-applied'"));
+ assert.ok(guide.includes("subscribe(document,'elmos-config-applied',syncImportedConfig)"));
+ assert.ok(guide.includes("moveId('configGroups','gwConfigGroups')"));
+ assert.ok(guide.includes("moveId('configImportEffect','gwConfigEffect')"));
+ const compact=read('compact.js');
+ assert.ok(compact.includes("moveId('configGroups','cpCfgGroups')"));
+ assert.ok(compact.includes("moveId('configImportEffect','cpCfgEffect')"));
+ assert.ok(!guide.includes("subscribe($('configApply'),'click',syncImportedConfig)"));
+ assert.ok(!app.includes("$('configAfeApplyRam').addEventListener"));
  assert.ok(app.includes('invalidateCalculation('));
  assert.ok(app.includes("if(st.writing||st.nvmWorking||st.calTask||st.afeWriteActive)"));
- const html=read('index.html');
- for(const id of ['configSave','configFile','configApply','configLabel','configPreview','configAfeApplyRam'])
-  assert.equal(html.split('id="'+id+'"').length-1,1);
 });
 
 test('EEPROM Viewer refuses to display a backup from another chip',()=>{
@@ -393,7 +406,7 @@ test('Guided view is optional and contains only one set of hardware inputs',()=>
  assert.ok(html.includes('id="workflowMode"'));
  assert.ok(html.includes('id="guidedLaunch"'));
  assert.ok(html.includes('id="guidedLaunchTop"'));
- assert.ok(html.includes('guided.css?v=0.6.7'));
+ assert.ok(html.includes('guided.css?v=0.6.8'));
  for(const id of ['nvmProgram','nvmPrepare','calApplyRam','calVerifyRam','expertOutputStage','configApply','configFile']){
   assert.equal(html.split('id="'+id+'"').length-1,1);
  }
@@ -555,4 +568,59 @@ test('Demo uses an isolated adapter and does not request a physical USB port',()
  assert.ok(app.includes('if(!st.closing&&demoPort&&st.port===demoPort)return demoPort.exchange(text)'));
  assert.ok(app.includes("sessionStorage.setItem('demo-'+k,v)"));
  assert.ok(!demo.includes('navigator.serial'));
+});
+
+test('V2 selective config roundtrip preserves only requested sections',()=>{
+ const input={label:'Gains',afe:{pga1:2,pga2:6,offset:4},
+  calibration:{sOrder:1,tOrder:0,dspLimit:25000,pointCount:2,samples:12,
+   reference:{min:0,max:10,unit:'bar',customUnit:''}},
+  output:{mode:'1',scaleEnabled:true,vdd:5,s0:0.5,s1:4.5,gain:0,offset:0,pwmPeriod:16384}};
+ const afe=CFG.createSelective(input,['afe'],CAL);
+ assert.equal(afe.version,2);
+ assert.deepEqual(afe.include,['afe']);
+ assert.deepEqual(afe.afe,input.afe);
+ assert.equal(afe.output,undefined);
+ assert.equal(afe.measurement,undefined);
+ assert.equal(afe.reference,undefined);
+ assert.equal(afe.dsp,undefined);
+ assert.deepEqual(CFG.validate(JSON.parse(JSON.stringify(afe)),CAL),afe);
+ const dsp=CFG.createSelective(input,['dsp','measurement'],CAL);
+ assert.equal(dsp.afe,undefined);
+ assert.equal(dsp.measurement.samples,12);
+ assert.equal(dsp.dsp.dspLimit,25000);
+ const all=CFG.createSelective(input,CFG.GROUPS,CAL);
+ assert.deepEqual(all.include,CFG.GROUPS);
+ assert.equal(all.output.mode,'1');
+ assert.ok(all.output.gain>0);
+ const txt=JSON.stringify(all);
+ for(const key of ['uid','words','nvmBackup','boot','SER0','calfit','coeffs'])
+  assert.ok(!txt.includes('"'+key+'"'));
+});
+test('V2 importer rejects extra groups, undeclared fields and unsafe partial values',()=>{
+ const input={label:'Gains',afe:{pga1:1,pga2:3,offset:0},
+  calibration:{sOrder:1,tOrder:0,dspLimit:25000,pointCount:2,samples:12,
+   reference:{min:0,max:10,unit:'bar',customUnit:''}},
+  output:{mode:'1',scaleEnabled:true,vdd:5,s0:0.5,s1:4.5,gain:0,offset:0,pwmPeriod:16384}};
+ const p=CFG.createSelective(input,['afe'],CAL);
+ assert.throws(()=>CFG.createSelective(input,[],CAL),/Mindestens eine/);
+ assert.throws(()=>CFG.validate({...p,include:['afe','afe']},CAL),/gültige Einstellungsgruppe/);
+ assert.throws(()=>CFG.validate({...p,include:['afe','factory']},CAL),/gültige Einstellungsgruppe/);
+ assert.throws(()=>CFG.validate({...p,uid:'12345678'},CAL),/unerlaubtes Feld/);
+ assert.throws(()=>CFG.validate({...p,measurement:{pointCount:2,samples:4}},CAL),/Gruppenauswahl/);
+ assert.throws(()=>CFG.validate({...p,afe:{...p.afe,pga1:100}},CAL),/ungültiger Wert/);
+ const mix=CFG.createSelective(input,['measurement','dsp'],CAL);
+ assert.throws(()=>CFG.validate({...mix,measurement:{pointCount:2,samples:12},dsp:{...mix.dsp,sOrder:3}},CAL),/Polynomordnung fehlen/);
+});
+test('AFE RAM commit returns explicit success or failure without NVM bypass',()=>{
+ const app=read('app.js');
+ const region=app.split(' async function commitGain(target){')[1].split(' async function sample(){')[0];
+ assert.ok(region.includes('return false'));
+ assert.ok(region.includes('return true'));
+ assert.ok(region.includes('await bootSnapshot()'));
+ assert.ok(region.includes('const actual=await readReg(R_AFE)'));
+ assert.ok(region.includes("if(actual!==next)throw Error('AFE-Rücklesefehler"));
+ assert.ok(region.includes('st.afeWriteActive=true'));
+ assert.ok(region.includes('st.afeWriteActive=false'));
+ assert.ok(!region.includes('nvmProgram('));
+ assert.ok(!region.includes('nvmScan('));
 });

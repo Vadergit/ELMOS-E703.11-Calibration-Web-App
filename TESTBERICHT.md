@@ -1,6 +1,6 @@
 # Testbericht – ELMOS E703.11 Web-Kalibrierassistent
 
-**Stand: Version v0.6.0 · 11. November 2026 · Laborprototyp, keine Hardware- oder Produktionsfreigabe**
+**Stand: Version v0.6.8 · 12. November 2026 · Laborprototyp, keine Hardware- oder Produktionsfreigabe**
 
 Dieser Bericht trennt den **im Code beziehungsweise mit simulierten Chipantworten geprüften Stand** von noch offenen Hardwareprüfungen. Ältere, überholte UI-Varianten und frühere Bestätigungswörter werden hier bewusst nicht als aktuelle Funktion beschrieben.
 
@@ -32,7 +32,7 @@ Dieser Bericht trennt den **im Code beziehungsweise mit simulierten Chipantworte
 - **Grenzen:** PGA1 0–3, Offset −8 bis +8, PGA2 0–8. Die ±-Tasten werden an den Grenzen und während Schreibvorgängen gesperrt.
 - **Fehlerbehandlung:** Bei verweigertem RAM-Zugriff bleibt der bisher bestätigte AFE-Zustand erhalten. Bei unklarem tatsächlichem Schreibstatus werden vorhandene Kalibrierpunkte vorsorglich verworfen.
 - **Einstellungen:** Zahnrad oben rechts; der Expertenmodus blendet Zusatzeinstellungen im jeweiligen Reiter ein. Die Hauptoberfläche bleibt ohne Expertenmodus kompakt.
-- **EEPROM Viewer:** Als eigener Reiter neben den sieben Kalibrierschritten jederzeit erreichbar; Tabelle nur lesbar.\n- **Config-Vorlagen:** Datei in «USB & Chip» speichern/laden; geladene AFE-Werte getrennt vom tatsächlichen RAM-Zustand vormerken und erst mit einem weiteren Klick übertragen.
+- **EEPROM Viewer:** Als eigener Reiter neben den sieben Kalibrierschritten jederzeit erreichbar; Tabelle nur lesbar.\n- **Config-Vorlagen:** Datei in «USB & Chip» speichern/laden; selektiv gewählte Gruppen speichern und enthaltene AFE-Werte beim Import geschützt ins RAM übertragen und durch Rücklesung bestätigen, ohne einem weiteren Klick übertragen.
 - **NVM:** Nach bestandener DSP-Prüfung kann **«NVM lesen & Änderungen prüfen»** ohne vorgängig erstelltes Backup ausgeführt werden. Nach gültiger automatisch eingetragener, weiterhin editierbarer **48-Bit-UID** wird der Schreibknopf freigegeben. **Kein zusätzliches Bestätigungswort**.
 - **Optionale Sicherung:** Vor dem finalen Schreiben kann das alte NVM unter der Chip-UID archiviert und als JSON heruntergeladen werden. Ist diese Option deaktiviert, bleibt die vollständige CRC-Sicherheitslesung erforderlich.
 
@@ -65,6 +65,8 @@ Ab v0.5.0 prüfen drei zusätzliche Regressionstests die opt-in-Konfiguration, d
 **Beta-Status:** 10 weitere Tests prüfen die Druck×Temperatur-Matrix (2×1, 2×3, 3×2, 5×2, ungültige Kombinationen), die Wiederverwendung der originalen Hardware- und NVM-Bedienelemente sowie die fail-closed USB-Bridge. Für echte Browser-/Hardwaretests stehen weiterhin SSP3 und ein entbehrlicher E703.11-Testchip aus. Die Microcontroller-Firmware ist zunächst nur USB-CDC-Prototyp ohne PLC.
 
 **v0.6.0:** Nach dem Entfernen des Demo-Modus prüfen zusätzliche Tests die ausschliesslich echte Chipfreigabe für den Wizard, die AFE-Livedarstellung mit unverändertem ADC-Canvas, die Min-/Max-/Hub-Statistik und die grosse DSP-Signalansicht. Rein synthetische Fit-Daten dienen weiterhin nur der mathematischen Regression, nicht der Simulation einer Chipverbindung.
+
+**Config v2:** 51 Softwaretests decken auch selektive JSON-Gruppen, die Validierung der Auswahl, v1-Kompatibilität und den geschützten direkten AFE-RAM-Import ab. Ein vollständiger Hardwaretest mit E703.11 bleibt erforderlich.
 
 ## Offene Prüfungen vor produktivem Einsatz
 

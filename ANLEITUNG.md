@@ -1,6 +1,6 @@
 # Bedienungsanleitung – ELMOS E703.11
 
-**Dokumentationsstand v0.6.0** Kalibrierassistent
+**Dokumentationsstand v0.6.8** Kalibrierassistent
 
 **[Web-App öffnen](https://vadergit.github.io/ELMOS-E703.11-Calibration-Web-App/)** · **[Projektübersicht](README.md)** · **[Config-Dateien & EEPROM Viewer](CONFIG_DATEIEN.md)** · **[Testbericht](TESTBERICHT.md)**
 
@@ -49,102 +49,16 @@ In **Schritt 1 – Verbindung**:
 
 ### Config-Vorlagen in «USB & Chip»
 
-Im ersten Reiter gibt es neu den Bereich **Config-Vorlagen**. Die Datei ist eine wiederverwendbare Einrichtungsvorlage und **kein EEPROM-Backup**.
+Config-Dateien sind **wiederverwendbare Einrichtungsvorlagen**, keine EEPROM-Backups.
 
-**Speichern:** Alle gewünschten PGA1-/PGA2-/AFE-Offset-, Polynom-, DSP-Soll- und Ausgangseinstellungen wählen, dann unter USB & Chip einen Vorlagennamen eintragen und «Aktuelle Config speichern (.json)» drücken. Eine [Beispiel-Datei](examples/Beispiel_0-10bar.json) ist im Repository vorhanden.
+**Speichern:** Die gewünschten Einstellungen vornehmen und mit den Auswahlfeldern **AFE**, **Referenz**, **Messung**, **DSP** und/oder **Ausgang** festlegen, welche Werte exportiert werden. «Ausgewählte Config speichern (.json)» drücken. Nicht ausgewählte Gruppen sind nicht in der JSON-Datei enthalten.
 
-**Laden:** Datei auswählen, die angezeigte Vorschau prüfen und erst danach «Geladene Config übernehmen» drücken. Dabei werden Eingabefelder vorbelegt und vorhandene Messpunkte, Koeffizienten und NVM-Schreibpläne ungültig. **Noch kein Chipzugriff.**
+**Laden:** Datei auswählen, die Vorschau prüfen und anschliessend bewusst übernehmen. Ohne AFE werden nur die im File enthaltenen Vorgaben in der Oberfläche aktualisiert.
 
-**AFE anwenden:** Im Reiter «AFE optimieren» erscheint ein Hinweis auf die vorgemerkte AFE-Konfiguration. Erst «AFE-Vorgabe jetzt ins RAM übertragen und rücklesen» verändert die AFE-RAM-Stufen des verbundenen Chips. Danach erneut alle sensorspezifischen Kalibrierpunkte erfassen. Das EEPROM wird durch das Config-Laden nicht beschrieben.
+**Bei enthaltenen AFE-Werten** heisst der Button «Config übernehmen + AFE direkt ins RAM». Nach dem Klick werden PGA1/Offset/PGA2 **automatisch ins Chip-RAM übertragen und rückgelesen**. Dafür muss ein echter Sensor verbunden sein. Bei fehlender Rücklesebestätigung wird der Import nicht als erfolgreich gemeldet. **Keine EEPROM-Programmierung.**
 
-Details zur strikten JSON-Struktur und den ausgeschlossenen Daten: [CONFIG_DATEIEN.md](CONFIG_DATEIEN.md).
+Alte vollständige Config-Dateien (v1) bleiben kompatibel. Neue Dateien (v2) enthalten nur ausgewählte Gruppen. [Beispiel-Datei](examples/Beispiel_0-10bar.json) · [Details](CONFIG_DATEIEN.md).
 
-## 2. Live-Werte – in allen sieben Schritten sichtbar
-
-Oben in der App befindet sich eine dauerhaft sichtbare Statusleiste:
-
-| Anzeige | Bedeutung |
-| --- | --- |
-| **ADC_S** | Unkompensierter Druck-ADC, in Digits. Die App warnt oberhalb von rund **±25’000 Digits** als vorsichtigem Optimierungsziel, nicht als absoluter Hardwaregrenze |
-| **ADC_T** | Temperatur-ADC-Rohwert, Digits (nicht direkt °C) |
-| **DSP_S** | Digitaler, durch die Chip-Koeffizienten skalierter DSP-Ausgang, Digits |
-| **Sensorwert** | Aus DSP_S mit dem aktuell gewählten Anzeigebereich in bar, %, mbar usw. umgerechneter Wert |
-| **Status / Zeit** | Chipverbindung, Live-/Pausenstatus und Zeitpunkt der letzten Messung |
-
-Die Live-Abfrage läuft **über die Tabwechsel hinweg weiter**, sofern der Sensor verbunden und die Messung nicht bewusst pausiert ist. Während einer RAM-/NVM-Transaktion wird sie unterbrochen. Die Anzeige allein beweist **keine** korrekte Kalibrierung: Für die NVM-Freigabe zählen ausschliesslich die ausdrücklich aufgenommenen DSP-Prüfpunkte.
-
-Für einen bereits kalibrierten Sensor kann der Anzeigebereich unter **AFE optimieren** angepasst werden. Die Umrechnung ändert nur die Darstellung, nicht die Register. Falls der DSP-Endwert der früheren Kalibrierung nicht ±32’000 Digits betrug, muss die passende Zahl manuell angegeben werden.
-
-## 3. AFE optimieren – direkte RAM-Übernahme
-
-Die Reihenfolge entspricht der Originalsoftware:
-
-**PGA1 → Offset → PGA2**
-
-Alle drei Einstellungen werden über kompakte **− / +** Tasten verändert. Die App zeigt die tatsächlichen Verstärkungen beziehungsweise den Offset in **mV/V**, nicht den Stufencode.
-
-- PGA1: **4 diskrete Stufen** (interne Codes 0–3).
-- Offset: **−8 bis +8**, in **50 mV/V** je Schritt.
-- PGA2: **9 diskrete Stufen** (interne Codes 0–8).
-
-**Jeder Pfeilklick schreibt die neue Einstellung unmittelbar ins Sensor-RAM** und liest das AFE-Register zur Kontrolle zurück. Währenddessen sind weitere Klicks gesperrt. Anschliessend aktualisiert die App den ADC_S-Wert, damit du die Auswirkung sofort siehst.
-
-Achte auf einen möglichst guten nutzbaren ADC_S-Hub ohne Übersteuerung. Wenn die AFE-Einstellung geändert wird, müssen bereits aufgenommene Kalibrierpunkte erneut gemessen werden, da sie nicht mehr zur aktuellen Verstärkung passen.
-
-**Wichtig:** Die Pfeiltasten schreiben **nicht** dauerhaft ins NVM und verändern keine frei gesperrten Factory-/Bootregister. Der frühere zusätzliche Knopf «AFE-Einstellungen ins RAM übernehmen» entfällt.
-
-## 4. Kalibrier-Messpunkte aufnehmen
-
-In **Schritt 3** wird die Planung **vor** der Messung festgelegt:
-
-1. **Anzahl Kalibrierpunkte:** 2–10 (Standard **2**). Zwei Punkte eignen sich für einen einfachen linearen Abgleich.
-2. **Samples pro Messpunkt:** 1–100 (Standard **12**), für End- und Zwischenpunkte gleichermassen.
-3. **Einheit und Bereich:** Beispielsweise 0–10 bar oder 0–100 %. Die Werte müssen zur tatsächlichen Druckreferenz am Prüfstand passen.
-4. **Pro Messpunkt:** Freien Namen, Referenzdruck und Temperatur prüfen. Dann mit dem jeweiligen Aufnahmeknopf erfassen.
-
-Für jeden Punkt werden **ADC_S, ADC_T und ADC_TC** ausgelesen. Der gespeicherte ADC-Wert ist jeweils der **Median** aus den Samples. Die Streuung bezeichnet `Maximum(ADC_S) − Minimum(ADC_S)`; bei mehr als einem Sample führt eine Streuung über **350 Digits** zur Ablehnung der Aufnahme. Mit genau einem Sample ist keine Streuungsprüfung möglich.
-
-Nach der Aufnahme erscheinen die Messwerte deutlich hervorgehoben im grünen Ergebnisfeld: **ADC_S, ADC_T, Streuung, Sample-Anzahl, Referenzwert und Temperatur**. Die Anzeige zeigt zudem den Aufnahmefortschritt.
-
-Die Berechnung wird erst nach dem Erfassen **aller gewählten Punkte** freigegeben. Höhere Polynomordnungen und Temperaturabgleiche können mehr **unabhängige Druck-/Temperaturpunkte** verlangen.
-
-## 5. Koeffizienten berechnen und ins RAM schreiben
-
-In **Schritt 4**:
-
-1. Gewünschte **Druck- und Temperaturpolynomordnung** auswählen. Die App prüft, ob dafür genügend unabhängige Punkte vorhanden sind.
-2. Den **symmetrischen DSP-Endwert** festlegen, zulässig **±1’000 bis ±32’000 Digits**. Beispiel: **±30’000** lässt Reserve gegenüber ±32’000.
-3. **Koeffizienten berechnen**. Die App zeigt Koeffizienten und numerische Fit-Fehler.
-4. **Berechnete Koeffizienten ins RAM schreiben** und die Rücklesekontrolle abwarten.
-
-Dafür muss nicht bereits das vollständige 64-Wort-NVM als Datei gesichert sein; die permanente Programmierung folgt erst nach der DSP-Prüfung.
-
-Bei Änderungen der Messpunkte, AFE-Gains, Polynomordnungen oder DSP-Zielspanne sind die betroffenen Berechnungen und Prüfungen erneut durchzuführen. Die neue Zielspanne beeinflusst die Koeffizienten **und** die Sollwerte der DSP-Prüfung; sie ist nicht bloss eine Anzeigeoption.
-
-## 6. DSP-Ausgang prüfen
-
-In **Schritt 5** werden die im RAM wirksamen DSP-Koeffizienten anhand der **echten DSP_S-Chipausgabe** geprüft.
-
-- **Anzahl Prüfpunkte:** 1–10, Standard **1**.
-- **Prüfreferenz und Toleranz:** Den real eingestellten Druck erfassen, den gemessenen DSP_S mit dem Soll vergleichen und die Abweichung beurteilen.
-- **Live-Anzeige:** Kalibrierter Wert und Roh-DSP-Ausgang sind während der Prüfung sichtbar.
-- **Mehrere Prüfpunkte:** Für bessere Abdeckung verschiedene Druckstellen im Bereich verwenden.
-
-**Nur ein Prüfpunkt bestätigt die Kennlinie nicht über den gesamten Bereich.** Für komplexere, insbesondere temperaturkompensierte Kalibrierungen, sind zusätzliche, unabhängige Messungen und Prüfungen sinnvoll beziehungsweise notwendig.
-
-Erst nach der bestandenen Prüfung aller gewählten Prüfpunkte wird der normale permanente NVM-Ablauf freigeschaltet.
-
-**Ausgangs- und 1-Wire-Details:** [PSSC-Modi, Datenblatt-Register und Startschutz](AUSGANG_1WIRE.md).
-
-## 7. Ausgang konfigurieren
-
-Im neuen **Schritt 6** folgen die Ausgangseinstellungen nach der DSP-Prüfung. Sie sind nach den PSSC-Bereichen **Digital Interface**, **AODO pin**, **Scaling**, **Limiting**, **Error Signaling** und **Error Values** gegliedert. Nicht bestätigte Hardwareoptionen sind nur lesbar oder deaktiviert. Der AODO-Modus bestimmt die analoge, PWM- oder FM-Ausgabe. **«One Wire only» ist kein zusätzlicher CFG_EN.aodo_en-Wert**, sondern bezeichnet den bereits vorhandenen permanenten 1-Wire-Betrieb über CFG_SPI_I2C.plc_en. Die PSSC-Auswahl ist im Assistenten nur dann freigegeben, wenn die vollständige Original-NVM-Prüfung zeigt, dass permanentes PLC bereits korrekt eingerichtet ist. I²C bleibt eine separate Kommunikationsschnittstelle. AODO_F skaliert DSP_S, AODO_O verschiebt dessen Ausgangsbereich. Die beiden Werte sind unter «Erweiterte Ausgangsparameter» verborgen und können über «Scaling berechnen» vorgeschlagen werden.
-
-**DSP-Zielbereich:** Wenn «Berechnen & RAM» für die neue Kalibrierung ±25’000 Digits verwendet, müssen auch die Scaling-Punkte S0/S1 −25’000/+25’000 verwenden. Der Assistent übernimmt das automatisch. Eine reine AFE-Empfehlung «ADC_S innerhalb ±25’000» ist dagegen keine DSP-Skalierung und darf nicht damit gleichgesetzt werden.
-
-**Analog Ratiometric:** Die **Zielwerte** sind standardmässig S0 = 0.5 V und S1 = 4.5 V bei VDD = 5 V (10–90 % VDD). Das Auslesen aktueller AODO-Register ändert diese Zielwerte nicht mehr; die momentane Chipkonfiguration wird separat angezeigt. Mit «Standard 10–90 % VDD einsetzen» kann die Vorgabe jederzeit wiederhergestellt werden. AODO_F und AODO_O werden in Q3.12 berechnet und als Vorschau angezeigt. Vor permanenter Programmierung an einem Testchip prüfen.
-
-Für einen bereits kalibrierten Sensor das Original-NVM (64 Wörter) im Ausgangsschritt lesen und überprüfen. Eine neue Kalibrierung ist nicht erforderlich, wenn nur der Ausgang geändert werden soll.
 
 ### «One Wire only» prüfen und auswählen
 

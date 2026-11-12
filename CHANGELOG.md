@@ -2,6 +2,14 @@
 
 Versionierung nach `MAJOR.MINOR.PATCH`: Kleine Anpassungen erhöhen PATCH, neue Funktionen MINOR, inkompatible Änderungen MAJOR. Jede Änderung erhält eine neue Nummer und einen Eintrag.
 
+## v0.6.8 – 12.11.2026
+
+- **Config-Export mit Gruppenauswahl:** AFE, Referenz, Messung, DSP und Ausgang sind einzeln wählbar. Neue selektive JSON-Configs im Format v2; vollständige ältere v1-Dateien bleiben lesbar.
+- **AFE beim Import direkt ins RAM:** Der ausdrücklich beschriftete Importknopf löst die bestehende geschützte AFE-RAM-Übernahme mit Bootprüfung und Rücklesung aus. Ohne Chipverbindung oder bei fehlgeschlagener Prüfung werden die anderen Gruppen nicht angewendet.
+- Keine automatische EEPROM-/NVM-Programmierung. Nicht enthaltene Config-Gruppen bleiben unverändert.
+- Gruppenauswahl auch im geführten und kompakten Arbeitsplatz; kein zusätzlicher AFE-RAM-Importknopf.
+- **51 JavaScript-Regressionstests**, einschliesslich selektiven Importen, Validierung, Altformat und AFE-Sicherheitsprüfung.
+
 ## v0.6.7 – 11.11.2026
 
 - Die SuperMini-Firmware v0.4 verwendet GPIO10 für den Lastschalter. Die Web-App zeigt nach dem Verbinden den von der Firmware verwendeten Pin an.

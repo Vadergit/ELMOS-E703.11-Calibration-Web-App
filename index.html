@@ -272,6 +272,14 @@ button.danger{background:#9e3e34;border-color:#9e3e34;color:#fff}button.danger:h
 .profile-card .fieldrow{margin:11px 0}
 .profile-afe{margin:12px 0;border:1px solid #b2d7c2;border-radius:9px;background:#f3fbf6;padding:12px}
 .profile-afe p{margin:8px 0;font-size:12px}
+.config-group-select{display:grid;grid-template-columns:repeat(auto-fit,minmax(145px,1fr));gap:7px;border:1px solid #d3e2ed;border-radius:9px;background:#fff;padding:12px;margin:10px 0}
+.config-group-select legend{font-size:12px;font-weight:700;color:#234e72;padding:0 6px}
+.config-group-select label{display:flex;align-items:flex-start;gap:8px;padding:9px 8px;background:#f7fafc;border:1px solid #e3ebf2;border-radius:8px;cursor:pointer;font-size:12px}
+.config-group-select label:has(input:checked){background:#edf6fd;border-color:#a4cce8}
+.config-group-select input{margin:3px 0 0;width:16px;height:16px;accent-color:#0878b5;flex-shrink:0}
+.config-group-select strong,.config-group-select small{display:block}
+.config-group-select small{font-size:10px;color:#667d92;line-height:1.4;margin-top:3px}
+#configImportEffect{margin:9px 0 11px}
 .eeprom-table-scroll{max-height:63vh;overflow:auto;border:1px solid #cbd8e7;border-radius:9px;margin:10px 0 18px}
 .eeprom-table{width:100%;border-collapse:separate;border-spacing:0;font-size:12px;font-variant-numeric:tabular-nums}
 .eeprom-table th{position:sticky;top:0;background:#edf3f9;text-align:left;color:#34516b;font-weight:700;padding:9px 10px;border-bottom:1px solid #cddbe8;z-index:2}
@@ -443,8 +451,8 @@ html.compact-mode .foot{display:none}
  .cp-output-grid{grid-template-columns:1fr 1fr}
  .cp-points .cp-points-setup{grid-template-columns:repeat(3,minmax(0,1fr))}
 }
-</style><link rel="stylesheet" href="guided.css?v=0.6.7"><link rel="stylesheet" href="interface.css?v=0.6.7"></head><body><div class="wrap"><header class="top">
-<div class="brand"><div class="logo" aria-hidden="true">E</div><div><div class="eyebrow">E703.11 · PSSC · v0.6.7</div><h1>Kalibrierassistent</h1></div></div>
+</style><link rel="stylesheet" href="guided.css?v=0.6.8"><link rel="stylesheet" href="interface.css?v=0.6.8"></head><body><div class="wrap"><header class="top">
+<div class="brand"><div class="logo" aria-hidden="true">E</div><div><div class="eyebrow">E703.11 · PSSC · v0.6.8</div><h1>Kalibrierassistent</h1></div></div>
 <div class="live-overview" role="group" aria-label="Sensorwerte · laufende Anzeige">
   <div class="live-kpi" title="Unkompensierter Druck-ADC. Warnung bei Beträgen über 25’000 Digits."><span class="live-kpi-label">ADC_S <span id="liveAdcAlert" class="live-alert" hidden>!</span></span><span class="live-kpi-reading" id="liveAdcS">—</span><span class="live-kpi-unit">Digits</span></div>
   <div class="live-kpi" title="ADC_T · Temperatur-Rohwert, keine direkte Temperatur in °C."><span class="live-kpi-label">ADC_T</span><span class="live-kpi-reading" id="liveAdcT">—</span><span class="live-kpi-unit">Digits</span></div>
@@ -509,12 +517,20 @@ html.compact-mode .foot{display:none}
 <details><summary>Verkabelung und Startfenster</summary><div class="inner"><p><b>1-Wire:</b> VDD, GND, AODO. <b>I²C:</b> VDD, GND, SCL, SDA und korrekte SA0-/EOC-Beschaltung. Die App ändert mit IF_CFG nur den SSP3, nicht die Bootkonfiguration des Chips.</p><p>Einige 1-Wire-Konfigurationen reagieren nur kurz nach dem Einschalten. Falls der Chip nicht antwortet, Versorgung und Pin-Beschaltung prüfen. Mit der ESP32-Bridge kann die Firmware beim Verbindungsaufbau einen externen Lastschalter steuern.</p><p><b>USB-Port kann nicht geöffnet werden?</b> Zuerst die originale PSSC-GUI und andere COM-Port-Programme schliessen. Im Windows-Gerätemanager unter «Anschlüsse (COM & LPT)» muss ein «USB Serial Port (COMx)» ohne Warnsymbol angezeigt werden. Falls nötig das Eval-Board kurz neu einstecken und «Bekannten Port verbinden» erneut versuchen. Fehlender COM-Port: FTDI-VCP-Treiber prüfen (Details im README).</p></div></details>
 <section class="profile-card" aria-labelledby="configTitle">
 <div class="between"><h3 id="configTitle">Config-Vorlagen</h3><span class="pill">Chipunabhängig</span></div>
-<p class="muted small">AFE-Gains/Offset, Mess- und DSP-Einstellungen sowie Ausgangsart/Scaling für weitere Sensoren wiederverwenden. <b>Keine</b> Chip-ID, Werksdaten, DSP-Koeffizienten oder EEPROM-Register werden kopiert. Laden ändert zunächst <b>nur die Vorgaben im Assistenten</b>.</p>
+<p class="muted small">Bestimme beim Speichern, welche Einstellungen für andere Sensoren übernommen werden sollen. <b>Keine</b> Chip-ID, Werksdaten, Messwerte, DSP-Koeffizienten oder EEPROM-Register werden kopiert. Wenn AFE enthalten ist, werden diese Werte beim bestätigten Import <b>sofort ins Sensor-RAM geschrieben und rückgelesen</b> – niemals ins EEPROM.</p>
 <div class="fieldrow">
 <label>Name der Vorlage<input id="configLabel" maxlength="80" value="Standardprofil" placeholder="z. B. Drucksensor 0–10 bar"></label>
 <label>Config-Datei auswählen<input id="configFile" type="file" accept=".json,application/json"></label>
 </div>
-<div class="flex"><button id="configSave">Aktuelle Config speichern (.json)</button><button id="configApply" class="primary" disabled>Geladene Config übernehmen</button></div>
+<fieldset class="config-group-select" id="configGroups"><legend>Was soll in der Config-Datei gespeichert werden?</legend>
+<label><input type="checkbox" id="configIncludeAfe" checked><span><strong>AFE</strong><small>PGA1, Offset, PGA2</small></span></label>
+<label><input type="checkbox" id="configIncludeReference" checked><span><strong>Referenz</strong><small>Min., Max., Einheit</small></span></label>
+<label><input type="checkbox" id="configIncludeMeasurement" checked><span><strong>Messung</strong><small>Messpunkte, Samples</small></span></label>
+<label><input type="checkbox" id="configIncludeDsp" checked><span><strong>DSP</strong><small>Polynomordnung, Endwert</small></span></label>
+<label><input type="checkbox" id="configIncludeOutput" checked><span><strong>Ausgang</strong><small>Modus, VDD, S0/S1, Skalierung</small></span></label>
+</fieldset>
+<div class="flex"><button id="configSave">Ausgewählte Config speichern (.json)</button><button id="configApply" class="primary" disabled>Geladene Config übernehmen</button></div>
+<p id="configImportEffect" class="muted small">Beim Import werden nur die enthaltenen Einstellungsgruppen übernommen. Ist AFE enthalten, erfolgt nach Klick auf «Übernehmen» automatisch ein geschützter RAM-Schreibvorgang mit Rücklesung.</p>
 <div id="configPreview" class="callout">Noch keine Config-Datei geladen. Die Datei wird vor dem Übernehmen vollständig geprüft.</div>
 </section><div class="nav"><span class="muted small">Daten bleiben lokal im Browser.</span><button class="primary" data-next="1">Weiter zur AFE</button></div></section>
 <section class="card panel" data-panel="1" hidden><div class="eyebrow">Schritt 2 · Frontend</div><h2>AFE einstellen</h2><div class="triple"><div class="stat"><small>ADC_S <span class="help" data-help="adcs">?</span></small><strong id="adc">—</strong><em>Digits · 16 Bit signed</em></div><div class="stat"><small>ADC_T</small><strong id="adct">—</strong><em>Temperaturpfad</em></div><div class="stat"><small>ADC_TC</small><strong id="adctc">—</strong><em>Chiptemperaturpfad</em></div></div><div id="adcMsg" class="callout">Chipwerte werden nach erfolgreicher Verbindung angezeigt.</div>
@@ -563,10 +579,9 @@ html.compact-mode .foot{display:none}
 </div>
 </div><div class="kpiNote" id="gainInfo">PGA1 3.5× · Offset 0 mV/V · PGA2 2× · Gesamt 7×</div>
 <div class="profile-afe" id="configAfePending" hidden>
- <div class="between"><strong>AFE-Vorgabe aus geladener Config</strong><span class="pill">Noch nicht im Chip</span></div>
- <p id="configAfeSummary">Keine Vorgabe geladen.</p>
- <button class="primary" id="configAfeApplyRam" type="button">AFE-Vorgabe jetzt ins RAM übertragen und rücklesen</button>
- <p class="muted small">Erst dieser Knopf verändert die AFE-RAM-Einstellung. Ohne verbundenen Chip bleibt die Vorlage nur vorgemerkt. EEPROM wird dadurch nicht geschrieben.</p>
+ <div class="between"><strong>AFE-Config noch nicht bestätigt</strong><span class="pill">RAM nicht bestätigt</span></div>
+ <p id="configAfeSummary">Bitte Verbindung prüfen und Config erneut übernehmen.</p>
+ <p class="muted small">Die AFE wird beim Config-Import automatisch ins RAM übertragen und rückgelesen. Falls dies fehlschlägt, keine Messpunkte erfassen, bis der Chipzustand geprüft ist.</p>
 </div><div class="afe-auto-write-note"><span class="afe-auto-write-dot" aria-hidden="true"></span><span><strong>Direkte RAM-Übernahme aktiv</strong> · Jede − / + Taste schreibt die neue Einstellung sofort ins Sensor-RAM und prüft sie durch Rücklesen. Die Live-Anzeige zeigt anschliessend den neuen ADC_S-Wert. Keine dauerhafte NVM-Programmierung.</span></div><div id="writeMsg" class="callout" role="status" aria-live="polite">PGA1, Offset oder PGA2 mit − / + ändern. Jede Änderung wird direkt ins RAM übernommen.</div><details><summary>Geschützte Register & Diagnose</summary><div class="inner"><div class="flex"><button id="readBoot">Boot-Register prüfen</button><button id="readRegs">Diagnoseregister lesen</button><button id="exportDiag">USB-Diagnose exportieren</button></div><div id="bootMsg" class="callout">Bootregister noch nicht geprüft. Schreibzugriff gesperrt.</div><pre id="regdump" class="monoarea">Noch keine Register gelesen.</pre><details><summary>USB-Rohprotokoll</summary><pre class="monoarea" id="usbLog"></pre></details></div></details><div class="nav"><button data-next="0">Zurück</button><button class="primary" data-next="2">Weiter zu Messpunkten</button></div>
 </section>
 <section class="card panel" data-panel="2" hidden>
@@ -962,5 +977,5 @@ html.compact-mode .foot{display:none}
 </div>
 <div class="nav"><button data-next="0">Zur Verbindung</button><button data-next="6">Zum NVM-Schritt</button></div>
 </section>
-<div class="foot"><b>Version v0.6.7</b> · <a href="CHANGELOG.md" target="_blank" rel="noopener">Änderungsverlauf</a> · ELMOS E703.11 · unabhängiger Kalibrierprototyp · Sicherheitsprinzip: Factory- und Kommunikations-Bootregister gesperrt; dokumentierte AODO-Ausgangsoptionen nur nach Prüfung im NVM-Plan; Wiederherstellung nur mit passender Chip-UID.</div>
-</main></div></div><div id="tip" class="tooltip"></div><script src="calibration.js?v=0.6.7"></script><script src="eeprom-help.js?v=0.6.7"></script><script src="expert.js?v=0.6.7"></script><script src="config.js?v=0.6.7"></script><script src="guided-plan.js?v=0.6.7"></script><script src="demo.js?v=0.6.7"></script><script src="app.js?v=0.6.7"></script><script src="compact.js?v=0.6.7"></script><script src="guided.js?v=0.6.7"></script></body></html>
+<div class="foot"><b>Version v0.6.8</b> · <a href="CHANGELOG.md" target="_blank" rel="noopener">Änderungsverlauf</a> · ELMOS E703.11 · unabhängiger Kalibrierprototyp · Sicherheitsprinzip: Factory- und Kommunikations-Bootregister gesperrt; dokumentierte AODO-Ausgangsoptionen nur nach Prüfung im NVM-Plan; Wiederherstellung nur mit passender Chip-UID.</div>
+</main></div></div><div id="tip" class="tooltip"></div><script src="calibration.js?v=0.6.8"></script><script src="eeprom-help.js?v=0.6.8"></script><script src="expert.js?v=0.6.8"></script><script src="config.js?v=0.6.8"></script><script src="guided-plan.js?v=0.6.8"></script><script src="demo.js?v=0.6.8"></script><script src="app.js?v=0.6.8"></script><script src="compact.js?v=0.6.8"></script><script src="guided.js?v=0.6.8"></script></body></html>

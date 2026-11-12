@@ -72,7 +72,7 @@ const ELMOS_GUIDED=(()=>{
       <div class="gw-fields gw-dsp-fields" id="gwDspFields"></div>
      </section>
     </div>`+
-    '<details class="gw-tile gw-config-details" id="gwConfigDetails"><summary><strong>Config-Vorlage übernehmen</strong> <span>Optional · Einstellungen eines ähnlichen Sensors</span></summary><p>Die Vorlage übernimmt nur Einstellungen. Messpunkte, Chip-UID, Werksdaten und EEPROM werden niemals importiert.</p><div class="gw-fields gw-3" id="gwConfigFields"></div><div class="gw-panel-actions" id="gwConfigActions"></div><div id="gwConfigStatus"></div></details><div id="gwSetupPreview" class="gw-summary gw-setup-summary"></div></div>'+
+    '<details class="gw-tile gw-config-details" id="gwConfigDetails"><summary><strong>Config-Vorlage übernehmen</strong> <span>Optional · Einstellungen eines ähnlichen Sensors</span></summary><p>Die Vorlage übernimmt nur Einstellungen. Messpunkte, Chip-UID, Werksdaten und EEPROM werden niemals importiert.</p><div class="gw-fields gw-3" id="gwConfigFields"></div><div id="gwConfigGroups"></div><div class="gw-panel-actions" id="gwConfigActions"></div><div id="gwConfigEffect"></div><div id="gwConfigStatus"></div></details><div id="gwSetupPreview" class="gw-summary gw-setup-summary"></div></div>'+
    '<div id="gwPage3" class="gw-page gw-afe-page" hidden><div class="gw-columns gw-afe-layout">'+
     '<section class="gw-tile gw-control gw-afe-controls"><div class="gw-section-head"><span class="gw-section-no">01</span><div><h3>Verstärkung und Offset</h3><p>Änderungen werden direkt ins Chip-RAM übernommen</p></div></div><div id="gwAFEPanel"></div><div id="gwGain"></div><div id="gwAFEMsg"></div><div id="gwConfigAFE"></div><div class="gw-afe-guide"><strong>AFE richtig einstellen</strong><ol><li>Minimalen und maximalen Referenzdruck anlegen.</li><li>PGA1, Offset und PGA2 anpassen. Ziel: grosser Hub ohne Übersteuerung.</li><li>Die rote Grenze bei ±25’000 Digits nicht überschreiten.</li></ol><small>Änderst du die AFE nach einer Messung, müssen bereits erfasste Messpunkte neu aufgenommen werden.</small></div></section>'+
     '<section class="gw-tile gw-afe-monitor"><div class="gw-monitor-head"><div><h3>ADC_S · Live-Verlauf</h3><p>Rohsignal der Druckmesskette · letzte 60 Sekunden</p></div><span id="gwAfeLiveBadge" class="gw-live-badge">Warte auf Werte</span></div><div class="gw-afe-current"><strong id="gwAfeAdcValue" aria-live="off">—</strong><span>Digits</span></div><div class="gw-afe-chart" id="gwAfeChartHost"></div><div class="gw-chart-legend"><span class="gw-legend-limit">Grenzen ±25’000</span><span class="gw-legend-zero">Nulllinie</span><span class="gw-legend-line">ADC_S live</span></div>'+
@@ -117,6 +117,7 @@ const ELMOS_GUIDED=(()=>{
   for(const id of ['pmin','pmax','calUnit','calSampleCount','calUnitOther'])moveLabel(id,'gwSensorFields');
   moveLabel('calDspLimit','gwDspFields');
   for(const id of ['configLabel','configFile'])moveLabel(id,'gwConfigFields');
+  moveId('configGroups','gwConfigGroups');moveId('configImportEffect','gwConfigEffect');
   for(const id of ['configApply','configSave'])moveId(id,'gwConfigActions');
   moveId('configPreview','gwConfigStatus');
   const stepper=document.querySelector('.afe-step-panel');move(stepper,'gwAFEPanel');
@@ -169,7 +170,7 @@ const ELMOS_GUIDED=(()=>{
   });
   $('gwClassic').addEventListener('click',close);$('gwBackClassic').addEventListener('click',close);
   document.querySelectorAll('[data-gw-side]').forEach(button=>button.addEventListener('click',()=>{const index=Number(button.dataset.gwSide);if(visited.has(index)){stage=index;render()}}));
-  subscribe($('configApply'),'click',syncImportedConfig);
+  subscribe(document,'elmos-config-applied',syncImportedConfig);
   subscribe($('expertMode'),'change',renderOutputOptions);
   subscribe($('expertOutputMode'),'change',renderOutputOptions);
   for(const id of ['pmin','pmax','calUnit','calSampleCount','calDspLimit'])subscribe($(id),'change',renderPlan);
@@ -281,19 +282,37 @@ const ELMOS_GUIDED=(()=>{
   signature=nextSignature;selectedPoint=0;plan=p;
   return p;
  }
- function syncImportedConfig(){
-  window.setTimeout(()=>{
-   const status=$('configPreview');
-   if(!status?.classList.contains('success')||!status.textContent.includes('übernommen'))return;
-   const s=Number($('calSOrder').value),t=Number($('calTOrder').value);
-   const pCount=Math.min(5,Math.max(2,s+1)),tCount=Math.min(3,Math.max(1,t+1));
-   if(pCount*tCount<=10){
-    $('gwPressureCount').value=String(pCount);$('gwTemperatureCount').value=String(tCount);
-    $('gwComplexity').value='advanced';$('gwSOrder').value=String(s);$('gwTOrder').value=String(t);
-    setTemperatureInputs(tCount);signature=null;renderPlan();
-    msg('Config-Vorgaben übernommen. Bitte Anzahl Druck-/Temperaturpunkte sowie die Referenztemperaturen nochmals prüfen. Die Messmatrix wird anschliessend neu erstellt.','success');
-   }else msg('Config übernommen, aber nicht direkt in eine Matrix von maximal 10 Punkten übertragbar. Bitte den Plan manuell wählen.','warn');
-  },0);
+ function syncImportedConfig(event){
+  const included=event?.detail?.included||[];
+  if(!included.some(g=>['reference','measurement','dsp'].includes(g))){
+   msg('Config übernommen. Die Messmatrix bleibt unverändert.','success');
+   return;
+  }
+  const s=Number($('calSOrder').value),t=Number($('calTOrder').value),
+   total=Number($('calPointCount').value);
+  if(included.includes('measurement')||included.includes('dsp')){
+   const candidates=[];
+   for(let p=2;p<=5;p++)for(let temp=1;temp<=3;temp++){
+    if(p*temp===total&&p>s&&temp>t)candidates.push({p,temp});
+   }
+   if(!candidates.length){
+    msg('Die importierten DSP- und Messparameter können nicht automatisch als Wizard-Matrix dargestellt werden. Bitte Druck-/Temperaturpunkte im Plan kontrollieren.','warn');
+    return;
+   }
+   const oldP=Number($('gwPressureCount').value),oldT=Number($('gwTemperatureCount').value);
+   candidates.sort((a,b)=>
+    (Math.abs(a.p-oldP)*2+Math.abs(a.temp-oldT))-
+    (Math.abs(b.p-oldP)*2+Math.abs(b.temp-oldT)));
+   const selected=candidates[0];
+   $('gwPressureCount').value=String(selected.p);
+   $('gwTemperatureCount').value=String(selected.temp);
+   // Even for measurement-only files, never silently overwrite an unchanged DSP order.
+   $('gwComplexity').value='advanced';
+   $('gwSOrder').value=String(s);$('gwTOrder').value=String(t);
+   setTemperatureInputs(selected.temp);
+  }
+  signature=null;renderPlan();
+  msg('Config übernommen. Prüfe die Messmatrix und Temperatur-Sollwerte, bevor du Referenzmessungen aufnimmst.','success');
  }
  function pointRecord(point){
   const values=state().points||[];
