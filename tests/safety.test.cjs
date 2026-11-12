@@ -856,7 +856,8 @@ test('SSP3 help ? is read-only, exported and prevents unlisted power-off alias',
  assert.ok(!help.includes('PWR_ON '));
  assert.ok(html.includes('id="plcPowerHelpRead" disabled'));
  assert.ok(html.includes('id="plcPowerHelpOutput"'));
- assert.ok(src.includes('powerHelp:st.powerHelp,plcHostFormat:st.plcHostFormat,log:st.log.slice(-500)'));
+ assert.ok(src.includes('powerHelp:st.powerHelp,plcHostFormat:st.plcHostFormat,'));
+ assert.ok(src.includes('liveDiagnostic:{active:st.live,attempts:st.liveReadAttempts'));
  assert.ok(src.includes('powerHelp:st.powerHelp'));
 });
 
@@ -1082,7 +1083,7 @@ test('Live acquisition resumes after protected SSP3 power-cookie sequence and re
  const app=read('app.js');
  const power=app.split('async function testSsp3PowerStartup(){')[1]?.split('async function connect(port){')[0];
  assert.ok(power.includes('st.powerCycleRunning=false;renderStatus();'));
- assert.ok(power.includes('if(st.powerCycleResult?.readVerified&&st.port===port&&!st.closing&&st.chip&&!st.manualLivePause)'));
+ assert.ok(power.includes('if(st.port===port&&!st.closing&&st.chip&&Number.isFinite(st.adc?.s)&&!st.manualLivePause)'));
  assert.ok(power.includes('startLive();'));
  const loop=app.split('function startLive(){')[1]?.split('function stopLive(){')[0];
  assert.ok(loop.includes('readLiveSample()'));
