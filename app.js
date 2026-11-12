@@ -48,13 +48,14 @@ if(typeof document!=='undefined') (function UI(){
  const lsGet=k=>{try{return demoEnabled?sessionStorage.getItem('demo-'+k):localStorage.getItem(k)}catch{return null}};
  const lsSet=(k,v)=>{try{if(demoEnabled)sessionStorage.setItem('demo-'+k,v);else localStorage.setItem(k,v)}catch{}};
  const GAINS1=[3.5,6,8.5,11],GAINS2=[2,2.22,2.5,2.86,3.33,4,5,6.67,10];
- const LOCKED=[4,6,8,10,12,16],R_AFE=0x1C;
+ const LOCKED=[4,6,8,10,12,16],R_AFE=0x1C,R_BRIDGE=0x1A;
+ const BRIDGE_VOLTAGES=[2.4,1.6,2.0];
  const CAL=ELMOS_CAL; const CAL_REGS=[0x6C,0x6E,0x70,0x72,...Array.from({length:16},(_,i)=>0x74+2*i),0x94,0x96,0x98,0x9A];
  const demoPort=demoEnabled?ELMOS_DEMO.create(P,CAL,()=>({
   lower:Number($('pmin').value),upper:Number($('pmax').value),limit:getActiveDSPRange()?.limit??32000
  })):null;
  const REG_NAMES={4:'CFG_EN',6:'CFG_SPI_I2C',8:'CFG_PADS0',10:'CFG_PADS1',12:'CFG_PADS2',16:'CFG_AODO',0x14:'CFG_ADC',0x16:'CFG_LP0',0x18:'CFG_LP1',0x1A:'CFG_AFE0',0x1C:'CFG_AFE1',0x1E:'CFG_AFE2',0x26:'ADC_TC',0x28:'ADC_T',0x2A:'ADC_S'};
- const st={chipDiag:null,diagRunning:false,lastPlcReply:null,mode:'offline',port:null,closing:false,reader:null,readerPromise:null,cmdQueue:Promise.resolve(),replyBuffer:'',responseWait:null,iface:'plc',adapterKind:'ssp3',sensorPowerEnabled:false,startupRunning:false,startupAbort:false,startupAttempts:0,magicRunning:false,magicResult:null,powerCycleRunning:false,powerCycleResult:null,powerHelp:null,plcHostFormat:'legacy',firmware:'',chip:false,sensorLost:false,reinitRunning:false,boot:null,afe:null,staged:{pga1:0,pga2:0,offset:0},adc:null,dsp:null,dspError:null,liveReadPromise:null,trend:[],history:[],log:[],regs:{},points:{lo:null,hi:null},verify:null,live:false,manualLivePause:false,timeout:null,consecutiveErrors:0,liveReadAttempts:0,liveReadSuccesses:0,liveLastError:null,liveLastAttemptAt:null,measurementPeriod:null,measurementStatus:null,measurementError:null,measurementStarts:0,measurementFreshCount:0,measurementLastChangedAt:null,writing:false,pressure:5,calpoints:[],calfit:null,calImage:null,nvmBackup:null,nvmBackupVerified:false,calStaged:false,calVerified:false,calValidation:[],calTask:false,nvmWorking:false,nvmDone:false,afeWriteActive:false,ramWriteScope:null,uid:null,expertOutputPlan:null,restorePlan:null,outputOnlyPlan:null,uidShownForInput:null,profilePendingAFE:null};
+ const st={chipDiag:null,diagRunning:false,lastPlcReply:null,mode:'offline',port:null,closing:false,reader:null,readerPromise:null,cmdQueue:Promise.resolve(),replyBuffer:'',responseWait:null,iface:'plc',adapterKind:'ssp3',sensorPowerEnabled:false,startupRunning:false,startupAbort:false,startupAttempts:0,magicRunning:false,magicResult:null,powerCycleRunning:false,powerCycleResult:null,powerHelp:null,plcHostFormat:'legacy',firmware:'',chip:false,sensorLost:false,reinitRunning:false,boot:null,afe:null,afe0:null,bridgeWriteAllowed:false,bridgeReadBusy:false,staged:{pga1:0,pga2:0,offset:0},adc:null,dsp:null,dspError:null,liveReadPromise:null,trend:[],history:[],log:[],regs:{},points:{lo:null,hi:null},verify:null,live:false,manualLivePause:false,timeout:null,consecutiveErrors:0,liveReadAttempts:0,liveReadSuccesses:0,liveLastError:null,liveLastAttemptAt:null,measurementPeriod:null,measurementStatus:null,measurementError:null,measurementStarts:0,measurementFreshCount:0,measurementLastChangedAt:null,writing:false,pressure:5,calpoints:[],calfit:null,calImage:null,nvmBackup:null,nvmBackupVerified:false,calStaged:false,calVerified:false,calValidation:[],calTask:false,nvmWorking:false,nvmDone:false,afeWriteActive:false,ramWriteScope:null,uid:null,expertOutputPlan:null,restorePlan:null,outputOnlyPlan:null,uidShownForInput:null,profilePendingAFE:null};
  let currentStep=0,pendingGain=null,writeTimer=null;let tipEnabled=true,liveIntervalMs=650;
  let liveSecondaryIndex=0;
  const HELP={interface:'Schnittstelle zwischen SSP3-Board und Sensorchip. 1-Wire nutzt AODO (VDD, GND und AODO). Die Einstellung IF_CFG ändert die Programmer-Pins, nicht die NVM-Konfiguration des Sensors.',baud:'Baudrate des USB-UART zwischen Chrome und dem SSP3. Die Herstellersoftware verwendet 115200 Baud als Standard.',adcs:'ADC_S ist der unkompensierte 16-Bit-Druck-ADC. ±25000 Digits ist ein vorsichtiges Ziel für den manuellen Abgleich, keine garantierte Hardwaregrenze.',dsp_live:'DSP_S (Register 0x30) ist der skalierte DSP-Sensorausgang. Die Anzeige liest den Chipwert wiederholt und rechnet ihn mit dem konfigurierten DSP-Endwert (standardmässig ±32’000 Digits) in den gewählten Anzeigebereich um. Ein DSP-Wert allein belegt keine gültige Kalibrierung.',pga1:'Erste Druckverstärkungsstufe: 3.5×, 6×, 8.5× oder 11× (typische Werte laut Datenblatt 2023). Für gutes SNR möglichst hoch ohne Übersteuerung.',pga2:'Zweite Verstärkungsstufe: typische Faktoren 2× bis 10×. Der Gesamtfaktor ist PGA1 × PGA2.',offset:'17 DAC-Stufen von −400 bis +400 mV/V bezogen auf die Brückenspannung. Die Verschiebung liegt zwischen PGA1 und PGA2.',pressureunit:'Einheit für die Referenz- und Prüfdruckwerte. Für relative Kalibrierungen kann beispielsweise % mit 0 bis 100 gewählt werden. Referenzwerte müssen zum tatsächlichen Prüfstand passen. Einheitenwechsel erfordert neue Messpunkte.',dsp_limit:'Symmetrischer DSP-Endwert für die neue Kalibrierung. Standard ±32’000 Digits. ±30’000 lässt zusätzlich Reserve. Der Wert verändert die berechneten Koeffizienten sowie DSP-Soll und Fehlerumrechnung; er ist keine Hardware-Clipping-Grenze.',ram:'PGA1, Offset und PGA2 werden mit jeder Pfeiltaste sofort ausschliesslich in CFG_AFE1 0x1C im RAM geändert und rückgelesen. Kein NVM-/EEPROM-Schreiben. Boot-/Kommunikationsregister werden kontrolliert.',};
@@ -89,7 +90,116 @@ if(typeof document!=='undefined') (function UI(){
  if($('plcHostFormat'))$('plcHostFormat').disabled=st.chip||st.powerCycleRunning||st.startupRunning||st.magicRunning||st.nvmWorking||st.writing||st.calTask;
  if($('plcPowerHelpRead'))$('plcPowerHelpRead').disabled=!connected||st.adapterKind!=='ssp3'||st.closing||st.powerCycleRunning||st.magicRunning||st.startupRunning||st.diagRunning||st.writing||st.nvmWorking||st.calTask;
  if($('plcPowerRun'))$('plcPowerRun').disabled=!connected||st.chip||st.powerCycleRunning||st.startupRunning||st.magicRunning||st.diagRunning||st.closing||st.writing||st.nvmWorking||st.calTask||!$('plcPowerConfirm').checked;
- renderSensorReconnect();renderAFEStepperState();renderFlowState();renderDSPLive()};
+ renderSensorReconnect();renderAFEStepperState();renderBridgeSupplyState();renderFlowState();renderDSPLive()};
+
+ // SVDD is the internally regulated sensor bridge supply, NOT the SSP3 DUT VDD
+ // and NOT the ratiometric AODO output voltage. DS 25DS0170E.04, CFG_AFE0
+ // (0x1A) bits 1:0: 00=2.4 V, 01=1.6 V, 10=2.0 V; 11 is reserved.
+ function bridgeSupplyCode(word){return Number.isInteger(word)?word&3:null}
+ function renderBridgeSupplyState(){
+  const select=$('brSupplySelect'),read=$('brSupplyRead'),apply=$('brSupplyApply'),status=$('brSupplyStatus');
+  if(!select||!read||!apply||!status)return;
+  const active=!!st.port&&st.chip&&!st.closing&&st.mode==='usb';
+  const busy=st.calTask||st.writing||st.nvmWorking||st.afeWriteActive||
+   st.powerCycleRunning||st.reinitRunning||st.bridgeReadBusy;
+  const code=bridgeSupplyCode(st.afe0);
+  const valid=code!=null&&code<3;
+  if(!active)select.value='';
+  select.disabled=!active||busy||!valid;
+  read.disabled=!active||busy;
+  const desired=select.value===''?null:Number(select.value);
+  apply.disabled=!active||busy||!valid||!Number.isInteger(desired)||desired<0||
+   desired>2||desired===code;
+  apply.textContent=busy&&st.bridgeReadBusy?'Lese Brückenspannung …':
+   busy&&st.bridgeWriteAllowed?'Übernahme läuft …':'Brückenspannung ins RAM übernehmen';
+  status.textContent=!active?'Brückenspannung noch nicht gelesen. Zuerst den E703.11 verbinden.':
+   st.afe0==null?'Noch keine gültige CFG_AFE0-Rücklesung. «Aktuellen Wert lesen» verwenden.':
+   !valid?'CFG_AFE0 enthält den reservierten br_supply-Code 3 – keine Änderung freigegeben.':
+   'Im Chip-RAM: '+BRIDGE_VOLTAGES[code].toFixed(1)+' V (CFG_AFE0=0x'+h(st.afe0,2)+
+   '). '+(desired!==null&&desired!==code?'Ausgewählt: '+BRIDGE_VOLTAGES[desired].toFixed(1)+' V – noch NICHT übernommen. ':
+   'Keine Änderung vorgemerkt. ')+
+   'Brückenverstärkung br_gain bleibt unverändert.';
+ }
+ async function loadBridgeSupply(){
+  const word=await readReg(R_BRIDGE,1800);
+  // CFG_AFE0 bits 11:10 must both be 1 (data sheet reserved bits).
+  if((word&0x0C00)!==0x0C00)
+   throw Error('CFG_AFE0=0x'+h(word,2)+': reservierte Pflichtbits 11:10 sind nicht 11');
+  st.afe0=word;
+  const code=bridgeSupplyCode(word);
+  $('brSupplySelect').value=code<3?String(code):'';
+  logging('Brückenversorgung aus CFG_AFE0: '+(code<3?BRIDGE_VOLTAGES[code]+' V':'reservierter Code')+
+   ' (RAM 0x'+h(word,2)+').');
+  renderBridgeSupplyState();
+  return word;
+ }
+ async function refreshBridgeSupply(){
+  if(!st.chip||!st.port||st.bridgeReadBusy||st.writing||st.calTask||st.nvmWorking||st.powerCycleRunning)return;
+  st.bridgeReadBusy=true;renderBridgeSupplyState();
+  try{
+   if(st.liveReadPromise)await st.liveReadPromise.catch(()=>{});
+   await loadBridgeSupply();
+  }catch(e){
+   st.afe0=null;$('brSupplySelect').value='';
+   logging('Brückenspannung lesen fehlgeschlagen: '+String(e.message||e));
+   show('writeMsg','Brückenspannung konnte nicht gelesen werden: '+e.message,'warn');
+  }finally{st.bridgeReadBusy=false;renderBridgeSupplyState()}
+ }
+ async function commitBridgeSupply(targetCode){
+  if(!Number.isInteger(targetCode)||targetCode<0||targetCode>2)
+   throw Error('Ungültige Brückenspannung – Code 3 ist reserviert.');
+  if(!st.port||!st.chip||st.mode!=='usb'||st.writing||st.nvmWorking||st.calTask||
+     st.powerCycleRunning||st.afeWriteActive||st.bridgeReadBusy||st.reinitRunning){
+   show('writeMsg','Brückenspannung kann nur bei bestätigter, freier Chipverbindung geändert werden.','warn');
+   return false;
+  }
+  const resumeLive=st.live&&!st.manualLivePause;
+  let wrote=false;
+  st.writing=true;st.afeWriteActive=true;st.bridgeWriteAllowed=true;
+  stopLive();renderStatus();
+  show('writeMsg','Brückenspannung wird nur in CFG_AFE0 im RAM geändert und rückgelesen …','warn');
+  try{
+   if(st.liveReadPromise)await st.liveReadPromise.catch(()=>{});
+   const beforeBoot=await bootSnapshot();
+   if(st.boot&&!sameBoot(st.boot,beforeBoot))throw Error('Bootregister seit der letzten Prüfung verändert.');
+   const before=await readReg(R_BRIDGE);
+   if((before&0x0C00)!==0x0C00)throw Error('CFG_AFE0: reservierte Pflichtbits 11:10 sind nicht 11.');
+   if(st.afe0!==before)throw Error('CFG_AFE0 hat sich seit der letzten Anzeige verändert. Bitte Wert erneut lesen.');
+   const next=(before&0xFFFC)|targetCode; // preserve br_gain, bridge checks and all other bits
+   if(st.iface!=='plc'&&(beforeBoot[6]&0x8000))
+    throw Error('CRC-geschützte I²C/SPI-Verbindung: RAM-Schreiben gesperrt.');
+   if(next!==before){
+    await unlockRAM();
+    wrote=true;
+    await lowLevelWrite(R_BRIDGE,next);
+    const actual=await readReg(R_BRIDGE);
+    if(actual!==next)throw Error('CFG_AFE0-Rücklesefehler: Soll 0x'+h(next,2)+
+     ', gelesen 0x'+h(actual,2));
+    if(!sameBoot(beforeBoot,await bootSnapshot()))
+     throw Error('Boot-/Kommunikationsregister nach Brückenspannungsänderung verändert.');
+    st.afe0=actual;
+    erasePoints();
+   }
+   await loadBridgeSupply();
+   show('writeMsg','Brückenspannung '+BRIDGE_VOLTAGES[targetCode].toFixed(1)+
+    ' V im Sensor-RAM bestätigt. Andere CFG_AFE0-Bits und EEPROM unverändert. '+
+    (wrote?'Bisherige Kalibrierpunkte wurden zurückgesetzt.':'Wert war bereits aktiv.'),'success');
+   logging('Brückenspannung im RAM bestätigt: '+BRIDGE_VOLTAGES[targetCode].toFixed(1)+' V; kein NVM-Schreiben.');
+   return true;
+  }catch(e){
+   logging('Brückenspannung-RAM-Schreibfehler: '+e.message);
+   if(wrote)erasePoints();
+   st.afe0=null;
+   try{await loadBridgeSupply()}catch(_){$('brSupplySelect').value=''}
+   show('writeMsg','Brückenspannung nicht bestätigt: '+e.message+
+    (wrote?' Messpunkte vorsorglich zurückgesetzt.':' RAM wurde nicht verändert.'),'error');
+   return false;
+  }finally{
+   st.bridgeWriteAllowed=false;st.afeWriteActive=false;st.writing=false;
+   renderStatus();
+   if(resumeLive&&st.port&&st.chip)startLive();
+  }
+ }
  function gainSummary(){
   const g=st.staged;
   for(const k of ['pga1','pga2','offset'])$(k).value=String(g[k]);
@@ -731,6 +841,11 @@ if(typeof document!=='undefined') (function UI(){
   const rawS=await readReg(0x2A),s=P.sign16(rawS);
   st.afe=w;st.staged={...g};st.chip=true;st.sensorLost=false;
   gainSummary();
+  // Optional AFE0 read must not invalidate the already proven pressure channel.
+  try{await loadBridgeSupply()}
+  catch(e){st.afe0=null;$('brSupplySelect').value='';
+   logging('CFG_AFE0-Brückenspannung noch nicht verfügbar: '+String(e.message||e));
+   renderBridgeSupplyState()}
   logging('Chip-Leseantwort: AFE=0x'+h(w,2)+' ADC_S='+s);
   // Publish the already confirmed ADC_S value immediately, even if subsequent
   // ADC_T / ADC_TC requests are temporarily unavailable.
@@ -1120,9 +1235,9 @@ if(typeof document!=='undefined') (function UI(){
  function markSensorUnavailable(reason){
   if(!st.port||st.closing||!st.chip)return;
   logging('Sensor-Kommunikation abgebrochen: '+reason);
-  st.sensorLost=true;st.chip=false;st.mode='usb';
+  st.sensorLost=true;st.chip=false;st.mode='usb';st.afe0=null;
   stopLive();
-  st.adc=null;st.dsp=null;st.dspError=null;st.afe=null;st.boot=null;st.regs={};
+  st.adc=null;st.dsp=null;st.dspError=null;st.afe=null;st.afe0=null;st.boot=null;st.regs={};
   st.uid=null;st.uidShownForInput=null;
   st.powerCycleResult=null;st.measurementPeriod=null;st.measurementStatus=null;
   st.calStaged=false;st.calVerified=false;st.calImage=null;st.calfit=null;st.nvmDone=false;
@@ -1143,7 +1258,7 @@ if(typeof document!=='undefined') (function UI(){
   st.reinitRunning=true;
   st.chip=false;stopLive();
   if(st.liveReadPromise)await st.liveReadPromise.catch(()=>{});
-  st.adc=null;st.dsp=null;st.dspError=null;st.afe=null;st.boot=null;st.regs={};
+  st.adc=null;st.dsp=null;st.dspError=null;st.afe=null;st.afe0=null;st.boot=null;st.regs={};
   st.uid=null;st.uidShownForInput=null;st.powerCycleResult=null;
   st.measurementPeriod=null;st.measurementStatus=null;
   st.calStaged=false;st.calVerified=false;st.nvmDone=false;
@@ -1187,7 +1302,7 @@ if(typeof document!=='undefined') (function UI(){
   if(!demoEnabled&&(!navigator.serial||!window.isSecureContext))throw Error('Chrome benötigt Web Serial über HTTPS oder localhost');
   await port.open({baudRate:Number($('baud').value)});
   liveSecondaryIndex=0;
-  st.port=port;st.mode='usb';st.sensorLost=false;st.reinitRunning=false;st.firmware='';st.powerHelp=null;st.powerCycleResult=null;st.magicResult=null;st.liveReadAttempts=0;st.liveReadSuccesses=0;st.liveLastError=null;st.liveLastAttemptAt=null;st.measurementPeriod=null;st.measurementStatus=null;st.measurementError=null;st.measurementStarts=0;st.measurementFreshCount=0;st.measurementLastChangedAt=null;st.plcHostFormat=$('plcHostFormat').value;st.chip=false;st.afe=null;st.boot=null;st.regs={};st.dsp=null;st.dspError=null;st.calStaged=false;st.calVerified=false;st.nvmDone=false;st.adc=null;st.manualLivePause=false;st.afeWriteActive=false;st.ramWriteScope=null;st.uid=null;st.uidShownForInput=null;st.restorePlan=null;st.expertOutputPlan=null;st.outputOnlyPlan=null;st.iface=$('iface').value;st.adapterKind=$('adapterType').value;
+  st.port=port;st.mode='usb';st.sensorLost=false;st.reinitRunning=false;st.firmware='';st.powerHelp=null;st.powerCycleResult=null;st.magicResult=null;st.liveReadAttempts=0;st.liveReadSuccesses=0;st.liveLastError=null;st.liveLastAttemptAt=null;st.measurementPeriod=null;st.measurementStatus=null;st.measurementError=null;st.measurementStarts=0;st.measurementFreshCount=0;st.measurementLastChangedAt=null;st.plcHostFormat=$('plcHostFormat').value;st.chip=false;st.afe=null;st.afe0=null;st.boot=null;st.regs={};st.dsp=null;st.dspError=null;st.calStaged=false;st.calVerified=false;st.nvmDone=false;st.adc=null;st.manualLivePause=false;st.afeWriteActive=false;st.ramWriteScope=null;st.uid=null;st.uidShownForInput=null;st.restorePlan=null;st.expertOutputPlan=null;st.outputOnlyPlan=null;st.iface=$('iface').value;st.adapterKind=$('adapterType').value;
   st.sensorPowerEnabled=st.adapterKind==='bridge'&&!demoEnabled&&$('plcPowerCycle').checked;
   $('sensorPowerPin').textContent='';
   $('nvmRestartStatus').hidden=true;
@@ -1280,7 +1395,7 @@ if(typeof document!=='undefined') (function UI(){
    await st.cmdQueue;
    await port.close();
    Object.assign(st,{
-    port:null,readerPromise:null,chip:false,sensorLost:false,reinitRunning:false,sensorPowerEnabled:false,mode:'offline',firmware:'',boot:null,afe:null,
+    port:null,readerPromise:null,chip:false,sensorLost:false,reinitRunning:false,afe0:null,sensorPowerEnabled:false,mode:'offline',firmware:'',boot:null,afe:null,
     nvmBackup:null,nvmBackupVerified:false,calImage:null,calVerified:false,calStaged:false,nvmDone:false,
     dsp:null,adc:null,dspError:null,manualLivePause:false,afeWriteActive:false,ramWriteScope:null,
     uid:null,uidShownForInput:null,restorePlan:null,expertOutputPlan:null,outputOnlyPlan:null
@@ -1461,7 +1576,7 @@ if(typeof document!=='undefined') (function UI(){
  async function readBoot(){try{const a=await bootSnapshot(),b=await bootSnapshot();if(!sameBoot(a,b))throw Error('Bootregister nicht stabil');st.boot=a;$('regdump').textContent=bootString(a);show('bootMsg','Bootregister zweifach gelesen. Boot-/Schnittstellenregister schreibgeschützt; NVM-Bereich nur im gesicherten Kalibrierablauf programmierbar.','success');return a}catch(e){st.boot=null;show('bootMsg','Bootregister-Prüfung fehlgeschlagen: '+e.message,'error');throw e}finally{renderStatus()}}
  async function registerDump(){try{if(!st.chip)throw Error('Chip-Lesezugriff nicht bestätigt');const regs=[...LOCKED,0x14,0x16,0x18,0x1A,0x1C,0x1E,0x26,0x28,0x2A];for(const a of regs)st.regs[a]=await readReg(a);$('regdump').textContent=regs.map(a=>`0x${h(a)}  ${REG_NAMES[a]||'Register'}  0x${h(st.regs[a],2)} ${LOCKED.includes(a)?'GESCHÜTZT':''}`).join('\n');show('bootMsg','Diagnoseregister gelesen. Bootregister bleiben schreibgeschützt.','success')}catch(e){show('bootMsg','Registerlesen: '+e.message,'error')}}
  async function unlockRAM(){if(st.adapterKind==='bridge'){await exchange('PLC ACCESS',3500)}else if(st.iface==='plc'){await exchange('PLC P',3500);await exchange('PLC T',3500)}else {for(const w of [0xF75A,0x0CC7,0xD21E])await lowLevelWrite(0x22,w,true)}}
- async function lowLevelWrite(addr,word,forUnlock=false){if(!st.port||!st.afeWriteActive||!st.chip)throw Error('AFE-Schreibzugriff nur während expliziter RAM-Übernahme zulässig');if(addr!==R_AFE&&!(forUnlock&&addr===0x22))throw Error('Nur CFG_AFE1 und dokumentierte RAM-Freigabecookies zulässig');if(addr===0x22&&!([0xF75A,0x0CC7,0xD21E].includes(word)))throw Error('Nicht erlaubtes CMD-Cookie');let cmd;if(st.iface==='plc'){if(addr!==R_AFE)throw Error('PLC nutzt PLC P / PLC T für RAM-Freigabe');cmd=P.plcWrite(addr,word)}else if(st.iface==='i2c'){cmd=P.i2cWrite(addr,word)}else{cmd=P.spiWrite(addr,word)}await exchange(cmd,2300)}
+ async function lowLevelWrite(addr,word,forUnlock=false){if(!st.port||!st.afeWriteActive||!st.chip)throw Error('AFE-Schreibzugriff nur während expliziter RAM-Übernahme zulässig');if(addr!==R_AFE&&!(addr===R_BRIDGE&&st.bridgeWriteAllowed)&&!(forUnlock&&addr===0x22))throw Error('Nur freigegebene AFE0/AFE1-RAM-Bits und RAM-Freigabecookies zulässig');if(addr===0x22&&!([0xF75A,0x0CC7,0xD21E].includes(word)))throw Error('Nicht erlaubtes CMD-Cookie');let cmd;if(st.iface==='plc'){if(addr!==R_AFE&&addr!==R_BRIDGE)throw Error('PLC nutzt PLC P / PLC T für RAM-Freigabe');cmd=P.plcWrite(addr,word)}else if(st.iface==='i2c'){cmd=P.i2cWrite(addr,word)}else{cmd=P.spiWrite(addr,word)}await exchange(cmd,2300)}
  async function commitGain(target){
   if(st.writing||st.calTask||st.nvmWorking){
    show('writeMsg','Ein anderer Schreib- oder Kalibriervorgang läuft.','warn');
@@ -2152,7 +2267,7 @@ if(typeof document!=='undefined') (function UI(){
  });
  $('plcStartupLogExport').addEventListener('click',()=>{
   const log={
-   tool:'ELMOS E703.11 – SSP3 Startdiagnose',version:'v0.6.35',at:new Date().toISOString(),
+   tool:'ELMOS E703.11 – SSP3 Startdiagnose',version:'v0.6.36',at:new Date().toISOString(),
    source:'Web-App (NICHT PSSC Originalsoftware)',interface:st.iface,adapter:st.adapterKind,
    firmware:st.firmware,port:serialPortInfo(st.port),chipDetected:!!st.chip,
    startupAttempts:st.startupAttempts,lastPlcReply:st.lastPlcReply,
@@ -2349,6 +2464,9 @@ if(typeof document!=='undefined') (function UI(){
   renderStatus();
  });
  $('choose').addEventListener('click',()=>choose());$('auto').addEventListener('click',()=>auto());$('disconnect').addEventListener('click',()=>disconnect());$('sensorReconnectButton').addEventListener('click',()=>reinitializeSensor());
+ $('brSupplySelect').addEventListener('change',renderBridgeSupplyState);
+ $('brSupplyRead').addEventListener('click',()=>refreshBridgeSupply());
+ $('brSupplyApply').addEventListener('click',()=>commitBridgeSupply(Number($('brSupplySelect').value)).catch(e=>show('writeMsg',e.message,'error')));
  $('readNow').addEventListener('click',()=>readADC().catch(e=>show('adcMsg','ADC: '+e.message,'error')));$('live').addEventListener('click',()=>{if(st.live){st.manualLivePause=true;stopLive()}else{st.manualLivePause=false;startLive()}});
  for(const k of ['pga1','pga2','offset']){
   $(k+'Down').addEventListener('click',()=>stepAFE(k,-1));
