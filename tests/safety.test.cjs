@@ -183,18 +183,16 @@ test('Expert mode shows contextual settings and no modal',()=>{
  assert.deepEqual(scripts,['calibration.js?v=0.6.11','eeprom-help.js?v=0.6.11','expert.js?v=0.6.11','config.js?v=0.6.11','guided-plan.js?v=0.6.11','demo.js?v=0.6.11','app.js?v=0.6.11','compact.js?v=0.6.11','guided.js?v=0.6.11']);
 });
 
-test('Failed E703.11 probe reconnects SSP3 at most once, without NVM writes',()=>{
+test('Failed E703.11 probe keeps SSP3 open for explicit, bounded startup test',()=>{
  const src=read('app.js');
- const connect=src.split('async function connect(port,retryChipOnce=true){')[1]?.split('async function disconnect()')[0];
+ const connect=src.split('async function connect(port){')[1]?.split('async function disconnect()')[0];
  assert.ok(connect);
  assert.ok(connect.includes('await firmware();'));
  assert.ok(connect.includes('await selectChipInterface();'));
  assert.ok(connect.includes('await detect();'));
- assert.ok(connect.includes("if(retryChipOnce&&st.adapterKind==='ssp3'){"));
- assert.ok(connect.includes('if(!await disconnect())return;'));
- assert.ok(connect.includes('await sleep(200);'));
- assert.ok(connect.includes('await connect(port,false);'));
- assert.ok(connect.includes('Keine weiteren automatischen USB-Neuverbindungen.'));
+ assert.ok(connect.includes('Startfenster testen'));
+ assert.ok(!connect.includes('await connect(port,false)'));
+ assert.ok(!connect.includes('if(!await disconnect())'));
  assert.ok(!connect.includes('writeReg('));
  assert.ok(!connect.includes('nvmWrite('));
 });
@@ -752,18 +750,22 @@ test('Malformed and unexpected AFE1 values keep write gates while raw reply is r
  assert.ok(!safe.includes('st.chip=true'));
  assert.ok(src.includes('Chipdiagnose als JSON')===false); // label is in HTML only
 });
-test('After bounded SSP3 retry fails, diagnosis runs automatically but no reconnect loop or RAM writes',()=>{
- const src=read('app.js');
- const connect=src.split(' async function connect(port,retryChipOnce=true){')[1].split(' async function disconnect(){')[0];
- assert.ok(connect.includes("if(retryChipOnce&&st.adapterKind==='ssp3'){"));
- assert.ok(connect.includes('await connect(port,false)'));
- assert.ok(connect.includes("await runChipDiagnostics('Automatisch nach zweiter fehlgeschlagener Chiperkennung: '"));
- assert.ok(connect.includes('Keine Schreibfreigabe.'));
- assert.ok(!connect.includes('maintWrite('));
- assert.ok(!connect.includes('nvmWrite('));
- assert.ok(!connect.includes('commitGain('));
- assert.ok(src.includes("logging('Chipdiagnose: '"));
- assert.ok(src.includes('CRC8: empfangenes Byte wird protokolliert'));
+test('Startfenster-Test is bounded, read-only, cancellable and does not re-open the serial port',()=>{
+ const src=read('app.js'),html=read('index.html');
+ const startup=src.split('async function recoverOneWireStartup(){')[1]?.split('async function connect(port){')[0];
+ assert.ok(startup);
+ assert.ok(startup.includes('maxDurationMs=12000,maxAttempts=75'));
+ assert.ok(startup.includes('readReg(R_AFE,240)'));
+ assert.ok(startup.includes('decodeSafeAFE(word)'));
+ assert.ok(startup.includes('st.startupAbort'));
+ assert.ok(startup.includes('await detect()'));
+ assert.ok(!startup.includes('writeReg('));
+ assert.ok(!startup.includes('nvmWrite('));
+ assert.ok(!startup.includes('port.open('));
+ assert.ok(!startup.includes('port.close('));
+ assert.ok(html.includes('id="plcStartupProbe"'));
+ assert.ok(html.includes('id="plcStartupStop"'));
+ assert.ok(src.includes("st.startupAbort=true;\n  st.closing=true;"));
 });
 test('Chip diagnostics export is available for failed chip detection without unlocking access',()=>{
  const src=read('app.js'),html=read('index.html');

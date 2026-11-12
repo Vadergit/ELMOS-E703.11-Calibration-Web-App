@@ -1,3 +1,11 @@
+## v0.6.12 – 12.11.2026: One-Wire-Startfenster am SSP3
+
+- Der bisherige automatische USB-Trenn-/Neuverbindungsversuch nach fehlgeschlagener Chiperkennung wurde entfernt; er startet den Sensor nicht neu.
+- Nach erfolgreichem SSP3/IF_CFG-Handshake bleibt die USB-Verbindung offen. Ein neuer Button «Startfenster testen (12 s)» führt bis zu 75 kontrollierte PLC-Leseversuche auf CFG_AFE1 aus (240-ms-Antworttimeout; maximal 12 s).
+- Während dieses Tests kann die Sensorversorgung VDD von Hand neu eingeschaltet werden. Der laufende Test ist abbrechbar, protokolliert Fehlschläge und übernimmt die bestehende sichere Chiperkennung.
+- **Nur lesend; keine Boot-, RAM-, EEPROM- oder NVM-Änderung.** SSP3-VDD-Steuerung bewusst nicht implementiert, solange ein dokumentierter Befehl und ein Hardwaretest fehlen. 4-ms-Zugriff bleibt ohne hardwareseitig synchronisierten Power-Cycle nicht garantiert.
+- Bedienhinweise und Tests entsprechend angepasst.
+
 # Änderungsverlauf
 
 Versionierung nach `MAJOR.MINOR.PATCH`: Kleine Anpassungen erhöhen PATCH, neue Funktionen MINOR, inkompatible Änderungen MAJOR. Jede Änderung erhält eine neue Nummer und einen Eintrag.

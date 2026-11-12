@@ -125,3 +125,16 @@ Der Expertenmodus wird über das Zahnrad oben rechts und «Expertenparameter fre
 ## Einordnung ab v0.4.0
 
 Die Experteneinstellungen werden jetzt **im jeweiligen Reiter** eingeblendet, nicht in einem separaten Expertenfenster. Ausgangsmodi und S0/S1 bleiben normal sichtbar; zusätzliche AODO_F/O-Rohparameter und Digital-Interface-Diagnosen erscheinen nur bei aktiviertem Expertenmodus. EEPROM-Viewer und chipunabhängige Config-Vorlagen sind ohne Expertenmodus erreichbar. **Eine Config-Datei kann keine 1-Wire-Startregister übernehmen oder programmieren.** [Config-/EEPROM-Dokumentation](CONFIG_DATEIEN.md).
+
+
+## SSP3-Startfenster-Test (v0.6.12, 12.11.2026)
+
+Die Web-App verwendet beim ELMOS SSP3 weiterhin das bekannte `IF_CFG 7 0 0` zum Umstellen des **Adapters**. Damit wird der E703.11 jedoch **nicht neu gestartet**. Das zuvor verwendete automatische Trennen und Wiederöffnen des SSP3-USB-Ports ist deshalb kein geeigneter Weg, um ein auf 4, 10 oder 200 ms begrenztes PLC-Startfenster erneut zu öffnen.
+
+- Nach dem USB-Handshake bleibt der SSP3-Port auch bei fehlgeschlagener Chiperkennung offen.
+- **«Startfenster testen (12 s)»** fragt `CFG_AFE1` begrenzt und ausschliesslich lesend ab (max. 12 Sekunden oder 75 Versuche; eine einzelne SSP3-Antwort wird bis 240 ms abgewartet).
+- Nach dem Start des Tests **nur Sensor-VDD** physisch ausschalten und neu einschalten, SSP3-USB angeschlossen lassen. Der erste gültige PLC-Frame muss im Startfenster des Sensors eintreffen.
+- Ein plausibles Wort führt über denselben bestehenden Sensor- und ADC-Leseweg zur Erkennung; es wird kein RAM-/NVM-Schreiben ausgeführt. Der Test ist abbrechbar und meldet den letzten Fehler.
+- **Grenze:** Bei 4 ms kann ein Browser mit manuell eingeschalteter Sensorversorgung keine zeitlich garantierte Aktivierung bieten. Dafür muss die Versorgung durch einen nachweislich kompatiblen Adapter synchronisiert geschaltet und der erste PLC-Frame unmittelbar gesendet werden. Ein solcher SSP3-Stromsteuerbefehl wurde nicht verifiziert und wurde deshalb bewusst **nicht erfunden**. Für die ESP32-Bridge bleibt `PLC START` der gesonderte hardwarebezogene Weg, sofern die Bridge die entsprechende Funktion unterstützt.
+
+Auch 200 ms sind kein Beweis, dass der SSP3-Befehl in der Herstellersequenz identisch ist. Bleibt die Erkennung aus, die RX-Rohantwort und den SSP3-Log mit der originalen PSSC-Software vergleichen. Erst dann einen unbekannten Hardware-Befehl oder ein anderes PLC-Frame ergänzen.

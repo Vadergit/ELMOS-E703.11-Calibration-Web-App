@@ -130,3 +130,8 @@ Die lokale Browser-Backup-Historie kann beim Löschen von Website-Daten verloren
 **Web-Dateien:** `index.html` (UI), `app.js` (Web Serial und Ablauf), `calibration.js` (Koeffizienten/CRC/NVM), `expert.js` (kontextbezogene Expertenparameter/EEPROM), `config.js` (chipunabhängige Config-Prüfung) und `usb-diagnose.html` (USB-Diagnose). Für Entwickler existieren Node-Tests in `tests/safety.test.cjs`; es gibt keine lokale Desktop-Startanwendung. Dokumentierte Simulationen und offene Hardwareprüfungen: [TESTBERICHT.md](TESTBERICHT.md).
 
 **Datenblatt-Referenz:** E703.11, 25DS0170E.04, Production Data 16.11.2023, §6.3.2.6 / §6.4.1.1 / §6.4.5.7–8 / §6.5.1.1–2 / §6.5.7.2. Eine reine Softwareprüfung kann eine tatsächliche Kaltstartprüfung nicht ersetzen.
+
+
+## One-Wire beim Sensorstart (v0.6.12)
+
+Wenn das SSP3 per USB erreichbar ist, der E703.11 aber mit analogem 0–5-V-Ausgang und kurzem PLC-Startfenster keine Register liefert: **USB & Chip → Startfenster testen (12 s)** auswählen. Der SSP3-Port bleibt offen, die App sendet ausschliesslich PLC-Lesebefehle. Während der Test läuft, **nur Sensor-VDD kurz trennen und wieder zuschalten**. Ein USB-Neustart des SSP3 ersetzt das nicht. Nach spätestens 12 Sekunden oder 75 Versuchen endet der Test mit einer Meldung; er kann jederzeit abgebrochen werden. Für 4-ms-Startfenster gibt es ohne zeitlich synchronisierte Sensorstrom-Steuerung keine Zuverlässigkeitsgarantie. Wenn auch bei 200 ms keine Antwort erfolgt, sind die SSP3-Telegramme mit einem Elmos-PSSC-Referenztrace zu vergleichen, bevor Register oder NVM verändert werden.

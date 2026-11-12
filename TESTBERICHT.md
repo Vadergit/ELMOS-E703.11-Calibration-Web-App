@@ -85,3 +85,8 @@ Ab v0.5.0 prüfen drei zusätzliche Regressionstests die opt-in-Konfiguration, d
 **Keine Produktionsfreigabe.** Eine bestandene Simulation sagt nichts über einen unterbrochenen realen NVM-Schreibvorgang aus. Factory-Kalibrierung und Kommunikations-/Bootregister bleiben geschützt. Für dokumentierte AODO-Optionen bestehen gesonderte, begrenzte Änderungen. Eine Wiederherstellung wird nicht automatisch ausgelöst.
 
 **Nur webbasiert:** Die Web-App und die USB-Diagnoseseite laufen im Browser. Die Node-Tests sind ausschliesslich für Entwickler und für die Auslieferung nicht erforderlich; es gibt keine lokale Desktop-Startanwendung.
+
+
+### SSP3-Startfenster-Recovery (v0.6.12, 12.11.2026)
+
+Der automatische USB-Neuaufbau wurde durch einen manuell ausgelösten, zeitlich und in der Anzahl begrenzten PLC-Lesetest ersetzt. Dieser hält die USB-Verbindung offen und erwartet einen **separaten** Sensor-VDD-Neustart, während die Abfragen laufen. Die Software enthält keine unbestätigten SSP3-Power-Control-Kommandos und keine Register-Schreibvorgänge in diesem Pfad. Browser- und Code-Regressionen sind prüfbar; der vollständige elektrische SSP3-Kaltstart mit 4/200 ms und die Hersteller-PLC-Referenzantwort wurden **nicht an Hardware validiert**. Ein Fehlschlag muss anhand eines seriellen SSP3-Traces bewertet werden.
