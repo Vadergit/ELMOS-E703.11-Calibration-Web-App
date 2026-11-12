@@ -2,7 +2,7 @@
 
 **Ein geführter Kalibrierassistent für den ELMOS E703.11 und das SSP3-Eval-Board.** Ziel ist ein verständlicher Abgleich, der auch ohne tiefere Vorkenntnisse Schritt für Schritt funktioniert. Wer mehr benötigt, kann zusätzliche Messpunkte, DSP-Parameter und einen geschützten Expertenmodus verwenden.
 
-**Version: v0.6.36 · geführter Abgleich und klassische Ansicht** · [Änderungsverlauf](CHANGELOG.md)
+**Version: v0.6.37 · geführter Abgleich und klassische Ansicht** · [Änderungsverlauf](CHANGELOG.md)
 
 Über **Einstellungen → Demo-Modus** lässt sich der gesamte Kalibrierablauf mit simulierten Messwerten und NVM ausprobieren.
 
@@ -13,6 +13,16 @@
 > **Geführter Assistent:** Nach der bestätigten SSP3-Verbindung stehen die neue Schritt-für-Schritt-Führung, die klassische Ansicht und der optionale Kompaktmodus zur Verfügung. Ein E703.11-Chip muss für den Abgleich verbunden sein. Die USB-CDC-Bridge bleibt als experimenteller Verbindungstest ohne Sensorprogrammierung gesperrt.
 >
 > [Geführter Abgleich](docs/GEFUEHRTER_ASSISTENT.md) · [USB-Bridge](docs/USB_BRIDGE_GUIDE.md) · [ESP-Boards](docs/ESP_BOARD_OPTIONS.md) · [ESP32-C3 SuperMini Sketch](firmware/esp32c3_supermini/esp32c3_supermini.ino)
+
+## Testbereit für Jürg – Startfenster und FTDI-Latenz (v0.6.37)
+
+Der erste automatische SSP3-Start sendet `PWR_ON 0C80 00C8 0\rPLC T\r` in **einem USB-Schreibvorgang**. Damit entfällt die potenzielle Latenz zwischen zwei USB-Paketen, die bei einem 4-ms-One-Wire-Startfenster problematisch ist. Falls die Chipantwort dennoch ungültig bleibt und die SSP3-Versorgung als eingeschaltet quittiert wurde, führt die App **maximal einen zweiten geregelten Power-Cycle** mit dem bisherigen, getrennten USB-Verfahren durch. Danach erfolgt die vorhandene CRC8- und Mehrregisterdiagnose. Beide Versuche sind im JSON-Export unter `startupTrials` enthalten.
+
+VDD (Sensorversorgung), SVDD (interne Brückenspannung) und der 3,2-V-Schwellwert des SSP3-Befehls `PWR_ON 0C80 00C8 0` sind drei verschiedene Grössen. Der SSP3-Befehl stellt nicht VDD auf 3,2 V ein. `PLC_CFG` bleibt absichtlich unverändert: Die Elmos-Anleitung dokumentiert Clock-Zyklen, aber für die verwendete Firmware ist kein belastbarer Taktwert vorhanden, der eine sichere automatische Umrechnung in 100/50/7/6 kHz erlaubt.
+
+Für den **einzigen nächsten Test** am PC von Jürg: gegebenenfalls im Windows-Geräte-Manager bei den Eigenschaften des FTDI-USB-Serial-Ports den Latency Timer auf **1 ms** und die USB-Transfergrössen auf **512** einstellen (nach Elmos Eval-Kit-Anleitung; das Dokument enthält eine vermutlich falsche Zeiteinheit). Dann die Web-App v0.6.37 neu öffnen und den SSP3 verbinden. Die App führt die beiden Varianten automatisch aus. Anschliessend genau einen JSON-Export über **Web-App-SSP3-Protokoll exportieren** erstellen und übermitteln. FTDI-Einstellungen nur mit ausreichenden Berechtigungen/IT-Freigabe ändern; Port danach erneut öffnen.
+
+Keine automatische NVM-Programmierung. Beide Versuche schalten die SSP3-Versorgung eines isolierten Laborprüflings; ein angeschlossener Analogausgang kann während der One-Wire-Freigabe überlagert werden. Der neue Ablauf wurde noch nicht mit Jürgs Hardware verifiziert.
 
 ## Brückenspannung SVDD im AFE einstellen (v0.6.36)
 
