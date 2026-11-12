@@ -928,14 +928,32 @@ if(typeof document!=='undefined') (function UI(){
    }
    st.powerCycleResult.readVerified=true;
    st.powerCycleResult.verifiedUid=st.uid?.hex||null;
+   // DS 6.4.5.8: a recognised magic cookie must set CFG_SPI_I2C.plc_en
+   // in volatile RAM, which keeps the AODO One-Wire window open until reset.
+   // A one-off ADC value does not prove that PLC was permanently latched.
+   try{
+    const cfg=await readReg(0x06,1800);
+    st.powerCycleResult.plcConfigRam=cfg;
+    st.powerCycleResult.plcEnabledInRam=!!(cfg&0x0004);
+    logging('E703.11 CFG_SPI_I2C RAM=0x'+h(cfg,2)+', plc_en='+
+     (st.powerCycleResult.plcEnabledInRam?'1 (One Wire aktiv bis Reset)':'0 (nur Startfenster, Live möglicherweise nicht verfügbar)'));
+   }catch(e){
+    st.powerCycleResult.plcEnabledInRam=null;
+    st.powerCycleResult.plcConfigReadError=String(e.message||e);
+    logging('One-Wire-RAM-Freigabe plc_en konnte nicht unabhängig gelesen werden: '+st.powerCycleResult.plcConfigReadError);
+   }
    st.powerCycleResult.stage='verified';
    const usedCookie=!!st.powerCycleResult.magicCookieUsed;
    $('plcPowerState').textContent=usedCookie?
     'One Wire erkannt: Automatischer Magic-Cookie-Fallback im RAM erfolgreich. NVM unverändert.':
     'One Wire nach SSP3-Power-Cycle direkt erkannt. NVM unverändert.';
-   show('connMsg',usedCookie?
-    'One Wire verbunden: Magic Cookie nach automatischem SSP3-Start erfolgreich. Keine NVM-Programmierung.':
-    'AN0204-Starttest erfolgreich: E703.11 antwortet nach SSP3-gesteuertem Neustart. Keine NVM-Programmierung.','success');
+   const plcRamState=st.powerCycleResult.plcEnabledInRam;
+   const statusText=plcRamState===false?
+    'E703.11 konnte einmalig gelesen werden, aber CFG_SPI_I2C.plc_en ist im RAM 0. Die dauerhafte One-Wire-Freigabe wurde nicht übernommen; wiederholte Live-Abfragen können scheitern. Bitte SSP3-Log exportieren.':
+    usedCookie?
+     'One Wire verbunden: Magic Cookie nach automatischem SSP3-Start erfolgreich. '+(plcRamState===true?'Dauerhafte PLC-RAM-Freigabe bestätigt.':'PLC-RAM-Freigabe noch nicht unabhängig bestätigt.')+' Keine NVM-Programmierung.':
+     'AN0204-Starttest: E703.11 antwortet nach SSP3-gesteuertem Neustart. '+(plcRamState===true?'PLC-RAM-Freigabe bestätigt.':'PLC-RAM-Freigabe nicht unabhängig bestätigt.')+' Keine NVM-Programmierung.';
+   show('connMsg',statusText,plcRamState===false?'warn':'success');
   }catch(e){
    st.powerCycleResult.stage='failed';
    st.powerCycleResult.error=String(e.message||e);
@@ -1339,7 +1357,7 @@ if(typeof document!=='undefined') (function UI(){
 
  function draw(){const c=$('chart');if(!c||c.closest('[hidden]'))return;const d=window.devicePixelRatio||1,w=Math.round(c.clientWidth*d),h=Math.round(c.clientHeight*d);if(w<20)return;if(c.width!==w||c.height!==h){c.width=w;c.height=h}const g=c.getContext('2d');g.clearRect(0,0,w,h);const x0=55*d,y0=10*d,yh=h-20*d,y=v=>y0+(32768-v)/65536*(yh-y0);g.font=`${11*d}px sans-serif`;for(const v of [25000,0,-25000]){g.beginPath();g.strokeStyle=v?'#e3c9aa':'#d7e4ef';g.setLineDash(v?[5*d,4*d]:[]);g.moveTo(x0,y(v));g.lineTo(w-8*d,y(v));g.stroke();g.setLineDash([]);g.fillStyle='#74849a';g.fillText((v>0?'+':'')+v,5*d,y(v)+4*d)}if(st.trend.length<1)return;const left=Date.now()-60000,x=t=>x0+(w-x0-10*d)*Math.max(0,Math.min(1,(t-left)/60000));g.beginPath();g.strokeStyle='#2867a6';g.lineWidth=2*d;st.trend.forEach((p,i)=>i?g.lineTo(x(p.x),y(p.y)):g.moveTo(x(p.x),y(p.y)));g.stroke()}
  function download(name,txt,mime='application/json'){let b=new Blob([txt],{type:mime}),u=URL.createObjectURL(b),a=document.createElement('a');a.href=u;a.download=(demoEnabled?'DEMO_':'')+name;a.click();setTimeout(()=>URL.revokeObjectURL(u),2000)}
- const report=()=>({tool:'ELMOS E703.11 Kalibrierassistent v0.6.26',created:new Date().toISOString(),connection:demoEnabled?'Demo':st.port?'USB':'offline',hardwareValidated:false,unit:pressureUnit(),pointNames:{lower:pointName('lo'),upper:pointName('hi')},interface:st.iface,firmware:st.firmware,bootProtection:'Boot-/Werks-NVM-Schreiben gesperrt; kalibrierungsbezogenes User-NVM mit Bestätigung freigegeben',ramWriteActive:!!st.ramWriteScope,registers:st.regs,bootSnapshot:st.boot,chipUID:st.uid?.hex||null,expertOutput:st.expertOutputPlan,AFE:st.afe,gains:st.staged,low:st.points.lo,high:st.points.hi,verification:st.verify,calibrationPoints:st.calpoints,plannedCalibrationPointCount:calibrationPointCount(),requestedSamplesPerPoint:Number($('calSampleCount').value),requestedDSPOutputLimit:Number($('calDspLimit').value),coefficientFit:st.calfit,calRamVerified:st.calVerified,lastDSP:st.dsp,chipDiagnostic:st.chipDiag,lastPlcReply:st.lastPlcReply,displayRange:getActiveDSPRange(),nvmState:{backupVerified:st.nvmBackupVerified,programmed:st.nvmDone},samples:st.history.slice(-1500),trace:st.log});
+ const report=()=>({tool:'ELMOS E703.11 Kalibrierassistent v0.6.27',created:new Date().toISOString(),connection:demoEnabled?'Demo':st.port?'USB':'offline',hardwareValidated:false,unit:pressureUnit(),pointNames:{lower:pointName('lo'),upper:pointName('hi')},interface:st.iface,firmware:st.firmware,bootProtection:'Boot-/Werks-NVM-Schreiben gesperrt; kalibrierungsbezogenes User-NVM mit Bestätigung freigegeben',ramWriteActive:!!st.ramWriteScope,registers:st.regs,bootSnapshot:st.boot,chipUID:st.uid?.hex||null,expertOutput:st.expertOutputPlan,AFE:st.afe,gains:st.staged,low:st.points.lo,high:st.points.hi,verification:st.verify,calibrationPoints:st.calpoints,plannedCalibrationPointCount:calibrationPointCount(),requestedSamplesPerPoint:Number($('calSampleCount').value),requestedDSPOutputLimit:Number($('calDspLimit').value),coefficientFit:st.calfit,calRamVerified:st.calVerified,lastDSP:st.dsp,chipDiagnostic:st.chipDiag,lastPlcReply:st.lastPlcReply,displayRange:getActiveDSPRange(),nvmState:{backupVerified:st.nvmBackupVerified,programmed:st.nvmDone},samples:st.history.slice(-1500),trace:st.log});
 
  // ============ Kalibrierung + NVM (AN0203 / AN0204 / Datasheet 2023) ============
  const ca=(id,msg,type='')=>show(id,msg,type);
@@ -1905,7 +1923,7 @@ if(typeof document!=='undefined') (function UI(){
  });
  $('plcStartupLogExport').addEventListener('click',()=>{
   const log={
-   tool:'ELMOS E703.11 – SSP3 Startdiagnose',version:'v0.6.26',at:new Date().toISOString(),
+   tool:'ELMOS E703.11 – SSP3 Startdiagnose',version:'v0.6.27',at:new Date().toISOString(),
    source:'Web-App (NICHT PSSC Originalsoftware)',interface:st.iface,adapter:st.adapterKind,
    firmware:st.firmware,port:serialPortInfo(st.port),chipDetected:!!st.chip,
    startupAttempts:st.startupAttempts,lastPlcReply:st.lastPlcReply,

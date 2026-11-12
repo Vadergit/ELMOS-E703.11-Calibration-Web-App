@@ -1,3 +1,10 @@
+## v0.6.27 – 12.11.2026: Dauerhafte PLC-RAM-Freigabe nach Magic Cookie lesen
+
+- Nach bestätigter Chiperkennung `CFG_SPI_I2C (0x06)` rein lesend prüfen. `plc_en` muss nach erkannter Magic Cookie im RAM 1 sein, damit One Wire gemäss Datenblatt über das Startfenster hinaus aktiv bleibt.
+- Bei `plc_en=0` Verbindung nicht als dauerhaft erfolgreich darstellen; klare Warnung zur fehlenden Live-Kommunikation. Bei nicht lesbarem Register Zustand als unbekannt melden.
+- Diagnosefelder `powerCycle.plcConfigRam`, `plcEnabledInRam`, `plcConfigReadError` im JSON-Export; kein zusätzliches Schreiben, keine NVM-Änderung.
+- Die entkoppelte, kontinuierliche Live-ADC_S-Abfrage aus v0.6.26 bleibt bestehen.
+
 ## v0.6.26 – 12.11.2026: Live-ADC_S unabhängig von Temperatur/DSP abfragen
 
 - Eigene zyklische Live-Abfrage: ADC_S zuerst lesen und sofort anzeigen, danach höchstens ein zusätzliches Register pro Durchlauf (ADC_T, ADC_TC, DSP_S, Pause).
