@@ -1010,6 +1010,8 @@ if(typeof document!=='undefined') (function UI(){
    $('nvmRebootConfirm').checked=false;
    st.nvmWorking=true;st.calTask=true;st.writing=true;st.ramWriteScope='nvm';stopLive();
    ca('nvmMsg','NVM wird programmiert. USB-Verbindung nicht trennen, Versorgung stabil halten.','warn');
+   // Never start NVM commands while a previous ADC/DSP live read is still in flight.
+   if(st.liveReadPromise)await st.liveReadPromise.catch(()=>{});
    const beforeBoot=await bootSnapshot();await ramGrant();
    for(const i of [0,1,16,17,18,19,20,21,22,23,27,28,63]){const check=await nvmReadWord(i*2);if(check!==initial[i])throw Error(`Chip-NVM hat sich seit dem Backup verändert (Index ${i})`)}
    CAL.protectStartupCommunication(initial,modified);
@@ -1035,7 +1037,24 @@ if(typeof document!=='undefined') (function UI(){
    st.nvmDone=true;st.nvmBackup=after;st.nvmBackupVerified=true;st.calImage=null;st.restorePlan=null;st.outputOnlyPlan=null;if(saveOldNvm)expert.afterNvmScan();lsSet('elmos8-last-program',JSON.stringify({id,words:after,ts:new Date().toISOString(),restore:restoring}));
    ca('nvmMsg',restoring?'Backup-Wiederherstellung abgeschlossen, NVM rückgelesen und CRC16 bestätigt. Sensor neu starten und erneut prüfen.':outputOnly?'AODO-Ausgangseinstellungen dauerhaft gespeichert, NVM rückgelesen und CRC16 bestätigt. Sensor neu starten und Ausgabefunktion prüfen.':'NVM-Programmierung und vollständiges Rücklesen/CRC16 erfolgreich. Sensor neu starten und Schnittstelle erneut prüfen.','success');
   }catch(e){ca('nvmMsg',`NVM-Vorgang fehlgeschlagen: ${e.message}.${chipProgrammingStarted?' NVM-Schreibversuch wurde bereits begonnen: Chip nicht unkontrolliert neu starten, Backup und Diagnose sichern!':' Es wurden keine NVM-Schreibbefehle gestartet.'}`,'error');logging('NVM FEHLER: '+e.message)}
-  finally{if(st.calTask){try{await maintWrite(0x4E,0x0000)}catch(e){logging('NVM-Zugriffssperre: '+e.message)}await ramLock()};st.ramWriteScope=null;st.nvmWorking=false;st.calTask=false;st.writing=false;renderStatus()}
+  finally{
+   // A failed RAM-lock command must not leave the UI permanently in "busy" state.
+   try{
+    if(st.calTask){
+     try{await maintWrite(0x4E,0x0000)}catch(e){logging('NVM-Zugriffssperre: '+e.message)}
+     await ramLock()
+    }
+   }finally{
+    st.ramWriteScope=null;st.nvmWorking=false;st.calTask=false;st.writing=false;
+    renderStatus();
+    // NVM programming intentionally pauses live measurement. Restart only AFTER
+    // every maintenance flag was cleared; respect an explicit user pause.
+    if(!st.manualLivePause&&st.port&&st.chip&&!st.closing){
+     startLive();
+     logging('Live-Messung nach NVM-Vorgang automatisch wieder gestartet');
+    }
+   }
+  }
  }
  async function postBootCheck(automatic=false){
   if(st.closing||st.calTask||st.writing||st.nvmWorking)return;
