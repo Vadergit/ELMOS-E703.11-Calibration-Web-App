@@ -42,7 +42,7 @@ test('The Web-app probes before DUT power cycling and uses confirmed address for
  assert.ok(html.includes('id="plcAddressRow"'));
  assert.ok(html.includes('id="plcAddressLabel"'));
  assert.ok(app.includes('plcAddressProbes:st.plcAddressProbes'));
- const writes=[...app.matchAll(/P\\.plcWrite\\(([^)\\n]+)\\)/g)].map(m=>m[1]);
+ const writes=[...app.matchAll(/P\.plcWrite\(([^)\n]+)\)/g)].map(m=>m[1]);
  assert.ok(writes.length>=8);
  assert.ok(writes.every(args=>args.includes('st.plcAddress')));
 });
