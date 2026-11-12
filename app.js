@@ -114,32 +114,20 @@ if(typeof document!=='undefined') (function UI(){
  const BRIDGE_SUPPLY_ORDER=[1,2,0]; // 1.6 V, 2.0 V, 2.4 V
  function bridgeSupplyCode(word){return Number.isInteger(word)?word&3:null}
  function renderBridgeSupplyState(){
-  const select=$('brSupplySelect'),read=$('brSupplyRead'),apply=$('brSupplyApply'),status=$('brSupplyStatus');
-  if(!select||!read||!apply||!status)return;
+  const read=$('brSupplyRead'),status=$('brSupplyStatus');
   const active=!!st.port&&st.chip&&!st.closing&&st.mode==='usb';
   const busy=st.calTask||st.writing||st.nvmWorking||st.afeWriteActive||
    st.powerCycleRunning||st.reinitRunning||st.bridgeReadBusy;
   const code=bridgeSupplyCode(st.afe0);
-  const valid=code!=null&&code<3;
-  if(!active)select.value='';
+  const index=BRIDGE_SUPPLY_ORDER.indexOf(code);
+  const valid=index>=0;
   read.disabled=!active||busy;
-  const desired=select.value===''?null:Number(select.value);
-  const index=BRIDGE_SUPPLY_ORDER.indexOf(desired);
-  const pending=valid&&index>=0&&desired!==code;
-  $('brSupplyValue').textContent=valid&&index>=0?BRIDGE_VOLTAGES[desired].toFixed(1).replace('.',',')+' V':'—';
+  $('brSupplyValue').textContent=active&&valid?BRIDGE_VOLTAGES[code].toFixed(1).replace('.',',')+' V':'—';
   $('brSupplyDown').disabled=!active||busy||index<=0;
-  $('brSupplyUp').disabled=!active||busy||index<0||index===BRIDGE_SUPPLY_ORDER.length-1;
-  $('brSupplyActions').hidden=!active||(valid&&!pending);
-  read.hidden=valid;
-  apply.hidden=!pending;
-  apply.disabled=!active||busy||!pending;
-  apply.textContent=busy&&st.bridgeReadBusy?'Lese Brückenspannung …':
-   busy&&st.bridgeWriteAllowed?'Übernahme läuft …':'Ins RAM übernehmen';
-  status.textContent=!active?'Brückenspannung noch nicht gelesen. Zuerst den E703.11 verbinden.':
-   st.afe0==null?'Noch keine gültige CFG_AFE0-Rücklesung. «Wert lesen» verwenden.':
-   !valid?'CFG_AFE0 enthält den reservierten br_supply-Code 3 – keine Änderung freigegeben.':
-   'Aktiv im Sensor: '+BRIDGE_VOLTAGES[code].toFixed(1).replace('.',',')+' V'+
-   (desired!==null&&desired!==code?' · Auswahl noch nicht übernommen.':'.');
+  $('brSupplyUp').disabled=!active||busy||!valid||index===BRIDGE_SUPPLY_ORDER.length-1;
+  $('brSupplyActions').hidden=!active||valid;
+  status.textContent=st.afe0==null?'Brückenspannung erneut aus dem Sensor lesen.':
+   'Die gelesene Spannungsstufe ist reserviert.';
  }
  async function loadBridgeSupply(){
   const word=await readReg(R_BRIDGE,1800);
@@ -148,7 +136,6 @@ if(typeof document!=='undefined') (function UI(){
    throw Error('CFG_AFE0=0x'+h(word,2)+': reservierte Pflichtbits 11:10 sind nicht 11');
   st.afe0=word;
   const code=bridgeSupplyCode(word);
-  $('brSupplySelect').value=code<3?String(code):'';
   logging('Brückenversorgung aus CFG_AFE0: '+(code<3?BRIDGE_VOLTAGES[code]+' V':'reservierter Code')+
    ' (RAM 0x'+h(word,2)+').');
   renderBridgeSupplyState();
@@ -161,7 +148,7 @@ if(typeof document!=='undefined') (function UI(){
    if(st.liveReadPromise)await st.liveReadPromise.catch(()=>{});
    await loadBridgeSupply();
   }catch(e){
-   st.afe0=null;$('brSupplySelect').value='';
+   st.afe0=null;
    logging('Brückenspannung lesen fehlgeschlagen: '+String(e.message||e));
    show('writeMsg','Brückenspannung konnte nicht gelesen werden: '+e.message,'warn');
   }finally{st.bridgeReadBusy=false;renderBridgeSupplyState()}
@@ -211,7 +198,7 @@ if(typeof document!=='undefined') (function UI(){
    logging('Brückenspannung-RAM-Schreibfehler: '+e.message);
    if(wrote)erasePoints();
    st.afe0=null;
-   try{await loadBridgeSupply()}catch(_){$('brSupplySelect').value=''}
+   try{await loadBridgeSupply()}catch(_){/* Leave the voltage unknown until a valid read. */}
    show('writeMsg','Brückenspannung nicht bestätigt: '+e.message+
     (wrote?' Messpunkte vorsorglich zurückgesetzt.':' RAM wurde nicht verändert.'),'error');
    return false;
@@ -968,7 +955,7 @@ if(typeof document!=='undefined') (function UI(){
   gainSummary();
   // Optional AFE0 read must not invalidate the already proven pressure channel.
   try{await loadBridgeSupply()}
-  catch(e){st.afe0=null;$('brSupplySelect').value='';
+  catch(e){st.afe0=null;
    logging('CFG_AFE0-Brückenspannung noch nicht verfügbar: '+String(e.message||e));
    renderBridgeSupplyState()}
   logging('Chip-Leseantwort: AFE=0x'+h(w,2)+' ADC_S='+s);
@@ -2592,7 +2579,7 @@ if(typeof document!=='undefined') (function UI(){
  });
  $('plcStartupLogExport').addEventListener('click',()=>{
   const log={
-   tool:'ELMOS E703.11 – SSP3 Startdiagnose',version:'v0.6.44',at:new Date().toISOString(),
+   tool:'ELMOS E703.11 – SSP3 Startdiagnose',version:'v0.6.45',at:new Date().toISOString(),
    source:'Web-App (NICHT PSSC Originalsoftware)',interface:st.iface,adapter:st.adapterKind,
     plcAddress:'0x'+h(st.plcAddress),plcAddressVerified:st.plcAddressVerified,
     plcAddressSource:st.plcAddressSource,plcAddressProbes:st.plcAddressProbes,psscRamRecovery:!!st.psscRamRecovery,
@@ -2794,16 +2781,13 @@ if(typeof document!=='undefined') (function UI(){
  $('sensorReconnectExport').addEventListener('click',()=>$('plcStartupLogExport').click());
  for(const [id,step] of [['brSupplyDown',-1],['brSupplyUp',1]]){
   $(id).addEventListener('click',()=>{
-   const selected=$('brSupplySelect');
-   const index=BRIDGE_SUPPLY_ORDER.indexOf(Number(selected.value));
+   const index=BRIDGE_SUPPLY_ORDER.indexOf(bridgeSupplyCode(st.afe0));
    const next=BRIDGE_SUPPLY_ORDER[index+step];
    if(index<0||next===undefined||$(id).disabled)return;
-   selected.value=String(next);
-   renderBridgeSupplyState();
+   commitBridgeSupply(next).catch(e=>show('writeMsg',e.message,'error'));
   });
  }
  $('brSupplyRead').addEventListener('click',()=>refreshBridgeSupply());
- $('brSupplyApply').addEventListener('click',()=>commitBridgeSupply(Number($('brSupplySelect').value)).catch(e=>show('writeMsg',e.message,'error')));
  $('readNow').addEventListener('click',()=>readADC().catch(e=>show('adcMsg','ADC: '+e.message,'error')));$('live').addEventListener('click',()=>{if(st.live){st.manualLivePause=true;stopLive()}else{st.manualLivePause=false;startLive()}});
  for(const k of ['pga1','pga2','offset']){
   $(k+'Down').addEventListener('click',()=>stepAFE(k,-1));
