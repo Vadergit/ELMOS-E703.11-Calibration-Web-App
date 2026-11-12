@@ -180,7 +180,7 @@ test('Expert mode shows contextual settings and no modal',()=>{
  assert.ok(html.includes('data-expert-area hidden><summary>Erweitert · AODO_F'));
  assert.ok(src.includes("classList.toggle('is-expert',enabled)"));
  const scripts=Array.from(html.matchAll(/<script src="([^"]+)"/g),m=>m[1]);
- assert.deepEqual(scripts,['calibration.js?v=0.6.8','eeprom-help.js?v=0.6.8','expert.js?v=0.6.8','config.js?v=0.6.8','guided-plan.js?v=0.6.8','demo.js?v=0.6.8','app.js?v=0.6.8','compact.js?v=0.6.8','guided.js?v=0.6.8']);
+ assert.deepEqual(scripts,['calibration.js?v=0.6.9','eeprom-help.js?v=0.6.9','expert.js?v=0.6.9','config.js?v=0.6.9','guided-plan.js?v=0.6.9','demo.js?v=0.6.9','app.js?v=0.6.9','compact.js?v=0.6.9','guided.js?v=0.6.9']);
 });
 
 test('Failed E703.11 probe reconnects SSP3 at most once, without NVM writes',()=>{
@@ -406,7 +406,7 @@ test('Guided view is optional and contains only one set of hardware inputs',()=>
  assert.ok(html.includes('id="workflowMode"'));
  assert.ok(html.includes('id="guidedLaunch"'));
  assert.ok(html.includes('id="guidedLaunchTop"'));
- assert.ok(html.includes('guided.css?v=0.6.8'));
+ assert.ok(html.includes('guided.css?v=0.6.9'));
  for(const id of ['nvmProgram','nvmPrepare','calApplyRam','calVerifyRam','expertOutputStage','configApply','configFile']){
   assert.equal(html.split('id="'+id+'"').length-1,1);
  }
@@ -570,6 +570,37 @@ test('Demo uses an isolated adapter and does not request a physical USB port',()
  assert.ok(!demo.includes('navigator.serial'));
 });
 
+test('Saving config now always exports all five groups regardless of import checkboxes',()=>{
+ const app=read('app.js'),html=read('index.html');
+ assert.ok(app.includes('const profile=configFromUi(ELMOS_CONFIG.GROUPS);'));
+ assert.ok(!app.includes('const profile=configFromUi(configSelectedGroups());'));
+ assert.ok(html.includes('Gesamte Config speichern (.json)'));
+ assert.ok(html.includes('id="configGroups" hidden'));
+ assert.ok(html.includes('Welche Einstellungen möchtest du aus dieser Datei übernehmen?'));
+ assert.ok(html.includes('.config-group-select[hidden]{display:none!important}'));
+ assert.ok(!html.includes('Was soll in der Config-Datei gespeichert werden?'));
+});
+test('Import checkbox selection controls which groups are applied and gates AFE writes',()=>{
+ const app=read('app.js'),html=read('index.html');
+ assert.ok(app.includes('function resetConfigImportSelection(profile){'));
+ assert.ok(app.includes('const available=new Set(profile?configIncluded(profile):[]);'));
+ assert.ok(app.includes('checkbox.checked=available.has(group)'));
+ assert.ok(app.includes('checkbox.disabled=!available.has(group)'));
+ assert.ok(app.includes("selectedConfig=null;resetConfigImportSelection(null);"));
+ assert.ok(app.includes('resetConfigImportSelection(profile);'));
+ assert.ok(app.includes('included=configSelectedGroups()'));
+ assert.ok(app.includes('if(!included.length)throw Error('));
+ assert.ok(app.includes('if(included.some(group=>!values.include.includes(group)))'));
+ assert.ok(app.includes("const target=has('afe')?{...values.afe}:null;"));
+ assert.ok(app.includes("if(target&&(!st.port||!st.chip||st.mode!=='usb'))"));
+ assert.ok(app.includes('if(target){'));
+ assert.ok(app.includes('const ok=await commitGain(target);'));
+ assert.ok(app.includes("if(has('output'))expert.applyOutputProfile(values.output);"));
+ assert.ok(app.includes("document.dispatchEvent(new CustomEvent('elmos-config-applied'"));
+ for(const id of ['configIncludeAfe','configIncludeReference','configIncludeMeasurement','configIncludeDsp','configIncludeOutput'])
+  assert.equal(html.split('id="'+id+'"').length-1,1);
+ assert.ok(app.includes('button.disabled=!selectedConfig||!configSelectedGroups().length;'));
+});
 test('V2 selective config roundtrip preserves only requested sections',()=>{
  const input={label:'Gains',afe:{pga1:2,pga2:6,offset:4},
   calibration:{sOrder:1,tOrder:0,dspLimit:25000,pointCount:2,samples:12,
