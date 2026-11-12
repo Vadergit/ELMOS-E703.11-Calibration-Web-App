@@ -613,7 +613,7 @@ if(typeof document!=='undefined') (function UI(){
     }
     try{await runChipDiagnostics('Automatisch nach zweiter fehlgeschlagener Chiperkennung: '+e.message)}
     catch(diagError){logging('Lesende Zusatzdiagnose fehlgeschlagen: '+diagError.message)}
-    show('connMsg','SSP3 erreichbar, aber Chiperkennung nicht bestätigt: '+e.message+'. Die lesende Zusatzdiagnose ist unten geöffnet. Keine weiteren Versuche. Keine Schreibfreigabe.','warn');
+    show('connMsg','SSP3 erreichbar, aber Chiperkennung nicht bestätigt: '+e.message+'. Die lesende Zusatzdiagnose ist unten geöffnet. Keine weiteren automatischen USB-Neuverbindungen. Keine Schreibfreigabe.','warn');
     renderStatus();
    }
   }catch(e){
