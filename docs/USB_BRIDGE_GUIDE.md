@@ -19,7 +19,7 @@ Der Kalibrierassistent nutzt standardmässig weiterhin das **ELMOS SSP3**. In de
 
 Die [vollständige ESP32-/Arduino-Boardliste](ESP_BOARD_OPTIONS.md) enthält die Belegung für AODO / 1-Wire **und** I²C, I/O-Spannungen und Hersteller-Pinouts.
 
-**Für den bereits vorhandenen ESP32-C3 SuperMini:** Statt des allgemeinen Arduino-Beispiels die neue [C3-SuperMini-Firmware](../firmware/esp32c3_supermini/esp32c3_supermini.ino) verwenden. Arduino IDE → Board **ESP32C3 Dev Module**, **USB CDC On Boot: Enabled**. Nach dem Flashen `BRIDGE_INFO` senden. Die SuperMini-PLC-Firmware meldet `CAPS=PLC_UID,PLC_READ,PLC_WRITE,NVM,POWER_GPIO_10`.
+**Für den bereits vorhandenen ESP32-C3 SuperMini:** Statt des allgemeinen Arduino-Beispiels die neue [C3-SuperMini-Firmware](../firmware/esp32c3_supermini/esp32c3_supermini.ino) verwenden. Arduino IDE → Board **ESP32C3 Dev Module**, **USB CDC On Boot: Enabled**. Nach dem Flashen `BRIDGE_INFO` senden. Die SuperMini-PLC-Firmware meldet `CAPS=PLC_UID,PLC_READ,PLC_WRITE,NVM,POWER_GPIO_10,PSSC_RAM`.
 
 ## 2. AODO / 1-Wire und I²C – passende MCU-Pins
 
@@ -33,7 +33,7 @@ Die **vollständige Liste aller 27 Boards** mit AODO-/1-Wire-GPIO, USB-Pins, Boa
 
 | Board | AODO / 1-Wire (MCU) | I²C SDA (MCU) | I²C SCL (MCU) | USB zum PC | Sensorversorgung / Neustart |
 | --- | --- | --- | --- | --- | --- |
-| **ESP32-C3 SuperMini** | **GPIO4** (TX) | GPIO6 (alternativ) | GPIO7 (alternativ) | Native USB Serial/JTAG | **GPIO10** (Firmware v0.4) |
+| **ESP32-C3 SuperMini** | **GPIO4** (TX) | GPIO6 (alternativ) | GPIO7 (alternativ) | Native USB Serial/JTAG | **GPIO10** (ab Firmware v0.4) |
 | **XIAO ESP32C3** | **D2 / GPIO4** | D4 / GPIO6 | D5 / GPIO7 | Nativ | D1 / GPIO3 |
 | ESP32-C3 DevKit / DevKitM | **GPIO4** | GPIO6 | GPIO7 | Nativ oder USB-UART | GPIO10 |
 | ESP32-S3 DevKitC-1 | **GPIO4** | GPIO8 | GPIO9 | Nativ oder USB-UART | GPIO10 |
@@ -55,7 +55,7 @@ Die **vollständige Liste aller 27 Boards** mit AODO-/1-Wire-GPIO, USB-Pins, Boa
 | GPIO10 | Aktives High-Enable für den externen Lastschalter der Sensorversorgung. Dient zum Einschalten und zum Neustart nach dem NVM-Schreiben |
 | GND | Gemeinsame Masse von ESP32, Treiberstufe und Sensor |
 
-**Firmware v0.4 verwendet GPIO10.** Bei v0.3 lag der Lastschalter an GPIO7. Nach dem Update die EN-Leitung auf GPIO10 umstecken. GPIO7 bleibt für I²C-SCL frei. GPIO6 ist im PLC-Aufbau RX und im alternativen I²C-Aufbau SDA.
+**Firmware ab v0.4 verwendet GPIO10.** Bei v0.3 lag der Lastschalter an GPIO7. Nach dem Update die EN-Leitung auf GPIO10 umstecken. GPIO7 bleibt für I²C-SCL frei. GPIO6 ist im PLC-Aufbau RX und im alternativen I²C-Aufbau SDA.
 
 Die Neustart-Pins der übrigen Boards sind Vorschläge für eine eigene Firmware. Sie sind jeweils zusätzlich zu den angegebenen I²C-Pins gewählt. Die Web-App verwendet den Neustartbefehl mit der SuperMini-Firmware und angeschlossenem Lastschalter. [Anschluss und Testablauf](ESP32_C3_PLC_TEST.md)
 

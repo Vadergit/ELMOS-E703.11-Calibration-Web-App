@@ -1,3 +1,9 @@
+## v0.6.46 – ESP32-Start für E703.11 mit abweichender One-Wire-Konfiguration
+
+- ESP32-C3-Firmware v0.5 prüft die PLC-Adressen 0x6C und 0x7C. Erst gültige CRCs und übereinstimmende Sensorregister bestätigen die Verbindung.
+- Bei ausbleibender Antwort kann die Web-App die aus PSSC bekannte, temporäre One-Wire-Freigabe auslösen. Nach diesem Versuch sind NVM-Programmierbefehle in der Bridge gesperrt; RAM-Kalibrierung und NVM-Lesen bleiben verfügbar.
+- Brückenspannung wird wie PGA1, Offset und PGA2 direkt ins Sensor-RAM übernommen und rückgelesen.
+
 ## v0.6.43 – Brückenspannung und Kalibrierdaten nach SSP3-RAM-Start
 
 - Brückenspannung mit vollständiger Auswahlliste und kompakten Aktionen im AFE-Schritt.

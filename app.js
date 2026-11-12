@@ -491,6 +491,8 @@ if(typeof document!=='undefined') (function UI(){
  function psscNvmBlock(initial,modified,restoring=false,outputOnly=false){
   const recovered=st.psscRamRecovery||(st.regs[0x06]===0x6C04&&initial?.[17]!==0x6C04);
   if(!recovered)return '';
+  if(st.adapterKind==='bridge')
+   return 'Nach temporärer ESP32-RAM-Freigabe ist NVM-Schreiben gesperrt. Live-Messung, RAM-Kalibrierung und NVM-Lesen sind verfügbar.';
   if(!psscRecoveryProven())
    return 'Für die PSSC-RAM-Verbindung fehlt der bestätigte Neustart dieses Chips. Sensor neu initialisieren und erneut prüfen.';
   if(!initial||!modified)return '';
@@ -766,6 +768,7 @@ if(typeof document!=='undefined') (function UI(){
   const match=response.match(/E70311-BRIDGE\s+V1\s+CAPS=([A-Z0-9_,]+)/);
   if(!match)throw Error('Kein kompatibler E703.11 USB-CDC-Bridge-Handshake. Bitte Bridge-Firmware prüfen.');
   const caps=match[1].split(',');
+  st.bridgePsscRam=caps.includes('PSSC_RAM');
   st.firmware='USB-CDC Bridge v1 · '+caps.join('/');
   renderStatus();logging('USB-Bridge CAPS: '+caps.join(','));
   const ready=['PLC_READ','PLC_WRITE','NVM'].every(cap=>caps.includes(cap));
@@ -777,6 +780,33 @@ if(typeof document!=='undefined') (function UI(){
   return ready;
  }
 
+
+ async function bridgeAccess({power=false,recover=false}={}){
+  const response=await exchange(recover?'PLC RECOVER'+(power?' START':''):power?'PLC START':'PLC ACCESS',3500);
+  if(!st.bridgePsscRam)return;
+  const status=response.match(/PLC ACCESS ADDR=(6C|7C) RAM_RECOVERY=([01])/);
+  if(!status)throw Error('ESP32 hat die One-Wire-Adresse nicht bestätigt');
+  st.plcAddress=parseInt(status[1],16);
+  if(status[2]==='1')st.psscRamRecovery=true;
+ }
+ async function connectBridgeChip(){
+  await exchange('PLC_BAUD '+$('plcBaud').value);
+  try{await bridgeAccess({power:st.sensorPowerEnabled})}
+  catch(e){
+   if(!st.bridgePsscRam||!e.message.includes('PLC_NO_VALID_FRAME')||st.closing||!st.port)throw e;
+   st.psscRamRecovery=true;
+   logging('ESP32: normale PLC-Adressen ohne Antwort; PSSC-Freigabe im Sensor-RAM.');
+   await bridgeAccess({power:st.sensorPowerEnabled,recover:true});
+  }
+  if(st.bridgePsscRam){
+   // The bridge has already verified address and CRC on AFE, ADC and CFG.
+   st.plcAddressVerified=true;st.plcAddressSource='ESP32: CFG_SPI_I2C + CFG_PADS1 / CRC8';
+   try{st.measurementPeriod=await readReg(0x0E,1600)}
+   catch(e){logging('ESP32: CFG_PERIOD nicht lesbar: '+e.message)}
+  }
+  await detect();
+  if(st.psscRamRecovery)show('connMsg','Sensor über temporäre One-Wire-Freigabe verbunden. Live-Messung und RAM-Kalibrierung sind bereit; NVM bleibt schreibgeschützt.','success');
+ }
 
  // CRC8 verification follows DS 25DS0170E.04, chapter 6.4.5.6.1:
  // CRC8 over read address, header/CRC4, slave preamble 0x02 and data.
@@ -1543,10 +1573,8 @@ if(typeof document!=='undefined') (function UI(){
     if(st.adapterKind==='bridge'){
      const ready=await bridgeHello();
      if(!ready)throw Error('USB-Bridge nicht bereit');
-     await exchange('PLC_BAUD '+$('plcBaud').value);
-     await exchange(st.sensorPowerEnabled?'PLC START':'PLC ACCESS');
-    }
-    await detect();
+     await connectBridgeChip();
+    }else await detect();
    }
    if(!st.chip)throw Error('Keine gültige Registerantwort vom E703.11 erhalten');
    st.sensorLost=false;
@@ -1600,6 +1628,7 @@ if(typeof document!=='undefined') (function UI(){
   show('connMsg','USB offen. Firmware und Chip werden geprüft …');
   try{
    if(st.adapterKind==='bridge'){
+    st.plcHostFormat='legacy';
     st.iface='plc';
     $('iface').value='plc';
     const bridgeReady=await bridgeHello();
@@ -1608,10 +1637,7 @@ if(typeof document!=='undefined') (function UI(){
    await firmware();
    await selectChipInterface();
    try{
-    if(st.adapterKind==='bridge'){
-     await exchange('PLC_BAUD '+$('plcBaud').value);
-     await exchange(st.sensorPowerEnabled?'PLC START':'PLC ACCESS');
-    }
+    if(st.adapterKind==='bridge'&&!demoEnabled){await connectBridgeChip();return;}
     if(!demoEnabled&&st.adapterKind==='ssp3'&&st.iface==='plc'){
      // The user confirmed that this lab's DUT is powered from SSP3 VSUPPLY.
      // A fresh power-up opens the NVM-configured 4/10/200-ms PLC window.
@@ -1778,7 +1804,7 @@ if(typeof document!=='undefined') (function UI(){
   const previous=st.adc;
   // Only for confirmed SSP3 single-measurement mode. This is CMD (RAM)
   // and NOT a CFG_PERIOD, interface or NVM write.
-  if(st.adapterKind==='ssp3'&&st.iface==='plc'&&st.measurementPeriod===2){
+  if((st.adapterKind==='ssp3'||(st.adapterKind==='bridge'&&st.bridgePsscRam))&&st.iface==='plc'&&st.measurementPeriod===2){
    if(st.writing||st.calTask||st.nvmWorking||st.afeWriteActive||st.powerCycleRunning||st.closing)
     throw Error('CMD start während eines anderen Chipvorgangs gesperrt.');
    const command=P.plcHostCommand(P.plcWrite(0x22,0x8B93,st.plcAddress),st.plcHostFormat);
@@ -2335,7 +2361,7 @@ if(typeof document!=='undefined') (function UI(){
      await expert.identify();
      if(st.uid?.hex!==expected.id)throw Error('Anderer Chip angeschlossen');
      if(demoEnabled)demoPort.reboot();
-     else await exchange('PLC START',3500);
+     else await bridgeAccess({power:true});
     }else if(demoEnabled)demoPort.reboot();
     await expert.identify();
     if(st.uid?.hex!==expected.id)throw Error('Anderer Chip angeschlossen');
@@ -2579,7 +2605,7 @@ if(typeof document!=='undefined') (function UI(){
  });
  $('plcStartupLogExport').addEventListener('click',()=>{
   const log={
-   tool:'ELMOS E703.11 – SSP3 Startdiagnose',version:'v0.6.45',at:new Date().toISOString(),
+   tool:'ELMOS E703.11 – SSP3 Startdiagnose',version:'v0.6.46',at:new Date().toISOString(),
    source:'Web-App (NICHT PSSC Originalsoftware)',interface:st.iface,adapter:st.adapterKind,
     plcAddress:'0x'+h(st.plcAddress),plcAddressVerified:st.plcAddressVerified,
     plcAddressSource:st.plcAddressSource,plcAddressProbes:st.plcAddressProbes,psscRamRecovery:!!st.psscRamRecovery,

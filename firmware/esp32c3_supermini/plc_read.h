@@ -29,8 +29,8 @@ constexpr uint8_t crc(uint8_t state, uint8_t byte, unsigned bits, unsigned width
   return state & ((1u << width) - 1);
 }
 
-constexpr uint8_t readHeader(uint8_t address) {
-  return crc(crc(crc(0x0F, ReadAddress, 8, 4, 0x03), address, 8, 4, 0x03), 0, 4, 4, 0x03);
+constexpr uint8_t readHeader(uint8_t address, uint8_t slave = ReadAddress) {
+  return crc(crc(crc(0x0F, slave, 8, 4, 0x03), address, 8, 4, 0x03), 0, 4, 4, 0x03);
 }
 
 constexpr uint8_t replyCrc(uint8_t address, uint8_t header, const uint8_t (&reply)[4]) {
@@ -151,30 +151,35 @@ constexpr uint8_t writeCrc(uint8_t address, uint8_t header, uint8_t high, uint8_
 
 static_assert(writeCrc(0x6A, 0x0A, 0x67, 0x89) == 0x5F);
 
-inline void writeWord(uint8_t address, uint16_t word, unsigned baud, bool startup = false, bool shortGap = false) {
-  const uint8_t header = readHeader(address);
+inline void writeWord(uint8_t address, uint16_t word, unsigned baud, bool startup = false, bool shortGap = false, uint8_t slave = ReadAddress) {
+  const uint8_t header = readHeader(address, slave);
   const uint8_t high = word >> 8;
   const uint8_t low = word & 0xFF;
-  const uint8_t request[] = {Preamble, ReadAddress & 0xFE, address, header, high, low,
+  const uint8_t request[] = {Preamble, static_cast<uint8_t>(slave & 0xFE), address, header, high, low,
                              writeCrc(address, header, high, low)};
   transfer(request, sizeof(request), baud, nullptr, 0, startup, shortGap);
 }
 
-inline void enableAccess(unsigned baud, bool powerCycle) {
+// PSSC 3.2.1 trace: 02 FE 06 07 6C 04 4E. Do not expose generic broadcast writes.
+constexpr uint8_t PsscRamAccess[] = {0x02, 0xFE, 0x06, 0x07, 0x6C, 0x04, 0x4E};
+static_assert(writeCrc(0x06, 0x07, 0x6C, 0x04) == 0x4E);
+
+inline void enableAccess(unsigned baud, bool powerCycle, bool recover, uint8_t slave = ReadAddress) {
   if (powerCycle) {
     gpio_set_level(Power, 0);
     gpio_set_direction(Power, GPIO_MODE_OUTPUT);
     delay(100);
   }
-  writeWord(0xAC, 0x2B42, baud, powerCycle);
+  writeWord(0xAC, 0x2B42, baud, powerCycle, false, slave);
   // During a cold start the first preamble has already established the bit rate.
   // The second frame still needs a gap, but must fit inside the 4 ms window.
-  writeWord(0x0E, 0x5CFD, baud, false, powerCycle);
+  writeWord(0x0E, 0x5CFD, baud, false, powerCycle, slave);
+  if (recover) transfer(PsscRamAccess, sizeof(PsscRamAccess), baud, nullptr, 0, false, powerCycle);
 }
 
-inline const char *readWord(uint8_t address, unsigned baud, uint16_t &word, uint8_t *checksum = nullptr) {
-  const uint8_t header = readHeader(address);
-  const uint8_t request[] = {Preamble, ReadAddress, address, header};
+inline const char *readWord(uint8_t address, unsigned baud, uint16_t &word, uint8_t *checksum = nullptr, uint8_t slave = ReadAddress) {
+  const uint8_t header = readHeader(address, slave);
+  const uint8_t request[] = {Preamble, slave, address, header};
   Edge edges[80];
   const size_t count = transfer(request, sizeof(request), baud, edges, 80);
   const uint32_t bitTime = 2 * (esp_clk_cpu_freq() / baud);

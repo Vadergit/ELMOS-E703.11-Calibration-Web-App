@@ -1,6 +1,6 @@
 # ESP32-C3 SuperMini mit E703.11 testen
 
-Firmware v0.4 unterstützt den PLC-Zugriff über AODO und stellt der lokalen Web-App die bestehenden Abläufe für Registerlesen, AFE/DSP im RAM und User-NVM bereit. Das PLC-Timing und die elektrische Schaltung müssen am Sensor geprüft werden. Den ersten Test auf Chip-Erkennung, Live-Werte und das Lesen des Original-NVM beschränken. RAM-Schreiben anschliessend an einem Testchip prüfen. Vor permanentem Schreiben das Original-NVM exportieren.
+Firmware v0.5 unterstützt den PLC-Zugriff über AODO und stellt der lokalen Web-App die bestehenden Abläufe für Registerlesen, AFE/DSP im RAM und User-NVM bereit. Das PLC-Timing und die elektrische Schaltung müssen am Sensor geprüft werden. Den ersten Test auf Chip-Erkennung, Live-Werte und das Lesen des Original-NVM beschränken. RAM-Schreiben anschliessend an einem Testchip prüfen. Vor permanentem Schreiben das Original-NVM exportieren.
 
 ## Anschluss über eine externe Treiberstufe
 
@@ -22,8 +22,8 @@ Für einen bestätigten 3,3-V-Sensoraufbau eignet sich als Ausgangspunkt ein [SN
 
 1. Die [Web-App auf GitHub Pages](https://vadergit.github.io/ELMOS-E703.11-Calibration-Web-App/) in Chrome öffnen. Für einen lokalen Test im Projektordner `python3 -m http.server 8765 --bind 127.0.0.1` starten und [die lokale App](http://127.0.0.1:8765/) öffnen.
 2. **ESP32 / Arduino USB-Bridge** wählen. **100 kBd** ist der Startwert für automatische Erkennung oder fest eingestellte 100 kBd. **25 kBd** für entsprechend konfigurierte Sensoren wählen.
-3. Bei dauerhaft verfügbarem PLC den Sensor einschalten und **USB-Port auswählen**. Für Sensoren mit kurzem Startfenster die GPIO10-Option nur bei angeschlossenem Lastschalter aktivieren. Bei 25 kBd benötigen die beiden Freigabetelegramme ein längeres Startfenster als 4 ms. Der Aufbau muss PLC-Empfang und Sensorantwort zulassen.
-4. Chip-ID und Live-Werte kontrollieren. Falls ein Sensor antwortet, aber CRC- oder Framefehler auftreten, AODO und OE mit dem Oszilloskop prüfen.
+3. Bei dauerhaft verfügbarem PLC den Sensor einschalten und **USB-Port auswählen**. Für Sensoren mit kurzem Startfenster die GPIO10-Option nur bei angeschlossenem Lastschalter aktivieren. Der Aufbau muss PLC-Empfang und Sensorantwort zulassen.
+4. Die App prüft zuerst 0x6C und 0x7C. Nur wenn beide ohne gültige Antwort bleiben, versucht sie die PSSC-Freigabe, die CFG_SPI_I2C temporär im Sensor-RAM setzt. Danach ist NVM-Schreiben gesperrt. Chip-ID und Live-Werte kontrollieren. Falls ein Sensor antwortet, aber CRC- oder Framefehler auftreten, AODO und OE mit dem Oszilloskop prüfen.
 5. Original-NVM lesen und exportieren. Danach AFE und DSP im RAM testen und die rückgelesenen Werte kontrollieren. Permanentes Speichern verwendet den vorhandenen Ablauf mit Chip-ID, Änderungsprüfung, CRC und Rücklesekontrolle.
 
 Wenn GPIO10 den externen Lastschalter steuert, aktiviere vor dem Verbinden **Sensorversorgung steuern**. Nach erfolgreichem NVM-Schreiben startet **Sensor neu starten und NVM prüfen** den E703.11 bei bestehender USB-Verbindung neu. Die Web-App prüft die Chip-ID, liest alle 64 NVM-Wörter mit CRC-Prüfung zurück und vergleicht die Bootregister. Bei separater Sensorversorgung steht die manuelle Neustartprüfung zur Verfügung.

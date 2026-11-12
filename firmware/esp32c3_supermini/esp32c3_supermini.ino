@@ -29,6 +29,8 @@ static char lineBuffer[96];
 static size_t lineLength = 0;
 static uint32_t requests = 0;
 static unsigned plcBaud = 100000;
+static uint8_t activeSlave = plc::ReadAddress;
+static bool recoveryUsed = false;
 
 static void answer(const char *message) {
   // Same line-terminator as the existing SSP3-oriented Web Serial parser.
@@ -41,7 +43,7 @@ static void printUid(unsigned baud) {
   constexpr uint8_t addresses[] = {0x38, 0x52, 0x50};
   uint16_t words[3];
   for (unsigned i = 0; i < 3; ++i) {
-    if (const char *error = plc::readWord(addresses[i], baud, words[i])) {
+    if (const char *error = plc::readWord(addresses[i], baud, words[i], nullptr, activeSlave)) {
       answer(error);
       return;
     }
@@ -59,13 +61,14 @@ static int hexDigit(char ch) {
 }
 
 static bool allowedWrite(uint8_t address, uint16_t word) {
-  if (address == 0x1C || address == 0x4A) return true;
+  if (address == 0x1A || address == 0x1C || address == 0x4A) return true;
+  if (address == 0x22) return word == 0x8B93;
   if (address >= 0x6C && address <= 0x9A) return true;
   if (address != 0x4E) return false;
   if (word == 0x98BD || word == 0x25BF || word == 0x36D8 || word == 0 || word == 0x8800) return true;
   const unsigned offset = word & 0xFF;
   if ((word >> 8) == 0x4C) return offset <= 0x7E && !(offset & 1);
-  return (word >> 8) == 0xA3 && (offset == 0x20 || offset == 0x2C ||
+  return !recoveryUsed && (word >> 8) == 0xA3 && (offset == 0x20 || offset == 0x2C ||
                                   (offset >= 0x38 && offset <= 0x7E && !(offset & 1)));
 }
 
@@ -86,15 +89,17 @@ static void plcFrame(const char *hex) {
     frame[i] = (high << 4) | low;
   }
   const uint8_t address = frame[2], header = frame[3];
-  if (frame[0] != plc::Preamble || frame[1] != (read ? 0x6D : 0x6C) ||
-      (address & 1) || header != plc::readHeader(address)) {
+  const uint8_t slave = frame[1] | 1;
+  if (frame[0] != plc::Preamble || (frame[1] & 1) != read ||
+      (slave != 0x6D && slave != 0x7D) || (address & 1) ||
+      header != plc::readHeader(address, slave)) {
     answer("!BRIDGE PLC_BAD_HEADER");
     return;
   }
   if (read) {
     uint16_t word;
     uint8_t checksum;
-    if (const char *error = plc::readWord(address, plcBaud, word, &checksum)) {
+    if (const char *error = plc::readWord(address, plcBaud, word, &checksum, slave)) {
       answer(error);
       return;
     }
@@ -109,32 +114,69 @@ static void plcFrame(const char *hex) {
     answer("!BRIDGE PLC_BAD_CRC");
     return;
   }
-  if (!allowedWrite(address, word)) {
+  if (slave != activeSlave || !allowedWrite(address, word)) {
     answer("!BRIDGE PLC_WRITE_DENIED");
     return;
   }
-  plc::writeWord(address, word, plcBaud);
+  plc::writeWord(address, word, plcBaud, false, false, slave);
   answer("# PLC FRAME SENT");
 }
 
-static void establishAccess(bool powerCycle) {
-  uint16_t version;
-  if (powerCycle || plc::readWord(0x38, plcBaud, version)) {
-    plc::enableAccess(plcBaud, powerCycle);
-    if (const char *error = plc::readWord(0x38, plcBaud, version)) {
-      answer(error);
-      return;
+static const char *probe(uint8_t slave) {
+  uint16_t afe, adc, cfg, pads;
+  if (const char *e = plc::readWord(0x1C, plcBaud, afe, nullptr, slave)) return e;
+  if (!afe) return "!BRIDGE PLC_NO_VALID_FRAME";
+  if (const char *e = plc::readWord(0x2A, plcBaud, adc, nullptr, slave)) return e;
+  if (const char *e = plc::readWord(0x06, plcBaud, cfg, nullptr, slave)) return e;
+  if (const char *e = plc::readWord(0x0A, plcBaud, pads, nullptr, slave)) return e;
+  const uint8_t configured = ((cfg >> 8) & 0x7E) | ((pads & 0x1000) ? 0x80 : 0) | 1;
+  if (configured != slave) return "!BRIDGE PLC_ADDRESS_MISMATCH";
+  activeSlave = slave;
+  return nullptr;
+}
+
+static const char *probeAddresses() {
+  const char *error = probe(activeSlave);
+  if (error && strcmp(error, "!BRIDGE PLC_NO_VALID_FRAME") == 0)
+    error = probe(activeSlave == 0x6D ? 0x7D : 0x6D);
+  return error;
+}
+
+static void establishAccess(bool powerCycle, bool recover = false) {
+  const char *error = nullptr;
+  if (recover) {
+    // Mark the session before attempting the write, including on a lost reply.
+    recoveryUsed = true;
+    plc::enableAccess(plcBaud, powerCycle, true);
+    error = probe(0x6D);
+  } else {
+    if (powerCycle) plc::enableAccess(plcBaud, true, false);
+    error = probeAddresses();
+    if (error && strcmp(error, "!BRIDGE PLC_NO_VALID_FRAME") == 0) {
+      plc::enableAccess(plcBaud, false, false, 0x6D);
+      error = probe(0x6D);
+      if (error && strcmp(error, "!BRIDGE PLC_NO_VALID_FRAME") == 0) {
+        plc::enableAccess(plcBaud, powerCycle, false, 0x7D);
+        error = probe(0x7D);
+      }
     }
   }
-  answer("# PLC ACCESS");
+  if (error) {
+    answer(error);
+    return;
+  }
+  char response[40];
+  snprintf(response, sizeof(response), "# PLC ACCESS ADDR=%02X RAM_RECOVERY=%u",
+           unsigned(activeSlave & 0xFE), unsigned(recoveryUsed));
+  answer(response);
 }
 
 static void onCommand(const char *command) {
   ++requests;
   if (strcmp(command, "BRIDGE_INFO") == 0) {
-    answer("# E70311-BRIDGE V1 CAPS=PLC_UID,PLC_READ,PLC_WRITE,NVM,POWER_GPIO_10");
+    answer("# E70311-BRIDGE V1 CAPS=PLC_UID,PLC_READ,PLC_WRITE,NVM,POWER_GPIO_10,PSSC_RAM");
   } else if (strcmp(command, ".VERSION") == 0) {
-    answer("# ESP32-C3 SuperMini ELMOS PLC bridge v0.4");
+    answer("# ESP32-C3 SuperMini ELMOS PLC bridge v0.5");
   } else if (strcmp(command, "BRIDGE_PING") == 0) {
     answer("# PONG ESP32-C3 SUPERMini PLC_UID");
   } else if (strcmp(command, "BRIDGE_STATS") == 0) {
@@ -153,6 +195,8 @@ static void onCommand(const char *command) {
     answer("# PLC BAUD");
   } else if (strcmp(command, "PLC ACCESS") == 0 || strcmp(command, "PLC START") == 0) {
     establishAccess(strcmp(command, "PLC START") == 0);
+  } else if (strcmp(command, "PLC RECOVER") == 0 || strcmp(command, "PLC RECOVER START") == 0) {
+    establishAccess(strcmp(command, "PLC RECOVER START") == 0, true);
   } else if (strncmp(command, "PLC ", 4) == 0) {
     plcFrame(command + 4);
   } else if (strncmp(command, "IF_CFG", 6) == 0 ||
