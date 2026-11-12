@@ -2,6 +2,12 @@
 
 Versionierung nach `MAJOR.MINOR.PATCH`: Kleine Anpassungen erhöhen PATCH, neue Funktionen MINOR, inkompatible Änderungen MAJOR. Jede Änderung erhält eine neue Nummer und einen Eintrag.
 
+## v0.6.10 – 12.11.2026
+
+- Im geführten Abgleich mit **einer Temperaturstufe** werden Druckpunkte nur als **P1, P2 usw.** bezeichnet. **T1 / P1** bleibt für mehrere Temperaturstufen erhalten.
+- **Unabhängige DSP-Nachprüfung:** Standardmässig wird **1 Prüfpunkt** gewählt, unabhängig vom Temperaturplan. Weitere Prüfpunkte können weiterhin manuell eingestellt werden.
+- 57 Software-Regressionstests, inklusive Punktbezeichnungen und Prüfpunkt-Voreinstellung.
+
 ## v0.6.9 – 12.11.2026
 
 - **Immer vollständige Config-Dateien:** Der Export enthält die fünf wiederverwendbaren Gruppen AFE, Referenz, Messung, DSP und Ausgang.
