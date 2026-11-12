@@ -1080,6 +1080,7 @@ if(typeof document!=='undefined') (function UI(){
   st.nvmBackup=null;st.nvmBackupVerified=false;st.restorePlan=null;
   st.expertOutputPlan=null;st.outputOnlyPlan=null;st.profilePendingAFE=null;
   st.trend=[];erasePoints();
+  window.ELMOS_GUIDED?.onSensorReset?.();
   show('connMsg','Kommunikation zum E703.11 fehlgeschlagen. Der Sensor ist nicht mehr erreichbar. SSP3 bleibt über USB verbunden. Nach dem Anschliessen «Sensor neu initialisieren» wählen. Frühere Messpunkte und Schreibfreigaben wurden aus Sicherheitsgründen zurückgesetzt.','warn');
   show('adcMsg','Sensor nicht verbunden. Keine aktuellen Messwerte.','warn');
   renderStatus();
