@@ -216,3 +216,16 @@ Bei einem Timeout wird die **tatsächlich bis dahin empfangene Teilantwort**, di
 In v0.6.23 erkennt der Parser `:` vor dem folgenden `#`-Kommandoecho oder am Antwortende auch ohne CR/LF. `PWR_ON` und `PLC T` werden getrennt als Echo nach Start/Prompt-Grenze verifiziert, ohne auf einen Zeilenbeginn beschränkt zu sein. Der Sender bleibt identisch: zwei serielle Writes direkt nacheinander, dann zwei SSP3-Quittungen auswerten und erst danach echte E703.11-Register lesen. Keine Änderung an Versorgungskommandos, PLC-Telegramm, Konfigurationsmemory/NVM oder Bootstartfenster.
 
 **Noch nicht bewiesen:** Dass der E703.11 den PLC-Cookie innerhalb seines konfigurierten Fensters empfangen hat. Die neue Prüfung beseitigt ausschliesslich einen Hostparser-Fehler und lässt den Chipzugriff erstmals nach diesem Burst wieder testen. Hardwareergebnis des nachfolgenden Registerlesens muss separat geprüft werden.
+
+### v0.6.24 – Automatischer Magic-Cookie-Fallback nach SSP3-Start (12.11.2026)
+
+Der echte E703.11 liess sich nach Angaben aus dem Prüfversuch über den separaten Magic-Cookie-Test erreichen, während der normale SSP3-Power-Start mit `PLC P`/`PLC T` und anschliessender Lesung nur `!PLC nothing received` lieferte. Daher wird **bei SSP3 + One Wire automatisch genau einmal** folgender, bereits manuell erprobter Fallback verwendet, **nur wenn der erste PLC-Register-Lesezugriff keine Chipantwort erhält**:
+
+1. Bestehender dokumentierter Power-Start: `PWR_OFF 03E8` → `PLC P` → `PWR_ON 0C80 00C8 0` und `PLC T` schnell hintereinander.
+2. Erste reine Register-Lesung. Wenn gültig, ist keine zusätzliche Magic Cookie nötig.
+3. Ausschliesslich bei `!PLC nothing received` zwei spezielle CRC-geschützte PLC-Writes: `PLC 026CAC0F2B4299` (0xAC→0x2B42) und direkt danach `PLC 026C0E095CFDCA` (0x0E→0x5CFD).
+4. Erneut echten E703.11-Registerzugriff lesen und erst dann die Verbindung/Chip-UID als erfolgreich markieren.
+
+Die zwei Schreibtelegramme sind nach E703.11-Datenblatt §6.4.5.7 eine **flüchtige RAM-/One-Wire-Freigabe**, keine NVM- oder Factory-Programmierung. Jeder Schritt und die tatsächliche Leseantwort werden im SSP3-JSON-Protokoll erfasst. Bei Zeitüberschreitung, anderer Chip-Fehlermeldung oder ungültigen AFE-Daten erfolgt **kein** stillschweigender Wiederholungsversuch und kein NVM-Schreiben. Der normale Kalibrierweg und die geschützten Startregister in NVM 17, 18 und 19 bleiben unverändert. Bei einem erfolgreichen Fallback wird die SSP3-Power-Startverifikation auf die aktuelle UID bezogen, damit der vorhandene NVM-Schutz weiter funktioniert.
+
+**Hardwarevorbehalt:** Ob dieser Fallback automatisch funktioniert, ist noch nicht bestätigt. Bei sehr kurzen NVM-Startfenstern kann das zusätzliche Senden nach einem ersten fehlgeschlagenen Lesen bereits zu spät sein. Der Befund des manuellen Tests macht diesen Versuch aber gegenüber weiteren undokumentierten SSP3-Kommandos sinnvoll.

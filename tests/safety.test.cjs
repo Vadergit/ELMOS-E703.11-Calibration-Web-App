@@ -178,7 +178,7 @@ test('Expert mode shows contextual settings and no modal',()=>{
  assert.ok(html.includes('data-expert-area hidden><summary>Erweitert · AODO_F'));
  assert.ok(src.includes("classList.toggle('is-expert',enabled)"));
  const scripts=Array.from(html.matchAll(/<script src="([^"]+)"/g),m=>m[1]);
- assert.deepEqual(scripts,['calibration.js?v=0.6.23','eeprom-help.js?v=0.6.23','expert.js?v=0.6.23','config.js?v=0.6.23','guided-plan.js?v=0.6.23','demo.js?v=0.6.23','app.js?v=0.6.23','compact.js?v=0.6.23','guided.js?v=0.6.23']);
+ assert.deepEqual(scripts,['calibration.js?v=0.6.24','eeprom-help.js?v=0.6.24','expert.js?v=0.6.24','config.js?v=0.6.24','guided-plan.js?v=0.6.24','demo.js?v=0.6.24','app.js?v=0.6.24','compact.js?v=0.6.24','guided.js?v=0.6.24']);
 });
 
 test('Failed E703.11 probe keeps SSP3 open for explicit, bounded startup test',()=>{
@@ -438,7 +438,7 @@ test('Guided view is optional and contains only one set of hardware inputs',()=>
  assert.ok(html.includes('id="workflowMode"'));
  assert.ok(html.includes('id="guidedLaunch"'));
  assert.ok(html.includes('id="guidedLaunchTop"'));
- assert.ok(html.includes('guided.css?v=0.6.23'));
+ assert.ok(html.includes('guided.css?v=0.6.24'));
  for(const id of ['nvmProgram','nvmPrepare','calApplyRam','calVerifyRam','expertOutputStage','configApply','configFile']){
   assert.equal(html.split('id="'+id+'"').length-1,1);
  }
@@ -934,8 +934,8 @@ test('SSP3 02.08.02.04 uses hardware-proven legacy PLC host frame; split format 
  assert.ok(fw.includes("$('plcHostFormat').value='legacy'"));
  assert.ok(!fw.includes("st.plcHostFormat='separate'"));
  assert.ok(html.includes('<option value="separate" disabled>'));
- assert.ok(html.includes('<script src="app.js?v=0.6.23"'));
- assert.ok(html.includes('guided.css?v=0.6.23'));
+ assert.ok(html.includes('<script src="app.js?v=0.6.24"'));
+ assert.ok(html.includes('guided.css?v=0.6.24'));
  const p=app.split('async function testSsp3PowerStartup(){')[1]?.split('async function connect(port){')[0];
  assert.ok(p.includes("if(st.firmware==='02.08.02.04')"));
  assert.ok(p.includes("st.plcHostFormat='legacy'"));
@@ -1020,4 +1020,34 @@ test('SSP3 PWR_ON and PLC T echoes recognised when concatenated without CR',()=>
  }
  assert.equal(P.ssp3StartupAcks('#PWR_ON 0c80 00c8 0000\r:').plc,false);
  assert.equal(P.ssp3StartupAcks('#PLC T\r:').power,false);
+});
+
+test('SSP3 auto startup retries documented Magic Cookie once only for missing PLC RX',()=>{
+ const app=read('app.js');
+ const startup=app.split('async function testSsp3PowerStartup(){')[1]?.split('async function connect(port){')[0];
+ assert.ok(startup);
+ assert.ok(startup.includes('await detect(); // First try the documented PLC P/T access'));
+ assert.ok(startup.includes("if(!/\\bPLC nothing received\\b/i.test(String(firstReadError.message||firstReadError)))"));
+ assert.ok(startup.includes("P.plcHostCommand(P.plcWrite(0xAC,0x2B42),st.plcHostFormat)"));
+ assert.ok(startup.includes("P.plcHostCommand(P.plcWrite(0x0E,0x5CFD),st.plcHostFormat)"));
+ assert.ok(startup.includes("const reply=await exchange(frame,2000)"));
+ assert.ok(startup.includes('await detect(); // This is the only success proof'));
+ assert.ok(startup.includes('st.magicResult.readVerified=true;'));
+ assert.ok(startup.includes('st.magicResult.verifiedUid=st.uid?.hex||null;'));
+ assert.ok(startup.includes('st.powerCycleResult.magicCookieUsed=true;'));
+ assert.ok(startup.includes('st.powerCycleResult.readVerified=true;'));
+ assert.ok(startup.includes('st.powerCycleResult.verifiedUid=st.uid?.hex||null;'));
+ assert.ok(startup.includes("if(st.closing||st.port!==port)"));
+ for(const forbidden of ['nvmWrite(', 'nvmProgram(', 'maintWrite(', 'port.open(', 'port.close('])assert.ok(!startup.includes(forbidden));
+ assert.ok(startup.indexOf('await exchangeSsp3StartupBurst()')<startup.indexOf('st.powerCycleResult.stage=\'magic-cookie-fallback\''));
+});
+test('Magic-Cookie auto startup retains protected NVM and does not touch other interfaces',()=>{
+ const app=read('app.js'),cal=read('calibration.js');
+ const connect=app.split('async function connect(port){')[1]?.split('async function disconnect()')[0];
+ assert.ok(connect.includes("st.adapterKind==='ssp3'&&st.iface==='plc'"));
+ assert.ok(connect.includes("await testSsp3PowerStartup()"));
+ assert.ok(!connect.includes('P.plcWrite(0xAC'));
+ assert.ok(cal.includes('for(const index of [17,18,19])'));
+ assert.ok(app.includes('CAL.protectStartupCommunication(initial,modified)'));
+ assert.ok(app.includes('st.powerCycleResult.verifiedUid===st.uid.hex'));
 });

@@ -1,3 +1,10 @@
+## v0.6.24 – 12.11.2026: Magic-Cookie-Freigabe im normalen SSP3-One-Wire-Verbindungsweg
+
+- Der Nutzer meldet erfolgreiche One-Wire-Chiperkennung nach manuell aktivierter Magic Cookie.
+- Nach dem automatischen SSP3-Start führt die App bei `!PLC nothing received` einmalig die zwei dokumentierten Magic-Cookie-PLC-Frames aus und prüft danach erneut die Sensorregister.
+- Fallback strikt auf fehlenden PLC-Empfang begrenzt; andere Fehler, Schreibschutz/NVM und geschützte PLC-Bootregister bleiben unangetastet.
+- Dokumentiert, ob die UID nach der Freigabe wirklich gelesen werden konnte. Normaler Verbindungsdialog benötigt keine Diagnoseaktionen.
+
 ## v0.6.23 – 12.11.2026: SSP3-Power-/PLC-Antworten ohne Zeilenumbrüche korrekt auswerten
 
 - Reales SSP3-Feedback `#PWR_ON ... :#PLC T :` zeigt, dass beide Startkommandos bestätigt wurden. Die bisherige strenge Zeilenprüfung lieferte fälschlich 1/2 Prompts.
