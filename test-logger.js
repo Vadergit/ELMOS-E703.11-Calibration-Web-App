@@ -27,7 +27,12 @@ const ELMOS_TEST_LOGGER=(()=>{
   const ms=remaining();
   if(ms==null||S.paused||!S.recordId||S.stopRequested)return;
   if(ms<=0){void stop('completed','duration');return}
-  S.durationTimer=setTimeout(()=>{S.durationTimer=null;void stop('completed','duration')},Math.ceil(ms));
+  // Browser timers are capped at 2^31-1 ms; re-arm instead of overflowing.
+  S.durationTimer=setTimeout(()=>{
+   S.durationTimer=null;
+   if(remaining()!=null&&remaining()>0){armDurationTimer();return}
+   void stop('completed','duration');
+  },Math.min(Math.ceil(ms),2147483647));
  }
  const render=()=>{
   if(!S.root)return;
