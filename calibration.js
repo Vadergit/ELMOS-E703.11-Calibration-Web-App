@@ -208,6 +208,10 @@ const ELMOS_CAL = (() => {
   cfg[28]=(cfg[28]&~0x7FF)|(afeWord&0x7FF); // only AFE gain/offset bits
   cfg[33]=r.so;cfg[34]=r.sf;for(let i=0;i<16;i++)cfg[35+i]=r.coeffs[i];
   if(r.tcoeffs){cfg[31]=r.to;cfg[32]=r.tf;for(let i=0;i<4;i++)cfg[51+i]=r.tcoeffs[i]}
+  if(opts.userId!==undefined){
+   if(!Number.isInteger(opts.userId)||opts.userId<0||opts.userId>0xFFFF)throw Error('USER-ID muss ein 16-Bit-Wert sein');
+   cfg[30]=opts.userId;
+  }
   cfg[63]=crc16(cfg);
   for(let i=0;i<=27;i++)if(cfg[i]!==original[i]&&![16,22,SVDD_INDEX].includes(i))throw Error('Sicherheitsfehler: schreibgeschützter NVM-Bereich verändert');
   if(cfg[16]!==original[16]&&(((cfg[16]^original[16])&~((7<<9)|(1<<6)))!==0))throw Error('CFG_EN: fremde Bits dürfen nicht verändert werden');

@@ -150,6 +150,7 @@ const ELMOS_GUIDED=(()=>{
   moveLabel('nvmAutoBackup','gwNvmBackup');
   moveId('nvmPrepare','gwNvmPrepare');moveId('nvmProgress','gwNvmPrepare');
   for(const id of ['nvmMsg','nvmUidHint','nvmWritePrereq'])moveId(id,'gwNvmMessages');
+  moveId('nvmUserIdField','gwNvmBackup');
   moveLabel('nvmConfirmId','gwNvmUID');moveId('nvmProgram','gwNvmWrite');
   moveId('nvmDiffDetails','gwNvmDetails');
   moveId('nvmRestartControls','gwPostBoot');

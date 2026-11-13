@@ -517,7 +517,7 @@ if(typeof document!=='undefined') (function UI(){
   if(!psscRecoveryProven())
    return 'Für die PSSC-RAM-Verbindung fehlt der bestätigte Neustart dieses Chips. Sensor neu initialisieren und erneut prüfen.';
   if(!initial||!modified)return '';
-  const calibrationWords=new Set([CAL.SVDD_INDEX,28,31,32,33,34,...Array.from({length:16},(_,i)=>35+i),51,52,53,54,63]);
+  const calibrationWords=new Set([CAL.SVDD_INDEX,28,30,31,32,33,34,...Array.from({length:16},(_,i)=>35+i),51,52,53,54,63]);
   if(restoring||outputOnly||modified.some((word,index)=>word!==initial[index]&&!calibrationWords.has(index)))
    return 'Nach PSSC-RAM-Freigabe lassen sich nur Kalibrierdaten speichern. Ausgangs- und Starteinstellungen müssen unverändert bleiben.';
   return '';
@@ -2450,6 +2450,12 @@ if(typeof document!=='undefined') (function UI(){
   }catch(e){st.calVerified=false;st.calImage=null;ca('calRamMsg','DSP-Verifikation: '+e.message,'error')}
   finally{if(isChecking)st.calTask=false;renderFlowState()}
  }
+ function requestedNvmUserId(){
+  const value=$('nvmUserId').value.trim();
+  if(!value)return undefined;
+  if(!/^(?:0x)?[0-9a-f]{1,4}$/i.test(value))throw Error('USER-ID: 1 bis 4 Hex-Ziffern eingeben, z. B. 00AF');
+  return Number.parseInt(value,16);
+ }
  async function readNvmBridgeSupply(expectedWord){
   const ram=await readReg(R_BRIDGE);
   const code=bridgeSupplyCode(ram);
@@ -2472,17 +2478,18 @@ if(typeof document!=='undefined') (function UI(){
    const recovery=st.psscRamRecovery||(st.regs[0x06]===0x6C04&&st.nvmBackup[17]!==0x6C04);
    const bridgeSupply=await readNvmBridgeSupply(st.afe0);
    const image=CAL.configFrom(st.nvmBackup,st.calfit,st.afe??0x800,{
-    output:recovery?null:st.expertOutputPlan,bridgeSupply
+    output:recovery?null:st.expertOutputPlan,bridgeSupply,userId:requestedNvmUserId()
    });
    if(st.adapterKind==='bridge'&&image.changes.some(c=>c.index===CAL.SVDD_INDEX))
     throw Error('Brückenspannung dauerhaft speichern wird derzeit nur mit SSP3 unterstützt.');
    const recoveryBlock=psscNvmBlock(image.before,image.after);
    if(recoveryBlock)throw Error(recoveryBlock);
-   if(image.changes.some(c=>(c.index<28&&![16,22,CAL.SVDD_INDEX].includes(c.index))||c.index===29||c.index===30))throw Error('Unzulässiges NVM-Register im Änderungsplan');
+   if(image.changes.some(c=>(c.index<28&&![16,22,CAL.SVDD_INDEX].includes(c.index))||c.index===29))throw Error('Unzulässiges NVM-Register im Änderungsplan');
    if(!image.changes.length)throw Error('Keine NVM-Änderungen nötig');
    st.calImage=image;
    $('nvmDiff').textContent=image.changes.map(c=>{
     const raw=`NVM 0x${h(c.address)} [${c.index}] 0x${h(c.from,2)} → 0x${h(c.to,2)}`;
+    if(c.index===30)return 'USER-ID · '+raw;
     if(c.index!==CAL.SVDD_INDEX)return raw;
     const voltages=['2,4 V','1,6 V','2,0 V','reserviert'];
     return 'Brückenspannung: '+voltages[bridgeSupplyCode(c.from)]+' → '+voltages[bridgeSupplyCode(c.to)]+' · '+raw;
@@ -2518,7 +2525,9 @@ if(typeof document!=='undefined') (function UI(){
     throw Error('1-Wire-Startschutz: Cookie-Start für die aktuelle Chip-UID nicht verifiziert. NVM-Schreiben gesperrt.');
    if(CAL.crc16(initial)!==initial[63]||CAL.crc16(modified)!==modified[63])throw Error('CRC16-Prüfung fehlgeschlagen');
    if(!restoring&&!outputOnly&&st.calfit.stats.maxDigits>100)throw Error('Fitfehler zu gross (>100 Digits)');
-   const allowedNormal=new Set([16,22,CAL.SVDD_INDEX,28,31,32,33,34,...Array.from({length:16},(_,i)=>35+i),51,52,53,54,57,58,63]);
+   if(!restoring&&!outputOnly&&modified[30]!==(requestedNvmUserId()??initial[30]))
+    throw Error('USER-ID wurde geändert. Änderungsliste erneut vorbereiten.');
+   const allowedNormal=new Set([16,22,CAL.SVDD_INDEX,28,30,31,32,33,34,...Array.from({length:16},(_,i)=>35+i),51,52,53,54,57,58,63]);
    if(st.calImage.changes.some(c=>restoring?(c.index<28||c.index>63):outputOnly?![16,22,57,58,63].includes(c.index):!allowedNormal.has(c.index)))throw Error('Unzulässige NVM-Änderung');
    if(restoring){
     for(let i=0;i<28;i++)if(modified[i]!==initial[i])throw Error('Factory-/Bootbereich weicht beim Restore ab');
@@ -2872,7 +2881,7 @@ if(typeof document!=='undefined') (function UI(){
  });
  $('plcStartupLogExport').addEventListener('click',()=>{
   const log={
-   tool:'ELMOS E703.11 – SSP3 Startdiagnose',version:'v0.6.57',at:new Date().toISOString(),
+   tool:'ELMOS E703.11 – SSP3 Startdiagnose',version:'v0.6.58',at:new Date().toISOString(),
    source:'Web-App (NICHT PSSC Originalsoftware)',interface:st.iface,adapter:st.adapterKind,
     plcAddress:'0x'+h(st.plcAddress),plcAddressVerified:st.plcAddressVerified,
     plcAddressSource:st.plcAddressSource,plcAddressProbes:st.plcAddressProbes,psscRamRecovery:!!st.psscRamRecovery,
@@ -3017,6 +3026,14 @@ if(typeof document!=='undefined') (function UI(){
  $('nvmAutoBackup').checked=true;
  $('nvmAutoBackup').addEventListener('change',renderFlowState);
  $('nvmConfirmId').addEventListener('input',renderFlowState);
+ $('nvmUserId').addEventListener('input',()=>{
+  if(st.calImage&&st.calImage!==st.restorePlan&&st.calImage!==st.outputOnlyPlan){
+   st.calImage=null;
+   $('nvmDiff').textContent='USER-ID geändert. Änderungsliste erneut vorbereiten.';
+   ca('nvmMsg','USER-ID geändert. NVM lesen und Änderungen erneut prüfen.','warn');
+  }
+  renderFlowState();
+ });
  $('nvmProgram').addEventListener('click',nvmProgram);
  $('nvmPostBoot').addEventListener('click',()=>postBootCheck());
  $('nvmRestart').addEventListener('click',()=>postBootCheck(true));

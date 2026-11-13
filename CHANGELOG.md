@@ -1,3 +1,7 @@
+## v0.6.58 – Eigene USER-ID
+
+- Im NVM-Schritt kann optional ein 16-Bit-Hexwert für das USER-Wort vorgemerkt und mit der Kalibrierung gespeichert werden. Die Änderungsliste zeigt den alten und neuen Wert.
+
 ## v0.6.57 – Hubwarnung und einzelne Prüfpunkte
 
 - Der AFE-Schritt warnt sichtbar bei einem beobachteten Hub unter 4’000 Digits.
