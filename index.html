@@ -470,8 +470,8 @@ html.compact-mode .foot{display:none}
 .sensor-reconnect button:hover:not(:disabled){background:#044d62;border-color:#044d62;color:#fff}
 .dot.missing{background:#bb7a17}
 @media(max-width:600px){.sensor-reconnect button{width:100%}}
-</style><link rel="stylesheet" href="guided.css?v=0.6.30"><link rel="stylesheet" href="interface.css?v=0.6.30"></head><body><div class="wrap"><header class="top">
-<div class="brand"><div class="logo" aria-hidden="true">E</div><div><div class="eyebrow">E703.11 · PSSC · v0.6.56</div><h1>Kalibrierassistent</h1></div></div>
+</style><link rel="stylesheet" href="guided.css?v=0.6.57"><link rel="stylesheet" href="interface.css?v=0.6.30"></head><body><div class="wrap"><header class="top">
+<div class="brand"><div class="logo" aria-hidden="true">E</div><div><div class="eyebrow">E703.11 · PSSC · v0.6.57</div><h1>Kalibrierassistent</h1></div></div>
 <div class="live-overview" role="group" aria-label="Sensorwerte · laufende Anzeige">
   <div class="live-kpi" title="Unkompensierter Druck-ADC. Warnung bei Beträgen über 25’000 Digits."><span class="live-kpi-label">ADC_S <span id="liveAdcAlert" class="live-alert" hidden>!</span></span><span class="live-kpi-reading" id="liveAdcS">—</span><span class="live-kpi-unit">Digits</span></div>
   <div class="live-kpi" title="ADC_T · Temperatur-Rohwert, keine direkte Temperatur in °C."><span class="live-kpi-label">ADC_T</span><span class="live-kpi-reading" id="liveAdcT">—</span><span class="live-kpi-unit">Digits</span></div>
@@ -858,19 +858,23 @@ html.compact-mode .foot{display:none}
 <div class="dsp-head"><strong>Aktueller kalibrierter Wert · live</strong><span class="dsp-mode" id="verifyDspMode">Warten auf Sensor</span></div>
 <div class="dsp-main"><span class="dsp-number" id="verifyDspValue">—</span><span class="dsp-unit" id="verifyDspUnit">%</span></div>
 <div class="dsp-sub"><span id="verifyDspRaw">DSP_S: — Digits</span> · <span id="verifyDspSeen">Noch keine DSP-Messung</span></div>
-<p class="muted small" style="margin-top:8px;margin-bottom:0">Der Live-Wert wird automatisch aktualisiert. Zum Verifizieren den tatsächlichen Referenzdruck eintragen und «Prüfwert aus DSP_S lesen» drücken. Die Live-Anzeige allein gibt NVM nicht frei.</p>
+<p class="muted small" style="margin-top:8px;margin-bottom:0">Der Live-Wert wird automatisch aktualisiert. Zum Verifizieren den tatsächlichen Referenzdruck eintragen und beim passenden Punkt auf «Punkt prüfen» klicken. Die Live-Anzeige allein gibt NVM nicht frei.</p>
 </div>
 <div class="fieldrow" style="margin-top:15px">
 <label>Anzahl Prüfpunkte (Standard: 1)<input type="number" id="calVerifyCount" min="1" max="10" step="1" value="1"></label>
 </div>
 <div id="calVerifyCoverage" class="callout warn">Ein Prüfpunkt ist standardmässig vorgesehen. Damit wird die DSP-Kalibrierung nur an einer Stelle geprüft, nicht über den gesamten Druckbereich. Für eine umfassendere Kontrolle mehrere Prüfpunkte einstellen.</div>
 <p class="muted small" id="calVerifyProgress">0 von 1 Prüfpunkten erfolgreich.</p>
-<div class="fieldrow" style="margin-top:15px">
-<label>Unabhängiger Prüfreferenzwert (<span data-cal-unit>bar</span>)<input type="number" id="calVerifyPressure" step="any" value="5"></label>
+<div class="fieldrow" id="calVerifyOptions">
 <label>Maximale Abweichung (<span data-cal-unit>bar</span>)<input type="number" id="calVerifyTolerance" step="any" min="0.001" value="0.05"></label>
-<label>Prüftemperatur (°C)<input id="calVerifyTemperature" type="number" min="-40" max="125" value="25"></label>
 </div>
-<div class="flex" style="margin-top:14px"><button class="primary" id="calVerifyRam">Prüfwert aus DSP_S lesen</button></div>
+<div id="calVerifyRows">
+<div class="verify-point fieldrow">
+<label>Prüfpunkt 1 (<span data-cal-unit>bar</span>)<input type="number" id="calVerifyPressure" step="any" value="5"></label>
+<label>Prüftemperatur (°C)<input id="calVerifyTemperature" type="number" min="-40" max="125" value="25"></label>
+<div><button type="button" class="primary" id="calVerifyRam">Punkt 1 prüfen</button><small class="verify-point-status" aria-live="polite"></small></div>
+</div>
+</div>
 <div id="calRamMsg" class="callout">Koeffizienten zuerst berechnen und ins RAM übertragen.</div>
 <pre id="calVerifyList" class="monoarea">Noch kein Prüfpunkt aufgenommen.</pre>
 <p class="muted small">Wenn die gewählte Anzahl an Prüfpunkten innerhalb der eingestellten Toleranz liegt, wird der abschliessende NVM-Schritt freigeschaltet. Bei aktiver Temperaturkompensation sind zusätzliche Temperaturprüfungen nötig. </p>
@@ -927,6 +931,7 @@ html.compact-mode .foot{display:none}
     </label>
     <label id="expertPwmPeriodField" hidden>PWM Period (2–65’535 Takte)<input id="expertPwmPeriod" type="number" min="2" max="65535" step="1" value="16384"></label>
   </div>
+  <p id="outputClippingHint" class="muted small">S0/S1 legen die Spannungen an den Kalibrier-Endpunkten fest. Separate obere und untere Clipping-Grenzen sind in dieser Version nicht einstellbar.</p>
   <p id="outputModeHint" class="muted small" role="status" aria-live="polite">Ausgangstyp wählen. Noch keine Änderung am Chip.</p>
   <div id="psscOneWireOnlyStatus" class="callout" hidden>One Wire only ist keine eigene AODO-Registerart. Zuerst das Original-NVM lesen; nur bei dauerhaft aktiviertem 1-Wire wird diese Auswahl bestätigt.</div>
   <div id="psscCurrentOutputStatus" class="callout">Aktuelle Chip-Ausgangseinstellungen können beim Verbinden ausgelesen werden. Die gewünschten Zielspannungen S0/S1 bleiben davon unabhängig.</div>
@@ -1073,5 +1078,5 @@ html.compact-mode .foot{display:none}
 </div>
 <div class="nav"><button data-next="0">Zur Verbindung</button><button data-next="6">Zum NVM-Schritt</button></div>
 </section>
-<div class="foot"><b>Version v0.6.56</b> · <a href="CHANGELOG.md" target="_blank" rel="noopener">Änderungsverlauf</a> · ELMOS E703.11 · unabhängiger Kalibrierprototyp · Sicherheitsprinzip: Factory- und Kommunikations-Bootregister gesperrt; dokumentierte AODO-Ausgangsoptionen nur nach Prüfung im NVM-Plan; Wiederherstellung nur mit passender Chip-UID.</div>
-</main></div></div><div id="tip" class="tooltip"></div><script src="calibration.js?v=0.6.49"></script><script src="eeprom-help.js?v=0.6.30"></script><script src="expert.js?v=0.6.30"></script><script src="config.js?v=0.6.36"></script><script src="guided-plan.js?v=0.6.30"></script><script src="demo.js?v=0.6.49"></script><script src="app.js?v=0.6.56"></script><script src="compact.js?v=0.6.30"></script><script src="guided.js?v=0.6.31"></script></body></html>
+<div class="foot"><b>Version v0.6.57</b> · <a href="CHANGELOG.md" target="_blank" rel="noopener">Änderungsverlauf</a> · ELMOS E703.11 · unabhängiger Kalibrierprototyp · Sicherheitsprinzip: Factory- und Kommunikations-Bootregister gesperrt; dokumentierte AODO-Ausgangsoptionen nur nach Prüfung im NVM-Plan; Wiederherstellung nur mit passender Chip-UID.</div>
+</main></div></div><div id="tip" class="tooltip"></div><script src="calibration.js?v=0.6.49"></script><script src="eeprom-help.js?v=0.6.30"></script><script src="expert.js?v=0.6.30"></script><script src="config.js?v=0.6.36"></script><script src="guided-plan.js?v=0.6.30"></script><script src="demo.js?v=0.6.49"></script><script src="app.js?v=0.6.57"></script><script src="compact.js?v=0.6.30"></script><script src="guided.js?v=0.6.57"></script></body></html>

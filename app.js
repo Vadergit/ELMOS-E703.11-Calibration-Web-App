@@ -468,8 +468,20 @@ if(typeof document!=='undefined') (function UI(){
   const count=verificationRequiredCount();
   return !!st.calVerified&&coefficientSettingsCurrent()&&!!st.calStaged&&calEndpointsReady()&&Number.isFinite(count)&&st.calValidation.length>=count
  }
+ function verificationRows(){return Array.from($('calVerifyRows').children)}
+ function renderVerificationRows(required){
+  verificationRows().forEach((row,slot)=>{
+   row.hidden=slot>=required||!Number.isFinite(required);
+   const result=st.calValidation.find(point=>point.slot===slot);
+   row.querySelector('.verify-point-status').textContent=result?
+    'Bestätigt · Δ '+result.errorBar.toFixed(4)+' '+pressureUnit():'Offen';
+   const busy=!!st.calTask||!!st.writing||!!st.nvmWorking;
+   row.querySelectorAll('button,input').forEach(control=>{control.disabled=busy});
+  });
+ }
  function updateVerificationProgress(){
   const required=verificationRequiredCount(),done=st.calValidation.length;
+  renderVerificationRows(required);
   if(!Number.isFinite(required)){
    $('calVerifyProgress').textContent='Bitte eine ganze Zahl zwischen 1 und 10 eingeben.';
    $('calVerifyCoverage').textContent='Ungültige Anzahl: Die NVM-Freigabe bleibt gesperrt.';
@@ -2388,18 +2400,24 @@ if(typeof document!=='undefined') (function UI(){
   }
   finally{if(st.calTask){await ramLock();st.ramWriteScope=null;st.calTask=false;st.writing=false}renderStatus();if(!st.manualLivePause&&st.chip&&!st.nvmWorking)startLive()}
  }
- async function verifyCalRam(){
+ async function verifyCalRam(slot=0){
   let isChecking=false;
   try{
    if(!st.calStaged||!coefficientSettingsCurrent()||!st.chip||st.calTask||st.writing)throw Error('Koeffizienten zuerst im RAM übernehmen / anderer Vorgang läuft');
    const required=verificationRequiredCount();
    if(!Number.isFinite(required))throw Error('Anzahl Prüfpunkte: Bitte eine ganze Zahl zwischen 1 und 10 eingeben');
-   const p=Number($('calVerifyPressure').value),pmin=Number($('pmin').value),pmax=Number($('pmax').value),tol=Number($('calVerifyTolerance').value);
+   if(slot>=required)throw Error('Prüfpunkt ist nicht ausgewählt');
+   const [pressure,temperature]=verificationRows()[slot].querySelectorAll('input');
+   const p=pressure.valueAsNumber,temp=temperature.valueAsNumber,pmin=Number($('pmin').value),pmax=Number($('pmax').value),tol=Number($('calVerifyTolerance').value);
    if(!Number.isFinite(p)||!(p>pmin&&p<pmax)||!Number.isFinite(tol)||tol<=0)throw Error('Prüfdruck innerhalb des Kalibrierbereichs und positive Toleranz eingeben');
+   if(!Number.isFinite(temp)||temp< -40||temp>125)throw Error('Prüftemperatur zwischen −40 und 125 °C eingeben');
+   if(st.calValidation.some(point=>point.slot!==slot&&Math.abs(point.pressure-p)<=(pmax-pmin)*0.10))
+    throw Error('Prüfdruck muss mehr als 10 % der Messspanne von bestätigten Prüfpunkten entfernt sein');
    st.calTask=true;isChecking=true;
+   renderVerificationRows(required);
    if(st.liveReadPromise)await st.liveReadPromise.catch(()=>{});
    const outputLimit=st.calfit.outputLimit??32000;
-   demoPort?.setReference(p,Number($('calVerifyTemperature').value));
+   demoPort?.setReference(p,temp);
    const got=P.sign16(await readReg(0x30)),target=2*outputLimit*(p-pmin)/(pmax-pmin)-outputLimit;
    updateDSP(got,'usb');
    const stat=await readReg(0x32),delta=got-target,errorBar=delta/(2*outputLimit)*(pmax-pmin);
@@ -2409,8 +2427,12 @@ if(typeof document!=='undefined') (function UI(){
     $('calVerifyList').textContent='Prüfung fehlgeschlagen. Bisherige Prüfpunkte verworfen; alle erneut prüfen.';
     throw Error(`DSP_S ${got}: Abweichung ${errorBar.toFixed(4)} ${pressureUnit()} über Toleranz ${tol} ${pressureUnit()}`)
    }
-   st.calValidation=st.calValidation.filter(x=>Math.abs(x.pressure-p)>(pmax-pmin)*0.10);
-   st.calValidation.push({pressure:p,actual:got,expected:target,errorBar,temperature:Number($('calVerifyTemperature').value),measuredTemp:P.sign16(await readReg(0x2E))});
+   const measuredTemp=P.sign16(await readReg(0x2E));
+   if(required!==verificationRequiredCount()||tol!==Number($('calVerifyTolerance').value))
+    throw Error('Prüfeinstellungen wurden während der Messung geändert');
+   st.calValidation=st.calValidation.filter(point=>point.slot!==slot);
+   st.calValidation.push({slot,pressure:p,actual:got,expected:target,errorBar,temperature:temp,measuredTemp});
+   st.calValidation.sort((a,b)=>a.slot-b.slot);
    const pointsReady=st.calValidation.length>=required;
    const temperatureValidation=st.calfit.orderT===0||(
     st.calValidation.length>=2
@@ -2419,7 +2441,7 @@ if(typeof document!=='undefined') (function UI(){
    );
    st.calVerified=pointsReady&&temperatureValidation;
    st.calImage=null; // Nach jeder neuen Prüfung muss der NVM-Plan neu erstellt werden.
-   $('calVerifyList').textContent=st.calValidation.map((v,i)=>(i+1)+'. '+v.pressure+' '+pressureUnit()+' · DSP_S '+v.actual+' · Abweichung '+v.errorBar.toFixed(5)+' '+pressureUnit()).join('\n');
+   $('calVerifyList').textContent=st.calValidation.map(v=>(v.slot+1)+'. '+v.pressure+' '+pressureUnit()+' · DSP_S '+v.actual+' · Abweichung '+v.errorBar.toFixed(5)+' '+pressureUnit()).join('\n');
    const remaining=Math.max(0,required-st.calValidation.length);
    const info=st.calVerified?
     (required===1?'Ein Prüfpunkt bestanden. NVM-Schritt freigegeben; der übrige Druckbereich wurde nicht verifiziert.':'Alle '+required+' Prüfpunkte bestanden. NVM-Schritt freigegeben.'):
@@ -2850,7 +2872,7 @@ if(typeof document!=='undefined') (function UI(){
  });
  $('plcStartupLogExport').addEventListener('click',()=>{
   const log={
-   tool:'ELMOS E703.11 – SSP3 Startdiagnose',version:'v0.6.56',at:new Date().toISOString(),
+   tool:'ELMOS E703.11 – SSP3 Startdiagnose',version:'v0.6.57',at:new Date().toISOString(),
    source:'Web-App (NICHT PSSC Originalsoftware)',interface:st.iface,adapter:st.adapterKind,
     plcAddress:'0x'+h(st.plcAddress),plcAddressVerified:st.plcAddressVerified,
     plcAddressSource:st.plcAddressSource,plcAddressProbes:st.plcAddressProbes,psscRamRecovery:!!st.psscRamRecovery,
@@ -2955,11 +2977,30 @@ if(typeof document!=='undefined') (function UI(){
  $('calPointClear').addEventListener('click',()=>{erasePoints();ca('calPointsMsg','Alle Kalibriermesspunkte verworfen.');});
  $('calCalculate').addEventListener('click',calcCoefficients);
  $('calApplyRam').addEventListener('click',applyCalRam);
- $('calVerifyRam').addEventListener('click',verifyCalRam);
- $('calVerifyCount').addEventListener('change',()=>{
+ const firstVerifyRow=$('calVerifyRows').firstElementChild;
+ for(let slot=1;slot<10;slot++){
+  const row=firstVerifyRow.cloneNode(true);
+  row.querySelectorAll('[id]').forEach(el=>el.removeAttribute('id'));
+  const unit=row.querySelector('[data-cal-unit]');
+  unit.previousSibling.textContent='Prüfpunkt '+(slot+1)+' (';
+  row.querySelector('input').value='';
+  row.querySelector('button').textContent='Punkt '+(slot+1)+' prüfen';
+  $('calVerifyRows').append(row);
+ }
+ verificationRows().forEach((row,slot)=>{
+  row.querySelector('button').addEventListener('click',()=>verifyCalRam(slot));
+  row.querySelectorAll('input').forEach(input=>input.addEventListener('input',()=>{
+   if(!st.calValidation.some(point=>point.slot===slot))return;
+   st.calValidation=st.calValidation.filter(point=>point.slot!==slot);
+   st.calVerified=false;st.calImage=null;
+   $('calVerifyList').textContent=st.calValidation.map(v=>(v.slot+1)+'. '+v.pressure+' '+pressureUnit()+' · DSP_S '+v.actual).join('\n')||'Noch kein Prüfpunkt aufgenommen.';
+   renderFlowState();
+  }));
+ });
+ for(const id of ['calVerifyCount','calVerifyTolerance'])$(id).addEventListener('input',()=>{
   st.calValidation=[];st.calVerified=false;st.calImage=null;
   $('calVerifyList').textContent='Noch kein Prüfpunkt aufgenommen.';
-  ca('calRamMsg','Anzahl Prüfpunkte geändert. Prüfungen zurückgesetzt; DSP_S erneut messen.','warn');
+  ca('calRamMsg','Prüfeinstellungen geändert. Punkte erneut prüfen.','warn');
   renderFlowState()
  });
  $('nvmBackupRead').addEventListener('click',nvmScan);

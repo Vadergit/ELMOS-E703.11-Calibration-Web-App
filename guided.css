@@ -227,3 +227,8 @@ html.guided-active #guidedWorkspace [hidden]{display:none!important}
  #guidedWorkspace .gw-finish-kpis{grid-template-columns:repeat(2,minmax(0,1fr))}
  #guidedWorkspace .gw-finish-number strong{font-size:49px}
 }
+
+.verify-point{align-items:end;margin-bottom:10px}
+.verify-point[hidden]{display:none}
+.verify-point-status{display:block;margin-top:4px}
+#guidedWorkspace #calVerifyRows{width:100%}

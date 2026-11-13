@@ -1,3 +1,8 @@
+## v0.6.57 – Hubwarnung und einzelne Prüfpunkte
+
+- Der AFE-Schritt warnt sichtbar bei einem beobachteten Hub unter 4’000 Digits.
+- Für jeden DSP-Prüfpunkt gibt es einen eigenen Referenzdruck, eine Prüftemperatur und eine Bestätigung.
+
 ## v0.6.56 – Automatischer Wiederanlauf für SSP3
 
 - Nach einem erfolgreichen manuellen RAM-Messstart merkt sich Chrome den Sensor anhand seiner Chip-ID. Beim erneuten Verbinden oder nach einem erkannten Sensorneustart prüft die App das RAM-Profil und startet die Messung erneut.

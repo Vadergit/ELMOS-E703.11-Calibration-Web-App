@@ -134,8 +134,8 @@ const ELMOS_GUIDED=(()=>{
   for(const id of ['calCalculate','calApplyRam'])moveId(id,'gwFitActions');
   for(const id of ['calFitMsg','calRamPrereq','calRamStageMsg'])moveId(id,'gwFitStatuses');
   move($('calCoeffList').closest('details'),'gwFitDetails');
-  for(const id of ['calVerifyCount','calVerifyPressure','calVerifyTolerance','calVerifyTemperature'])moveLabel(id,'gwVerifyFields');
-  moveId('calVerifyRam','gwVerifyActions');
+  for(const id of ['calVerifyCount','calVerifyTolerance'])moveLabel(id,'gwVerifyFields');
+  moveId('calVerifyRows','gwVerifyActions');
   for(const id of ['calVerifyCoverage','calVerifyProgress','calRamMsg'])moveId(id,'gwVerifyStatuses');
   moveId('calVerifyList','gwVerifyDetails');
   moveLabel('expertOutputMode','gwOutputFields');moveId('expertPwmPeriodField','gwOutputFields');
@@ -145,7 +145,7 @@ const ELMOS_GUIDED=(()=>{
   moveId('psscDefaultScaling','gwScalingActions');
   for(const id of ['expertScaleGain','expertScaleOffset'])moveLabel(id,'gwExpertOutputFields');
   for(const id of ['expertOutputPreset','expertOutputStage','outputNvmRead'])moveId(id,'gwOutputActions');
-  for(const id of ['outputModeHint','psscScalingPreview','expertOutputMsg','outputOneWireStatus','psscOneWireOnlyStatus'])moveId(id,'gwOutputStatuses');
+  for(const id of ['outputClippingHint','outputModeHint','psscScalingPreview','expertOutputMsg','outputOneWireStatus','psscOneWireOnlyStatus'])moveId(id,'gwOutputStatuses');
   moveId('psscCurrentOutputStatus','gwOutputRegisters');
   moveLabel('nvmAutoBackup','gwNvmBackup');
   moveId('nvmPrepare','gwNvmPrepare');moveId('nvmProgress','gwNvmPrepare');
@@ -397,9 +397,11 @@ const ELMOS_GUIDED=(()=>{
   }else if(stats.limitExceeded||Math.abs(t.adcS??0)>25000){
    quality.classList.add('is-warning');
    quality.textContent='Grenze ±25’000 Digits überschritten. PGA/Offset anpassen und den Messbereich erneut abfahren.';
-  }else if(stats.hub<4000){
-   quality.classList.add('is-neutral');
-   quality.textContent='Beobachteter Hub: '+measurementNumber(stats.hub)+' Digits. Für den Kalibrier-Fit sind mindestens 4’000 Digits über die aufgenommenen Referenzpunkte erforderlich.';
+  }else if(stats.count>=2&&stats.hub<4000){
+   quality.classList.add('is-warning');
+   quality.textContent='Signalhub zu klein: '+measurementNumber(stats.hub)+' von mindestens 4’000 Digits. Minimalen und maximalen Druck anlegen. Bleibt der Hub zu klein, PGA-Verstärkung erhöhen und erneut prüfen.';
+  }else if(stats.count<2){
+   quality.textContent='Warte auf weitere Messwerte für die Hubprüfung.';
   }else{
    quality.classList.add('is-good');
    quality.textContent='Im beobachteten Zeitraum innerhalb ±25’000 Digits. Hub '+measurementNumber(stats.hub)+' Digits bei '+stats.count+' Messwerten. Gesamten Druckbereich prüfen.';
