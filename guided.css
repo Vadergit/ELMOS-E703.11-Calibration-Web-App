@@ -30,6 +30,7 @@ html.guided-active body{background:#f5f7fb}
 .gw-page{flex:1;min-height:270px}
 .gw-columns{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:15px}
 .gw-columns.gw-three{grid-template-columns:repeat(3,minmax(0,1fr))}
+.gw-columns.gw-four{grid-template-columns:repeat(4,minmax(0,1fr))}
 .gw-tile{border:1px solid #dfe7f0;border-radius:13px;padding:18px;background:#fff;min-width:0}
 .gw-tile h3{font-size:14px;color:#264765;margin:0 0 8px}
 .gw-tile p{margin:4px 0 10px;font-size:12px;color:#687d91;line-height:1.55}
@@ -232,3 +233,32 @@ html.guided-active #guidedWorkspace [hidden]{display:none!important}
 .verify-point[hidden]{display:none}
 .verify-point-status{display:block;margin-top:4px}
 #guidedWorkspace #calVerifyRows{width:100%}
+
+/* Standalone guided test logger: original calibration wizard is not modified. */
+#guidedWorkspace.gw-logger-mode .gw-shell{grid-template-columns:minmax(0,1fr)}
+#guidedWorkspace.gw-logger-mode .gw-sidebar{display:none}
+#guidedWorkspace.gw-logger-mode .gw-main{padding:30px 36px}
+#guidedWorkspace .tl-lead{display:flex;flex-wrap:wrap;align-items:center;gap:13px;margin-bottom:17px}
+#guidedWorkspace .tl-lead strong{padding:6px 12px;border-radius:9px;background:#eaf3fc;color:#245d90}
+#guidedWorkspace .tl-lead span{color:#657e98;font-size:12px}
+#guidedWorkspace .tl-box{border:1px solid #dde8f3;border-radius:13px;padding:17px 19px;margin-bottom:13px;background:#fbfdff}
+#guidedWorkspace .tl-box[hidden]{display:none!important}
+#guidedWorkspace .tl-box h3{font-size:15px;margin:4px 0 12px;color:#284768}
+#guidedWorkspace .tl-box label{display:grid;gap:6px;margin:8px 0;font-size:12px;color:#475e76;font-weight:650}
+#guidedWorkspace .tl-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:7px 14px}
+#guidedWorkspace .tl-grid input,#guidedWorkspace .tl-grid select,#guidedWorkspace .tl-box textarea{width:100%;min-width:0;border:1px solid #c9d9e8;border-radius:8px;padding:10px 12px;font-size:13px;color:#25354a;background:#fff}
+#guidedWorkspace .tl-box textarea{resize:vertical}
+#guidedWorkspace .tl-box .tl-check{display:flex;align-items:center;gap:9px;margin:16px 0}
+#guidedWorkspace .tl-check input{width:auto}
+#guidedWorkspace .tl-note{font-size:12px;line-height:1.55;color:#526f89;background:#f0f6fd;padding:12px;border-radius:8px}
+#guidedWorkspace .tl-kpis{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:10px}
+#guidedWorkspace .tl-kpis>div{display:grid;gap:3px;padding:11px;background:#f0f5fa;border-radius:9px}
+#guidedWorkspace .tl-kpis small{font-size:10px;color:#6a7e94}
+#guidedWorkspace .tl-kpis strong{font-size:22px;color:#234667;word-break:break-word}
+#guidedWorkspace .tl-current{margin:14px 0;font-weight:650;color:#24496e}
+#guidedWorkspace .tl-actions{display:flex;gap:10px;flex-wrap:wrap;margin:14px 0}
+#guidedWorkspace .tl-reading{font-size:12px;color:#4f6882;border-bottom:1px solid #e3eaf3;padding:8px 0}
+#guidedWorkspace .tl-message{font-size:12px;line-height:1.6;padding:11px 14px;border-radius:9px;background:#edf4fb;color:#335a7a}
+#guidedWorkspace .tl-message.tl-error{background:#fff1f1;color:#a63c45}
+@media(max-width:1050px){.gw-columns.gw-four{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:720px){#guidedWorkspace .tl-grid{grid-template-columns:1fr}#guidedWorkspace .tl-kpis{grid-template-columns:repeat(2,minmax(0,1fr))}#guidedWorkspace.gw-logger-mode .gw-main{padding:18px 14px}}
