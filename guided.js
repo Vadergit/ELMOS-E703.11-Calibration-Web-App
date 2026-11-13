@@ -17,7 +17,7 @@ const ELMOS_GUIDED=(()=>{
   ['NVM','Sicher im Sensor speichern','Lies das komplette Original-NVM, prüfe die Änderungsliste und bestätige die Chip-UID.'],
   ['Fertig','Sensor abgeschlossen','Der Schreibvorgang wurde bestätigt. Für die Freigabe unbedingt einen echten Kaltstarttest durchführen.']
  ];
- let stage=0,task='calibration',root=null,original=[],mode=false,plan=null,signature=null;
+ let stage=0,task='calibration',root=null,original=[],mode=false,plan=null,signature=null,taskOpening=false;
  let selectedPoint=0,visited=new Set([0]),poll=null,pendingCapture=null,afeStatsStart=0,afeGainSignature='';
  const subscriptions=[];
  const subscribe=(el,type,handler)=>{el.addEventListener(type,handler);subscriptions.push({el,type,handler})};
@@ -157,7 +157,13 @@ const ELMOS_GUIDED=(()=>{
   moveLabel('nvmConfirmId','gwNvmUID');moveId('nvmProgram','gwNvmWrite');
   moveId('nvmDiffDetails','gwNvmDetails');
   moveId('nvmRestartControls','gwPostBoot');
-  document.querySelectorAll('[data-gw-task]').forEach(button=>button.addEventListener('click',()=>{task=button.dataset.gwTask;render()}));
+  document.querySelectorAll('[data-gw-task]').forEach(button=>button.addEventListener('click',async()=>{
+   if(taskOpening)return;
+   taskOpening=true;
+   task=button.dataset.gwTask;
+   render();
+   try{await next()}finally{taskOpening=false}
+  }));
   document.querySelectorAll('[data-gw-preset]').forEach(button=>button.addEventListener('click',()=>preset(button.dataset.gwPreset)));
   for(const id of ['gwPressureCount','gwTemperatureCount','gwSOrder','gwTOrder'])$(id).addEventListener('change',renderPlan);
   $('gwComplexity').addEventListener('change',()=>{
@@ -491,7 +497,10 @@ const ELMOS_GUIDED=(()=>{
   $('gwPrevious').disabled=stage===0;
   $('gwNext').hidden=loggerPage;
   $('gwNext').textContent=stage===8?'Abschluss prüfen':stage===9?'Fertig':'Weiter';
-  if(stage===0)document.querySelectorAll('[data-gw-task]').forEach(x=>x.setAttribute('aria-pressed',String(x.dataset.gwTask===task)));
+  if(stage===0)document.querySelectorAll('[data-gw-task]').forEach(x=>{
+   x.setAttribute('aria-pressed',String(x.dataset.gwTask===task));
+   x.disabled=taskOpening;
+  });
   if(stage===1)renderPlan();
   if(stage===2)renderPlan()
   if(stage===3){$('gwAfeChartHost').appendChild($('chart'));startAfeWindow()}
