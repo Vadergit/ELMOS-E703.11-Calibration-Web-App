@@ -76,7 +76,8 @@ test('dark theme covers guided, classic, compact, archive, logger and warning UI
  assert.doesNotMatch(theme,/linear-gradient|radial-gradient/i);
 });
 function lum(color){
- const numbers=color.slice(1).match(/.{2}/g).map(hex=>parseInt(hex,16)/255);
+ const hex=color.length===4?'#'+[...color.slice(1)].map(x=>x+x).join(''):color;
+ const numbers=hex.slice(1).match(/.{2}/g).map(x=>parseInt(x,16)/255);
  return numbers.reduce((acc,v,i)=>acc+[0.2126,0.7152,0.0722][i]*
  (v<=0.04045?v/12.92:((v+0.055)/1.055)**2.4),0);
 }
