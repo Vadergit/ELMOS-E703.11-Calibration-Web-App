@@ -42,25 +42,33 @@ const ELMOS_TEST_LOGGER_CORE=(()=>{
   return {nextAt,skipped,waitMs:Math.max(0,nextAt-now)};
  }
  function csvRows(points){
-  const cols=['index','scheduledAt','startedAt','endedAt','durationMs','lagMs','skippedIntervals',
-   'samplesCount','aggregation','adcS','adcT','adcTC','dspS','dspT','statusSync',
-   'configuredVdd','measuredVdd','note'];
+  const cols=['kind','pointIndex','sampleIndex','sampleAt','scheduledAt','startedAt','endedAt',
+   'durationMs','lagMs','skippedIntervals','sampleCount','aggregation',
+   ...FIELDS,'configuredVdd','measuredVdd'];
   const quote=x=>{
    let s=x==null?'':typeof x==='object'?JSON.stringify(x):String(x);
-   // prevent spreadsheet formula interpretation in exported user text
-   if(/^[\s]*[=+\-@]/.test(s)&&!/^-\d+(\.\d+)?$/.test(s))s="'"+s;
+   // Prevent formula execution if CSV data are opened in a spreadsheet.
+   if(/^[\s]*[=+\-@]/.test(s)&&!/^-\d+(\.\d+)?(?:e[+-]?\d+)?$/i.test(s))s="'"+s;
    return '"'+s.replace(/"/g,'""')+'"';
   };
-  const arr=points.map(p=>{
-   const sample=p.aggregated?.channels||{};
-   const plain=p.aggregation==='none'&&p.samples?.length===1?p.samples[0]:sample;
-   return [p.index,p.scheduledAt,p.startedAt,p.endedAt,p.durationMs,p.lagMs,
-    p.skippedIntervals,p.samples?.length,p.aggregation,
-    ...FIELDS.map(k=>plain?.[k]??null),
-    p.supply?.externalVdd?.configuredV??null,p.supply?.externalVdd?.measuredV??null,p.note??null];
-  });
-  return [cols.map(quote).join(','),...arr.map(row=>row.map(quote).join(','))].join('\n');
+  const rows=[cols.map(quote).join(',')];
+  for(const p of points){
+   const common=[p.index,null,null,p.scheduledAt,p.startedAt,p.endedAt,p.durationMs,
+    p.lagMs,p.skippedIntervals,p.samples?.length,p.aggregation];
+   const voltage=[p.supply?.externalVdd?.configuredV??null,p.supply?.externalVdd?.measuredV??null];
+   if(p.aggregation!=='none'){
+    rows.push(['aggregate',p.index,null,null,...common.slice(3),
+     ...FIELDS.map(k=>p.aggregated?.channels?.[k]??null),...voltage].map(quote).join(','));
+   }
+   for(let i=0;i<(p.samples?.length||0);i++){
+    const sample=p.samples[i];
+    rows.push(['raw',p.index,i+1,sample.at,...common.slice(3),
+     ...FIELDS.map(k=>sample[k]??null),...voltage].map(quote).join(','));
+   }
+  }
+  return rows.join('\n');
  }
+
  return {FIELDS,settings,aggregate,scheduleNext,csvRows};
 })();
 if(typeof module!=='undefined'&&module.exports)module.exports=ELMOS_TEST_LOGGER_CORE;
