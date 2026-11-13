@@ -65,7 +65,7 @@ test('guided workflow exposes the fourth logging choice and protects existing wi
  assert.match(guided,/ELMOS_TEST_LOGGER\?\.mount/);
  assert.match(guided,/ELMOS_TEST_LOGGER\?\.isBusy/);
  assert.match(html,/test-logger-core\.js\?v=0\.7\.3/);
- assert.match(html,/test-logger\.js\?v=0\.7\.3/);
+ assert.match(html,/test-logger\.js\?v=0\.7\.4/);
  assert.match(app,/startTelemetry:archiveStartTelemetry,stopTelemetry:archiveStopTelemetry/);
  assert.match(app,/st\.testLogging&&/);
  assert.match(app,/readOptional\(0x2A\)/);
