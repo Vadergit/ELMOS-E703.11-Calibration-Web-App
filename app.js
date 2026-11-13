@@ -2556,7 +2556,8 @@ if(typeof document!=='undefined') (function UI(){
     const expected=CAL.prepareOutputConfig(initial,st.expertOutputPlan,outputOnly?st.outputOnlyPlan.limit:st.calfit.outputLimit);
     for(const i of [16,22,57,58])if(modified[i]!==expected[i])throw Error('Ausgangsregister entspricht nicht dem geprüften Vorschlag');
    }
-   if(!window.ELMOS_ARCHIVE?.active)throw Error('Für das NVM-Schreiben zuerst Archiv & Nachmessung öffnen und den Abgleich protokollieren. Danach die NVM-Änderungsliste erneut vorbereiten.');
+   if(!window.ELMOS_ARCHIVE?.active||!['calibration','output'].includes(window.ELMOS_ARCHIVE.current?.type))
+    throw Error('Für das NVM-Schreiben zuerst ein Kalibrier- oder Ausgangsprotokoll im Archiv starten. Danach die NVM-Änderungsliste erneut vorbereiten.');
    await window.ELMOS_ARCHIVE?.event('nvm_before',{uid:id,words:initial,plannedWords:modified,changes:st.calImage.changes,supply:archiveVoltages()});
    const saveOldNvm=$('nvmAutoBackup').checked;
    // Backup and export belong to this final explicitly confirmed action, not to the preview.
