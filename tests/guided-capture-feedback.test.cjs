@@ -56,7 +56,7 @@ test('first captured point stays visible with ADC values while second point beco
  assert.equal(h.$('gwCapturedSummary').hidden,true);
  h.logic.observeCapture();
  h.store({kind:'lo',at:'2026-11-13T18:00:00.000Z',
-  pressure:0,temperature:25,adc_s:1234,adc_t:456,sampleCount:5});
+  pressure:0.2,temperature:26,adc_s:1234,adc_t:456,sampleCount:5});
  h.tick();
  assert.equal(h.logic.getSelected(),1);
  assert.equal(h.$('gwPointConfirmation').hidden,false);
@@ -64,6 +64,7 @@ test('first captured point stays visible with ADC values while second point beco
  assert.match(h.$('gwPointConfirmation').textContent,/Als Nächstes folgt Messpunkt 2/);
  assert.equal(h.$('gwCapturedSummary').hidden,false);
  assert.match(h.$('gwCapturedList').textContent,/✓ Messpunkt 1 aufgenommen/);
+ assert.match(h.$('gwCapturedList').textContent,/0.2 bar · 26 °C/);
  assert.match(h.$('gwCapturedList').textContent,/ADC_S.*234 Digits/);
  assert.match(h.$('gwCapturedList').textContent,/ADC_T 456 Digits/);
  assert.match(h.$('gwCapturedList').textContent,/5 Einzelmessungen/);
