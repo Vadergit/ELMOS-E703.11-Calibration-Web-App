@@ -136,3 +136,16 @@ test('append-only test log rotates, retains third-party files and exports comple
  const csv=C.csvRows(rows).split('\n');
  assert.equal(csv.length,1+103*3);
 });
+
+test('DUT product name is captured and included in a full CSV export',()=>{
+ const ui=read('test-logger.js'),archive=read('archive.js');
+ assert.match(ui,/id="tlDutName"/);
+ assert.match(ui,/name,dutName,description/);
+ assert.match(archive,/dutName:record\.testConfiguration\?\.dutName/);
+ const data=C.csvRows([{
+  index:1,aggregation:'none',samples:[{at:'2026-11-13T17:00:00Z',adcS:123}]
+ }],{name:'Drucktest',dutName:'560/RevB',chipUID:'0020011DBBE7'});
+ assert.match(data,/dutName/);
+ assert.match(data,/560\/RevB/);
+ assert.match(data,/0020011DBBE7/);
+});
