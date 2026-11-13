@@ -389,9 +389,12 @@ const ELMOS_ARCHIVE=(()=>{
   '<label>Drucktoleranz (Einheit des Sensors)<input id="arToleranceP" type="number" min="0" step="any" value="0.1"></label>'+
   '<label>Temperaturtoleranz (°C, vorerst nur protokolliert)<input id="arToleranceT" type="number" min="0" step="any" value="1"></label>'+
   '<label>Samples pro Versuch<input id="arSamples" type="number" min="1" max="100" value="12"></label></div>'+
+  '<label class="ar-check"><input id="arPressureScaleConfirmed" type="checkbox"> Druck-Anzeigebereich und DSP-Skalierung für diesen Sensor geprüft (erst dann Drucktoleranz bewerten)</label>'+
+  '<label class="ar-check"><input id="arTempConversionConfirmed" type="checkbox"> Temperaturumrechnung DSP_T → °C extern geprüft und freigeben</label>'+
+  '<div class="ar-grid"><label>DSP_T-Skalierung (Digits / °C)<input id="arTempScale" type="number" step="any" value="387.88"></label><label>DSP_T-Offset (Digits)<input id="arTempOffset" type="number" step="any" value="-16485"></label></div>'+
   '<label class="ar-check"><input id="arStable" type="checkbox"> Druck und Temperatur stabil – Messung freigeben</label>'+
-  '<div class="ar-buttons"><button id="arMeasure" class="primary">Messung aufnehmen / wiederholen</button><button id="arNext">Nächster Punkt</button></div>'+
-  '<p id="arAttemptNote"></p><p class="ar-muted">Temperatur-Rohkanäle ADC_T, ADC_TC und DSP_T werden erfasst; eine nicht validierte Grad-Celsius-Umrechnung wird nicht als bestandene Prüfung ausgewiesen.</p></div>'+
+  '<div class="ar-buttons"><button id="arMeasure" class="primary">Messung aufnehmen / wiederholen</button><button id="arPrevious">Vorheriger Punkt</button><button id="arNext">Nächster Punkt</button></div>'+
+  '<p id="arAttemptNote"></p><p class="ar-muted">ADC_T, ADC_TC und DSP_T werden immer als Rohwerte erfasst. Die voreingestellten Temperaturkoeffizienten sind nur Vorschlagswerte aus bisherigen Tests und müssen vor einer Toleranzbewertung unabhängig geprüft werden.</p></div>'+
   '<div class="ar-buttons"><button id="arEndVerification" hidden>Nachmessung abschliessen</button><button id="arEndCalibration">Vorgang abschliessen</button><button id="arAbort">Abbrechen und archivieren</button><button id="arSaveCurrent">Zwischenstand speichern</button></div></div>'+
   '<div id="arPlanner" class="ar-planner"><h3>Neuen Prüfablauf planen</h3><div class="ar-grid">'+
   '<label>Prüfart<select id="arMode"><option value="combined">Druck × Temperatur</option><option value="pressure">Druckrampe</option><option value="temperature">Temperaturrampe</option></select></label>'+
@@ -420,9 +423,13 @@ const ELMOS_ARCHIVE=(()=>{
   $('archiveStartCalibration').addEventListener('click',()=>ensureCalibration().then(()=>note('Kalibrierprotokoll gestartet. Jetzt wie gewohnt abgleichen.')).catch(e=>note(e.message,true)));
   $('arStart').addEventListener('click',()=>startVerification().catch(e=>note(e.message,true)));
   $('arMeasure').addEventListener('click',()=>measure());
-  $('arNext').addEventListener('click',advance);
+  $('arNext').addEventListener('click',()=>advance().catch(e=>note(e.message,true)));
+  $('arPrevious').addEventListener('click',previous);
   $('arEndVerification').addEventListener('click',()=>endVerification().catch(e=>note(e.message,true)));
-  $('arEndCalibration').addEventListener('click',()=>finalise('incomplete').then(()=>note('Vorgang als unvollständig archiviert.')).catch(e=>note(e.message,true)));
+  $('arEndCalibration').addEventListener('click',()=>{
+   const m=bridge()?.meta?.(),complete=!!(m?.nvmDone&&m?.calVerified);
+   finalise(complete?'completed':'incomplete').then(()=>note('Kalibrierprotokoll archiviert: '+(complete?'NVM geschrieben':'unvollständig')+'.')).catch(e=>note(e.message,true));
+  });
   $('arAbort').addEventListener('click',()=>finalise('aborted').catch(e=>note(e.message,true)));
   $('arSaveCurrent').addEventListener('click',()=>flush().then(()=>note('Zwischenstand gespeichert.')).catch(e=>note(e.message,true)));
   $('arMode').addEventListener('change',()=>{modeUI();preview()});
