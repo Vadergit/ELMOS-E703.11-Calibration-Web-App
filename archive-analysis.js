@@ -43,14 +43,22 @@ const ELMOS_ARCHIVE_ANALYSIS=(()=>{
   const failedAttempts=attempts.filter(e=>(e.data?.pass??e.pass)===false).length;
   const telemetry=record.telemetry||{};
   const isLog=record.type==='testlog';
+  const chipRegister=record.initial?.ram?.words?.['0x38']??record.final?.ram?.words?.['0x38'];
+  const chipVersionRegister=Number.isInteger(chipRegister)&&chipRegister>=0&&chipRegister<=65535?
+   '0x'+chipRegister.toString(16).padStart(4,'0').toUpperCase():null;
   const summary={
    id:record.id,type:record.type,title:isLog?(record.testConfiguration?.name||'Unbenannter Sensortest'):
     (descriptors[record.type]||record.type),
    status:record.status||'running',startedAt:record.startedAt,endedAt:record.endedAt,
    chipUID:record.chipUID||null,userID:record.customUID||record.initial?.configuredUserId||null,
-   board:record.equipment?.adapter||null,firmware:record.equipment?.firmware||null,
+   board:record.equipment?.adapter||null,
+   // Legacy equipment.firmware is the SSP3/USB bridge firmware from the adapter .VERSION handshake.
+   // It is NOT an E703.11 sensor firmware version.
+   adapterFirmware:record.equipment?.adapterFirmware||record.equipment?.firmware||null,
+   chipVersionRegister,
    appVersion:record.software?.version||null,description:record.testConfiguration?.description||null,
    category:record.testConfiguration?.category||null,operator:record.testConfiguration?.operator||null,
+   dutName:record.testConfiguration?.dutName||record.dutName||null,
    durationMs:number(durationMs)&&durationMs>=0?durationMs:null,
    measurementPoints:isLog?telemetry.groups||0:attempts.length,
    rawSamples:isLog?telemetry.individualSamples||0:events.reduce((n,e)=>n+

@@ -66,15 +66,36 @@ test('two-file comparison shows differences on actual samples and NVM words',()=
 });
 test('the two views and visual comparison remain separate from physical measurement changes',()=>{
  const archive=read('archive.js'),html=read('index.html'),guided=read('guided.js');
- assert.match(html,/archive-analysis\.js\?v=0\.7\.3/);
+ assert.match(html,/archive-analysis\.js\?v=0\.7\.4/);
  assert.match(archive,/id="archiveOverview"/);
  assert.match(archive,/ar-compare-cols/);
  assert.match(archive,/async function renderDetails/);
  assert.match(archive,/async function compare/);
  assert.match(archive,/ANALYSIS\.compare\(a,b,ar,br\)/);
- assert.match(html,/data-app-version="0\.7\.3"/);
+ assert.match(html,/data-app-version="0\.7\.4"/);
  assert.match(guided,/data-gw-task="testlog"/);
  assert.match(guided,/await next\(\)/);
  assert.match(guided,/if\(taskOpening\)return/);
  assert.match(guided,/if\(task==='inspect'\)/);
+});
+
+test('DUT name is visible and legacy SSP3 firmware is never labelled as sensor firmware',()=>{
+ const r=record();
+ r.testConfiguration.dutName='Huba 560 · Versuchsaufbau 2';
+ r.equipment.firmware='02.08.02.04';
+ r.initial.ram={words:{'0x38':0x0020}};
+ const a=A.overview(r);
+ assert.equal(a.dutName,'Huba 560 · Versuchsaufbau 2');
+ assert.equal(a.adapterFirmware,'02.08.02.04');
+ assert.equal(a.chipVersionRegister,'0x0020');
+ assert.equal(a.firmware,undefined);
+ const old=record();
+ old.initial.ram={words:{}};
+ assert.equal(A.overview(old).chipVersionRegister,null);
+ assert.equal(A.overview(old).dutName,null);
+ const archive=read('archive.js'),html=read('index.html');
+ assert.match(archive,/Produkt \/ DUT/);
+ assert.match(archive,/Adapter-Firmware/);
+ assert.match(archive,/id="archiveMeasuredVdd"/);
+ assert.match(html,/\.ar-data-grid\{grid-template-columns:repeat\(4/);
 });

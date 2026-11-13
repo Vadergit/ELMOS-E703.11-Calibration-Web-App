@@ -1,3 +1,10 @@
+## v0.7.4 – DUT, kompakter Logviewer und Adapter-Firmware richtig benannt
+
+- Im Test-Logging separate, optionale Produkt-/DUT-Bezeichnung; im JSON, Archiv, Suche, Vergleich und CSV-Export enthalten.
+- Kompaktere Archivwerkzeuge, Kennzahlen und Geräteinfos. Optionale VDD-Istspannung aufklappbar.
+- Die bisher als «Firmware» bezeichnete Version `02.08.02.04` wird korrekt als SSP3-Adapter-Firmware ausgewiesen; Chip-Versionsregister `0x38` separat und nur bei auslesbarem Wert.
+- Frühere Archivdateien bleiben kompatibel.
+
 ## v0.7.3 – Aufgabenkacheln direkt öffnen und Archiv-Logviewer neu gestalten
 
 - Ein Klick auf die Aufgabenkachel im geführten Einstieg führt direkt in den gewählten Ablauf, weiterhin mit Sensor- und Archivprüfung.

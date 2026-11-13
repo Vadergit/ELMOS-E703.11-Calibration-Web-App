@@ -1,6 +1,6 @@
 # ELMOS E703.11 – Test / Logging
 
-**Ab v0.7.2 · Benutzeranleitung (Laborprototyp)**
+**Ab v0.7.4 · Benutzeranleitung (Laborprototyp)**
 
 Das **Test / Logging** findest du auf zwei Wegen: in der **klassischen Ansicht als eigenen Reiter direkt unter «EEPROM Viewer»** und im geführten Assistenten auf der ersten Seite als **vierte Kachel**. Beide Wege öffnen denselben Logger, dessen Eingaben beim Wechsel erhalten bleiben. Damit können beliebige sensorbezogene Versuche protokolliert werden, ohne einen neuen Abgleich oder einen NVM-Schreibvorgang auszulösen.
 
@@ -8,7 +8,7 @@ Das **Test / Logging** findest du auf zwei Wegen: in der **klassischen Ansicht a
 
 1. Sensor über das SSP3-Board bzw. einen tatsächlich unterstützten Adapter verbinden.
 2. Auf **Geführt** und bei «Was möchtest du machen?» auf **Test / Logging** klicken, dann **Weiter**.
-3. **Testname** eingeben; optional **Kategorie**, **Operator**, **Beschreibung des Testaufbaus**, gemessene **VDD-Istspannung** mit Messquelle.
+3. **Testname** eingeben; optional die neue **Produkt / DUT-Bezeichnung**, **Kategorie**, **Operator**, **Beschreibung des Testaufbaus**, gemessene **VDD-Istspannung** mit Messquelle.
 4. Das Intervall, die Aufnahmeart und optional die **Testdauer** einstellen (siehe unten).
 5. **Aufzeichnung starten** drücken und einen lokalen Archivordner auswählen bzw. freigeben. Der Start erfasst zunächst die verfügbaren RAM- und NVM-Daten. Nicht lesbare Informationen werden als Fehler/fehlend gekennzeichnet.
 6. Die Aufzeichnung beginnt. Bei Bedarf **Pause**, **Einzelaufnahme**, **Marker mit Zeitstempel** oder **Referenzdruck/-temperatur übernehmen** verwenden.
@@ -41,7 +41,7 @@ Status-Bitfelder sind keine analogen Messgrössen und werden **nicht gemittelt**
 - Chip-UID und USER-/Custom-ID, Zeitstempel, Prüf-ID
 - Web-App-Version, Browser, Adaptertyp (SSP3/ESP32-Bridge, soweit tatsächlich verbunden), Firmware und Kommunikationsart
 - Sensor-RAM und -NVM zu Beginn/Ende, soweit über den bestehenden sicheren Leseweg verfügbar
-- Name, Beschreibung, Kategorie und Operator
+- Testname, separate Produkt-/DUT-Bezeichnung, Beschreibung, Kategorie und Operator
 - Intervall, Gruppengrösse, Einzelmessabstand, Aggregationsart und Debug-Modus
 - Manuell erfasste VDD-Istspannung und Messgerät/Quelle getrennt von der eingestellten VDD, nominalen SVDD und den Ausgangs-Sollwerten
 
@@ -63,7 +63,7 @@ Die App misst die wirkliche externe Spannung **nicht selbst**, wenn der Adapter 
 
 Für jede Aufzeichnung entsteht eine Metadatendatei mit der Endung `.json`, die über UID, Testname, Datum, Kategorie, Adapter und Softwareversion suchbar ist. Die fortlaufende Telemetrie wird im selben freigegebenen Ordner in `.samples.jsonl`-Teildateien mit maximal 100 Messpunkten pro Teil aufbewahrt. Alle Dateien dieses Tests haben dieselbe Vorgangs-ID.
 
-Beim **JSON-Export** werden die Metadaten und alle Einzelmessungen zu einem vollständigen JSON zusammengefasst. Beim **CSV-Export** erhalten Rohsamples je eine eigene Zeile; bei aktivierter Mittelung gibt es zusätzlich eine Aggregate-Zeile pro Messpunkt. Dadurch bleiben Rohdaten auch im CSV überprüfbar. Für den CSV-Export eignet sich Excel oder eine andere Tabellenkalkulation.
+Beim **JSON-Export** werden die Metadaten und alle Einzelmessungen zu einem vollständigen JSON zusammengefasst. Beim **CSV-Export** werden Testname, Produkt-/DUT-Bezeichnung und Chip-UID jeder Zeile zugeordnet. Rohsamples je eine eigene Zeile; bei aktivierter Mittelung gibt es zusätzlich eine Aggregate-Zeile pro Messpunkt. Dadurch bleiben Rohdaten auch im CSV überprüfbar. Für den CSV-Export eignet sich Excel oder eine andere Tabellenkalkulation.
 
 Die Dateien werden **lokal** gespeichert. Die Webseite sendet sie nicht automatisch an GitHub oder einen anderen Online-Dienst. Der Archivordner darf andere Dateien enthalten – diese werden nicht als Tests eingelesen oder verändert.
 
@@ -79,3 +79,7 @@ Die Dateien werden **lokal** gespeichert. Die Webseite sendet sie nicht automati
 - Die Rohdaten sind Nachweise für beobachtete Werte, aber ohne geeichte Referenzgeräte und validierte Kennlinie **keine automatische Kalibrierfreigabe**.
 
 Zurück zu [Archiv & Nachmessung](ARCHIV_NACHMESSUNG.md) oder zur [Web-App](https://vadergit.github.io/ELMOS-E703.11-Calibration-Web-App/).
+
+## Firmware-Angabe richtig verstehen (v0.7.4)
+
+Die Zahl `02.08.02.04` stammt aus der SSP3-Adapterantwort auf `.VERSION` und beschreibt **die Firmware des SSP3-Boards** – nicht eine Sensorfirmware. Im Archiv heisst das Feld deshalb **Adapter-Firmware**. Falls das E703.11-Register `0x38` erfolgreich gelesen wurde, wird sein Wert als **Chip-Version (Reg. 0x38)** angezeigt; daraus wird keine Firmwareversion des Sensors erfunden. Ältere Protokolle werden ebenfalls korrekt beschriftet.

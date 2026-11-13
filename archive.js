@@ -254,7 +254,9 @@ const ELMOS_ARCHIVE=(()=>{
   if(record.type==='testlog'){
    const rows=await streamRows(record);
    if(format==='csv'){
-    data=window.ELMOS_TEST_LOGGER_CORE.csvRows(rows);mime='text/csv;charset=utf-8';
+    data=window.ELMOS_TEST_LOGGER_CORE.csvRows(rows,{
+     name:record.testConfiguration?.name,dutName:record.testConfiguration?.dutName,chipUID:record.chipUID
+    });mime='text/csv;charset=utf-8';
     name=C.filename(record).replace(/\.json$/i,'.csv');
    }else{
     data=JSON.stringify({...record,telemetryPoints:rows},null,2);
@@ -285,13 +287,16 @@ const ELMOS_ARCHIVE=(()=>{
    S.resultsCache.clear();
    S.selection=S.selection.filter(id=>S.records.some(r=>r.id===id));
    renderList();
-   note(all.length+' gültige Prüfprotokolle geladen'+(corrupt?' · '+corrupt+' ungültige ELMOS-Dateien prüfen':'')+'.');
+   note(all.length+' gültige'+(all.length===1?'s Prüfprotokoll':' Prüfprotokolle')+' geladen'+
+    (corrupt?' · '+corrupt+' ungültige ELMOS-Dateien prüfen':'')+'.');
   }catch(e){note('Archiv nicht lesbar: '+e.message,true)}
  }
  function readable(r){
   return [r.chipUID,r.customUID,r.initial?.configuredUserId,r.final?.configuredUserId,
-   r.type,r.status,r.startedAt,r.equipment?.adapter,r.equipment?.firmware,
-   r.software?.version,r.testConfiguration?.name,r.testConfiguration?.description,
+   r.type,r.status,r.startedAt,r.equipment?.adapter,r.equipment?.adapterFirmware,
+   r.equipment?.firmware,
+   r.software?.version,r.testConfiguration?.name,r.testConfiguration?.dutName,
+   r.testConfiguration?.description,
    r.testConfiguration?.category,r.testConfiguration?.operator,r.id].filter(Boolean).join(' ').toLowerCase();
  }
  const num=(v,d=2)=>Number.isFinite(v)?v.toLocaleString('de-CH',{maximumFractionDigits:d}):'–';
@@ -314,8 +319,10 @@ const ELMOS_ARCHIVE=(()=>{
  function facts(summary){
   const box=el('div',null,'ar-data-grid');
   const info=[
+   ...(summary.dutName?[['Produkt / DUT',summary.dutName]]:[]),
    ['Chip-UID',summary.chipUID],['USER-ID',summary.userID],
-   ['Board',summary.board],['Firmware',summary.firmware],
+   ['Adapter / Board',summary.board],['Adapter-Firmware',summary.adapterFirmware],
+   ['E703.11 Chip-Version (Reg. 0x38)',summary.chipVersionRegister],
    ['Web-App',summary.appVersion],['Start',when(summary.startedAt)],
    ['Ende',when(summary.endedAt)],['Dauer',time(summary.durationMs)]];
   for(const [key,val] of info){
@@ -378,6 +385,7 @@ const ELMOS_ARCHIVE=(()=>{
    title.append(checkbox,main,status);
    const detail=el('div',null,'ar-file-meta');
    detail.append(el('span',info.chipUID||'UID nicht verfügbar'),
+    ...(info.dutName?[el('span','DUT: '+info.dutName)]:[]),
     el('span',info.board||'Board unbekannt'),el('span','Web '+(info.appVersion||'?')));
    const quick=el('div',null,'ar-file-quick');
    quick.append(el('span',info.measurementPoints+' Punkte'),
@@ -482,7 +490,9 @@ const ELMOS_ARCHIVE=(()=>{
   root.replaceChildren();
   const top=el('div',null,'ar-detail-title');
   const heading=el('div');heading.append(el('small',info.typeLabel,'ar-overline'),
-   el('h2',info.title),el('p',info.description||info.chipUID||'–','ar-muted'));
+   el('h2',info.title));
+  if(info.dutName)heading.append(el('p','Produkt / DUT: '+info.dutName,'ar-dut-line'));
+  heading.append(el('p',info.description||info.chipUID||'–','ar-muted'));
   top.append(heading,el('span',info.statusLabel,'ar-pill'+
    (info.status==='completed'?' ar-good':info.status==='failed'?' ar-bad':'')));
   root.append(top,outcome(info),section('Geräte- und Aufzeichnungsdaten'),facts(info));
@@ -522,7 +532,9 @@ const ELMOS_ARCHIVE=(()=>{
   const cols=el('div',null,'ar-compare-cols');
   for(const [record,side] of [[a,info.left],[b,info.right]]){
    const col=el('div',null,'ar-compare-col');
-   col.append(el('h3',side.title),el('p',when(side.startedAt)+' · '+side.statusLabel,'ar-muted'),
+   col.append(el('h3',side.title),
+    ...(side.dutName?[el('p','DUT: '+side.dutName,'ar-dut-line')]:[]),
+    el('p',when(side.startedAt)+' · '+side.statusLabel,'ar-muted'),
     outcome(side),facts(side));
    if(side.trend)col.append(section('DSP_S-Verlauf'),chart(side.trend));
    cols.append(col);
@@ -686,8 +698,9 @@ const ELMOS_ARCHIVE=(()=>{
  function UI(){
   return '<div class="ar-top"><div><h2 id="arViewTitle">Kalibrierarchiv</h2><p id="arViewSubtitle">Vollständig lokal · archivierte Abgleiche, Tests und Prüfprotokolle durchsuchen</p></div><button id="archiveClose">Zur Webseite zurück</button></div>'+
   '<div class="ar-bar"><button id="archiveChoose" class="primary">Archivordner auswählen</button><span id="archiveFolder">Noch kein Archivordner gewählt</span><button id="archiveRefresh">Ordner einlesen</button><button id="archiveStartCalibration">Abgleich protokollieren</button>'+
-  '<label>VDD-Istspannung (V, optional, manuell gemessen)<input id="archiveMeasuredVdd" type="number" min="0" step="any" placeholder="z. B. 5.01"></label>'+
-  '<label>Quelle der VDD-Messung<input id="archiveMeasuredVddSource" placeholder="z. B. Multimeter"></label></div>'+
+  '<details class="ar-voltage-extra"><summary>Optionale VDD-Istspannung</summary><div class="ar-voltage-fields">'+
+  '<label>Gemessene VDD (V)<input id="archiveMeasuredVdd" type="number" min="0" step="any" placeholder="z. B. 5.01"></label>'+
+  '<label>Messquelle<input id="archiveMeasuredVddSource" placeholder="z. B. Multimeter"></label></div></details></div>'+
   '<p id="archiveStatus" role="status">Bitte einen lokalen Ordner auswählen. Fremde Dateien im Ordner werden ignoriert.</p>'+
   '<div class="ar-active" id="arActive" hidden><h3 id="arActiveState"></h3><div id="arMeasureControls" hidden><h3 id="arStepHeading"></h3><p id="arStepDescription"></p><input id="arPointKey" type="hidden" value="-1"><div class="ar-grid">'+
   '<label>Referenzdruck<input id="arRefPressure" type="number" step="any"></label><label>Referenztemperatur (°C)<input id="arRefTemp" type="number" step="any"></label>'+

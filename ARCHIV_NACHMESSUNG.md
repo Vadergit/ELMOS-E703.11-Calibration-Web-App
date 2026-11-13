@@ -1,6 +1,10 @@
 # ELMOS E703.11 – Lokales Kalibrierarchiv und Nachmessungen
 
-**Softwarestand v0.7.3 · Funktions- und Benutzeranleitung · Laborprototyp**
+**Softwarestand v0.7.4 · Funktions- und Benutzeranleitung · Laborprototyp**
+
+**Kompakte Archivansicht v0.7.4:** Obere Bedienleiste und Kennzahlen wurden verkleinert; die optionale VDD-Istspannung befindet sich hinter «Optionale VDD-Istspannung». Geräteinformationen sind in mehreren Spalten angeordnet. Der Logger erfasst jetzt ausser dem Testnamen eine separate Produkt-/DUT-Bezeichnung, die auch im Vergleich und CSV-Export erscheint.
+
+**Firmware korrekt benannt:** `02.08.02.04` ist die SSP3-**Adapter-Firmware**, aus dem Befehl `.VERSION`, und keine E703.11-Sensorfirmware. Der rohe Chip-Versionsregisterwert `0x38` wird separat dargestellt, sofern beim Start ausgelesen. Für alte Archivdateien erfolgt diese Zuordnung automatisch, ohne ihre Daten zu verändern.
 
 **Neuer Logviewer v0.7.3:** Im Archiv findest du zuerst Gesamtkennzahlen und eine Liste aller passenden Protokolle. Du kannst per UID, Beschreibung, Board, Softwareversion und Datum suchen und nach Typ/Status filtern. Ein Klick auf **«Ergebnisse prüfen»** zeigt pro Datei eine detaillierte Statistik (Mittelwert, Min/Max, Standardabweichung), den DSP_S-Signalverlauf und relevante Ereignisse, soweit sie gespeichert wurden. Zwei Messdateien per Checkbox auswählen und **«2 Dateien vergleichen»** drücken: Beide erscheinen nebeneinander, mit Kennzahlen, Messwertdifferenzen und NVM-Unterschieden. Fehlende Rohdaten oder Referenzwerte werden als nicht verfügbar gekennzeichnet und niemals als bestandene Prüfung interpretiert.
 

@@ -606,8 +606,56 @@ html.compact-mode .foot{display:none}
 @media(max-width:1100px){#archiveWorkspace .ar-results{grid-template-columns:300px minmax(0,1fr)}#archiveWorkspace .ar-overview{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media(max-width:820px){#archiveWorkspace .ar-results{grid-template-columns:1fr}#archiveWorkspace .ar-compare-cols{grid-template-columns:1fr}#archiveWorkspace .ar-details{max-height:none}#archiveWorkspace .ar-kpi-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media(max-width:510px){#archiveWorkspace{padding:12px}#archiveWorkspace .ar-overview{grid-template-columns:1fr 1fr}#archiveWorkspace .ar-data-grid{grid-template-columns:1fr}#archiveWorkspace .ar-metric{grid-template-columns:1fr 1fr}#archiveWorkspace .ar-diff-row{grid-template-columns:70px repeat(3,minmax(0,1fr))}}
-</style><link rel="stylesheet" href="guided.css?v=0.7.3"><link rel="stylesheet" href="interface.css?v=0.6.30"></head><body data-app-version="0.7.3"><div class="wrap"><header class="top">
-<div class="brand"><div class="logo" aria-hidden="true">E</div><div><div class="eyebrow">E703.11 · PSSC · v0.7.3</div><h1>Kalibrierassistent</h1></div></div>
+
+/* v0.7.4 compact archive: reduce vertical space without hiding data. */
+#archiveWorkspace{padding:12px 15px;margin:10px auto}
+#archiveWorkspace .ar-top{margin:0 0 9px}
+#archiveWorkspace .ar-top h2{font-size:19px}
+#archiveWorkspace .ar-top p{font-size:11px;line-height:1.3}
+#archiveWorkspace .ar-bar{padding:7px 10px;margin:6px 0;gap:7px;align-items:center}
+#archiveWorkspace .ar-bar>button{padding:7px 10px;font-size:12px;min-height:34px}
+#archiveWorkspace #archiveFolder{font-size:11px;color:#536c82;max-width:250px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+#archiveWorkspace #archiveStatus{font-size:11px;margin:5px 0 8px}
+#archiveWorkspace .ar-overview{gap:8px}
+#archiveWorkspace .ar-overview .ar-kpi{padding:8px 11px;gap:2px;min-height:66px}
+#archiveWorkspace .ar-overview .ar-kpi small{font-size:10px}
+#archiveWorkspace .ar-overview .ar-kpi strong{font-size:19px}
+#archiveWorkspace .ar-overview .ar-kpi span{font-size:10px}
+#archiveWorkspace .ar-results{gap:11px;margin-top:8px}
+#archiveWorkspace .ar-files-panel,#archiveWorkspace .ar-details{padding:11px 13px}
+#archiveWorkspace .ar-section-title{margin:12px 0 7px;padding-bottom:5px}
+#archiveWorkspace .ar-section-title h3{font-size:13px}
+#archiveWorkspace .ar-detail-title{margin-bottom:10px}
+#archiveWorkspace .ar-detail-title h2{font-size:17px}
+#archiveWorkspace .ar-kpi-grid{gap:6px}
+#archiveWorkspace .ar-kpi-grid .ar-kpi{padding:7px 9px;gap:1px}
+#archiveWorkspace .ar-kpi-grid .ar-kpi strong{font-size:16px}
+#archiveWorkspace .ar-kpi-grid .ar-kpi small,#archiveWorkspace .ar-kpi-grid .ar-kpi span{font-size:10px}
+#archiveWorkspace .ar-data-grid{grid-template-columns:repeat(4,minmax(0,1fr))}
+#archiveWorkspace .ar-data-pair{padding:7px 9px;gap:1px}
+#archiveWorkspace .ar-data-pair small{font-size:9px}
+#archiveWorkspace .ar-data-pair strong{font-size:11px}
+#archiveWorkspace .ar-dut-line{font-size:12px;color:#23628f;font-weight:650;margin:3px 0}
+#archiveWorkspace .ar-voltage-extra{font-size:11px;color:#2d5d83;flex-shrink:0;min-width:0}
+#archiveWorkspace .ar-voltage-extra summary{cursor:pointer;border:1px solid #d8e3ee;background:#f4f8fc;border-radius:7px;padding:7px 9px;white-space:nowrap}
+#archiveWorkspace .ar-voltage-extra[open]{width:min(100%,410px)}
+#archiveWorkspace .ar-voltage-fields{display:grid;grid-template-columns:1fr 1fr;gap:6px;padding:8px 0 2px}
+#archiveWorkspace .ar-voltage-fields label{font-size:10px}
+#archiveWorkspace .ar-voltage-fields input{min-width:0;padding:6px;font-size:12px}
+#archiveWorkspace .ar-file{padding:8px 10px}
+#archiveWorkspace .ar-file-meta,#archiveWorkspace .ar-file-quick{margin-top:6px;gap:4px}
+#classicLoggerHost .tl-box{padding:11px 13px;margin-bottom:9px}
+#classicLoggerHost .tl-box h3{margin:3px 0 8px;font-size:13px}
+#classicLoggerHost .tl-grid{gap:6px 10px}
+#classicLoggerHost .tl-box label{margin:4px 0}
+#guidedWorkspace .tl-box{padding:11px 14px;margin-bottom:9px}
+#guidedWorkspace .tl-grid{gap:5px 10px}
+#guidedWorkspace .tl-box h3{font-size:13px;margin:2px 0 8px}
+@media(max-width:1200px){#archiveWorkspace .ar-data-grid{grid-template-columns:repeat(3,minmax(0,1fr))}}
+@media(max-width:780px){#archiveWorkspace .ar-data-grid{grid-template-columns:repeat(2,minmax(0,1fr))}#archiveWorkspace .ar-overview{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:510px){#archiveWorkspace .ar-data-grid{grid-template-columns:1fr 1fr}#archiveWorkspace .ar-voltage-fields{grid-template-columns:1fr}}
+</style><link rel="stylesheet" href="guided.css?v=0.7.3"><link rel="stylesheet" href="interface.css?v=0.6.30"></head><body data-app-version="0.7.4"><div class="wrap"><header class="top">
+<div class="brand"><div class="logo" aria-hidden="true">E</div><div><div class="eyebrow">E703.11 · PSSC · v0.7.4</div><h1>Kalibrierassistent</h1></div></div>
 <div class="live-overview" role="group" aria-label="Sensorwerte · laufende Anzeige">
   <div class="live-kpi" title="Unkompensierter Druck-ADC. Warnung bei Beträgen über 25’000 Digits."><span class="live-kpi-label">ADC_S <span id="liveAdcAlert" class="live-alert" hidden>!</span></span><span class="live-kpi-reading" id="liveAdcS">—</span><span class="live-kpi-unit">Digits</span></div>
   <div class="live-kpi" title="ADC_T · Temperatur-Rohwert, keine direkte Temperatur in °C."><span class="live-kpi-label">ADC_T</span><span class="live-kpi-reading" id="liveAdcT">—</span><span class="live-kpi-unit">Digits</span></div>
@@ -1220,4 +1268,4 @@ html.compact-mode .foot{display:none}
 <div class="nav"><button data-next="0">Zur Verbindung</button><button data-next="6">Zum NVM-Schritt</button></div>
 </section>
 <div class="foot"><b>Version v0.6.58</b> · <a href="CHANGELOG.md" target="_blank" rel="noopener">Änderungsverlauf</a> · ELMOS E703.11 · unabhängiger Kalibrierprototyp · Sicherheitsprinzip: Factory- und Kommunikations-Bootregister gesperrt; dokumentierte AODO-Ausgangsoptionen nur nach Prüfung im NVM-Plan; Wiederherstellung nur mit passender Chip-UID.</div>
-<section class="card panel" data-panel="8" hidden><div class="eyebrow">Werkzeuge · Sensorprotokoll</div><h2>Test / Logging</h2><p class="muted small">Messdaten, Rohwerte und Notizen jederzeit in einem lokalen Archiv protokollieren. Ohne NVM-Schreibvorgang.</p><div id="classicLoggerHost"></div></section></main></div></div><div id="tip" class="tooltip"></div><script src="calibration.js?v=0.6.58"></script><script src="eeprom-help.js?v=0.6.30"></script><script src="expert.js?v=0.6.30"></script><script src="config.js?v=0.6.36"></script><script src="guided-plan.js?v=0.6.30"></script><script src="demo.js?v=0.6.49"></script><script src="archive-core.js?v=0.7.3"></script><script src="test-logger-core.js?v=0.7.3"></script><script src="archive-analysis.js?v=0.7.3"></script><script src="archive.js?v=0.7.3"></script><script src="app.js?v=0.7.3"></script><script src="compact.js?v=0.6.58"></script><script src="test-logger.js?v=0.7.3"></script><script src="guided.js?v=0.7.3"></script></body></html>
+<section class="card panel" data-panel="8" hidden><div class="eyebrow">Werkzeuge · Sensorprotokoll</div><h2>Test / Logging</h2><p class="muted small">Messdaten, Rohwerte und Notizen jederzeit in einem lokalen Archiv protokollieren. Ohne NVM-Schreibvorgang.</p><div id="classicLoggerHost"></div></section></main></div></div><div id="tip" class="tooltip"></div><script src="calibration.js?v=0.6.58"></script><script src="eeprom-help.js?v=0.6.30"></script><script src="expert.js?v=0.6.30"></script><script src="config.js?v=0.6.36"></script><script src="guided-plan.js?v=0.6.30"></script><script src="demo.js?v=0.6.49"></script><script src="archive-core.js?v=0.7.3"></script><script src="test-logger-core.js?v=0.7.3"></script><script src="archive-analysis.js?v=0.7.4"></script><script src="archive.js?v=0.7.4"></script><script src="app.js?v=0.7.4"></script><script src="compact.js?v=0.6.58"></script><script src="test-logger.js?v=0.7.4"></script><script src="guided.js?v=0.7.3"></script></body></html>
