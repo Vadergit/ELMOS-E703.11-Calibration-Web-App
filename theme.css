@@ -611,3 +611,135 @@ html[data-theme="dark"] .sensor-reconnect .sensor-export {
   color:#e4f3ff;
   border-color:#85b0cb;
 }
+
+
+/* The guided implementation uses ID-scoped CSS for specialised pages.
+ * Match that specificity so all its fixed light surfaces are actually dark. */
+html[data-theme="dark"] #guidedWorkspace :is(
+ .gw-page .gw-tile,.gw-setup-grid>.gw-tile,.gw-afe-page .gw-tile,
+ .gw-voltage-endpoint,.gw-setup-summary,.gw-afe-guide,.gw-afe-controls #gainInfo,
+ .gw-live-badge,.gw-afe-kpis>div,.gw-afe-quality,
+ .gw-finish-signal,.gw-finish-kpis>div,.gw-finish-chart,
+ .gw-afe-chart,.gw-config-details,.gw-setup-hint,
+ .tl-box,.tl-kpis>div,.tl-note,.tl-message
+) {
+  background:var(--theme-raised);
+  border-color:var(--line);
+  color:var(--ink);
+}
+html[data-theme="dark"] #guidedWorkspace :is(.gw-setup-page .gw-fields input,
+ .gw-setup-page .gw-fields select,.gw-voltage-endpoint input,
+ .tl-grid input,.tl-grid select,.tl-box textarea) {
+  background:var(--theme-input);
+  border-color:var(--control-border);
+  color:var(--ink);
+}
+html[data-theme="dark"] #guidedWorkspace :is(.gw-section-head h3,
+ .gw-afe-guide strong,.gw-afe-current strong,.gw-afe-kpis strong,
+ .gw-finish-top h3,.gw-finish-number strong,.gw-finish-kpis strong,
+ .tl-box h3,.tl-kpis strong,.tl-current,.tl-lead strong) {
+  color:#e5f5ff;
+}
+html[data-theme="dark"] #guidedWorkspace :is(.gw-section-head p,
+ .gw-setup-page .gw-fields label,.gw-voltage-label,
+ .gw-voltage-endpoint label,.gw-setup-hint,.gw-config-details summary span,
+ .gw-afe-guide li,.gw-monitor-head p,.gw-chart-legend,
+ .gw-afe-current span,.gw-afe-kpis span,.gw-finish-number span,
+ .gw-finish-caption,.gw-finish-limits,.gw-finish-kpis span,
+ .gw-finish-kpis small,.gw-finish-checklist>p,.tl-box label,
+ .tl-lead span,.tl-kpis small,.tl-reading) {
+  color:var(--muted);
+}
+html[data-theme="dark"] #guidedWorkspace :is(
+ .gw-config-details summary,.gw-secondary-link) {
+  color:var(--blue);
+}
+html[data-theme="dark"] #guidedWorkspace :is(
+ .gw-section-no,.gw-voltage-endpoint,.gw-afe-controls #gainInfo,
+ .gw-config-details[open],.gw-live-badge,.gw-finish-kpis>div) {
+  background:#29475b;
+  border-color:#5b7991;
+}
+html[data-theme="dark"] #guidedWorkspace .gw-afe-guide small,
+html[data-theme="dark"] #guidedWorkspace .gw-afe-quality.is-warning {
+  background:#443721;
+  border-color:#b09560;
+  color:#ffe1a5;
+}
+html[data-theme="dark"] #guidedWorkspace .gw-afe-quality.is-good,
+html[data-theme="dark"] #guidedWorkspace .gw-live-badge.is-live {
+  background:#204b3b;
+  border-color:#68b593;
+  color:#d7ffea;
+}
+html[data-theme="dark"] #guidedWorkspace .gw-afe-quality.is-neutral {
+  background:#294c65;
+  border-color:#6793b4;
+  color:#e2f3ff;
+}
+html[data-theme="dark"] #guidedWorkspace .gw-afe-chart,
+html[data-theme="dark"] #guidedWorkspace .gw-finish-chart {
+  background:#192b3c;
+}
+html[data-theme="dark"] #guidedWorkspace .gw-finish-warning {
+  color:#ffe1a5!important;
+}
+html[data-theme="dark"] #guidedWorkspace :is(
+ #gwAfeLiveActions button,.gw-secondary-btn) {
+  background:#2b455a;
+  border-color:#7198b1;
+  color:#e8f5ff;
+}
+html[data-theme="dark"] #guidedWorkspace .gw-secondary-btn:hover {
+  background:#365a76;
+}
+html[data-theme="dark"] #guidedWorkspace :is(.tl-lead strong,.tl-message) {
+  background:#2a5069;
+  color:#eaf7ff;
+}
+html[data-theme="dark"] #guidedWorkspace .tl-message.tl-error,
+html[data-theme="dark"] #classicLoggerHost .tl-message.tl-error {
+  background:#4a2732;
+  color:#ffd8e0;
+  border-color:#ad5b72;
+}
+html[data-theme="dark"] #classicLoggerHost :is(
+ .tl-box,.tl-kpis>div,.tl-note,.tl-message) {
+  background:var(--theme-raised);
+  color:var(--ink);
+  border-color:var(--line);
+}
+html[data-theme="dark"] #classicLoggerHost :is(
+ .tl-lead strong,.tl-box h3,.tl-kpis strong) { color:var(--ink); }
+html[data-theme="dark"] #classicLoggerHost :is(
+ .tl-box label,.tl-kpis small) { color:var(--muted); }
+html[data-theme="dark"] #classicLoggerHost :is(
+ .tl-box input,.tl-box select,.tl-box textarea) {
+  background:var(--theme-input);
+  border-color:var(--control-border);
+  color:var(--ink);
+}
+/* Keep alert meanings legible after stronger ID-scoped surfaces. */
+html[data-theme="dark"] #guidedWorkspace .gw-alert.warn {
+  background:#443620;color:#ffe0a3;border-color:#bd9358;
+}
+html[data-theme="dark"] #guidedWorkspace .gw-alert.error {
+  background:#4b2933;color:#ffdce2;border-color:#be6f82;
+}
+html[data-theme="dark"] #guidedWorkspace .gw-alert.success {
+  background:#204c3a;color:#dcffea;border-color:#67bd97;
+}
+html[data-theme="dark"] #archiveWorkspace :is(
+ .ar-details-placeholder h3,.ar-section-title h3,.ar-file-name strong,
+ .ar-data-pair strong,.ar-kpi strong,.ar-event summary,
+ .ar-dut-line,.ar-overline,.ar-voltage-extra,.ar-voltage-extra summary,
+ #archiveFolder) { color:var(--ink); }
+html[data-theme="dark"] #archiveWorkspace :is(.ar-grid>input,.ar-grid>select,
+ .ar-bar input,.ar-bar select) {
+  background:var(--theme-input);
+  border-color:var(--control-border);
+  color:var(--ink);
+}
+html[data-theme="dark"] #archiveWorkspace .ar-event pre {
+  background:#101c27;color:#d5e9fa;
+}
