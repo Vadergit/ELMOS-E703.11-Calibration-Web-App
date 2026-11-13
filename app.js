@@ -94,6 +94,30 @@ if(typeof document!=='undefined') (function UI(){
   button.textContent=working?'Initialisierung läuft …':
    st.adapterNoReply?'USB-Port neu öffnen':'Sensor neu initialisieren';
  }
+ const runningOperations=[];
+ function renderOperationProgress(){
+  const operation=runningOperations.at(-1);
+  const panel=$('operationProgress'),bar=$('operationProgressBar');
+  panel.hidden=!operation;
+  if(!operation)return;
+  const {label,done,total}=operation;
+  $('operationProgressText').textContent=total?label+' · '+done+' / '+total:label+' …';
+  if(total){bar.max=total;bar.value=done;}
+  else bar.removeAttribute('value');
+ }
+ function beginOperation(label){
+  const operation={label};
+  runningOperations.push(operation);
+  renderOperationProgress();
+  return {
+   update(label,done,total){Object.assign(operation,{label,done,total});renderOperationProgress()},
+   finish(){runningOperations.splice(runningOperations.indexOf(operation),1);renderOperationProgress()}
+  };
+ }
+ async function withProgress(label,action){
+  const operation=beginOperation(label);
+  try{return await action(operation)}finally{operation.finish()}
+ }
  function renderStatus(){let connected=!!st.port;
   const addrRow=$('plcAddressRow');
   if(addrRow)addrRow.hidden=st.iface!=='plc'||!$('expertMode').checked;
@@ -138,6 +162,9 @@ if(typeof document!=='undefined') (function UI(){
    'Die gelesene Spannungsstufe ist reserviert.';
  }
  async function loadBridgeSupply(){
+  return withProgress('Brückenspannung wird gelesen',()=>loadBridgeSupplyOperation());
+ }
+ async function loadBridgeSupplyOperation(){
   const word=await readReg(R_BRIDGE,1800);
   // CFG_AFE0 bits 11:10 must both be 1 (data sheet reserved bits).
   if((word&0x0C00)!==0x0C00)
@@ -162,6 +189,9 @@ if(typeof document!=='undefined') (function UI(){
   }finally{st.bridgeReadBusy=false;renderBridgeSupplyState()}
  }
  async function commitBridgeSupply(targetCode){
+  return withProgress('Brückenspannung wird geschrieben',()=>commitBridgeSupplyOperation(targetCode));
+ }
+ async function commitBridgeSupplyOperation(targetCode){
   if(!Number.isInteger(targetCode)||targetCode<0||targetCode>2)
    throw Error('Ungültige Brückenspannung – Code 3 ist reserviert.');
   if(!st.port||!st.chip||st.mode!=='usb'||st.writing||st.nvmWorking||st.calTask||
@@ -406,6 +436,7 @@ if(typeof document!=='undefined') (function UI(){
   if(st.calTask||st.writing||st.nvmWorking)throw Error('Ein Mess- oder Wartungsvorgang läuft');
   const resumeLive=st.live;
   st.calTask=true;stopLive();
+  const operation=beginOperation(label+' wird aufgenommen');
   const progress=$('calSampleProgress');
   progress.hidden=false;progress.textContent=label+': Messung wird vorbereitet …';
   renderFlowState();
@@ -420,6 +451,7 @@ if(typeof document!=='undefined') (function UI(){
      value.tc=P.sign16(await readReg(0x26));
     }catch(e){values.push(value);e.rawSamples=values.slice();throw e}
     values.push(value);
+    operation.update(label+' wird aufgenommen',i+1,required);
     progress.textContent=label+': '+(i+1)+' / '+required+' Samples aufgenommen';
     if(i<required-1)await sleep(60)
    }
@@ -433,7 +465,7 @@ if(typeof document!=='undefined') (function UI(){
    }
    return {adc_s:median(pressure),adc_t:median(temperature),adc_tc:median(compensated),spread,sampleCount:required,rawSamples:values}
   }finally{
-   progress.hidden=true;st.calTask=false;
+   operation.finish();progress.hidden=true;st.calTask=false;
    if(resumeLive&&st.chip)startLive();
    else renderStatus()
   }
@@ -443,6 +475,8 @@ if(typeof document!=='undefined') (function UI(){
   if(!Number.isFinite(count))return show('calPointPlanMsg','Anzahl muss zwischen 2 und 10 liegen.','error');
   $('pointHiHeading').textContent='Messpunkt '+count+' · Oberer Endpunkt';
   if(!$('pointHiName').dataset.userEdited)$('pointHiName').value='Messpunkt '+count;
+  $('capLo').hidden=st.calpoints.some(x=>x.kind==='lo');
+  $('capHi').hidden=st.calpoints.some(x=>x.kind==='hi');
   renderCapturedPoint('lowVal','calLoResult',st.calpoints.find(x=>x.kind==='lo'));
   renderCapturedPoint('highVal','calHiResult',st.calpoints.find(x=>x.kind==='hi'));
   for(let k=1;k<=8;k++){
@@ -450,7 +484,9 @@ if(typeof document!=='undefined') (function UI(){
    $('calExtra'+k+'Heading').textContent='Messpunkt '+(k+1)+' · Zwischenpunkt';
    $('calExtra'+k+'Capture').textContent='Messpunkt '+(k+1)+' aufnehmen';
    if(!$('calExtra'+k+'Name').dataset.userEdited)$('calExtra'+k+'Name').value='Messpunkt '+(k+1);
-   renderCapturedPoint('calExtra'+k+'State','calExtra'+k+'Value',st.calpoints.find(x=>x.kind==='extra'&&x.slot===k));
+   const record=st.calpoints.find(x=>x.kind==='extra'&&x.slot===k);
+   $('calExtra'+k+'Capture').hidden=!!record;
+   renderCapturedPoint('calExtra'+k+'State','calExtra'+k+'Value',record);
   }
   const done=st.calpoints.length,complete=calEndpointsReady();
   $('calPointPlanMsg').textContent=complete?'Alle '+count+' Kalibrierpunkte aufgenommen. Weiter zur Berechnung.':count+' Kalibrierpunkte gewählt · '+done+' von '+count+' aufgenommen.';
@@ -972,6 +1008,9 @@ if(typeof document!=='undefined') (function UI(){
   return lines.join('\n')
  }
  async function runChipDiagnostics(reason='Manuelle Diagnose'){
+  return withProgress('Chipdiagnose läuft',()=>runChipDiagnosticsOperation(reason));
+ }
+ async function runChipDiagnosticsOperation(reason){
   if(!st.port||st.closing)throw Error('Zuerst den SSP3-USB-Port verbinden');
   if(st.diagRunning||st.startupRunning||st.magicRunning||st.powerCycleRunning||st.writing||st.nvmWorking||st.calTask||st.afeWriteActive)
    throw Error('Diagnose nicht während eines Schreib- oder Wartungsvorgangs durchführen');
@@ -1049,6 +1088,9 @@ if(typeof document!=='undefined') (function UI(){
  // Elmos 70311_gui_default.xml: measurement enable, default AFE and continuous period.
  // Match the observed inactive profile before applying those three RAM values.
  async function startRamMeasurement(remember=false){
+  return withProgress('Live-Messung wird vorbereitet',()=>startRamMeasurementOperation(remember));
+ }
+ async function startRamMeasurementOperation(remember){
   if(!st.port||!st.readOnlySensor||st.chip||st.closing||st.ramMeasurementStarting)return;
   const port=st.port,address=st.plcAddress,uid=st.readOnlySensor;
   const profile=[
@@ -1773,6 +1815,9 @@ if(typeof document!=='undefined') (function UI(){
   renderStatus();
  }
  async function reinitializeSensor(){
+  return withProgress('Sensor wird initialisiert',()=>reinitializeSensorOperation());
+ }
+ async function reinitializeSensorOperation(){
   const port=st.port;
   if(!port||st.closing||st.reinitRunning)return;
   if(st.calTask||st.writing||st.nvmWorking||st.powerCycleRunning||st.magicRunning||st.startupRunning||st.diagRunning||st.afeWriteActive){
@@ -1844,6 +1889,9 @@ if(typeof document!=='undefined') (function UI(){
   }
  }
  async function connect(port){
+  return withProgress('Verbindung wird aufgebaut',()=>connectOperation(port));
+ }
+ async function connectOperation(port){
   if(st.port)throw Error('Es ist bereits ein Port offen');
   if(demoEnabled&&port!==demoPort)throw Error('Demo verwendet ausschliesslich den simulierten Adapter');
   if(!demoEnabled&&(!navigator.serial||!window.isSecureContext))throw Error('Chrome benötigt Web Serial über HTTPS oder localhost');
@@ -2137,11 +2185,20 @@ if(typeof document!=='undefined') (function UI(){
  function stopLive(){st.live=false;clearTimeout(st.timeout);st.timeout=null;renderStatus()}
  async function bootSnapshot(){if(!st.chip)throw Error('Chip nicht verbunden');const out={};for(const a of LOCKED)out[a]=await readReg(a);return out}
  function bootString(b){return LOCKED.map(a=>`${REG_NAMES[a]} 0x${h(a)} = 0x${h(b[a],2)} · gesperrt`).join('\n')}
- async function readBoot(){try{const a=await bootSnapshot(),b=await bootSnapshot();if(!sameBoot(a,b))throw Error('Bootregister nicht stabil');st.boot=a;$('regdump').textContent=bootString(a);show('bootMsg','Bootregister zweifach gelesen. Boot-/Schnittstellenregister schreibgeschützt; NVM-Bereich nur im gesicherten Kalibrierablauf programmierbar.','success');return a}catch(e){st.boot=null;show('bootMsg','Bootregister-Prüfung fehlgeschlagen: '+e.message,'error');throw e}finally{renderStatus()}}
- async function registerDump(){try{if(!st.chip&&!st.readOnlySensor)throw Error('Chip-Lesezugriff nicht bestätigt');const regs=[...LOCKED,0x14,0x16,0x18,0x1A,0x1C,0x1E,0x26,0x28,0x2A];for(const a of regs)st.regs[a]=await readReg(a);$('regdump').textContent=regs.map(a=>`0x${h(a)}  ${REG_NAMES[a]||'Register'}  0x${h(st.regs[a],2)} ${LOCKED.includes(a)?'GESCHÜTZT':''}`).join('\n');show('bootMsg','Diagnoseregister gelesen. Bootregister bleiben schreibgeschützt.','success')}catch(e){show('bootMsg','Registerlesen: '+e.message,'error')}}
+ async function readBoot(){
+  return withProgress('Bootregister werden gelesen',()=>readBootOperation());
+ }
+ async function readBootOperation(){try{const a=await bootSnapshot(),b=await bootSnapshot();if(!sameBoot(a,b))throw Error('Bootregister nicht stabil');st.boot=a;$('regdump').textContent=bootString(a);show('bootMsg','Bootregister zweifach gelesen. Boot-/Schnittstellenregister schreibgeschützt; NVM-Bereich nur im gesicherten Kalibrierablauf programmierbar.','success');return a}catch(e){st.boot=null;show('bootMsg','Bootregister-Prüfung fehlgeschlagen: '+e.message,'error');throw e}finally{renderStatus()}}
+ async function registerDump(){
+  return withProgress('Chipregister werden gelesen',()=>registerDumpOperation());
+ }
+ async function registerDumpOperation(){try{if(!st.chip&&!st.readOnlySensor)throw Error('Chip-Lesezugriff nicht bestätigt');const regs=[...LOCKED,0x14,0x16,0x18,0x1A,0x1C,0x1E,0x26,0x28,0x2A];for(const a of regs)st.regs[a]=await readReg(a);$('regdump').textContent=regs.map(a=>`0x${h(a)}  ${REG_NAMES[a]||'Register'}  0x${h(st.regs[a],2)} ${LOCKED.includes(a)?'GESCHÜTZT':''}`).join('\n');show('bootMsg','Diagnoseregister gelesen. Bootregister bleiben schreibgeschützt.','success')}catch(e){show('bootMsg','Registerlesen: '+e.message,'error')}}
  async function unlockRAM(){if(st.adapterKind==='bridge'){await exchange('PLC ACCESS',3500)}else if(st.iface==='plc'){await exchange('PLC P',3500);await exchange('PLC T',3500)}else {for(const w of [0xF75A,0x0CC7,0xD21E])await lowLevelWrite(0x22,w,true)}}
  async function lowLevelWrite(addr,word,forUnlock=false){if(!st.port||!st.afeWriteActive||!st.chip)throw Error('AFE-Schreibzugriff nur während expliziter RAM-Übernahme zulässig');if(addr!==R_AFE&&!(addr===R_BRIDGE&&st.bridgeWriteAllowed)&&!(forUnlock&&addr===0x22))throw Error('Nur freigegebene AFE0/AFE1-RAM-Bits und RAM-Freigabecookies zulässig');if(addr===0x22&&!([0xF75A,0x0CC7,0xD21E].includes(word)))throw Error('Nicht erlaubtes CMD-Cookie');let cmd;if(st.iface==='plc'){if(addr!==R_AFE&&addr!==R_BRIDGE)throw Error('PLC nutzt PLC P / PLC T für RAM-Freigabe');cmd=P.plcWrite(addr,word,st.plcAddress)}else if(st.iface==='i2c'){cmd=P.i2cWrite(addr,word)}else{cmd=P.spiWrite(addr,word)}await exchange(cmd,2300)}
  async function commitGain(target){
+  return withProgress('AFE-Einstellung wird geschrieben',()=>commitGainOperation(target));
+ }
+ async function commitGainOperation(target){
   if(st.writing||st.calTask||st.nvmWorking){
    show('writeMsg','Ein anderer Schreib- oder Kalibriervorgang läuft.','warn');
    return false
@@ -2368,6 +2425,9 @@ if(typeof document!=='undefined') (function UI(){
   await maintWrite(0x4E,0x4C00|addr);await nvmWaitIdle(12000,12,15);return await readReg(0x48);
  }
  async function nvmScan(options={}){
+  return withProgress('NVM wird gelesen',progress=>nvmScanOperation(options, progress));
+ }
+ async function nvmScanOperation(options, progress){
   let started=false;
   const postBoot=options?.postBoot===true,expertRead=options?.expertRead===true,preview=options?.preview===true;
   const backupStarted=Date.now();
@@ -2379,7 +2439,7 @@ if(typeof document!=='undefined') (function UI(){
    ca('backupMsg',preview?'NVM wird für die Änderungsvorschau gelesen und mit CRC geprüft …':'Original-NVM wird gelesen und geprüft …','warn');
    ca('nvmMsg','NVM wird vollständig gelesen …','warn');
    const before=await bootSnapshot();await ramGrant();const words=[];
-   for(let i=0;i<64;i++){words.push(await nvmReadWord(i*2));$('nvmProgress').textContent=`NVM lesen: ${i+1}/64`;$('backupProgress').textContent=`NVM: ${i+1} / 64 Wörter`}
+   for(let i=0;i<64;i++){words.push(await nvmReadWord(i*2));progress.update('NVM wird gelesen',i+1,64);$('nvmProgress').textContent=`NVM lesen: ${i+1}/64`;$('backupProgress').textContent=`NVM: ${i+1} / 64 Wörter`}
    const crc=CAL.crc16(words);
    if(crc!==words[63])throw Error(`CRC16 im bestehenden NVM ungültig: berechnet 0x${h(crc,2)}, gelesen 0x${h(words[63],2)}. Programmierung nicht zulässig.`);
    const factoryCRC=CAL.crc8(words),factoryHigh=(words[15]>>>8);
@@ -2404,6 +2464,9 @@ if(typeof document!=='undefined') (function UI(){
   return !!st.nvmBackupVerified
  }
  async function applyCalRam(){
+  return withProgress('Koeffizienten werden ins RAM geschrieben',()=>applyCalRamOperation());
+ }
+ async function applyCalRamOperation(){
   try{
    if(!coefficientSettingsCurrent())throw Error('Zuerst Koeffizienten für den aktuellen DSP-Endwert berechnen');
    if(!st.port||!st.chip)throw Error('USB-Verbindung zum Chip fehlt');
@@ -2428,6 +2491,9 @@ if(typeof document!=='undefined') (function UI(){
   finally{if(st.calTask){await ramLock();st.ramWriteScope=null;st.calTask=false;st.writing=false}renderStatus();if(!st.manualLivePause&&st.chip&&!st.nvmWorking)startLive()}
  }
  async function verifyCalRam(slot=0){
+  return withProgress('DSP-Prüfwert wird gelesen',()=>verifyCalRamOperation(slot));
+ }
+ async function verifyCalRamOperation(slot){
   let isChecking=false;
   try{
    if(!st.calStaged||!coefficientSettingsCurrent()||!st.chip||st.calTask||st.writing)throw Error('Koeffizienten zuerst im RAM übernehmen / anderer Vorgang läuft');
@@ -2492,6 +2558,9 @@ if(typeof document!=='undefined') (function UI(){
   return code;
  }
  async function prepareNvm(){
+  return withProgress('NVM-Änderungsliste wird vorbereitet',()=>prepareNvmOperation());
+ }
+ async function prepareNvmOperation(){
   try{
    if(st.calTask||st.writing||st.nvmWorking)throw Error('Anderer Chipvorgang läuft');
    if(!coefficientSettingsCurrent()||!verificationComplete()||!st.calStaged)throw Error('Zuerst DSP-RAM-Kalibrierung mit allen gewählten Prüfpunkten erfolgreich abschliessen');
@@ -2532,6 +2601,9 @@ if(typeof document!=='undefined') (function UI(){
   }finally{renderFlowState()}
  }
  async function nvmProgram(){
+  return withProgress('NVM wird programmiert',progress=>nvmProgramOperation(progress));
+ }
+ async function nvmProgramOperation(progress){
   if(st.nvmWorking||st.writing)return;
   let chipProgrammingStarted=false;
   try{
@@ -2605,11 +2677,12 @@ if(typeof document!=='undefined') (function UI(){
     await maintWrite(0x4A,c.to);chipProgrammingStarted=true;await maintWrite(0x4E,0xA300|c.address);
     const flags=await nvmWaitIdle(18000);if(flags&(1<<6))throw Error('CM_STATUS.crc_error während NVM-Programmierung');
     const chk=await nvmReadWord(c.address);if(chk!==c.to)throw Error(`NVM-Verify 0x${h(c.address)}: Ist 0x${h(chk,2)} Soll 0x${h(c.to,2)}`);
-    done++;$('nvmProgress').textContent=`Geschrieben und verifiziert ${done}/${changes.length}`;
+    done++;progress.update('NVM wird geschrieben und geprüft',done,changes.length);$('nvmProgress').textContent=`Geschrieben und verifiziert ${done}/${changes.length}`;
    }
    await maintWrite(0x4E,0x0000);
    await maintWrite(0x4E,0x8800);await nvmWaitIdle(15000);
-   const after=[];for(let i=0;i<64;i++)after.push(await nvmReadWord(i*2));
+   const after=[];
+   for(let i=0;i<64;i++){after.push(await nvmReadWord(i*2));progress.update('NVM wird rückgelesen',i+1,64);}
    if(after.some((x,i)=>x!==modified[i]))throw Error('Abschliessender 64-Wort-NVM-Vergleich fehlgeschlagen');
    if(CAL.crc16(after)!==after[63])throw Error('Abschliessende NVM-CRC16-Prüfung fehlgeschlagen');
    const cm=await readReg(0x46);if(cm&(1<<6))throw Error('Chip meldet CM CRC Fehler');
@@ -2639,6 +2712,9 @@ if(typeof document!=='undefined') (function UI(){
   }
  }
  async function postBootCheck(automatic=false){
+  return withProgress('NVM nach Neustart wird geprüft',()=>postBootCheckOperation(automatic));
+ }
+ async function postBootCheckOperation(automatic){
   if(st.closing||st.calTask||st.writing||st.nvmWorking)return;
   let checkingBoot=false;
   const reportBootCheck=(text,type)=>{
@@ -2825,6 +2901,7 @@ if(typeof document!=='undefined') (function UI(){
  $('configFile').addEventListener('change',async()=>{
   selectedConfig=null;resetConfigImportSelection(null);
   const file=$('configFile').files?.[0];if(!file)return;
+  const operation=beginOperation('Config-Datei wird geladen');
   try{
    if(file.size>65536)throw Error('Config-Datei ist zu gross (max. 64 kB)');
    const profile=ELMOS_CONFIG.validate(JSON.parse(await file.text()),CAL);
@@ -2833,9 +2910,11 @@ if(typeof document!=='undefined') (function UI(){
    show('configPreview','Datei geprüft – noch NICHT übernommen.\n'+ELMOS_CONFIG.describe(profile)+
     '\nEs werden keine Messpunkte, Kalibrierkoeffizienten, EEPROM- oder Boot-/Kommunikationsdaten importiert.','success');
   }catch(e){selectedConfig=null;resetConfigImportSelection(null);show('configPreview','Config-Laden abgelehnt: '+e.message,'error')}
+  finally{operation.finish()}
  });
  $('configApply').addEventListener('click',async()=>{
   const button=$('configApply'),fileInput=$('configFile');
+  const operation=beginOperation('Config wird übernommen');
   try{
    if(!selectedConfig)throw Error('Zuerst eine gültige Config-Datei wählen');
    if(st.writing||st.nvmWorking||st.calTask||st.afeWriteActive)throw Error('Chipvorgang läuft. Config erst danach übernehmen.');
@@ -2907,6 +2986,7 @@ if(typeof document!=='undefined') (function UI(){
   }catch(e){
    show('configPreview','Config-Übernahme fehlgeschlagen: '+e.message,'error');
   }finally{
+   operation.finish();
    fileInput.disabled=false;
    const available=new Set(selectedConfig?configIncluded(selectedConfig):[]);
    for(const [group,id] of Object.entries(CONFIG_GROUP_CONTROLS))
@@ -2916,7 +2996,7 @@ if(typeof document!=='undefined') (function UI(){
  });
  $('plcStartupLogExport').addEventListener('click',()=>{
   const log={
-   tool:'ELMOS E703.11 – SSP3 Startdiagnose',version:'v0.6.58',at:new Date().toISOString(),
+   tool:'ELMOS E703.11 – SSP3 Startdiagnose',version:'v0.7.10',at:new Date().toISOString(),
    source:'Web-App (NICHT PSSC Originalsoftware)',interface:st.iface,adapter:st.adapterKind,
     plcAddress:'0x'+h(st.plcAddress),plcAddressVerified:st.plcAddressVerified,
     plcAddressSource:st.plcAddressSource,plcAddressProbes:st.plcAddressProbes,psscRamRecovery:!!st.psscRamRecovery,
@@ -3193,7 +3273,7 @@ if(typeof document!=='undefined') (function UI(){
   });
  }
  $('brSupplyRead').addEventListener('click',()=>refreshBridgeSupply());
- $('readNow').addEventListener('click',()=>readADC().catch(e=>show('adcMsg','ADC: '+e.message,'error')));$('live').addEventListener('click',()=>{if(st.live){st.manualLivePause=true;stopLive()}else{st.manualLivePause=false;startLive()}});
+ $('readNow').addEventListener('click',()=>withProgress('ADC-Werte werden gelesen',()=>readADC()).catch(e=>show('adcMsg','ADC: '+e.message,'error')));$('live').addEventListener('click',()=>{if(st.live){st.manualLivePause=true;stopLive()}else{st.manualLivePause=false;startLive()}});
  for(const k of ['pga1','pga2','offset']){
   $(k+'Down').addEventListener('click',()=>stepAFE(k,-1));
   $(k+'Up').addEventListener('click',()=>stepAFE(k,1))
@@ -3231,7 +3311,7 @@ if(typeof document!=='undefined') (function UI(){
   });
   setTimeout(()=>auto().catch(()=>{}),350);
  }
- const expert=ELMOS_EXPERT.init({st,CAL,readReg,nvmScan,download,show,stopLive,startLive,lsGet,lsSet,renderFlowState,verificationComplete});
+ const expert=ELMOS_EXPERT.init({st,CAL,readReg,nvmScan,download,show,stopLive,startLive,lsGet,lsSet,renderFlowState,verificationComplete,withProgress});
  // Read-only guide bridge: uses the same ADC/DSP samples as the classic UI.
  function guidedTelemetry(){
   const online=!!(st.port&&st.chip);

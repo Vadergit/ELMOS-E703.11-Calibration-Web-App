@@ -1,3 +1,8 @@
+## v0.7.10 – Fortschritt bei Chipvorgängen
+
+- Zeigt aktive Lesevorgänge, Messungen, Importe und Schreibvorgänge an. Bei NVM und Messpunktaufnahme werden die bearbeiteten Wörter oder Samples gezählt.
+- Blendet die Aufnahmebuttons bestätigter Kalibrierpunkte aus.
+
 ## v0.7.9 – Messpunkte ohne doppelte Ergebnisübersicht
 
 - Die überladene grüne Übersicht «Bereits aufgenommen» aus Schritt 5 entfernt.

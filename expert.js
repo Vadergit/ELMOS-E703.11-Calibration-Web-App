@@ -2,7 +2,7 @@
 /* E703.11 Expert tools: read-only factory/boot inspection and chip-bound backups.
    No unrestricted raw writes. Permanent changes remain in the main NVM transaction. */
 const ELMOS_EXPERT=(()=>{
- function init({st,CAL,readReg,nvmScan,download,show,stopLive,startLive,lsGet,lsSet,renderFlowState,verificationComplete}){
+ function init({st,CAL,readReg,nvmScan,download,show,stopLive,startLive,lsGet,lsSet,renderFlowState,verificationComplete,withProgress}){
   const $=id=>document.getElementById(id),hx=v=>Number(v).toString(16).toUpperCase().padStart(4,'0');
   const names={0:'SER0',1:'SER1',2:'RATIO_DAC01',3:'RATIO_DAC23',4:'RATIO_DAC45',15:'CRC8 factory',
    16:'CFG_EN',17:'CFG_SPI_I2C',18:'CFG_PADS0',19:'CFG_PADS1',20:'CFG_PADS2',21:'CFG_PERIOD',22:'CFG_AODO',
@@ -490,18 +490,18 @@ const ELMOS_EXPERT=(()=>{
     st.restorePlan=null;show('expertRestoreMsg','Backup-Auswahl geändert. Vor einer Wiederherstellung den neuen Stand erneut vergleichen.','warn');renderFlowState()
    }
   });
-  $('expertIdentify').addEventListener('click',()=>identify().catch(e=>show('expertUidStatus',e.message,'error')));
+  $('expertIdentify').addEventListener('click',()=>withProgress('Chip-UID wird gelesen',identify).catch(e=>show('expertUidStatus',e.message,'error')));
   $('expertNvmRead').addEventListener('click',readNvm);
   $('eepromRead').addEventListener('click',readNvm);
   $('eepromExport').addEventListener('click',exportCurrent);
   $('eepromSearch').addEventListener('input',refreshEEPROMViewer);
   $('expertNvmExport').addEventListener('click',exportCurrent);
-  $('expertRegistersRead').addEventListener('click',readRegisters);
+  $('expertRegistersRead').addEventListener('click',()=>withProgress('Chipregister werden gelesen',readRegisters));
   $('expertOutputPreset').addEventListener('click',preset);
   $('expertOutputStage').addEventListener('click',propose);
   $('expertOutputDiscard').addEventListener('click',()=>{st.expertOutputPlan=null;st.outputOnlyPlan=null;st.calImage=null;show('expertOutputMsg','Ausgangsänderungen verworfen.','success');renderFlowState()});
   $('expertRestorePreview').addEventListener('click',prepareRestore);
-  $('expertBackupImport').addEventListener('change',importFile);
+  $('expertBackupImport').addEventListener('change',()=>withProgress('Backup-Datei wird geladen',importFile));
   renderBackups();refreshEEPROMViewer();
   return {onDetect,identify,afterNvmScan,refreshEEPROMViewer,applyOutputProfile,refreshOutputReadOnly,refreshOutputPreview:renderOutputPreview,archiveCurrentNvm,restoreReady,outputReady,prepareRestore,exportCurrent,renderBackups,validBackup:valid}
  }

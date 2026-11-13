@@ -389,7 +389,7 @@ const ELMOS_GUIDED=(()=>{
   const text=document.createElement('span');
   text.className='gw-next-detail';
   text.textContent=allDone?'Alle '+plan.total+' Referenzen wurden gespeichert. Weiter zur Koeffizientenberechnung.':
-   record?'Du kannst diesen Messpunkt bei Bedarf erneut aufnehmen oder einen noch offenen Punkt wählen.':
+   record?'Wähle einen noch offenen Punkt, um die Messreihe fortzusetzen.':
    'Stelle '+currentPoint.pressure+' '+plan.unit+' und '+currentPoint.temperature+
     ' °C ein, warte auf stabile Bedingungen und klicke dann auf «aufnehmen».';
   current.append(heading,text);
