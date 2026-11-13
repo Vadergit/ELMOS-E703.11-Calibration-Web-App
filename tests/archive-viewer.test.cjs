@@ -96,6 +96,7 @@ test('DUT name is visible and legacy SSP3 firmware is never labelled as sensor f
  const archive=read('archive.js'),html=read('index.html');
  assert.match(archive,/Produkt \/ DUT/);
  assert.match(archive,/Adapter-Firmware/);
- assert.match(archive,/id="archiveMeasuredVdd"/);
+ assert.match(read("index.html"),/id="archiveMeasuredVdd"/);
+ assert.doesNotMatch(archive,/id="archiveMeasuredVdd"/);
  assert.match(html,/\.ar-data-grid\{grid-template-columns:repeat\(4/);
 });
