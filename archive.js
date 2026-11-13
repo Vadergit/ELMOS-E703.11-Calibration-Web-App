@@ -381,7 +381,9 @@ const ELMOS_ARCHIVE=(()=>{
  async function endVerification(){await finalise('completed');note('Nachmessung mit allen Versuchen archiviert.')}
  function UI(){
   return '<div class="ar-top"><div><h2>Kalibrierarchiv & Nachmessung</h2><p>Vollständig lokal · jedes Ereignis und jeder Messversuch bleibt erhalten</p></div><button id="archiveClose">Zur Webseite zurück</button></div>'+
-  '<div class="ar-bar"><button id="archiveChoose" class="primary">Archivordner auswählen</button><span id="archiveFolder">Noch kein Archivordner gewählt</span><button id="archiveRefresh">Ordner einlesen</button><button id="archiveStartCalibration">Abgleich protokollieren</button></div>'+
+  '<div class="ar-bar"><button id="archiveChoose" class="primary">Archivordner auswählen</button><span id="archiveFolder">Noch kein Archivordner gewählt</span><button id="archiveRefresh">Ordner einlesen</button><button id="archiveStartCalibration">Abgleich protokollieren</button>'+
+  '<label>VDD-Istspannung (V, optional, manuell gemessen)<input id="archiveMeasuredVdd" type="number" min="0" step="any" placeholder="z. B. 5.01"></label>'+
+  '<label>Quelle der VDD-Messung<input id="archiveMeasuredVddSource" placeholder="z. B. Multimeter"></label></div>'+
   '<p id="archiveStatus" role="status">Bitte einen lokalen Ordner auswählen. Fremde Dateien im Ordner werden ignoriert.</p>'+
   '<div class="ar-active" id="arActive" hidden><h3 id="arActiveState"></h3><div id="arMeasureControls" hidden><h3 id="arStepHeading"></h3><p id="arStepDescription"></p><input id="arPointKey" type="hidden" value="-1"><div class="ar-grid">'+
   '<label>Referenzdruck<input id="arRefPressure" type="number" step="any"></label><label>Referenztemperatur (°C)<input id="arRefTemp" type="number" step="any"></label>'+
@@ -432,6 +434,10 @@ const ELMOS_ARCHIVE=(()=>{
   });
   $('arAbort').addEventListener('click',()=>finalise('aborted').catch(e=>note(e.message,true)));
   $('arSaveCurrent').addEventListener('click',()=>flush().then(()=>note('Zwischenstand gespeichert.')).catch(e=>note(e.message,true)));
+  for(const id of ['archiveMeasuredVdd','archiveMeasuredVddSource'])$(id).addEventListener('change',()=>{
+   if(S.record)void event('supply_reference_changed',{actualVdd:$('archiveMeasuredVdd').value||null,
+    source:$('archiveMeasuredVddSource').value||null}).catch(e=>note(e.message,true));
+  });
   $('arMode').addEventListener('change',()=>{modeUI();preview()});
   for(const id of ['arPressurePath','arTempPath','arCycles','arFixedPressure','arFixedTemp'])$(id).addEventListener('change',preview);
   $('arPreview').addEventListener('click',preview);
