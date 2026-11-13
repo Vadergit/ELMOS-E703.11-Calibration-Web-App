@@ -6,6 +6,7 @@ const path=require('node:path');
 const vm=require('node:vm');
 const C=require('../test-logger-core.js');
 const ArchiveCore=require('../archive-core.js');
+const ArchiveAnalysis=require('../archive-analysis.js');
 const read=name=>fs.readFileSync(path.join(__dirname,'..',name),'utf8');
 
 test('arbitrary positive whole-millisecond sampling intervals and sampling groups',()=>{
@@ -63,8 +64,8 @@ test('guided workflow exposes the fourth logging choice and protects existing wi
  assert.match(guided,/if\(task==='testlog'\)\{goto\(10\);return\}/);
  assert.match(guided,/ELMOS_TEST_LOGGER\?\.mount/);
  assert.match(guided,/ELMOS_TEST_LOGGER\?\.isBusy/);
- assert.match(html,/test-logger-core\.js\?v=0\.7\.1/);
- assert.match(html,/test-logger\.js\?v=0\.7\.1/);
+ assert.match(html,/test-logger-core\.js\?v=0\.7\.3/);
+ assert.match(html,/test-logger\.js\?v=0\.7\.3/);
  assert.match(app,/startTelemetry:archiveStartTelemetry,stopTelemetry:archiveStopTelemetry/);
  assert.match(app,/st\.testLogging&&/);
  assert.match(app,/readOptional\(0x2A\)/);
@@ -108,7 +109,7 @@ test('append-only test log rotates, retains third-party files and exports comple
    final:async()=>({ram:{words:{'0x1C':2048}},nvm:{words:Array(64).fill(0)}})
   },
   addEventListener(){},dispatchEvent(){}};
- const sandbox=vm.createContext({document:doc,window:win,ELMOS_ARCHIVE_CORE:ArchiveCore,
+ const sandbox=vm.createContext({document:doc,window:win,ELMOS_ARCHIVE_CORE:ArchiveCore,ELMOS_ARCHIVE_ANALYSIS:ArchiveAnalysis,
   Blob,Date,JSON,Number,Object,Promise,String,Math,RegExp,Array,Map,Set,setTimeout,clearTimeout,
   CustomEvent:class{constructor(type,opts){this.type=type;this.detail=opts?.detail}}});
  vm.runInContext(read('archive.js'),sandbox);

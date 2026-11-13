@@ -2,7 +2,7 @@
 
 **Ein geführter Kalibrierassistent für den ELMOS E703.11 und das SSP3-Eval-Board.** Ziel ist ein verständlicher Abgleich, der auch ohne tiefere Vorkenntnisse Schritt für Schritt funktioniert. Wer mehr benötigt, kann zusätzliche Messpunkte, DSP-Parameter und einen geschützten Expertenmodus verwenden.
 
-**Version: v0.7.1 · geführter Abgleich, Kalibrierarchiv, Test-Logging und Nachmessungen** · [Änderungsverlauf](CHANGELOG.md) · **[Geplante Funktionen](ROADMAP.md)**
+**Version: v0.7.3 · Direktwahl der Aufgaben und übersichtlicher Logviewer** · [Änderungsverlauf](CHANGELOG.md) · **[Geplante Funktionen](ROADMAP.md)**
 
 Über **Einstellungen → Demo-Modus** lässt sich der gesamte Kalibrierablauf mit simulierten Messwerten und NVM ausprobieren.
 
@@ -13,6 +13,22 @@
 > **Geführter Assistent:** Nach der bestätigten SSP3-Verbindung stehen die neue Schritt-für-Schritt-Führung, die klassische Ansicht und der optionale Kompaktmodus zur Verfügung. Ein E703.11-Chip muss für den Abgleich verbunden sein. Die USB-CDC-Bridge bleibt als experimenteller Verbindungstest ohne Sensorprogrammierung gesperrt.
 >
 > [Geführter Abgleich](docs/GEFUEHRTER_ASSISTENT.md) · [USB-Bridge](docs/USB_BRIDGE_GUIDE.md) · [ESP-Boards](docs/ESP_BOARD_OPTIONS.md) · [ESP32-C3 SuperMini Sketch](firmware/esp32c3_supermini/esp32c3_supermini.ino)
+
+## Neu in v0.7.3 – Logviewer und direkte Aufgabenwahl
+
+- **Sofortstart:** Im geführten Einstieg öffnet ein Klick auf die gewünschte Kachel direkt die entsprechende Aufgabe. Ein zusätzlicher Klick auf «Weiter» ist nicht mehr nötig. Bestehende Sensor- und Archiv-Schutzprüfungen werden weiterhin durchgeführt.
+- **Neuer Logviewer:** Im Archiv erscheinen eine kompakte Gesamtübersicht, nach Datum sortierte Messdateien mit UID, Board, Softwarestand, Dauer, Fehlern und Toleranzabweichungen.
+- **Schnellkontrolle:** Ein Klick auf «Ergebnisse prüfen» zeigt Messpunkte, Rohsamples, Status, Gerätedaten, Mittelwert, Minimum, Maximum, Streuung, einen DSP_S-Signalverlauf und wichtige Fehlermeldungen/Notizen, sofern die entsprechenden Daten vorhanden sind.
+- **Direktvergleich:** Zwei Dateien auswählen und parallel betrachten; Messwert-Unterschiede werden auf Basis der tatsächlich gespeicherten Rohwerte angezeigt, ebenso Änderungen der 64 NVM-Wörter. Abweichende Chip-UIDs werden ausdrücklich gekennzeichnet.
+- Die bisherige Archiv-JSON-Struktur bleibt kompatibel; fremde Dateien werden weiterhin ignoriert, und die Speicherung erfolgt unverändert lokal. [Archiv-Anleitung](ARCHIV_NACHMESSUNG.md).
+
+## Neu in v0.7.2 – Archiv, Nachmessung und Test / Logging klar getrennt
+
+Die obere Navigation hat nun **«Archiv»** und **«Nachmessung»** als separate Buttons. Im Archiv werden Kalibrier-, Test- und Nachmessungsprotokolle durchsucht; der Prüfplan-Editor ist nur unter **«Nachmessung»** sichtbar.
+
+In der **klassischen Ansicht** gibt es direkt **unter «EEPROM Viewer»** den eigenen Reiter **«Test / Logging»**. Dieselbe Messmaske funktioniert weiterhin im geführten Einstieg, ohne dass beim Wechsel doppelte Logger entstehen oder laufende Aufzeichnungen verloren gehen.
+
+**Testdauer:** Zusätzlich zu frei wählbaren Abfrageintervallen kann die gewünschte Gesamtdauer in Sekunden, Minuten oder Stunden eingegeben werden. **0 = unbegrenzt** (manuelles Beenden). Nach Ablauf stoppt und speichert die Aufzeichnung automatisch; **Pausen halten die Restzeit an**. Die laufende Einzelmessung wird noch gespeichert, und Testdauer sowie Abschlussgrund erscheinen im Protokoll. [Logger-Anleitung](TEST_LOGGING.md).
 
 ## Neu in v0.7.1 – Freies Sensor-Test-Logging
 

@@ -51,12 +51,12 @@ test('AODO mode preparation preserves communication',()=>{
  assert.notEqual(after[16],before[16]);
  for(let i=0;i<28;i++)if(i!==16&&i!==22)assert.equal(after[i],before[i]);
 });
-test('Seven calibration steps plus an independent EEPROM viewer',()=>{
+test('Seven calibration steps plus independent EEPROM viewer and test logger',()=>{
  const html=read('index.html');
  const panels=Array.from(html.matchAll(/<section[^>]*data-panel="([0-9]+)"/g),m=>Number(m[1]));
  const steps=Array.from(html.matchAll(/<button class="stepBtn[^"]*" data-step="([0-9]+)"/g),m=>Number(m[1]));
- assert.deepEqual(panels,[0,1,2,3,4,5,6,7]);
- assert.deepEqual(steps,[0,1,2,3,4,5,6,7]);
+ assert.deepEqual(panels,[0,1,2,3,4,5,6,7,8]);
+ assert.deepEqual(steps,[0,1,2,3,4,5,6,7,8]);
  assert.equal(html.split('id="expertOutputMode"').length-1,1);
  const output=html.split('data-panel="5" hidden>')[1].split('data-panel="6" hidden>')[0];
  assert.ok(output.includes('id="expertOutputMode"'));
@@ -195,7 +195,10 @@ test('Expert mode shows contextual settings and no modal',()=>{
  assert.ok(html.includes('data-expert-area hidden><summary>Erweitert · AODO_F'));
  assert.ok(src.includes("classList.toggle('is-expert',enabled)"));
  const scripts=Array.from(html.matchAll(/<script src="([^"]+)"/g),m=>m[1]);
- assert.deepEqual(scripts,['calibration.js?v=0.6.30','eeprom-help.js?v=0.6.30','expert.js?v=0.6.30','config.js?v=0.6.30','guided-plan.js?v=0.6.30','demo.js?v=0.6.30','app.js?v=0.6.30','compact.js?v=0.6.30','guided.js?v=0.6.30']);
+ assert.deepEqual(scripts.map(url=>url.split('?')[0]),
+  ['calibration.js','eeprom-help.js','expert.js','config.js','guided-plan.js','demo.js',
+   'archive-core.js','test-logger-core.js','archive-analysis.js','archive.js',
+   'app.js','compact.js','test-logger.js','guided.js']);
 });
 
 test('Failed E703.11 probe keeps SSP3 open for explicit, bounded startup test',()=>{

@@ -5,7 +5,9 @@ const ELMOS_TEST_LOGGER=(()=>{
  const S={root:null,recordId:null,starting:false,stopping:false,stopRequested:false,
   paused:false,busy:false,timer:null,pending:null,settings:null,startedMono:0,nextDueMono:0,
   startedWall:0,groups:0,samples:0,missed:0,errors:0,consecutiveErrors:0,last:null,
-  recent:[],lastRecord:null,interrupted:false,clock:null,reference:{pressure:null,temperature:null,source:null}};
+  recent:[],lastRecord:null,interrupted:false,clock:null,durationTimer:null,
+  activeAccumulatedMs:0,activeStartedMono:0,stopAfterCapture:null,
+  reference:{pressure:null,temperature:null,source:null}};
  const now=()=>new Date().toISOString();
  const bridge=()=>window.ELMOS_ARCHIVE_BRIDGE,archive=()=>window.ELMOS_ARCHIVE;
  const text=(id,v)=>{if($(id))$(id).textContent=String(v)};
@@ -14,6 +16,24 @@ const ELMOS_TEST_LOGGER=(()=>{
  const number=v=>typeof v==='number'&&Number.isFinite(v)?Number(v).toLocaleString('de-CH',{maximumFractionDigits:3}):'—';
  const duration=ms=>{const t=Math.floor(ms/1000);return String(Math.floor(t/3600)).padStart(2,'0')+':'+String(Math.floor(t%3600/60)).padStart(2,'0')+':'+String(t%60).padStart(2,'0')};
  const setDisabled=(id,v)=>{if($(id))$(id).disabled=!!v};
+ const activeElapsed=()=>S.activeAccumulatedMs+
+  (S.recordId&&!S.paused&&!S.stopping?Math.max(0,performance.now()-S.activeStartedMono):0);
+ const remaining=()=>S.settings?.durationMs==null?null:Math.max(0,S.settings.durationMs-activeElapsed());
+ const clearDurationTimer=()=>{
+  if(S.durationTimer!==null){clearTimeout(S.durationTimer);S.durationTimer=null}
+ };
+ function armDurationTimer(){
+  clearDurationTimer();
+  const ms=remaining();
+  if(ms==null||S.paused||!S.recordId||S.stopRequested)return;
+  if(ms<=0){void stop('completed','duration');return}
+  // Browser timers are capped at 2^31-1 ms; re-arm instead of overflowing.
+  S.durationTimer=setTimeout(()=>{
+   S.durationTimer=null;
+   if(remaining()!=null&&remaining()>0){armDurationTimer();return}
+   void stop('completed','duration');
+  },Math.min(Math.ceil(ms),2147483647));
+ }
  const render=()=>{
   if(!S.root)return;
   const active=!!S.recordId;
@@ -33,6 +53,8 @@ const ELMOS_TEST_LOGGER=(()=>{
   text('tlErrors',S.errors);
   text('tlElapsed',active?duration(performance.now()-S.startedMono):S.lastRecord?.endedAt?
    duration(new Date(S.lastRecord.endedAt)-new Date(S.lastRecord.startedAt)):'00:00:00');
+  text('tlRemaining',active?(remaining()==null?'Ohne Limit':duration(Math.ceil(remaining()/1000)*1000)):
+   S.lastRecord?.testConfiguration?.durationMs!=null?'Abgeschlossen':'Ohne Limit');
   const last=S.last;
   text('tlLatest',last?
    'ADC_S '+number(last.aggregated?.channels?.adcS??last.samples?.at(-1)?.adcS)+
@@ -67,7 +89,9 @@ const ELMOS_TEST_LOGGER=(()=>{
   const measuredText=value('tlVdd').trim(),measuredVdd=measuredText===''?null:Number(measuredText);
   if(measuredVdd!==null&&(!Number.isFinite(measuredVdd)||measuredVdd<0||measuredVdd>30))
    throw Error('VDD-Istspannung ist ungültig.');
-  return {...fields,name,description,category:value('tlCategory'),
+  return {...fields,durationMs:C.durationMs(value('tlDuration'),value('tlDurationUnit')),
+   durationInput:value('tlDuration'),durationUnit:value('tlDurationUnit'),
+   name,description,category:value('tlCategory'),
    operator:value('tlOperator').trim().slice(0,100),
    measuredVdd,measuredVddSource:value('tlVddSource').trim().slice(0,200)};
  };
@@ -89,15 +113,18 @@ const ELMOS_TEST_LOGGER=(()=>{
    await bridge().startTelemetry();
    S.settings=opts;
    S.startedMono=performance.now();S.startedWall=Date.now();S.nextDueMono=S.startedMono;
+   S.activeAccumulatedMs=0;S.activeStartedMono=S.startedMono;S.stopAfterCapture=null;
    S.groups=0;S.samples=0;S.missed=0;S.errors=0;S.consecutiveErrors=0;S.recent=[];
    S.last=null;S.paused=false;S.stopRequested=false;S.lastRecord=null;
    S.reference={pressure:null,temperature:null,source:null};
    for(const id of ['tlRefPressure','tlRefTemperature','tlRefSource'])if($(id))$(id).value='';
    if(S.clock!==null)clearInterval(S.clock);
    S.clock=setInterval(render,1000);
+   armDurationTimer();
    announce('Test gestartet. Rohdaten werden laufend im gewählten lokalen Archivordner gespeichert.');
    schedule(0);
   }catch(e){
+   clearDurationTimer();if(S.clock!==null){clearInterval(S.clock);S.clock=null}
    bridge()?.stopTelemetry?.();
    announce('Aufzeichnung konnte nicht starten: '+e.message,true);
    if(S.recordId&&archive()?.current?.id===S.recordId){
@@ -110,7 +137,12 @@ const ELMOS_TEST_LOGGER=(()=>{
  function schedule(waitMs){
   clearTimer();
   if(!S.recordId||S.stopRequested||S.paused)return;
-  S.timer=setTimeout(()=>{S.timer=null;S.pending=capture(false);void S.pending},Math.max(0,Math.round(waitMs)));
+  if(remaining()!=null&&remaining()<=0){void stop('completed','duration');return}
+  S.timer=setTimeout(()=>{
+   S.timer=null;
+   if(remaining()!=null&&remaining()<=0){void stop('completed','duration');return}
+   S.pending=capture(false);void S.pending;
+  },Math.max(0,Math.round(waitMs)));
  }
  async function capture(manual){
   if(!S.recordId||S.busy||S.stopRequested)return;
@@ -156,10 +188,15 @@ const ELMOS_TEST_LOGGER=(()=>{
     try{await archive()?.event('error',{stage:'test_measurement',message:e.message,
      partialSamples:e.rawSamples||null,partialReadErrors:e.partialReadErrors||null})}catch(_){}
     announce('Messfehler: '+e.message+(S.consecutiveErrors<3?' · Nächster Versuch folgt.':' · Aufzeichnung wird beendet.'),true);
-    if(S.consecutiveErrors>=3){S.stopRequested=true;void stop('failed')}
+    if(S.consecutiveErrors>=3){S.stopRequested=true;S.stopAfterCapture='failed'}
    }
   }finally{
    S.busy=false;render();
+   if(S.stopAfterCapture){
+    const finalStatus=S.stopAfterCapture;S.stopAfterCapture=null;
+    // The failed capture promise must resolve before stop() awaits S.pending.
+    setTimeout(()=>{void stop(finalStatus,'read_error')},0);
+   }
    if(!S.stopRequested&&!S.paused&&S.recordId){
     if(manual) schedule(S.settings.intervalMs);
     else schedule(Math.max(0,S.nextDueMono-performance.now()));
@@ -186,25 +223,35 @@ const ELMOS_TEST_LOGGER=(()=>{
  }
  async function pause(){
   if(!S.recordId||S.stopping)return;
-  S.paused=!S.paused;
-  clearTimer();
-  try{await archive().event(S.paused?'paused':'resumed',{at:now(),afterGroup:S.groups})}
+  if(!S.paused){
+   S.activeAccumulatedMs+=Math.max(0,performance.now()-S.activeStartedMono);
+   S.paused=true;clearTimer();clearDurationTimer();
+  }else{
+   S.paused=false;S.activeStartedMono=performance.now();
+   S.nextDueMono=S.activeStartedMono;
+   armDurationTimer();schedule(0);
+  }
+  try{await archive().event(S.paused?'paused':'resumed',{
+   at:now(),afterGroup:S.groups,activeElapsedMs:Math.round(activeElapsed()),
+   remainingMs:remaining()})}
   catch(e){announce(e.message,true)}
-  if(!S.paused){S.nextDueMono=performance.now();schedule(0)}
   render();
  }
- async function stop(status='completed'){
+ async function stop(status='completed',reason='manual'){
   if(S.stopping||!S.recordId)return;
-  S.stopping=true;S.stopRequested=true;clearTimer();render();
+  S.activeAccumulatedMs=activeElapsed();
+  S.stopping=true;S.stopRequested=true;clearTimer();clearDurationTimer();render();
   try{
    if(S.pending)await S.pending.catch(()=>{});
    bridge()?.stopTelemetry?.();
    if(archive()?.current?.id===S.recordId){
     await archive().event('test_summary',{groups:S.groups,individualSamples:S.samples,
      missedIntervals:S.missed,readErrors:S.errors,elapsedMs:performance.now()-S.startedMono,
-     status});
+     activeElapsedMs:S.activeAccumulatedMs,targetDurationMs:S.settings?.durationMs??null,
+     completionReason:reason,status});
     S.lastRecord=await archive().finalise(status);
-    announce('Test abgeschlossen und im lokalen Archiv gespeichert.');
+    announce(reason==='duration'?'Eingestellte Testdauer erreicht. Aufzeichnung automatisch beendet und gespeichert.':
+     'Test abgeschlossen und im lokalen Archiv gespeichert.');
    }else announce('Archivprotokoll wurde unterbrochen. Bitte Ordner und Sensorverbindung prüfen.',true);
   }catch(e){
    announce('Abschluss fehlgeschlagen: '+e.message+' · Archivdateien nicht löschen.',true);
@@ -217,7 +264,7 @@ const ELMOS_TEST_LOGGER=(()=>{
  }
  function onInterrupted(e){
   if(!S.recordId)return;
-  S.interrupted=true;S.stopRequested=true;clearTimer();
+  S.interrupted=true;S.stopRequested=true;clearTimer();clearDurationTimer();
   bridge()?.stopTelemetry?.();
   S.recordId=null;S.stopping=false;S.paused=false;
   if(S.clock!==null){clearInterval(S.clock);S.clock=null}
@@ -255,16 +302,18 @@ const ELMOS_TEST_LOGGER=(()=>{
    '<label>Messintervall zwischen Messpunkten (ms)<input id="tlInterval" type="number" min="1" max="3600000" step="1" value="1000"></label>'+
    '<label>Einzelmessungen pro Messpunkt<input id="tlSamplesPerPoint" type="number" min="1" max="100" step="1" value="1"></label>'+
    '<label>Abstand zwischen Einzelmessungen (ms)<input id="tlSpacing" type="number" min="0" max="60000" step="1" value="0"></label>'+
-   '<label>Werte zusammenfassen<select id="tlAggregation"><option value="none">Keine Mittelung · Rohwerte</option><option value="mean">Arithmetischer Mittelwert</option><option value="median">Median</option></select></label></div>'+
+   '<label>Werte zusammenfassen<select id="tlAggregation"><option value="none">Keine Mittelung · Rohwerte</option><option value="mean">Arithmetischer Mittelwert</option><option value="median">Median</option></select></label>'+
+   '<label>Testdauer (0 = unbegrenzt)<div class="tl-duration"><input id="tlDuration" type="number" min="0" max="2592000" step="any" value="0"><select id="tlDurationUnit"><option value="s">Sekunden</option><option value="min">Minuten</option><option value="h">Stunden</option></select></div></label></div>'+
    '<label class="tl-check"><input id="tlDebug" type="checkbox"> Zusätzlich TX/RX-Kommunikation aufzeichnen (Debug, grössere Dateien)</label>'+
-   '<p class="tl-note">Jede einzelne Rohmessung bleibt erhalten, auch wenn du den Mittelwert oder Median aktivierst. Das Intervall ist eine Vorgabe, kein garantierter Hardwaretakt. Wenn die Abfrage länger dauert, werden tatsächliche Zeiten und übersprungene Intervalle geloggt.</p>'+
+   '<p class="tl-note">Die Testdauer beendet die Aufzeichnung automatisch; 0 bedeutet manuelles Stoppen. Pausen halten die Testdauer an. Der zuletzt gestartete Messpunkt wird vollständig gespeichert. Jede einzelne Rohmessung bleibt erhalten, auch wenn du den Mittelwert oder Median aktivierst. Das Intervall ist eine Vorgabe, kein garantierter Hardwaretakt. Wenn die Abfrage länger dauert, werden tatsächliche Zeiten und übersprungene Intervalle geloggt.</p>'+
    '<button class="primary" type="button" id="tlStart">Aufzeichnung starten</button></section>'+
   '<section id="tlControls" class="tl-box" hidden><div class="tl-kpis">'+
    '<div><small>Messpunkte</small><strong id="tlCount">0</strong></div>'+
    '<div><small>Einzelwerte</small><strong id="tlSamples">0</strong></div>'+
    '<div><small>Ausgelassene Intervalle</small><strong id="tlMissed">0</strong></div>'+
    '<div><small>Fehler</small><strong id="tlErrors">0</strong></div>'+
-   '<div><small>Dauer</small><strong id="tlElapsed">00:00:00</strong></div></div>'+
+   '<div><small>Dauer</small><strong id="tlElapsed">00:00:00</strong></div>'+
+   '<div><small>Restzeit</small><strong id="tlRemaining">Ohne Limit</strong></div></div>'+
    '<p class="tl-current" id="tlLatest">Noch keine Messung</p>'+
    '<details class="tl-references"><summary>Optionale externe Referenzwerte</summary><div class="tl-grid">'+
    '<label>Referenzdruck<input id="tlRefPressure" type="number" step="any" placeholder="z. B. 5"></label>'+
@@ -284,9 +333,15 @@ const ELMOS_TEST_LOGGER=(()=>{
   '<div class="tl-message" id="tlMessage" role="status">Verbinde zuerst einen Sensor und wähle einen Archivordner. Beim Start wird die Ausgangskonfiguration dokumentiert.</div>';
  }
  function mount(host){
-  if(S.recordId)throw Error('Aktiver Logger darf nicht neu initialisiert werden.');
-  S.root=typeof host==='string'?$(host):host;
-  if(!S.root)throw Error('Logger-Ansicht fehlt');
+  const target=typeof host==='string'?$(host):host;
+  if(!target)throw Error('Logger-Ansicht fehlt');
+  if(S.root===target){render();return}
+  if(S.root){
+   // Move the *existing* form and event handlers; never reset an active test.
+   target.replaceChildren(...Array.from(S.root.childNodes));
+   S.root=target;render();return;
+  }
+  S.root=target;
   S.root.innerHTML=UI();
   $('tlStart').addEventListener('click',()=>{void start()});
   $('tlStop').addEventListener('click',()=>{void stop()});
@@ -300,12 +355,17 @@ const ELMOS_TEST_LOGGER=(()=>{
  }
  function unmount(){
   if(S.recordId||S.starting||S.stopping)return false;
-  clearTimer();
-  if(S.clock!==null){clearInterval(S.clock);S.clock=null}
-  S.root=null;return true
+  if($('classicLoggerHost'))mount($('classicLoggerHost'));
+  return true;
  }
  function isBusy(){return !!(S.recordId||S.starting||S.stopping)}
  window.addEventListener('elmos-archive-interrupted',onInterrupted);
  return {mount,unmount,isBusy,warn:message=>announce(message,true),get active(){return !!S.recordId}};
+
 })();
 if(typeof window!=='undefined')window.ELMOS_TEST_LOGGER=ELMOS_TEST_LOGGER;
+if(typeof document!=='undefined'){
+ const init=()=>{if(document.getElementById('classicLoggerHost'))ELMOS_TEST_LOGGER.mount('classicLoggerHost')};
+ if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',init);
+ else init();
+}

@@ -1,3 +1,21 @@
+## v0.7.3 – Aufgabenkacheln direkt öffnen und Archiv-Logviewer neu gestalten
+
+- Ein Klick auf die Aufgabenkachel im geführten Einstieg führt direkt in den gewählten Ablauf, weiterhin mit Sensor- und Archivprüfung.
+- Archiv als modernes Dashboard: Gesamtkennzahlen, Messdateien mit Schnellstatus, Suche, Filter, UID, Board und Softwareversion.
+- Schnelle Detailansicht mit Mittelwert, Min/Max, Standardabweichung und DSP_S-Signalverlauf für vorhandene Test-Rohsamples.
+- Gegenüberstellung zweier Protokolle mit Rohwertdifferenzen, Fehlern, UID-Hinweis und NVM-Wortvergleich.
+- Fehlerhafte und ausserhalb der Toleranz liegende Messungen sind ausdrücklich erkennbar.
+- Bestehende JSON-/JSONL-Protokolle bleiben lesbar. Sensorregister und NVM-Schreibschutz bleiben unverändert.
+
+## v0.7.2 – Separates Archiv/Nachmessung, klassisches Test-Logging und Zeitlimit
+
+- Oben separate Bereiche **«Archiv»** (Suche, Protokolle und Vergleiche) und **«Nachmessung»** (Prüfpläne, Druck-/Temperaturrampen, Hysterese).
+- **«Test / Logging»** als eigener Reiter in der klassischen Navigation direkt unter dem EEPROM Viewer; weiterhin auch im geführten Einstieg verfügbar.
+- Nur eine Logger-Instanz: Beim Wechsel bleiben Eingaben bestehen, laufende Aufzeichnungen werden nicht verdeckt.
+- **Testdauer frei wählbar** in Sekunden, Minuten und Stunden; 0 = unbegrenzt. Automatisches Stoppen und Archivieren mit Live-Restzeitanzeige.
+- Pause unterbricht die aktive Testdauer, bis die Aufzeichnung fortgesetzt wird.
+- Weiterhin alle Einzelmessungen und optionalen Mittelwerte, Testbeschreibung, Telemetrie, Marker und Fehler im lokalen Archiv.
+
 ## v0.7.1 – Test / Logging im geführten Einstieg
 
 - Vierte Kachel **Test / Logging** mit Name, Beschreibung, Kategorie, Operator und optionaler VDD-Messung.

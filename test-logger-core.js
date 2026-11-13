@@ -4,6 +4,18 @@ const ELMOS_TEST_LOGGER_CORE=(()=>{
  const FIELDS=['adcS','adcT','adcTC','dspS','dspT','statusSync','chipStatus'];
  const NUMERIC_CHANNELS=['adcS','adcT','adcTC','dspS','dspT'];
  const MODES=['none','mean','median'];
+ function durationMs(value,unit='s'){
+  const factors={s:1000,min:60000,h:3600000};
+  if(!Object.prototype.hasOwnProperty.call(factors,unit))throw Error('Ungültige Einheit für Testdauer.');
+  if(value===null||value===undefined||String(value).trim()==='')throw Error('Testdauer fehlt.');
+  const amount=Number(value);
+  if(!Number.isFinite(amount)||amount<0)throw Error('Testdauer muss eine positive Zahl oder 0 für unbegrenzt sein.');
+  if(amount===0)return null;
+  const ms=Math.round(amount*factors[unit]);
+  if(!Number.isSafeInteger(ms)||ms<100||ms>30*24*3600*1000)
+   throw Error('Testdauer muss zwischen 0.1 Sekunden und 30 Tagen liegen.');
+  return ms;
+ }
  function settings(input){
   const intervalMs=Number(input.intervalMs),samplesPerPoint=Number(input.samplesPerPoint),
    sampleSpacingMs=Number(input.sampleSpacingMs??0),aggregation=String(input.aggregation||'none');
@@ -71,7 +83,7 @@ const ELMOS_TEST_LOGGER_CORE=(()=>{
   return rows.join('\n');
  }
 
- return {FIELDS,settings,aggregate,scheduleNext,csvRows};
+ return {FIELDS,settings,aggregate,scheduleNext,csvRows,durationMs};
 })();
 if(typeof module!=='undefined'&&module.exports)module.exports=ELMOS_TEST_LOGGER_CORE;
 if(typeof window!=='undefined')window.ELMOS_TEST_LOGGER_CORE=ELMOS_TEST_LOGGER_CORE;

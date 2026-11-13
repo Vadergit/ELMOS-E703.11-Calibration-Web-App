@@ -1,6 +1,10 @@
 # ELMOS E703.11 – Lokales Kalibrierarchiv und Nachmessungen
 
-**Softwarestand v0.7.1 · Funktions- und Benutzeranleitung · Laborprototyp**
+**Softwarestand v0.7.3 · Funktions- und Benutzeranleitung · Laborprototyp**
+
+**Neuer Logviewer v0.7.3:** Im Archiv findest du zuerst Gesamtkennzahlen und eine Liste aller passenden Protokolle. Du kannst per UID, Beschreibung, Board, Softwareversion und Datum suchen und nach Typ/Status filtern. Ein Klick auf **«Ergebnisse prüfen»** zeigt pro Datei eine detaillierte Statistik (Mittelwert, Min/Max, Standardabweichung), den DSP_S-Signalverlauf und relevante Ereignisse, soweit sie gespeichert wurden. Zwei Messdateien per Checkbox auswählen und **«2 Dateien vergleichen»** drücken: Beide erscheinen nebeneinander, mit Kennzahlen, Messwertdifferenzen und NVM-Unterschieden. Fehlende Rohdaten oder Referenzwerte werden als nicht verfügbar gekennzeichnet und niemals als bestandene Prüfung interpretiert.
+
+**Navigation ab v0.7.2:** «Archiv» und «Nachmessung» sind zwei getrennte Buttons oben in der Webseite. Im **Archiv** finden sich die gespeicherten Einträge, Filter, Vergleiche und Downloads. Der komplette Prüfplan mit Druck-/Temperaturrampen und Hysterese ist unter **«Nachmessung»** erreichbar. Die Messresultate erscheinen nach Abschluss automatisch wieder im gemeinsamen Archiv.
 
 Neu: Der Protokolltyp **Test / Logging** kann direkt über die vierte Kachel des geführten Assistenten gestartet werden. Er unterstützt frei einstellbare Messintervalle, beliebige Einzelmessgruppen, Mittelwert/Median, Kommentare und separate Rohdatenteile. [Ausführliche Anleitung](TEST_LOGGING.md).
 

@@ -1,6 +1,6 @@
 # Bedienungsanleitung – ELMOS E703.11
 
-**Dokumentationsstand v0.7.1** Kalibrierassistent
+**Dokumentationsstand v0.7.3** Kalibrierassistent
 
 **[Web-App öffnen](https://vadergit.github.io/ELMOS-E703.11-Calibration-Web-App/)** · **[Projektübersicht](README.md)** · **[Test / Logging](TEST_LOGGING.md)** · **[Archiv](ARCHIV_NACHMESSUNG.md)** · **[Config-Dateien & EEPROM Viewer](CONFIG_DATEIEN.md)** · **[Testbericht](TESTBERICHT.md)**
 
@@ -8,7 +8,15 @@ Diese Anleitung beschreibt die derzeitige Benutzeroberfläche der browserbasiert
 
 > **Laborprototyp, keine Produktionsfreigabe.** Der vollständige Kalibrier- und NVM-Schreibablauf wurde noch nicht am realen E703.11 als Gesamtsystem validiert. Permanente Änderungen zunächst nur an einem entbehrlichen Testchip erproben.
 
+## Direkt zu einer Aufgabe und Messprotokolle vergleichen (v0.7.3)
+
+Im geführten Startbildschirm genügt ein Klick auf eine der vier Aufgabenkacheln. Die App öffnet die entsprechende Aufgabe sofort; der bisher notwendige zusätzliche Klick auf «Weiter» entfällt. Die Sensorprüfung sowie das Anlegen eines lokalen Kalibrierprotokolls vor einer Änderung bleiben erhalten.
+
+Mit **«Archiv»** oben öffnest du den Logviewer. Links stehen alle Messdateien mit Schnellstatus, rechts erscheint nach Klick auf **«Ergebnisse prüfen»** die Detailansicht. Zwei Dateien lassen sich über die Auswahlfelder markieren und mit **«2 Dateien vergleichen»** nebeneinander auswerten. Verfügbare DSP_S-, ADC_S-, ADC_T- und DSP_T-Rohwerte liefern Min/Max/Mittelwert/Streuung und einen Verlauf. Bei fehlenden Daten zeigt die Software keinen erfundenen Messwert an. Ausser-Toleranz-Versuche, Lesefehler und NVM-Abweichungen bleiben sichtbar.
+
 ## Neue vierte Auswahl: Test / Logging (v0.7.1)
+
+Neu steht in der klassischen Seitennavigation **unter «EEPROM Viewer»** ein eigener Reiter **«Test / Logging»**. Die obere Navigation trennt ausserdem **«Archiv»** und **«Nachmessung»**. Beim Logger kannst du eine **Testdauer in Sekunden, Minuten oder Stunden** wählen und die Aufnahme automatisch stoppen (0 = unbegrenzt). Pausen halten den Countdown an.
 
 Im geführten Assistenten bei **«Was möchtest du machen?»** steht neben Sensorabgleich, Ausgang ändern und EEPROM/Diagnose neu **«Test / Logging»** zur Verfügung. Damit lassen sich beliebige Sensorversuche mit Name, Beschreibung und Kategorie dokumentieren. Die Anzahl Einzelmessungen pro Messpunkt, das frei eingestellte Zeitintervall und der Abstand einzelner Samples sind unabhängig einstellbar. Optional berechnet die App einen Mittelwert oder Median, während sämtliche ursprünglichen Sensorwerte erhalten bleiben. Marker, Snapshots, Pause, manuelle Referenzen sowie JSON-/CSV-Export sind enthalten. Die Erfassung ist nur lesend und schreibt kein NVM.
 
