@@ -4,7 +4,7 @@ const ELMOS_ARCHIVE=(()=>{
  const C=ELMOS_ARCHIVE_CORE;
  const $=id=>document.getElementById(id);
  const S={dir:null,record:null,records:[],filename:null,writeQueue:Promise.resolve(),selection:[],step:0,
-  measuring:false,showDetails:null,lastError:'',folderName:'',draft:null,debugLines:[],debugDropped:0,lastStreamMetaFlush:0};
+  measuring:false,showDetails:null,lastError:'',folderName:'',draft:null,view:'archive',debugLines:[],debugDropped:0,lastStreamMetaFlush:0};
  const iso=()=>new Date().toISOString();
  const text=(id,value)=>{if($(id))$(id).textContent=String(value)};
  const note=(value,bad=false)=>{S.lastError=bad?String(value):'';text('archiveStatus',value);if($('archiveStatus'))$('archiveStatus').style.color=bad?'#a13b39':'#526982'};
@@ -413,8 +413,10 @@ const ELMOS_ARCHIVE=(()=>{
  }
  function renderActive(){
   const r=S.record;
-  $('arActive').hidden=!r;
-  $('arPlanner').hidden=!!r;
+  $('arActive').hidden=!r||(S.view==='archive'&&r.type==='verification');
+  $('arPlanner').hidden=!!r||S.view!=='verification';
+  $('arResults').hidden=S.view!=='archive';
+  $('archiveStartCalibration').hidden=S.view!=='archive';
   text('arActiveState',r?(typeWords[r.type]||r.type)+' · '+(r.chipUID||'?')+' · '+(statusWords[r.status]||r.status):
    'Kein aktiver Prüfvorgang.');
   if(r?.plan)renderStep();
@@ -508,7 +510,7 @@ const ELMOS_ARCHIVE=(()=>{
  }
  async function endVerification(){await finalise('completed');note('Nachmessung mit allen Versuchen archiviert.')}
  function UI(){
-  return '<div class="ar-top"><div><h2>Kalibrierarchiv & Nachmessung</h2><p>Vollständig lokal · jedes Ereignis und jeder Messversuch bleibt erhalten</p></div><button id="archiveClose">Zur Webseite zurück</button></div>'+
+  return '<div class="ar-top"><div><h2 id="arViewTitle">Kalibrierarchiv</h2><p id="arViewSubtitle">Vollständig lokal · archivierte Abgleiche, Tests und Prüfprotokolle durchsuchen</p></div><button id="archiveClose">Zur Webseite zurück</button></div>'+
   '<div class="ar-bar"><button id="archiveChoose" class="primary">Archivordner auswählen</button><span id="archiveFolder">Noch kein Archivordner gewählt</span><button id="archiveRefresh">Ordner einlesen</button><button id="archiveStartCalibration">Abgleich protokollieren</button>'+
   '<label>VDD-Istspannung (V, optional, manuell gemessen)<input id="archiveMeasuredVdd" type="number" min="0" step="any" placeholder="z. B. 5.01"></label>'+
   '<label>Quelle der VDD-Messung<input id="archiveMeasuredVddSource" placeholder="z. B. Multimeter"></label></div>'+
@@ -536,7 +538,7 @@ const ELMOS_ARCHIVE=(()=>{
   '<p id="arPlanStatus"></p><pre class="ar-plan" id="arPlanPreview"></pre><div class="ar-buttons">'+
   '<button id="arPreview">Prüfplan berechnen</button><button id="arStart" class="primary">Nachmessung starten</button></div>'+
   '<p class="ar-muted">Die Web-App steuert Druckkalibrator und Klimakammer nicht automatisch. Jeder Sollwert wird manuell eingestellt und bestätigt. Druck- und Temperaturhysterese werden aus passenden Messpaaren berechnet.</p></div>'+
-  '<div class="ar-results"><div><h3>Archiv <small id="archiveCount"></small></h3><div class="ar-grid">'+
+  '<div class="ar-results" id="arResults"><div><h3>Archiv <small id="archiveCount"></small></h3><div class="ar-grid">'+
   '<input id="archiveSearch" placeholder="UID, Datum, Board oder Softwareversion suchen">'+
   '<select id="archiveFilterType"><option value="all">Alle Protokolltypen</option><option value="testlog">Test / Logging</option><option value="calibration">Kalibrierung</option><option value="verification">Nachmessung</option><option value="output">Ausgang</option></select>'+
   '<select id="archiveFilterStatus"><option value="all">Alle Ergebnisse</option><option value="running">Offen / eventuell unterbrochen</option><option value="completed">Abgeschlossen</option><option value="failed">Fehlerhaft</option><option value="incomplete">Unvollständig</option><option value="interrupted">Unterbrochen</option><option value="aborted">Abgebrochen</option></select></div>'+
@@ -546,7 +548,8 @@ const ELMOS_ARCHIVE=(()=>{
  function init(){
   if(!$('archiveWorkspace'))return;
   $('archiveWorkspace').innerHTML=UI();
-  $('archiveOpen').addEventListener('click',open);
+  $('archiveOpen').addEventListener('click',()=>open('archive'));
+  $('verificationOpen').addEventListener('click',()=>open('verification'));
   $('archiveClose').addEventListener('click',close);
   $('archiveChoose').addEventListener('click',()=>chooseFolder().catch(e=>note(e.message,true)));
   $('archiveRefresh').addEventListener('click',()=>refresh());
@@ -580,11 +583,16 @@ const ELMOS_ARCHIVE=(()=>{
    else note('Archivordner bekannt. Falls nötig erneut auf «Archivordner auswählen» klicken, um den Zugriff freizugeben.');
   }).catch(()=>{});
  }
- function open(){
+ function open(view='archive'){
   if(window.ELMOS_TEST_LOGGER?.isBusy()){
-   window.ELMOS_TEST_LOGGER.warn('Aufzeichnung läuft. Bitte den Test zuerst beenden, bevor du ins Archiv wechselst.');
+   window.ELMOS_TEST_LOGGER.warn('Testaufzeichnung läuft. Bitte zuerst beenden, bevor du die Ansicht wechselst.');
    return;
   }
+  S.view=view==='verification'?'verification':'archive';
+  text('arViewTitle',S.view==='verification'?'Nachmessung':'Kalibrierarchiv');
+  text('arViewSubtitle',S.view==='verification'?
+   'Druck- und Temperaturprüfpläne mit Hysterese und vollständigem lokalen Protokoll':
+   'Abgleiche, Tests und Prüfergebnisse lokal durchsuchen, vergleichen und exportieren');
   document.documentElement.classList.add('archive-active');
   $('archiveWorkspace').hidden=false;
   renderActive();
@@ -593,7 +601,7 @@ const ELMOS_ARCHIVE=(()=>{
   document.documentElement.classList.remove('archive-active');
   $('archiveWorkspace').hidden=true;
  }
- return {init,open,close,begin,ensureCalibration,event,trace,appendTelemetry,streamRows,download,flush,finalise,interrupted,
+ return {init,open,openVerification:()=>open('verification'),close,begin,ensureCalibration,event,trace,appendTelemetry,streamRows,download,flush,finalise,interrupted,
   get active(){return !!S.record},get current(){return S.record},refresh};
 })();
 if(typeof window!=='undefined'){
