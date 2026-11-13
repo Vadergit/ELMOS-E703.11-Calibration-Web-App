@@ -1,3 +1,7 @@
+## v0.7.21 – Preset beim Start des Sensorabgleichs
+
+- Fragt beim Start des geführten Abgleichs nach der zuletzt übernommenen Vorlage. Die Abfrage erscheint einmal pro Sensorverbindung, auch nach erneutem Anschliessen desselben Sensors.
+
 ## v0.7.20 – Elmos-Vorlagen importieren
 
 - Liest AFE und SVDD aus CRC-geprüften Elmos-PSSC-XML- und HEX-Dateien als wiederverwendbare Vorlage.

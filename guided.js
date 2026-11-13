@@ -581,6 +581,10 @@ const ELMOS_GUIDED=(()=>{
   if(stage===0){
    if(task==='inspect'){close();window.ELMOS_GUIDED_API?.navigate?.(7);return}
    if(task==='testlog'){goto(10);return}
+   if(task==='calibration'){
+    try{await window.ELMOS_GUIDED_API?.offerSeriesPreset?.()}
+    catch(e){msg('Vorlage konnte nicht übernommen werden. '+e.message,'error');return}
+   }
    msg('Ausgangskonfiguration wird gesichert: RAM und alle 64 NVM-Wörter lesen. Das kann einen Moment dauern.','warn');
    try{
     if(task==='output'){
