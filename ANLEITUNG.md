@@ -1,6 +1,6 @@
 # Bedienungsanleitung – ELMOS E703.11
 
-**Dokumentationsstand v0.7.1** Kalibrierassistent
+**Dokumentationsstand v0.7.2** Kalibrierassistent
 
 **[Web-App öffnen](https://vadergit.github.io/ELMOS-E703.11-Calibration-Web-App/)** · **[Projektübersicht](README.md)** · **[Test / Logging](TEST_LOGGING.md)** · **[Archiv](ARCHIV_NACHMESSUNG.md)** · **[Config-Dateien & EEPROM Viewer](CONFIG_DATEIEN.md)** · **[Testbericht](TESTBERICHT.md)**
 
@@ -9,6 +9,8 @@ Diese Anleitung beschreibt die derzeitige Benutzeroberfläche der browserbasiert
 > **Laborprototyp, keine Produktionsfreigabe.** Der vollständige Kalibrier- und NVM-Schreibablauf wurde noch nicht am realen E703.11 als Gesamtsystem validiert. Permanente Änderungen zunächst nur an einem entbehrlichen Testchip erproben.
 
 ## Neue vierte Auswahl: Test / Logging (v0.7.1)
+
+Neu steht in der klassischen Seitennavigation **unter «EEPROM Viewer»** ein eigener Reiter **«Test / Logging»**. Die obere Navigation trennt ausserdem **«Archiv»** und **«Nachmessung»**. Beim Logger kannst du eine **Testdauer in Sekunden, Minuten oder Stunden** wählen und die Aufnahme automatisch stoppen (0 = unbegrenzt). Pausen halten den Countdown an.
 
 Im geführten Assistenten bei **«Was möchtest du machen?»** steht neben Sensorabgleich, Ausgang ändern und EEPROM/Diagnose neu **«Test / Logging»** zur Verfügung. Damit lassen sich beliebige Sensorversuche mit Name, Beschreibung und Kategorie dokumentieren. Die Anzahl Einzelmessungen pro Messpunkt, das frei eingestellte Zeitintervall und der Abstand einzelner Samples sind unabhängig einstellbar. Optional berechnet die App einen Mittelwert oder Median, während sämtliche ursprünglichen Sensorwerte erhalten bleiben. Marker, Snapshots, Pause, manuelle Referenzen sowie JSON-/CSV-Export sind enthalten. Die Erfassung ist nur lesend und schreibt kein NVM.
 
