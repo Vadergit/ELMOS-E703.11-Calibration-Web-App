@@ -51,78 +51,65 @@ function setup(){
   tick:()=>interval?.(),
   select:i=>$('gwPointNav').children[i].events.click()};
 }
-test('first captured point stays visible with ADC values while second point becomes active',()=>{
- const h=setup();h.logic.renderCapture();
- assert.equal(h.$('gwCapturedSummary').hidden,true);
- h.logic.observeCapture();
- h.store({kind:'lo',at:'2026-11-13T18:00:00.000Z',
-  pressure:0.2,temperature:26,adc_s:1234,adc_t:456,sampleCount:5});
+
+test('captured point is confirmed in one line, next point becomes active',()=>{
+ const h=setup();h.logic.renderCapture();h.logic.observeCapture();
+ h.store({kind:'lo',at:'2026-11-13T18:00:00Z',adc_s:1234,adc_t:456});
  h.tick();
  assert.equal(h.logic.getSelected(),1);
  assert.equal(h.$('gwPointConfirmation').hidden,false);
- assert.match(h.$('gwPointConfirmation').textContent,/Messpunkt 1 erfolgreich übernommen/);
- assert.match(h.$('gwPointConfirmation').textContent,/Als Nächstes folgt Messpunkt 2/);
- assert.equal(h.$('gwCapturedSummary').hidden,false);
- assert.match(h.$('gwCapturedList').textContent,/✓ Messpunkt 1 aufgenommen/);
- assert.match(h.$('gwCapturedList').textContent,/0.2 bar · 26 °C/);
- assert.match(h.$('gwCapturedList').textContent,/ADC_S.*234 Digits/);
- assert.match(h.$('gwCapturedList').textContent,/ADC_T 456 Digits/);
- assert.match(h.$('gwCapturedList').textContent,/5 Einzelmessungen/);
+ assert.equal(h.$('gwPointConfirmation').textContent,'✓ Messpunkt 1 aufgenommen');
  assert.match(h.$('gwCurrentSetpoint').textContent,/Als Nächstes: Messpunkt 2 messen/);
  assert.match(h.$('gwCurrentSetpoint').textContent,/10 bar und 25 °C/);
  assert.match(h.$('gwPointNav').children[0].textContent,/Aufgenommen/);
  assert.match(h.$('gwPointNav').children[1].textContent,/Jetzt messen/);
- assert.equal(h.rows[0].classList.current.has('gw-point-active'),false);
  assert.equal(h.rows[1].classList.current.has('gw-point-active'),true);
 });
-test('failed or pending reads never get a success confirmation',()=>{
+test('no duplicate captured-results panel or telemetry table is created',()=>{
+ const htmlSection=guided.slice(guided.indexOf('id="gwPage4"'),guided.indexOf('id="gwPage5"'));
+ assert.doesNotMatch(htmlSection,/gwCapturedSummary|gwCapturedList|gwCapturedCount|Bereits aufgenommen/);
+ const h=setup();h.logic.renderCapture();
+ assert.equal(h.$('gwPointNav').children.length,2);
+ assert.equal(h.$('gwCapturedList').children.length,0);
+ assert.doesNotMatch(guided,/className='gw-captured-item'/);
+});
+test('unsuccessful sample is never marked as completed',()=>{
  const h=setup();h.logic.renderCapture();h.logic.observeCapture();h.tick();
  assert.equal(h.logic.getSelected(),0);
  assert.equal(h.$('gwPointConfirmation').hidden,true);
- assert.equal(h.$('gwCapturedSummary').hidden,true);
+ assert.match(h.$('gwPointNav').children[0].textContent,/Jetzt messen/);
 });
-test('returning to first point preserves captured summary and allows remeasurement',()=>{
+test('manual navigation hides stale capture toast and keeps remeasure option',()=>{
  const h=setup();h.logic.renderCapture();h.logic.observeCapture();
- h.store({kind:'lo',at:'2026-11-13T18:00:00Z',adc_s:51,adc_t:22});
- h.tick();
+ h.store({kind:'lo',at:'2026-11-13T18:00:00Z'});h.tick();
  h.select(0);
  assert.equal(h.logic.getSelected(),0);
- assert.equal(h.$('gwCapturedSummary').hidden,false);
+ assert.equal(h.$('gwPointConfirmation').hidden,true);
  assert.match(h.$('gwCurrentSetpoint').textContent,/bereits aufgenommen/);
- assert.match(h.$('gwCapturedList').textContent,/Messpunkt 1 aufgenommen/);
+ assert.match(h.$('gwPointNav').children[0].textContent,/Aufgenommen/);
 });
-test('completion and next target render together without redundant live refresh rebuilds',()=>{
+test('final capture shows single completion state, without redundant success line',()=>{
  const h=setup();h.logic.renderCapture();h.logic.observeCapture();
- h.store({kind:'lo',at:'2026-11-13T18:00:00Z',adc_s:51});
- h.tick();
- const rebuilds=h.$('gwPointNav').replacements;
- h.logic.renderCapture();h.logic.renderCapture();
- assert.equal(h.$('gwPointNav').replacements,rebuilds);
- assert.equal(rebuilds,2);
-});
-test('completion of all points remains prominently visible',()=>{
- const h=setup();h.logic.renderCapture();h.logic.observeCapture();
- h.store({kind:'lo',at:'2026-11-13T18:00:00Z',adc_s:51});h.tick();
- h.logic.observeCapture();
- h.store({kind:'hi',at:'2026-11-13T18:00:02Z',adc_s:105});
- h.tick();
- assert.match(h.$('gwPointConfirmation').textContent,/Alle 2 Messpunkte sind gespeichert/);
+ h.store({kind:'lo',at:'2026-11-13T18:00:00Z'});h.tick();
+ h.logic.observeCapture();h.store({kind:'hi',at:'2026-11-13T18:00:02Z'});h.tick();
+ assert.equal(h.$('gwPointConfirmation').hidden,true);
  assert.match(h.$('gwCurrentSetpoint').textContent,/Alle Messpunkte aufgenommen/);
- assert.equal(h.$('gwCapturedList').children.length,2);
- assert.equal(h.$('gwCapturedCount').textContent,'2 / 2');
+ assert.equal(h.$('gwPointNav').children.filter(x=>x.textContent.includes('Aufgenommen')).length,2);
+ assert.equal(h.$('gwFooterHint').textContent,'2 / 2 Messpunkte erfolgreich aufgenommen');
 });
-test('guided read-only interface uses actual captured values, not synthetic placeholders',()=>{
- assert.match(app,/adc_s:x\.adc_s,adc_t:x\.adc_t,adc_tc:x\.adc_tc,sampleCount:x\.sampleCount/);
- assert.match(guided,/if\(Number\.isFinite\(record\.adc_s\)\)/);
- assert.match(guided,/if\(Number\.isFinite\(record\.adc_t\)\)/);
+test('single transition render and unchanged live polls do not rebuild point list',()=>{
+ const h=setup();h.logic.renderCapture();h.logic.observeCapture();
+ h.store({kind:'lo',at:'2026-11-13T18:00:00Z'});h.tick();
+ const count=h.$('gwPointNav').replacements;
+ h.logic.renderCapture();h.logic.renderCapture();
+ assert.equal(h.$('gwPointNav').replacements,count);
+ assert.equal(count,2);
+});
+test('success is grounded in original records and styled in both themes',()=>{
  assert.match(guided,/record\.at===old/);
  assert.match(guided,/latestCapture=\{index:target\.index,at:record\.at\}/);
-});
-test('completed, next-step and success styles have dark mode variants',()=>{
- for(const part of ['.gw-point-confirmation','.gw-captured-summary',
-  '.gw-captured-item','.gw-next-point','.gw-point-nav-state'])
-  assert.ok(css.includes(part),'Missing style '+part);
- for(const part of ['.gw-point-confirmation','.gw-captured-item','.gw-next-point',
-  '.gw-point-nav button.gw-done'])
-  assert.ok(theme.includes(part),'Missing dark-theme style '+part);
+ assert.match(guided,/success\.hidden=!confirmed\|\|allDone/);
+ assert.match(css,/#guidedWorkspace \.gw-point-confirmation/);
+ assert.match(theme,/html\[data-theme="dark"\] #guidedWorkspace \.gw-point-confirmation/);
+ assert.match(css,/#guidedWorkspace \.gw-point-nav button\.gw-done/);
 });
