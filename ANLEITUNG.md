@@ -1,12 +1,18 @@
 # Bedienungsanleitung – ELMOS E703.11
 
-**Dokumentationsstand v0.7.3** Kalibrierassistent
+**Dokumentationsstand v0.7.5** Kalibrierassistent
 
 **[Web-App öffnen](https://vadergit.github.io/ELMOS-E703.11-Calibration-Web-App/)** · **[Projektübersicht](README.md)** · **[Test / Logging](TEST_LOGGING.md)** · **[Archiv](ARCHIV_NACHMESSUNG.md)** · **[Config-Dateien & EEPROM Viewer](CONFIG_DATEIEN.md)** · **[Testbericht](TESTBERICHT.md)**
 
 Diese Anleitung beschreibt die derzeitige Benutzeroberfläche der browserbasierten App für den **ELMOS E703.11** mit **SSP3-Eval-Board**. Ziel ist ein geführter Abgleich mit möglichst wenig Vorwissen und optionalen Expertenfunktionen.
 
 > **Laborprototyp, keine Produktionsfreigabe.** Der vollständige Kalibrier- und NVM-Schreibablauf wurde noch nicht am realen E703.11 als Gesamtsystem validiert. Permanente Änderungen zunächst nur an einem entbehrlichen Testchip erproben.
+
+## Einstellungen und Nachmessung (v0.7.5)
+
+Die Hauptansicht enthält keinen breiten Hinweis zur Offline-Nutzung mehr. Die Schritt-für-Schritt-Anleitung für den lokalen Einsatz liegt unter **⚙ Einstellungen → Web-App offline verwenden → Anleitung für Einsteiger öffnen**.
+
+Die Nachmessung ist **standardmässig verborgen**. Um die Funktion aufzurufen, in **⚙ Einstellungen** die Option **«Nachmessung einblenden»** aktivieren. Daraufhin erscheint der Button «Nachmessung» oben neben «Archiv». Die Einstellung wird nur im aktuellen Browser gespeichert; bereits vorhandene Nachmessungsdaten bleiben im Archiv auffindbar. Eine aktive Nachmessung zuerst abschliessen oder abbrechen, bevor du die Option wieder deaktivierst.
 
 ## Direkt zu einer Aufgabe und Messprotokolle vergleichen (v0.7.3)
 
