@@ -62,7 +62,7 @@ if(typeof document!=='undefined') (function UI(){
   lower:Number($('pmin').value),upper:Number($('pmax').value),limit:getActiveDSPRange()?.limit??32000
  })):null;
  const REG_NAMES={4:'CFG_EN',6:'CFG_SPI_I2C',8:'CFG_PADS0',10:'CFG_PADS1',12:'CFG_PADS2',16:'CFG_AODO',0x14:'CFG_ADC',0x16:'CFG_LP0',0x18:'CFG_LP1',0x1A:'CFG_AFE0',0x1C:'CFG_AFE1',0x1E:'CFG_AFE2',0x26:'ADC_TC',0x28:'ADC_T',0x2A:'ADC_S'};
- const st={chipDiag:null,diagRunning:false,lastPlcReply:null,mode:'offline',port:null,closing:false,reader:null,readerPromise:null,readerAlive:false,adapterNoReply:false,sessionStartedAt:null,sessionIndex:0,cmdQueue:Promise.resolve(),replyBuffer:'',responseWait:null,iface:'plc',adapterKind:'ssp3',sensorPowerEnabled:false,startupRunning:false,startupAbort:false,startupAttempts:0,magicRunning:false,magicResult:null,powerCycleRunning:false,powerCycleResult:null,startupTrials:[],powerHelp:null,plcHostFormat:'legacy',plcAddress:0x6C,plcAddressVerified:false,plcAddressSource:'',plcAddressProbes:[],firmware:'',chip:false,readOnlySensor:null,sensorLost:false,reinitRunning:false,boot:null,afe:null,afe0:null,bridgeWriteAllowed:false,bridgeReadBusy:false,staged:{pga1:0,pga2:0,offset:0},adc:null,dsp:null,dspError:null,liveReadPromise:null,trend:[],history:[],log:[],regs:{},points:{lo:null,hi:null},verify:null,live:false,manualLivePause:false,timeout:null,consecutiveErrors:0,liveReadAttempts:0,liveReadSuccesses:0,liveLastError:null,liveLastAttemptAt:null,measurementPeriod:null,measurementStatus:null,measurementError:null,measurementStarts:0,measurementFreshCount:0,measurementLastChangedAt:null,writing:false,pressure:5,calpoints:[],calfit:null,calImage:null,nvmBackup:null,nvmBackupVerified:false,calStaged:false,calVerified:false,calValidation:[],calTask:false,nvmWorking:false,nvmDone:false,afeWriteActive:false,ramWriteScope:null,uid:null,expertOutputPlan:null,restorePlan:null,outputOnlyPlan:null,uidShownForInput:null,profilePendingAFE:null};
+ const st={chipDiag:null,diagRunning:false,lastPlcReply:null,mode:'offline',port:null,closing:false,reader:null,readerPromise:null,readerAlive:false,adapterNoReply:false,sessionStartedAt:null,sessionIndex:0,cmdQueue:Promise.resolve(),replyBuffer:'',responseWait:null,iface:'plc',adapterKind:'ssp3',sensorPowerEnabled:false,startupRunning:false,startupAbort:false,startupAttempts:0,magicRunning:false,magicResult:null,powerCycleRunning:false,powerCycleResult:null,startupTrials:[],powerHelp:null,plcHostFormat:'legacy',plcAddress:0x6C,plcAddressVerified:false,plcAddressSource:'',plcAddressProbes:[],firmware:'',chip:false,readOnlySensor:null,sensorLost:false,reinitRunning:false,boot:null,afe:null,afe0:null,bridgeWriteAllowed:false,bridgeReadBusy:false,staged:{pga1:0,pga2:0,offset:0},adc:null,dsp:null,dspError:null,liveReadPromise:null,trend:[],history:[],log:[],regs:{},points:{lo:null,hi:null},verify:null,live:false,manualLivePause:false,timeout:null,consecutiveErrors:0,liveReadAttempts:0,liveReadSuccesses:0,liveLastError:null,liveLastAttemptAt:null,measurementPeriod:null,measurementStatus:null,measurementError:null,measurementStarts:0,measurementFreshCount:0,measurementLastChangedAt:null,writing:false,pressure:5,calpoints:[],calfit:null,calImage:null,nvmBackup:null,nvmBackupVerified:false,calStaged:false,calVerified:false,calValidation:[],calTask:false,testLogging:false,nvmWorking:false,nvmDone:false,afeWriteActive:false,ramWriteScope:null,uid:null,expertOutputPlan:null,restorePlan:null,outputOnlyPlan:null,uidShownForInput:null,profilePendingAFE:null};
  let currentStep=0,pendingGain=null,writeTimer=null;let tipEnabled=true,liveIntervalMs=650;
  let liveSecondaryIndex=0;
  let reconnectSsp3OnUsb=true;
@@ -1750,6 +1750,7 @@ if(typeof document!=='undefined') (function UI(){
  function markSensorUnavailable(reason){
   if(!st.port||st.closing||!st.chip)return;
   logging('Sensor-Kommunikation abgebrochen: '+reason);
+  archiveStopTelemetry();
   st.sensorLost=true;st.chip=false;st.plcAddressVerified=false;st.mode='usb';st.afe0=null;
   stopLive();
   st.adc=null;st.dsp=null;st.dspError=null;st.afe=null;st.afe0=null;st.boot=null;st.regs={};
@@ -3218,6 +3219,27 @@ if(typeof document!=='undefined') (function UI(){
   return {count:readings.length,min,max,hub:max-min,limitExceeded:readings.some(v=>Math.abs(v)>25000)};
  }
 
+ // The logger reserves the read-only measurement path for its entire session.
+ let logResumeLive=false;
+ async function archiveStartTelemetry(){
+  if(!st.port||!st.chip||st.calTask||st.writing||st.nvmWorking||st.testLogging)
+   throw Error('Sensor ist nicht frei für eine Log-Aufzeichnung.');
+  logResumeLive=!!st.live&&!st.manualLivePause;
+  stopLive();
+  if(st.liveReadPromise)await st.liveReadPromise.catch(()=>{});
+  if(!st.port||!st.chip)throw Error('Sensor während Startvorbereitung getrennt');
+  st.testLogging=true;st.calTask=true;
+  renderFlowState();
+ }
+ function archiveStopTelemetry(){
+  const resume=logResumeLive;
+  logResumeLive=false;
+  if(!st.testLogging)return;
+  st.testLogging=false;st.calTask=false;
+  renderFlowState();
+  if(resume&&st.port&&st.chip&&!st.manualLivePause)startLive();
+  else renderStatus();
+ }
  // Archive bridge: read-only data acquisition; the original NVM write gates stay unchanged.
  function archiveVoltages(){
   const chosenVdd=Number($('psscVdd').value),s0=Number($('psscS0').value),s1=Number($('psscS1').value);
@@ -3278,11 +3300,16 @@ if(typeof document!=='undefined') (function UI(){
     supply:archiveVoltages()};
   }finally{if(wasLive&&st.port&&st.chip&&!st.manualLivePause)startLive()}
  }
- async function archiveMeasure(count){
-  if(!st.chip||!st.port||st.calTask||st.writing||st.nvmWorking)throw Error('Sensor nicht messbereit');
+ async function archiveMeasure(count,options={}){
+  const loggerOwner=options.testLogger===true&&st.testLogging;
+  if(!st.chip||!st.port||(st.calTask&&!loggerOwner)||st.writing||st.nvmWorking||
+   (st.testLogging&&!loggerOwner))throw Error('Sensor nicht messbereit');
   if(!Number.isInteger(count)||count<1||count>100)throw Error('Ungültige Anzahl Samples');
-  const wasLive=st.live&&!st.manualLivePause;
-  st.calTask=true;stopLive();
+  const spacingMs=options.sampleSpacingMs==null?40:Number(options.sampleSpacingMs);
+  if(!Number.isInteger(spacingMs)||spacingMs<0||spacingMs>60000)
+   throw Error('Ungültiger Abstand der Einzelmessungen');
+  const wasLive=!loggerOwner&&st.live&&!st.manualLivePause;
+  if(!loggerOwner){st.calTask=true;stopLive()}
   if(st.liveReadPromise)await st.liveReadPromise.catch(()=>{});
   const samples=[],errors=[];
   const readOptional=async(address)=>{
@@ -3297,7 +3324,7 @@ if(typeof document!=='undefined') (function UI(){
      dspS:await readOptional(0x30),dspT:await readOptional(0x2E),
      statusSync:await readOptional(0x32)};
     samples.push(one);
-    if(i<count-1)await sleep(40);
+    if(i<count-1&&spacingMs>0)await sleep(spacingMs);
    }
    const median=key=>{
     const arr=samples.map(x=>x[key]).filter(Number.isFinite).sort((a,b)=>a-b);
@@ -3306,7 +3333,7 @@ if(typeof document!=='undefined') (function UI(){
    };
    const adcS=median('adcS'),adcT=median('adcT'),adcTC=median('adcTC'),
     dspS=median('dspS'),dspT=median('dspT');
-   if(!Number.isFinite(adcS)||!Number.isFinite(dspS)){
+   if(loggerOwner?[adcS,adcT,adcTC,dspS,dspT].every(v=>!Number.isFinite(v)):!Number.isFinite(adcS)||!Number.isFinite(dspS)){
     const error=Error('Druck-ADC oder DSP_S nicht lesbar');
     error.rawSamples=samples.slice();error.partialReadErrors=errors.slice();throw error;
    }
@@ -3321,12 +3348,14 @@ if(typeof document!=='undefined') (function UI(){
     supply:archiveVoltages(),AFE:{...st.staged},ramAFE0:st.afe0,ramAFE1:st.afe,
     currentNvmCrc:st.nvmBackup?.[63]??null};
   }finally{
-   st.calTask=false;renderStatus();
+   if(!loggerOwner)st.calTask=false;
+   renderStatus();
    if(wasLive&&st.chip&&st.port&&!st.manualLivePause)startLive();
   }
  }
  window.ELMOS_ARCHIVE_BRIDGE=Object.freeze({
-  meta:archiveMeta,initial:archiveCaptureConfig,final:archiveCaptureConfig,measure:archiveMeasure
+  meta:archiveMeta,initial:archiveCaptureConfig,final:archiveCaptureConfig,measure:archiveMeasure,
+  startTelemetry:archiveStartTelemetry,stopTelemetry:archiveStopTelemetry
  });
 
  window.ELMOS_GUIDED_API=Object.freeze({
