@@ -66,13 +66,13 @@ test('two-file comparison shows differences on actual samples and NVM words',()=
 });
 test('the two views and visual comparison remain separate from physical measurement changes',()=>{
  const archive=read('archive.js'),html=read('index.html'),guided=read('guided.js');
- assert.match(html,/archive-analysis\.js\?v=0\.7\.3/);
+ assert.match(html,/archive-analysis\.js\?v=0\.7\.4/);
  assert.match(archive,/id="archiveOverview"/);
  assert.match(archive,/ar-compare-cols/);
  assert.match(archive,/async function renderDetails/);
  assert.match(archive,/async function compare/);
  assert.match(archive,/ANALYSIS\.compare\(a,b,ar,br\)/);
- assert.match(html,/data-app-version="0\.7\.3"/);
+ assert.match(html,/data-app-version="0\.7\.4"/);
  assert.match(guided,/data-gw-task="testlog"/);
  assert.match(guided,/await next\(\)/);
  assert.match(guided,/if\(taskOpening\)return/);
