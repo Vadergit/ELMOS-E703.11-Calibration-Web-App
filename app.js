@@ -2548,7 +2548,7 @@ if(typeof document!=='undefined') (function UI(){
     const expected=CAL.prepareOutputConfig(initial,st.expertOutputPlan,outputOnly?st.outputOnlyPlan.limit:st.calfit.outputLimit);
     for(const i of [16,22,57,58])if(modified[i]!==expected[i])throw Error('Ausgangsregister entspricht nicht dem geprüften Vorschlag');
    }
-   await window.ELMOS_ARCHIVE?.ensureCalibration();
+   if(!window.ELMOS_ARCHIVE?.active)throw Error('Für das NVM-Schreiben zuerst Archiv & Nachmessung öffnen und den Abgleich protokollieren. Danach die NVM-Änderungsliste erneut vorbereiten.');
    await window.ELMOS_ARCHIVE?.event('nvm_before',{uid:id,words:initial,plannedWords:modified,changes:st.calImage.changes,supply:archiveVoltages()});
    const saveOldNvm=$('nvmAutoBackup').checked;
    // Backup and export belong to this final explicitly confirmed action, not to the preview.
@@ -2597,8 +2597,9 @@ if(typeof document!=='undefined') (function UI(){
    if(CAL.crc16(after)!==after[63])throw Error('Abschliessende NVM-CRC16-Prüfung fehlgeschlagen');
    const cm=await readReg(0x46);if(cm&(1<<6))throw Error('Chip meldet CM CRC Fehler');
    if(!sameBoot(beforeBoot,await bootSnapshot()))throw Error('Bootregister nach Programmierung abweichend');
-   await window.ELMOS_ARCHIVE?.event('nvm_after',{uid:id,words:after,crc16:after[63],verified:true});
-   st.nvmDone=true;st.nvmBackup=after;st.nvmBackupVerified=true;st.calImage=null;st.restorePlan=null;st.outputOnlyPlan=null;if(saveOldNvm)expert.afterNvmScan();lsSet('elmos8-last-program',JSON.stringify({id,words:after,ts:new Date().toISOString(),restore:restoring}));
+   st.nvmDone=true;st.nvmBackup=after;st.nvmBackupVerified=true;
+   try{await window.ELMOS_ARCHIVE?.event('nvm_after',{uid:id,words:after,crc16:after[63],verified:true})}
+   catch(archiveError){logging('KRITISCH: NVM erfolgreich geschrieben, Archiv-Export fehlgeschlagen: '+archiveError.message);ca('backupMsg','NVM erfolgreich verifiziert, aber der Archivordner ist nicht beschreibbar! Bitte unmittelbar NVM-Backup exportieren.','error')}st.calImage=null;st.restorePlan=null;st.outputOnlyPlan=null;if(saveOldNvm)expert.afterNvmScan();lsSet('elmos8-last-program',JSON.stringify({id,words:after,ts:new Date().toISOString(),restore:restoring}));
    ca('nvmMsg',restoring?'Backup-Wiederherstellung abgeschlossen, NVM rückgelesen und CRC16 bestätigt. Sensor neu starten und erneut prüfen.':outputOnly?'AODO-Ausgangseinstellungen dauerhaft gespeichert, NVM rückgelesen und CRC16 bestätigt. Sensor neu starten und Ausgabefunktion prüfen.':'NVM-Programmierung und vollständiges Rücklesen/CRC16 erfolgreich. Sensor neu starten und Schnittstelle erneut prüfen.','success');
   }catch(e){try{await window.ELMOS_ARCHIVE?.event('error',{stage:'nvm_program',programmingStarted:chipProgrammingStarted,message:e.message})}catch(_){}ca('nvmMsg',`NVM-Vorgang fehlgeschlagen: ${e.message}.${chipProgrammingStarted?' NVM-Schreibversuch wurde bereits begonnen: Chip nicht unkontrolliert neu starten, Backup und Diagnose sichern!':' Es wurden keine NVM-Schreibbefehle gestartet.'}`,'error');logging('NVM FEHLER: '+e.message)}
   finally{
@@ -3230,7 +3231,7 @@ if(typeof document!=='undefined') (function UI(){
   if(!userId&&input&&/^(?:0x)?[0-9a-f]{1,4}$/i.test(input))
    userId='0x'+parseInt(input,16).toString(16).padStart(4,'0').toUpperCase();
   return {
-   online:!!st.chip,uid:st.uid?.hex||null,customUID:userId,
+   online:!!st.chip,uid:st.uid?.hex||null,customUID:userId,nvmDone:!!st.nvmDone,calVerified:!!st.calVerified,
    software:{version:document.body.dataset.appVersion||'nicht angegeben',url:location.href,
     userAgent:navigator.userAgent,local:location.protocol==='file:',demo:demoEnabled},
    equipment:{adapter:demoEnabled?'Demo':st.adapterKind==='ssp3'?'ELMOS SSP3':st.adapterKind==='bridge'?'ESP32-USB-Bridge':st.adapterKind,
@@ -3294,11 +3295,12 @@ if(typeof document!=='undefined') (function UI(){
     dspS=median('dspS'),dspT=median('dspT');
    if(!Number.isFinite(adcS)||!Number.isFinite(dspS))throw Error('Druck-ADC oder DSP_S nicht lesbar');
    const range=getActiveDSPRange();
-   const sensorPressure=range?.kind==='ram'?range.min+(dspS+range.limit)/(2*range.limit)*(range.max-range.min):null;
+   const sensorPressure=range?range.min+(dspS+range.limit)/(2*range.limit)*(range.max-range.min):null;
    return {at:new Date().toISOString(),samples,errors,count,
     adcS,adcT,adcTC,dspS,dspT,sensorPressure,
-    pressureUnit:Number.isFinite(sensorPressure)?range.unit:null,
-    pressureConversion:range?.kind==='ram'?'Aktuell verifizierte RAM-Kalibrierkennlinie':'Keine bestätigte Kennlinie – DSP_S bleibt Rohwert',
+    pressureUnit:Number.isFinite(sensorPressure)?range.unit:null,pressureConversionKind:range?.kind||null,
+    pressureConversion:range?.kind==='ram'?'Aktuelle RAM-Zuordnung (DSP-Verifikation separat beachten)':
+     'Manuelle Anzeigezuordnung; nur nach ausdrücklicher Bestätigung zur Toleranzbewertung verwenden',
     temperatureConversion:'Keine validierte Umrechnung von DSP_T auf °C',
     supply:archiveVoltages(),AFE:{...st.staged},ramAFE0:st.afe0,ramAFE1:st.afe,
     currentNvmCrc:st.nvmBackup?.[63]??null};
