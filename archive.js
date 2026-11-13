@@ -124,6 +124,9 @@ const ELMOS_ARCHIVE=(()=>{
  async function event(kind,data={}){
   if(!S.record)return false;
   S.record.events.push({at:iso(),kind,data:safe(data)});
+  if(kind==='nvm_before')S.record.status='running';
+  if(kind==='error'&&data.stage==='nvm_program')S.record.status='failed';
+  if(kind==='nvm_after')S.record.status='running';
   if(kind==='nvm_after'&&Array.isArray(data.words)&&Number.isInteger(data.words[30]))
    S.record.customUID='0x'+data.words[30].toString(16).padStart(4,'0').toUpperCase();
   await flush();
