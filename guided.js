@@ -124,9 +124,9 @@ const ELMOS_GUIDED=(()=>{
   window.ELMOS_TEST_LOGGER?.mount($('gwLogPage'));
   for(const id of ['pmin','pmax','calUnit','calSampleCount','calUnitOther'])moveLabel(id,'gwSensorFields');
   moveLabel('calDspLimit','gwDspFields');
-  for(const id of ['configLabel','configFile'])moveLabel(id,'gwConfigFields');
+  for(const id of ['configLabel','configPreset','configFile'])moveLabel(id,'gwConfigFields');
   moveId('configGroups','gwConfigGroups');moveId('configImportEffect','gwConfigEffect');
-  for(const id of ['configApply','configSave'])moveId(id,'gwConfigActions');
+  for(const id of ['configApply','configPresetSave','configPresetDelete','configSave'])moveId(id,'gwConfigActions');
   moveId('configPreview','gwConfigStatus');
   const stepper=document.querySelector('.afe-step-panel');move(stepper,'gwAFEPanel');
   moveId('gainInfo','gwGain');moveId('writeMsg','gwAFEMsg');moveId('configAfePending','gwConfigAFE');

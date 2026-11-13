@@ -427,6 +427,9 @@ const ELMOS_EXPERT=(()=>{
    const mode=String(cfg.mode);
    if(!['keep','1','2','3','4','5','onewire'].includes(mode))throw Error('Nicht erlaubter Ausgangsmodus im Profil');
    $('expertOutputMode').value=mode;
+   $('outputClippingMode').value=cfg.clipping?.mode||'keep';
+   $('outputClipLow').value=cfg.clipping?.low??'';
+   $('outputClipHigh').value=cfg.clipping?.high??'';
    $('psscVdd').value=String(cfg.vdd);
    $('psscS0').value=String(cfg.s0);
    $('psscS1').value=String(cfg.s1);

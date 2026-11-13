@@ -94,13 +94,26 @@ const ELMOS_CONFIG=(()=>{
   if(out.measurement&&out.dsp&&out.measurement.pointCount<=out.dsp.sOrder)
    throw Error('Für die Polynomordnung fehlen Messpunkte');
   if(obj.include.includes('output')){
-   const o=obj.output;exact(o,['mode','scaleEnabled','vdd','s0','s1','gain','offset','pwmPeriod'],'Ausgang');
+   const o=obj.output;exact(o,['mode','scaleEnabled','vdd','s0','s1','gain','offset','pwmPeriod','clipping'],'Ausgang');
    const mode=options(String(o.mode),['keep','1','2','3','4','5','onewire'],'Ausgangstyp');
    if(typeof o.scaleEnabled!=='boolean')throw Error('Ausgang: scaleEnabled muss true/false sein');
    out.output={mode,scaleEnabled:o.scaleEnabled,vdd:number(o.vdd,2.7,5.5,'VDD'),
     s0:number(o.s0,0,5.5,'S0'),s1:number(o.s1,0,5.5,'S1'),
     gain:number(o.gain,-7.9,7.9,'AODO_F'),offset:number(o.offset,-7.9,7.9,'AODO_O'),
     pwmPeriod:integer(o.pwmPeriod,2,65535,'PWM-Periode')};
+   if(o.clipping!==undefined){
+    exact(o.clipping,['mode','low','high'],'Clipping');
+    const clippingMode=options(o.clipping.mode,['keep','on','off'],'Clipping-Modus');
+    if(!['1','2','3'].includes(mode)&&clippingMode!=='keep')throw Error('Clipping benötigt einen Analogausgang');
+    out.output.clipping={mode:clippingMode};
+    if(clippingMode==='on'){
+     const low=number(o.clipping.low,0,out.output.vdd,'Clipping-Untergrenze');
+     const high=number(o.clipping.high,0,out.output.vdd,'Clipping-Obergrenze');
+     if(low<out.output.vdd*0.1-1e-9||high>out.output.vdd*0.9+1e-9||low>=high)
+      throw Error('Clipping-Grenzen müssen aufsteigend und innerhalb 10–90 % VDD liegen');
+     Object.assign(out.output.clipping,{low,high});
+    }
+   }
    if(['1','2','3'].includes(mode)){
     if(!cal||typeof cal.analogScaling!=='function')throw Error('Skalierungsprüfung nicht verfügbar');
     // For output-only profiles, the active sensor DSP limit is resolved on application.

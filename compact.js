@@ -64,9 +64,9 @@ const ELMOS_COMPACT=(()=>{
   moveId('writeMsg','cpAfeStatus');
   moveId('configAfePending','cpAfeTemplate');
 
-  for(const id of ['configLabel','configFile'])label(id,'cpCfgFields');
+  for(const id of ['configLabel','configPreset','configFile'])label(id,'cpCfgFields');
   moveId('configGroups','cpCfgGroups');moveId('configImportEffect','cpCfgEffect');
-  actions(['configSave','configApply'],'cpCfgActions');
+  actions(['configPresetSave','configPresetDelete','configSave','configApply'],'cpCfgActions');
   moveId('configPreview','cpCfgStatus');
 
   for(const id of ['calPointCount','calSampleCount','calUnit','calUnitOther','pmin','pmax'])label(id,'cpPointsSetup');

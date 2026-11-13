@@ -2861,7 +2861,9 @@ if(typeof document!=='undefined') (function UI(){
    output:{mode:$('expertOutputMode').value,scaleEnabled:$('expertScaleEnable').checked,
     vdd:Number($('psscVdd').value),s0:Number($('psscS0').value),s1:Number($('psscS1').value),
     gain:Number($('expertScaleGain').value),offset:Number($('expertScaleOffset').value),
-    pwmPeriod:Number($('expertPwmPeriod').value)}
+    pwmPeriod:Number($('expertPwmPeriod').value),
+    clipping:{mode:['1','2','3'].includes($('expertOutputMode').value)?$('outputClippingMode').value:'keep',
+     low:$('outputClipLow').valueAsNumber,high:$('outputClipHigh').valueAsNumber}}
   },include,CAL);
   return cf;
  }
@@ -2906,6 +2908,68 @@ if(typeof document!=='undefined') (function UI(){
  for(const id of Object.values(CONFIG_GROUP_CONTROLS))
   $(id).addEventListener('change',()=>showConfigImportEffect(selectedConfig));
  resetConfigImportSelection(null);
+ const presetKey='elmos-sensor-presets-v1';
+ const presetSelect=$('configPreset');
+ function readPresets(){
+  const raw=lsGet(presetKey);
+  const entries=raw?JSON.parse(raw):[];
+  if(!Array.isArray(entries))throw Error('Gespeicherte Presets sind ungültig');
+  return entries;
+ }
+ function renderPresets(entries,selected=''){
+  presetSelect.replaceChildren(new Option('Preset auswählen …',''));
+  entries.forEach(profile=>presetSelect.add(new Option(profile.label,profile.label)));
+  presetSelect.value=selected;
+  $('configPresetDelete').disabled=!presetSelect.value;
+ }
+ function savePresets(entries){
+  const data=JSON.stringify(entries);
+  lsSet(presetKey,data);
+  if(lsGet(presetKey)!==data)throw Error('Browserspeicher konnte nicht aktualisiert werden');
+ }
+ function previewPreset(profile){
+  selectedConfig=profile;
+  resetConfigImportSelection(profile);
+  show('configPreview','Preset «'+profile.label+'» ausgewählt. Wähle die Gruppen und klicke auf «Übernehmen».\n'+ELMOS_CONFIG.describe(profile),'success');
+ }
+ try{renderPresets(readPresets())}catch(e){show('configPreview',e.message,'error')}
+ $('configPresetSave').addEventListener('click',()=>{
+  try{
+   const groups=ELMOS_CONFIG.GROUPS.filter(group=>group!=='afe'||(st.chip&&Number.isInteger(st.afe)));
+   const profile=configFromUi(groups),entries=readPresets();
+   const index=entries.findIndex(item=>item.label===profile.label);
+   if(index>=0){
+    if(!window.confirm('Preset «'+profile.label+'» mit den aktuellen Einstellungen ersetzen?'))return;
+    entries[index]=profile;
+   }else entries.push(profile);
+   savePresets(entries);
+   $('configFile').value='';
+   renderPresets(entries,profile.label);
+   previewPreset(profile);
+   show('configPreview','Preset «'+profile.label+'» gespeichert. '+ELMOS_CONFIG.describe(profile)+
+    (groups.includes('afe')?'':' AFE wird bei einem verbundenen, ausgelesenen Sensor mitgespeichert.'),'success');
+  }catch(e){show('configPreview','Preset konnte nicht gespeichert werden. '+e.message,'error')}
+ });
+ presetSelect.addEventListener('change',()=>{
+  $('configPresetDelete').disabled=!presetSelect.value;
+  selectedConfig=null;resetConfigImportSelection(null);
+  if(!presetSelect.value){show('configPreview','Preset oder Config-Datei auswählen.');return;}
+  try{
+   const profile=readPresets().find(item=>item.label===presetSelect.value);
+   $('configFile').value='';
+   previewPreset(ELMOS_CONFIG.validate(profile,CAL));
+  }catch(e){show('configPreview','Preset konnte nicht geladen werden. '+e.message,'error')}
+ });
+ $('configPresetDelete').addEventListener('click',()=>{
+  const name=presetSelect.value;
+  if(!name||!window.confirm('Preset «'+name+'» löschen?'))return;
+  try{
+   const entries=readPresets().filter(profile=>profile.label!==name);
+   savePresets(entries);renderPresets(entries);
+   selectedConfig=null;resetConfigImportSelection(null);
+   show('configPreview','Preset «'+name+'» gelöscht.','success');
+  }catch(e){show('configPreview',e.message,'error')}
+ });
  $('configSave').addEventListener('click',()=>{
   try{
    const profile=configFromUi(ELMOS_CONFIG.GROUPS);
@@ -2921,6 +2985,7 @@ if(typeof document!=='undefined') (function UI(){
   try{
    if(file.size>65536)throw Error('Config-Datei ist zu gross (max. 64 kB)');
    const profile=ELMOS_CONFIG.validate(JSON.parse(await file.text()),CAL);
+   presetSelect.value='';$('configPresetDelete').disabled=true;
    selectedConfig=profile;
    resetConfigImportSelection(profile);
    show('configPreview','Datei geprüft – noch NICHT übernommen.\n'+ELMOS_CONFIG.describe(profile)+
@@ -2943,6 +3008,7 @@ if(typeof document!=='undefined') (function UI(){
    if(target&&(!st.port||!st.chip||st.mode!=='usb'))
     throw Error('AFE wurde für den Import ausgewählt. Für das direkte RAM-Laden zuerst einen echten Sensor verbinden oder AFE beim Import abwählen.');
    button.disabled=true;fileInput.disabled=true;
+   presetSelect.disabled=true;$('configPresetSave').disabled=true;$('configPresetDelete').disabled=true;
    for(const id of Object.values(CONFIG_GROUP_CONTROLS))$(id).disabled=true;
    // The click itself explicitly authorises the immediate AFE RAM transfer.
    // Existing commitGain checks the boot state and reads the written register back.
@@ -3004,6 +3070,7 @@ if(typeof document!=='undefined') (function UI(){
   }finally{
    operation.finish();
    fileInput.disabled=false;
+   presetSelect.disabled=false;$('configPresetSave').disabled=false;$('configPresetDelete').disabled=!presetSelect.value;
    const available=new Set(selectedConfig?configIncluded(selectedConfig):[]);
    for(const [group,id] of Object.entries(CONFIG_GROUP_CONTROLS))
     $(id).disabled=!available.has(group);

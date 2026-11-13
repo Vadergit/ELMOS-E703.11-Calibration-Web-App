@@ -59,8 +59,8 @@ test('theme CSS overrides app styles as the last linked stylesheet',()=>{
  assert.ok(links.some(x=>x.startsWith('interface.css?')));
  assert.ok(links.some(x=>x.startsWith('guided.css?')));
  assert.match(page,/id="settingsTheme"/);
- assert.match(page,/data-app-version="0\.7\.15"/);
- assert.match(page,/<b>Version v0\.7\.15<\/b>/);
+ assert.match(page,/data-app-version="0\.7\.16"/);
+ assert.match(page,/<b>Version v0\.7\.16<\/b>/);
 });
 test('dark theme covers guided, classic, compact, archive, logger and warning UI',()=>{
  for(const part of [

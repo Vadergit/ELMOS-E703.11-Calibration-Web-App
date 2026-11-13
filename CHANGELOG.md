@@ -1,3 +1,7 @@
+## v0.7.16 – Presets für baugleiche Sensoren
+
+- Speichert benannte Config-Vorlagen lokal im Browser und lädt sie über eine Auswahlliste. Ausgangsprofile enthalten optional die Clipping-Grenzen.
+
 ## v0.7.15 – Clipping für den Analogausgang
 
 - Schritt 8 bietet optionale obere und untere Spannungsgrenzen für den ratiometrischen AODO-Ausgang. Die Änderung wird zur NVM-Prüfung vorgemerkt.
