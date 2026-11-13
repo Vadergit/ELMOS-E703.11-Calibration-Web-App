@@ -3406,7 +3406,9 @@ if(typeof document!=='undefined') (function UI(){
  window.ELMOS_GUIDED_API=Object.freeze({
   state:()=>({
    chip:!!st.chip,mode:st.mode,adapter:st.adapterKind,uid:st.uid?.hex||null,
-   points:st.calpoints.map(x=>({kind:x.kind,slot:x.slot,at:x.at,pressure:x.pressure,temperature:x.temperature})),
+   // Read-only summary for the guided completion cards; measurements remain owned by the classic workflow.
+   points:st.calpoints.map(x=>({kind:x.kind,slot:x.slot,at:x.at,pressure:x.pressure,temperature:x.temperature,
+    adc_s:x.adc_s,adc_t:x.adc_t,adc_tc:x.adc_tc,sampleCount:x.sampleCount})),
    calStaged:!!st.calStaged,calVerified:verificationComplete(),nvmDone:!!st.nvmDone,
    nvmBackupVerified:!!st.nvmBackupVerified,outputReady:expert.outputReady()
   }),
