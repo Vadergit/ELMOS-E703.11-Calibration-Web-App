@@ -1,6 +1,6 @@
 # Bedienungsanleitung – ELMOS E703.11
 
-**Dokumentationsstand v0.7.8** Kalibrierassistent
+**Dokumentationsstand v0.7.9** Kalibrierassistent
 
 **[Web-App öffnen](https://vadergit.github.io/ELMOS-E703.11-Calibration-Web-App/)** · **[Projektübersicht](README.md)** · **[Test / Logging](TEST_LOGGING.md)** · **[Archiv](ARCHIV_NACHMESSUNG.md)** · **[Config-Dateien & EEPROM Viewer](CONFIG_DATEIEN.md)** · **[Testbericht](TESTBERICHT.md)**
 
@@ -8,9 +8,13 @@ Diese Anleitung beschreibt die derzeitige Benutzeroberfläche der browserbasiert
 
 > **Laborprototyp, keine Produktionsfreigabe.** Der vollständige Kalibrier- und NVM-Schreibablauf wurde noch nicht am realen E703.11 als Gesamtsystem validiert. Permanente Änderungen zunächst nur an einem entbehrlichen Testchip erproben.
 
+## Kompakte Messpunktanzeige (v0.7.9)
+
+In Schritt 5 werden bereits aufgenommene Referenzpunkte **links mit einem Haken und «Aufgenommen»** markiert. Nach dem Messen erscheint kurz und kompakt **«✓ Messpunkt X aufgenommen»**, während rechts direkt **«Als Nächstes: Messpunkt Y messen»** mit Druck und Temperatur angezeigt wird. Die bisherige zusätzliche grüne Tabelle mit den ADC-Einzelwerten entfällt; die eigentlichen Messdaten bleiben aber gespeichert und sind weiterhin über die vorhandenen Auswertungen zugänglich. Nach dem letzten Punkt erscheint nur noch der Abschlussstatus.
+
 ## Messpunkte aufnehmen und den Fortschritt erkennen (v0.7.8)
 
-Im geführten Abgleich bei **Schritt 5: Messpunkte** bleibt jeder bereits erfasste Punkt oben rechts in der grünen Übersicht **«Bereits aufgenommen»** sichtbar. Dazu gehören die Referenzwerte (Druck / Temperatur) und verfügbare Messresultate wie ADC_S und ADC_T. Die Messpunktliste links zeigt erledigte Einträge grün mit **«Aufgenommen»**. Nach einer erfolgreichen Aufnahme siehst du die Bestätigung **«Messpunkt X erfolgreich übernommen»**; darunter erscheint **«Als Nächstes: Messpunkt Y messen»** mit dem richtigen Druck und der Temperatur.
+Im geführten Abgleich bei **Schritt 5: Messpunkte** werden erfolgreich erfasste Punkte links grün mit **«Aufgenommen»** angezeigt. Nach der Aufnahme siehst du die kompakte Bestätigung **«Messpunkt X aufgenommen»**; darunter erscheint **«Als Nächstes: Messpunkt Y messen»** mit dem richtigen Druck und der Temperatur.
 
 Der Wechsel erfolgt nur, wenn die Originalsoftware den Messpunkt tatsächlich gespeichert hat. Bei einem Lesefehler gibt es keine grüne Erfolgsmeldung. Zur Wiederholung kannst du links einen bereits aufgenommenen Messpunkt anwählen. Die ursprünglichen Messungen bleiben im Kalibrierablauf und Archiv erhalten.
 
