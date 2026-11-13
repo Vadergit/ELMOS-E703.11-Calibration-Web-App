@@ -1509,27 +1509,44 @@ if(typeof document!=='undefined') (function UI(){
   st.powerCycleRunning=true;
   renderStatus();
   try{
-   for(const command of ['GPIO_SET 00C0','GPIO_CFG B81E','IF_CFG 7 0 0',
-    'PLC_CFG 0404 0','PLC R','PLC_CFG 020A 0','PLC_CFG 1 0007','PWR_OFF 0','PLC P']){
-    trial.steps.push({command,reply:await exchange(command)});
+   const run=async command=>{
+    if(st.port!==port||st.closing)throw Error('SSP3-Verbindung während Kaltstart beendet');
+    const reply=await exchange(command);
+    trial.steps.push({command,reply});
+    return reply;
+   };
+   for(const command of ['GPIO_SET 00C0','GPIO_CFG B81E','IF_CFG 7 0 0','PLC_CFG 0404 0'])
+    await run(command);
+   // PSSC retries with adapter delays 0, 0x08 and 0x10. The first PLC
+   // read may time out; the following broadcast is the RAM-only enable.
+   let ready=false;
+   for(const delay of ['0','8','10']){
+    trial.powerRestored=false;
+    await run('PWR_OFF 0');
+    for(const command of ['IF_CFG 7 0 0','PLC R','PLC_CFG 020A 0','PLC_CFG 1 0007','PLC P'])
+     await run(command);
+    await run('PWR_ON FFFF '+delay+' 0');
+    trial.powerRestored=true;
+    await run('PLC T');
+    const startupRead=delay==='0'?'PLC 0201000A.':'PLC 026D000A.';
+    try{await run(startupRead)}catch(e){
+     if(!/PLC nothing received/i.test(e.message))throw e;
+     trial.steps.push({command:startupRead,error:e.message});
+    }
+    st.psscRamRecovery=true;
+    await run('PLC 02FE06076C044E');
+    await run('GPIO_GET');
+    st.plcAddress=0x6C;
+    try{await readReg(0x6A,1350)}catch(e){
+     if(!/PLC nothing received/i.test(e.message))throw e;
+     continue;
+    }
+    ready=await probePlcAddresses('PSSC-RAM-Freigabe (Delay '+delay+')');
+    if(!ready&&await restoreColdStartAfe(port))
+     ready=await probePlcAddresses('PSSC-RAM-Freigabe nach AFE-Wiederanlauf');
+    if(ready)break;
    }
-   trial.steps.push({command:'PWR_ON FFFF 0 0 / PLC T',reply:await exchangeSsp3StartupBurst('combined',true)});
-   trial.powerRestored=true;
-   if(await probePlcAddresses('PSSC-Start vor RAM-Freigabe')){
-    trial.readVerified=true;
-    trial.verifiedUid=st.uid?.hex||null;
-    return true;
-   }
-   // Fixed PSSC frame. Broadcasts only CFG_SPI_I2C RAM=0x6C04,
-   // which enables PLC and assigns address 0x6C. Never writes NVM.
-   st.psscRamRecovery=true;
-   const command='PLC 02FE06076C044E';
-   trial.steps.push({command,reply:await exchange(command)});
-   st.plcAddress=0x6C;
-   if(!await probePlcAddresses('PSSC-RAM-Freigabe')){
-    if(!await restoreColdStartAfe(port)||!await probePlcAddresses('PSSC-RAM-Freigabe nach AFE-Wiederanlauf'))
-     throw Error('PSSC-RAM-Freigabe ohne bestätigte Kalibrierbereitschaft');
-   }
+   if(!ready)throw Error('PSSC-RAM-Freigabe ohne bestätigte Kalibrierbereitschaft');
    trial.readVerified=true;
    trial.verifiedUid=st.uid?.hex||null;
    show('connMsg',st.coldStartAfeRestored?'Sensor nach AFE-Wiederanlauf verbunden. NVM-Schreiben bleibt gesperrt.':'Sensor über PSSC-RAM-Freigabe verbunden. NVM-Schreiben ist auf geprüfte Kalibrierdaten begrenzt.','success');
@@ -2697,7 +2714,7 @@ if(typeof document!=='undefined') (function UI(){
  });
  $('plcStartupLogExport').addEventListener('click',()=>{
   const log={
-   tool:'ELMOS E703.11 – SSP3 Startdiagnose',version:'v0.6.50',at:new Date().toISOString(),
+   tool:'ELMOS E703.11 – SSP3 Startdiagnose',version:'v0.6.51',at:new Date().toISOString(),
    source:'Web-App (NICHT PSSC Originalsoftware)',interface:st.iface,adapter:st.adapterKind,
     plcAddress:'0x'+h(st.plcAddress),plcAddressVerified:st.plcAddressVerified,
     plcAddressSource:st.plcAddressSource,plcAddressProbes:st.plcAddressProbes,psscRamRecovery:!!st.psscRamRecovery,

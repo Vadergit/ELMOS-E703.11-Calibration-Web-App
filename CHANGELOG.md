@@ -1,3 +1,7 @@
+## v0.6.51 – SSP3-Kaltstart nach Elmos-Protokoll
+
+- Der SSP3 versucht die im Elmos-Mitschnitt verwendeten Startverzögerungen und prüft die Sensorantwort nach der flüchtigen One-Wire-Freigabe.
+
 ## v0.6.50 – SSP3-Wiederanlauf bei leerem AFE-RAM
 
 - Nach PSSC-RAM-Freigabe kann die App ein leeres CFG_AFE1 aus dem EEPROM desselben Chips wiederherstellen. Sie prüft UID, CRC8, CRC16 und die RAM-Rücklesung. NVM-Schreiben bleibt in dieser Sitzung gesperrt.
