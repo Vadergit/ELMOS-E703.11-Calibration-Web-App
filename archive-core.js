@@ -68,9 +68,11 @@ const ELMOS_ARCHIVE_CORE=(()=>{
     const data=map.get(key)||{axis,reference:value,other,up:[],down:[]};
     const sample=result.sample;
     const signal=axis==='pressure'?
-       (Number.isFinite(sample.sensorPressure)?{value:sample.sensorPressure,unit:sample.pressureUnit||'bar'}:
+       (sample.pressureConfidence==='confirmed'&&Number.isFinite(sample.sensorPressure)?{value:sample.sensorPressure,unit:sample.pressureUnit||'bar'}:
         Number.isFinite(sample.dspS)?{value:sample.dspS,unit:'DSP_S Digits'}:null):
-       (Number.isFinite(sample.dspT)?{value:sample.dspT,unit:'DSP_T Digits'}:
+       (sample.temperatureConfidence==='confirmed'&&Number.isFinite(sample.sensorTempC)?
+         {value:sample.sensorTempC,unit:'°C'}:
+        Number.isFinite(sample.dspT)?{value:sample.dspT,unit:'DSP_T Digits'}:
         Number.isFinite(sample.adcT)?{value:sample.adcT,unit:'ADC_T Digits'}:null);
     if(signal)data[dir].push(signal);
     map.set(key,data);
