@@ -1,6 +1,14 @@
 # Roadmap für den E703.11-Kalibrierassistenten
 
-Stand v0.7.1 · Web-App mit SSP3 im Vergleich zur Elmos-PSSC-Software. Die Reihenfolge zeigt die geplante Priorität. Veröffentlichungstermine sind offen.
+Stand v0.7.2 · Web-App mit SSP3 im Vergleich zur Elmos-PSSC-Software. Die Reihenfolge zeigt die geplante Priorität. Veröffentlichungstermine sind offen.
+
+## Bedienung und zeitgesteuerte Tests (v0.7.2)
+
+- [x] Archiv und Nachmessung als getrennte obere Navigationsbereiche.
+- [x] Test / Logging auch in der klassischen Ansicht direkt unter EEPROM Viewer.
+- [x] Eine gemeinsame Logger-Instanz zwischen geführter und klassischer Ansicht.
+- [x] Einstellbare Testdauer mit Auto-Stopp, Countdown und Pause-/Fortsetzen-Funktion.
+- [ ] Reale Hardwarevalidierung des Auto-Stopps bei langen USB-Lesezyklen und unterbrochenen Sensoren.
 
 ## Test-Logging (v0.7.1)
 
