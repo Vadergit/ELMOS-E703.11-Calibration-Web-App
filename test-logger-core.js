@@ -55,10 +55,10 @@ const ELMOS_TEST_LOGGER_CORE=(()=>{
   const nextAt=expectedAt+(skipped+1)*intervalMs;
   return {nextAt,skipped,waitMs:Math.max(0,nextAt-now)};
  }
- function csvRows(points){
+ function csvRows(points,metadata={}){
   const cols=['kind','pointIndex','sampleIndex','sampleAt','scheduledAt','startedAt','endedAt',
    'durationMs','lagMs','skippedIntervals','sampleCount','aggregation',
-   ...FIELDS,'configuredVdd','measuredVdd'];
+   ...FIELDS,'configuredVdd','measuredVdd','testName','dutName','chipUID'];
   const quote=x=>{
    let s=x==null?'':typeof x==='object'?JSON.stringify(x):String(x);
    // Prevent formula execution if CSV data are opened in a spreadsheet.
@@ -70,14 +70,15 @@ const ELMOS_TEST_LOGGER_CORE=(()=>{
    const common=[p.index,null,null,p.scheduledAt,p.startedAt,p.endedAt,p.durationMs,
     p.lagMs,p.skippedIntervals,p.samples?.length,p.aggregation];
    const voltage=[p.supply?.externalVdd?.configuredV??null,p.supply?.externalVdd?.measuredV??null];
+   const identity=[metadata.name||null,metadata.dutName||null,metadata.chipUID||null];
    if(p.aggregation!=='none'){
     rows.push(['aggregate',p.index,null,null,...common.slice(3),
-     ...FIELDS.map(k=>p.aggregated?.channels?.[k]??null),...voltage].map(quote).join(','));
+     ...FIELDS.map(k=>p.aggregated?.channels?.[k]??null),...voltage,...identity].map(quote).join(','));
    }
    for(let i=0;i<(p.samples?.length||0);i++){
     const sample=p.samples[i];
     rows.push(['raw',p.index,i+1,sample.at,...common.slice(3),
-     ...FIELDS.map(k=>sample[k]??null),...voltage].map(quote).join(','));
+     ...FIELDS.map(k=>sample[k]??null),...voltage,...identity].map(quote).join(','));
    }
   }
   return rows.join('\n');
