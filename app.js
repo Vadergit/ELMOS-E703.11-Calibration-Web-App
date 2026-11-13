@@ -736,7 +736,13 @@ if(typeof document!=='undefined') (function UI(){
  async function firmware(){
   let reply;
   try{
-   reply=await exchange('.VERSION',1600);
+   try{
+    reply=await exchange('.VERSION',1600);
+   }catch(error){
+    if(st.adapterKind!=='ssp3'||!/Unknown command/i.test(error.message)||st.closing)throw error;
+    logging('SSP3-Eingabepuffer verwirft den ersten Versionsbefehl. Wiederhole .VERSION einmal.');
+    reply=await exchange('.VERSION',1600);
+   }
    st.adapterNoReply=false;
   }catch(error){
    st.adapterNoReply=true;st.chip=false;stopLive();
@@ -748,6 +754,7 @@ if(typeof document!=='undefined') (function UI(){
   // SSP3 firmware replies as @02 08 02 04; retain the actual firmware version.
   const match=reply.match(/(?:^|[\r\n])\s*@([0-9A-F]{2})\s+([0-9A-F]{2})\s+([0-9A-F]{2})\s+([0-9A-F]{2})(?=[\s\r\n:]|$)/i);
   st.firmware=match?match.slice(1,5).join('.'):'Antwort erhalten';
+  if(match&&st.adapterKind==='ssp3'&&!demoEnabled)lsSet('ssp3-confirmed-baud',$('baud').value);
   if(st.adapterKind==='ssp3'&&st.iface==='plc'&&match&&match.slice(1,5).join(' ').toUpperCase()==='02 08 02 04'){
    // Actual SSP3 RX proves that the separated ASCII form
    // "PLC 02 6D1C0C." is INVALID ("frame contains invalid data ( )").
@@ -2825,7 +2832,7 @@ if(typeof document!=='undefined') (function UI(){
  });
  $('plcStartupLogExport').addEventListener('click',()=>{
   const log={
-   tool:'ELMOS E703.11 – SSP3 Startdiagnose',version:'v0.6.54',at:new Date().toISOString(),
+   tool:'ELMOS E703.11 – SSP3 Startdiagnose',version:'v0.6.55',at:new Date().toISOString(),
    source:'Web-App (NICHT PSSC Originalsoftware)',interface:st.iface,adapter:st.adapterKind,
     plcAddress:'0x'+h(st.plcAddress),plcAddressVerified:st.plcAddressVerified,
     plcAddressSource:st.plcAddressSource,plcAddressProbes:st.plcAddressProbes,psscRamRecovery:!!st.psscRamRecovery,
@@ -3023,6 +3030,10 @@ if(typeof document!=='undefined') (function UI(){
   show('connMsg',st.adapterKind==='bridge'?'ESP32-C3-Bridge ausgewählt. PLC-Baudrate und Sensorversorgung prüfen.':'SSP3 Evaluation Board ausgewählt. Die originale Kommunikation bleibt unverändert.','warn');
   renderStatus();
  });
+ const confirmedSsp3Baud=lsGet('ssp3-confirmed-baud');
+ if(!demoEnabled&&$('adapterType').value==='ssp3'&&
+    Array.from($('baud').options).some(option=>option.value===confirmedSsp3Baud))
+  $('baud').value=confirmedSsp3Baud;
  $('startRamMeasurement').addEventListener('click',()=>startRamMeasurement());
  $('choose').addEventListener('click',()=>choose());$('auto').addEventListener('click',()=>auto());$('disconnect').addEventListener('click',()=>disconnect());$('sensorReconnectButton').addEventListener('click',()=>st.adapterNoReply?reopenSsp3Port():reinitializeSensor());
  $('sensorReconnectExport').addEventListener('click',()=>$('plcStartupLogExport').click());
