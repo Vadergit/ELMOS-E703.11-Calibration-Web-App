@@ -4,7 +4,7 @@ const ELMOS_ARCHIVE=(()=>{
  const C=ELMOS_ARCHIVE_CORE;
  const $=id=>document.getElementById(id);
  const S={dir:null,record:null,records:[],filename:null,writeQueue:Promise.resolve(),selection:[],step:0,
-  measuring:false,showDetails:null,lastError:'',folderName:'',draft:null};
+  measuring:false,showDetails:null,lastError:'',folderName:'',draft:null,debugLines:[],debugDropped:0,lastStreamMetaFlush:0};
  const iso=()=>new Date().toISOString();
  const text=(id,value)=>{if($(id))$(id).textContent=String(value)};
  const note=(value,bad=false)=>{S.lastError=bad?String(value):'';text('archiveStatus',value);if($('archiveStatus'))$('archiveStatus').style.color=bad?'#a13b39':'#526982'};
@@ -12,7 +12,7 @@ const ELMOS_ARCHIVE=(()=>{
  const bridge=()=>window.ELMOS_ARCHIVE_BRIDGE;
  const statusWords={running:'Offen / eventuell unterbrochen',completed:'Abgeschlossen',failed:'Fehlerhaft',
   interrupted:'Unterbrochen',aborted:'Abgebrochen',incomplete:'Unvollständig'};
- const typeWords={calibration:'Kalibrierung',verification:'Nachmessung',output:'Ausgang'};
+ const typeWords={calibration:'Kalibrierung',verification:'Nachmessung',output:'Ausgang',testlog:'Test / Logging'};
  const clone=x=>JSON.parse(JSON.stringify(x));
  const makeId=()=>typeof crypto!=='undefined'&&crypto.randomUUID?crypto.randomUUID():'id-'+Date.now()+'-'+Math.random().toString(36).slice(2);
  const safe=x=>x&&typeof x==='object'?clone(x):x;
@@ -90,7 +90,12 @@ const ELMOS_ARCHIVE=(()=>{
    equipment:safe(meta.equipment),software:safe(meta.software),initial:null,final:null,plan:plan?clone(plan):null,
    events:[{at:iso(),kind:'started',data:{type,plan:plan?{mode:plan.mode,cycles:plan.cycles,steps:plan.steps.length}:null}}]};
   S.filename=C.filename(S.record);
-  S.step=0;
+  if(type==='testlog'){
+   S.record.telemetryFile=S.filename.replace(/\.json$/i,'.samples.jsonl');
+   S.record.telemetry={groups:0,individualSamples:0,durationMs:0,missedSlots:0,readErrors:0,lastSampleAt:null,
+    storage:'append-only JSONL; ein Datensatz pro Messpunkt'};
+  }
+  S.step=0;S.debugLines=[];S.debugDropped=0;S.lastStreamMetaFlush=0;
   try{
    await flush(); // The record exists before any sensor operations.
    if(bridge()?.initial){
@@ -124,6 +129,8 @@ const ELMOS_ARCHIVE=(()=>{
  async function event(kind,data={}){
   if(!S.record)return false;
   S.record.events.push({at:iso(),kind,data:safe(data)});
+  if(kind==='test_configuration'&&S.record.type==='testlog')
+   S.record.testConfiguration=safe(data);
   if(kind==='nvm_before')S.record.status='running';
   if(kind==='error'&&data.stage==='nvm_program')S.record.status='failed';
   if(kind==='nvm_after')S.record.status='running';
@@ -135,16 +142,75 @@ const ELMOS_ARCHIVE=(()=>{
  }
  function trace(line){
   if(!S.record)return;
-  // Only instrumented, non-continuous actions pass their trace messages here.
+  if(S.record.type==='testlog'){
+   if(!S.record.testConfiguration?.debug)return;
+   if(S.debugLines.length<4000)S.debugLines.push({at:iso(),line:String(line).slice(0,6000)});
+   else S.debugDropped++;
+   return;
+  }
   S.record.events.push({at:iso(),kind:'transport',data:{line:String(line).slice(0,6000)}});
  }
+ async function appendTelemetry(entry){
+  const record=S.record;
+  if(!record||record.type!=='testlog')throw Error('Kein aktives Testprotokoll');
+  if(!record.telemetryFile)throw Error('Dateiname für Testdaten fehlt');
+  const payload=safe(entry);
+  if(!payload||payload.kind!=='telemetry_point')throw Error('Ungültiger Telemetriedatensatz');
+  if(record.testConfiguration?.debug){
+   payload.transport=S.debugLines.splice(0);
+   if(S.debugDropped)payload.transportDropped=S.debugDropped;
+   S.debugDropped=0;
+  }
+  const folder=S.dir,name=record.telemetryFile;
+  S.writeQueue=S.writeQueue.catch(()=>{}).then(async()=>{
+   if(!await permitted(false))throw Error('Keine Schreibberechtigung für Telemetrie-Datei');
+   const handle=await folder.getFileHandle(name,{create:true});
+   const existing=await handle.getFile();
+   const writer=await handle.createWritable({keepExistingData:true});
+   try{
+    await writer.seek(existing.size);
+    await writer.write(JSON.stringify(payload)+'\n');
+    await writer.close();
+   }catch(e){try{await writer.abort()}catch(_){}throw e}
+  });
+  try{await S.writeQueue}
+  catch(e){
+   note('Rohdaten konnten nicht gespeichert werden: '+e.message,true);
+   throw e;
+  }
+  record.telemetry.groups++;
+  record.telemetry.individualSamples+=(payload.samples?.length||0);
+  record.telemetry.missedSlots+=(payload.skippedIntervals||0);
+  record.telemetry.durationMs+=payload.durationMs||0;
+  record.telemetry.readErrors+=(payload.errors?.length||0);
+  record.telemetry.lastSampleAt=payload.endedAt||iso();
+  if(record.telemetry.groups===1||record.telemetry.groups%10===0||Date.now()-S.lastStreamMetaFlush>5000){
+   await flush();S.lastStreamMetaFlush=Date.now();
+  }
+  return record.telemetry.groups;
+ }
+ async function streamRows(record){
+  if(!record.telemetryFile||!S.dir)throw Error('Kein lokaler Telemetrieordner verbunden');
+  if(!await permitted(false))throw Error('Archivordner erneut freigeben');
+  const handle=await S.dir.getFileHandle(record.telemetryFile);
+  const file=await handle.getFile();
+  const text=await file.text();
+  const result=[];
+  for(const line of text.split(/\r?\n/)){
+   if(!line.trim())continue;
+   const row=JSON.parse(line);
+   if(row.kind==='telemetry_point')result.push(row);
+  }
+  return result;
+ }
+
  async function finalise(status='incomplete'){
   if(!S.record)return;
   if(S.measuring)throw Error('Messung läuft');
   if(bridge()?.final)try{S.record.final=await bridge().final()}catch(e){
    S.record.events.push({at:iso(),kind:'error',data:{stage:'final_snapshot',message:e.message}});
   }
-  if(status==='completed'&&(!Array.isArray(S.record.initial?.nvm?.words)||
+  if(status==='completed'&&S.record.type!=='testlog'&&(!Array.isArray(S.record.initial?.nvm?.words)||
    S.record.initial.nvm.words.length!==64||!Array.isArray(S.record.final?.nvm?.words)||
    S.record.final.nvm.words.length!==64))status='incomplete';
   if(status==='completed'&&S.record.type==='verification'){
@@ -155,6 +221,8 @@ const ELMOS_ARCHIVE=(()=>{
   }
   S.record.status=status;S.record.endedAt=iso();
   S.record.events.push({at:iso(),kind:'finished',data:{status}});
+  if(S.record.type==='testlog'&&S.debugLines.length)
+   S.record.events.push({at:iso(),kind:'debug_tail',data:{lines:S.debugLines.splice(0),dropped:S.debugDropped}});
   await flush();
   const finished=clone(S.record);
   S.record=null;S.filename=null;S.step=0;
@@ -164,13 +232,26 @@ const ELMOS_ARCHIVE=(()=>{
   if(!S.record)return;
   S.record.status='interrupted';S.record.endedAt=iso();
   S.record.events.push({at:iso(),kind:'error',data:{stage:'sensor_connection',message:reason}});
+  if(S.record.type==='testlog'&&S.debugLines.length)
+   S.record.events.push({at:iso(),kind:'debug_tail',data:{lines:S.debugLines.splice(0),dropped:S.debugDropped}});
+  window.dispatchEvent(new CustomEvent('elmos-archive-interrupted',{detail:{reason}}));
   const interruptedRecord=S.record;
   void flush().then(()=>{if(S.record!==interruptedRecord)return;S.record=null;S.filename=null;renderActive();return refresh()}).catch(()=>{});
  }
- function download(record){
-  const data=JSON.stringify(record,null,2);
-  const url=URL.createObjectURL(new Blob([data],{type:'application/json'}));
-  const a=el('a');a.href=url;a.download=C.filename(record);a.click();
+ async function download(record,format='json'){
+  let data,mime,name;
+  if(record.type==='testlog'){
+   const rows=await streamRows(record);
+   if(format==='csv'){
+    data=window.ELMOS_TEST_LOGGER_CORE.csvRows(rows);mime='text/csv;charset=utf-8';
+    name=C.filename(record).replace(/\.json$/i,'.csv');
+   }else{
+    data=JSON.stringify({...record,telemetryPoints:rows},null,2);
+    mime='application/json';name=C.filename(record);
+   }
+  }else{data=JSON.stringify(record,null,2);mime='application/json';name=C.filename(record)}
+  const url=URL.createObjectURL(new Blob([data],{type:mime}));
+  const a=el('a');a.href=url;a.download=name;a.click();
   setTimeout(()=>URL.revokeObjectURL(url),3000);
  }
  async function refresh(){
@@ -224,8 +305,14 @@ const ELMOS_ARCHIVE=(()=>{
     (Number.isInteger(initAfe)?' · RAM AFE1 0x'+initAfe.toString(16).padStart(4,'0'):'')+
     (Number.isInteger(initCrc)?' · NVM CRC 0x'+initCrc.toString(16).padStart(4,'0'):''));
    btn.append(title,details);btn.addEventListener('click',()=>renderDetails(r));
-   const exportBtn=el('button','JSON','ar-small');exportBtn.addEventListener('click',()=>download(r));
-   row.append(check,btn,exportBtn);root.appendChild(row);
+   const exportBtn=el('button',r.type==='testlog'?'JSON + Rohdaten':'JSON','ar-small');
+   exportBtn.addEventListener('click',()=>download(r).catch(e=>note('Export fehlgeschlagen: '+e.message,true)));
+   row.append(check,btn,exportBtn);
+   if(r.type==='testlog'){
+    const csv=el('button','CSV','ar-small');
+    csv.addEventListener('click',()=>download(r,'csv').catch(e=>note('CSV-Export fehlgeschlagen: '+e.message,true)));
+    row.append(csv);
+   }root.appendChild(row);
   }
   if(!list.length)root.appendChild(el('p','Keine passenden gültigen Prüfprotokolle.','ar-muted'));
   $('archiveCompare').disabled=S.selection.length!==2;
@@ -235,7 +322,10 @@ const ELMOS_ARCHIVE=(()=>{
   const root=$('archiveDetails');root.replaceChildren();
   root.append(el('h3',(typeWords[r.type]||r.type)+' · '+(r.chipUID||'UID unbekannt')));
   const s=C.outcomes(r);
-  root.append(el('p','Status: '+(statusWords[r.status]||r.status)+' · '+s.total+' Messversuche · '+s.failed+
+  root.append(el('p',r.type==='testlog'?
+   'Status: '+(statusWords[r.status]||r.status)+' · '+(r.telemetry?.groups||0)+' Messpunkte · '+
+    (r.telemetry?.individualSamples||0)+' Einzelmessungen · '+(r.telemetry?.missedSlots||0)+' ausgelassene Intervalle':
+   'Status: '+(statusWords[r.status]||r.status)+' · '+s.total+' Messversuche · '+s.failed+
    ' ausser Toleranz · '+s.errors+' Fehler · '+s.repeated+' Wiederholungen'));
   if(r.initial?.errors?.length)root.append(el('p','Initialkonfiguration unvollständig: '+r.initial.errors.join('; '),'ar-warning'));
   if(r.plan){
@@ -477,7 +567,7 @@ const ELMOS_ARCHIVE=(()=>{
   document.documentElement.classList.remove('archive-active');
   $('archiveWorkspace').hidden=true;
  }
- return {init,open,close,begin,ensureCalibration,event,trace,flush,finalise,interrupted,
+ return {init,open,close,begin,ensureCalibration,event,trace,appendTelemetry,streamRows,download,flush,finalise,interrupted,
   get active(){return !!S.record},get current(){return S.record},refresh};
 })();
 if(typeof window!=='undefined'){
