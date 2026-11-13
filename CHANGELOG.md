@@ -1,3 +1,17 @@
+## v0.7.1 – Test / Logging im geführten Einstieg
+
+- Vierte Kachel **Test / Logging** mit Name, Beschreibung, Kategorie, Operator und optionaler VDD-Messung.
+- Frei definierbares Messintervall (1–3’600’000 ms), Anzahl Einzelmessungen (1–100), Einzelmessabstand (0–60’000 ms) und Mittelwert/Median/keine Mittelung.
+- Jeder Rohsample mit Zeitstempel, ADC_S, ADC_T, ADC_TC, DSP_S, DSP_T und Status; Fehler und tatsächliche Messdauer protokolliert.
+- Live-Aufzeichnung mit Pause/Fortsetzen, Einzelaufnahme, Marker, Notizen und optionalen Referenzen.
+- Lokale Rohdaten in fortlaufenden JSONL-Teilen, Archivsuche und vollständiger JSON-/CSV-Export.
+- Test-Logging benutzt ausschliesslich den reservierten Leseweg und verändert die NVM-Schutzlogik nicht; reale Hardwarevalidierung weiterhin offen.
+
+## v0.7.0 – Lokales Kalibrierarchiv und Nachmessung
+
+- Pro Kalibrierung initiale und finale RAM-/NVM-Konfiguration, UID, Web-App-Version, Adapter, Einzelmessungen, Verstärkungen, Koeffizienten, Fehler und Wiederholungen in lokalem JSON.
+- Frei definierbare Druck- und Temperaturprüframpen mit Hystereseauswertung, Filter und Vergleich im Archiv.
+
 ## v0.6.58 – Eigene USER-ID
 
 - Im NVM-Schritt kann optional ein 16-Bit-Hexwert für das USER-Wort vorgemerkt und mit der Kalibrierung gespeichert werden. Die Änderungsliste zeigt den alten und neuen Wert.
