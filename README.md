@@ -2,7 +2,7 @@
 
 **Ein geführter Kalibrierassistent für den ELMOS E703.11 und das SSP3-Eval-Board.** Ziel ist ein verständlicher Abgleich, der auch ohne tiefere Vorkenntnisse Schritt für Schritt funktioniert. Wer mehr benötigt, kann zusätzliche Messpunkte, DSP-Parameter und einen geschützten Expertenmodus verwenden.
 
-**Version: v0.7.4 · DUT-Bezeichnung, kompakter Logviewer und korrekte Firmware-Zuordnung** · [Änderungsverlauf](CHANGELOG.md) · **[Geplante Funktionen](ROADMAP.md)**
+**Version: v0.7.5 · Aufgeräumte Hauptansicht und optionale Nachmessung** · [Änderungsverlauf](CHANGELOG.md) · **[Geplante Funktionen](ROADMAP.md)**
 
 Über **Einstellungen → Demo-Modus** lässt sich der gesamte Kalibrierablauf mit simulierten Messwerten und NVM ausprobieren.
 
@@ -13,6 +13,12 @@
 > **Geführter Assistent:** Nach der bestätigten SSP3-Verbindung stehen die neue Schritt-für-Schritt-Führung, die klassische Ansicht und der optionale Kompaktmodus zur Verfügung. Ein E703.11-Chip muss für den Abgleich verbunden sein. Die USB-CDC-Bridge bleibt als experimenteller Verbindungstest ohne Sensorprogrammierung gesperrt.
 >
 > [Geführter Abgleich](docs/GEFUEHRTER_ASSISTENT.md) · [USB-Bridge](docs/USB_BRIDGE_GUIDE.md) · [ESP-Boards](docs/ESP_BOARD_OPTIONS.md) · [ESP32-C3 SuperMini Sketch](firmware/esp32c3_supermini/esp32c3_supermini.ino)
+
+## Neu in v0.7.5 – Offline-Anleitung und Nachmessung in den Einstellungen
+
+Der bisherige Offline-Hinweis unter der oberen Navigation ist entfernt. Die **«Anleitung für Einsteiger»** zum lokalen Speichern der Webseite findest du unter **⚙ Einstellungen → Web-App offline verwenden**.
+
+**Nachmessung einblenden** ist ein neuer Schalter in den App-Einstellungen. Er ist beim ersten Aufruf **ausgeschaltet**. Nur nach Aktivierung erscheint der obere Navigationsbutton «Nachmessung» für Druck- und Temperatur-Prüframpen. Die Auswahl bleibt lokal im Browser gespeichert und kann jederzeit geändert werden. Eine noch laufende Nachmessung muss vor dem Ausblenden zuerst beendet oder abgebrochen werden. Gespeicherte Nachmessungsprotokolle sind unabhängig davon weiterhin im Archiv sichtbar.
 
 ## Neu in v0.7.4 – DUT und Firmware richtig zuordnen
 
