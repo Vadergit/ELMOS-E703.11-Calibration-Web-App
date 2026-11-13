@@ -113,3 +113,14 @@ test('success is grounded in original records and styled in both themes',()=>{
  assert.match(theme,/html\[data-theme="dark"\] #guidedWorkspace \.gw-point-confirmation/);
  assert.match(css,/#guidedWorkspace \.gw-point-nav button\.gw-done/);
 });
+
+test('measurement navigation is rebuilt when the guided view replaces its contents',()=>{
+ const h=setup();
+ h.logic.renderCapture();
+ h.$('gwPointNav').replaceChildren();
+ h.$('gwCurrentSetpoint').replaceChildren();
+ h.logic.renderCapture();
+ assert.equal(h.$('gwPointNav').children.length,2);
+ assert.match(h.$('gwCurrentSetpoint').textContent,/Messpunkt 1 messen/);
+ assert.equal(h.rows[0].classList.current.has('gw-point-active'),true);
+});

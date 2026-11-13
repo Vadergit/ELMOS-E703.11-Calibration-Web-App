@@ -119,6 +119,7 @@ const ELMOS_GUIDED=(()=>{
  function build(){
   root=$('guidedWorkspace');
   root.innerHTML=UI();
+  lastCaptureRenderKey=null;
   moveId('calibrationSupply','gwCalibrationSupply');
   window.ELMOS_TEST_LOGGER?.mount($('gwLogPage'));
   for(const id of ['pmin','pmax','calUnit','calSampleCount','calUnitOther'])moveLabel(id,'gwSensorFields');
@@ -352,10 +353,9 @@ const ELMOS_GUIDED=(()=>{
    latest:latestCapture
   });
   // The live refresh loop runs frequently; do not rebuild cards on every poll.
-  if(lastCaptureRenderKey===key)return;
-  lastCaptureRenderKey=key;
-
-  const nav=$('gwPointNav');nav.replaceChildren();
+  const nav=$('gwPointNav');
+  if(lastCaptureRenderKey===key&&nav.children.length===points.length)return;
+  nav.replaceChildren();
   for(const {point,index,record} of points){
    const btn=document.createElement('button');
    btn.type='button';
@@ -395,6 +395,7 @@ const ELMOS_GUIDED=(()=>{
     ' °C ein, warte auf stabile Bedingungen und klicke dann auf «aufnehmen».';
   current.append(heading,text);
   setText('gwFooterHint',captured.length+' / '+plan.total+' Messpunkte erfolgreich aufgenommen');
+  lastCaptureRenderKey=key;
  }
  function observeCapture(){
   if(stage!==4||!plan)return;
@@ -593,7 +594,10 @@ const ELMOS_GUIDED=(()=>{
    try{plan=applyPlan();goto(3)}catch(e){msg(e.message,'error')}
    return;
   }
-  if(stage===3){goto(4);return}
+  if(stage===3){
+   try{if(!plan)plan=applyPlan();goto(4)}catch(e){msg(e.message,'error')}
+   return;
+  }
   if(stage===4){
    if(!plan||!plan.points.every(p=>pointRecord(p))){msg('Bitte zuerst alle '+(plan?.total||0)+' Messpunkte erfolgreich aufnehmen.','warn');return}
    goto(5);return;

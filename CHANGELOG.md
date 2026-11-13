@@ -1,3 +1,7 @@
+## v0.7.14 – Messpunkte nach Ansichtswechsel
+
+- Baut die Messpunktliste beim erneuten Öffnen der geführten Ansicht auch bei unveränderter Messmatrix wieder auf.
+
 ## v0.7.13 – VDD-Eingabe beim Abgleich
 
 - Die optionale gemessene Versorgungsspannung wird beim Abgleich erfasst. Der Archiv-Viewer zeigt gespeicherte Werte an.
