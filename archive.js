@@ -327,7 +327,8 @@ const ELMOS_ARCHIVE=(()=>{
  function outcome(summary){
   const box=el('div',null,'ar-kpi-grid');
   box.append(kpi('Messpunkte',num(summary.measurementPoints,0),'Aufgezeichnete Gruppen / Versuche'),
-   kpi('Rohmessungen',num(summary.rawSamples,0),'Einzelne Sensorwerte'),
+   summary.type==='verification'?kpi('Ausser Toleranz',num(summary.failedAttempts,0),
+    'Fehlgeschlagene Prüfversuche'):kpi('Rohmessungen',num(summary.rawSamples,0),'Einzelne Sensorwerte'),
    kpi('Fehler',num(summary.errors,0),'Gemeldete Auffälligkeiten'),
    kpi('Dauer',time(summary.durationMs),summary.statusLabel));
   return box;
@@ -341,6 +342,7 @@ const ELMOS_ARCHIVE=(()=>{
  }
  function renderList(){
   const root=$('archiveRows');if(!root)return;
+  const listScroll=root.scrollTop;
   root.replaceChildren();
   const list=filtered();
   text('archiveCount',list.length+' / '+S.records.length+' Dateien');
@@ -379,7 +381,8 @@ const ELMOS_ARCHIVE=(()=>{
     el('span',info.board||'Board unbekannt'),el('span','Web '+(info.appVersion||'?')));
    const quick=el('div',null,'ar-file-quick');
    quick.append(el('span',info.measurementPoints+' Punkte'),
-    el('span',info.errors+' Fehler'),el('span',time(info.durationMs)));
+    el('span',info.errors+' Fehler'),
+    el('span',info.failedAttempts?info.failedAttempts+' ausser Toleranz':time(info.durationMs)));
    const actions=el('div',null,'ar-file-actions');
    const view=el('button','Ergebnisse prüfen','ar-small ar-view-button');
    view.addEventListener('click',()=>{void renderDetails(record)});
@@ -399,6 +402,7 @@ const ELMOS_ARCHIVE=(()=>{
     el('p','Andere Filter wählen oder den Archivordner erneut einlesen.'));
    root.append(blank);
   }
+  root.scrollTop=listScroll;
   $('archiveCompare').disabled=S.selection.length!==2;
   text('archiveCompare',S.selection.length===2?'2 Dateien vergleichen':
    S.selection.length+' von 2 Dateien markiert');
