@@ -104,6 +104,7 @@ const ELMOS_ARCHIVE=(()=>{
      S.record.initial={errors:[String(error.message||error)],ram:{},nvm:{}};
      S.record.events.push({at:iso(),kind:'error',data:{stage:'initial_snapshot',message:String(error.message||error)}});
     }
+    if(S.record.initial?.configuredUserId)S.record.customUID=S.record.initial.configuredUserId;
     await flush();
    }
   }catch(e){
@@ -154,7 +155,8 @@ const ELMOS_ARCHIVE=(()=>{
   if(!S.record)return;
   S.record.status='interrupted';S.record.endedAt=iso();
   S.record.events.push({at:iso(),kind:'error',data:{stage:'sensor_connection',message:reason}});
-  void flush().then(()=>{S.record=null;S.filename=null;renderActive();return refresh()}).catch(()=>{});
+  const interruptedRecord=S.record;
+  void flush().then(()=>{if(S.record!==interruptedRecord)return;S.record=null;S.filename=null;renderActive();return refresh()}).catch(()=>{});
  }
  function download(record){
   const data=JSON.stringify(record,null,2);
@@ -327,29 +329,49 @@ const ELMOS_ARCHIVE=(()=>{
   note('Messung '+(attempts+1)+' läuft …');
   try{
    const sample=await bridge().measure(count);
-   const errP=Number.isFinite(sample.sensorPressure)?sample.sensorPressure-p:null;
-   // The DSP_T-to-degree conversion has not been hardware-validated.
-   const errT=null;
-   const pass=errP===null?null:Math.abs(errP)<=toleranceP;
+   const pressureConfirmed=$('arPressureScaleConfirmed').checked||sample.pressureConversionKind==='ram';
+   sample.pressureConfidence=pressureConfirmed?'confirmed':'unverified';
+   const errP=pressureConfirmed&&Number.isFinite(sample.sensorPressure)?sample.sensorPressure-p:null;
+   // °C conversions require an operator-verified model. Always preserve DSP_T raw.
+   const tempConfirmed=$('arTempConversionConfirmed').checked;
+   const tempScale=Number($('arTempScale').value),tempOffset=Number($('arTempOffset').value);
+   if(tempConfirmed&&(!Number.isFinite(tempScale)||tempScale===0||!Number.isFinite(tempOffset)))
+    throw Error('Temperatur-Umrechnung benötigt gültige Skalierung und Offset');
+   sample.sensorTempC=tempConfirmed&&Number.isFinite(sample.dspT)?(sample.dspT-tempOffset)/tempScale:null;
+   sample.temperatureConfidence=tempConfirmed?'confirmed':'unverified';
+   sample.temperatureConversion=tempConfirmed?{operatorConfirmed:true,dspTScaleDigitsPerC:tempScale,
+    dspTOffsetDigits:tempOffset,source:'Manuelle Bestätigung, nicht vom System validiert'}:
+    {operatorConfirmed:false,source:'Rohdaten ohne kalibrierte °C-Umrechnung'};
+   const errT=Number.isFinite(sample.sensorTempC)?sample.sensorTempC-t:null;
+   const pPass=errP===null?null:Math.abs(errP)<=toleranceP;
+   const tPass=errT===null?null:Math.abs(errT)<=toleranceT;
+   const mode=r.plan.mode;
+   const pass=mode==='pressure'?pPass:mode==='temperature'?tPass:
+    (pPass===false||tPass===false)?false:(pPass===null||tPass===null)?null:true;
    await event('measurement',{stepIndex:S.step,attempt:attempts+1,referencePressure:p,referenceTemperature:t,
     referenceSource:$('arReferenceSource').value||'Manuelle Eingabe',setpoint:step,
     pressureTolerance:toleranceP,temperatureTolerance:toleranceT,
-    pressureError:errP,temperatureError:errT,temperatureVerdict:'Nicht kalibriert – nur Rohwerte',
+    pressureError:errP,temperatureError:errT,pressureVerdict:pPass,temperatureVerdict:tPass,
     pass,sample});
-   note(pass===false?'Druck ausser Toleranz. Du kannst die Messung wiederholen oder zum nächsten Punkt wechseln.':
-    pass===null?'Messwerte erfasst. Druckbewertung ohne bestätigte Kennlinie nicht möglich.':
-     'Messpunkt innerhalb der Drucktoleranz. Weitere Messung oder nächster Punkt möglich.',pass===false);
+   note('Versuch '+(attempts+1)+': DSP_S '+sample.dspS+' · DSP_T '+sample.dspT+
+    ' · Druckfehler '+(errP===null?'nicht bewertet':errP.toFixed(5))+
+    ' · Temperaturfehler '+(errT===null?'nicht bewertet':errT.toFixed(3)+' °C')+
+    ' · '+(pass===false?'ausser Toleranz':pass===null?'Bewertung teilweise offen':'innerhalb Toleranz')+'.',pass===false);
   }catch(e){
    try{await event('error',{stage:'verification_measurement',stepIndex:S.step,attempt:attempts+1,message:e.message})}
    catch(_){}
    note('Messung fehlgeschlagen: '+e.message,true);
   }finally{S.measuring=false;$('arMeasure').disabled=false;renderStep()}
  }
- function advance(){
+ async function advance(){
   if(!S.record?.plan||S.measuring)return;
-  S.step=Math.min(S.record.plan.steps.length,S.step+1);
+  const current=S.step;
+  if(current<S.record.plan.steps.length&&!C.lastAttempt(S.record,current))
+   await event('point_skipped',{stepIndex:current,reason:'Manuell übersprungen'});
+  S.step=Math.min(S.record.plan.steps.length,current+1);
   renderStep();
  }
+ function previous(){if(!S.record?.plan||S.measuring)return;S.step=Math.max(0,S.step-1);renderStep()}
  async function startVerification(){
   if(!S.draft)preview();
   if(!S.draft)throw Error('Prüfplan zuerst korrigieren');
