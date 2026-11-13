@@ -1,12 +1,18 @@
 # Bedienungsanleitung – ELMOS E703.11
 
-**Dokumentationsstand v0.6.41** Kalibrierassistent
+**Dokumentationsstand v0.7.1** Kalibrierassistent
 
-**[Web-App öffnen](https://vadergit.github.io/ELMOS-E703.11-Calibration-Web-App/)** · **[Projektübersicht](README.md)** · **[Config-Dateien & EEPROM Viewer](CONFIG_DATEIEN.md)** · **[Testbericht](TESTBERICHT.md)**
+**[Web-App öffnen](https://vadergit.github.io/ELMOS-E703.11-Calibration-Web-App/)** · **[Projektübersicht](README.md)** · **[Test / Logging](TEST_LOGGING.md)** · **[Archiv](ARCHIV_NACHMESSUNG.md)** · **[Config-Dateien & EEPROM Viewer](CONFIG_DATEIEN.md)** · **[Testbericht](TESTBERICHT.md)**
 
 Diese Anleitung beschreibt die derzeitige Benutzeroberfläche der browserbasierten App für den **ELMOS E703.11** mit **SSP3-Eval-Board**. Ziel ist ein geführter Abgleich mit möglichst wenig Vorwissen und optionalen Expertenfunktionen.
 
 > **Laborprototyp, keine Produktionsfreigabe.** Der vollständige Kalibrier- und NVM-Schreibablauf wurde noch nicht am realen E703.11 als Gesamtsystem validiert. Permanente Änderungen zunächst nur an einem entbehrlichen Testchip erproben.
+
+## Neue vierte Auswahl: Test / Logging (v0.7.1)
+
+Im geführten Assistenten bei **«Was möchtest du machen?»** steht neben Sensorabgleich, Ausgang ändern und EEPROM/Diagnose neu **«Test / Logging»** zur Verfügung. Damit lassen sich beliebige Sensorversuche mit Name, Beschreibung und Kategorie dokumentieren. Die Anzahl Einzelmessungen pro Messpunkt, das frei eingestellte Zeitintervall und der Abstand einzelner Samples sind unabhängig einstellbar. Optional berechnet die App einen Mittelwert oder Median, während sämtliche ursprünglichen Sensorwerte erhalten bleiben. Marker, Snapshots, Pause, manuelle Referenzen sowie JSON-/CSV-Export sind enthalten. Die Erfassung ist nur lesend und schreibt kein NVM.
+
+Der ausführliche [Einsteiger-Guide](TEST_LOGGING.md) erklärt alle Einstellungen, lokale Dateispeicherung, Messintervallgrenzen und Unterschiede zwischen Soll- und Istspannungen.
 
 ## Verbindungsdiagnose bei fehlender Sensorantwort v0.6.41
 
