@@ -1,6 +1,13 @@
 # Roadmap für den E703.11-Kalibrierassistenten
 
-Stand v0.7.3 · Web-App mit SSP3 im Vergleich zur Elmos-PSSC-Software. Die Reihenfolge zeigt die geplante Priorität. Veröffentlichungstermine sind offen.
+Stand v0.7.4 · Web-App mit SSP3 im Vergleich zur Elmos-PSSC-Software. Die Reihenfolge zeigt die geplante Priorität. Veröffentlichungstermine sind offen.
+
+## DUT und Metadaten (v0.7.4)
+
+- [x] Produkt-/DUT-Bezeichnung bei jeder Test-Log-Aufzeichnung und im Archiv.
+- [x] Kompakte Übersichts- und Geräteinformationen im Logviewer.
+- [x] SSP3/USB-Adapter-Firmware eindeutig von der E703.11-Chip-Version unterscheiden.
+- [ ] Weitere Messgeräteanbindungen zur automatischen Erfassung externer Istspannungen.
 
 ## Logviewer und Direktwahl (v0.7.3)
 
