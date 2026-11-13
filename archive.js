@@ -141,6 +141,9 @@ const ELMOS_ARCHIVE=(()=>{
   if(bridge()?.final)try{S.record.final=await bridge().final()}catch(e){
    S.record.events.push({at:iso(),kind:'error',data:{stage:'final_snapshot',message:e.message}});
   }
+  if(status==='completed'&&(!Array.isArray(S.record.initial?.nvm?.words)||
+   S.record.initial.nvm.words.length!==64||!Array.isArray(S.record.final?.nvm?.words)||
+   S.record.final.nvm.words.length!==64))status='incomplete';
   if(status==='completed'&&S.record.type==='verification'){
    const summary=C.outcomes(S.record);
    const results=S.record.plan.steps.map(s=>C.lastAttempt(S.record,s.index));
@@ -211,8 +214,12 @@ const ELMOS_ARCHIVE=(()=>{
    });
    const btn=el('button',null,'ar-record');
    const title=el('strong',(r.customUID?r.customUID+' · ':'')+(r.chipUID||'UID unbekannt')+' · '+(typeWords[r.type]||r.type));
+   const initAfe=r.initial?.ram?.words?.['0x1C'];
+   const initCrc=r.initial?.nvm?.words?.[63];
    const details=el('small',new Date(r.startedAt).toLocaleString('de-CH')+' · '+(statusWords[r.status]||r.status)+
-    ' · '+(r.software?.version||'?')+' · '+(r.equipment?.adapter||'?'));
+    ' · '+(r.software?.version||'?')+' · '+(r.equipment?.adapter||'?')+
+    (Number.isInteger(initAfe)?' · RAM AFE1 0x'+initAfe.toString(16).padStart(4,'0'):'')+
+    (Number.isInteger(initCrc)?' · NVM CRC 0x'+initCrc.toString(16).padStart(4,'0'):''));
    btn.append(title,details);btn.addEventListener('click',()=>renderDetails(r));
    const exportBtn=el('button','JSON','ar-small');exportBtn.addEventListener('click',()=>download(r));
    row.append(check,btn,exportBtn);root.appendChild(row);
@@ -435,7 +442,7 @@ const ELMOS_ARCHIVE=(()=>{
   $('arPrevious').addEventListener('click',previous);
   $('arEndVerification').addEventListener('click',()=>endVerification().catch(e=>note(e.message,true)));
   $('arEndCalibration').addEventListener('click',()=>{
-   const m=bridge()?.meta?.(),complete=!!(m?.nvmDone&&m?.calVerified);
+   const m=bridge()?.meta?.(),complete=!!(m?.nvmDone&&(S.record?.type==='output'||m?.calVerified));
    finalise(complete?'completed':'incomplete').then(()=>note('Kalibrierprotokoll archiviert: '+(complete?'NVM geschrieben':'unvollständig')+'.')).catch(e=>note(e.message,true));
   });
   $('arAbort').addEventListener('click',()=>finalise('aborted').catch(e=>note(e.message,true)));
