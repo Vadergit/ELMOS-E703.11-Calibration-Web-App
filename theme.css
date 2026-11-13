@@ -752,29 +752,10 @@ html[data-theme="dark"] #guidedWorkspace .gw-finish-chart #chart {
 }
 
 
-/* v0.7.8: captured-reference feedback has separate readable dark status colours. */
+/* v0.7.9: concise success line remains readable in dark mode. */
 html[data-theme="dark"] #guidedWorkspace .gw-point-confirmation{
- background:#1e4939;border:2px solid #72c69d;color:#e0ffe9;
+ background:#244838;border-color:#64b68d;color:#ddfbe9;
 }
-html[data-theme="dark"] #guidedWorkspace .gw-point-confirmation strong{color:#e0ffe9}
-html[data-theme="dark"] #guidedWorkspace .gw-point-confirmation span{color:#c7f3dc}
-html[data-theme="dark"] #guidedWorkspace .gw-captured-summary{
- background:#182d28;border:1px solid #5f9e83;
-}
-html[data-theme="dark"] #guidedWorkspace .gw-captured-head{
- background:#254b3b;border-bottom-color:#598e76;color:#e6ffef;
-}
-html[data-theme="dark"] #guidedWorkspace .gw-captured-head strong,
-html[data-theme="dark"] #guidedWorkspace .gw-captured-head span{color:#e6ffef}
-html[data-theme="dark"] #guidedWorkspace .gw-captured-item{
- background:#1d362e;border-color:#477e67;color:#e8fcf0;
-}
-html[data-theme="dark"] #guidedWorkspace .gw-captured-item.gw-captured-latest{
- background:#244b3c;border-left:4px solid #84d6a9;
-}
-html[data-theme="dark"] #guidedWorkspace .gw-captured-item-top strong{color:#e1ffed}
-html[data-theme="dark"] #guidedWorkspace .gw-captured-item-top span,
-html[data-theme="dark"] #guidedWorkspace .gw-captured-values{color:#badfcb}
 html[data-theme="dark"] #guidedWorkspace .gw-next-point{
  background:#223f54;border-color:#74bce8;color:#e8f6ff;
 }
