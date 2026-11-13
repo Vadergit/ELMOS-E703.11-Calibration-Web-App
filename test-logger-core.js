@@ -1,7 +1,8 @@
 'use strict';
 /* Pure, hardware-independent sensor test logger rules. */
 const ELMOS_TEST_LOGGER_CORE=(()=>{
- const FIELDS=['adcS','adcT','adcTC','dspS','dspT','statusSync'];
+ const FIELDS=['adcS','adcT','adcTC','dspS','dspT','statusSync','chipStatus'];
+ const NUMERIC_CHANNELS=['adcS','adcT','adcTC','dspS','dspT'];
  const MODES=['none','mean','median'];
  function settings(input){
   const intervalMs=Number(input.intervalMs),samplesPerPoint=Number(input.samplesPerPoint),
@@ -22,7 +23,8 @@ const ELMOS_TEST_LOGGER_CORE=(()=>{
   for(const k of FIELDS){
    const numeric=samples.map(x=>x?.[k]).filter(x=>typeof x==='number'&&Number.isFinite(x));
    if(!numeric.length){values[k]=null;continue}
-   if(mode==='none'){values[k]=null;continue}
+   // Status words are bitfields: never average or median arbitrary bit patterns.
+   if(mode==='none'||!NUMERIC_CHANNELS.includes(k)){values[k]=null;continue}
    if(mode==='mean')values[k]=numeric.reduce((a,b)=>a+b,0)/numeric.length;
    else{
     numeric.sort((a,b)=>a-b);const i=Math.floor(numeric.length/2);
