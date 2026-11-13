@@ -91,7 +91,7 @@ const ELMOS_ARCHIVE=(()=>{
    events:[{at:iso(),kind:'started',data:{type,plan:plan?{mode:plan.mode,cycles:plan.cycles,steps:plan.steps.length}:null}}]};
   S.filename=C.filename(S.record);
   if(type==='testlog'){
-   S.record.telemetryFile=S.filename.replace(/\.json$/i,'.samples.jsonl');
+   S.record.telemetryFiles=[];
    S.record.telemetry={groups:0,individualSamples:0,durationMs:0,missedSlots:0,readErrors:0,lastSampleAt:null,
     storage:'append-only JSONL; ein Datensatz pro Messpunkt'};
   }
@@ -153,7 +153,6 @@ const ELMOS_ARCHIVE=(()=>{
  async function appendTelemetry(entry){
   const record=S.record;
   if(!record||record.type!=='testlog')throw Error('Kein aktives Testprotokoll');
-  if(!record.telemetryFile)throw Error('Dateiname für Testdaten fehlt');
   const payload=safe(entry);
   if(!payload||payload.kind!=='telemetry_point')throw Error('Ungültiger Telemetriedatensatz');
   if(record.testConfiguration?.debug){
@@ -161,7 +160,15 @@ const ELMOS_ARCHIVE=(()=>{
    if(S.debugDropped)payload.transportDropped=S.debugDropped;
    S.debugDropped=0;
   }
-  const folder=S.dir,name=record.telemetryFile;
+  // Rotate the append-only stream after 100 points; this avoids copying
+  // an ever-growing single file each time createWritable() is opened.
+  const part=Math.floor(record.telemetry.groups/100)+1;
+  const name=S.filename.replace(/\.json$/i,'.part-'+String(part).padStart(4,'0')+'.samples.jsonl');
+  if(!record.telemetryFiles.includes(name)){
+   record.telemetryFiles.push(name);
+   await flush(); // Save the new part reference before writing it.
+  }
+  const folder=S.dir;
   S.writeQueue=S.writeQueue.catch(()=>{}).then(async()=>{
    if(!await permitted(false))throw Error('Keine Schreibberechtigung für Telemetrie-Datei');
    const handle=await folder.getFileHandle(name,{create:true});
@@ -176,6 +183,7 @@ const ELMOS_ARCHIVE=(()=>{
   try{await S.writeQueue}
   catch(e){
    note('Rohdaten konnten nicht gespeichert werden: '+e.message,true);
+   if(payload.transport?.length)S.debugLines.unshift(...payload.transport);
    throw e;
   }
   record.telemetry.groups++;
@@ -190,20 +198,21 @@ const ELMOS_ARCHIVE=(()=>{
   return record.telemetry.groups;
  }
  async function streamRows(record){
-  if(!record.telemetryFile||!S.dir)throw Error('Kein lokaler Telemetrieordner verbunden');
+  if(!record.telemetryFiles?.length&&!record.telemetryFile)throw Error('Keine Rohdaten-Dateien vermerkt');
+  if(!S.dir)throw Error('Kein lokaler Telemetrieordner verbunden');
   if(!await permitted(false))throw Error('Archivordner erneut freigeben');
-  const handle=await S.dir.getFileHandle(record.telemetryFile);
-  const file=await handle.getFile();
-  const text=await file.text();
   const result=[];
-  for(const line of text.split(/\r?\n/)){
-   if(!line.trim())continue;
-   const row=JSON.parse(line);
-   if(row.kind==='telemetry_point')result.push(row);
+  for(const name of record.telemetryFiles?.length?record.telemetryFiles:[record.telemetryFile]){
+   const handle=await S.dir.getFileHandle(name);
+   const file=await handle.getFile();
+   for(const line of (await file.text()).split(/\r?\n/)){
+    if(!line.trim())continue;
+    const row=JSON.parse(line);
+    if(row.kind==='telemetry_point')result.push(row);
+   }
   }
   return result;
  }
-
  async function finalise(status='incomplete'){
   if(!S.record)return;
   if(S.measuring)throw Error('Messung läuft');
@@ -278,7 +287,8 @@ const ELMOS_ARCHIVE=(()=>{
  function readable(r){
   const parts=[r.chipUID,r.customUID,r.initial?.configuredUserId,r.final?.configuredUserId,
    r.type,r.status,r.startedAt,r.equipment?.adapter,r.equipment?.firmware,
-   r.software?.version,r.id];
+   r.software?.version,r.testConfiguration?.name,r.testConfiguration?.description,
+   r.testConfiguration?.category,r.testConfiguration?.operator,r.id];
   return parts.filter(Boolean).join(' ').toLowerCase();
  }
  function renderList(){
@@ -297,7 +307,8 @@ const ELMOS_ARCHIVE=(()=>{
     renderList();
    });
    const btn=el('button',null,'ar-record');
-   const title=el('strong',(r.customUID?r.customUID+' · ':'')+(r.chipUID||'UID unbekannt')+' · '+(typeWords[r.type]||r.type));
+   const title=el('strong',(r.customUID?r.customUID+' · ':'')+(r.chipUID||'UID unbekannt')+
+    ' · '+(r.type==='testlog'?(r.testConfiguration?.name||'Test / Logging'):(typeWords[r.type]||r.type)));
    const initAfe=r.initial?.ram?.words?.['0x1C'];
    const initCrc=r.initial?.nvm?.words?.[63];
    const details=el('small',new Date(r.startedAt).toLocaleString('de-CH')+' · '+(statusWords[r.status]||r.status)+
@@ -516,7 +527,7 @@ const ELMOS_ARCHIVE=(()=>{
   '<p class="ar-muted">Die Web-App steuert Druckkalibrator und Klimakammer nicht automatisch. Jeder Sollwert wird manuell eingestellt und bestätigt. Druck- und Temperaturhysterese werden aus passenden Messpaaren berechnet.</p></div>'+
   '<div class="ar-results"><div><h3>Archiv <small id="archiveCount"></small></h3><div class="ar-grid">'+
   '<input id="archiveSearch" placeholder="UID, Datum, Board oder Softwareversion suchen">'+
-  '<select id="archiveFilterType"><option value="all">Alle Protokolltypen</option><option value="calibration">Kalibrierung</option><option value="verification">Nachmessung</option><option value="output">Ausgang</option></select>'+
+  '<select id="archiveFilterType"><option value="all">Alle Protokolltypen</option><option value="testlog">Test / Logging</option><option value="calibration">Kalibrierung</option><option value="verification">Nachmessung</option><option value="output">Ausgang</option></select>'+
   '<select id="archiveFilterStatus"><option value="all">Alle Ergebnisse</option><option value="running">Offen / eventuell unterbrochen</option><option value="completed">Abgeschlossen</option><option value="failed">Fehlerhaft</option><option value="incomplete">Unvollständig</option><option value="interrupted">Unterbrochen</option><option value="aborted">Abgebrochen</option></select></div>'+
   '<div class="ar-buttons"><button id="archiveCompare" disabled>Zwei Einträge vergleichen</button></div>'+
   '<div id="archiveRows" class="ar-rows"></div></div><div id="archiveDetails" class="ar-details"><p>Ein Protokoll auswählen, um Einzelversuche, Konfiguration, NVM und Hysterese einzusehen.</p></div></div>';
