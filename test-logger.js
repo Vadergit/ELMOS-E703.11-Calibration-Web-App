@@ -91,6 +91,8 @@ const ELMOS_TEST_LOGGER=(()=>{
    S.startedMono=performance.now();S.startedWall=Date.now();S.nextDueMono=S.startedMono;
    S.groups=0;S.samples=0;S.missed=0;S.errors=0;S.consecutiveErrors=0;S.recent=[];
    S.last=null;S.paused=false;S.stopRequested=false;S.lastRecord=null;
+   S.reference={pressure:null,temperature:null,source:null};
+   for(const id of ['tlRefPressure','tlRefTemperature','tlRefSource'])if($(id))$(id).value='';
    if(S.clock!==null)clearInterval(S.clock);
    S.clock=setInterval(render,1000);
    announce('Test gestartet. Rohdaten werden laufend im gewählten lokalen Archivordner gespeichert.');
@@ -150,6 +152,7 @@ const ELMOS_TEST_LOGGER=(()=>{
   }catch(e){
    if(!S.interrupted){
     S.errors++;S.consecutiveErrors++;
+    S.nextDueMono=performance.now()+S.settings.intervalMs;
     try{await archive()?.event('error',{stage:'test_measurement',message:e.message,
      partialSamples:e.rawSamples||null,partialReadErrors:e.partialReadErrors||null})}catch(_){}
     announce('Messfehler: '+e.message+(S.consecutiveErrors<3?' · Nächster Versuch folgt.':' · Aufzeichnung wird beendet.'),true);
