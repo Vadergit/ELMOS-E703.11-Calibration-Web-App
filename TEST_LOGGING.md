@@ -1,15 +1,15 @@
 # ELMOS E703.11 – Test / Logging
 
-**Ab v0.7.1 · Benutzeranleitung (Laborprototyp)**
+**Ab v0.7.2 · Benutzeranleitung (Laborprototyp)**
 
-Im geführten Assistenten gibt es auf der ersten Seite jetzt die **vierte Kachel «Test / Logging»**. Damit können beliebige sensorbezogene Versuche protokolliert werden, ohne einen neuen Abgleich oder einen NVM-Schreibvorgang auszulösen.
+Das **Test / Logging** findest du auf zwei Wegen: in der **klassischen Ansicht als eigenen Reiter direkt unter «EEPROM Viewer»** und im geführten Assistenten auf der ersten Seite als **vierte Kachel**. Beide Wege öffnen denselben Logger, dessen Eingaben beim Wechsel erhalten bleiben. Damit können beliebige sensorbezogene Versuche protokolliert werden, ohne einen neuen Abgleich oder einen NVM-Schreibvorgang auszulösen.
 
 ## 1. Einen Test starten
 
 1. Sensor über das SSP3-Board bzw. einen tatsächlich unterstützten Adapter verbinden.
 2. Auf **Geführt** und bei «Was möchtest du machen?» auf **Test / Logging** klicken, dann **Weiter**.
 3. **Testname** eingeben; optional **Kategorie**, **Operator**, **Beschreibung des Testaufbaus**, gemessene **VDD-Istspannung** mit Messquelle.
-4. Das Intervall und die gewünschte Aufnahmeart einstellen (siehe unten).
+4. Das Intervall, die Aufnahmeart und optional die **Testdauer** einstellen (siehe unten).
 5. **Aufzeichnung starten** drücken und einen lokalen Archivordner auswählen bzw. freigeben. Der Start erfasst zunächst die verfügbaren RAM- und NVM-Daten. Nicht lesbare Informationen werden als Fehler/fehlend gekennzeichnet.
 6. Die Aufzeichnung beginnt. Bei Bedarf **Pause**, **Einzelaufnahme**, **Marker mit Zeitstempel** oder **Referenzdruck/-temperatur übernehmen** verwenden.
 7. Mit **Aufzeichnung beenden & speichern** abschliessen. Danach sind JSON (inklusive aller Rohwerte) und CSV verfügbar. Alle Tests erscheinen auch im normalen Archiv.
@@ -24,8 +24,11 @@ Während einer Aufzeichnung ist der serielle Messpfad reserviert. **RAM-/NVM-Än
 | Einzelmessungen pro Messpunkt | Wie oft die Sensorregister innerhalb einer Gruppe nacheinander gelesen werden | 1–100 | 5 |
 | Abstand zwischen Einzelmessungen | Zusätzliche Wartezeit zwischen den einzelnen Register-Sets derselben Gruppe | 0–60’000 ms | 20 ms |
 | Werte zusammenfassen | Keine, arithmetischer Mittelwert oder Median über die Einzelmessungen | freie Auswahl | Mittelwert |
+| Testdauer | Zeit bis zum automatischen Stopp, in Sekunden, Minuten oder Stunden | 0 = unbegrenzt, ansonsten 0.1 s bis 30 Tage | 10 Minuten |
 
 Beispiel: Messintervall **1000 ms**, **5** Einzelmessungen je Punkt, **20 ms** zusätzliche Pause und **Mittelwert**. Die App misst nacheinander fünf vollständige Register-Sets und berechnet einen Mittelwert für ADC_S, ADC_T, ADC_TC, DSP_S und DSP_T. Zugleich werden **alle fünf ungemittelten Einzelmessungen** mit Zeitstempel gespeichert.
+
+**Testdauer und Pause:** Wenn du zum Beispiel **10 Minuten** einstellst, beendet der Logger die Messung nach zehn Minuten **aktiver** Aufzeichnungszeit automatisch und speichert die Daten. Beim Pausieren wird die Restzeit angehalten; nach dem Fortsetzen läuft sie weiter. Das Display zeigt die verbleibende Testdauer an. Bei `0` läuft die Aufzeichnung weiter, bis du manuell stoppst. Eine bereits begonnene Messpunktaufnahme wird beim Erreichen des Limits fertig abgespeichert. Das tatsächliche Ende kann dadurch etwas später liegen.
 
 **Wichtig:** Das Messintervall ist ein Planwert und **kein garantierter SPS-/ADC-Takt**. Jedes Sensorregister erfordert USB-/1-Wire-Kommunikation. Sind die fünf Messungen langsamer als das gewählte Gruppenintervall, werden keine Messungen parallel oder nachträglich erfunden. Die Software protokolliert die tatsächliche Zeit jedes Messpunkts, die Dauer, die Verspätung und die Anzahl übersprungener Sollintervalle. Die reale effektive Abtastrate lässt sich aus den Zeitstempeln bestimmen.
 
