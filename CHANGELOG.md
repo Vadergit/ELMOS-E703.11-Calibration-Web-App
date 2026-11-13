@@ -1,3 +1,12 @@
+## v0.7.3 – Aufgabenkacheln direkt öffnen und Archiv-Logviewer neu gestalten
+
+- Ein Klick auf die Aufgabenkachel im geführten Einstieg führt direkt in den gewählten Ablauf, weiterhin mit Sensor- und Archivprüfung.
+- Archiv als modernes Dashboard: Gesamtkennzahlen, Messdateien mit Schnellstatus, Suche, Filter, UID, Board und Softwareversion.
+- Schnelle Detailansicht mit Mittelwert, Min/Max, Standardabweichung und DSP_S-Signalverlauf für vorhandene Test-Rohsamples.
+- Gegenüberstellung zweier Protokolle mit Rohwertdifferenzen, Fehlern, UID-Hinweis und NVM-Wortvergleich.
+- Fehlerhafte und ausserhalb der Toleranz liegende Messungen sind ausdrücklich erkennbar.
+- Bestehende JSON-/JSONL-Protokolle bleiben lesbar. Sensorregister und NVM-Schreibschutz bleiben unverändert.
+
 ## v0.7.2 – Separates Archiv/Nachmessung, klassisches Test-Logging und Zeitlimit
 
 - Oben separate Bereiche **«Archiv»** (Suche, Protokolle und Vergleiche) und **«Nachmessung»** (Prüfpläne, Druck-/Temperaturrampen, Hysterese).
