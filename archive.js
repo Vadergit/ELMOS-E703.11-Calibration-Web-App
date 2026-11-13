@@ -1,10 +1,10 @@
 'use strict';
 /* Local-only E703.11 archive and freely configurable post-calibration inspection. */
 const ELMOS_ARCHIVE=(()=>{
- const C=ELMOS_ARCHIVE_CORE;
+ const C=ELMOS_ARCHIVE_CORE,ANALYSIS=ELMOS_ARCHIVE_ANALYSIS;
  const $=id=>document.getElementById(id);
  const S={dir:null,record:null,records:[],filename:null,writeQueue:Promise.resolve(),selection:[],step:0,
-  measuring:false,showDetails:null,lastError:'',folderName:'',draft:null,view:'archive',debugLines:[],debugDropped:0,lastStreamMetaFlush:0};
+  measuring:false,showDetails:null,lastError:'',folderName:'',draft:null,view:'archive',detailsToken:0,resultsCache:new Map(),debugLines:[],debugDropped:0,lastStreamMetaFlush:0};
  const iso=()=>new Date().toISOString();
  const text=(id,value)=>{if($(id))$(id).textContent=String(value)};
  const note=(value,bad=false)=>{S.lastError=bad?String(value):'';text('archiveStatus',value);if($('archiveStatus'))$('archiveStatus').style.color=bad?'#a13b39':'#526982'};
@@ -287,106 +287,274 @@ const ELMOS_ARCHIVE=(()=>{
   }catch(e){note('Archiv nicht lesbar: '+e.message,true)}
  }
  function readable(r){
-  const parts=[r.chipUID,r.customUID,r.initial?.configuredUserId,r.final?.configuredUserId,
+  return [r.chipUID,r.customUID,r.initial?.configuredUserId,r.final?.configuredUserId,
    r.type,r.status,r.startedAt,r.equipment?.adapter,r.equipment?.firmware,
    r.software?.version,r.testConfiguration?.name,r.testConfiguration?.description,
-   r.testConfiguration?.category,r.testConfiguration?.operator,r.id];
-  return parts.filter(Boolean).join(' ').toLowerCase();
+   r.testConfiguration?.category,r.testConfiguration?.operator,r.id].filter(Boolean).join(' ').toLowerCase();
+ }
+ const num=(v,d=2)=>Number.isFinite(v)?v.toLocaleString('de-CH',{maximumFractionDigits:d}):'–';
+ const when=v=>v?new Date(v).toLocaleString('de-CH'):'–';
+ const time=ms=>!Number.isFinite(ms)||ms<0?'–':ms>=3600000?
+  Math.floor(ms/3600000)+' h '+Math.floor(ms%3600000/60000)+' min':
+  ms>=60000?Math.floor(ms/60000)+' min '+Math.floor(ms%60000/1000)+' s':
+  (ms/1000).toFixed(ms<1000?2:0)+' s';
+ function section(title,subtitle){
+  const root=el('div',null,'ar-section-title');
+  root.append(el('h3',title));
+  if(subtitle)root.append(el('p',subtitle,'ar-muted'));
+  return root;
+ }
+ function kpi(label,value,hint){
+  const root=el('div',null,'ar-kpi');
+  root.append(el('small',label),el('strong',value),el('span',hint||''));
+  return root;
+ }
+ function facts(summary){
+  const box=el('div',null,'ar-data-grid');
+  const info=[
+   ['Chip-UID',summary.chipUID],['USER-ID',summary.userID],
+   ['Board',summary.board],['Firmware',summary.firmware],
+   ['Web-App',summary.appVersion],['Start',when(summary.startedAt)],
+   ['Ende',when(summary.endedAt)],['Dauer',time(summary.durationMs)]];
+  for(const [key,val] of info){
+   const item=el('div',null,'ar-data-pair');
+   item.append(el('small',key),el('strong',val||'–'));box.append(item);
+  }
+  return box;
+ }
+ function outcome(summary){
+  const box=el('div',null,'ar-kpi-grid');
+  box.append(kpi('Messpunkte',num(summary.measurementPoints,0),'Aufgezeichnete Gruppen / Versuche'),
+   kpi('Rohmessungen',num(summary.rawSamples,0),'Einzelne Sensorwerte'),
+   kpi('Fehler',num(summary.errors,0),'Gemeldete Auffälligkeiten'),
+   kpi('Dauer',time(summary.durationMs),summary.statusLabel));
+  return box;
+ }
+ function filtered(){
+  const term=($('archiveSearch')?.value||'').toLowerCase().trim();
+  const type=$('archiveFilterType')?.value||'all';
+  const status=$('archiveFilterStatus')?.value||'all';
+  return S.records.filter(r=>(type==='all'||r.type===type)&&
+   (status==='all'||r.status===status)&&readable(r).includes(term));
  }
  function renderList(){
   const root=$('archiveRows');if(!root)return;
   root.replaceChildren();
-  const term=($('archiveSearch')?.value||'').trim().toLowerCase();
-  const kind=$('archiveFilterType')?.value||'all',status=$('archiveFilterStatus')?.value||'all';
-  let list=S.records.filter(r=>(kind==='all'||kind===r.type)&&(status==='all'||status===r.status)&&readable(r).includes(term));
-  text('archiveCount',list.length+' / '+S.records.length+' Einträge');
-  for(const r of list){
-   const row=el('div',null,'ar-row');
-   const selected=S.selection.includes(r.id);
-   const check=el('input');check.type='checkbox';check.checked=selected;check.title='Für Vergleich auswählen';
-   check.addEventListener('change',()=>{
-    S.selection=check.checked?[...S.selection.filter(x=>x!==r.id),r.id].slice(-2):S.selection.filter(x=>x!==r.id);
+  const list=filtered();
+  text('archiveCount',list.length+' / '+S.records.length+' Dateien');
+  const summary=$('archiveOverview');
+  if(summary){
+   summary.replaceChildren(
+    kpi('Protokolle',num(S.records.length,0),'Im gewählten Ordner'),
+    kpi('Abgleiche',num(S.records.filter(r=>r.type==='calibration').length,0),'Kalibrierungen'),
+    kpi('Messungen',num(S.records.filter(r=>['testlog','verification'].includes(r.type)).length,0),'Tests / Nachmessungen'),
+    kpi('Auffälligkeiten',num(S.records.filter(r=>{
+     const x=ANALYSIS.overview(r);return x.errors||x.failedAttempts||
+      ['failed','interrupted','incomplete'].includes(r.status);
+    }).length,0),'Fehler oder unvollständig')
+   );
+  }
+  for(const record of list){
+   const info=ANALYSIS.overview(record);
+   const card=el('div',null,'ar-file'+(S.showDetails===record.id?' is-active':''));
+   const title=el('div',null,'ar-file-title');
+   const checkbox=el('input');checkbox.type='checkbox';
+   checkbox.checked=S.selection.includes(record.id);
+   checkbox.title='Für direkten Vergleich auswählen';
+   checkbox.setAttribute('aria-label','Datei für Vergleich auswählen: '+info.title);
+   checkbox.addEventListener('change',()=>{
+    S.selection=checkbox.checked?[...S.selection.filter(id=>id!==record.id),record.id].slice(-2):
+     S.selection.filter(id=>id!==record.id);
     renderList();
    });
-   const btn=el('button',null,'ar-record');
-   const title=el('strong',(r.customUID?r.customUID+' · ':'')+(r.chipUID||'UID unbekannt')+
-    ' · '+(r.type==='testlog'?(r.testConfiguration?.name||'Test / Logging'):(typeWords[r.type]||r.type)));
-   const initAfe=r.initial?.ram?.words?.['0x1C'];
-   const initCrc=r.initial?.nvm?.words?.[63];
-   const details=el('small',new Date(r.startedAt).toLocaleString('de-CH')+' · '+(statusWords[r.status]||r.status)+
-    ' · '+(r.software?.version||'?')+' · '+(r.equipment?.adapter||'?')+
-    (Number.isInteger(initAfe)?' · RAM AFE1 0x'+initAfe.toString(16).padStart(4,'0'):'')+
-    (Number.isInteger(initCrc)?' · NVM CRC 0x'+initCrc.toString(16).padStart(4,'0'):''));
-   btn.append(title,details);btn.addEventListener('click',()=>renderDetails(r));
-   const exportBtn=el('button',r.type==='testlog'?'JSON + Rohdaten':'JSON','ar-small');
-   exportBtn.addEventListener('click',()=>download(r).catch(e=>note('Export fehlgeschlagen: '+e.message,true)));
-   row.append(check,btn,exportBtn);
-   if(r.type==='testlog'){
+   const main=el('div',null,'ar-file-name');
+   main.append(el('strong',info.title),el('small',when(info.startedAt)));
+   const status=el('span',info.statusLabel,'ar-pill'+
+    (info.status==='completed'?' ar-good':info.status==='failed'?' ar-bad':''));
+   title.append(checkbox,main,status);
+   const detail=el('div',null,'ar-file-meta');
+   detail.append(el('span',info.chipUID||'UID nicht verfügbar'),
+    el('span',info.board||'Board unbekannt'),el('span','Web '+(info.appVersion||'?')));
+   const quick=el('div',null,'ar-file-quick');
+   quick.append(el('span',info.measurementPoints+' Punkte'),
+    el('span',info.errors+' Fehler'),el('span',time(info.durationMs)));
+   const actions=el('div',null,'ar-file-actions');
+   const view=el('button','Ergebnisse prüfen','ar-small ar-view-button');
+   view.addEventListener('click',()=>{void renderDetails(record)});
+   const exportJSON=el('button','JSON','ar-small');
+   exportJSON.addEventListener('click',()=>download(record).catch(e=>note(e.message,true)));
+   actions.append(view,exportJSON);
+   if(record.type==='testlog'){
     const csv=el('button','CSV','ar-small');
-    csv.addEventListener('click',()=>download(r,'csv').catch(e=>note('CSV-Export fehlgeschlagen: '+e.message,true)));
-    row.append(csv);
-   }root.appendChild(row);
+    csv.addEventListener('click',()=>download(record,'csv').catch(e=>note(e.message,true)));
+    actions.append(csv);
+   }
+   card.append(title,detail,quick,actions);root.append(card);
   }
-  if(!list.length)root.appendChild(el('p','Keine passenden gültigen Prüfprotokolle.','ar-muted'));
+  if(!list.length){
+   const blank=el('div',null,'ar-empty');
+   blank.append(el('strong','Keine passenden Dateien'),
+    el('p','Andere Filter wählen oder den Archivordner erneut einlesen.'));
+   root.append(blank);
+  }
   $('archiveCompare').disabled=S.selection.length!==2;
+  text('archiveCompare',S.selection.length===2?'2 Dateien vergleichen':
+   S.selection.length+' von 2 Dateien markiert');
  }
- function renderDetails(r){
-  S.showDetails=r.id;
-  const root=$('archiveDetails');root.replaceChildren();
-  root.append(el('h3',(typeWords[r.type]||r.type)+' · '+(r.chipUID||'UID unbekannt')));
-  const s=C.outcomes(r);
+ async function rowsFor(r){
+  if(r.type!=='testlog')return null;
+  if(S.resultsCache.has(r.id))return S.resultsCache.get(r.id);
+  const rows=await streamRows(r);
+  S.resultsCache.set(r.id,rows);
+  while(S.resultsCache.size>2)S.resultsCache.delete(S.resultsCache.keys().next().value);
+  return rows;
+ }
+ function chart(points){
+  const root=el('div',null,'ar-graph');
+  if(!points?.length){root.append(el('p','Keine DSP_S-Messwerte verfügbar.','ar-muted'));return root}
+  const values=points.map(p=>p.value),lo=Math.min(...values),hi=Math.max(...values);
+  const svg=document.createElementNS('http://www.w3.org/2000/svg','svg');
+  svg.setAttribute('viewBox','0 0 800 160');
+  svg.setAttribute('role','img');
+  svg.setAttribute('aria-label','Verlauf von DSP_S');
+  const poly=document.createElementNS('http://www.w3.org/2000/svg','polyline');
+  const coords=points.map((p,i)=>{
+   const x=12+i*776/Math.max(1,points.length-1);
+   const y=148-(p.value-lo)/Math.max(1,hi-lo)*136;
+   return x.toFixed(1)+','+y.toFixed(1);
+  }).join(' ');
+  poly.setAttribute('points',coords);poly.setAttribute('class','ar-trend');
+  svg.append(poly);root.append(svg);
+  const labels=el('div',null,'ar-graph-labels');
+  labels.append(el('span','Min '+num(lo,3)+' Digits'),
+   el('span','Max '+num(hi,3)+' Digits'));root.append(labels);
+  return root;
+ }
+ function metrics(info){
+  const box=el('div',null,'ar-metrics');
+  if(!info.metrics)return box;
+  for(const key of ['dspS','adcS','adcT','dspT']){
+   const v=info.metrics[key];
+   if(!v?.count)continue;
+   const row=el('div',null,'ar-metric');
+   row.append(el('strong',key),el('span','Ø '+num(v.mean,3)),
+    el('span','Min '+num(v.min,3)),el('span','Max '+num(v.max,3)),
+    el('span','σ '+num(v.stddev,3)));box.append(row);
+  }
+  return box;
+ }
+ function eventsView(r){
+  const out=el('div',null,'ar-events');
+  const events=(r.events||[]).filter(e=>e.kind!=='transport');
+  const notable=events.filter(e=>e.kind==='error'||e.kind==='marker'||
+   (e.kind==='measurement'&&e.data?.pass===false));
+  out.append(section('Ereignisse & Notizen',
+   notable.length?'Auffälligkeiten und manuelle Kommentare':'Letzte aufgezeichnete Ereignisse'));
+  for(const event of (notable.length?notable:events.slice(-6)).slice(-20)){
+   const item=el('details',null,'ar-event');
+   item.append(el('summary',when(event.at)+' · '+event.kind),
+    el('pre',JSON.stringify(event.data||{},null,2)));
+   out.append(item);
+  }
+  const all=el('details',null,'ar-event');
+  all.append(el('summary','Gesamtes Ereignisprotokoll ('+events.length+')'),
+   el('pre',JSON.stringify(events,null,2)));out.append(all);
+  return out;
+ }
+ async function renderDetails(r){
+  S.showDetails=r.id;const token=++S.detailsToken;
+  renderList();
+  const root=$('archiveDetails');root.replaceChildren(section('Ergebnisse werden geladen …'));
+  let rows;
+  try{rows=await rowsFor(r)}
+  catch(e){
+   if(token===S.detailsToken)root.replaceChildren(section('Rohdaten fehlen',e.message));
+   return;
+  }
+  if(token!==S.detailsToken)return;
+  const info=ANALYSIS.overview(r,rows);
+  root.replaceChildren();
+  const top=el('div',null,'ar-detail-title');
+  const heading=el('div');heading.append(el('small',info.typeLabel,'ar-overline'),
+   el('h2',info.title),el('p',info.description||info.chipUID||'–','ar-muted'));
+  top.append(heading,el('span',info.statusLabel,'ar-pill'+
+   (info.status==='completed'?' ar-good':info.status==='failed'?' ar-bad':'')));
+  root.append(top,outcome(info),section('Geräte- und Aufzeichnungsdaten'),facts(info));
   if(r.type==='testlog'){
-   root.append(el('p','Test: '+(r.testConfiguration?.name||'Unbenannt')+
-    ' · '+(r.testConfiguration?.category||'Allgemein')));
-   if(r.testConfiguration?.description)root.append(el('p',r.testConfiguration.description));
-   if(r.testConfiguration?.operator)root.append(el('p','Operator: '+r.testConfiguration.operator));
-   root.append(el('p','Intervall: '+(r.testConfiguration?.intervalMs||'?')+' ms · '+
-    (r.testConfiguration?.samplesPerPoint||'?')+' Einzelmessungen / Punkt · Aggregation: '+
-    (r.testConfiguration?.aggregation||'keine')));
+   root.append(section('Messresultate','Alle Rohsamples für Statistik und Verlauf ausgewertet.'),
+    metrics(info),section('Signalverlauf · DSP_S'),chart(info.trend));
+   root.append(el('p','Intervall: '+(info.intervalMs??'–')+' ms · '+
+    (info.groupSize||1)+' Einzelmessungen / Messpunkt · '+
+    (info.aggregation||'keine Mittelung'),'ar-muted'));
   }
-  root.append(el('p',r.type==='testlog'?
-   'Status: '+(statusWords[r.status]||r.status)+' · '+(r.telemetry?.groups||0)+' Messpunkte · '+
-    (r.telemetry?.individualSamples||0)+' Einzelmessungen · '+(r.telemetry?.missedSlots||0)+' ausgelassene Intervalle':
-   'Status: '+(statusWords[r.status]||r.status)+' · '+s.total+' Messversuche · '+s.failed+
-   ' ausser Toleranz · '+s.errors+' Fehler · '+s.repeated+' Wiederholungen'));
-  if(r.initial?.errors?.length)root.append(el('p','Initialkonfiguration unvollständig: '+r.initial.errors.join('; '),'ar-warning'));
-  if(r.plan){
+  if(r.type==='verification'&&r.plan){
    const h=C.hysteresis(r);
-   root.append(el('h4','Hysterese-Auswertung ('+h.pairs.length+' vergleichbare Paare)'));
-   for(const p of h.pairs)root.append(el('div',(p.axis==='pressure'?'Druck':'Temperatur')+
-    ' · Zyklus '+p.cycle+' · Referenz '+p.reference+' · Gegenwert '+p.other+
-    ' · auf '+p.ascending+' / ab '+p.descending+' · Δ '+p.delta+' '+p.unit+
-    (Number.isFinite(p.percentTestSpan)?' · '+p.percentTestSpan.toFixed(4)+' % der Prüfspanne':''),
-    'ar-detail-row'));
+   root.append(section('Hysterese','Vergleich identischer Prüfpunkte bei steigender und fallender Richtung.'));
+   if(!h.pairs.length)root.append(el('p','Keine vollständigen Hysterese-Messpaare.','ar-muted'));
+   for(const point of h.pairs.slice(0,40))
+    root.append(el('div',point.axis+' · Zyklus '+point.cycle+' · Referenz '+point.reference+
+     ' · Δ '+num(point.delta,4)+' '+point.unit,'ar-difference'));
   }
-  root.append(el('h4','Chronologisches Ereignisprotokoll'));
-  const important=r.events.filter(e=>e.kind!=='transport');
-  for(const e of important){
-   const line=el('details',null,'ar-detail-row');const summary=el('summary',new Date(e.at).toLocaleTimeString('de-CH')+' · '+e.kind);
-   line.append(summary,el('pre',JSON.stringify(e.data??{},null,2)));root.append(line);
-  }
-  const raw=el('details');raw.append(el('summary','Gesamtes JSON anzeigen (inklusive TX/RX und Messsamples)'),el('pre',JSON.stringify(r,null,2)));
-  root.append(raw);
+  root.append(eventsView(r));
+  const btn=el('button','Protokoll als JSON herunterladen','ar-small ar-export');
+  btn.addEventListener('click',()=>download(r).catch(e=>note(e.message,true)));root.append(btn);
  }
- function compare(){
+ async function compare(){
+  if(S.selection.length!==2)return;
   const [a,b]=S.selection.map(id=>S.records.find(x=>x.id===id));
   if(!a||!b)return;
-  const root=$('archiveDetails');root.replaceChildren();
-  root.append(el('h3','Vergleich: '+(a.chipUID||'?')+' / '+(b.chipUID||'?')));
-  for(const key of ['status','startedAt','chipUID','customUID','type']){
-   root.append(el('div',key+': '+String(a[key]??'—')+' → '+String(b[key]??'—'),'ar-detail-row'));
+  S.showDetails=null;const token=++S.detailsToken;renderList();
+  const root=$('archiveDetails');root.replaceChildren(section('Vergleich wird geladen …'));
+  let ar,br;
+  try{[ar,br]=await Promise.all([rowsFor(a),rowsFor(b)])}
+  catch(e){if(token===S.detailsToken)root.replaceChildren(section('Vergleich nicht möglich',e.message));return}
+  if(token!==S.detailsToken)return;
+  const info=ANALYSIS.compare(a,b,ar,br);
+  root.replaceChildren(section('Direktvergleich','Zwei Protokolle nebeneinander prüfen.'));
+  if(!info.identicalUID)root.append(el('p',
+   'Unterschiedliche Chip-UIDs: Messergebnisse nur bei vergleichbaren Bedingungen beurteilen.','ar-warning'));
+  const cols=el('div',null,'ar-compare-cols');
+  for(const [record,side] of [[a,info.left],[b,info.right]]){
+   const col=el('div',null,'ar-compare-col');
+   col.append(el('h3',side.title),el('p',when(side.startedAt)+' · '+side.statusLabel,'ar-muted'),
+    outcome(side),facts(side));
+   if(side.trend)col.append(section('DSP_S-Verlauf'),chart(side.trend));
+   cols.append(col);
   }
-  const oldWords=a.final?.nvm?.words||a.initial?.nvm?.words||[];
-  const newWords=b.final?.nvm?.words||b.initial?.nvm?.words||[];
-  if(oldWords.length===64&&newWords.length===64){
-   root.append(el('h4','NVM-Differenzen (64 Wörter)'));
-   let changed=0;
-   for(let i=0;i<64;i++)if(oldWords[i]!==newWords[i]){
-    changed++;root.append(el('div','Wort '+i+': 0x'+oldWords[i].toString(16).padStart(4,'0')+
-     ' → 0x'+newWords[i].toString(16).padStart(4,'0'),'ar-detail-row'));
+  root.append(cols);
+  root.append(section('Ergebnisunterschiede','Differenz: rechter Mittelwert minus linker Mittelwert.'));
+  if(info.metrics){
+   const diff=el('div',null,'ar-diff-table');
+   diff.append(el('div','Kanal                 Datei A       Datei B       Differenz','ar-diff-header'));
+   for(const metric of info.metrics){
+    const row=el('div',null,'ar-diff-row');
+    row.append(el('strong',metric.key),el('span',num(metric.left?.mean,3)),
+     el('span',num(metric.right?.mean,3)),
+     el('strong',metric.delta==null?'Nicht vergleichbar':
+      (metric.delta>=0?'+':'')+num(metric.delta,3)+' Digits'));
+    diff.append(row);
    }
-   if(!changed)root.append(el('p','Keine NVM-Unterschiede.'));
-  }else root.append(el('p','Für mindestens einen Datensatz liegt kein vollständiges NVM-Abbild vor.','ar-muted'));
+   root.append(diff);
+  }else{
+   const diff=el('div',null,'ar-diff-row');
+   for(const k of ['measurementPoints','errors','rawSamples','durationMs']){
+    const val=k==='durationMs'?time(info.left[k])+' / '+time(info.right[k]):
+     num(info.left[k],0)+' / '+num(info.right[k],0);
+    diff.append(el('span',k+' · '+val));
+   }
+   root.append(diff);
+  }
+  root.append(section('NVM-Differenzen'));
+  const changes=info.nvmChanges;
+  if(changes===null)root.append(el('p','Mindestens ein vollständiges NVM-Abbild fehlt.','ar-muted'));
+  else if(!changes.length)root.append(el('p','Keine Änderungen in den 64 NVM-Wörtern.','ar-muted'));
+  else{
+   root.append(el('p',changes.length+' NVM-Wörter unterscheiden sich.','ar-warning'));
+   const list=el('div',null,'ar-nvm-diff');
+   for(const p of changes)list.append(el('div','Wort '+p.index+' · 0x'+
+    p.before.toString(16).padStart(4,'0')+' → 0x'+p.after.toString(16).padStart(4,'0'),
+    'ar-difference'));root.append(list);
+  }
  }
  function modeUI(){
   const mode=$('arMode').value;
