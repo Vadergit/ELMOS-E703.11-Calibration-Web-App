@@ -1,3 +1,7 @@
+## v0.6.52 – SSP3-Startprofile bei ungültigem AFE-Wert weiterprüfen
+
+- Wenn ein Startprofil antwortet, aber weder RAM noch das geprüfte EEPROM einen gültigen AFE-Wert liefern, prüft der SSP3 das nächste Startprofil.
+
 ## v0.6.51 – SSP3-Kaltstart nach Elmos-Protokoll
 
 - Der SSP3 versucht die im Elmos-Mitschnitt verwendeten Startverzögerungen und prüft die Sensorantwort nach der flüchtigen One-Wire-Freigabe.

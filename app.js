@@ -986,7 +986,12 @@ if(typeof document!=='undefined') (function UI(){
   if(words[0]!==ser0||words[1]!==ser1||CAL.crc16(words)!==words[63]||CAL.crc8(words)!==(words[15]>>>8))
    throw Error('Chipkennung oder EEPROM-Prüfsumme beim AFE-Wiederanlauf ungültig');
   const afe=words[0x38/2];
-  decodeSafeAFE(afe);
+  try{decodeSafeAFE(afe)}catch(e){
+   // A CRC-valid image can still contain an unusable AFE setting.
+   // Let the next cold-start delay try to initialize the chip naturally.
+   logging('SSP3-Kaltstart: EEPROM-CFG_AFE1=0x'+h(afe,2)+' nicht für RAM-Übernahme geeignet: '+e.message);
+   return false;
+  }
   if(await readReg(R_AFE)!==0)throw Error('CFG_AFE1 hat sich während der Diagnose geändert');
   st.coldStartAfeRestored=true;
   await send(R_AFE,afe);
@@ -1545,6 +1550,7 @@ if(typeof document!=='undefined') (function UI(){
     if(!ready&&await restoreColdStartAfe(port))
      ready=await probePlcAddresses('PSSC-RAM-Freigabe nach AFE-Wiederanlauf');
     if(ready)break;
+    trial.steps.push({delay,error:'Keine bestätigte AFE-Konfiguration; nächstes Startprofil prüfen'});
    }
    if(!ready)throw Error('PSSC-RAM-Freigabe ohne bestätigte Kalibrierbereitschaft');
    trial.readVerified=true;
@@ -2714,7 +2720,7 @@ if(typeof document!=='undefined') (function UI(){
  });
  $('plcStartupLogExport').addEventListener('click',()=>{
   const log={
-   tool:'ELMOS E703.11 – SSP3 Startdiagnose',version:'v0.6.51',at:new Date().toISOString(),
+   tool:'ELMOS E703.11 – SSP3 Startdiagnose',version:'v0.6.52',at:new Date().toISOString(),
    source:'Web-App (NICHT PSSC Originalsoftware)',interface:st.iface,adapter:st.adapterKind,
     plcAddress:'0x'+h(st.plcAddress),plcAddressVerified:st.plcAddressVerified,
     plcAddressSource:st.plcAddressSource,plcAddressProbes:st.plcAddressProbes,psscRamRecovery:!!st.psscRamRecovery,
