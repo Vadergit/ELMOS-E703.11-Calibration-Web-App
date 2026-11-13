@@ -492,6 +492,7 @@ if(typeof document!=='undefined') (function UI(){
  }
  function psscNvmBlock(initial,modified,restoring=false,outputOnly=false){
   const recovered=st.psscRamRecovery||(st.regs[0x06]===0x6C04&&initial?.[17]!==0x6C04);
+  if(st.coldStartAfeRestored)return 'NVM-Schreiben nach AFE-Wiederanlauf gesperrt. Kalibrierung im RAM ist verfügbar.';
   if(!recovered)return '';
   if(st.adapterKind==='bridge')
    return 'Nach temporärer ESP32-RAM-Freigabe ist NVM-Schreiben gesperrt. Live-Messung, RAM-Kalibrierung und NVM-Lesen sind verfügbar.';
@@ -885,7 +886,7 @@ if(typeof document!=='undefined') (function UI(){
   if(w===0){
    // SSP3 may return a parsed 00 00 35 despite no usable E703.11 access.
    // Treat exactly this AFE readback as missing chip access, NOT a valid AFE.
-   const missing=Error('E703.11 antwortet nicht plausibel (CFG_AFE1=0x0000). Sensor, Versorgung und 1-Wire-Verbindung prüfen. Keine Schreibfreigabe.');
+   const missing=Error('CFG_AFE1 antwortet mit 0x0000; Pflichtbit 11 fehlt. Keine Schreibfreigabe.');
    missing.code='AFE_ZERO_READBACK';
    throw missing;
   }
@@ -959,6 +960,41 @@ if(typeof document!=='undefined') (function UI(){
    if(previousLive&&!st.manualLivePause&&st.chip&&st.port&&!st.closing)startLive()
   }
  }
+ // A cold-started chip can answer PLC while its AFE working register is zero.
+ // Recover from this chip's own verified EEPROM, never from a template.
+ async function restoreColdStartAfe(port){
+  const assertConnection=()=>{
+   if(st.port!==port||st.closing||st.plcAddress!==0x6C)
+    throw Error('USB-Verbindung während AFE-Wiederanlauf beendet');
+  };
+  const send=async(addr,word)=>{
+   assertConnection();
+   return exchange(P.plcWrite(addr,word,st.plcAddress));
+  };
+  if(await readReg(R_AFE)!==0)return false;
+  if(await readReg(0x06)!==0x6C04||P.plcAddressFromConfig(0x6C04,await readReg(0x0A))!==0x6C)
+   return false;
+  const version=await readReg(0x38);
+  const ser0=await readReg(0x50),ser1=await readReg(0x52);
+  if((version>>>8)!==0x07||!(ser0||ser1))throw Error('E703.11-Kennung für AFE-Wiederanlauf nicht bestätigt');
+  const words=[];
+  for(let i=0;i<64;i++){
+   await send(0x4E,0x4C00|i*2);
+   await nvmWaitIdle(1200,12,15);
+   words.push(await readReg(0x48));
+  }
+  if(words[0]!==ser0||words[1]!==ser1||CAL.crc16(words)!==words[63]||CAL.crc8(words)!==(words[15]>>>8))
+   throw Error('Chipkennung oder EEPROM-Prüfsumme beim AFE-Wiederanlauf ungültig');
+  const afe=words[0x38/2];
+  decodeSafeAFE(afe);
+  if(await readReg(R_AFE)!==0)throw Error('CFG_AFE1 hat sich während der Diagnose geändert');
+  st.coldStartAfeRestored=true;
+  await send(R_AFE,afe);
+  if(await readReg(R_AFE)!==afe)throw Error('CFG_AFE1 konnte im RAM nicht bestätigt werden');
+  logging('SSP3-Kaltstart: CFG_AFE1 aus CRC-geprüftem EEPROM ins RAM übernommen: 0x'+h(afe,2));
+  return true;
+ }
+
  // Read-only automatic PLC address discovery. Valid CRC8, plausible AFE
  // and ADC data plus the chip's own address registers must agree.
  async function probePlcAddresses(stage,verifyPsscStartup=false){
@@ -1490,11 +1526,13 @@ if(typeof document!=='undefined') (function UI(){
    const command='PLC 02FE06076C044E';
    trial.steps.push({command,reply:await exchange(command)});
    st.plcAddress=0x6C;
-   if(!await probePlcAddresses('PSSC-RAM-Freigabe'))
-    throw Error('PSSC-RAM-Freigabe ohne gültige Sensorantwort');
+   if(!await probePlcAddresses('PSSC-RAM-Freigabe')){
+    if(!await restoreColdStartAfe(port)||!await probePlcAddresses('PSSC-RAM-Freigabe nach AFE-Wiederanlauf'))
+     throw Error('PSSC-RAM-Freigabe ohne bestätigte Kalibrierbereitschaft');
+   }
    trial.readVerified=true;
    trial.verifiedUid=st.uid?.hex||null;
-   show('connMsg','Sensor über PSSC-RAM-Freigabe verbunden. NVM-Schreiben ist auf geprüfte Kalibrierdaten begrenzt.','success');
+   show('connMsg',st.coldStartAfeRestored?'Sensor nach AFE-Wiederanlauf verbunden. NVM-Schreiben bleibt gesperrt.':'Sensor über PSSC-RAM-Freigabe verbunden. NVM-Schreiben ist auf geprüfte Kalibrierdaten begrenzt.','success');
    return true;
   }catch(e){
    trial.error=String(e.message||e);
@@ -1576,7 +1614,7 @@ if(typeof document!=='undefined') (function UI(){
    show('connMsg','Neuinitialisierung erst nach Abschluss des laufenden Chipvorgangs möglich.','warn');return;
   }
   st.reinitRunning=true;
-  st.psscRamRecovery=false;
+  st.psscRamRecovery=false;st.coldStartAfeRestored=false;
   st.startupTrials=[];
   st.chip=false;st.plcAddressVerified=false;st.plcAddressProbes=[];stopLive();
   if(st.liveReadPromise)await st.liveReadPromise.catch(()=>{});
@@ -1643,7 +1681,7 @@ if(typeof document!=='undefined') (function UI(){
   liveSecondaryIndex=0;
   st.port=port;st.mode='usb';st.sensorLost=false;st.adapterNoReply=false;
   st.sessionIndex++;st.sessionStartedAt=new Date().toISOString();
-  st.psscRamRecovery=false;
+  st.psscRamRecovery=false;st.coldStartAfeRestored=false;
   st.startupTrials=[];st.chipDiag=null;st.lastPlcReply=null;st.readerAlive=false;
   st.plcAddress=0x6C;st.plcAddressVerified=false;st.plcAddressSource='';st.plcAddressProbes=[];
   st.reinitRunning=false;st.firmware='';st.powerHelp=null;st.powerCycleResult=null;st.magicResult=null;st.liveReadAttempts=0;st.liveReadSuccesses=0;st.liveLastError=null;st.liveLastAttemptAt=null;st.measurementPeriod=null;st.measurementStatus=null;st.measurementError=null;st.measurementStarts=0;st.measurementFreshCount=0;st.measurementLastChangedAt=null;st.plcHostFormat=$('plcHostFormat').value;st.chip=false;st.afe=null;st.afe0=null;st.boot=null;st.regs={};st.dsp=null;st.dspError=null;st.calStaged=false;st.calVerified=false;st.nvmDone=false;st.adc=null;st.manualLivePause=false;st.afeWriteActive=false;st.ramWriteScope=null;st.uid=null;st.uidShownForInput=null;st.restorePlan=null;st.expertOutputPlan=null;st.outputOnlyPlan=null;st.iface=$('iface').value;st.adapterKind=$('adapterType').value;
@@ -1688,7 +1726,7 @@ if(typeof document!=='undefined') (function UI(){
     if(st.adapterKind==='ssp3'&&st.iface==='plc'){
      logging('SSP3 und IF_CFG bereit, Chipzugriff fehlgeschlagen. USB bleibt offen. Startfenster-Test manuell aktivierbar.');
      $('plcStartupState').textContent='SSP3 bereit; PLC-Lesezugriff noch ohne Sensorantwort. Elmos PSSC kann bei gleicher Verkabelung verbinden. Wahrscheinlich fehlt dessen Initialisierungssequenz. Original-SSP3-Befehlsfolge vergleichen. Erster Fehler: '+e.message;
-     const msg='SSP3 erreichbar, E703.11 meldet aber keine gültige Antwort. Der automatische SSP3-Power-Start ist für One Wire standardmässig aktiv und verwendet die gültige PLC-Frameform. Bei weiterem Fehler steht das Diagnoseprotokoll im Expertenmodus zur Verfügung.';
+     const msg=st.chipDiag?.probes?.some(p=>p.addr===R_AFE&&p.value===0)?'Sensor antwortet, aber CFG_AFE1 ist 0x0000. Der AFE-Wiederanlauf konnte nicht bestätigt werden. Details im Diagnoseexport.':'SSP3 erreichbar, E703.11 meldet aber keine gültige Antwort. Der automatische SSP3-Power-Start ist für One Wire standardmässig aktiv und verwendet die gültige PLC-Frameform. Bei weiterem Fehler steht das Diagnoseprotokoll im Expertenmodus zur Verfügung.';
      show('connMsg',msg,'warn');
      renderStatus();
      return;
@@ -2659,7 +2697,7 @@ if(typeof document!=='undefined') (function UI(){
  });
  $('plcStartupLogExport').addEventListener('click',()=>{
   const log={
-   tool:'ELMOS E703.11 – SSP3 Startdiagnose',version:'v0.6.49',at:new Date().toISOString(),
+   tool:'ELMOS E703.11 – SSP3 Startdiagnose',version:'v0.6.50',at:new Date().toISOString(),
    source:'Web-App (NICHT PSSC Originalsoftware)',interface:st.iface,adapter:st.adapterKind,
     plcAddress:'0x'+h(st.plcAddress),plcAddressVerified:st.plcAddressVerified,
     plcAddressSource:st.plcAddressSource,plcAddressProbes:st.plcAddressProbes,psscRamRecovery:!!st.psscRamRecovery,

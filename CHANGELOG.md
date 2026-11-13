@@ -1,3 +1,7 @@
+## v0.6.50 – SSP3-Wiederanlauf bei leerem AFE-RAM
+
+- Nach PSSC-RAM-Freigabe kann die App ein leeres CFG_AFE1 aus dem EEPROM desselben Chips wiederherstellen. Sie prüft UID, CRC8, CRC16 und die RAM-Rücklesung. NVM-Schreiben bleibt in dieser Sitzung gesperrt.
+
 ## v0.6.49 – Brückenspannung mit der Kalibrierung speichern
 
 - Beim SSP3-Abgleich übernimmt der NVM-Plan die rückgelesene SVDD-Einstellung. Die Änderungsliste zeigt beide Spannungen. Nach dem Neustart wird die Einstellung erneut aus dem Sensor-RAM gelesen.
