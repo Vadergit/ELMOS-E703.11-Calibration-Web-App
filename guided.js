@@ -552,7 +552,12 @@ const ELMOS_GUIDED=(()=>{
   if(!s.chip){const panel=$('connMsg');if(panel){panel.textContent='Bitte zuerst den Programmieradapter mit dem E703.11 verbinden.';panel.className='callout warn'};return}
   if(typeof ELMOS_COMPACT!=='undefined')ELMOS_COMPACT.set(false);
   if($('compactMode'))$('compactMode').checked=false;
-  mode=true;stage=0;task='calibration';visited=new Set([0]);selectedPoint=0;
+  mode=true;
+  const loggingActive=!!window.ELMOS_TEST_LOGGER?.isBusy();
+  stage=loggingActive?10:0;
+  task=loggingActive?'testlog':'calibration';
+  visited=loggingActive?new Set([0,10]):new Set([0]);
+  selectedPoint=0;
   try{build()}catch(e){
    console.error(e);
    for(const {el,type,handler} of subscriptions)el.removeEventListener(type,handler);
