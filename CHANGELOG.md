@@ -1,3 +1,13 @@
+## v0.7.7 – Mehr Kontrast und Darkmode
+
+- Neuer Farbmodus in den Einstellungen: «Hell · hoher Kontrast» und «Dunkel · Darkmode».
+- Browserlokale Einstellung, synchron vor dem ersten Rendern aktiv, auch nach Neuladen.
+- Einheitliche Darkmode-Farbpalette für geführten Assistenten, klassische Ansicht, One-Pager, Kalibrierkarten, EEPROM-Tabellen, Archiv, Nachmessung und Test-Logging.
+- Erhöhter Kontrast für wichtige Texte, Nebeninformationen, Input-Rahmen und Navigationskarten im hellen Modus.
+- Warnungen, Fehler und erfolgreiche Prüfungen auch im dunklen Modus farblich eindeutig und lesbar.
+- ADC-Livegrafik wechselt Linien-, Achsen- und Hintergrundfarben passend zum Modus.
+- Mess-, Kommunikations- und NVM-Sicherheitslogik unverändert.
+
 ## v0.7.6 – Archiv und Nachmessung im geführten Einstieg / Links in neuem Tab
 
 - Sechs Aufgabenkacheln im geführten Einstieg, darunter «Archiv» und «Nachmessung».
