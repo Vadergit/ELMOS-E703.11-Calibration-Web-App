@@ -19,6 +19,7 @@ const ELMOS_GUIDED=(()=>{
  ];
  let stage=0,task='calibration',root=null,original=[],mode=false,plan=null,signature=null,taskOpening=false;
  let selectedPoint=0,visited=new Set([0]),poll=null,pendingCapture=null,afeStatsStart=0,afeGainSignature='';
+ let latestCapture=null,lastCaptureRenderKey=null;
  const subscriptions=[];
  const subscribe=(el,type,handler)=>{el.addEventListener(type,handler);subscriptions.push({el,type,handler})};
  const defaults={pCount:2,tCount:1,temps:[25],pmin:0,pmax:10,samples:12,outputLimit:25000,orderS:1,orderT:0};
@@ -81,7 +82,7 @@ const ELMOS_GUIDED=(()=>{
     '<section class="gw-tile gw-afe-monitor"><div class="gw-monitor-head"><div><h3>ADC_S · Live-Verlauf</h3><p>Rohsignal der Druckmesskette · letzte 60 Sekunden</p></div><span id="gwAfeLiveBadge" class="gw-live-badge">Warte auf Werte</span></div><div class="gw-afe-current"><strong id="gwAfeAdcValue" aria-live="off">—</strong><span>Digits</span></div><div class="gw-afe-chart" id="gwAfeChartHost"></div><div class="gw-chart-legend"><span class="gw-legend-limit">Grenzen ±25’000</span><span class="gw-legend-zero">Nulllinie</span><span class="gw-legend-line">ADC_S live</span></div>'+
     '<div class="gw-afe-kpis"><div><span>Minimum</span><strong id="gwAfeMin">—</strong></div><div><span>Maximum</span><strong id="gwAfeMax">—</strong></div><div><span>Hub (Max − Min)</span><strong id="gwAfeHub">—</strong></div></div>'+
     '<div class="gw-monitor-actions"><div id="gwAfeLiveActions"></div><button type="button" id="gwAfeReset" class="gw-secondary-btn">Min/Max zurücksetzen</button></div><div id="gwAfeQuality" class="gw-afe-quality" role="status">Min/Max werden ab dem Start dieses AFE-Schritts erfasst.</div><div id="gwAfeMessage"></div></section></div></div>'+
-   '<div id="gwPage4" class="gw-page" hidden><div class="gw-points-layout"><div class="gw-point-nav" id="gwPointNav"></div><div class="gw-tile gw-control"><div id="gwCurrentSetpoint" class="gw-summary"></div><div id="gwPointHost"></div><div id="gwSampleStatus"></div><div id="gwPointMessages"></div></div></div><div class="gw-alert">Der angezeigte Druck und die Temperatur sind <b>Referenz-Sollwerte</b>. Sie werden nicht automatisch erzeugt. Wähle den tatsächlichen Sollwert am Druckkalibrator und stelle die Temperaturkammer stabil ein, bevor du auf «aufnehmen» klickst.</div></div>'+
+   '<div id="gwPage4" class="gw-page" hidden><div class="gw-points-layout"><div class="gw-point-nav" id="gwPointNav"></div><div class="gw-tile gw-control"><div id="gwPointConfirmation" class="gw-point-confirmation" hidden role="status" aria-live="polite"></div><section id="gwCapturedSummary" class="gw-captured-summary" hidden aria-label="Bereits aufgenommene Messpunkte"><div class="gw-captured-head"><strong>Bereits aufgenommen</strong><span id="gwCapturedCount"></span></div><div id="gwCapturedList" class="gw-captured-list"></div></section><div id="gwCurrentSetpoint" class="gw-summary gw-next-point"></div><div id="gwPointHost"></div><div id="gwSampleStatus"></div><div id="gwPointMessages"></div></div></div><div class="gw-alert">Der angezeigte Druck und die Temperatur sind <b>Referenz-Sollwerte</b>. Sie werden nicht automatisch erzeugt. Wähle den tatsächlichen Sollwert am Druckkalibrator und stelle die Temperaturkammer stabil ein, bevor du auf «aufnehmen» klickst.</div></div>'+
    '<div id="gwPage5" class="gw-page" hidden><div class="gw-columns"><div class="gw-tile gw-control"><h3>Polynom und DSP-Ziel</h3><div class="gw-fields gw-3" id="gwFitFields"></div><div class="gw-panel-actions" id="gwFitActions"></div><div id="gwFitStatuses"></div><div id="gwFitDetails"></div></div><div class="gw-tile is-soft"><h3>Sicherer Ablauf</h3><p>1. Koeffizienten aus den gemessenen Punkten berechnen.</p><p>2. Zahlenbereich und Fehler kontrollieren.</p><p>3. Berechnete Werte nur ins RAM übertragen und rücklesen.</p><div class="gw-alert">Der berechnete Fit ist noch keine Hardware-Verifikation. Im nächsten Schritt wird DSP_S an unabhängigen Punkten geprüft.</div></div></div></div>'+
    '<div id="gwPage6" class="gw-page" hidden><div class="gw-columns"><div class="gw-tile gw-control"><h3>Unabhängige Prüfpunkte</h3><div class="gw-fields gw-3" id="gwVerifyFields"></div><div class="gw-panel-actions" id="gwVerifyActions"></div><div id="gwVerifyStatuses"></div><details><summary>Prüfprotokoll</summary><div id="gwVerifyDetails"></div></details></div><div class="gw-tile is-soft"><h3>Was prüfe ich hier?</h3><p>Stelle einen neuen Druck ein, der nicht bloss eine Wiederholung der Kalibrierpunkte ist. Bei Temperaturkompensation sind zusätzliche Prüftemperaturen wichtig.</p><div class="gw-alert warn">Die Live-Anzeige allein zählt nicht als Prüfung. Verwende «Prüfwert aus DSP_S lesen» und kontrolliere die tatsächliche Abweichung.</div></div></div></div>'+
    `<div id="gwPage7" class="gw-page" hidden>
@@ -291,7 +292,7 @@ const ELMOS_GUIDED=(()=>{
    }
   }
   fieldValue('calVerifyCount',1);
-  signature=nextSignature;selectedPoint=0;plan=p;
+  signature=nextSignature;selectedPoint=0;plan=p;latestCapture=null;lastCaptureRenderKey=null;
   return p;
  }
  function syncImportedConfig(event){
@@ -343,19 +344,86 @@ const ELMOS_GUIDED=(()=>{
  }
  function renderCapture(){
   if(!plan)return;
+  const points=plan.points.map((point,index)=>({point,index,record:pointRecord(point)}));
+  const key=JSON.stringify({
+   plan:signature,selectedPoint,
+   captured:points.map(({record})=>record?[record.at,record.adc_s,record.adc_t,record.sampleCount]:null),
+   latest:latestCapture
+  });
+  // The live refresh loop runs frequently; do not rebuild cards on every poll.
+  if(lastCaptureRenderKey===key)return;
+  lastCaptureRenderKey=key;
+
   const nav=$('gwPointNav');nav.replaceChildren();
-  plan.points.forEach((point,index)=>{
-   const record=pointRecord(point);
-   const btn=document.createElement('button');btn.type='button';
-   btn.textContent=(index+1)+'. '+point.pressure+' '+plan.unit+' · '+point.temperature+' °C';
-   btn.className=(index===selectedPoint?'gw-selected ':'')+(record?'gw-done':'');
-   btn.addEventListener('click',()=>{selectedPoint=index;renderCapture()});nav.appendChild(btn);
+  for(const {point,index,record} of points){
+   const btn=document.createElement('button');
+   btn.type='button';
+   btn.className=(index===selectedPoint?'gw-selected ':'')+(record?'gw-done':'gw-pending');
+   btn.setAttribute('aria-current',index===selectedPoint?'step':'false');
+   const label=document.createElement('span');label.className='gw-point-nav-label';
+   label.textContent=(record?'✓  ':'')+(index+1)+'. '+point.pressure+' '+plan.unit+' · '+point.temperature+' °C';
+   const status=document.createElement('span');status.className='gw-point-nav-state';
+   status.textContent=record?'Aufgenommen':index===selectedPoint?'Jetzt messen':'Noch offen';
+   btn.append(label,status);
+   btn.addEventListener('click',()=>{selectedPoint=index;renderCapture()});
+   nav.appendChild(btn);
    const row=pointRow(point);
    if(row)row.classList.toggle('gw-point-active',index===selectedPoint);
-  });
-  const current=plan.points[selectedPoint],record=pointRecord(current),done=plan.points.filter(p=>pointRecord(p)).length;
-  $('gwCurrentSetpoint').textContent='Punkt '+(selectedPoint+1)+' / '+plan.total+' · Stelle '+current.pressure+' '+plan.unit+' und '+current.temperature+' °C ein. '+(record?'✓ Bereits aufgenommen; bei Bedarf wiederholen.':'Noch nicht gemessen.');
-  setText('gwFooterHint',done+' / '+plan.total+' Messpunkte erfolgreich aufgenommen');
+  }
+  const captured=points.filter(({record})=>!!record);
+  const summary=$('gwCapturedSummary'),list=$('gwCapturedList');
+  summary.hidden=captured.length===0;
+  list.replaceChildren();
+  setText('gwCapturedCount',captured.length+' / '+plan.total);
+  // Previously saved measurements remain visible beside the current input form.
+  for(const {point,index,record} of captured){
+   const item=document.createElement('div');
+   item.className='gw-captured-item'+
+    (latestCapture?.index===index&&latestCapture?.at===record.at?' gw-captured-latest':'');
+   const top=document.createElement('div');top.className='gw-captured-item-top';
+   const title=document.createElement('strong');
+   title.textContent='✓ Messpunkt '+(index+1)+' aufgenommen';
+   const ref=document.createElement('span');
+   ref.textContent=point.pressure+' '+plan.unit+' · '+point.temperature+' °C';
+   top.append(title,ref);
+   const details=document.createElement('span');details.className='gw-captured-values';
+   const values=[];
+   if(Number.isFinite(record.adc_s))values.push('ADC_S '+record.adc_s.toLocaleString('de-CH')+' Digits');
+   if(Number.isFinite(record.adc_t))values.push('ADC_T '+record.adc_t.toLocaleString('de-CH')+' Digits');
+   if(Number.isInteger(record.sampleCount)&&record.sampleCount>0)values.push(record.sampleCount+' Einzelmessungen');
+   details.textContent=values.join(' · ')||'Messwerte gespeichert';
+   item.append(top,details);list.appendChild(item);
+  }
+  const success=$('gwPointConfirmation');
+  const confirmed=latestCapture&&points[latestCapture.index]?.record?.at===latestCapture.at;
+  success.hidden=!confirmed;
+  if(confirmed){
+   success.replaceChildren();
+   const title=document.createElement('strong');
+   title.textContent='✓ Messpunkt '+(latestCapture.index+1)+' erfolgreich übernommen';
+   const note=document.createElement('span');
+   note.textContent=captured.length===plan.total?
+    'Alle '+plan.total+' Messpunkte sind gespeichert. Du kannst jetzt weitergehen.':
+    'Der Messwert bleibt unten sichtbar. Als Nächstes folgt Messpunkt '+(selectedPoint+1)+'.';
+   success.append(title,note);
+  }
+  const {point:currentPoint,record}=points[selectedPoint];
+  const allDone=captured.length===plan.total;
+  const current=$('gwCurrentSetpoint');current.replaceChildren();
+  current.classList.toggle('gw-next-complete',allDone);
+  const heading=document.createElement('strong');
+  heading.className='gw-next-heading';
+  heading.textContent=allDone?'✓ Alle Messpunkte aufgenommen':
+   record?'Messpunkt '+(selectedPoint+1)+' ist bereits aufgenommen':
+   'Als Nächstes: Messpunkt '+(selectedPoint+1)+' messen';
+  const text=document.createElement('span');
+  text.className='gw-next-detail';
+  text.textContent=allDone?'Alle '+plan.total+' Referenzen wurden gespeichert. Weiter zur Koeffizientenberechnung.':
+   record?'Du kannst diesen Messpunkt bei Bedarf erneut aufnehmen oder einen noch offenen Punkt wählen.':
+   'Stelle '+currentPoint.pressure+' '+plan.unit+' und '+currentPoint.temperature+
+    ' °C ein, warte auf stabile Bedingungen und klicke dann auf «aufnehmen».';
+  current.append(heading,text);
+  setText('gwFooterHint',captured.length+' / '+plan.total+' Messpunkte erfolgreich aufgenommen');
  }
  function observeCapture(){
   if(stage!==4||!plan)return;
@@ -368,10 +436,13 @@ const ELMOS_GUIDED=(()=>{
    const record=pointRecord(target);
    if(!record||record.at===old)return;
    window.clearInterval(pendingCapture);pendingCapture=null;
-   renderCapture();
+   // Acknowledge only measurements confirmed by the existing capture workflow.
+   latestCapture={index:target.index,at:record.at};
    const nextIndex=plan.points.findIndex((p,i)=>i>target.index&&!pointRecord(p));
-   if(nextIndex>=0&&selectedPoint===target.index){selectedPoint=nextIndex;renderCapture()}
-   else if(plan.points.every(p=>pointRecord(p)))msg('Alle Messpunkte sind aufgenommen. Weiter zur Koeffizientenberechnung.','success');
+   if(nextIndex>=0&&selectedPoint===target.index)selectedPoint=nextIndex;
+   // Single transition render: the completed summary and next target appear together.
+   renderCapture();
+   if(plan.points.every(p=>pointRecord(p)))msg('Alle Messpunkte sind aufgenommen. Weiter zur Koeffizientenberechnung.','success');
   },320);
  }
  function statusText(){
@@ -612,7 +683,7 @@ const ELMOS_GUIDED=(()=>{
   if(window.ELMOS_TEST_LOGGER?.isBusy()){
    msg('Sensor nicht mehr erreichbar. Die Testaufzeichnung wird unterbrochen.','warn');
   }
-  plan=null;signature=null;selectedPoint=0;stage=0;visited=new Set([0]);
+  plan=null;signature=null;selectedPoint=0;latestCapture=null;lastCaptureRenderKey=null;stage=0;visited=new Set([0]);
   render();
   msg('Die Sensorverbindung wurde unterbrochen. Die bisherigen Kalibrierpunkte sind nicht mehr freigegeben. Nach der Neuinitialisierung einen neuen Abgleich starten.','warn');
  }
