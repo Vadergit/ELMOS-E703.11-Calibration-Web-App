@@ -3322,7 +3322,7 @@ if(typeof document!=='undefined') (function UI(){
     const one={at:new Date().toISOString(),
      adcS:await readOptional(0x2A),adcT:await readOptional(0x28),adcTC:await readOptional(0x26),
      dspS:await readOptional(0x30),dspT:await readOptional(0x2E),
-     statusSync:await readOptional(0x32)};
+     statusSync:await readOptional(0x32),chipStatus:await readOptional(0x36)};
     samples.push(one);
     if(i<count-1&&spacingMs>0)await sleep(spacingMs);
    }
