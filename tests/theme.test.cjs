@@ -55,12 +55,12 @@ test('theme selector in Settings applies immediately, stores preference and redr
 });
 test('theme CSS overrides app styles as the last linked stylesheet',()=>{
  const links=[...page.matchAll(/<link rel="stylesheet" href="([^"]+)"/g)].map(x=>x[1]);
- assert.equal(links.at(-1),'theme.css?v=0.7.7');
+ assert.equal(links.at(-1),'theme.css?v=0.7.8');
  assert.ok(links.some(x=>x.startsWith('interface.css?')));
  assert.ok(links.some(x=>x.startsWith('guided.css?')));
  assert.match(page,/id="settingsTheme"/);
- assert.match(page,/data-app-version="0\.7\.7"/);
- assert.match(page,/<b>Version v0\.7\.7<\/b>/);
+ assert.match(page,/data-app-version="0\.7\.8"/);
+ assert.match(page,/<b>Version v0\.7\.8<\/b>/);
 });
 test('dark theme covers guided, classic, compact, archive, logger and warning UI',()=>{
  for(const part of [

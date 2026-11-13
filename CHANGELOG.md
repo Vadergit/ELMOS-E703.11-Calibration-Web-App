@@ -1,3 +1,13 @@
+## v0.7.8 – Referenzmesspunkte eindeutig als aufgenommen kennzeichnen
+
+- Erfolgreich gemessene Punkte bleiben sichtbar in einer grünen Übersicht statt optisch zu verschwinden.
+- Erfolgsbestätigung erst nach tatsächlicher Übernahme durch den bestehenden Mess- und Speicherpfad.
+- Klare nächste Aktion: «Als Nächstes: Messpunkt X messen» mit Referenzdruck und Temperatur.
+- Messpunktnavigation unterscheidet sichtbar zwischen «Aufgenommen», «Jetzt messen» und «Noch offen».
+- Verfügbare ADC_S-, ADC_T- und Sample-Anzahlen als reine Anzeigewerte aus den vorhandenen Messdatensätzen.
+- Ohne unnötige DOM-Neuerstellung bei unveränderten Live-Updates; auch im Darkmode gut erkennbar.
+- Keine Änderungen am Sensor-, Mess-, RAM- oder NVM-Schreibpfad.
+
 ## v0.7.7 – Mehr Kontrast und Darkmode
 
 - Neuer Farbmodus in den Einstellungen: «Hell · hoher Kontrast» und «Dunkel · Darkmode».

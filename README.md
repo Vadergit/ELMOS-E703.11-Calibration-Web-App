@@ -2,7 +2,7 @@
 
 **Ein geführter Kalibrierassistent für den ELMOS E703.11 und das SSP3-Eval-Board.** Ziel ist ein verständlicher Abgleich, der auch ohne tiefere Vorkenntnisse Schritt für Schritt funktioniert. Wer mehr benötigt, kann zusätzliche Messpunkte, DSP-Parameter und einen geschützten Expertenmodus verwenden.
 
-**Version: v0.7.7 · Höherer Kontrast und umschaltbarer Darkmode** · [Änderungsverlauf](CHANGELOG.md) · **[Geplante Funktionen](ROADMAP.md)**
+**Version: v0.7.8 · Klare Bestätigung erfasster Referenzmesspunkte** · [Änderungsverlauf](CHANGELOG.md) · **[Geplante Funktionen](ROADMAP.md)**
 
 Über **Einstellungen → Demo-Modus** lässt sich der gesamte Kalibrierablauf mit simulierten Messwerten und NVM ausprobieren.
 
@@ -13,6 +13,14 @@
 > **Geführter Assistent:** Nach der bestätigten SSP3-Verbindung stehen die neue Schritt-für-Schritt-Führung, die klassische Ansicht und der optionale Kompaktmodus zur Verfügung. Ein E703.11-Chip muss für den Abgleich verbunden sein. Die USB-CDC-Bridge bleibt als experimenteller Verbindungstest ohne Sensorprogrammierung gesperrt.
 >
 > [Geführter Abgleich](docs/GEFUEHRTER_ASSISTENT.md) · [USB-Bridge](docs/USB_BRIDGE_GUIDE.md) · [ESP-Boards](docs/ESP_BOARD_OPTIONS.md) · [ESP32-C3 SuperMini Sketch](firmware/esp32c3_supermini/esp32c3_supermini.ino)
+
+## Neu in v0.7.8 – Deutlicher Übergang zwischen Referenzmesspunkten
+
+Beim geführten Abgleich in Schritt 5 bleibt jeder tatsächlich erfasste Referenzmesspunkt in einer gut sichtbaren **grünen Zusammenfassung** stehen – einschliesslich Druck, Temperatur und, soweit verfügbar, originalem ADC_S/ADC_T und Anzahl Einzelmessungen. Ein eigener Status bestätigt: **«Messpunkt 1 erfolgreich übernommen»**. Erst danach wird der nächste offene Punkt in **Blau mit «Als Nächstes: Messpunkt 2 messen»** hervorgehoben.
+
+Links in der Messpunktliste sind aufgenommene Punkte dauerhaft **grün und als «Aufgenommen» bezeichnet**, der aktive Punkt zeigt **«Jetzt messen»**. Du kannst bereits erfasste Punkte jederzeit auswählen und bei Bedarf nochmals aufnehmen. Nach allen Punkten erscheint eine eindeutige Abschlussmeldung.
+
+Die Anzeige wechselt erst nach Bestätigung durch die bereits vorhandene Kalibrierlogik. Fehlerhafte Messungen werden niemals als erfolgreich markiert. Die UI wird nicht mehr bei jedem Live-Poll unnötig neu aufgebaut. Es gibt **keine Änderung an der eigentlichen Messung, Kalibrierung oder NVM-Programmierung**.
 
 ## Neu in v0.7.7 – Kontrastreiches helles und dunkles Design
 

@@ -750,3 +750,47 @@ html[data-theme="dark"] #guidedWorkspace .gw-afe-chart #chart,
 html[data-theme="dark"] #guidedWorkspace .gw-finish-chart #chart {
   background:transparent;
 }
+
+
+/* v0.7.8: captured-reference feedback has separate readable dark status colours. */
+html[data-theme="dark"] #guidedWorkspace .gw-point-confirmation{
+ background:#1e4939;border:2px solid #72c69d;color:#e0ffe9;
+}
+html[data-theme="dark"] #guidedWorkspace .gw-point-confirmation strong{color:#e0ffe9}
+html[data-theme="dark"] #guidedWorkspace .gw-point-confirmation span{color:#c7f3dc}
+html[data-theme="dark"] #guidedWorkspace .gw-captured-summary{
+ background:#182d28;border:1px solid #5f9e83;
+}
+html[data-theme="dark"] #guidedWorkspace .gw-captured-head{
+ background:#254b3b;border-bottom-color:#598e76;color:#e6ffef;
+}
+html[data-theme="dark"] #guidedWorkspace .gw-captured-head strong,
+html[data-theme="dark"] #guidedWorkspace .gw-captured-head span{color:#e6ffef}
+html[data-theme="dark"] #guidedWorkspace .gw-captured-item{
+ background:#1d362e;border-color:#477e67;color:#e8fcf0;
+}
+html[data-theme="dark"] #guidedWorkspace .gw-captured-item.gw-captured-latest{
+ background:#244b3c;border-left:4px solid #84d6a9;
+}
+html[data-theme="dark"] #guidedWorkspace .gw-captured-item-top strong{color:#e1ffed}
+html[data-theme="dark"] #guidedWorkspace .gw-captured-item-top span,
+html[data-theme="dark"] #guidedWorkspace .gw-captured-values{color:#badfcb}
+html[data-theme="dark"] #guidedWorkspace .gw-next-point{
+ background:#223f54;border-color:#74bce8;color:#e8f6ff;
+}
+html[data-theme="dark"] #guidedWorkspace .gw-next-heading{color:#b9e6ff}
+html[data-theme="dark"] #guidedWorkspace .gw-next-detail{color:#d3e6f3}
+html[data-theme="dark"] #guidedWorkspace .gw-next-point.gw-next-complete{
+ background:#234839;border-color:#72c69d;
+}
+html[data-theme="dark"] #guidedWorkspace .gw-next-point.gw-next-complete .gw-next-heading{color:#d9ffe9}
+html[data-theme="dark"] #guidedWorkspace .gw-point-nav button.gw-done{
+ background:#244f3b;border-color:#6ebb95;color:#e5ffed;
+}
+html[data-theme="dark"] #guidedWorkspace .gw-point-nav button.gw-selected{
+ background:#275371;border-color:#9cddff;color:#effaff;
+}
+html[data-theme="dark"] #guidedWorkspace .gw-point-nav button.gw-pending:not(.gw-selected){
+ background:#213545;border-color:#506b80;color:#d0e2f0;
+}
+html[data-theme="dark"] #guidedWorkspace .gw-point-nav button.gw-pending:not(.gw-selected) .gw-point-nav-state{color:#b8cfe0}

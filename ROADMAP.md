@@ -1,6 +1,14 @@
 # Roadmap für den E703.11-Kalibrierassistenten
 
-Stand v0.7.7 · Web-App mit SSP3 im Vergleich zur Elmos-PSSC-Software. Die Reihenfolge zeigt die geplante Priorität. Veröffentlichungstermine sind offen.
+Stand v0.7.8 · Web-App mit SSP3 im Vergleich zur Elmos-PSSC-Software. Die Reihenfolge zeigt die geplante Priorität. Veröffentlichungstermine sind offen.
+
+## Geführte Messpunkte (v0.7.8)
+
+- [x] Vorherige Referenzmesspunkte nach Aufnahme sichtbar behalten.
+- [x] Eindeutige grüne Erfolgsmeldung und hervorgehobener nächster Referenzpunkt.
+- [x] Anzahl, ADC-Rohwerte und Referenzwerte aus bestätigten Messdatensätzen anzeigen.
+- [x] Kein Erfolg bei fehlgeschlagener Messung, keine unnötige Neudarstellung pro Live-Poll.
+- [ ] Visueller Praxistest mit realem SSP3-Sensor und mehreren Referenzpunkten.
 
 ## Darstellung / Darkmode (v0.7.7)
 
