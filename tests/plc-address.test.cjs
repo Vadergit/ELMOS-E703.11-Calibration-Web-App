@@ -25,7 +25,7 @@ test('Legacy 0x6C and configured 0x7C produce correct CRC protected PLC frames',
 });
 test('The Web-app probes before DUT power cycling and uses confirmed address for every PLC operation',()=>{
  const app=read('app.js'),html=read('index.html');
- const scan=app.split('async function probePlcAddresses(stage,verifyPsscStartup=false){')[1]?.split('async function detect(){')[0];
+ const scan=app.split('async function probePlcAddresses(stage,verifyPsscStartup=false,allowReadOnly=true){')[1]?.split('async function detect(){')[0];
  assert.ok(scan);
  assert.ok(scan.includes('await readReg(R_AFE,1350)'));
  assert.ok(scan.includes('decodeSafeAFE(afe)'));
