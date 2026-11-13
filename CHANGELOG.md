@@ -1,3 +1,12 @@
+## v0.7.2 – Separates Archiv/Nachmessung, klassisches Test-Logging und Zeitlimit
+
+- Oben separate Bereiche **«Archiv»** (Suche, Protokolle und Vergleiche) und **«Nachmessung»** (Prüfpläne, Druck-/Temperaturrampen, Hysterese).
+- **«Test / Logging»** als eigener Reiter in der klassischen Navigation direkt unter dem EEPROM Viewer; weiterhin auch im geführten Einstieg verfügbar.
+- Nur eine Logger-Instanz: Beim Wechsel bleiben Eingaben bestehen, laufende Aufzeichnungen werden nicht verdeckt.
+- **Testdauer frei wählbar** in Sekunden, Minuten und Stunden; 0 = unbegrenzt. Automatisches Stoppen und Archivieren mit Live-Restzeitanzeige.
+- Pause unterbricht die aktive Testdauer, bis die Aufzeichnung fortgesetzt wird.
+- Weiterhin alle Einzelmessungen und optionalen Mittelwerte, Testbeschreibung, Telemetrie, Marker und Fehler im lokalen Archiv.
+
 ## v0.7.1 – Test / Logging im geführten Einstieg
 
 - Vierte Kachel **Test / Logging** mit Name, Beschreibung, Kategorie, Operator und optionaler VDD-Messung.
