@@ -7,7 +7,7 @@ const ELMOS_ARCHIVE=(()=>{
   measuring:false,showDetails:null,lastError:'',folderName:'',draft:null,view:'archive',detailsToken:0,resultsCache:new Map(),debugLines:[],debugDropped:0,lastStreamMetaFlush:0};
  const iso=()=>new Date().toISOString();
  const text=(id,value)=>{if($(id))$(id).textContent=String(value)};
- const note=(value,bad=false)=>{S.lastError=bad?String(value):'';text('archiveStatus',value);if($('archiveStatus'))$('archiveStatus').style.color=bad?'#a13b39':'#526982'};
+ const note=(value,bad=false)=>{S.lastError=bad?String(value):'';text('archiveStatus',value);if($('archiveStatus'))$('archiveStatus').style.color=bad?'var(--red)':'var(--muted)'};
  const el=(tag,content,css)=>{const e=document.createElement(tag);if(content!=null)e.textContent=String(content);if(css)e.className=css;return e};
  const bridge=()=>window.ELMOS_ARCHIVE_BRIDGE;
  const statusWords={running:'Offen / eventuell unterbrochen',completed:'Abgeschlossen',failed:'Fehlerhaft',
