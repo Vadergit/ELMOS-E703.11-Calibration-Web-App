@@ -1,3 +1,8 @@
+## v0.7.11 – Fortschritt und kompakte Messpunkte
+
+- Blockierende Vorgänge zeigen ihren Fortschritt mittig. Kurze Lesevorgänge behalten die Anzeige unten rechts.
+- Aufgenommene Messpunkte blenden die Eingabezeile aus und zeigen das Ergebnis.
+
 ## v0.7.10 – Fortschritt bei Chipvorgängen
 
 - Zeigt aktive Lesevorgänge, Messungen, Importe und Schreibvorgänge an. Bei NVM und Messpunktaufnahme werden die bearbeiteten Wörter oder Samples gezählt.

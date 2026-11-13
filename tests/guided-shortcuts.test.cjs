@@ -78,7 +78,7 @@ test('help and USB diagnostic links open separate tabs, ZIP stays a direct downl
  assert.doesNotMatch(zip,/target="_blank"/);
 });
 test('v0.7.6 script and stylesheet cache-busting are updated together',()=>{
- assert.match(html,/data-app-version="0\.7\.10"/);
- assert.match(html,/guided\.js\?v=0\.7\.10/);
+ assert.match(html,/data-app-version="0\.7\.11"/);
+ assert.match(html,/guided\.js\?v=0\.7\.11/);
  assert.match(html,/guided\.css\?v=0\.7\.9/);
 });

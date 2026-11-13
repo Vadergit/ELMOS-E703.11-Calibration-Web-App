@@ -96,8 +96,19 @@ if(typeof document!=='undefined') (function UI(){
  }
  const runningOperations=[];
  function renderOperationProgress(){
-  const operation=runningOperations.at(-1);
+  const blocking=runningOperations.filter(item=>item.blocking).at(-1);
+  const operation=blocking||runningOperations.at(-1);
   const panel=$('operationProgress'),bar=$('operationProgressBar');
+  const dialog=$('operationProgressDialog');
+  const dock=$('operationProgressDock');
+  if(blocking&&!dialog.open){
+   dialog.append(panel);
+   panel.hidden=false;
+   dialog.showModal();
+  }else if(!blocking&&dialog.open){
+   dialog.close();
+   dock.append(panel);
+  }
   panel.hidden=!operation;
   if(!operation)return;
   const {label,done,total}=operation;
@@ -105,8 +116,8 @@ if(typeof document!=='undefined') (function UI(){
   if(total){bar.max=total;bar.value=done;}
   else bar.removeAttribute('value');
  }
- function beginOperation(label){
-  const operation={label};
+ function beginOperation(label,blocking=false){
+  const operation={label,blocking};
   runningOperations.push(operation);
   renderOperationProgress();
   return {
@@ -114,8 +125,8 @@ if(typeof document!=='undefined') (function UI(){
    finish(){runningOperations.splice(runningOperations.indexOf(operation),1);renderOperationProgress()}
   };
  }
- async function withProgress(label,action){
-  const operation=beginOperation(label);
+ async function withProgress(label,action,blocking=false){
+  const operation=beginOperation(label,blocking);
   try{return await action(operation)}finally{operation.finish()}
  }
  function renderStatus(){let connected=!!st.port;
@@ -404,6 +415,7 @@ if(typeof document!=='undefined') (function UI(){
   status.textContent=record?'✓ Aufgenommen':'Noch nicht aufgenommen';
   box.replaceChildren();
   box.hidden=!record;
+  box.closest('.cal-point-row')?.classList.toggle('cal-point-recorded',!!record);
   if(!record)return;
   const title=document.createElement('div');
   title.className='cal-measure-heading';
@@ -436,7 +448,7 @@ if(typeof document!=='undefined') (function UI(){
   if(st.calTask||st.writing||st.nvmWorking)throw Error('Ein Mess- oder Wartungsvorgang läuft');
   const resumeLive=st.live;
   st.calTask=true;stopLive();
-  const operation=beginOperation(label+' wird aufgenommen');
+  const operation=beginOperation(label+' wird aufgenommen',true);
   const progress=$('calSampleProgress');
   progress.hidden=false;progress.textContent=label+': Messung wird vorbereitet …';
   renderFlowState();
@@ -1088,7 +1100,7 @@ if(typeof document!=='undefined') (function UI(){
  // Elmos 70311_gui_default.xml: measurement enable, default AFE and continuous period.
  // Match the observed inactive profile before applying those three RAM values.
  async function startRamMeasurement(remember=false){
-  return withProgress('Live-Messung wird vorbereitet',()=>startRamMeasurementOperation(remember));
+  return withProgress('Live-Messung wird vorbereitet',()=>startRamMeasurementOperation(remember),true);
  }
  async function startRamMeasurementOperation(remember){
   if(!st.port||!st.readOnlySensor||st.chip||st.closing||st.ramMeasurementStarting)return;
@@ -1815,7 +1827,7 @@ if(typeof document!=='undefined') (function UI(){
   renderStatus();
  }
  async function reinitializeSensor(){
-  return withProgress('Sensor wird initialisiert',()=>reinitializeSensorOperation());
+  return withProgress('Sensor wird initialisiert',()=>reinitializeSensorOperation(),true);
  }
  async function reinitializeSensorOperation(){
   const port=st.port;
@@ -1889,7 +1901,7 @@ if(typeof document!=='undefined') (function UI(){
   }
  }
  async function connect(port){
-  return withProgress('Verbindung wird aufgebaut',()=>connectOperation(port));
+  return withProgress('Verbindung wird aufgebaut',()=>connectOperation(port),true);
  }
  async function connectOperation(port){
   if(st.port)throw Error('Es ist bereits ein Port offen');
@@ -2425,7 +2437,7 @@ if(typeof document!=='undefined') (function UI(){
   await maintWrite(0x4E,0x4C00|addr);await nvmWaitIdle(12000,12,15);return await readReg(0x48);
  }
  async function nvmScan(options={}){
-  return withProgress('NVM wird gelesen',progress=>nvmScanOperation(options, progress));
+  return withProgress('NVM wird gelesen',progress=>nvmScanOperation(options, progress),true);
  }
  async function nvmScanOperation(options, progress){
   let started=false;
@@ -2464,7 +2476,7 @@ if(typeof document!=='undefined') (function UI(){
   return !!st.nvmBackupVerified
  }
  async function applyCalRam(){
-  return withProgress('Koeffizienten werden ins RAM geschrieben',()=>applyCalRamOperation());
+  return withProgress('Koeffizienten werden ins RAM geschrieben',()=>applyCalRamOperation(),true);
  }
  async function applyCalRamOperation(){
   try{
@@ -2601,7 +2613,7 @@ if(typeof document!=='undefined') (function UI(){
   }finally{renderFlowState()}
  }
  async function nvmProgram(){
-  return withProgress('NVM wird programmiert',progress=>nvmProgramOperation(progress));
+  return withProgress('NVM wird programmiert',progress=>nvmProgramOperation(progress),true);
  }
  async function nvmProgramOperation(progress){
   if(st.nvmWorking||st.writing)return;
@@ -2712,7 +2724,7 @@ if(typeof document!=='undefined') (function UI(){
   }
  }
  async function postBootCheck(automatic=false){
-  return withProgress('NVM nach Neustart wird geprüft',()=>postBootCheckOperation(automatic));
+  return withProgress('NVM nach Neustart wird geprüft',()=>postBootCheckOperation(automatic),true);
  }
  async function postBootCheckOperation(automatic){
   if(st.closing||st.calTask||st.writing||st.nvmWorking)return;
@@ -2914,7 +2926,7 @@ if(typeof document!=='undefined') (function UI(){
  });
  $('configApply').addEventListener('click',async()=>{
   const button=$('configApply'),fileInput=$('configFile');
-  const operation=beginOperation('Config wird übernommen');
+  const operation=beginOperation('Config wird übernommen',true);
   try{
    if(!selectedConfig)throw Error('Zuerst eine gültige Config-Datei wählen');
    if(st.writing||st.nvmWorking||st.calTask||st.afeWriteActive)throw Error('Chipvorgang läuft. Config erst danach übernehmen.');
@@ -2996,7 +3008,7 @@ if(typeof document!=='undefined') (function UI(){
  });
  $('plcStartupLogExport').addEventListener('click',()=>{
   const log={
-   tool:'ELMOS E703.11 – SSP3 Startdiagnose',version:'v0.7.10',at:new Date().toISOString(),
+   tool:'ELMOS E703.11 – SSP3 Startdiagnose',version:'v0.7.11',at:new Date().toISOString(),
    source:'Web-App (NICHT PSSC Originalsoftware)',interface:st.iface,adapter:st.adapterKind,
     plcAddress:'0x'+h(st.plcAddress),plcAddressVerified:st.plcAddressVerified,
     plcAddressSource:st.plcAddressSource,plcAddressProbes:st.plcAddressProbes,psscRamRecovery:!!st.psscRamRecovery,
@@ -3499,5 +3511,6 @@ if(typeof document!=='undefined') (function UI(){
   redraw:()=>draw(),
 
  });
+ $('operationProgressDialog').addEventListener('cancel',event=>event.preventDefault());
  gainSummary();renderStatus();step(0);window.addEventListener('resize',draw);
 })();

@@ -669,9 +669,13 @@ html.compact-mode .foot{display:none}
 .operation-progress{position:fixed;z-index:1000;right:16px;bottom:16px;max-width:calc(100% - 32px);width:320px;padding:12px 16px;box-sizing:border-box;background:var(--theme-surface,#fff);color:var(--ink,#153449);border:1px solid var(--control-border,#88a9bd);border-radius:10px;box-shadow:0 4px 18px #15344930;pointer-events:none}
 .operation-progress[hidden],.cal-card-action button[hidden]{display:none!important}
 .operation-progress span{display:block;font-size:13px;font-weight:650;margin-bottom:6px}
+.operation-progress-dialog{border:0;padding:0;background:transparent;max-width:calc(100% - 32px)}
+.operation-progress-dialog::backdrop{background:#0b18265c}
+.operation-progress-dialog .operation-progress{position:static;max-width:100%;pointer-events:auto}
+.cal-point-recorded > .fieldrow{display:none!important}
 .operation-progress progress{display:block;width:100%;accent-color:var(--focus,#075874)}
-</style><link rel="stylesheet" href="guided.css?v=0.7.9"><link rel="stylesheet" href="interface.css?v=0.6.30"><link rel="stylesheet" href="theme.css?v=0.7.9"></head><body data-app-version="0.7.10"><div class="wrap"><header class="top">
-<div class="brand"><div class="logo" aria-hidden="true">E</div><div><div class="eyebrow">E703.11 · PSSC · v0.7.10</div><h1>Kalibrierassistent</h1></div></div>
+</style><link rel="stylesheet" href="guided.css?v=0.7.9"><link rel="stylesheet" href="interface.css?v=0.6.30"><link rel="stylesheet" href="theme.css?v=0.7.9"></head><body data-app-version="0.7.11"><div class="wrap"><header class="top">
+<div class="brand"><div class="logo" aria-hidden="true">E</div><div><div class="eyebrow">E703.11 · PSSC · v0.7.11</div><h1>Kalibrierassistent</h1></div></div>
 <div class="live-overview" role="group" aria-label="Sensorwerte · laufende Anzeige">
   <div class="live-kpi" title="Unkompensierter Druck-ADC. Warnung bei Beträgen über 25’000 Digits."><span class="live-kpi-label">ADC_S <span id="liveAdcAlert" class="live-alert" hidden>!</span></span><span class="live-kpi-reading" id="liveAdcS">—</span><span class="live-kpi-unit">Digits</span></div>
   <div class="live-kpi" title="ADC_T · Temperatur-Rohwert, keine direkte Temperatur in °C."><span class="live-kpi-label">ADC_T</span><span class="live-kpi-reading" id="liveAdcT">—</span><span class="live-kpi-unit">Digits</span></div>
@@ -680,10 +684,11 @@ html.compact-mode .foot{display:none}
 </div>
 <div class="live-connection"><div class="connection-actions"><button type="button" id="archiveOpen" class="settings-gear" title="Lokales Kalibrierarchiv durchsuchen">▤ Archiv</button><button type="button" id="verificationOpen" class="settings-gear" title="Druck- und Temperatur-Nachmessung durchführen" hidden>↕ Nachmessung</button><button type="button" id="guidedLaunchTop" class="settings-gear" title="Geführten Abgleich starten">◇ Geführt</button><button type="button" id="settingsOpen" class="settings-gear" aria-expanded="false" aria-controls="settingsPanel" title="App-Einstellungen öffnen">⚙ Einstellungen</button><span class="chip"><span class="dot" id="statusDot"></span><span id="status">Nicht verbunden</span></span><span class="live-meta"><span class="live-meta-dot" id="liveStateDot"></span><span id="liveState">Keine Live-Messung</span><span aria-hidden="true">·</span><span id="liveLastRead">—</span><span id="liveDiagnostic" title="Erfolgreiche ADC_S-Live-Abfragen / Versuche" style="font-size:10px;opacity:.85"></span></span></div></div>
 </header>
-<div id="operationProgress" class="operation-progress" hidden>
+<div id="operationProgressDock"><div id="operationProgress" class="operation-progress" hidden>
   <span id="operationProgressText" role="status"></span>
   <progress id="operationProgressBar" aria-labelledby="operationProgressText"></progress>
-</div>
+</div></div>
+<dialog id="operationProgressDialog" class="operation-progress-dialog" aria-label="Laufender Vorgang"></dialog>
 <div id="sensorReconnectBanner" class="sensor-reconnect" role="status" aria-live="polite" hidden>
  <div><strong>Sensor nicht verbunden</strong><span id="sensorReconnectMessage">Keine gültige Sensorantwort. Sensoranschluss prüfen.</span></div>
  <div class="sensor-reconnect-actions">
@@ -1297,5 +1302,5 @@ html.compact-mode .foot{display:none}
 </div>
 <div class="nav"><button data-next="0">Zur Verbindung</button><button data-next="6">Zum NVM-Schritt</button></div>
 </section>
-<div class="foot"><b>Version v0.7.10</b> · <a href="CHANGELOG.md" target="_blank" rel="noopener noreferrer">Änderungsverlauf</a> · ELMOS E703.11 · unabhängiger Kalibrierprototyp · Sicherheitsprinzip: Factory- und Kommunikations-Bootregister gesperrt; dokumentierte AODO-Ausgangsoptionen nur nach Prüfung im NVM-Plan; Wiederherstellung nur mit passender Chip-UID.</div>
-<section class="card panel" data-panel="8" hidden><div class="eyebrow">Werkzeuge · Sensorprotokoll</div><h2>Test / Logging</h2><p class="muted small">Messdaten, Rohwerte und Notizen jederzeit in einem lokalen Archiv protokollieren. Ohne NVM-Schreibvorgang.</p><div id="classicLoggerHost"></div></section></main></div></div><div id="tip" class="tooltip"></div><script src="calibration.js?v=0.6.58"></script><script src="eeprom-help.js?v=0.6.30"></script><script src="expert.js?v=0.7.10"></script><script src="config.js?v=0.6.36"></script><script src="guided-plan.js?v=0.6.30"></script><script src="demo.js?v=0.6.49"></script><script src="archive-core.js?v=0.7.3"></script><script src="test-logger-core.js?v=0.7.3"></script><script src="archive-analysis.js?v=0.7.4"></script><script src="archive.js?v=0.7.7"></script><script src="app.js?v=0.7.10"></script><script src="compact.js?v=0.6.58"></script><script src="test-logger.js?v=0.7.4"></script><script src="guided.js?v=0.7.10"></script></body></html>
+<div class="foot"><b>Version v0.7.11</b> · <a href="CHANGELOG.md" target="_blank" rel="noopener noreferrer">Änderungsverlauf</a> · ELMOS E703.11 · unabhängiger Kalibrierprototyp · Sicherheitsprinzip: Factory- und Kommunikations-Bootregister gesperrt; dokumentierte AODO-Ausgangsoptionen nur nach Prüfung im NVM-Plan; Wiederherstellung nur mit passender Chip-UID.</div>
+<section class="card panel" data-panel="8" hidden><div class="eyebrow">Werkzeuge · Sensorprotokoll</div><h2>Test / Logging</h2><p class="muted small">Messdaten, Rohwerte und Notizen jederzeit in einem lokalen Archiv protokollieren. Ohne NVM-Schreibvorgang.</p><div id="classicLoggerHost"></div></section></main></div></div><div id="tip" class="tooltip"></div><script src="calibration.js?v=0.6.58"></script><script src="eeprom-help.js?v=0.6.30"></script><script src="expert.js?v=0.7.10"></script><script src="config.js?v=0.6.36"></script><script src="guided-plan.js?v=0.6.30"></script><script src="demo.js?v=0.6.49"></script><script src="archive-core.js?v=0.7.3"></script><script src="test-logger-core.js?v=0.7.3"></script><script src="archive-analysis.js?v=0.7.4"></script><script src="archive.js?v=0.7.7"></script><script src="app.js?v=0.7.11"></script><script src="compact.js?v=0.6.58"></script><script src="test-logger.js?v=0.7.4"></script><script src="guided.js?v=0.7.11"></script></body></html>
