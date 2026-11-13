@@ -1,3 +1,11 @@
+## v0.7.9 – Messpunkte ohne doppelte Ergebnisübersicht
+
+- Die überladene grüne Übersicht «Bereits aufgenommen» aus Schritt 5 entfernt.
+- Nur eine kleine Bestätigung «✓ Messpunkt X aufgenommen» beim Wechsel.
+- Nächster Referenzpunkt bleibt klar hervorgehoben; links weiterhin Haken und Status je Punkt.
+- Nach dem letzten Punkt nur noch eine eindeutige Abschlussanzeige.
+- Keine Änderungen an Messungen, gespeicherten Rohwerten, Archivdaten oder Hardwarekommunikation.
+
 ## v0.7.8 – Referenzmesspunkte eindeutig als aufgenommen kennzeichnen
 
 - Erfolgreich gemessene Punkte bleiben sichtbar in einer grünen Übersicht statt optisch zu verschwinden.
