@@ -1,3 +1,7 @@
+## v0.7.13 – VDD-Eingabe beim Abgleich
+
+- Die optionale gemessene Versorgungsspannung wird beim Abgleich erfasst. Der Archiv-Viewer zeigt gespeicherte Werte an.
+
 ## v0.7.12 – NVM-Vorschau mit vorhandenem Abbild
 
 - Verwendet ein bereits geprüftes NVM-Abbild aus derselben Verbindung und vom selben Chip. Die Chip-UID wird vor dem Schreiben automatisch geprüft.

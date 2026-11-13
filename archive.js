@@ -697,10 +697,7 @@ const ELMOS_ARCHIVE=(()=>{
  async function endVerification(){await finalise('completed');note('Nachmessung mit allen Versuchen archiviert.')}
  function UI(){
   return '<div class="ar-top"><div><h2 id="arViewTitle">Kalibrierarchiv</h2><p id="arViewSubtitle">Vollständig lokal · archivierte Abgleiche, Tests und Prüfprotokolle durchsuchen</p></div><button id="archiveClose">Zur Webseite zurück</button></div>'+
-  '<div class="ar-bar"><button id="archiveChoose" class="primary">Archivordner auswählen</button><span id="archiveFolder">Noch kein Archivordner gewählt</span><button id="archiveRefresh">Ordner einlesen</button><button id="archiveStartCalibration">Abgleich protokollieren</button>'+
-  '<details class="ar-voltage-extra"><summary>Optionale VDD-Istspannung</summary><div class="ar-voltage-fields">'+
-  '<label>Gemessene VDD (V)<input id="archiveMeasuredVdd" type="number" min="0" step="any" placeholder="z. B. 5.01"></label>'+
-  '<label>Messquelle<input id="archiveMeasuredVddSource" placeholder="z. B. Multimeter"></label></div></details></div>'+
+  '<div class="ar-bar"><button id="archiveChoose" class="primary">Archivordner auswählen</button><span id="archiveFolder">Noch kein Archivordner gewählt</span><button id="archiveRefresh">Ordner einlesen</button><button id="archiveStartCalibration">Abgleich protokollieren</button></div>'+
   '<p id="archiveStatus" role="status">Bitte einen lokalen Ordner auswählen. Fremde Dateien im Ordner werden ignoriert.</p>'+
   '<div class="ar-active" id="arActive" hidden><h3 id="arActiveState"></h3><div id="arMeasureControls" hidden><h3 id="arStepHeading"></h3><p id="arStepDescription"></p><input id="arPointKey" type="hidden" value="-1"><div class="ar-grid">'+
   '<label>Referenzdruck<input id="arRefPressure" type="number" step="any"></label><label>Referenztemperatur (°C)<input id="arRefTemp" type="number" step="any"></label>'+

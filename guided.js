@@ -51,7 +51,7 @@ const ELMOS_GUIDED=(()=>{
     '<button class="gw-choice" data-gw-task="testlog"><span class="gw-choice-icon">◷</span><strong>Test / Logging</strong><small>Beliebige Sensortests durchführen, alle Telemetriedaten samt Notizen speichern.</small></button>'+
     '<button class="gw-choice" data-gw-task="verification"><span class="gw-choice-icon">↕</span><strong>Nachmessung</strong><small>Druck- und Temperaturprüfungen mit Hysterese und frei wählbaren Prüfpunkten.</small></button>'+
     '<button class="gw-choice" data-gw-task="archive"><span class="gw-choice-icon">▥</span><strong>Archiv</strong><small>Frühere Abgleiche und Tests suchen, Ergebnisse prüfen und vergleichen.</small></button></div>'+
-    '<div class="gw-alert">Der Chip muss zuerst über USB erkannt werden. Der geführte Modus verändert keine Register, bevor du eine entsprechende Aktion bestätigst.</div></div>'+
+    '<div id="gwCalibrationSupply"></div><div class="gw-alert">Der Chip muss zuerst über USB erkannt werden. Der geführte Modus verändert keine Register, bevor du eine entsprechende Aktion bestätigst.</div></div>'+
    '<div id="gwPage1" class="gw-page" hidden><div class="gw-preset-grid">'+
     '<button class="gw-preset" data-gw-preset="quick"><strong>Schnell</strong><small>2 Druckpunkte, ohne Temperaturkorrektur.</small></button>'+
     '<button class="gw-preset" data-gw-preset="temperature"><strong>Mit Temperatur</strong><small>2 Druckpunkte × 3 Temperaturstufen.</small></button>'+
@@ -119,6 +119,7 @@ const ELMOS_GUIDED=(()=>{
  function build(){
   root=$('guidedWorkspace');
   root.innerHTML=UI();
+  moveId('calibrationSupply','gwCalibrationSupply');
   window.ELMOS_TEST_LOGGER?.mount($('gwLogPage'));
   for(const id of ['pmin','pmax','calUnit','calSampleCount','calUnitOther'])moveLabel(id,'gwSensorFields');
   moveLabel('calDspLimit','gwDspFields');
