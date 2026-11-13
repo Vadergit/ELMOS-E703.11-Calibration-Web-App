@@ -108,6 +108,11 @@ if(typeof document!=='undefined') (function UI(){
  if($('plcHostFormat'))$('plcHostFormat').disabled=st.chip||st.powerCycleRunning||st.startupRunning||st.magicRunning||st.nvmWorking||st.writing||st.calTask;
  if($('plcPowerHelpRead'))$('plcPowerHelpRead').disabled=!connected||st.adapterKind!=='ssp3'||st.closing||st.powerCycleRunning||st.magicRunning||st.startupRunning||st.diagRunning||st.writing||st.nvmWorking||st.calTask;
  if($('plcPowerRun'))$('plcPowerRun').disabled=!connected||st.chip||st.powerCycleRunning||st.startupRunning||st.magicRunning||st.diagRunning||st.closing||st.writing||st.nvmWorking||st.calTask||!$('plcPowerConfirm').checked;
+ const ramStart=$('startRamMeasurement');
+ if(ramStart){
+  ramStart.hidden=!st.readOnlySensor;
+  ramStart.disabled=st.ramMeasurementStarting||st.closing;
+ }
  renderSensorReconnect();renderAFEStepperState();renderBridgeSupplyState();renderFlowState();renderDSPLive()};
 
  // SVDD is the internally regulated sensor bridge supply, NOT the SSP3 DUT VDD
@@ -1006,6 +1011,72 @@ if(typeof document!=='undefined') (function UI(){
   show('adcMsg','Live-Messung erst mit gültiger AFE-Konfiguration verfügbar.','warn');
  }
 
+ // Elmos 70311_gui_default.xml: measurement enable, default AFE and continuous period.
+ // Match the observed inactive profile before applying those three RAM values.
+ async function startRamMeasurement(){
+  if(!st.port||!st.readOnlySensor||st.chip||st.closing||st.ramMeasurementStarting)return;
+  const port=st.port,address=st.plcAddress,uid=st.readOnlySensor;
+  const profile=[
+   {address:0x04,before:0x1214,after:0x12D6},
+   {address:R_AFE,before:0,after:0x0800},
+   {address:0x0E,before:0,after:1}
+  ];
+  const send=(register,value)=>{
+   if(st.port!==port||st.closing||st.plcAddress!==address)
+    throw Error('Sensorverbindung unterbrochen');
+   return exchange(P.plcHostCommand(P.plcWrite(register,value,st.plcAddress),st.plcHostFormat));
+  };
+  const changed=[];
+  st.ramMeasurementStarting=true;
+  renderStatus();
+  try{
+   const version=await readReg(0x38),ser0=await readReg(0x50),ser1=await readReg(0x52);
+   if(h(version,2)+h(ser1,2)+h(ser0,2)!==uid)throw Error('Chipkennung hat sich geändert');
+   for(const entry of profile){
+    if(await readReg(entry.address)!==entry.before)
+     throw Error('RAM-Profil weicht ab bei Register 0x'+h(entry.address));
+   }
+   for(const entry of profile){
+    changed.push(entry);
+    await send(entry.address,entry.after);
+    if(await readReg(entry.address)!==entry.after)
+     throw Error('RAM-Rücklesen fehlgeschlagen bei Register 0x'+h(entry.address));
+   }
+   await send(0x22,0x8B93);
+   const deadline=Date.now()+1600;
+   let status;
+   do{
+    await sleep(30);
+    status=await readReg(0x36,500);
+   }while(!(status&2)&&Date.now()<deadline);
+   if(!(status&2))throw Error('Der Sensor meldet keine neue ADC_S-Messung');
+   st.measurementPeriod=1;
+   st.measurementStatus=status;
+   st.coldStartAfeRestored=true;
+   await detect();
+   st.readOnlySensor=null;
+   show('connMsg','Live-Messung im RAM gestartet. NVM-Schreiben ist in dieser Sitzung gesperrt.','success');
+  }catch(error){
+   st.chip=false;
+   stopLive();
+   let restoreError=false;
+   for(const entry of changed.reverse()){
+    try{
+     await send(entry.address,entry.before);
+     if(await readReg(entry.address)!==entry.before)restoreError=true;
+    }catch(_){restoreError=true;}
+   }
+   st.measurementPeriod=null;
+   st.measurementStatus=null;
+   show('connMsg','RAM-Messstart fehlgeschlagen: '+error.message+
+    (restoreError?' Die ursprünglichen RAM-Werte konnten nicht vollständig bestätigt werden.':''),
+    'warn');
+  }finally{
+   st.ramMeasurementStarting=false;
+   renderStatus();
+  }
+ }
+
  // Confirm the PLC address before deciding whether calibration is available.
  async function probePlcAddresses(stage,verifyPsscStartup=false,allowReadOnly=true){
   const previous=st.plcAddress;
@@ -1811,7 +1882,7 @@ if(typeof document!=='undefined') (function UI(){
  async function disconnect(){
   const port=st.port;
   if(!port||st.closing)return false;
-  if(st.nvmWorking||st.calTask||st.writing||st.powerCycleRunning){
+  if(st.nvmWorking||st.calTask||st.writing||st.powerCycleRunning||st.ramMeasurementStarting){
    show('connMsg','Bitte den laufenden RAM-/NVM-Vorgang vor dem Trennen abschliessen.','error');
    return false;
   }
@@ -2754,7 +2825,7 @@ if(typeof document!=='undefined') (function UI(){
  });
  $('plcStartupLogExport').addEventListener('click',()=>{
   const log={
-   tool:'ELMOS E703.11 – SSP3 Startdiagnose',version:'v0.6.53',at:new Date().toISOString(),
+   tool:'ELMOS E703.11 – SSP3 Startdiagnose',version:'v0.6.54',at:new Date().toISOString(),
    source:'Web-App (NICHT PSSC Originalsoftware)',interface:st.iface,adapter:st.adapterKind,
     plcAddress:'0x'+h(st.plcAddress),plcAddressVerified:st.plcAddressVerified,
     plcAddressSource:st.plcAddressSource,plcAddressProbes:st.plcAddressProbes,psscRamRecovery:!!st.psscRamRecovery,
@@ -2952,6 +3023,7 @@ if(typeof document!=='undefined') (function UI(){
   show('connMsg',st.adapterKind==='bridge'?'ESP32-C3-Bridge ausgewählt. PLC-Baudrate und Sensorversorgung prüfen.':'SSP3 Evaluation Board ausgewählt. Die originale Kommunikation bleibt unverändert.','warn');
   renderStatus();
  });
+ $('startRamMeasurement').addEventListener('click',()=>startRamMeasurement());
  $('choose').addEventListener('click',()=>choose());$('auto').addEventListener('click',()=>auto());$('disconnect').addEventListener('click',()=>disconnect());$('sensorReconnectButton').addEventListener('click',()=>st.adapterNoReply?reopenSsp3Port():reinitializeSensor());
  $('sensorReconnectExport').addEventListener('click',()=>$('plcStartupLogExport').click());
  for(const [id,step] of [['brSupplyDown',-1],['brSupplyUp',1]]){

@@ -1,3 +1,7 @@
+## v0.6.54 – Live-Messung bei deaktiviertem Analog-Frontend
+
+- Bei erkanntem SSP3-Sensor mit passendem inaktivem RAM-Profil kann die Live-Messung über das Elmos-Standardprofil gestartet werden. Die App prüft die Chipkennung, liest die RAM-Änderungen zurück und wartet auf eine neue ADC-Messung.
+
 ## v0.6.53 – SSP3-Diagnose bei leerem AFE-Register
 
 - Bei CFG_AFE1 = 0x0000 bestätigt die App One Wire anhand der PLC-Adresse und der Chipkennung. Die Registerdiagnose bleibt verfügbar, während der Kalibrierablauf auf eine gültige AFE-Konfiguration wartet.
