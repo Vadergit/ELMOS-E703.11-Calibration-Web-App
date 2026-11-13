@@ -743,3 +743,10 @@ html[data-theme="dark"] #archiveWorkspace :is(.ar-grid>input,.ar-grid>select,
 html[data-theme="dark"] #archiveWorkspace .ar-event pre {
   background:#101c27;color:#d5e9fa;
 }
+
+/* Canvas is drawn with dark-aware axes and traces by app.js. */
+html[data-theme="dark"] canvas {background:#172838;border-color:var(--line)}
+html[data-theme="dark"] #guidedWorkspace .gw-afe-chart #chart,
+html[data-theme="dark"] #guidedWorkspace .gw-finish-chart #chart {
+  background:transparent;
+}
