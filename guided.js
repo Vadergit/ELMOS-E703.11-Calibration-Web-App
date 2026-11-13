@@ -499,7 +499,6 @@ const ELMOS_GUIDED=(()=>{
   $('gwNext').textContent=stage===8?'Abschluss prüfen':stage===9?'Fertig':'Weiter';
   if(stage===0)document.querySelectorAll('[data-gw-task]').forEach(x=>{
    x.setAttribute('aria-pressed',String(x.dataset.gwTask===task));
-   x.disabled=taskOpening;
   });
   if(stage===1)renderPlan();
   if(stage===2)renderPlan()
