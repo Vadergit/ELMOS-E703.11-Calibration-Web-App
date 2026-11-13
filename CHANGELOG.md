@@ -1,3 +1,11 @@
+## v0.7.6 – Archiv und Nachmessung im geführten Einstieg / Links in neuem Tab
+
+- Sechs Aufgabenkacheln im geführten Einstieg, darunter «Archiv» und «Nachmessung».
+- Beide Kacheln öffnen ihre Ansicht mit einem Klick; Archivsuche auch ohne angeschlossenen Sensor, sofern der Assistent bereits geöffnet ist.
+- Der optionale Button «Nachmessung» in der oberen Leiste bleibt standardmässig ausgeblendet; der geführte Einstieg bietet die Funktion immer an.
+- Anleitungen, USB-Diagnose und weitere verlinkte Hilfeseiten öffnen in einem neuen Browser-Tab und lassen die laufende Web-App geöffnet.
+- Responsive Kachelaufteilung für Desktop, Tablet und Smartphone; ZIP-Download unverändert.
+
 ## v0.7.5 – Offline-Anleitung in Einstellungen, Nachmessung optional
 
 - Den breiten Offline-Hinweis aus der Hauptansicht entfernt; der Einsteiger-Link steht in «Einstellungen → Web-App offline verwenden».
