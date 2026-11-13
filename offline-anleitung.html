@@ -12,17 +12,17 @@
 </head>
 <body>
 <div class="wrap">
-<nav class="back"><a href="index.html">← Zur ELMOS-Web-App</a></nav>
+<nav class="back"><a href="index.html" target="_blank" rel="noopener noreferrer">← Zur ELMOS-Web-App</a></nav>
 <header class="hero">
 <div class="eyebrow">Einsteiger-Anleitung · Windows 10 und 11</div>
 <h1>ELMOS-Web-App auf dem eigenen PC starten</h1>
 <p>Du möchtest die ELMOS-Kalibrierwebseite ohne Internet verwenden? Hier erfährst du Schritt für Schritt, wie du die komplette Webseite herunterlädst und direkt auf deinem Computer öffnest. <strong>Du musst weder GitHub kennen noch die Web-App installieren.</strong></p>
 <div class="actions">
 <a class="button" href="https://github.com/Vadergit/ELMOS-E703.11-Calibration-Web-App/archive/refs/heads/main.zip">⬇ Ganze Webseite herunterladen (ZIP)</a>
-<a class="button secondary" href="index.html">Zur Web-App</a>
+<a class="button secondary" href="index.html" target="_blank" rel="noopener noreferrer">Zur Web-App</a>
 </div>
 <p class="mini">Der ZIP-Download enthält alle benötigten HTML-, CSS- und JavaScript-Dateien. Ein GitHub-Konto ist nicht erforderlich.</p>
-<div class="info"><strong>Das brauchst du:</strong> Einen Windows-PC und <a href="https://www.google.com/chrome/">Google Chrome</a>. Internet ist nur für den ersten Download und spätere Updates notwendig. Für einen echten Sensortest brauchst du zusätzlich den angeschlossenen ELMOS-SSP3-Programmieradapter.</div>
+<div class="info"><strong>Das brauchst du:</strong> Einen Windows-PC und <a href="https://www.google.com/chrome/" target="_blank" rel="noopener noreferrer">Google Chrome</a>. Internet ist nur für den ersten Download und spätere Updates notwendig. Für einen echten Sensortest brauchst du zusätzlich den angeschlossenen ELMOS-SSP3-Programmieradapter.</div>
 </header>
 <main>
 <ol class="steps">
@@ -71,10 +71,10 @@
 <ul>
 <li><strong>Die Webseite wird nicht richtig angezeigt:</strong> Prüfe, ob du die ZIP-Datei vollständig entpackt hast. <code>index.html</code> und die zugehörigen JavaScript- und CSS-Dateien müssen im selben Ordner liegen.</li>
 <li><strong>Die Webseite öffnet sich in einem anderen Browser:</strong> Rechtsklick auf <code>index.html</code> → <strong>«Öffnen mit» → «Google Chrome»</strong>.</li>
-<li><strong>«USB-Port auswählen» reagiert nicht oder ist deaktiviert:</strong> Nutze die aktuelle Desktop-Version von Chrome. Firmenrichtlinien können die serielle Schnittstelle sperren. Versuche alternativ die <a href="https://vadergit.github.io/ELMOS-E703.11-Calibration-Web-App/">Online-Web-App über HTTPS</a> oder den lokalen Server unten.</li>
+<li><strong>«USB-Port auswählen» reagiert nicht oder ist deaktiviert:</strong> Nutze die aktuelle Desktop-Version von Chrome. Firmenrichtlinien können die serielle Schnittstelle sperren. Versuche alternativ die <a href="https://vadergit.github.io/ELMOS-E703.11-Calibration-Web-App/" target="_blank" rel="noopener noreferrer">Online-Web-App über HTTPS</a> oder den lokalen Server unten.</li>
 <li><strong>Der COM-Port erscheint nicht:</strong> Prüfe das USB-Kabel, den eingeschalteten Adapter und im Windows-<strong>Geräte-Manager → Anschlüsse (COM &amp; LPT)</strong>, ob ein passender USB-Serial-Port vorhanden ist. Möglicherweise fehlt der von deiner IT bereitgestellte FTDI-Treiber.</li>
 <li><strong>COM-Port kann nicht geöffnet werden:</strong> Schliesse die originale ELMOS-Software sowie andere Programme, die den Anschluss belegen. Ziehe den SSP3 bei Bedarf kurz ab und stecke ihn erneut ein.</li>
-<li><strong>USB verbunden, aber Sensor nicht erkannt:</strong> Das ist ein anderes Problem als das Öffnen der Webseite. Prüfe Sensorversorgung und Verkabelung; nutze die <a href="usb-diagnose.html">SSP3-USB-Diagnose</a> und den Diagnoseexport der Web-App.</li>
+<li><strong>USB verbunden, aber Sensor nicht erkannt:</strong> Das ist ein anderes Problem als das Öffnen der Webseite. Prüfe Sensorversorgung und Verkabelung; nutze die <a href="usb-diagnose.html" target="_blank" rel="noopener noreferrer">SSP3-USB-Diagnose</a> und den Diagnoseexport der Web-App.</li>
 </ul>
 <details>
 <summary>Alternative: Lokalen Webserver starten (nur falls der direkte Datei-Aufruf nicht funktioniert)</summary>
@@ -82,7 +82,7 @@
 <p><strong>1.</strong> Öffne den entpackten Web-App-Ordner im Windows-Datei-Explorer.</p>
 <p><strong>2.</strong> Klicke mit der rechten Maustaste auf eine freie Stelle im Ordner und wähle <strong>«Im Terminal öffnen»</strong>. Je nach Windows-Version heisst die Option anders; du kannst auch eine Eingabeaufforderung in diesem Ordner öffnen.</p>
 <p><strong>3.</strong> Gib <code>py -m http.server 8000</code> ein und drücke die Eingabetaste. Falls <code>py</code> nicht gefunden wird, ist Python vermutlich nicht installiert oder nicht richtig eingerichtet.</p>
-<p><strong>4.</strong> Öffne in Chrome <a href="http://localhost:8000">http://localhost:8000</a>. Lass das Terminal während der Benutzung offen; mit <code>Strg+C</code> beendest du den Server.</p>
+<p><strong>4.</strong> Öffne in Chrome <a href="http://localhost:8000" target="_blank" rel="noopener noreferrer">http://localhost:8000</a>. Lass das Terminal während der Benutzung offen; mit <code>Strg+C</code> beendest du den Server.</p>
 <p><strong>Wichtig:</strong> Du musst Python nicht extra installieren, wenn das direkte Öffnen der Datei funktioniert. Auch <code>localhost</code> verwendet nur deinen eigenen Computer.</p>
 </details>
 </section>
@@ -91,8 +91,8 @@
 <h3>Brauche ich ein GitHub-Konto?</h3>
 <p>Nein. Der Download über die Schaltfläche oben funktioniert ohne Anmeldung.</p>
 <h3>Kann ich das neue Kalibrierarchiv offline verwenden?</h3>
-<p>Ja, sofern Chrome den Zugriff auf einen lokalen Ordner zulässt. In der Web-App auf <strong>«Archiv &amp; Nachmessung» → «Archivordner auswählen»</strong> klicken und den gewünschten Ordner freigeben. Dort werden die Kalibrier- und Nachmessungsprotokolle ohne Cloud gespeichert. Eigene PDFs und andere Dateien im Ordner werden nicht als Protokolle angezeigt.</p>
-<p><strong>Wichtig:</strong> Bei einem Start über <code>file:///</code> kann die Ordner- oder USB-Freigabe je nach Chrome-Version und Sicherheitsrichtlinie eingeschränkt sein. Öffne die heruntergeladene Web-App in diesem Fall über den oben erklärten lokalen Server mit <code>http://localhost:8000</code>. Für den Archivordner ist keine Internetverbindung nötig. <a href="ARCHIV_NACHMESSUNG.md">Vollständige Archiv-Anleitung</a>.</p>
+<p>Ja, sofern Chrome den Zugriff auf einen lokalen Ordner zulässt. In der Web-App auf <strong>«Archiv» → «Archivordner auswählen»</strong> klicken und den gewünschten Ordner freigeben. Dort werden die Kalibrier- und Nachmessungsprotokolle ohne Cloud gespeichert. Eigene PDFs und andere Dateien im Ordner werden nicht als Protokolle angezeigt.</p>
+<p><strong>Wichtig:</strong> Bei einem Start über <code>file:///</code> kann die Ordner- oder USB-Freigabe je nach Chrome-Version und Sicherheitsrichtlinie eingeschränkt sein. Öffne die heruntergeladene Web-App in diesem Fall über den oben erklärten lokalen Server mit <code>http://localhost:8000</code>. Für den Archivordner ist keine Internetverbindung nötig. <a href="ARCHIV_NACHMESSUNG.md" target="_blank" rel="noopener noreferrer">Vollständige Archiv-Anleitung</a>.</p>
 <h3>Muss ich die Webseite installieren?</h3>
 <p>Nein. Du musst nur die ZIP-Datei entpacken und die Datei <code>index.html</code> in Chrome öffnen.</p>
 <h3>Funktioniert die Webseite wirklich ohne Internet?</h3>
@@ -101,7 +101,7 @@
 <p>Nein. Die Anwendung ist ein Laborprototyp. Dauerhafte NVM-/EEPROM-Programmierungen und der vollständige Kalibrierablauf sind noch nicht als Gesamtsystem mit echter Hardware freigegeben. Verwende dafür nur den vorgesehenen Prüfaufbau und geeignete Testsensoren.</p>
 </section>
 </main>
-<p class="foot"><a href="index.html">Zur ELMOS-Web-App</a> · <a href="ANLEITUNG.md">Ausführliche technische Bedienungsanleitung</a> · ELMOS E703.11 Kalibrierassistent</p>
+<p class="foot"><a href="index.html" target="_blank" rel="noopener noreferrer">Zur ELMOS-Web-App</a> · <a href="ANLEITUNG.md" target="_blank" rel="noopener noreferrer">Ausführliche technische Bedienungsanleitung</a> · ELMOS E703.11 Kalibrierassistent</p>
 </div>
 </body>
 </html>

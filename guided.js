@@ -43,11 +43,13 @@ const ELMOS_GUIDED=(()=>{
  function UI(){
   const sides=steps.map((v,i)=>'<button type="button" class="gw-sideitem" data-gw-side="'+i+'"><span class="gw-no">'+(i+1)+'</span><span>'+v[0]+'</span></button>').join('');
   return '<div class="gw-shell"><aside class="gw-sidebar"><div class="gw-backlogo"><span>◆</span> E703.11 · Geführter Abgleich</div><nav class="gw-sideitems">'+sides+'</nav><div class="gw-sidebar-footer">Die Originalsoftware bleibt jederzeit über «Klassisch» erreichbar.<div style="margin-top:9px">Laborversion · keine Hardwarefreigabe für NVM</div></div></aside><main class="gw-main"><div class="gw-topline"><span id="gwKicker" class="gw-kicker">Schritt 1</span><span id="gwChipStatus" class="gw-chipstatus"></span></div><div class="gw-progressbar"><span id="gwProgress"></span></div><h2 class="gw-title" id="gwTitle"></h2><p class="gw-desc" id="gwDesc"></p>'+
-   '<div id="gwPage0" class="gw-page"><div class="gw-columns gw-four">'+
+   '<div id="gwPage0" class="gw-page"><div class="gw-columns gw-six">'+
     '<button class="gw-choice" data-gw-task="calibration"><span class="gw-choice-icon">◉</span><strong>Sensor neu abgleichen</strong><small>Von der Messung über die DSP-Prüfung bis zur sicheren NVM-Programmierung.</small></button>'+
     '<button class="gw-choice" data-gw-task="output"><span class="gw-choice-icon">↗</span><strong>Nur Ausgang ändern</strong><small>Bereits kalibrierten Sensor prüfen und AODO-Ausgang neu konfigurieren.</small></button>'+
     '<button class="gw-choice" data-gw-task="inspect"><span class="gw-choice-icon">▤</span><strong>EEPROM / Diagnose</strong><small>Die bestehende Register- und EEPROM-Ansicht ohne geführten Abgleich öffnen.</small></button>'+
-    '<button class="gw-choice" data-gw-task="testlog"><span class="gw-choice-icon">◷</span><strong>Test / Logging</strong><small>Beliebige Sensortests durchführen, alle Telemetriedaten samt Notizen speichern.</small></button></div>'+
+    '<button class="gw-choice" data-gw-task="testlog"><span class="gw-choice-icon">◷</span><strong>Test / Logging</strong><small>Beliebige Sensortests durchführen, alle Telemetriedaten samt Notizen speichern.</small></button>'+
+    '<button class="gw-choice" data-gw-task="verification"><span class="gw-choice-icon">↕</span><strong>Nachmessung</strong><small>Druck- und Temperaturprüfungen mit Hysterese und frei wählbaren Prüfpunkten.</small></button>'+
+    '<button class="gw-choice" data-gw-task="archive"><span class="gw-choice-icon">▥</span><strong>Archiv</strong><small>Frühere Abgleiche und Tests suchen, Ergebnisse prüfen und vergleichen.</small></button></div>'+
     '<div class="gw-alert">Der Chip muss zuerst über USB erkannt werden. Der geführte Modus verändert keine Register, bevor du eine entsprechende Aktion bestätigst.</div></div>'+
    '<div id="gwPage1" class="gw-page" hidden><div class="gw-preset-grid">'+
     '<button class="gw-preset" data-gw-preset="quick"><strong>Schnell</strong><small>2 Druckpunkte, ohne Temperaturkorrektur.</small></button>'+
@@ -517,6 +519,18 @@ const ELMOS_GUIDED=(()=>{
   root.scrollIntoView({behavior:'smooth',block:'start'});
  }
  async function next(){
+  if(stage===0&&(task==='archive'||task==='verification')){
+   if(window.ELMOS_TEST_LOGGER?.isBusy()){
+    msg('Bitte zuerst eine laufende Testaufzeichnung beenden.','warn');return;
+   }
+   if(!window.ELMOS_ARCHIVE){
+    msg('Archiv und Nachmessung konnten nicht geladen werden. Bitte die Webseite neu laden.','error');return;
+   }
+   // Browsing stored records does not require a connected sensor.
+   // Keep the guided start view mounted so the archive's back button returns here.
+   window.ELMOS_ARCHIVE.open(task==='verification'?'verification':'archive');
+   return;
+  }
   const s=state();
   if(!s.chip){msg('Zuerst den E703.11 über USB verbinden. Eine reine USB-CDC-Verbindung ohne Chipzugriff genügt nicht.','warn');return}
   if(stage===0){

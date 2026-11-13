@@ -1,12 +1,18 @@
 # Bedienungsanleitung – ELMOS E703.11
 
-**Dokumentationsstand v0.7.5** Kalibrierassistent
+**Dokumentationsstand v0.7.6** Kalibrierassistent
 
 **[Web-App öffnen](https://vadergit.github.io/ELMOS-E703.11-Calibration-Web-App/)** · **[Projektübersicht](README.md)** · **[Test / Logging](TEST_LOGGING.md)** · **[Archiv](ARCHIV_NACHMESSUNG.md)** · **[Config-Dateien & EEPROM Viewer](CONFIG_DATEIEN.md)** · **[Testbericht](TESTBERICHT.md)**
 
 Diese Anleitung beschreibt die derzeitige Benutzeroberfläche der browserbasierten App für den **ELMOS E703.11** mit **SSP3-Eval-Board**. Ziel ist ein geführter Abgleich mit möglichst wenig Vorwissen und optionalen Expertenfunktionen.
 
 > **Laborprototyp, keine Produktionsfreigabe.** Der vollständige Kalibrier- und NVM-Schreibablauf wurde noch nicht am realen E703.11 als Gesamtsystem validiert. Permanente Änderungen zunächst nur an einem entbehrlichen Testchip erproben.
+
+## Sechs Kacheln und Hilfeseiten in einem neuen Tab (v0.7.6)
+
+Die geführte Startseite zeigt jetzt auch **«Nachmessung»** und **«Archiv»** direkt als Kacheln. Ein Klick reicht: Der Archivviewer öffnet die gespeicherten Messdateien, der Nachmessungsbereich den Prüfplan für Druck- und Temperaturrampen. Im geführten Einstieg bleiben beide Kacheln sichtbar, auch wenn du den zusätzlichen «Nachmessung»-Button oben in den Einstellungen ausgeblendet hast.
+
+Wenn du **«Anleitung für Einsteiger öffnen»**, **USB-Diagnose**, weiterführende technische Anleitungen oder andere verlinkte Seiten anklickst, öffnet der Browser einen **neuen Tab** (oder ein neues Fenster, je nach Browserkonfiguration). Die ursprüngliche Kalibrier-Web-App bleibt auf dem bisherigen Tab offen, damit der USB-Port nicht unnötig geschlossen wird. Ein Dateidownload verhält sich weiterhin wie ein Download.
 
 ## Einstellungen und Nachmessung (v0.7.5)
 
