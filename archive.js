@@ -254,7 +254,9 @@ const ELMOS_ARCHIVE=(()=>{
   if(record.type==='testlog'){
    const rows=await streamRows(record);
    if(format==='csv'){
-    data=window.ELMOS_TEST_LOGGER_CORE.csvRows(rows);mime='text/csv;charset=utf-8';
+    data=window.ELMOS_TEST_LOGGER_CORE.csvRows(rows,{
+     name:record.testConfiguration?.name,dutName:record.testConfiguration?.dutName,chipUID:record.chipUID
+    });mime='text/csv;charset=utf-8';
     name=C.filename(record).replace(/\.json$/i,'.csv');
    }else{
     data=JSON.stringify({...record,telemetryPoints:rows},null,2);
