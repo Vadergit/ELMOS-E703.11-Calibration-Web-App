@@ -359,7 +359,7 @@ const ELMOS_ARCHIVE=(()=>{
     ' · Temperaturfehler '+(errT===null?'nicht bewertet':errT.toFixed(3)+' °C')+
     ' · '+(pass===false?'ausser Toleranz':pass===null?'Bewertung teilweise offen':'innerhalb Toleranz')+'.',pass===false);
   }catch(e){
-   try{await event('error',{stage:'verification_measurement',stepIndex:S.step,attempt:attempts+1,message:e.message})}
+   try{await event('error',{stage:'verification_measurement',stepIndex:S.step,attempt:attempts+1,message:e.message,rawSamples:e.rawSamples||null,partialReadErrors:e.partialReadErrors||null})}
    catch(_){}
    note('Messung fehlgeschlagen: '+e.message,true);
   }finally{S.measuring=false;$('arMeasure').disabled=false;renderStep()}
