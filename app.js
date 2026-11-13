@@ -3276,7 +3276,9 @@ if(typeof document!=='undefined') (function UI(){
    software:{version:document.body.dataset.appVersion||'nicht angegeben',url:location.href,
     userAgent:navigator.userAgent,local:location.protocol==='file:',demo:demoEnabled},
    equipment:{adapter:demoEnabled?'Demo':st.adapterKind==='ssp3'?'ELMOS SSP3':st.adapterKind==='bridge'?'ESP32-USB-Bridge':st.adapterKind,
-    adapterKind:st.adapterKind,firmware:st.firmware,serialPort:serialPortInfo(st.port),
+    adapterKind:st.adapterKind,
+    // SSP3 .VERSION or USB bridge firmware: not a version of the E703.11 sensor.
+    firmware:st.firmware,adapterFirmware:st.firmware,serialPort:serialPortInfo(st.port),
     interface:st.iface,plcAddress:'0x'+h(st.plcAddress),plcAddressVerified:st.plcAddressVerified,
     supply:archiveVoltages()}
   };
