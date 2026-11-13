@@ -287,12 +287,14 @@ const ELMOS_ARCHIVE=(()=>{
    S.resultsCache.clear();
    S.selection=S.selection.filter(id=>S.records.some(r=>r.id===id));
    renderList();
-   note(all.length+' gültige Prüfprotokolle geladen'+(corrupt?' · '+corrupt+' ungültige ELMOS-Dateien prüfen':'')+'.');
+   note(all.length+' gültige'+(all.length===1?'s Prüfprotokoll':' Prüfprotokolle')+' geladen'+
+    (corrupt?' · '+corrupt+' ungültige ELMOS-Dateien prüfen':'')+'.');
   }catch(e){note('Archiv nicht lesbar: '+e.message,true)}
  }
  function readable(r){
   return [r.chipUID,r.customUID,r.initial?.configuredUserId,r.final?.configuredUserId,
-   r.type,r.status,r.startedAt,r.equipment?.adapter,r.equipment?.firmware,
+   r.type,r.status,r.startedAt,r.equipment?.adapter,r.equipment?.adapterFirmware,
+   r.equipment?.firmware,
    r.software?.version,r.testConfiguration?.name,r.testConfiguration?.dutName,
    r.testConfiguration?.description,
    r.testConfiguration?.category,r.testConfiguration?.operator,r.id].filter(Boolean).join(' ').toLowerCase();
