@@ -413,7 +413,12 @@ if(typeof document!=='undefined') (function UI(){
    if(st.liveReadPromise)await st.liveReadPromise.catch(()=>{});
    const values=[];
    for(let i=0;i<required;i++){
-    const value={s:P.sign16(await readReg(0x2A)),t:P.sign16(await readReg(0x28)),tc:P.sign16(await readReg(0x26))};
+    const value={at:new Date().toISOString(),s:null,t:null,tc:null};
+    try{
+     value.s=P.sign16(await readReg(0x2A));
+     value.t=P.sign16(await readReg(0x28));
+     value.tc=P.sign16(await readReg(0x26));
+    }catch(e){values.push(value);e.rawSamples=values.slice();throw e}
     values.push(value);
     progress.textContent=label+': '+(i+1)+' / '+required+' Samples aufgenommen';
     if(i<required-1)await sleep(60)
@@ -422,7 +427,10 @@ if(typeof document!=='undefined') (function UI(){
    const median=x=>required%2?x[Math.floor(required/2)]:(x[required/2-1]+x[required/2])/2;
    const pressure=ordered('s'),temperature=ordered('t'),compensated=ordered('tc');
    const spread=pressure[required-1]-pressure[0];
-   if(required>1&&spread>350)throw Error('ADC_S streut zu stark ('+spread+' Digits). Druck stabilisieren und erneut messen');
+   if(required>1&&spread>350){
+    const e=Error('ADC_S streut zu stark ('+spread+' Digits). Druck stabilisieren und erneut messen');
+    e.rawSamples=values.slice();e.spread=spread;throw e;
+   }
    return {adc_s:median(pressure),adc_t:median(temperature),adc_tc:median(compensated),spread,sampleCount:required,rawSamples:values}
   }finally{
    progress.hidden=true;st.calTask=false;
@@ -2224,7 +2232,7 @@ if(typeof document!=='undefined') (function UI(){
    addCalPoint(record);
    await window.ELMOS_ARCHIVE?.event('calibration_point',{point:record,AFE:{...st.staged},supply:archiveVoltages()});
    refreshPoints()
-  }catch(e){try{await window.ELMOS_ARCHIVE?.event('error',{stage:'calibration_point',which,message:e.message})}catch(_){}show('calMsg','Messung fehlgeschlagen: '+e.message,'error')}
+  }catch(e){try{await window.ELMOS_ARCHIVE?.event('error',{stage:'calibration_point',which,message:e.message,rawSamples:e.rawSamples||null,spread:e.spread??null})}catch(_){}show('calMsg','Messung fehlgeschlagen: '+e.message,'error')}
  }
  
  function refreshPoints(){
@@ -2291,7 +2299,7 @@ if(typeof document!=='undefined') (function UI(){
    await window.ELMOS_ARCHIVE?.event('calibration_point',{point:record,AFE:{...st.staged},supply:archiveVoltages()});
    ca('calPointsMsg','Messpunkt '+(slot+1)+' mit '+samples.sampleCount+' Samples aufgenommen.','success');
    refreshPoints()
-  }catch(e){try{await window.ELMOS_ARCHIVE?.event('error',{stage:'calibration_extra_point',slot,message:e.message})}catch(_){}ca('calPointsMsg','Messpunkt '+(slot+1)+': '+e.message,'error')}
+  }catch(e){try{await window.ELMOS_ARCHIVE?.event('error',{stage:'calibration_extra_point',slot,message:e.message,rawSamples:e.rawSamples||null,spread:e.spread??null})}catch(_){}ca('calPointsMsg','Messpunkt '+(slot+1)+': '+e.message,'error')}
  }
  
  function calcCoefficients(){
