@@ -581,6 +581,10 @@ const ELMOS_ARCHIVE=(()=>{
   }).catch(()=>{});
  }
  function open(){
+  if(window.ELMOS_TEST_LOGGER?.isBusy()){
+   window.ELMOS_TEST_LOGGER.warn('Aufzeichnung läuft. Bitte den Test zuerst beenden, bevor du ins Archiv wechselst.');
+   return;
+  }
   document.documentElement.classList.add('archive-active');
   $('archiveWorkspace').hidden=false;
   renderActive();
