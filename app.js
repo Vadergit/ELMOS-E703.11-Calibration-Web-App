@@ -71,7 +71,7 @@ if(typeof document!=='undefined') (function UI(){
  const fmt=n=>n===null||n===undefined||!Number.isFinite(n)?'—':Math.round(n).toLocaleString('de-CH');
  const now=()=>new Date().toLocaleTimeString('de-CH',{hour12:false});
  const show=(id,text,type='')=>{const e=$(id);if(!e)return;e.textContent=text;e.className='callout'+(type?' '+type:'')};
- const logging=t=>{st.log.push(now()+'  '+t);if(st.log.length>500)st.log.shift();$('usbLog').textContent=st.log.slice(-90).join('\n')};
+ const logging=t=>{if(window.ELMOS_ARCHIVE?.active&&(st.calTask||st.writing||st.nvmWorking))window.ELMOS_ARCHIVE.trace(t);st.log.push(now()+'  '+t);if(st.log.length>500)st.log.shift();$('usbLog').textContent=st.log.slice(-90).join('\n')};
  const hexWords=arr=>arr.map(x=>P.hx(x,2)).join(' ');
  const sleep=ms=>new Promise(r=>setTimeout(r,ms));
  const sameBoot=(a,b)=>!!a&&!!b&&LOCKED.every(k=>a[k]===b[k]);
@@ -194,6 +194,7 @@ if(typeof document!=='undefined') (function UI(){
     if(!sameBoot(beforeBoot,await bootSnapshot()))
      throw Error('Boot-/Kommunikationsregister nach Brückenspannungsänderung verändert.');
     st.afe0=actual;
+    await window.ELMOS_ARCHIVE?.event('bridge_ram_changed',{before,after:actual,supply:archiveVoltages()});
     erasePoints();
    }
    await loadBridgeSupply();
@@ -412,7 +413,12 @@ if(typeof document!=='undefined') (function UI(){
    if(st.liveReadPromise)await st.liveReadPromise.catch(()=>{});
    const values=[];
    for(let i=0;i<required;i++){
-    const value={s:P.sign16(await readReg(0x2A)),t:P.sign16(await readReg(0x28)),tc:P.sign16(await readReg(0x26))};
+    const value={at:new Date().toISOString(),s:null,t:null,tc:null};
+    try{
+     value.s=P.sign16(await readReg(0x2A));
+     value.t=P.sign16(await readReg(0x28));
+     value.tc=P.sign16(await readReg(0x26));
+    }catch(e){values.push(value);e.rawSamples=values.slice();throw e}
     values.push(value);
     progress.textContent=label+': '+(i+1)+' / '+required+' Samples aufgenommen';
     if(i<required-1)await sleep(60)
@@ -421,8 +427,11 @@ if(typeof document!=='undefined') (function UI(){
    const median=x=>required%2?x[Math.floor(required/2)]:(x[required/2-1]+x[required/2])/2;
    const pressure=ordered('s'),temperature=ordered('t'),compensated=ordered('tc');
    const spread=pressure[required-1]-pressure[0];
-   if(required>1&&spread>350)throw Error('ADC_S streut zu stark ('+spread+' Digits). Druck stabilisieren und erneut messen');
-   return {adc_s:median(pressure),adc_t:median(temperature),adc_tc:median(compensated),spread,sampleCount:required}
+   if(required>1&&spread>350){
+    const e=Error('ADC_S streut zu stark ('+spread+' Digits). Druck stabilisieren und erneut messen');
+    e.rawSamples=values.slice();e.spread=spread;throw e;
+   }
+   return {adc_s:median(pressure),adc_t:median(temperature),adc_tc:median(compensated),spread,sampleCount:required,rawSamples:values}
   }finally{
    progress.hidden=true;st.calTask=false;
    if(resumeLive&&st.chip)startLive();
@@ -656,7 +665,7 @@ if(typeof document!=='undefined') (function UI(){
   show('calMsg','Messpunkte nach einer Änderung erneut aufnehmen.');renderCalPoints();renderFlowState()
  };
 
- const rawLine=s=>{st.log.push(now()+'  '+s);if(st.log.length>500)st.log.shift();$('usbLog').textContent=st.log.slice(-90).join('\n')};
+ const rawLine=s=>{if(window.ELMOS_ARCHIVE?.active&&(st.calTask||st.writing||st.nvmWorking))window.ELMOS_ARCHIVE.trace(s);st.log.push(now()+'  '+s);if(st.log.length>500)st.log.shift();$('usbLog').textContent=st.log.slice(-90).join('\n')};
  async function readerLoop(port){try{let r=port.readable.getReader();st.readerAlive=true;st.reader=r;try{while(st.port===port&&!st.closing){const{value,done}=await r.read();if(done)break;if(!value)continue;let txt=new TextDecoder().decode(value);rawLine('RX '+txt.replace(/\r/g,'\\r').replace(/\n/g,'\\n'));if(st.responseWait){st.replyBuffer+=txt;const complete=P.ssp3PromptCount(st.replyBuffer)>=(st.responseWait.prompts||1);if(complete){const waiter=st.responseWait;st.responseWait=null;clearTimeout(waiter.timer);const out=st.replyBuffer;st.replyBuffer='';waiter.resolve(out)}else if(st.replyBuffer.length>16000){const waiter=st.responseWait;st.responseWait=null;clearTimeout(waiter.timer);waiter.reject(Error('SSP3-Antwort zu lang'))}}} }finally{r.releaseLock();if(st.reader===r)st.reader=null}}catch(e){
    if(st.port===port&&!st.closing)logging('USB-Lesefehler: '+e.message);
   }finally{
@@ -1751,6 +1760,7 @@ if(typeof document!=='undefined') (function UI(){
   st.expertOutputPlan=null;st.outputOnlyPlan=null;st.profilePendingAFE=null;
   st.trend=[];erasePoints();
   window.ELMOS_GUIDED?.onSensorReset?.();
+  window.ELMOS_ARCHIVE?.interrupted('Sensor-Kommunikation abgebrochen: '+reason);
   show('connMsg','Kommunikation zum E703.11 fehlgeschlagen. Der Sensor ist nicht mehr erreichbar. SSP3 bleibt über USB verbunden. Nach dem Anschliessen «Sensor neu initialisieren» wählen. Frühere Messpunkte und Schreibfreigaben wurden aus Sicherheitsgründen zurückgesetzt.','warn');
   show('adcMsg','Sensor nicht verbunden. Keine aktuellen Messwerte.','warn');
   renderStatus();
@@ -1930,6 +1940,7 @@ if(typeof document!=='undefined') (function UI(){
    await readerDone;
    await st.cmdQueue;
    await port.close();
+   window.ELMOS_ARCHIVE?.interrupted('USB-Verbindung getrennt');
    Object.assign(st,{
     port:null,readerPromise:null,readerAlive:false,chip:false,readOnlySensor:null,sensorLost:false,adapterNoReply:false,reinitRunning:false,afe0:null,sensorPowerEnabled:false,mode:'offline',firmware:'',boot:null,afe:null,
     nvmBackup:null,nvmBackupVerified:false,calImage:null,calVerified:false,calStaged:false,nvmDone:false,
@@ -2168,6 +2179,7 @@ if(typeof document!=='undefined') (function UI(){
    if(!sameBoot(beforeBoot,await bootSnapshot()))throw Error('Bootregister nach AFE-Übernahme verändert');
    st.afe=actual;
    st.staged={...target};
+   await window.ELMOS_ARCHIVE?.event('afe_ram_changed',{before:originalWord,after:actual,AFE:{...target},supply:archiveVoltages()});
    erasePoints();
    gainSummary();
    let adcAfter=null;
@@ -2212,13 +2224,15 @@ if(typeof document!=='undefined') (function UI(){
    if(!st.chip)throw Error('Keine aktive Chipverbindung');
    const p=which==='lo'?pmin:pmax,name=pointName(which),at=new Date().toISOString(),temperature=Number($(which==='lo'?'calLoTemp':'calHiTemp').value);
    if(!Number.isFinite(temperature)||temperature< -40||temperature>125)throw Error('Referenztemperatur ausserhalb −40 bis 125 °C');
+   await window.ELMOS_ARCHIVE?.ensureCalibration();
    demoPort?.setReference(p,temperature);
    const samples=await measureCalibrationSamples(name);
    const record={kind:which,name,pressure:p,temperature,...samples,at,gains:{...st.staged},unit:pressureUnit()};
    st.points[which]={v:record.adc_s,pressure:p,unit:record.unit,name,gains:{...st.staged},at};
    addCalPoint(record);
+   await window.ELMOS_ARCHIVE?.event('calibration_point',{point:record,AFE:{...st.staged},supply:archiveVoltages()});
    refreshPoints()
-  }catch(e){show('calMsg','Messung fehlgeschlagen: '+e.message,'error')}
+  }catch(e){try{await window.ELMOS_ARCHIVE?.event('error',{stage:'calibration_point',which,message:e.message,rawSamples:e.rawSamples||null,spread:e.spread??null})}catch(_){}show('calMsg','Messung fehlgeschlagen: '+e.message,'error')}
  }
  
  function refreshPoints(){
@@ -2247,7 +2261,7 @@ if(typeof document!=='undefined') (function UI(){
 
  function draw(){const c=$('chart');if(!c||c.closest('[hidden]'))return;const d=window.devicePixelRatio||1,w=Math.round(c.clientWidth*d),h=Math.round(c.clientHeight*d);if(w<20)return;if(c.width!==w||c.height!==h){c.width=w;c.height=h}const g=c.getContext('2d');g.clearRect(0,0,w,h);const x0=55*d,y0=10*d,yh=h-20*d,y=v=>y0+(32768-v)/65536*(yh-y0);g.font=`${11*d}px sans-serif`;for(const v of [25000,0,-25000]){g.beginPath();g.strokeStyle=v?'#e3c9aa':'#d7e4ef';g.setLineDash(v?[5*d,4*d]:[]);g.moveTo(x0,y(v));g.lineTo(w-8*d,y(v));g.stroke();g.setLineDash([]);g.fillStyle='#74849a';g.fillText((v>0?'+':'')+v,5*d,y(v)+4*d)}if(st.trend.length<1)return;const left=Date.now()-60000,x=t=>x0+(w-x0-10*d)*Math.max(0,Math.min(1,(t-left)/60000));g.beginPath();g.strokeStyle='#2867a6';g.lineWidth=2*d;st.trend.forEach((p,i)=>i?g.lineTo(x(p.x),y(p.y)):g.moveTo(x(p.x),y(p.y)));g.stroke()}
  function download(name,txt,mime='application/json'){let b=new Blob([txt],{type:mime}),u=URL.createObjectURL(b),a=document.createElement('a');a.href=u;a.download=(demoEnabled?'DEMO_':'')+name;a.click();setTimeout(()=>URL.revokeObjectURL(u),2000)}
- const report=()=>({tool:'ELMOS E703.11 Kalibrierassistent v0.6.30',created:new Date().toISOString(),connection:demoEnabled?'Demo':st.port?'USB':'offline',hardwareValidated:false,unit:pressureUnit(),pointNames:{lower:pointName('lo'),upper:pointName('hi')},interface:st.iface,firmware:st.firmware,bootProtection:'Boot-/Werks-NVM-Schreiben gesperrt; kalibrierungsbezogenes User-NVM mit Bestätigung freigegeben',ramWriteActive:!!st.ramWriteScope,registers:st.regs,bootSnapshot:st.boot,chipUID:st.uid?.hex||null,expertOutput:st.expertOutputPlan,AFE:st.afe,gains:st.staged,low:st.points.lo,high:st.points.hi,verification:st.verify,calibrationPoints:st.calpoints,plannedCalibrationPointCount:calibrationPointCount(),requestedSamplesPerPoint:Number($('calSampleCount').value),requestedDSPOutputLimit:Number($('calDspLimit').value),coefficientFit:st.calfit,calRamVerified:st.calVerified,lastDSP:st.dsp,chipDiagnostic:st.chipDiag,lastPlcReply:st.lastPlcReply,displayRange:getActiveDSPRange(),nvmState:{backupVerified:st.nvmBackupVerified,programmed:st.nvmDone},samples:st.history.slice(-1500),trace:st.log});
+ const report=()=>({tool:'ELMOS E703.11 Kalibrierassistent v0.7.0',created:new Date().toISOString(),connection:demoEnabled?'Demo':st.port?'USB':'offline',hardwareValidated:false,unit:pressureUnit(),pointNames:{lower:pointName('lo'),upper:pointName('hi')},interface:st.iface,firmware:st.firmware,bootProtection:'Boot-/Werks-NVM-Schreiben gesperrt; kalibrierungsbezogenes User-NVM mit Bestätigung freigegeben',ramWriteActive:!!st.ramWriteScope,registers:st.regs,bootSnapshot:st.boot,chipUID:st.uid?.hex||null,expertOutput:st.expertOutputPlan,AFE:st.afe,gains:st.staged,low:st.points.lo,high:st.points.hi,verification:st.verify,calibrationPoints:st.calpoints,plannedCalibrationPointCount:calibrationPointCount(),requestedSamplesPerPoint:Number($('calSampleCount').value),requestedDSPOutputLimit:Number($('calDspLimit').value),coefficientFit:st.calfit,calRamVerified:st.calVerified,lastDSP:st.dsp,chipDiagnostic:st.chipDiag,lastPlcReply:st.lastPlcReply,displayRange:getActiveDSPRange(),nvmState:{backupVerified:st.nvmBackupVerified,programmed:st.nvmDone},samples:st.history.slice(-1500),trace:st.log});
 
  // ============ Kalibrierung + NVM (AN0203 / AN0204 / Datasheet 2023) ============
  const ca=(id,msg,type='')=>show(id,msg,type);
@@ -2277,12 +2291,15 @@ if(typeof document!=='undefined') (function UI(){
    if(!Number.isFinite(pr)||pr<lo||pr>hi||!Number.isFinite(t)||t< -40||t>125)throw Error('Referenzwert oder Temperatur ungültig');
    if(!st.chip)throw Error('Kein Chip verbunden');
    const name=$('calExtra'+slot+'Name').value.trim()||'Messpunkt '+(slot+1);
+   await window.ELMOS_ARCHIVE?.ensureCalibration();
    demoPort?.setReference(pr,t);
    const samples=await measureCalibrationSamples(name);
-   addCalPoint({kind:'extra',slot,name,pressure:pr,unit:pressureUnit(),temperature:t,...samples,at:new Date().toISOString(),gains:{...st.staged}});
+   const record={kind:'extra',slot,name,pressure:pr,unit:pressureUnit(),temperature:t,...samples,at:new Date().toISOString(),gains:{...st.staged}};
+   addCalPoint(record);
+   await window.ELMOS_ARCHIVE?.event('calibration_point',{point:record,AFE:{...st.staged},supply:archiveVoltages()});
    ca('calPointsMsg','Messpunkt '+(slot+1)+' mit '+samples.sampleCount+' Samples aufgenommen.','success');
    refreshPoints()
-  }catch(e){ca('calPointsMsg','Messpunkt '+(slot+1)+': '+e.message,'error')}
+  }catch(e){try{await window.ELMOS_ARCHIVE?.event('error',{stage:'calibration_extra_point',slot,message:e.message,rawSamples:e.rawSamples||null,spread:e.spread??null})}catch(_){}ca('calPointsMsg','Messpunkt '+(slot+1)+': '+e.message,'error')}
  }
  
  function calcCoefficients(){
@@ -2296,6 +2313,7 @@ if(typeof document!=='undefined') (function UI(){
    if(st.calpoints.length<(orderS+1)*(orderT+1))throw Error('Für diese Polynom- und Temperaturordnung sind mindestens '+((orderS+1)*(orderT+1))+' unabhängige Messpunkte nötig. Anzahl in Schritt 3 erhöhen.');
    const solution=CAL.fit(st.calpoints,{pmin,pmax,orderS,orderT,outputLimit});
     st.calfit=solution;st.calImage=null;st.calStaged=false;st.calVerified=false;st.calValidation=[];st.nvmBackup=null;st.nvmBackupVerified=false;renderDSPLive();
+    if(window.ELMOS_ARCHIVE?.active)void window.ELMOS_ARCHIVE.event('coefficient_fit',{solution,AFE:{...st.staged}}).catch(e=>show('calFitMsg','Archivfehler: '+e.message,'error'));
    const r=solution.registers;
    $('calCoeffList').textContent='S_O 0x'+h(r.so,2)+' (Q3.12)  S_F 0x'+h(r.sf,2)+' (Q3.12)\n'+r.coeffs.map((x,i)=>'S'+String(i).padEnd(2)+' 0x'+h(x,2)+'    '+CAL.fromQ(x,15).toFixed(7)).join('\n')+(r.tcoeffs?'\nT_O '+h(r.to,2)+' T_F '+h(r.tf,2)+'\n'+r.tcoeffs.map((x,i)=>'T'+i+': 0x'+h(x,2)).join('\n'):'\nTemperaturpfad bleibt unverändert.');
    const note='DSP-Ziel ±'+fmt(solution.outputLimit)+' Digits (Reserve bis +32’767: '+fmt(32767-solution.outputLimit)+' Digits). Max. Fitfehler '+solution.stats.maxDigits.toFixed(2)+' Digits · RMS '+solution.stats.rmsDigits.toFixed(2)+' Digits.';
@@ -2391,6 +2409,7 @@ if(typeof document!=='undefined') (function UI(){
    for(const [addr,value] of changes){await maintWrite(addr,value);const actual=await readReg(addr);if(actual!==value)throw Error(`DSP-RAM Rücklesefehler 0x${h(addr)}: 0x${h(actual,2)} statt 0x${h(value,2)}`)}
    if(!sameBoot(before,await bootSnapshot()))throw Error('Bootregister nach Kalibrier-RAM-Schreiben verändert');
    st.calStaged=true;st.calVerified=false;st.calValidation=[];st.calImage=null;st.nvmBackup=null;st.nvmBackupVerified=false;st.dsp=null;renderDSPLive();
+   await window.ELMOS_ARCHIVE?.event('calibration_ram_written',{registerChanges:changes,verified:true,supply:archiveVoltages()});
    ca('calRamStageMsg',`${changes.length} DSP-Wörter ins RAM geschrieben und einzeln erfolgreich rückgelesen. Jetzt im nächsten Schritt DSP_S unabhängig prüfen.`,'success');
    ca('calRamMsg','DSP-Koeffizienten ins RAM übertragen. Bitte Prüfdruck einstellen und DSP_S kontrollieren.','warn');
   }catch(e){
@@ -2422,6 +2441,7 @@ if(typeof document!=='undefined') (function UI(){
    updateDSP(got,'usb');
    const stat=await readReg(0x32),delta=got-target,errorBar=delta/(2*outputLimit)*(pmax-pmin);
    if(stat&(1<<10))throw Error('DSP-Sättigung erkannt (STATUS_SYNC.dsp_sat). Programmierung gesperrt.');
+   await window.ELMOS_ARCHIVE?.event('verification_attempt',{slot,pressure:p,temperature:temp,dspS:got,dspTarget:target,statusSync:stat,pressureDeviation:errorBar,tolerance:tol,pass:Math.abs(errorBar)<=tol,supply:archiveVoltages()});
    if(Math.abs(errorBar)>tol){
     st.calValidation=[];st.calVerified=false;st.calImage=null;
     $('calVerifyList').textContent='Prüfung fehlgeschlagen. Bisherige Prüfpunkte verworfen; alle erneut prüfen.';
@@ -2447,7 +2467,7 @@ if(typeof document!=='undefined') (function UI(){
     (required===1?'Ein Prüfpunkt bestanden. NVM-Schritt freigegeben; der übrige Druckbereich wurde nicht verifiziert.':'Alle '+required+' Prüfpunkte bestanden. NVM-Schritt freigegeben.'):
     (remaining>0?'Noch '+remaining+' unabhängige Prüfpunkte erforderlich.':'Die Prüfpunkte sind erfasst, aber die Temperaturverifikation ist noch nicht vollständig.');
    ca('calRamMsg',`DSP_S ${got} · Soll ${target.toFixed(1)} Digits · Fehler ${errorBar.toFixed(5)} ${pressureUnit()} · ${st.calValidation.length}/${required} Prüfpunkte. ${info}`,st.calVerified&&required>1?'success':'warn');
-  }catch(e){st.calVerified=false;st.calImage=null;ca('calRamMsg','DSP-Verifikation: '+e.message,'error')}
+  }catch(e){st.calVerified=false;st.calImage=null;try{await window.ELMOS_ARCHIVE?.event('error',{stage:'dsp_verification',slot,message:e.message})}catch(_){}ca('calRamMsg','DSP-Verifikation: '+e.message,'error')}
   finally{if(isChecking)st.calTask=false;renderFlowState()}
  }
  function requestedNvmUserId(){
@@ -2536,6 +2556,9 @@ if(typeof document!=='undefined') (function UI(){
     const expected=CAL.prepareOutputConfig(initial,st.expertOutputPlan,outputOnly?st.outputOnlyPlan.limit:st.calfit.outputLimit);
     for(const i of [16,22,57,58])if(modified[i]!==expected[i])throw Error('Ausgangsregister entspricht nicht dem geprüften Vorschlag');
    }
+   if(!window.ELMOS_ARCHIVE?.active||!['calibration','output'].includes(window.ELMOS_ARCHIVE.current?.type))
+    throw Error('Für das NVM-Schreiben zuerst ein Kalibrier- oder Ausgangsprotokoll im Archiv starten. Danach die NVM-Änderungsliste erneut vorbereiten.');
+   await window.ELMOS_ARCHIVE?.event('nvm_before',{uid:id,words:initial,plannedWords:modified,changes:st.calImage.changes,supply:archiveVoltages()});
    const saveOldNvm=$('nvmAutoBackup').checked;
    // Backup and export belong to this final explicitly confirmed action, not to the preview.
    // Without backup selection the original NVM remains in RAM only for readback/CRC safety.
@@ -2583,9 +2606,11 @@ if(typeof document!=='undefined') (function UI(){
    if(CAL.crc16(after)!==after[63])throw Error('Abschliessende NVM-CRC16-Prüfung fehlgeschlagen');
    const cm=await readReg(0x46);if(cm&(1<<6))throw Error('Chip meldet CM CRC Fehler');
    if(!sameBoot(beforeBoot,await bootSnapshot()))throw Error('Bootregister nach Programmierung abweichend');
-   st.nvmDone=true;st.nvmBackup=after;st.nvmBackupVerified=true;st.calImage=null;st.restorePlan=null;st.outputOnlyPlan=null;if(saveOldNvm)expert.afterNvmScan();lsSet('elmos8-last-program',JSON.stringify({id,words:after,ts:new Date().toISOString(),restore:restoring}));
+   st.nvmDone=true;st.nvmBackup=after;st.nvmBackupVerified=true;
+   try{await window.ELMOS_ARCHIVE?.event('nvm_after',{uid:id,words:after,crc16:after[63],verified:true})}
+   catch(archiveError){logging('KRITISCH: NVM erfolgreich geschrieben, Archiv-Export fehlgeschlagen: '+archiveError.message);ca('backupMsg','NVM erfolgreich verifiziert, aber der Archivordner ist nicht beschreibbar! Bitte unmittelbar NVM-Backup exportieren.','error')}st.calImage=null;st.restorePlan=null;st.outputOnlyPlan=null;if(saveOldNvm)expert.afterNvmScan();lsSet('elmos8-last-program',JSON.stringify({id,words:after,ts:new Date().toISOString(),restore:restoring}));
    ca('nvmMsg',restoring?'Backup-Wiederherstellung abgeschlossen, NVM rückgelesen und CRC16 bestätigt. Sensor neu starten und erneut prüfen.':outputOnly?'AODO-Ausgangseinstellungen dauerhaft gespeichert, NVM rückgelesen und CRC16 bestätigt. Sensor neu starten und Ausgabefunktion prüfen.':'NVM-Programmierung und vollständiges Rücklesen/CRC16 erfolgreich. Sensor neu starten und Schnittstelle erneut prüfen.','success');
-  }catch(e){ca('nvmMsg',`NVM-Vorgang fehlgeschlagen: ${e.message}.${chipProgrammingStarted?' NVM-Schreibversuch wurde bereits begonnen: Chip nicht unkontrolliert neu starten, Backup und Diagnose sichern!':' Es wurden keine NVM-Schreibbefehle gestartet.'}`,'error');logging('NVM FEHLER: '+e.message)}
+  }catch(e){try{await window.ELMOS_ARCHIVE?.event('error',{stage:'nvm_program',programmingStarted:chipProgrammingStarted,message:e.message})}catch(_){}ca('nvmMsg',`NVM-Vorgang fehlgeschlagen: ${e.message}.${chipProgrammingStarted?' NVM-Schreibversuch wurde bereits begonnen: Chip nicht unkontrolliert neu starten, Backup und Diagnose sichern!':' Es wurden keine NVM-Schreibbefehle gestartet.'}`,'error');logging('NVM FEHLER: '+e.message)}
   finally{
    // A failed RAM-lock command must not leave the UI permanently in "busy" state.
    try{
@@ -2654,9 +2679,10 @@ if(typeof document!=='undefined') (function UI(){
     throw Error('Brückenspannung im RAM stimmt nach dem Neustart nicht mit dem NVM überein');
    await readADC();
    const success='NVM nach Neustart vollständig rückgelesen. Chip-ID, CRC8, CRC16, Bootregister und Brückenspannung stimmen.';
+   await window.ELMOS_ARCHIVE?.event('post_boot_verified',{uid:st.uid?.hex,nvm:st.nvmBackup?.slice(),boot,svddCode:actualSvdd});
    reportBootCheck(success,'success');
    ca('nvmMsg',success,'success');
-  }catch(e){
+  }catch(e){try{await window.ELMOS_ARCHIVE?.event('error',{stage:'post_boot_check',message:e.message})}catch(_){}
    reportBootCheck('Neustartprüfung fehlgeschlagen. '+e.message,'error');
   }finally{
    if(checkingBoot){
@@ -2868,6 +2894,7 @@ if(typeof document!=='undefined') (function UI(){
     'Keine EEPROM-Programmierung. '+(affectsCalibration?
      'Messpunkte und DSP-Koeffizienten für diesen Sensor neu aufnehmen.':
      'Bestehende Messpunkte und DSP-Koeffizienten wurden durch diesen reinen Ausgangsimport nicht verändert.'),'success');
+   await window.ELMOS_ARCHIVE?.event('configuration_imported',{label:profile.label,include:included,version:profile.version,AFE:{...st.staged},supply:archiveVoltages()});
    document.dispatchEvent(new CustomEvent('elmos-config-applied',{detail:{included:included.slice(),version:profile.version}}));
   }catch(e){
    show('configPreview','Config-Übernahme fehlgeschlagen: '+e.message,'error');
@@ -3190,6 +3217,118 @@ if(typeof document!=='undefined') (function UI(){
   const min=Math.min(...readings),max=Math.max(...readings);
   return {count:readings.length,min,max,hub:max-min,limitExceeded:readings.some(v=>Math.abs(v)>25000)};
  }
+
+ // Archive bridge: read-only data acquisition; the original NVM write gates stay unchanged.
+ function archiveVoltages(){
+  const chosenVdd=Number($('psscVdd').value),s0=Number($('psscS0').value),s1=Number($('psscS1').value);
+  const code=bridgeSupplyCode(st.afe0);
+  const measuredInput=$('archiveMeasuredVdd')?.value?.trim()||'';
+  const measuredV=measuredInput!==''&&Number.isFinite(Number(measuredInput))?Number(measuredInput):null;
+  const measuredSource=$('archiveMeasuredVddSource')?.value?.trim()||null;
+  return {
+   externalVdd:{measuredV,configuredV:Number.isFinite(chosenVdd)?chosenVdd:null,
+    measuredSource:measuredV===null?null:'Manuell erfasst: '+(measuredSource||'Quelle nicht angegeben'),
+    source:'Eingestellter Sollwert ist keine VDD-Messung; Istwert nur bei manueller Eingabe'},
+   bridgeSvdd:{measuredV:null,derivedNominalV:Number.isInteger(code)&&code<3?BRIDGE_VOLTAGES[code]:null,
+    rawRegister:st.afe0,source:'CFG_AFE0 Bits 1:0, abgeleitet und nicht elektrisch gemessen'},
+   analogOutput:{measuredV:null,s0TargetV:Number.isFinite(s0)?s0:null,
+    s1TargetV:Number.isFinite(s1)?s1:null,source:'Ausgangs-Sollwerte, keine AODO-Messung'},
+   ssp3PowerThreshold:{measuredV:null,source:'PWR_ON-Schwelle ist keine Versorgungsspannung'}
+  };
+ }
+ function archiveMeta(){
+  let userId=null;
+  const word=st.nvmBackup?.[30];
+  if(Number.isInteger(word))userId='0x'+h(word,2);
+  const input=$('nvmUserId')?.value?.trim();
+  if(!userId&&input&&/^(?:0x)?[0-9a-f]{1,4}$/i.test(input))
+   userId='0x'+parseInt(input,16).toString(16).padStart(4,'0').toUpperCase();
+  return {
+   online:!!st.chip,uid:st.uid?.hex||null,customUID:userId,nvmDone:!!st.nvmDone,calVerified:!!st.calVerified,
+   software:{version:document.body.dataset.appVersion||'nicht angegeben',url:location.href,
+    userAgent:navigator.userAgent,local:location.protocol==='file:',demo:demoEnabled},
+   equipment:{adapter:demoEnabled?'Demo':st.adapterKind==='ssp3'?'ELMOS SSP3':st.adapterKind==='bridge'?'ESP32-USB-Bridge':st.adapterKind,
+    adapterKind:st.adapterKind,firmware:st.firmware,serialPort:serialPortInfo(st.port),
+    interface:st.iface,plcAddress:'0x'+h(st.plcAddress),plcAddressVerified:st.plcAddressVerified,
+    supply:archiveVoltages()}
+  };
+ }
+ async function archiveCaptureConfig(){
+  if(!st.port||!st.chip||st.calTask||st.writing||st.nvmWorking)
+   throw Error('Konfiguration nur bei freiem, verbundenem Sensor lesbar');
+  const wasLive=st.live&&!st.manualLivePause;
+  stopLive();
+  if(st.liveReadPromise)await st.liveReadPromise.catch(()=>{});
+  const errors=[],words={};
+  try{
+   // All documented configuration, calibration and diagnostic RAM locations.
+   const addresses=[...new Set([...LOCKED,0x0E,0x14,0x16,0x18,0x1A,0x1C,0x1E,
+    0x26,0x28,0x2A,0x2E,0x30,0x32,0x36,0x38,0x50,0x52,...CAL_REGS])];
+   for(const address of addresses){
+    try{words['0x'+h(address)]=await readReg(address)}
+    catch(e){errors.push({register:'0x'+h(address),error:e.message})}
+   }
+   // The existing guarded NVM read helper checks all 64 words plus CRC8/CRC16.
+   const readOK=await nvmScan({expertRead:true});
+   const nvm=readOK&&st.nvmBackupVerified&&st.nvmBackup?.length===64?
+    {words:st.nvmBackup.slice(),crc8Validated:true,crc16Validated:true}: {words:null,crc8Validated:false,crc16Validated:false};
+   if(!readOK)errors.push({stage:'nvm_scan',error:'Vollständiges NVM nicht bestätigt'});
+   return {at:new Date().toISOString(),ram:{words},nvm,errors,
+    uid:st.uid?.hex||null,configuredUserId:nvm.words?'0x'+h(nvm.words[30],2):null,
+    supply:archiveVoltages()};
+  }finally{if(wasLive&&st.port&&st.chip&&!st.manualLivePause)startLive()}
+ }
+ async function archiveMeasure(count){
+  if(!st.chip||!st.port||st.calTask||st.writing||st.nvmWorking)throw Error('Sensor nicht messbereit');
+  if(!Number.isInteger(count)||count<1||count>100)throw Error('Ungültige Anzahl Samples');
+  const wasLive=st.live&&!st.manualLivePause;
+  st.calTask=true;stopLive();
+  if(st.liveReadPromise)await st.liveReadPromise.catch(()=>{});
+  const samples=[],errors=[];
+  const readOptional=async(address)=>{
+   try{return P.sign16(await readReg(address))}
+   catch(e){errors.push({at:new Date().toISOString(),register:'0x'+h(address),message:e.message});return null}
+  };
+  try{
+   for(let i=0;i<count;i++){
+    // Every actual sample is retained; no averaging before archiving.
+    const one={at:new Date().toISOString(),
+     adcS:await readOptional(0x2A),adcT:await readOptional(0x28),adcTC:await readOptional(0x26),
+     dspS:await readOptional(0x30),dspT:await readOptional(0x2E),
+     statusSync:await readOptional(0x32)};
+    samples.push(one);
+    if(i<count-1)await sleep(40);
+   }
+   const median=key=>{
+    const arr=samples.map(x=>x[key]).filter(Number.isFinite).sort((a,b)=>a-b);
+    if(!arr.length)return null;
+    return arr.length%2?arr[(arr.length-1)/2]:(arr[arr.length/2-1]+arr[arr.length/2])/2;
+   };
+   const adcS=median('adcS'),adcT=median('adcT'),adcTC=median('adcTC'),
+    dspS=median('dspS'),dspT=median('dspT');
+   if(!Number.isFinite(adcS)||!Number.isFinite(dspS)){
+    const error=Error('Druck-ADC oder DSP_S nicht lesbar');
+    error.rawSamples=samples.slice();error.partialReadErrors=errors.slice();throw error;
+   }
+   const range=getActiveDSPRange();
+   const sensorPressure=range?range.min+(dspS+range.limit)/(2*range.limit)*(range.max-range.min):null;
+   return {at:new Date().toISOString(),samples,errors,count,
+    adcS,adcT,adcTC,dspS,dspT,sensorPressure,
+    pressureUnit:Number.isFinite(sensorPressure)?range.unit:null,pressureConversionKind:range?.kind||null,
+    pressureConversion:range?.kind==='ram'?'Aktuelle RAM-Zuordnung (DSP-Verifikation separat beachten)':
+     'Manuelle Anzeigezuordnung; nur nach ausdrücklicher Bestätigung zur Toleranzbewertung verwenden',
+    temperatureConversion:'Keine validierte Umrechnung von DSP_T auf °C',
+    supply:archiveVoltages(),AFE:{...st.staged},ramAFE0:st.afe0,ramAFE1:st.afe,
+    currentNvmCrc:st.nvmBackup?.[63]??null};
+  }finally{
+   st.calTask=false;renderStatus();
+   if(wasLive&&st.chip&&st.port&&!st.manualLivePause)startLive();
+  }
+ }
+ window.ELMOS_ARCHIVE_BRIDGE=Object.freeze({
+  meta:archiveMeta,initial:archiveCaptureConfig,final:archiveCaptureConfig,measure:archiveMeasure
+ });
+
  window.ELMOS_GUIDED_API=Object.freeze({
   state:()=>({
    chip:!!st.chip,mode:st.mode,adapter:st.adapterKind,uid:st.uid?.hex||null,

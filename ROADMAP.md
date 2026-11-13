@@ -1,6 +1,18 @@
 # Roadmap für den E703.11-Kalibrierassistenten
 
-Stand v0.6.49 · Web-App mit SSP3 im Vergleich zur Elmos-PSSC-Software. Die Reihenfolge zeigt die geplante Priorität. Veröffentlichungstermine sind offen.
+Stand v0.7.0 · Web-App mit SSP3 im Vergleich zur Elmos-PSSC-Software. Die Reihenfolge zeigt die geplante Priorität. Veröffentlichungstermine sind offen.
+
+## Bereits als Softwarefunktion umgesetzt (v0.7.0)
+
+- [x] Lokaler Archivordner mit gemischten Dateien, Einlesen, Suche, Filter und Vergleich gültiger Kalibrierprotokolle.
+- [x] Automatische Erfassung der Ausgangs-RAM-/NVM-Konfiguration bei einem protokollierten Abgleich.
+- [x] Chip-/USER-ID, Web-App-/SSP3-/ESP32-Firmware, verfügbare Messwerte, Verstärkung, Versorgungsvorgaben, alle Samples, Wiederholungen und Fehler erfassen.
+- [x] NVM vor/nach Programmierung inklusive CRC-Verifikation im Vorgangsprotokoll aufzeichnen.
+- [x] Flexible Prüfpläne für Druck- und Temperaturhysterese, mehrfaches Hoch-/Runterfahren und frei definierbare Zyklen.
+- [x] Separater Nachmessungs-Protokolltyp mit Einzelversuchen und Hystereseauswertung.
+- [ ] Hardware-End-to-End-Test mit SSP3, realem Druck, Temperaturrampen und NVM-Schreibzyklus.
+- [ ] Automatische Istwertübernahme der externen VDD-Spannung und Referenztemperatur (derzeit manuelle Eingabe).
+- [ ] Verifizierte Umrechnung des DSP_T auf °C und freigegebene Temperatur-Toleranzprüfung.
 
 ## Als Nächstes geplant
 
