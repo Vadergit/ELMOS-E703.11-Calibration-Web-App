@@ -64,8 +64,10 @@ const ELMOS_ARCHIVE_CORE=(()=>{
     if(dir!=='up'&&dir!=='down')continue;
     const other=axis==='pressure'?step.temperature:step.pressure;
     const value=axis==='pressure'?step.pressure:step.temperature;
-    const key=String(other)+'|'+String(value);
-    const data=map.get(key)||{axis,reference:value,other,up:[],down:[]};
+    const key=String(step.cycle)+'|'+String(other)+'|'+String(value)+'|'+
+     (axis==='pressure'?String(step.temperatureIndex):'all');
+    const data=map.get(key)||{axis,cycle:step.cycle,temperatureStage:step.temperatureIndex,
+     reference:value,other,up:[],down:[]};
     const sample=result.sample;
     const signal=axis==='pressure'?
        (sample.pressureConfidence==='confirmed'&&Number.isFinite(sample.sensorPressure)?{value:sample.sensorPressure,unit:sample.pressureUnit||'bar'}:
@@ -81,8 +83,13 @@ const ELMOS_ARCHIVE_CORE=(()=>{
     if(!item.up.length||!item.down.length)continue;
     const up=item.up.at(-1),down=item.down.at(-1);
     if(up.unit!==down.unit)continue;
-    pairs.push({axis,reference:item.reference,other:item.other,ascending:up.value,descending:down.value,
-      delta:down.value-up.value,absolute:Math.abs(down.value-up.value),unit:up.unit});
+    const delta=down.value-up.value;
+    const span=axis==='pressure'?Math.max(...plan.pressure)-Math.min(...plan.pressure):null;
+    const percentTestSpan=axis==='pressure'&&up.unit!=='DSP_S Digits'&&span>0?
+      Math.abs(delta)/span*100:null;
+    pairs.push({axis,cycle:item.cycle,temperatureStage:item.temperatureStage,
+      reference:item.reference,other:item.other,ascending:up.value,descending:down.value,
+      delta,absolute:Math.abs(delta),unit:up.unit,percentTestSpan});
    }
   }
   return {pairs,maxPressure:pairs.filter(x=>x.axis==='pressure').reduce((m,p)=>Math.max(m,p.absolute),0),
