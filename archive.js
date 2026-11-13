@@ -282,6 +282,8 @@ const ELMOS_ARCHIVE=(()=>{
     }catch(_){if(/^ELMOS_\d{8}_\d{6}_[A-Z0-9]+_[a-f0-9-]{8,}\.json$/i.test(name))corrupt++}
    }
    S.records=all.sort((a,b)=>b.startedAt.localeCompare(a.startedAt));
+   S.resultsCache.clear();
+   S.selection=S.selection.filter(id=>S.records.some(r=>r.id===id));
    renderList();
    note(all.length+' gültige Prüfprotokolle geladen'+(corrupt?' · '+corrupt+' ungültige ELMOS-Dateien prüfen':'')+'.');
   }catch(e){note('Archiv nicht lesbar: '+e.message,true)}
@@ -706,12 +708,12 @@ const ELMOS_ARCHIVE=(()=>{
   '<p id="arPlanStatus"></p><pre class="ar-plan" id="arPlanPreview"></pre><div class="ar-buttons">'+
   '<button id="arPreview">Prüfplan berechnen</button><button id="arStart" class="primary">Nachmessung starten</button></div>'+
   '<p class="ar-muted">Die Web-App steuert Druckkalibrator und Klimakammer nicht automatisch. Jeder Sollwert wird manuell eingestellt und bestätigt. Druck- und Temperaturhysterese werden aus passenden Messpaaren berechnet.</p></div>'+
-  '<div class="ar-results" id="arResults"><div><h3>Archiv <small id="archiveCount"></small></h3><div class="ar-grid">'+
+  '<div class="ar-results" id="arResults"><div class="ar-overview" id="archiveOverview"></div><div class="ar-files-panel"><div class="ar-files-head"><h3>Messdateien</h3><small id="archiveCount"></small></div><div class="ar-grid">'+
   '<input id="archiveSearch" placeholder="UID, Datum, Board oder Softwareversion suchen">'+
   '<select id="archiveFilterType"><option value="all">Alle Protokolltypen</option><option value="testlog">Test / Logging</option><option value="calibration">Kalibrierung</option><option value="verification">Nachmessung</option><option value="output">Ausgang</option></select>'+
   '<select id="archiveFilterStatus"><option value="all">Alle Ergebnisse</option><option value="running">Offen / eventuell unterbrochen</option><option value="completed">Abgeschlossen</option><option value="failed">Fehlerhaft</option><option value="incomplete">Unvollständig</option><option value="interrupted">Unterbrochen</option><option value="aborted">Abgebrochen</option></select></div>'+
-  '<div class="ar-buttons"><button id="archiveCompare" disabled>Zwei Einträge vergleichen</button></div>'+
-  '<div id="archiveRows" class="ar-rows"></div></div><div id="archiveDetails" class="ar-details"><p>Ein Protokoll auswählen, um Einzelversuche, Konfiguration, NVM und Hysterese einzusehen.</p></div></div>';
+  '<p class="ar-file-hint">Zwei Messdateien mit den Auswahlfeldern markieren und direkt vergleichen.</p><div class="ar-buttons"><button id="archiveCompare" disabled>0 von 2 Dateien markiert</button></div>'+
+  '<div id="archiveRows" class="ar-rows"></div></div><div id="archiveDetails" class="ar-details"><div class="ar-details-placeholder"><h3>Messdatei auswählen</h3><p>Rechts erscheinen Messresultate, Gerätedaten, Signalverlauf und wichtige Ereignisse. Für den Direktvergleich links zwei Dateien markieren.</p></div></div></div>';
  }
  function init(){
   if(!$('archiveWorkspace'))return;
