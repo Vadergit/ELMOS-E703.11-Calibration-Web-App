@@ -1,6 +1,12 @@
 # Roadmap für den E703.11-Kalibrierassistenten
 
-Stand v0.7.4 · Web-App mit SSP3 im Vergleich zur Elmos-PSSC-Software. Die Reihenfolge zeigt die geplante Priorität. Veröffentlichungstermine sind offen.
+Stand v0.7.5 · Web-App mit SSP3 im Vergleich zur Elmos-PSSC-Software. Die Reihenfolge zeigt die geplante Priorität. Veröffentlichungstermine sind offen.
+
+## Aufgeräumte Navigation (v0.7.5)
+
+- [x] Offline-Einsteigeranleitung in die App-Einstellungen verlagert.
+- [x] Nachmessungsnavigation standardmässig ausgeblendet und nur nach Opt-in sichtbar.
+- [x] Option lokal speichern und laufende Nachmessungen vor versehentlichem Ausblenden schützen.
 
 ## DUT und Metadaten (v0.7.4)
 

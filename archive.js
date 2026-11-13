@@ -789,7 +789,7 @@ const ELMOS_ARCHIVE=(()=>{
   $('archiveWorkspace').hidden=true;
  }
  return {init,open,openVerification:()=>open('verification'),close,begin,ensureCalibration,event,trace,appendTelemetry,streamRows,download,flush,finalise,interrupted,
-  get active(){return !!S.record},get current(){return S.record},refresh};
+  get active(){return !!S.record},get current(){return S.record},get view(){return S.view},refresh};
 })();
 if(typeof window!=='undefined'){
  window.ELMOS_ARCHIVE=ELMOS_ARCHIVE;

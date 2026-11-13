@@ -1,3 +1,11 @@
+## v0.7.5 – Offline-Anleitung in Einstellungen, Nachmessung optional
+
+- Den breiten Offline-Hinweis aus der Hauptansicht entfernt; der Einsteiger-Link steht in «Einstellungen → Web-App offline verwenden».
+- Neue Option «Nachmessung einblenden» in den App-Einstellungen, standardmässig ausgeschaltet.
+- Der Navigationsbutton erscheint nur bei aktiver Option; die Auswahl wird lokal im Browser gespeichert.
+- Die Option lässt sich während einer aktiven Nachmessung nicht abschalten, um einen laufenden Prüfablauf nicht versehentlich zu verbergen.
+- Nachmessungsprotokolle bleiben im Archiv jederzeit sichtbar und durchsuchbar, unabhängig von der Einstellung.
+
 ## v0.7.4 – DUT, kompakter Logviewer und Adapter-Firmware richtig benannt
 
 - Im Test-Logging separate, optionale Produkt-/DUT-Bezeichnung; im JSON, Archiv, Suche, Vergleich und CSV-Export enthalten.
