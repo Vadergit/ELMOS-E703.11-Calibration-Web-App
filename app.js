@@ -3305,7 +3305,10 @@ if(typeof document!=='undefined') (function UI(){
    };
    const adcS=median('adcS'),adcT=median('adcT'),adcTC=median('adcTC'),
     dspS=median('dspS'),dspT=median('dspT');
-   if(!Number.isFinite(adcS)||!Number.isFinite(dspS))throw Error('Druck-ADC oder DSP_S nicht lesbar');
+   if(!Number.isFinite(adcS)||!Number.isFinite(dspS)){
+    const error=Error('Druck-ADC oder DSP_S nicht lesbar');
+    error.rawSamples=samples.slice();error.partialReadErrors=errors.slice();throw error;
+   }
    const range=getActiveDSPRange();
    const sensorPressure=range?range.min+(dspS+range.limit)/(2*range.limit)*(range.max-range.min):null;
    return {at:new Date().toISOString(),samples,errors,count,
