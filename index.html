@@ -470,6 +470,11 @@ html.compact-mode .foot{display:none}
 .sensor-reconnect button:hover:not(:disabled){background:#044d62;border-color:#044d62;color:#fff}
 .dot.missing{background:#bb7a17}
 @media(max-width:600px){.sensor-reconnect button{width:100%}}
+
+/* Sichtbarer Einstieg zur lokalen Installation – ohne Einfluss auf die Kalibrierlogik. */
+.offline-guide-banner{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:9px 16px;margin:0 0 17px;padding:10px 14px;background:#f0f7fe;border:1px solid #bdd6ed;border-radius:10px;font-size:13px;color:#24435e}
+.offline-guide-banner a{font-weight:800;color:#135b98;white-space:normal}
+.offline-guide-banner a:focus-visible{outline:2px solid #4385c7;outline-offset:2px}
 </style><link rel="stylesheet" href="guided.css?v=0.6.57"><link rel="stylesheet" href="interface.css?v=0.6.30"></head><body><div class="wrap"><header class="top">
 <div class="brand"><div class="logo" aria-hidden="true">E</div><div><div class="eyebrow">E703.11 · PSSC · v0.6.58</div><h1>Kalibrierassistent</h1></div></div>
 <div class="live-overview" role="group" aria-label="Sensorwerte · laufende Anzeige">
@@ -480,6 +485,7 @@ html.compact-mode .foot{display:none}
 </div>
 <div class="live-connection"><div class="connection-actions"><button type="button" id="guidedLaunchTop" class="settings-gear" title="Geführten Abgleich starten">◇ Geführt</button><button type="button" id="settingsOpen" class="settings-gear" aria-expanded="false" aria-controls="settingsPanel" title="App-Einstellungen öffnen">⚙ Einstellungen</button><span class="chip"><span class="dot" id="statusDot"></span><span id="status">Nicht verbunden</span></span><span class="live-meta"><span class="live-meta-dot" id="liveStateDot"></span><span id="liveState">Keine Live-Messung</span><span aria-hidden="true">·</span><span id="liveLastRead">—</span><span id="liveDiagnostic" title="Erfolgreiche ADC_S-Live-Abfragen / Versuche" style="font-size:10px;opacity:.85"></span></span></div></div>
 </header>
+<div class="offline-guide-banner" role="note"><span><strong>Web-App auf dem PC speichern und offline nutzen?</strong> Ohne GitHub-Vorkenntnisse möglich.</span><a href="offline-anleitung.html">Anleitung für Einsteiger öffnen</a></div>
 <div id="sensorReconnectBanner" class="sensor-reconnect" role="status" aria-live="polite" hidden>
  <div><strong>Sensor nicht verbunden</strong><span id="sensorReconnectMessage">Keine gültige Sensorantwort. Sensoranschluss prüfen.</span></div>
  <div class="sensor-reconnect-actions">
