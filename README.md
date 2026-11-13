@@ -2,7 +2,7 @@
 
 **Ein geführter Kalibrierassistent für den ELMOS E703.11 und das SSP3-Eval-Board.** Ziel ist ein verständlicher Abgleich, der auch ohne tiefere Vorkenntnisse Schritt für Schritt funktioniert. Wer mehr benötigt, kann zusätzliche Messpunkte, DSP-Parameter und einen geschützten Expertenmodus verwenden.
 
-**Version: v0.7.3 · Direktwahl der Aufgaben und übersichtlicher Logviewer** · [Änderungsverlauf](CHANGELOG.md) · **[Geplante Funktionen](ROADMAP.md)**
+**Version: v0.7.4 · DUT-Bezeichnung, kompakter Logviewer und korrekte Firmware-Zuordnung** · [Änderungsverlauf](CHANGELOG.md) · **[Geplante Funktionen](ROADMAP.md)**
 
 Über **Einstellungen → Demo-Modus** lässt sich der gesamte Kalibrierablauf mit simulierten Messwerten und NVM ausprobieren.
 
@@ -13,6 +13,13 @@
 > **Geführter Assistent:** Nach der bestätigten SSP3-Verbindung stehen die neue Schritt-für-Schritt-Führung, die klassische Ansicht und der optionale Kompaktmodus zur Verfügung. Ein E703.11-Chip muss für den Abgleich verbunden sein. Die USB-CDC-Bridge bleibt als experimenteller Verbindungstest ohne Sensorprogrammierung gesperrt.
 >
 > [Geführter Abgleich](docs/GEFUEHRTER_ASSISTENT.md) · [USB-Bridge](docs/USB_BRIDGE_GUIDE.md) · [ESP-Boards](docs/ESP_BOARD_OPTIONS.md) · [ESP32-C3 SuperMini Sketch](firmware/esp32c3_supermini/esp32c3_supermini.ino)
+
+## Neu in v0.7.4 – DUT und Firmware richtig zuordnen
+
+- **Test / Logging** besitzt jetzt das eigene, optionale Feld **«Produkt / DUT-Bezeichnung»**, unabhängig vom Testnamen. Es wird beim Teststart im JSON erfasst und im Archiv, in der Suche, beim Direktvergleich und in jeder exportierten CSV-Zeile angezeigt.
+- **Archivplatz gespart:** kompakte obere Werkzeugleiste, zusammengezogene Statistik-Kacheln sowie Geräte- und Aufzeichnungsdaten in mehreren Spalten; VDD-Istspannungsfelder sind aufklappbar.
+- **Firmware korrigiert:** Die bisherige Zahl `02.08.02.04` ist die über den SSP3-Befehl `.VERSION` gelesene **Adapter-Firmware**, keine E703.11-Sensorfirmware. Alte und neue JSON-Protokolle werden daher ausdrücklich als **«Adapter-Firmware»** angezeigt. Ein separater Eintrag **«E703.11 Chip-Version (Reg. 0x38)»** zeigt den echten ausgelesenen Sensorregisterwert, sofern vorhanden; das ist keine Sensor-Firmwareversion.
+- Bestehende Logdateien bleiben unverändert und kompatibel.
 
 ## Neu in v0.7.3 – Logviewer und direkte Aufgabenwahl
 
