@@ -78,3 +78,24 @@ test('the two views and visual comparison remain separate from physical measurem
  assert.match(guided,/if\(taskOpening\)return/);
  assert.match(guided,/if\(task==='inspect'\)/);
 });
+
+test('DUT name is visible and legacy SSP3 firmware is never labelled as sensor firmware',()=>{
+ const r=record();
+ r.testConfiguration.dutName='Huba 560 · Versuchsaufbau 2';
+ r.equipment.firmware='02.08.02.04';
+ r.initial.ram={words:{'0x38':0x0020}};
+ const a=A.overview(r);
+ assert.equal(a.dutName,'Huba 560 · Versuchsaufbau 2');
+ assert.equal(a.adapterFirmware,'02.08.02.04');
+ assert.equal(a.chipVersionRegister,'0x0020');
+ assert.equal(a.firmware,undefined);
+ const old=record();
+ old.initial.ram={words:{}};
+ assert.equal(A.overview(old).chipVersionRegister,null);
+ assert.equal(A.overview(old).dutName,null);
+ const archive=read('archive.js'),html=read('index.html');
+ assert.match(archive,/Produkt \/ DUT/);
+ assert.match(archive,/Adapter-Firmware/);
+ assert.match(archive,/id="archiveMeasuredVdd"/);
+ assert.match(html,/\.ar-data-grid\{grid-template-columns:repeat\(4/);
+});
