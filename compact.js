@@ -164,6 +164,12 @@ const ELMOS_COMPACT=(()=>{
   root.style.height=Math.max(390,available)+'px';
  }
  function set(on){
+  if(on&&window.ELMOS_TEST_LOGGER?.isBusy()){
+   const message='Eine Testaufzeichnung läuft. Bitte zuerst im Reiter «Test / Logging» beenden.';
+   if($('compactMode'))$('compactMode').checked=false;
+   if($('settingsMsg'))$('settingsMsg').textContent=message;
+   return;
+  }
   // Never relocate the same original controls from two workspaces simultaneously.
   if(on&&window.ELMOS_GUIDED?.isOpen?.())window.ELMOS_GUIDED.close();
   if(on===active)return;
