@@ -384,7 +384,10 @@ const ELMOS_GUIDED=(()=>{
    const title=document.createElement('strong');
    title.textContent='✓ Messpunkt '+(index+1)+' aufgenommen';
    const ref=document.createElement('span');
-   ref.textContent=point.pressure+' '+plan.unit+' · '+point.temperature+' °C';
+   // Show the reference values stored with this capture, not merely the planned targets.
+   const capturedPressure=Number.isFinite(record.pressure)?record.pressure:point.pressure;
+   const capturedTemperature=Number.isFinite(record.temperature)?record.temperature:point.temperature;
+   ref.textContent=capturedPressure+' '+(record.unit||plan.unit)+' · '+capturedTemperature+' °C';
    top.append(title,ref);
    const details=document.createElement('span');details.className='gw-captured-values';
    const values=[];
