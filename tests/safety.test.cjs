@@ -303,7 +303,7 @@ test('Compact workspace covers all calibration steps with existing original cont
   'calSOrder','calTOrder','calDspLimit','calCalculate','calApplyRam',
   'calVerifyCount','calVerifyPressure','calVerifyTolerance','calVerifyTemperature','calVerifyRam',
   'expertOutputMode','expertScaleEnable','psscVdd','psscS0','psscS1','expertOutputStage',
-  'nvmPrepare','nvmAutoBackup','nvmConfirmId','nvmProgram'
+  'nvmPrepare','nvmAutoBackup','nvmUidHint','nvmProgram'
  ]){
   // AFE buttons remain inside the moved stepper; all others are moved by their IDs.
   if(['pga1Down','offsetUp','pga2Down'].includes(id))

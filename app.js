@@ -580,6 +580,12 @@ if(typeof document!=='undefined') (function UI(){
    return 'Nach PSSC-RAM-Freigabe lassen sich nur Kalibrierdaten speichern. Ausgangs- und Starteinstellungen müssen unverändert bleiben.';
   return '';
  }
+ function hasCurrentNvmBackup(){
+  const proof=st.nvmBackupProof;
+  return !!(st.port&&st.chip&&st.uid?.hex&&proof?.session===st.sessionIndex&&
+   proof.uid===st.uid.hex&&proof.words===st.nvmBackup&&st.nvmBackupVerified&&
+   st.nvmBackup.length===64&&st.uid.ser0===st.nvmBackup[0]&&st.uid.ser1===st.nvmBackup[1]);
+ }
  function renderFlowState(){
   updateVerificationProgress();
   const ready=coefficientSettingsCurrent()&&calEndpointsReady();
@@ -599,21 +605,14 @@ if(typeof document!=='undefined') (function UI(){
   const restoring=expert.restoreReady(),outputOnly=expert.outputReady();
   $('nvmProgram').textContent=demoEnabled?'NVM-Programmierung simulieren':restoring?'Backup auf diesem Chip wiederherstellen':outputOnly?'AODO-Ausgangseinstellungen im NVM speichern':'Kalibrierung dauerhaft ins NVM schreiben';
   const recognizedUid=st.uid?.hex||'';
-  if(st.uidShownForInput!==recognizedUid){
-   $('nvmConfirmId').value=recognizedUid;
-   st.uidShownForInput=recognizedUid;
-  }
-  $('nvmUidHint').textContent=recognizedUid?
-   'Aus dem Chip gelesen: '+recognizedUid+' · Feld automatisch ausgefüllt; eine Änderung wird vor dem Schreiben mit dem Sensor abgeglichen.':
-   'Chip-UID wird nach erfolgreicher Sensorverbindung automatisch eingetragen.';
+  $('nvmPrepare').textContent=hasCurrentNvmBackup()?'Änderungen prüfen':'NVM lesen & Änderungen prüfen';
+  $('nvmUidHint').textContent=recognizedUid?'Chip-UID: '+recognizedUid:'Chip-UID wird beim Verbinden gelesen.';
   let nvmReason='';
   if(st.iface!=='plc')nvmReason='1-Wire-Startschutz: Dauerhaftes NVM-Schreiben ausschliesslich über 1-Wire möglich. Bitte per 1-Wire verbinden.';
   else if(!verified||st.mode!=='usb')nvmReason='Zuerst die DSP-Prüfung abschliessen und sicherstellen, dass der echte Chip verbunden ist.';
   else if(!st.nvmBackupVerified||!st.nvmBackup)nvmReason='Zuerst Original-NVM vollständig lesen und prüfen.';
-  else if(!st.calImage)nvmReason='Zuerst «NVM lesen & Änderungen prüfen» drücken. Anschliessend kann gespeichert werden.';
+  else if(!st.calImage)nvmReason='Zuerst die Änderungsliste vorbereiten. Anschliessend kann gespeichert werden.';
   else if(!recognizedUid||st.uid.ser0!==st.nvmBackup[0]||st.uid.ser1!==st.nvmBackup[1])nvmReason='Chip-UID wurde nicht vollständig mit dem NVM-Backup abgeglichen.';
-  else if(!/^[0-9A-Fa-f]{12}$/.test($('nvmConfirmId').value.trim()))nvmReason='Chip-UID muss genau 12 Hex-Ziffern enthalten.';
-  else if($('nvmConfirmId').value.trim().toUpperCase()!==recognizedUid)nvmReason='Die editierte UID stimmt nicht mit dem aktuell verbundenen Chip überein. Programmierung gesperrt.';
   const outputStatus=$('outputOneWireStatus');
   const startup=st.nvmBackupVerified&&st.nvmBackup?.length===64?CAL.oneWireStartupStatus(st.nvmBackup):null;
   const cookieVerified=!!(st.powerCycleResult?.readVerified&&st.powerCycleResult.verifiedUid&&
@@ -691,7 +690,7 @@ if(typeof document!=='undefined') (function UI(){
   if(!st.manualLivePause&&st.chip&&!window.ELMOS_TEST_LOGGER?.isBusy())startLive()
  }
  function invalidateCalculation(reason){
-  st.calfit=null;st.calImage=null;st.calStaged=false;st.calVerified=false;st.calValidation=[];st.nvmBackup=null;st.nvmBackupVerified=false;
+  st.calfit=null;st.calImage=null;st.calStaged=false;st.calVerified=false;st.calValidation=[];
   $('calCoeffList').textContent='Noch nicht berechnet.';
   $('calVerifyList').textContent='Noch keine unabhängigen Prüfpunkte.';
   show('calFitMsg',reason||'Koeffizienten müssen neu berechnet werden.','warn');
@@ -2389,7 +2388,7 @@ if(typeof document!=='undefined') (function UI(){
    if(!Number.isInteger(outputLimit)||outputLimit<1000||outputLimit>32000)throw Error('DSP-Endwert muss zwischen 1’000 und 32’000 Digits liegen');
    if(st.calpoints.length<(orderS+1)*(orderT+1))throw Error('Für diese Polynom- und Temperaturordnung sind mindestens '+((orderS+1)*(orderT+1))+' unabhängige Messpunkte nötig. Anzahl in Schritt 3 erhöhen.');
    const solution=CAL.fit(st.calpoints,{pmin,pmax,orderS,orderT,outputLimit});
-    st.calfit=solution;st.calImage=null;st.calStaged=false;st.calVerified=false;st.calValidation=[];st.nvmBackup=null;st.nvmBackupVerified=false;renderDSPLive();
+    st.calfit=solution;st.calImage=null;st.calStaged=false;st.calVerified=false;st.calValidation=[];renderDSPLive();
     if(window.ELMOS_ARCHIVE?.active)void window.ELMOS_ARCHIVE.event('coefficient_fit',{solution,AFE:{...st.staged}}).catch(e=>show('calFitMsg','Archivfehler: '+e.message,'error'));
    const r=solution.registers;
    $('calCoeffList').textContent='S_O 0x'+h(r.so,2)+' (Q3.12)  S_F 0x'+h(r.sf,2)+' (Q3.12)\n'+r.coeffs.map((x,i)=>'S'+String(i).padEnd(2)+' 0x'+h(x,2)+'    '+CAL.fromQ(x,15).toFixed(7)).join('\n')+(r.tcoeffs?'\nT_O '+h(r.to,2)+' T_F '+h(r.tf,2)+'\n'+r.tcoeffs.map((x,i)=>'T'+i+': 0x'+h(x,2)).join('\n'):'\nTemperaturpfad bleibt unverändert.');
@@ -2450,6 +2449,7 @@ if(typeof document!=='undefined') (function UI(){
    st.calTask=true;st.writing=true;st.ramWriteScope='backup';started=true;stopLive();
    ca('backupMsg',preview?'NVM wird für die Änderungsvorschau gelesen und mit CRC geprüft …':'Original-NVM wird gelesen und geprüft …','warn');
    ca('nvmMsg','NVM wird vollständig gelesen …','warn');
+   const session=st.sessionIndex,uid=st.uid?.hex;
    const before=await bootSnapshot();await ramGrant();const words=[];
    for(let i=0;i<64;i++){words.push(await nvmReadWord(i*2));progress.update('NVM wird gelesen',i+1,64);$('nvmProgress').textContent=`NVM lesen: ${i+1}/64`;$('backupProgress').textContent=`NVM: ${i+1} / 64 Wörter`}
    const crc=CAL.crc16(words);
@@ -2458,7 +2458,7 @@ if(typeof document!=='undefined') (function UI(){
    if(factoryCRC!==factoryHigh)throw Error(`Werks-CRC8 stimmt nicht: 0x${h(factoryCRC)} statt 0x${h(factoryHigh)}. Programmierung gesperrt.`);
    for(const index of [0,1,15,16,17,18,19,20,22,CAL.SVDD_INDEX,28,63])if(await nvmReadWord(index*2)!==words[index])throw Error('NVM bei Wiederholungslesung unstabil (Wort '+index+')');
    const after=await bootSnapshot();if(!sameBoot(before,after))throw Error('Bootregister haben sich beim NVM-Lesen verändert');
-   st.nvmBackup=words;st.nvmBackupVerified=true;st.calImage=null;expert.refreshOutputReadOnly();expert.refreshEEPROMViewer();
+   st.nvmBackup=words;st.nvmBackupVerified=true;st.nvmBackupProof={session,uid,words};st.calImage=null;expert.refreshOutputReadOnly();expert.refreshEEPROMViewer();
    const shouldArchive=expertRead||(!preview&&$('nvmAutoBackup').checked);
    if(shouldArchive)expert.afterNvmScan();
    ca('backupMsg','NVM vollständig gelesen: 64 Wörter, CRC8 und CRC16 geprüft.'+
@@ -2491,7 +2491,7 @@ if(typeof document!=='undefined') (function UI(){
    if(r.tcoeffs)changes.push([0x6C,r.to],[0x6E,r.tf],...r.tcoeffs.map((v,i)=>[0x94+2*i,v]));
    for(const [addr,value] of changes){await maintWrite(addr,value);const actual=await readReg(addr);if(actual!==value)throw Error(`DSP-RAM Rücklesefehler 0x${h(addr)}: 0x${h(actual,2)} statt 0x${h(value,2)}`)}
    if(!sameBoot(before,await bootSnapshot()))throw Error('Bootregister nach Kalibrier-RAM-Schreiben verändert');
-   st.calStaged=true;st.calVerified=false;st.calValidation=[];st.calImage=null;st.nvmBackup=null;st.nvmBackupVerified=false;st.dsp=null;renderDSPLive();
+   st.calStaged=true;st.calVerified=false;st.calValidation=[];st.calImage=null;st.dsp=null;renderDSPLive();
    await window.ELMOS_ARCHIVE?.event('calibration_ram_written',{registerChanges:changes,verified:true,supply:archiveVoltages()});
    ca('calRamStageMsg',`${changes.length} DSP-Wörter ins RAM geschrieben und einzeln erfolgreich rückgelesen. Jetzt im nächsten Schritt DSP_S unabhängig prüfen.`,'success');
    ca('calRamMsg','DSP-Koeffizienten ins RAM übertragen. Bitte Prüfdruck einstellen und DSP_S kontrollieren.','warn');
@@ -2576,10 +2576,8 @@ if(typeof document!=='undefined') (function UI(){
   try{
    if(st.calTask||st.writing||st.nvmWorking)throw Error('Anderer Chipvorgang läuft');
    if(!coefficientSettingsCurrent()||!verificationComplete()||!st.calStaged)throw Error('Zuerst DSP-RAM-Kalibrierung mit allen gewählten Prüfpunkten erfolgreich abschliessen');
-   // Lesen ist für den Vergleich immer erforderlich. Ein dauerhaftes Backup wird hier NICHT gespeichert.
-   const readOK=await nvmScan({preview:true});
-   if(!readOK||!st.nvmBackupVerified||!st.nvmBackup)throw Error('NVM konnte nicht vollständig und CRC-geprüft gelesen werden');
-   if(!st.uid||st.uid.ser0!==st.nvmBackup[0]||st.uid.ser1!==st.nvmBackup[1])throw Error('Chip-UID kann dem aktuellen NVM nicht eindeutig zugeordnet werden');
+   if(!hasCurrentNvmBackup())await nvmScan({preview:true});
+   if(!hasCurrentNvmBackup())throw Error('Kein vollständig geprüftes NVM für die aktuell verbundene Chip-UID verfügbar');
    const startup=CAL.oneWireStartupStatus(st.nvmBackup);
    if(!startup.ok)throw Error('1-Wire-Startfenster nicht sicher: '+startup.errors.join('; '));
    if(startup.requiresCookie&&!(st.powerCycleResult?.readVerified&&st.powerCycleResult.verifiedUid===st.uid.hex)&&!psscRecoveryProven())
@@ -2624,7 +2622,6 @@ if(typeof document!=='undefined') (function UI(){
    if(st.mode!=='usb'||!st.chip||!st.port||!st.nvmBackupVerified||!st.calImage||(!restoring&&!outputOnly&&!verificationComplete()))throw Error('Hardware, Sicherungen oder Kalibrierverifikation fehlen');
    const id=st.uid?.hex;
    if(!id||st.uid.ser0!==st.nvmBackup[0]||st.uid.ser1!==st.nvmBackup[1])throw Error('48-Bit-Chip-UID muss vor dem Schreiben verifiziert werden');
-   if($('nvmConfirmId').value.trim().toUpperCase()!==id)throw Error('48-Bit-Chip-UID stimmt nicht');
    const initial=st.calImage.before,modified=st.calImage.after;
    const recoveryBlock=psscNvmBlock(initial,modified,restoring,outputOnly);
    if(recoveryBlock)throw Error(recoveryBlock);
@@ -2668,13 +2665,18 @@ if(typeof document!=='undefined') (function UI(){
    ca('nvmMsg','NVM wird programmiert. USB-Verbindung nicht trennen, Versorgung stabil halten.','warn');
    // Never start NVM commands while a previous ADC/DSP live read is still in flight.
    if(st.liveReadPromise)await st.liveReadPromise.catch(()=>{});
+   const version=await readReg(0x38),ser0=await readReg(0x50),ser1=await readReg(0x52);
+   if(h(version,2)+h(ser1,2)+h(ser0,2)!==id)throw Error('Chip-UID hat sich seit der Vorschau geändert');
    const beforeBoot=await bootSnapshot();
    if(allowSvdd)await readNvmBridgeSupply(modified[CAL.SVDD_INDEX]);
    await ramGrant();
    const verifyWords=st.psscRamRecovery?Array.from({length:64},(_,i)=>i):[0,1,16,17,18,19,20,21,22,23,CAL.SVDD_INDEX,28,63];
    for(const i of verifyWords){
     const check=await nvmReadWord(i*2);
-    if(check!==initial[i])throw Error(`Chip-NVM hat sich seit dem Backup verändert (Index ${i})`);
+    if(check!==initial[i]){
+     st.nvmBackup=null;st.nvmBackupVerified=false;st.calImage=null;
+     throw Error(`Chip-NVM hat sich seit dem Backup verändert (Index ${i}). Änderungsliste erneut vorbereiten.`);
+    }
    }
    const finalRecoveryBlock=psscNvmBlock(initial,modified,restoring,outputOnly);
    if(finalRecoveryBlock)throw Error(finalRecoveryBlock);
@@ -3008,7 +3010,7 @@ if(typeof document!=='undefined') (function UI(){
  });
  $('plcStartupLogExport').addEventListener('click',()=>{
   const log={
-   tool:'ELMOS E703.11 – SSP3 Startdiagnose',version:'v0.7.11',at:new Date().toISOString(),
+   tool:'ELMOS E703.11 – SSP3 Startdiagnose',version:'v0.7.12',at:new Date().toISOString(),
    source:'Web-App (NICHT PSSC Originalsoftware)',interface:st.iface,adapter:st.adapterKind,
     plcAddress:'0x'+h(st.plcAddress),plcAddressVerified:st.plcAddressVerified,
     plcAddressSource:st.plcAddressSource,plcAddressProbes:st.plcAddressProbes,psscRamRecovery:!!st.psscRamRecovery,
@@ -3152,7 +3154,6 @@ if(typeof document!=='undefined') (function UI(){
  // Backup ist aus Sicherheitsgründen bei jedem neuen Browserdurchlauf standardmässig aktiviert.
  $('nvmAutoBackup').checked=true;
  $('nvmAutoBackup').addEventListener('change',renderFlowState);
- $('nvmConfirmId').addEventListener('input',renderFlowState);
  $('nvmUserId').addEventListener('input',()=>{
   if(st.calImage&&st.calImage!==st.restorePlan&&st.calImage!==st.outputOnlyPlan){
    st.calImage=null;

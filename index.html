@@ -674,8 +674,8 @@ html.compact-mode .foot{display:none}
 .operation-progress-dialog .operation-progress{position:static;max-width:100%;pointer-events:auto}
 .cal-point-recorded > .fieldrow{display:none!important}
 .operation-progress progress{display:block;width:100%;accent-color:var(--focus,#075874)}
-</style><link rel="stylesheet" href="guided.css?v=0.7.9"><link rel="stylesheet" href="interface.css?v=0.6.30"><link rel="stylesheet" href="theme.css?v=0.7.9"></head><body data-app-version="0.7.11"><div class="wrap"><header class="top">
-<div class="brand"><div class="logo" aria-hidden="true">E</div><div><div class="eyebrow">E703.11 · PSSC · v0.7.11</div><h1>Kalibrierassistent</h1></div></div>
+</style><link rel="stylesheet" href="guided.css?v=0.7.9"><link rel="stylesheet" href="interface.css?v=0.6.30"><link rel="stylesheet" href="theme.css?v=0.7.9"></head><body data-app-version="0.7.12"><div class="wrap"><header class="top">
+<div class="brand"><div class="logo" aria-hidden="true">E</div><div><div class="eyebrow">E703.11 · PSSC · v0.7.12</div><h1>Kalibrierassistent</h1></div></div>
 <div class="live-overview" role="group" aria-label="Sensorwerte · laufende Anzeige">
   <div class="live-kpi" title="Unkompensierter Druck-ADC. Warnung bei Beträgen über 25’000 Digits."><span class="live-kpi-label">ADC_S <span id="liveAdcAlert" class="live-alert" hidden>!</span></span><span class="live-kpi-reading" id="liveAdcS">—</span><span class="live-kpi-unit">Digits</span></div>
   <div class="live-kpi" title="ADC_T · Temperatur-Rohwert, keine direkte Temperatur in °C."><span class="live-kpi-label">ADC_T</span><span class="live-kpi-reading" id="liveAdcT">—</span><span class="live-kpi-unit">Digits</span></div>
@@ -1232,7 +1232,7 @@ html.compact-mode .foot{display:none}
 <div id="nvmMsg" class="callout">Zuerst den aktuellen NVM-Inhalt automatisch prüfen und die Änderungsliste erstellen.</div>
 <div class="fieldrow" id="nvmUserIdField">
   <label>Eigene USER-ID (Hex, optional)<input id="nvmUserId" type="text" maxlength="6" placeholder="z. B. 00AF" spellcheck="false" autocomplete="off" aria-describedby="nvmUserIdHint"></label>
-  <p id="nvmUserIdHint" class="muted small">Leer lassen, um die bisherige USER-ID zu behalten. Die Chip-UID zur Bestätigung steht separat unten.</p>
+  <p id="nvmUserIdHint" class="muted small">Leer lassen, um die bisherige USER-ID zu behalten. Die Chip-UID wird automatisch geprüft.</p>
 </div>
 <details id="nvmDiffDetails"><summary>Änderungsliste (inkl. CRC16) anzeigen</summary><pre id="nvmDiff" class="monoarea">Noch keine Änderungen vorbereitet.</pre></details>
 <details class="nvm-advanced"><summary>Backup / NVM-Leseprotokoll</summary>
@@ -1245,11 +1245,7 @@ html.compact-mode .foot{display:none}
 <div class="nvm-confirm-section">
   <h3>2. Kalibrierung dauerhaft speichern</h3>
   <div class="muted small" id="nvmUidHint">Erkannte Chip-UID: noch nicht gelesen.</div>
-  <div class="fieldrow nvm-uid-field">
-    <label>Chip-UID (automatisch ausgelesen, editierbar)<input id="nvmConfirmId" type="text" maxlength="12" placeholder="Chip verbinden …" spellcheck="false" autocomplete="off"></label>
-  </div>
-  <p class="muted small">Die erkannte 48-Bit-UID wird automatisch eingetragen. Du kannst sie korrigieren, zum Schreiben muss sie aber mit der UID des angeschlossenen Chips übereinstimmen.</p>
-  <div id="nvmWritePrereq" class="callout warn" role="status" aria-live="polite">Zuerst NVM lesen und Änderungen prüfen; die erkannte Chip-UID wird automatisch eingesetzt.</div>
+  <div id="nvmWritePrereq" class="callout warn" role="status" aria-live="polite">Zuerst die Änderungsliste prüfen. Die App gleicht die Chip-UID vor dem Schreiben automatisch ab.</div>
   <button class="danger" id="nvmProgram" disabled>Kalibrierung dauerhaft ins NVM schreiben</button>
   <p class="muted small nvm-risk">Achtung: Stromunterbruch oder Protokollfehler können den Sensor unbrauchbar machen. Factory-/Bootregister bleiben geschützt. Der echte NVM-Schreibpfad ist noch nicht hardwarevalidiert.</p>
 </div>
@@ -1302,5 +1298,5 @@ html.compact-mode .foot{display:none}
 </div>
 <div class="nav"><button data-next="0">Zur Verbindung</button><button data-next="6">Zum NVM-Schritt</button></div>
 </section>
-<div class="foot"><b>Version v0.7.11</b> · <a href="CHANGELOG.md" target="_blank" rel="noopener noreferrer">Änderungsverlauf</a> · ELMOS E703.11 · unabhängiger Kalibrierprototyp · Sicherheitsprinzip: Factory- und Kommunikations-Bootregister gesperrt; dokumentierte AODO-Ausgangsoptionen nur nach Prüfung im NVM-Plan; Wiederherstellung nur mit passender Chip-UID.</div>
-<section class="card panel" data-panel="8" hidden><div class="eyebrow">Werkzeuge · Sensorprotokoll</div><h2>Test / Logging</h2><p class="muted small">Messdaten, Rohwerte und Notizen jederzeit in einem lokalen Archiv protokollieren. Ohne NVM-Schreibvorgang.</p><div id="classicLoggerHost"></div></section></main></div></div><div id="tip" class="tooltip"></div><script src="calibration.js?v=0.6.58"></script><script src="eeprom-help.js?v=0.6.30"></script><script src="expert.js?v=0.7.10"></script><script src="config.js?v=0.6.36"></script><script src="guided-plan.js?v=0.6.30"></script><script src="demo.js?v=0.6.49"></script><script src="archive-core.js?v=0.7.3"></script><script src="test-logger-core.js?v=0.7.3"></script><script src="archive-analysis.js?v=0.7.4"></script><script src="archive.js?v=0.7.7"></script><script src="app.js?v=0.7.11"></script><script src="compact.js?v=0.6.58"></script><script src="test-logger.js?v=0.7.4"></script><script src="guided.js?v=0.7.11"></script></body></html>
+<div class="foot"><b>Version v0.7.12</b> · <a href="CHANGELOG.md" target="_blank" rel="noopener noreferrer">Änderungsverlauf</a> · ELMOS E703.11 · unabhängiger Kalibrierprototyp · Sicherheitsprinzip: Factory- und Kommunikations-Bootregister gesperrt; dokumentierte AODO-Ausgangsoptionen nur nach Prüfung im NVM-Plan; Wiederherstellung nur mit passender Chip-UID.</div>
+<section class="card panel" data-panel="8" hidden><div class="eyebrow">Werkzeuge · Sensorprotokoll</div><h2>Test / Logging</h2><p class="muted small">Messdaten, Rohwerte und Notizen jederzeit in einem lokalen Archiv protokollieren. Ohne NVM-Schreibvorgang.</p><div id="classicLoggerHost"></div></section></main></div></div><div id="tip" class="tooltip"></div><script src="calibration.js?v=0.6.58"></script><script src="eeprom-help.js?v=0.6.30"></script><script src="expert.js?v=0.7.10"></script><script src="config.js?v=0.6.36"></script><script src="guided-plan.js?v=0.6.30"></script><script src="demo.js?v=0.6.49"></script><script src="archive-core.js?v=0.7.3"></script><script src="test-logger-core.js?v=0.7.3"></script><script src="archive-analysis.js?v=0.7.4"></script><script src="archive.js?v=0.7.7"></script><script src="app.js?v=0.7.12"></script><script src="compact.js?v=0.7.12"></script><script src="test-logger.js?v=0.7.4"></script><script src="guided.js?v=0.7.12"></script></body></html>

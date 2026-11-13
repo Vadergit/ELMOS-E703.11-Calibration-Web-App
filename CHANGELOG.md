@@ -1,3 +1,7 @@
+## v0.7.12 – NVM-Vorschau mit vorhandenem Abbild
+
+- Verwendet ein bereits geprüftes NVM-Abbild aus derselben Verbindung und vom selben Chip. Die Chip-UID wird vor dem Schreiben automatisch geprüft.
+
 ## v0.7.11 – Fortschritt und kompakte Messpunkte
 
 - Blockierende Vorgänge zeigen ihren Fortschritt mittig. Kurze Lesevorgänge behalten die Anzeige unten rechts.

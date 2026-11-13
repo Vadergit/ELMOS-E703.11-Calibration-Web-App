@@ -14,7 +14,7 @@ const ELMOS_GUIDED=(()=>{
   ['Koeffizienten','Kalibrierung berechnen','Die Messwerte ergeben die DSP-Kennlinie. Zuerst berechnen, dann ins Chip-RAM übertragen.'],
   ['DSP verifizieren','Ergebnis unabhängig prüfen','Prüfe echte Druck- und Temperaturbedingungen. Erst erfolgreiche Prüfungen geben NVM frei.'],
   ['Ausgang','Ausgang und Skalierung','Kontrolliere AODO-Ausgangsart, Versorgungsspannung und Zielspannungen.'],
-  ['NVM','Sicher im Sensor speichern','Lies das komplette Original-NVM, prüfe die Änderungsliste und bestätige die Chip-UID.'],
+  ['NVM','Sicher im Sensor speichern','Prüfe die Änderungsliste. Die App gleicht die Chip-UID vor dem Schreiben automatisch ab.'],
   ['Fertig','Sensor abgeschlossen','Der Schreibvorgang wurde bestätigt. Für die Freigabe unbedingt einen echten Kaltstarttest durchführen.']
  ];
  let stage=0,task='calibration',root=null,original=[],mode=false,plan=null,signature=null,taskOpening=false;
@@ -110,7 +110,7 @@ const ELMOS_GUIDED=(()=>{
      </section>
     </div>
    </div>`+
-   '<div id="gwPage8" class="gw-page" hidden><div class="gw-columns"><div class="gw-tile gw-control"><h3>Änderungen prüfen und bestätigen</h3><div id="gwNvmBackup"></div><div class="gw-panel-actions" id="gwNvmPrepare"></div><div id="gwNvmMessages"></div><div class="gw-fields" id="gwNvmUID"></div><div class="gw-panel-actions" id="gwNvmWrite"></div><div id="gwNvmDetails"></div></div><div class="gw-tile is-warning"><h3>Wichtig vor dem NVM-Schreiben</h3><p>Ein Stromunterbruch während der Programmierung kann den Sensor unbrauchbar machen.</p><p>Prüfe Chip-UID und die Änderungsübersicht. Zuerst an einem entbehrlichen Testchip validieren.</p><p>Der Button ist nur freigegeben, wenn die bestehende Sicherheitslogik alle Voraussetzungen bestätigt.</p></div></div></div>'+
+   '<div id="gwPage8" class="gw-page" hidden><div class="gw-columns"><div class="gw-tile gw-control"><h3>Änderungen prüfen und bestätigen</h3><div id="gwNvmBackup"></div><div class="gw-panel-actions" id="gwNvmPrepare"></div><div id="gwNvmMessages"></div><div class="gw-panel-actions" id="gwNvmWrite"></div><div id="gwNvmDetails"></div></div><div class="gw-tile is-warning"><h3>Wichtig vor dem NVM-Schreiben</h3><p>Ein Stromunterbruch während der Programmierung kann den Sensor unbrauchbar machen.</p><p>Prüfe Chip-UID und die Änderungsübersicht. Zuerst an einem entbehrlichen Testchip validieren.</p><p>Der Button ist nur freigegeben, wenn die bestehende Sicherheitslogik alle Voraussetzungen bestätigt.</p></div></div></div>'+
    '<div id="gwPage9" class="gw-page gw-finish-page" hidden><section class="gw-finish-signal"><div class="gw-finish-top"><div><span class="gw-kicker">Live-Sensorsignal</span><h3>Aktueller Sensorausgang</h3></div><span id="gwFinishStatus" class="gw-live-badge">Warte auf Chipwerte</span></div><div class="gw-finish-number" aria-live="off"><strong id="gwFinishSignalValue">—</strong><span id="gwFinishSignalUnit">—</span></div><div id="gwFinishSource" class="gw-finish-caption">DSP_S wird vom Chip gelesen und auf den eingestellten Anzeigebereich bezogen.</div><div class="gw-finish-bar"><span id="gwFinishBar"></span></div><div class="gw-finish-limits"><span id="gwFinishRangeMin">—</span><span id="gwFinishRangeMax">—</span></div><div class="gw-finish-kpis"><div><span>DSP_S</span><strong id="gwFinishDsp">—</strong><small>Digits</small></div><div><span>ADC_S</span><strong id="gwFinishAdc">—</strong><small>Digits</small></div><div><span>ADC_T</span><strong id="gwFinishTemp">—</strong><small>Digits</small></div><div><span>Letzte Messung</span><strong id="gwFinishTime">—</strong></div></div></section>'+
     '<div class="gw-columns gw-finish-bottom"><section class="gw-tile"><div class="gw-section-head"><div><h3>Signalverlauf</h3><p>ADC_S im Zeitverlauf · letzte 60 Sekunden</p></div></div><div id="gwFinishChartHost" class="gw-finish-chart"></div></section><section class="gw-tile gw-finish-checklist"><h3>Abgleich und Freigabe</h3><div id="gwFinishCompletion" class="gw-alert">NVM-Status prüfen.</div><p id="gwFinishConfig">Gewünschte Ausgangseinstellungen werden hier als Sollwerte dargestellt.</p><p class="gw-finish-warning">Vor der Freigabe den Sensor stromlos machen und den Ausgang nach dem Neustart mit einem Messgerät prüfen. Die Anzeige ersetzt keinen Hardwaretest.</p><div class="gw-panel-actions" id="gwPostBoot"></div><button class="gw-secondary-link" id="gwBackClassic" type="button">Zur vollständigen Expertenansicht wechseln</button></section></div></div>'+
    '<div id="gwLogPage" class="gw-page gw-logger-page" hidden></div>'+
@@ -157,7 +157,7 @@ const ELMOS_GUIDED=(()=>{
   moveId('nvmPrepare','gwNvmPrepare');moveId('nvmProgress','gwNvmPrepare');
   for(const id of ['nvmMsg','nvmUidHint','nvmWritePrereq'])moveId(id,'gwNvmMessages');
   moveId('nvmUserIdField','gwNvmBackup');
-  moveLabel('nvmConfirmId','gwNvmUID');moveId('nvmProgram','gwNvmWrite');
+  moveId('nvmProgram','gwNvmWrite');
   moveId('nvmDiffDetails','gwNvmDetails');
   moveId('nvmRestartControls','gwPostBoot');
   document.querySelectorAll('[data-gw-task]').forEach(button=>button.addEventListener('click',async()=>{

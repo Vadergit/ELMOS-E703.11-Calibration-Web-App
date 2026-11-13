@@ -109,7 +109,6 @@ const ELMOS_COMPACT=(()=>{
   actions(['nvmPrepare'],'cpNvmPrepare');
   moveId('nvmProgress','cpNvmPrepare');
   moveId('nvmUserIdField','cpNvmUid');
-  label('nvmConfirmId','cpNvmUid');
   actions(['nvmProgram'],'cpNvmProgram');
   for(const id of ['nvmWritePrereq','nvmMsg','nvmUidHint'])moveId(id,'cpNvmStatus');
   moveId('nvmDiffDetails','cpNvmDetails');
