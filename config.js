@@ -83,8 +83,20 @@ const ELMOS_CONFIG=(()=>{
    if(unit==='custom'&&!out.reference.customUnit)throw Error('Eigene Einheit fehlt');
   }
   if(obj.include.includes('measurement')){
-   const m=obj.measurement;exact(m,['pointCount','samples'],'Messparameter');
+   const m=obj.measurement;exact(m,['pointCount','samples','matrix'],'Messparameter');
    out.measurement={pointCount:integer(m.pointCount,2,10,'Messpunkte'),samples:integer(m.samples,1,100,'Samples')};
+  }
+  if(out.measurement&&obj.measurement.matrix!==undefined){
+   const matrix=obj.measurement.matrix;
+   exact(matrix,['p','temp','temperatures'],'Messmatrix');
+   const p=integer(matrix.p,2,5,'Druckpunkte');
+   const temp=integer(matrix.temp,1,3,'Temperaturstufen');
+   if(p*temp!==out.measurement.pointCount||!Array.isArray(matrix.temperatures)||matrix.temperatures.length!==temp)
+    throw Error('Messmatrix passt nicht zur Anzahl Messpunkte');
+   const temperatures=matrix.temperatures.map(value=>number(value,-40,125,'Temperaturstufe'));
+   if(temperatures.some((value,index)=>index>0&&value<=temperatures[index-1]))
+    throw Error('Temperaturstufen müssen aufsteigend sein');
+   out.measurement.matrix={p,temp,temperatures};
   }
   if(obj.include.includes('dsp')){
    const d=obj.dsp;exact(d,['sOrder','tOrder','dspLimit'],'DSP-Einstellungen');
@@ -93,6 +105,8 @@ const ELMOS_CONFIG=(()=>{
   }
   if(out.measurement&&out.dsp&&out.measurement.pointCount<=out.dsp.sOrder)
    throw Error('Für die Polynomordnung fehlen Messpunkte');
+  if(out.measurement?.matrix&&out.dsp&&(out.dsp.sOrder>=out.measurement.matrix.p||out.dsp.tOrder>=out.measurement.matrix.temp))
+   throw Error('Polynomordnung passt nicht zur Messmatrix');
   if(obj.include.includes('output')){
    const o=obj.output;exact(o,['mode','scaleEnabled','vdd','s0','s1','gain','offset','pwmPeriod','clipping'],'Ausgang');
    const mode=options(String(o.mode),['keep','1','2','3','4','5','onewire'],'Ausgangstyp');
@@ -133,7 +147,7 @@ const ELMOS_CONFIG=(()=>{
   const c=fields.calibration;
   if(include.includes('afe'))input.afe=fields.afe;
   if(include.includes('reference'))input.reference=c.reference;
-  if(include.includes('measurement'))input.measurement={pointCount:c.pointCount,samples:c.samples};
+  if(include.includes('measurement'))input.measurement={pointCount:c.pointCount,samples:c.samples,...(c.matrix?{matrix:c.matrix}:{})};
   if(include.includes('dsp'))input.dsp={sOrder:c.sOrder,tOrder:c.tOrder,dspLimit:c.dspLimit};
   if(include.includes('output'))input.output=fields.output;
   return validateSelective(input,cal);

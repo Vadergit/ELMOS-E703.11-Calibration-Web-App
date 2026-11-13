@@ -624,7 +624,7 @@ test('Demo uses an isolated adapter and does not request a physical USB port',()
 
 test('Saving config now always exports all five groups regardless of import checkboxes',()=>{
  const app=read('app.js'),html=read('index.html');
- assert.ok(app.includes('const profile=configFromUi(ELMOS_CONFIG.GROUPS);'));
+ assert.ok(app.includes('const profile=configFromUi(ELMOS_CONFIG.GROUPS,'));
  assert.ok(!app.includes('const profile=configFromUi(configSelectedGroups());'));
  assert.ok(html.includes('Gesamte Config speichern (.json)'));
  assert.ok(html.includes('id="configGroups" hidden'));

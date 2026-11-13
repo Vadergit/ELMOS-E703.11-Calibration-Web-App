@@ -1,3 +1,7 @@
+## v0.7.17 – Sensor-Presets im Messplan
+
+- Lädt Presets direkt in «Abgleich planen» und speichert die genaue Druck-/Temperaturmatrix samt Temperatur-Sollwerten.
+
 ## v0.7.16 – Presets für baugleiche Sensoren
 
 - Speichert benannte Config-Vorlagen lokal im Browser und lädt sie über eine Auswahlliste. Ausgangsprofile enthalten optional die Clipping-Grenzen.

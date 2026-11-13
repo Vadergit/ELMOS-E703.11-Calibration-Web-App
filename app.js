@@ -2843,7 +2843,7 @@ if(typeof document!=='undefined') (function UI(){
     ' Erst nach bestätigter RAM-Rücklesung werden die Vorgaben aktiv.';
   }
  }
- function configFromUi(include){
+ function configFromUi(include,matrix=null){
   // Save the actual currently confirmed AFE settings, never a pending failed import.
   const p=st.staged;
   const cf=ELMOS_CONFIG.createSelective({
@@ -2852,8 +2852,9 @@ if(typeof document!=='undefined') (function UI(){
     ...(Number.isInteger(st.afe0)&&bridgeSupplyCode(st.afe0)<3?
       {bridgeSupply:bridgeSupplyCode(st.afe0)}:{})},
    calibration:{
-    sOrder:Number($('calSOrder').value),tOrder:Number($('calTOrder').value),
-    dspLimit:Number($('calDspLimit').value),pointCount:Number($('calPointCount').value),
+    sOrder:matrix?.orderS??Number($('calSOrder').value),tOrder:matrix?.orderT??Number($('calTOrder').value),
+    dspLimit:Number($('calDspLimit').value),pointCount:matrix?.total??Number($('calPointCount').value),
+    ...(matrix?{matrix:{p:matrix.pCount,temp:matrix.tCount,temperatures:matrix.temperatures}}:{}),
     samples:Number($('calSampleCount').value),
     reference:{min:Number($('pmin').value),max:Number($('pmax').value),
      unit:$('calUnit').value,customUnit:$('calUnitOther').value.trim()}
@@ -2936,7 +2937,7 @@ if(typeof document!=='undefined') (function UI(){
  $('configPresetSave').addEventListener('click',()=>{
   try{
    const groups=ELMOS_CONFIG.GROUPS.filter(group=>group!=='afe'||(st.chip&&Number.isInteger(st.afe)));
-   const profile=configFromUi(groups),entries=readPresets();
+   const profile=configFromUi(groups,window.ELMOS_GUIDED?.planForPreset?.()),entries=readPresets();
    const index=entries.findIndex(item=>item.label===profile.label);
    if(index>=0){
     if(!window.confirm('Preset «'+profile.label+'» mit den aktuellen Einstellungen ersetzen?'))return;
@@ -2972,7 +2973,7 @@ if(typeof document!=='undefined') (function UI(){
  });
  $('configSave').addEventListener('click',()=>{
   try{
-   const profile=configFromUi(ELMOS_CONFIG.GROUPS);
+   const profile=configFromUi(ELMOS_CONFIG.GROUPS,window.ELMOS_GUIDED?.planForPreset?.());
    const fileName=ELMOS_CONFIG.fileName(profile,window.ELMOS_GUIDED?.appliedPlanForConfig?.());
    download(fileName,JSON.stringify(profile,null,2));
    show('configPreview','Config «'+profile.label+'» vollständig gespeichert als '+fileName+'. Alle fünf wiederverwendbaren Gruppen enthalten. Beim Import wählst du aus, welche übernommen werden. Keine UID, EEPROM-Daten, Messwerte oder DSP-Koeffizienten.','success');
@@ -3064,7 +3065,7 @@ if(typeof document!=='undefined') (function UI(){
      'Messpunkte und DSP-Koeffizienten für diesen Sensor neu aufnehmen.':
      'Bestehende Messpunkte und DSP-Koeffizienten wurden durch diesen reinen Ausgangsimport nicht verändert.'),'success');
    await window.ELMOS_ARCHIVE?.event('configuration_imported',{label:profile.label,include:included,version:profile.version,AFE:{...st.staged},supply:archiveVoltages()});
-   document.dispatchEvent(new CustomEvent('elmos-config-applied',{detail:{included:included.slice(),version:profile.version}}));
+   document.dispatchEvent(new CustomEvent('elmos-config-applied',{detail:{included:included.slice(),version:profile.version,matrix:has('measurement')?values.measurement.matrix:null}}));
   }catch(e){
    show('configPreview','Config-Übernahme fehlgeschlagen: '+e.message,'error');
   }finally{

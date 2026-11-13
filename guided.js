@@ -62,6 +62,7 @@ const ELMOS_GUIDED=(()=>{
      '<label>Abgleichart<select id="gwComplexity"><option value="simple">Automatisch · empfohlen</option><option value="advanced">Experte · Polynomordnung selber wählen</option></select></label>'+
     '</div><div class="gw-fields gw-3 gw-advanced" id="gwOrderFields" hidden><label>Druckpolynomordnung<select id="gwSOrder"><option value="1">1 · Linear</option><option value="2">2 · Quadratisch</option><option value="3">3 · Kubisch</option></select></label><label>Temperaturordnung<select id="gwTOrder"><option value="0">0 · Keine</option><option value="1">1 · Linear</option><option value="2">2 · Quadratisch</option></select></label></div>'+
     '<div class="gw-fieldnote">Jede Kombination wird an allen gewählten Temperaturbedingungen gemessen. Maximal 10 Kalibrierpunkte unterstützt die bestehende Engine.</div></div>'+
+    '<details class="gw-tile gw-config-details" id="gwConfigDetails"><summary><strong>Sensor-Preset laden oder speichern</strong> <span>Optional · Einstellungen eines ähnlichen Sensors</span></summary><p>Die Vorlage übernimmt nur Einstellungen. Aufgenommene Messwerte, Chip-UID, Werksdaten und EEPROM werden niemals importiert.</p><div class="gw-fields gw-3" id="gwConfigFields"></div><div id="gwConfigGroups"></div><div class="gw-panel-actions" id="gwConfigActions"></div><div id="gwConfigEffect"></div><div id="gwConfigStatus"></div></details>'+
     '<div id="gwPlanPreview" class="gw-summary"></div></div>'+
    `<div id="gwPage2" class="gw-page gw-setup-page" hidden>
     <div class="gw-columns gw-setup-grid">
@@ -76,7 +77,7 @@ const ELMOS_GUIDED=(()=>{
       <div class="gw-fields gw-dsp-fields" id="gwDspFields"></div>
      </section>
     </div>`+
-    '<details class="gw-tile gw-config-details" id="gwConfigDetails"><summary><strong>Config-Vorlage übernehmen</strong> <span>Optional · Einstellungen eines ähnlichen Sensors</span></summary><p>Die Vorlage übernimmt nur Einstellungen. Messpunkte, Chip-UID, Werksdaten und EEPROM werden niemals importiert.</p><div class="gw-fields gw-3" id="gwConfigFields"></div><div id="gwConfigGroups"></div><div class="gw-panel-actions" id="gwConfigActions"></div><div id="gwConfigEffect"></div><div id="gwConfigStatus"></div></details><div id="gwSetupPreview" class="gw-summary gw-setup-summary"></div></div>'+
+    '<div id="gwSetupPreview" class="gw-summary gw-setup-summary"></div></div>'+
    '<div id="gwPage3" class="gw-page gw-afe-page" hidden><div class="gw-columns gw-afe-layout">'+
     '<section class="gw-tile gw-control gw-afe-controls"><div class="gw-section-head"><span class="gw-section-no">01</span><div><h3>Verstärkung und Offset</h3><p>Änderungen werden direkt ins Chip-RAM übernommen</p></div></div><div id="gwAFEPanel"></div><div id="gwGain"></div><div id="gwAFEMsg"></div><div id="gwConfigAFE"></div><div class="gw-afe-guide"><strong>AFE richtig einstellen</strong><ol><li>Minimalen und maximalen Referenzdruck anlegen.</li><li>PGA1, Offset und PGA2 anpassen. Ziel: grosser Hub ohne Übersteuerung.</li><li>Die rote Grenze bei ±25’000 Digits nicht überschreiten.</li></ol><small>Änderst du die AFE nach einer Messung, müssen bereits erfasste Messpunkte neu aufgenommen werden.</small></div></section>'+
     '<section class="gw-tile gw-afe-monitor"><div class="gw-monitor-head"><div><h3>ADC_S · Live-Verlauf</h3><p>Rohsignal der Druckmesskette · letzte 60 Sekunden</p></div><span id="gwAfeLiveBadge" class="gw-live-badge">Warte auf Werte</span></div><div class="gw-afe-current"><strong id="gwAfeAdcValue" aria-live="off">—</strong><span>Digits</span></div><div class="gw-afe-chart" id="gwAfeChartHost"></div><div class="gw-chart-legend"><span class="gw-legend-limit">Grenzen ±25’000</span><span class="gw-legend-zero">Nulllinie</span><span class="gw-legend-line">ADC_S live</span></div>'+
@@ -208,7 +209,7 @@ const ELMOS_GUIDED=(()=>{
  function defaultTemperatures(n){return n===1?[25]:n===2?[10,60]:[-10,25,65]}
  function setTemperatureInputs(n,values){
   const parent=$('gwTemperatures'),existing=[...parent.querySelectorAll('input')].map(el=>Number(el.value));
-  const target=values||existing.length===n?existing:defaultTemperatures(n);
+  const target=values||(existing.length===n?existing:defaultTemperatures(n));
   parent.replaceChildren();
   for(let i=0;i<n;i++){
    const label=document.createElement('label');
@@ -307,11 +308,12 @@ const ELMOS_GUIDED=(()=>{
   const s=Number($('calSOrder').value),t=Number($('calTOrder').value),
    total=Number($('calPointCount').value);
   if(included.includes('measurement')||included.includes('dsp')){
+   const matrix=event.detail.matrix;
    const candidates=[];
    for(let p=2;p<=5;p++)for(let temp=1;temp<=3;temp++){
     if(p*temp===total&&p>s&&temp>t)candidates.push({p,temp});
    }
-   if(!candidates.length){
+   if(!candidates.length&&!matrix){
     msg('Die importierten DSP- und Messparameter können nicht automatisch als Wizard-Matrix dargestellt werden. Bitte Druck-/Temperaturpunkte im Plan kontrollieren.','warn');
     return;
    }
@@ -319,13 +321,13 @@ const ELMOS_GUIDED=(()=>{
    candidates.sort((a,b)=>
     (Math.abs(a.p-oldP)*2+Math.abs(a.temp-oldT))-
     (Math.abs(b.p-oldP)*2+Math.abs(b.temp-oldT)));
-   const selected=candidates[0];
+   const selected=matrix||candidates[0];
    $('gwPressureCount').value=String(selected.p);
    $('gwTemperatureCount').value=String(selected.temp);
    // Even for measurement-only files, never silently overwrite an unchanged DSP order.
    $('gwComplexity').value='advanced';
    $('gwSOrder').value=String(s);$('gwTOrder').value=String(t);
-   setTemperatureInputs(selected.temp);
+   setTemperatureInputs(selected.temp, matrix?.temperatures);
   }
   signature=null;renderPlan();
   msg('Config übernommen. Prüfe die Messmatrix und Temperatur-Sollwerte, bevor du Referenzmessungen aufnimmst.','success');
@@ -694,7 +696,7 @@ const ELMOS_GUIDED=(()=>{
      $('calUnit').value!==plan.unit)return null;
   return {pCount:plan.pCount,tCount:plan.tCount};
  }
- return {init,open,close,onConnected,onSensorReset,makePlan,isOpen:()=>mode,appliedPlanForConfig};
+ return {init,open,close,onConnected,onSensorReset,makePlan,planForPreset:()=>mode&&stage>=1&&stage<=2?makePlan():plan,isOpen:()=>mode,appliedPlanForConfig};
 })();
 if(typeof window!=='undefined')window.ELMOS_GUIDED=ELMOS_GUIDED;
 if(typeof document!=='undefined'){
