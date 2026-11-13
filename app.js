@@ -976,7 +976,7 @@ if(typeof document!=='undefined') (function UI(){
    return false;
   const version=await readReg(0x38);
   const ser0=await readReg(0x50),ser1=await readReg(0x52);
-  if((version>>>8)!==0x07||!(ser0||ser1))throw Error('E703.11-Kennung für AFE-Wiederanlauf nicht bestätigt');
+  if((version&0xFFF8)!==0x0020||!(ser0||ser1))throw Error('E703.11-Kennung für AFE-Wiederanlauf nicht bestätigt');
   const words=[];
   for(let i=0;i<64;i++){
    await send(0x4E,0x4C00|i*2);
