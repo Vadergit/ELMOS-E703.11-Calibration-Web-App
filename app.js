@@ -502,6 +502,7 @@ if(typeof document!=='undefined') (function UI(){
    required+' Prüfpunkte: Jeder Prüfwert muss innerhalb der Toleranz liegen und ausreichend Abstand zu den anderen Punkten haben. Bei Temperaturkompensation müssen zusätzlich verschiedene Temperaturen geprüft werden.'
  }
  function workflowGate(n){
+  if(n===8)return ''; // Test / Logging is independent of calibration, even without chip connection.
   if(n===7)return ''; // EEPROM Viewer unabhängig vom Kalibrierablauf: nur lesen.
   if(n===5)return ''; // Eigener Ausgangsschritt ist auch bei bestehenden Sensoren erreichbar.
   if(n===6&&(expert.restoreReady()||expert.outputReady()))return '';
@@ -602,7 +603,7 @@ if(typeof document!=='undefined') (function UI(){
    'Bereit: Chip-UID stimmt, NVM-Änderungsplan und CRC sind geprüft. Beim Klick wird '+($('nvmAutoBackup').checked?'das alte NVM vor dem Schreiben automatisch gesichert und danach':'ohne zusätzliches Backup')+' programmiert.':
    nvmReason;
   $('nvmWritePrereq').className='callout '+(approvalGranted?'success':'warn');
-  const unlocked=[true,true,true,calEndpointsReady(),ready&&st.calStaged,true,!workflowGate(6),true];
+  const unlocked=[true,true,true,calEndpointsReady(),ready&&st.calStaged,true,!workflowGate(6),true,true];
   document.querySelectorAll('[data-step]').forEach(b=>{
    const index=Number(b.dataset.step);b.classList.toggle('locked',!unlocked[index]);
    b.setAttribute('aria-disabled',String(!unlocked[index]));
@@ -623,7 +624,11 @@ if(typeof document!=='undefined') (function UI(){
   renderCalPoints();renderCalibrationPlan();renderLiveOverview();
  }
  function step(n){
-  const next=Math.max(0,Math.min(7,Number(n)));
+  const next=Math.max(0,Math.min(8,Number(n)));
+  if(next!==8&&window.ELMOS_TEST_LOGGER?.isBusy()){
+   show('flowMsg','Die Testaufzeichnung läuft. Bitte im Reiter «Test / Logging» zuerst beenden.','warn');
+   $('flowMsg').hidden=false;return;
+  }
   const blocked=workflowGate(next);
   if(blocked){show('flowMsg',blocked,'warn');$('flowMsg').hidden=false;renderFlowState();return}
   currentStep=next;$('flowMsg').hidden=true;
@@ -634,7 +639,8 @@ if(typeof document!=='undefined') (function UI(){
    if(active)button.setAttribute('aria-current','step');
    else button.removeAttribute('aria-current');
   });
-  renderFlowState();if(next===5)expert.refreshOutputPreview();if(next===7)expert.refreshEEPROMViewer();draw();if(!st.manualLivePause&&st.chip)startLive()
+  renderFlowState();if(next===5)expert.refreshOutputPreview();if(next===7)expert.refreshEEPROMViewer();draw();
+  if(!st.manualLivePause&&st.chip&&!window.ELMOS_TEST_LOGGER?.isBusy())startLive()
  }
  function invalidateCalculation(reason){
   st.calfit=null;st.calImage=null;st.calStaged=false;st.calVerified=false;st.calValidation=[];st.nvmBackup=null;st.nvmBackupVerified=false;
