@@ -1,3 +1,7 @@
+## v0.6.56 – Automatischer Wiederanlauf für SSP3
+
+- Nach einem erfolgreichen manuellen RAM-Messstart merkt sich Chrome den Sensor anhand seiner Chip-ID. Beim erneuten Verbinden oder nach einem erkannten Sensorneustart prüft die App das RAM-Profil und startet die Messung erneut.
+
 ## v0.6.55 – SSP3-Wiederverbindung
 
 - Merkt sich die zuletzt bestätigte SSP3-Baudrate im Browser. Verwirft der Adapter den ersten Versionsbefehl als unbekannten Befehl, wird er einmal wiederholt.

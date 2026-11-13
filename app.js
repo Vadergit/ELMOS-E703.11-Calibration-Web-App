@@ -65,6 +65,7 @@ if(typeof document!=='undefined') (function UI(){
  const st={chipDiag:null,diagRunning:false,lastPlcReply:null,mode:'offline',port:null,closing:false,reader:null,readerPromise:null,readerAlive:false,adapterNoReply:false,sessionStartedAt:null,sessionIndex:0,cmdQueue:Promise.resolve(),replyBuffer:'',responseWait:null,iface:'plc',adapterKind:'ssp3',sensorPowerEnabled:false,startupRunning:false,startupAbort:false,startupAttempts:0,magicRunning:false,magicResult:null,powerCycleRunning:false,powerCycleResult:null,startupTrials:[],powerHelp:null,plcHostFormat:'legacy',plcAddress:0x6C,plcAddressVerified:false,plcAddressSource:'',plcAddressProbes:[],firmware:'',chip:false,readOnlySensor:null,sensorLost:false,reinitRunning:false,boot:null,afe:null,afe0:null,bridgeWriteAllowed:false,bridgeReadBusy:false,staged:{pga1:0,pga2:0,offset:0},adc:null,dsp:null,dspError:null,liveReadPromise:null,trend:[],history:[],log:[],regs:{},points:{lo:null,hi:null},verify:null,live:false,manualLivePause:false,timeout:null,consecutiveErrors:0,liveReadAttempts:0,liveReadSuccesses:0,liveLastError:null,liveLastAttemptAt:null,measurementPeriod:null,measurementStatus:null,measurementError:null,measurementStarts:0,measurementFreshCount:0,measurementLastChangedAt:null,writing:false,pressure:5,calpoints:[],calfit:null,calImage:null,nvmBackup:null,nvmBackupVerified:false,calStaged:false,calVerified:false,calValidation:[],calTask:false,nvmWorking:false,nvmDone:false,afeWriteActive:false,ramWriteScope:null,uid:null,expertOutputPlan:null,restorePlan:null,outputOnlyPlan:null,uidShownForInput:null,profilePendingAFE:null};
  let currentStep=0,pendingGain=null,writeTimer=null;let tipEnabled=true,liveIntervalMs=650;
  let liveSecondaryIndex=0;
+ let reconnectSsp3OnUsb=true;
  const HELP={interface:'Schnittstelle zwischen SSP3-Board und Sensorchip. 1-Wire nutzt AODO (VDD, GND und AODO). Die Einstellung IF_CFG ändert die Programmer-Pins, nicht die NVM-Konfiguration des Sensors.',baud:'Baudrate des USB-UART zwischen Chrome und dem SSP3. Die Herstellersoftware verwendet 115200 Baud als Standard.',adcs:'ADC_S ist der unkompensierte 16-Bit-Druck-ADC. ±25000 Digits ist ein vorsichtiges Ziel für den manuellen Abgleich, keine garantierte Hardwaregrenze.',dsp_live:'DSP_S (Register 0x30) ist der skalierte DSP-Sensorausgang. Die Anzeige liest den Chipwert wiederholt und rechnet ihn mit dem konfigurierten DSP-Endwert (standardmässig ±32’000 Digits) in den gewählten Anzeigebereich um. Ein DSP-Wert allein belegt keine gültige Kalibrierung.',pga1:'Erste Druckverstärkungsstufe: 3.5×, 6×, 8.5× oder 11× (typische Werte laut Datenblatt 2023). Für gutes SNR möglichst hoch ohne Übersteuerung.',pga2:'Zweite Verstärkungsstufe: typische Faktoren 2× bis 10×. Der Gesamtfaktor ist PGA1 × PGA2.',offset:'17 DAC-Stufen von −400 bis +400 mV/V bezogen auf die Brückenspannung. Die Verschiebung liegt zwischen PGA1 und PGA2.',bridgeSupply:'Interne Brückenversorgung SVDD gemäss E703.11 CFG_AFE0 (0x1A), Bits 1:0: 2,4 V (Standard), 1,6 V oder 2,0 V. Die externe Sensorversorgung VDD muss bei 2,4 V mindestens 3,0 V, sonst mindestens 2,7 V betragen. Beim Wechsel bleiben die übrigen AFE0-Bits inklusive Brückengain unverändert. Nur nach Klick wird ins RAM geschrieben; EEPROM bleibt unverändert.',pressureunit:'Einheit für die Referenz- und Prüfdruckwerte. Für relative Kalibrierungen kann beispielsweise % mit 0 bis 100 gewählt werden. Referenzwerte müssen zum tatsächlichen Prüfstand passen. Einheitenwechsel erfordert neue Messpunkte.',dsp_limit:'Symmetrischer DSP-Endwert für die neue Kalibrierung. Standard ±32’000 Digits. ±30’000 lässt zusätzlich Reserve. Der Wert verändert die berechneten Koeffizienten sowie DSP-Soll und Fehlerumrechnung; er ist keine Hardware-Clipping-Grenze.',ram:'PGA1, Offset und PGA2 werden mit jeder Pfeiltaste sofort ausschliesslich in CFG_AFE1 0x1C im RAM geändert und rückgelesen. Kein NVM-/EEPROM-Schreiben. Boot-/Kommunikationsregister werden kontrolliert.',};
  const h=P.hx;
  const fmt=n=>n===null||n===undefined||!Number.isFinite(n)?'—':Math.round(n).toLocaleString('de-CH');
@@ -1020,7 +1021,7 @@ if(typeof document!=='undefined') (function UI(){
 
  // Elmos 70311_gui_default.xml: measurement enable, default AFE and continuous period.
  // Match the observed inactive profile before applying those three RAM values.
- async function startRamMeasurement(){
+ async function startRamMeasurement(remember=false){
   if(!st.port||!st.readOnlySensor||st.chip||st.closing||st.ramMeasurementStarting)return;
   const port=st.port,address=st.plcAddress,uid=st.readOnlySensor;
   const profile=[
@@ -1062,6 +1063,7 @@ if(typeof document!=='undefined') (function UI(){
    st.coldStartAfeRestored=true;
    await detect();
    st.readOnlySensor=null;
+   if(remember)lsSet('ssp3-auto-ram-uid',uid);
    show('connMsg','Live-Messung im RAM gestartet. NVM-Schreiben ist in dieser Sitzung gesperrt.','success');
   }catch(error){
    st.chip=false;
@@ -1777,7 +1779,11 @@ if(typeof document!=='undefined') (function UI(){
      await connectBridgeChip();
     }else await detect();
    }
-   if(st.readOnlySensor){showReadOnlySensor();return;}
+   if(st.readOnlySensor){
+    showReadOnlySensor();
+    if(st.readOnlySensor===lsGet('ssp3-auto-ram-uid'))await startRamMeasurement();
+    return;
+   }
    if(!st.chip)throw Error('Keine gültige Registerantwort vom E703.11 erhalten');
    st.sensorLost=false;
    show('connMsg','Sensor erfolgreich neu initialisiert. Die Verbindung und Live-Messung sind wieder bereit. Keine NVM-Programmierung durchgeführt.','success');
@@ -1814,6 +1820,7 @@ if(typeof document!=='undefined') (function UI(){
   if(!demoEnabled&&(!navigator.serial||!window.isSecureContext))throw Error('Chrome benötigt Web Serial über HTTPS oder localhost');
   await port.open({baudRate:Number($('baud').value)});
   liveSecondaryIndex=0;
+  reconnectSsp3OnUsb=true;
   st.port=port;st.mode='usb';st.sensorLost=false;st.adapterNoReply=false;
   st.sessionIndex++;st.sessionStartedAt=new Date().toISOString();
   st.psscRamRecovery=false;st.coldStartAfeRestored=false;
@@ -1851,6 +1858,7 @@ if(typeof document!=='undefined') (function UI(){
      logging('SSP3 + One Wire: automatischer Sensorstart über VSUPPLY; PLC-Format '+st.plcHostFormat+'.');
      if(!await probePlcAddresses('Erstverbindung ohne Power-Cycle',true))
       await startSsp3WithBoundedRetry();
+     if(st.readOnlySensor&&st.readOnlySensor===lsGet('ssp3-auto-ram-uid'))await startRamMeasurement();
      return;
     }
     await detect();
@@ -2026,8 +2034,15 @@ if(typeof document!=='undefined') (function UI(){
    st.measurementFreshCount++;
    st.measurementLastChangedAt=Date.now();
   }
-  updateADC({s,t:previous?.t??null,tc:previous?.tc??null},'usb');
   const channel=liveSecondaryIndex++%4;
+  if(channel===3&&st.coldStartAfeRestored&&st.adapterKind==='ssp3'&&st.iface==='plc'){
+   if(await readReg(R_AFE,1350)===0){
+    const error=Error('Sensorneustart erkannt: CFG_AFE1 ist wieder 0x0000');
+    error.code='RAM_PROFILE_LOST';
+    throw error;
+   }
+  }
+  updateADC({s,t:previous?.t??null,tc:previous?.tc??null},'usb');
   try{
    if(channel===0){
     const t=P.sign16(await readReg(0x28,1100));
@@ -2071,8 +2086,11 @@ if(typeof document!=='undefined') (function UI(){
     logging('ADC_S-Livefehler ('+st.consecutiveErrors+', Versuch '+st.liveReadAttempts+'): '+st.liveLastError);
     // One failure may be transient; two consecutive missing primary ADC replies
     // invalidate chip presence. Keep the SSP3 USB port open for manual recovery.
-    if(st.consecutiveErrors>=2&&!st.writing&&!st.calTask&&!st.nvmWorking&&!st.powerCycleRunning){
+    if((st.consecutiveErrors>=2||e.code==='RAM_PROFILE_LOST')&&!st.writing&&!st.calTask&&!st.nvmWorking&&!st.powerCycleRunning){
+     const resume=st.adapterKind==='ssp3'&&st.iface==='plc'&&st.uid?.hex&&
+      st.uid.hex===lsGet('ssp3-auto-ram-uid')&&!st.manualLivePause;
      markSensorUnavailable(st.liveLastError);
+     if(resume&&st.readerAlive)void reinitializeSensor();
     }else{
      show('adcMsg','Kommunikation zum Sensor wird überprüft. Erneuter Leseversuch läuft …','warn');
      renderStatus();
@@ -2832,7 +2850,7 @@ if(typeof document!=='undefined') (function UI(){
  });
  $('plcStartupLogExport').addEventListener('click',()=>{
   const log={
-   tool:'ELMOS E703.11 – SSP3 Startdiagnose',version:'v0.6.55',at:new Date().toISOString(),
+   tool:'ELMOS E703.11 – SSP3 Startdiagnose',version:'v0.6.56',at:new Date().toISOString(),
    source:'Web-App (NICHT PSSC Originalsoftware)',interface:st.iface,adapter:st.adapterKind,
     plcAddress:'0x'+h(st.plcAddress),plcAddressVerified:st.plcAddressVerified,
     plcAddressSource:st.plcAddressSource,plcAddressProbes:st.plcAddressProbes,psscRamRecovery:!!st.psscRamRecovery,
@@ -3034,8 +3052,8 @@ if(typeof document!=='undefined') (function UI(){
  if(!demoEnabled&&$('adapterType').value==='ssp3'&&
     Array.from($('baud').options).some(option=>option.value===confirmedSsp3Baud))
   $('baud').value=confirmedSsp3Baud;
- $('startRamMeasurement').addEventListener('click',()=>startRamMeasurement());
- $('choose').addEventListener('click',()=>choose());$('auto').addEventListener('click',()=>auto());$('disconnect').addEventListener('click',()=>disconnect());$('sensorReconnectButton').addEventListener('click',()=>st.adapterNoReply?reopenSsp3Port():reinitializeSensor());
+ $('startRamMeasurement').addEventListener('click',()=>startRamMeasurement(true));
+ $('choose').addEventListener('click',()=>choose());$('auto').addEventListener('click',()=>auto());$('disconnect').addEventListener('click',()=>{reconnectSsp3OnUsb=false;return disconnect()});$('sensorReconnectButton').addEventListener('click',()=>st.adapterNoReply?reopenSsp3Port():reinitializeSensor());
  $('sensorReconnectExport').addEventListener('click',()=>$('plcStartupLogExport').click());
  for(const [id,step] of [['brSupplyDown',-1],['brSupplyUp',1]]){
   $(id).addEventListener('click',()=>{
@@ -3073,7 +3091,17 @@ if(typeof document!=='undefined') (function UI(){
   window.addEventListener('DOMContentLoaded',()=>{
    setTimeout(()=>connect(demoPort,false).catch(e=>show('connMsg','Demo konnte nicht starten: '+e.message,'error')),0);
   },{once:true});
- }else if(!navigator.serial||!window.isSecureContext){show('connMsg','Für echte USB-Kommunikation Chrome Desktop über HTTPS oder localhost nutzen. Ohne USB-Verbindung ist kein Sensorzugriff möglich.','warn');$('choose').disabled=true;$('auto').disabled=true;}else{setTimeout(()=>auto().catch(()=>{}),350)}
+ }else if(!navigator.serial||!window.isSecureContext){show('connMsg','Für echte USB-Kommunikation Chrome Desktop über HTTPS oder localhost nutzen. Ohne USB-Verbindung ist kein Sensorzugriff möglich.','warn');$('choose').disabled=true;$('auto').disabled=true;}else{
+  navigator.serial.addEventListener('connect',async event=>{
+   if(!reconnectSsp3OnUsb||$('adapterType').value!=='ssp3'||event.target.getInfo?.().usbVendorId!==0x0403)return;
+   if(st.port){
+    if(st.readerAlive||st.closing||!st.adapterNoReply)return;
+    if(!await disconnect())return;
+   }
+   if(!st.port&&reconnectSsp3OnUsb)await auto();
+  });
+  setTimeout(()=>auto().catch(()=>{}),350);
+ }
  const expert=ELMOS_EXPERT.init({st,CAL,readReg,nvmScan,download,show,stopLive,startLive,lsGet,lsSet,renderFlowState,verificationComplete});
  // Read-only guide bridge: uses the same ADC/DSP samples as the classic UI.
  function guidedTelemetry(){
