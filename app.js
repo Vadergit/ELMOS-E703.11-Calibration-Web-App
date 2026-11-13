@@ -3622,9 +3622,30 @@ if(typeof document!=='undefined') (function UI(){
   startTelemetry:archiveStartTelemetry,stopTelemetry:archiveStopTelemetry
  });
 
+ async function prepareNextSensor(){
+  if(demoEnabled||!st.port||!st.chip||!st.nvmDone||st.closing||
+     st.calTask||st.nvmWorking||st.writing||st.powerCycleRunning||st.ramMeasurementStarting)
+   throw Error('Bitte zuerst die laufenden Sensorvorgänge abschliessen.');
+  return withProgress('Abgleich wird abgeschlossen',async()=>{
+   const port=st.port,uid=st.uid?.hex;
+   const archive=window.ELMOS_ARCHIVE;
+   if(archive?.active){
+    if(!['calibration','output'].includes(archive.current.type)||archive.current.chipUID!==uid)
+     throw Error('Das offene Archivprotokoll gehört nicht zu diesem Sensorabgleich.');
+    await archive.finalise('completed');
+   }
+   if(st.port!==port||!st.chip||st.uid?.hex!==uid)
+    throw Error('Sensorverbindung hat sich geändert.');
+   if(!await disconnect())throw Error('USB-Verbindung konnte nicht getrennt werden.');
+   erasePoints();st.trend=[];st.profilePendingAFE=null;
+   $('nvmUserId').value='';
+   show('connMsg','Sensor wechseln, dann über «Bekannten Port verbinden» oder «USB-Port auswählen» verbinden. Der geführte Abgleich startet danach automatisch.','success');
+  },true);
+ }
+
  window.ELMOS_GUIDED_API=Object.freeze({
   state:()=>({
-   chip:!!st.chip,mode:st.mode,adapter:st.adapterKind,uid:st.uid?.hex||null,
+   chip:!!st.chip,demo:demoEnabled,mode:st.mode,adapter:st.adapterKind,uid:st.uid?.hex||null,
    // Read-only summary for the guided completion cards; measurements remain owned by the classic workflow.
    points:st.calpoints.map(x=>({kind:x.kind,slot:x.slot,at:x.at,pressure:x.pressure,temperature:x.temperature,
     adc_s:x.adc_s,adc_t:x.adc_t,adc_tc:x.adc_tc,sampleCount:x.sampleCount})),
@@ -3633,6 +3654,7 @@ if(typeof document!=='undefined') (function UI(){
   }),
   navigate:n=>step(n),
   offerSeriesPreset,
+  prepareNextSensor,
   refresh:()=>{renderFlowState();renderStatus()},
   telemetry:()=>guidedTelemetry(),
   afeStats:since=>guidedAfeStats(since),

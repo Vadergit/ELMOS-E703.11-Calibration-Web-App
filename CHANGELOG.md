@@ -1,3 +1,7 @@
+## v0.7.22 – Nächsten Sensor abgleichen
+
+- Startet den Sensorwechsel am Ende des geführten Abgleichs. Nach dem Verbinden beginnt der nächste Abgleich mit der Abfrage der zuletzt übernommenen Vorlage.
+
 ## v0.7.21 – Preset beim Start des Sensorabgleichs
 
 - Fragt beim Start des geführten Abgleichs nach der zuletzt übernommenen Vorlage. Die Abfrage erscheint einmal pro Sensorverbindung, auch nach erneutem Anschliessen desselben Sensors.

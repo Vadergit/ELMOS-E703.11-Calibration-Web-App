@@ -19,7 +19,7 @@ const ELMOS_GUIDED=(()=>{
  ];
  let stage=0,task='calibration',root=null,original=[],mode=false,plan=null,signature=null,taskOpening=false;
  let selectedPoint=0,visited=new Set([0]),poll=null,pendingCapture=null,afeStatsStart=0,afeGainSignature='';
- let latestCapture=null,lastCaptureRenderKey=null;
+ let latestCapture=null,lastCaptureRenderKey=null,nextSensorBusy=false,nextSensorPending=null;
  const subscriptions=[];
  const subscribe=(el,type,handler)=>{el.addEventListener(type,handler);subscriptions.push({el,type,handler})};
  const defaults={pCount:2,tCount:1,temps:[25],pmin:0,pmax:10,samples:12,outputLimit:25000,orderS:1,orderT:0};
@@ -180,7 +180,7 @@ const ELMOS_GUIDED=(()=>{
    }
    renderPlan();
   });
-  $('gwNext').addEventListener('click',next);$('gwPrevious').addEventListener('click',previous);
+  $('gwNext').addEventListener('click',()=>stage===9?prepareNextSensor():next());$('gwPrevious').addEventListener('click',previous);
   $('gwAfeReset').addEventListener('click',()=>{
    afeStatsStart=Date.now();afeGainSignature='';
    updateUI();
@@ -515,7 +515,7 @@ const ELMOS_GUIDED=(()=>{
    setText('gwFooterHint',text);
   }
   const ready=stage===4?!!plan&&plan.points.every(p=>pointRecord(p)):stage===5?!!s.calStaged:stage===6?!!s.calVerified:stage===8?!!s.nvmDone:true;
-  $('gwNext').disabled=!ready||stage===9;
+  $('gwNext').disabled=stage===9?nextSensorBusy||!s.chip||!s.nvmDone:!ready;
   if(stage===3)updateAfeTelemetry();
   if(stage===9)updateFinishTelemetry();
   if(stage===3||stage===9)apiRedraw();
@@ -542,8 +542,8 @@ const ELMOS_GUIDED=(()=>{
    steps[stage][2];
   $('gwProgress').style.width=(loggerPage?100:(stage+1)/steps.length*100).toFixed(1)+'%';
   $('gwPrevious').disabled=stage===0;
-  $('gwNext').hidden=loggerPage||stage===0; // A card click now enters the chosen task immediately.
-  $('gwNext').textContent=stage===8?'Abschluss prüfen':stage===9?'Fertig':'Weiter';
+  $('gwNext').hidden=loggerPage||stage===0||(stage===9&&state().demo); // A card click now enters the chosen task immediately.
+  $('gwNext').textContent=stage===8?'Abschluss prüfen':stage===9?'Nächsten Sensor abgleichen':'Weiter';
   if(stage===0)document.querySelectorAll('[data-gw-task]').forEach(x=>{
    x.setAttribute('aria-pressed',String(x.dataset.gwTask===task));
   });
@@ -614,6 +614,18 @@ const ELMOS_GUIDED=(()=>{
   if(stage===7){goto(8);return}
   if(stage===8){if(!s.nvmDone){msg('Noch kein erfolgreicher NVM-Schreibvorgang bestätigt.','warn');return}goto(9);return}
  }
+ async function prepareNextSensor(){
+  const s=state(),api=window.ELMOS_GUIDED_API;
+  if(stage!==9||nextSensorBusy||!s.chip||!s.nvmDone||s.demo||!api?.prepareNextSensor)return;
+  nextSensorBusy=true;updateUI();
+  try{
+   await api.prepareNextSensor();
+   nextSensorPending={previousUid:s.uid};
+   close();
+   api.navigate(0);
+  }catch(e){msg('Sensorwechsel fehlgeschlagen: '+e.message,'error')}
+  finally{nextSensorBusy=false;updateUI()}
+ }
  function previous(){
   if(stage===0)return;
   if(stage===10){goto(0);return}
@@ -631,7 +643,7 @@ const ELMOS_GUIDED=(()=>{
   stage=loggingActive?10:0;
   task=loggingActive?'testlog':'calibration';
   visited=loggingActive?new Set([0,10]):new Set([0]);
-  selectedPoint=0;
+  plan=null;signature=null;selectedPoint=0;latestCapture=null;lastCaptureRenderKey=null;
   try{build()}catch(e){
    console.error(e);
    for(const {el,type,handler} of subscriptions)el.removeEventListener(type,handler);
@@ -669,7 +681,22 @@ const ELMOS_GUIDED=(()=>{
   msg('Die Sensorverbindung wurde unterbrochen. Die bisherigen Kalibrierpunkte sind nicht mehr freigegeben. Nach der Neuinitialisierung einen neuen Abgleich starten.','warn');
  }
  function onConnected(){
-  // Only on beta branch. Normal/main has no guided module.
+  if(nextSensorPending){
+   window.setTimeout(async()=>{
+    if(!nextSensorPending||!state().chip)return;
+    open();
+    if(!mode)return;
+    const {previousUid}=nextSensorPending;
+    nextSensorPending=null;
+    if(previousUid&&state().uid===previousUid){
+     msg('Der zuletzt abgeglichene Sensor ist noch verbunden. Für den nächsten Sensor bitte zuerst wechseln.','warn');
+     return;
+    }
+    taskOpening=true;
+    try{await next()}finally{taskOpening=false}
+   },0);
+   return;
+  }
   const preference=$('workflowMode')?.value||'guided';
   if(preference==='guided')window.setTimeout(()=>{if(state().chip)open()},0);
  }
