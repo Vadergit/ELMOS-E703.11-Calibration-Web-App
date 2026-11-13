@@ -2,7 +2,7 @@
 
 **Ein geführter Kalibrierassistent für den ELMOS E703.11 und das SSP3-Eval-Board.** Ziel ist ein verständlicher Abgleich, der auch ohne tiefere Vorkenntnisse Schritt für Schritt funktioniert. Wer mehr benötigt, kann zusätzliche Messpunkte, DSP-Parameter und einen geschützten Expertenmodus verwenden.
 
-**Version: v0.7.5 · Aufgeräumte Hauptansicht und optionale Nachmessung** · [Änderungsverlauf](CHANGELOG.md) · **[Geplante Funktionen](ROADMAP.md)**
+**Version: v0.7.6 · Archiv/Nachmessung im geführten Einstieg und Hilfeseiten in neuen Tabs** · [Änderungsverlauf](CHANGELOG.md) · **[Geplante Funktionen](ROADMAP.md)**
 
 Über **Einstellungen → Demo-Modus** lässt sich der gesamte Kalibrierablauf mit simulierten Messwerten und NVM ausprobieren.
 
@@ -13,6 +13,14 @@
 > **Geführter Assistent:** Nach der bestätigten SSP3-Verbindung stehen die neue Schritt-für-Schritt-Führung, die klassische Ansicht und der optionale Kompaktmodus zur Verfügung. Ein E703.11-Chip muss für den Abgleich verbunden sein. Die USB-CDC-Bridge bleibt als experimenteller Verbindungstest ohne Sensorprogrammierung gesperrt.
 >
 > [Geführter Abgleich](docs/GEFUEHRTER_ASSISTENT.md) · [USB-Bridge](docs/USB_BRIDGE_GUIDE.md) · [ESP-Boards](docs/ESP_BOARD_OPTIONS.md) · [ESP32-C3 SuperMini Sketch](firmware/esp32c3_supermini/esp32c3_supermini.ino)
+
+## Neu in v0.7.6 – Sechs Aufgabenkacheln und Hilfeseiten in neuen Tabs
+
+Im geführten Einstieg stehen jetzt **sechs direkt anklickbare Kacheln** bereit: Sensor neu abgleichen, Nur Ausgang ändern, EEPROM/Diagnose, Test/Logging, **Nachmessung** und **Archiv**. Die sechs Aufgaben werden platzsparend in zwei Reihen angezeigt; auf schmalen Bildschirmen ordnen sie sich automatisch um.
+
+**Archiv** öffnet direkt die lokale Archivsuche und benötigt zum Anzeigen vorhandener Dateien keinen angeschlossenen Sensor. **Nachmessung** öffnet direkt den Druck-/Temperaturprüfplan. Auch wenn der zusätzliche Button in der oberen Navigation über die Einstellungen standardmässig ausgeblendet ist, **bleibt die Kachel im geführten Einstieg sichtbar**. Bestehende Sicherheitsprüfungen für tatsächliche Sensormessungen und NVM-Schreibvorgänge bleiben erhalten. Nach Schliessen des Archivs kommst du zur geführten Auswahl zurück.
+
+**Dokumentations- und Diagnose-Webseiten** werden aus der App heraus in einem **neuen Tab** geöffnet (je nach Browser auch in einem separaten Fenster). Dadurch bleibt die Haupt-Web-App mit ihrer USB-/Sensorverbindung offen. Der ZIP-Download bleibt ein Download und startet keinen unnötigen Tab.
 
 ## Neu in v0.7.5 – Offline-Anleitung und Nachmessung in den Einstellungen
 
