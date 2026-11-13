@@ -1,0 +1,752 @@
+/*
+ * E703.11 user-selectable high-contrast palette (v0.7.7).
+ * Loaded LAST after inline styles, guided.css and interface.css.
+ * Only visual rules: no sensor, register, serial or archival changes.
+ * No gradients; status colours always retain their meanings.
+ */
+:root {
+  --bg:#eaf0f5; --paper:#fff; --ink:#15283d; --muted:#40566d;
+  --line:#b8c8d7; --blue:#075a7e; --blue-soft:#e0eff8;
+  --red:#902b38; --yellow:#805015; --green:#17634c;
+  --control-border:#738a9f; --focus:#065d97; --panel-subtle:#f0f5f9;
+  --theme-surface:#fff; --theme-raised:#f1f6fa; --theme-input:#fff;
+  --theme-hover:#e3f0fa; --theme-strong:#173b5a;
+}
+:root:not([data-theme="dark"]) {
+  color-scheme:light;
+}
+:root:not([data-theme="dark"]) :is(
+  .gw-choice small,.gw-desc,.gw-fieldnote,.gw-sidebar-footer,.gw-sideitem,
+  #guidedWorkspace .gw-section-head p,#guidedWorkspace .gw-finish-caption,
+  #archiveWorkspace .ar-file-name small,#archiveWorkspace .ar-kpi small,
+  #archiveWorkspace .ar-data-pair small,#archiveWorkspace .ar-muted,
+  #archiveWorkspace .ar-kpi span,.live-meta,.live-kpi-label,.live-kpi-unit,
+  .settings-panel .settings-offline-help p,.tl-note
+) { color:#405970; }
+:root:not([data-theme="dark"]) .gw-choice {
+  border-color:#aec3d6;
+}
+:root:not([data-theme="dark"]) #guidedWorkspace .gw-shell {
+  border-color:#bdcbd9;
+}
+:root:not([data-theme="dark"]) #archiveWorkspace .ar-file,
+:root:not([data-theme="dark"]) #archiveWorkspace .ar-kpi,
+:root:not([data-theme="dark"]) #archiveWorkspace .ar-data-pair {
+  border-color:#bdcad9;
+}
+:root:not([data-theme="dark"]) :is(input,select,textarea) {
+  border-color:#8296aa;
+}
+
+/* Dark palette with colour contrast appropriate for controls and telemetry. */
+:root[data-theme="dark"] {
+  color-scheme:dark;
+  --bg:#111a24; --paper:#1b2a39; --ink:#eff5fb; --muted:#c0cddb;
+  --line:#455d73; --blue:#86d1ff; --blue-soft:#24445b;
+  --red:#ff9ca7; --yellow:#ffcc78; --green:#83ddbb;
+  --control-border:#829bb0; --focus:#f7c466; --panel-subtle:#203140;
+  --theme-surface:#1b2a39; --theme-raised:#24384a;
+  --theme-input:#172532; --theme-hover:#304f68; --theme-strong:#e7f5ff;
+}
+html[data-theme="dark"] body,
+html[data-theme="dark"].guided-active body {
+  background:var(--bg);
+  color:var(--ink);
+}
+html[data-theme="dark"] :is(h1,h2,h3,h4,h5,h6,strong,b,dt,dd,p,li,output,small,label) {
+  border-color:var(--line);
+}
+html[data-theme="dark"] :is(.muted,.small.muted,.kpiNote,.foot,.settings-note) {
+  color:var(--muted);
+}
+html[data-theme="dark"] :is(a,details>summary,.eyebrow,.help,.gw-secondary-link) {
+  color:var(--blue);
+}
+html[data-theme="dark"] :is(a,button,summary,input,select,textarea):focus-visible {
+  outline:3px solid var(--focus);
+  outline-offset:2px;
+}
+/* Native controls + custom widget containers. */
+html[data-theme="dark"] :is(input:not([type="checkbox"]):not([type="range"]),
+  select,textarea) {
+  background:var(--theme-input);
+  color:var(--ink);
+  border-color:var(--control-border);
+  caret-color:#eaf5ff;
+}
+html[data-theme="dark"] :is(input,textarea)::placeholder {
+  color:#b0bdcb;
+  opacity:1;
+}
+html[data-theme="dark"] :is(input[type="checkbox"],input[type="radio"],input[type="range"]) {
+  accent-color:#55b9ed;
+}
+html[data-theme="dark"] :is(button,.settings-gear) {
+  background:var(--theme-raised);
+  color:var(--ink);
+  border-color:var(--line);
+}
+html[data-theme="dark"] :is(button:hover:not(:disabled),
+  button:focus-visible:not(:disabled),.settings-gear:hover:not(:disabled)) {
+  background:var(--theme-hover);
+  border-color:#8abdda;
+  color:#fff;
+}
+html[data-theme="dark"] :is(button.primary,.primary,.settings-panel button.primary,
+  #guidedWorkspace .gw-footer button.primary,#guidedWorkspace .gw-panel-actions button.primary,
+  #archiveWorkspace #archiveChoose) {
+  background:#166a97;
+  border-color:#4ca5d7;
+  color:#fff;
+}
+html[data-theme="dark"] :is(button.primary,.primary,#guidedWorkspace .gw-footer button.primary):hover:not(:disabled) {
+  background:#247da9;
+  border-color:#8dd8ff;
+  color:#fff;
+}
+html[data-theme="dark"] :is(button:disabled,button.primary:disabled,
+  #guidedWorkspace .gw-footer button:disabled) {
+  opacity:1;
+  background:#293746;
+  color:#b2bfcd;
+  border-color:#47596b;
+  cursor:not-allowed;
+}
+html[data-theme="dark"] button.danger,
+html[data-theme="dark"] #guidedWorkspace #nvmProgram {
+  background:#982e43;
+  border-color:#e47787;
+  color:#fff;
+}
+/* Main navigation, live data, classic panels. */
+html[data-theme="dark"] .top {
+  background:var(--bg);
+  border-color:var(--line);
+}
+html[data-theme="dark"] :is(.card,.sidebox,.chip,.live-overview,.live-kpi,
+  .settings-panel,.profile-card,.profile-afe,.dsp-live,.cal-point-row,
+  .afe-step-panel,.nvm-compact-row,.range,.stat,.connection-summary,
+  .eeprom-detail,.eeprom-formula,.eeprom-meta-item,.eeprom-binary,
+  .eeprom-bit-table th,.cp-card,.sensor-reconnect,.chip-diag-report) {
+  background:var(--theme-surface);
+  border-color:var(--line);
+  color:var(--ink);
+}
+html[data-theme="dark"] :is(.stat,.range,.dsp-live,.nvm-compact-row,
+  .connection-summary,.profile-afe,.profile-card,.eeprom-detail,
+  .eeprom-formula,.eeprom-meta-item,.eeprom-binary,
+  .cp-card,.cp-fold-body) {
+  background:var(--panel-subtle);
+}
+html[data-theme="dark"] :is(.sidebox,.card,.live-overview,.settings-panel,
+  .cp-card,.eeprom-table-scroll,.profile-card) {
+  border-color:var(--line);
+}
+html[data-theme="dark"] :is(.logo,.stepBtn.active .num) {
+  background:#176a98;
+  color:#fff;
+}
+html[data-theme="dark"] :is(.brand .eyebrow,.live-kpi-label,.live-kpi-unit,.live-meta,
+  .live-kpi:not(.live-kpi-primary) .live-kpi-reading,.live-connection .chip,
+  .stepBtn,.stat small,.stat em,.range label,.settings-panel label,
+  .connection-summary dt) {
+  color:var(--muted);
+}
+html[data-theme="dark"] .live-overview,
+html[data-theme="dark"] .live-kpi {
+  background:var(--theme-surface);
+}
+html[data-theme="dark"] .live-kpi-primary {
+  background:#23475c;
+  border-color:#5a809b;
+}
+html[data-theme="dark"] .live-kpi-reading,
+html[data-theme="dark"] .live-kpi-primary .live-kpi-reading {
+  color:#d7f3ff;
+}
+html[data-theme="dark"] .stepBtn {
+  background:transparent;
+  border-color:transparent;
+  color:var(--ink);
+}
+html[data-theme="dark"] .stepBtn:hover:not(:disabled) {
+  background:var(--theme-hover);
+}
+html[data-theme="dark"] .stepBtn.active {
+  background:#254d66;
+  border-color:#67b8e5;
+  color:#eaf7ff;
+}
+html[data-theme="dark"] .stepBtn .num,
+html[data-theme="dark"] .stepBtn:not(.active) .num {
+  background:#32495b;
+  color:#ebf4fc;
+}
+html[data-theme="dark"] :is(.settings-gear,.settings-panel-head button) {
+  background:var(--theme-raised);
+  border-color:var(--line);
+  color:var(--ink);
+}
+html[data-theme="dark"] .settings-panel {
+  background:#1a2a39;
+  box-shadow:0 12px 40px #0008;
+}
+html[data-theme="dark"] .settings-panel .settings-note,
+html[data-theme="dark"] .settings-panel .settings-offline-help,
+html[data-theme="dark"] #plcOptions,
+html[data-theme="dark"] .settings-panel .settings-fields {
+  background:var(--theme-raised);
+  color:var(--muted);
+  border-color:var(--line);
+}
+html[data-theme="dark"] .settings-panel .settings-offline-help strong {
+  color:var(--ink);
+}
+html[data-theme="dark"] .settings-panel .settings-offline-help a {
+  color:var(--blue);
+}
+html[data-theme="dark"] .settings-panel .toggle strong,
+html[data-theme="dark"] .settings-panel .settings-fields label,
+html[data-theme="dark"] .settings-panel .toggle {
+  color:var(--ink);
+}
+html[data-theme="dark"] :is(.settings-expert-hint,.demo-notice,
+  .cal-measure-result,.cal-point-row.is-captured,.cal-sampling-progress) {
+  border-color:#aa8946;
+  background:#3a3327;
+  color:#ffe0a0;
+}
+html[data-theme="dark"] :is(.cal-measure-result,.cal-point-row.is-captured) {
+  background:#1c3a35;
+  border-color:#53aa8c;
+  color:#d5f9e7;
+}
+html[data-theme="dark"] :is(.cal-measure-cell,.eeprom-table,
+  .eeprom-table td,.eeprom-table th,.eeprom-bit-table td) {
+  background:var(--theme-surface);
+  border-color:var(--line);
+  color:var(--ink);
+}
+html[data-theme="dark"] :is(.cal-measure-heading,.cal-measure-value,
+  .cal-measure-label,.cal-measure-note) {
+  color:#d4f8e6;
+}
+html[data-theme="dark"] .cal-measure-cell {
+  background:#244c41;
+  border-color:#578b77;
+}
+html[data-theme="dark"] .cal-point-status {
+  background:var(--theme-raised);
+  color:var(--ink);
+  border-color:var(--line);
+}
+html[data-theme="dark"] .cal-point-status.is-captured {
+  background:#215f48;
+  border-color:#70c8a6;
+  color:#fff;
+}
+html[data-theme="dark"] .afe-step-row,
+html[data-theme="dark"] .eeprom-table tr:hover td,
+html[data-theme="dark"] .eeprom-table tr.eeprom-detail-row td {
+  background:var(--theme-raised);
+  color:var(--ink);
+}
+html[data-theme="dark"] :is(.afe-step-title,.afe-step-value,
+  .eeprom-table .eeprom-register,.eeprom-table .eeprom-function,
+  .eeprom-meta-item dd,.eeprom-formula) {
+  color:var(--ink);
+}
+html[data-theme="dark"] :is(.eeprom-table .nvm-factory td,
+  .eeprom-table .nvm-boot td) {
+  background:#443723;
+  color:#ffe1ad;
+}
+html[data-theme="dark"] .eeprom-table .nvm-crc td {
+  background:#204239;
+  color:#d0f6e2;
+}
+html[data-theme="dark"] .eeprom-binary,
+html[data-theme="dark"] .monoarea,
+html[data-theme="dark"] pre,
+html[data-theme="dark"] .chip-diag-report {
+  background:#101d29;
+  color:#d7ecfa;
+  border-color:var(--line);
+}
+html[data-theme="dark"] .help {
+  background:var(--theme-raised);
+  border-color:#6ba5cc;
+  color:#bde6ff;
+}
+html[data-theme="dark"] .pill {
+  background:#263f56;
+  color:#cfeaff;
+  border-color:#587e9e;
+}
+html[data-theme="dark"] .tooltip {
+  background:#24394c;
+  color:#fff;
+  border:1px solid #6083a0;
+}
+/* Compact / One-Pager workspace. */
+html[data-theme="dark"] :is(#compactWorkspace,.cp-board,.cp-card,.cp-fold-body) {
+  color:var(--ink);
+}
+html[data-theme="dark"] .cp-card {
+  background:var(--theme-surface);
+  border-color:var(--line);
+}
+html[data-theme="dark"] :is(.cp-card-heading,.cp-card-heading strong,
+  .cp-card label,.cp-fold>summary,.cp-card details>summary) {
+  color:var(--ink);
+}
+html[data-theme="dark"] :is(.cp-card-heading small,.cp-caption,
+  .cp-card .muted,.cp-heading-right span) {
+  color:var(--muted);
+}
+html[data-theme="dark"] .cp-fold {
+  background:var(--panel-subtle);
+  border-color:var(--line);
+}
+html[data-theme="dark"] .cp-card .cp-status>.callout:hover {
+  background:#2b4a60;
+}
+/* Guided wizard: full hierarchy, cards, sampling/status and completion. */
+html[data-theme="dark"] #guidedWorkspace {
+  color:var(--ink);
+}
+html[data-theme="dark"] .gw-shell {
+  background:var(--theme-surface);
+  border-color:var(--line);
+  box-shadow:0 15px 44px #0005;
+}
+html[data-theme="dark"] .gw-sidebar {
+  background:#172531;
+  border-color:var(--line);
+}
+html[data-theme="dark"] :is(.gw-title,.gw-backlogo,.gw-tile h3,
+  .gw-choice strong,.gw-preset strong,.gw-section-head h3,
+  .gw-setup-grid h3,.gw-finish-top h3) {
+  color:var(--ink);
+}
+html[data-theme="dark"] :is(.gw-desc,.gw-backlogo,.gw-sidebar-footer,
+  .gw-sideitem,.gw-fieldnote,.gw-preset small,.gw-choice small,
+  .gw-tile p,.gw-footer small,.gw-section-head p,.gw-setup-hint) {
+  color:var(--muted);
+}
+html[data-theme="dark"] .gw-sideitem {
+  background:transparent;
+  border-color:transparent;
+}
+html[data-theme="dark"] .gw-sideitem .gw-no {
+  background:#33475a;
+  color:#e4eff8;
+}
+html[data-theme="dark"] .gw-sideitem.is-active,
+html[data-theme="dark"] .gw-sideitem.is-done {
+  background:#254961;
+  color:#e5f5ff;
+}
+html[data-theme="dark"] .gw-sideitem.is-active .gw-no {
+  background:#16719e;
+  color:#fff;
+}
+html[data-theme="dark"] .gw-sideitem.is-done .gw-no {
+  background:#1c634c;
+  color:#f4fff8;
+}
+html[data-theme="dark"] .gw-kicker {
+  color:#96dcff;
+}
+html[data-theme="dark"] .gw-progressbar,
+html[data-theme="dark"] #guidedWorkspace .gw-finish-bar {
+  background:#395064;
+}
+html[data-theme="dark"] .gw-progressbar>span {
+  background:#52afe2;
+}
+html[data-theme="dark"] :is(.gw-tile,.gw-page .gw-tile,.gw-preset,
+  .gw-choice,.gw-matrix>span,.gw-setup-grid>.gw-tile,
+  .gw-summary,.gw-finish-signal,.gw-finish-kpis>div,
+  .gw-afe-kpis>div,.gw-voltage-endpoint,.gw-setup-summary,
+  .gw-live-badge,.gw-afe-chart,.gw-finish-chart,
+  .gw-afe-guide,.gw-afe-quality) {
+  background:var(--theme-raised);
+  border-color:var(--line);
+  color:var(--ink);
+}
+html[data-theme="dark"] .gw-choice {
+  background:#203446;
+  border-color:#62859e;
+}
+html[data-theme="dark"] .gw-choice:hover,
+html[data-theme="dark"] .gw-choice[aria-pressed="true"] {
+  background:#2d536e;
+  border-color:#9cd9ff;
+  color:#fff;
+}
+html[data-theme="dark"] .gw-choice strong,
+html[data-theme="dark"] .gw-choice small {
+  color:var(--ink);
+}
+html[data-theme="dark"] .gw-choice .gw-choice-icon,
+html[data-theme="dark"] .gw-backlogo>span {
+  background:#31516c;
+  color:#bce7ff;
+}
+html[data-theme="dark"] .gw-preset[aria-pressed="true"],
+html[data-theme="dark"] .gw-point-nav button.gw-selected {
+  background:#2b526e;
+  border-color:#91c8e6;
+  color:#e9f7ff;
+}
+html[data-theme="dark"] .gw-point-nav button {
+  background:var(--theme-raised);
+  color:var(--ink);
+  border-color:var(--line);
+}
+html[data-theme="dark"] :is(.gw-control .cal-point-row,
+  #guidedWorkspace .gw-control .cal-point-row,.gw-config-details,
+  #guidedWorkspace .gw-config-details[open],
+  .gw-afe-controls .afe-step-panel,.gw-control .afe-step-panel) {
+  background:var(--panel-subtle);
+  border-color:var(--line);
+  color:var(--ink);
+}
+html[data-theme="dark"] :is(#guidedWorkspace .gw-fields input,
+  #guidedWorkspace .gw-fields select,#guidedWorkspace .tl-grid input,
+  #guidedWorkspace .tl-grid select,#guidedWorkspace .tl-box textarea,
+  #classicLoggerHost .tl-box input,#classicLoggerHost .tl-box select,
+  #classicLoggerHost .tl-box textarea) {
+  color:var(--ink);
+  background:var(--theme-input);
+  border-color:var(--control-border);
+}
+html[data-theme="dark"] :is(.gw-fields label,.gw-voltage-label,
+  #guidedWorkspace .gw-setup-page .gw-fields label,
+  #guidedWorkspace .tl-box label,.gw-setup-grid label) {
+  color:var(--muted);
+}
+html[data-theme="dark"] :is(.gw-alert,.gw-summary,
+  #guidedWorkspace .gw-setup-hint,#guidedWorkspace .gw-afe-guide,
+  #guidedWorkspace .gw-afe-quality.is-neutral) {
+  background:#203e53;
+  border-color:#527a9b;
+  color:#d0eaff;
+}
+html[data-theme="dark"] :is(.gw-alert.warn,
+  #guidedWorkspace .gw-afe-quality.is-warning,
+  .gw-bridge-chip,.gw-tile.is-warning) {
+  background:#413522;
+  border-color:#a8884a;
+  color:#ffe0a2;
+}
+html[data-theme="dark"] :is(.gw-alert.error,.callout.error,
+  .tl-message.tl-error) {
+  background:#4b2731;
+  border-color:#bb6a7b;
+  color:#ffd4d9;
+}
+html[data-theme="dark"] :is(.gw-alert.success,.callout.success,
+  #guidedWorkspace .gw-afe-quality.is-good) {
+  background:#1a4839;
+  border-color:#63aa8b;
+  color:#d9ffe9;
+}
+html[data-theme="dark"] :is(.callout,.gw-setup-summary,
+  .gw-live-badge,.tl-note) {
+  background:#233e53;
+  border-color:#557f9a;
+  color:#def0ff;
+}
+html[data-theme="dark"] .callout.warn {
+  background:#413522;
+  border-color:#a98a51;
+  color:#ffe1a5;
+}
+html[data-theme="dark"] :is(.gw-footer,.gw-subheading,.gw-section-head,
+  .gw-sidebar-footer) {
+  border-color:var(--line);
+}
+html[data-theme="dark"] :is(.gw-finish-number strong,.gw-finish-kpis strong,
+  .gw-afe-current strong,.gw-afe-kpis strong,.gw-matrix>span b) {
+  color:#b7e7ff;
+}
+html[data-theme="dark"] :is(.gw-finish-number span,.gw-finish-caption,
+  .gw-finish-limits,.gw-finish-kpis span,.gw-finish-kpis small,
+  .gw-afe-kpis span,.gw-afe-current span) {
+  color:var(--muted);
+}
+html[data-theme="dark"] .gw-finish-checklist>p {
+  color:var(--muted);
+}
+html[data-theme="dark"] .gw-finish-warning {
+  color:#ffd49b!important;
+}
+html[data-theme="dark"] :is(.gw-afe-chart,.gw-finish-chart) {
+  background:#182938;
+  border-color:var(--line);
+}
+html[data-theme="dark"] .gw-secondary-link {
+  background:transparent;
+  color:var(--blue);
+}
+/* Both logger locations share visual semantics. */
+html[data-theme="dark"] :is(#guidedWorkspace .tl-box,
+  #classicLoggerHost .tl-box,#guidedWorkspace .tl-kpis>div,
+  #classicLoggerHost .tl-kpis>div,.tl-references) {
+  background:var(--theme-raised);
+  border-color:var(--line);
+  color:var(--ink);
+}
+html[data-theme="dark"] :is(#guidedWorkspace .tl-box h3,
+  #classicLoggerHost .tl-box h3,#guidedWorkspace .tl-current,
+  #guidedWorkspace .tl-kpis strong,#classicLoggerHost .tl-kpis strong,
+  #guidedWorkspace .tl-lead strong,.tl-reading) {
+  color:var(--ink);
+}
+html[data-theme="dark"] :is(#guidedWorkspace .tl-kpis small,
+  #classicLoggerHost .tl-kpis small,#guidedWorkspace .tl-lead span,
+  #guidedWorkspace .tl-reading) {
+  color:var(--muted);
+}
+html[data-theme="dark"] #guidedWorkspace .tl-lead strong,
+html[data-theme="dark"] #classicLoggerHost .tl-message {
+  background:#284c65;
+  color:#e8f6ff;
+}
+html[data-theme="dark"] #guidedWorkspace .tl-message {
+  background:#26495f;
+  color:#e7f6ff;
+}
+/* Local archive/verification app: largest set of previously hardcoded white surfaces. */
+html[data-theme="dark"] #archiveWorkspace {
+  background:var(--bg);
+  border-color:var(--line);
+  color:var(--ink);
+}
+html[data-theme="dark"] #archiveWorkspace :is(.ar-bar,.ar-kpi,.ar-files-panel,
+  .ar-details,.ar-file,.ar-compare-col,.ar-graph,.ar-event,
+  .ar-data-pair,.ar-data-grid,.ar-metric,.ar-diff-table,.ar-planner,
+  .ar-active,.ar-plan,.ar-file-actions button) {
+  background:var(--theme-surface);
+  border-color:var(--line);
+  color:var(--ink);
+}
+html[data-theme="dark"] #archiveWorkspace :is(.ar-file,.ar-metric,.ar-graph,
+  .ar-compare-col,.ar-plan) {
+  background:var(--theme-raised);
+}
+html[data-theme="dark"] #archiveWorkspace .ar-file:hover,
+html[data-theme="dark"] #archiveWorkspace .ar-file.is-active {
+  background:#2b516a;
+  border-color:#8fc4e5;
+}
+html[data-theme="dark"] #archiveWorkspace :is(.ar-file-name strong,.ar-data-pair strong,
+  .ar-detail-title h2,.ar-section-title h3,.ar-kpi strong,
+  .ar-metric strong,.ar-diff-row strong,.ar-files-head h3) {
+  color:var(--ink);
+}
+html[data-theme="dark"] #archiveWorkspace :is(.ar-muted,.ar-file-name small,
+  .ar-file-meta,.ar-file-quick,.ar-data-pair small,.ar-kpi small,
+  .ar-kpi span,.ar-overline,.ar-graph-labels,.ar-section-title p,
+  .ar-file-hint,.ar-info-label) {
+  color:var(--muted);
+}
+html[data-theme="dark"] #archiveWorkspace .ar-file-meta span,
+html[data-theme="dark"] #archiveWorkspace .ar-file-quick span,
+html[data-theme="dark"] #archiveWorkspace .ar-pill {
+  background:#2b4255;
+  color:#dfeffc;
+  border-color:#60788e;
+}
+html[data-theme="dark"] #archiveWorkspace .ar-pill.ar-good {
+  background:#1f4d3c;
+  color:#dcffed;
+}
+html[data-theme="dark"] #archiveWorkspace .ar-pill.ar-bad {
+  background:#5a2833;
+  color:#ffd4dc;
+}
+html[data-theme="dark"] #archiveWorkspace :is(.ar-file-actions .ar-view-button,
+  .ar-voltage-extra summary,.ar-diff-header,
+  .ar-diff-row,.ar-difference) {
+  background:#294960;
+  color:#e0f2ff;
+  border-color:var(--line);
+}
+html[data-theme="dark"] #archiveWorkspace :is(.ar-graph svg,.ar-trend) {
+  color:#a6e3ff;
+}
+html[data-theme="dark"] #archiveWorkspace .ar-trend {
+  stroke:#9de1ff;
+}
+html[data-theme="dark"] #archiveWorkspace :is(.ar-warning,.ar-status-bad) {
+  color:#ffdd9d;
+}
+html[data-theme="dark"] #archiveWorkspace .ar-status-ok {
+  color:#bbf7d6;
+}
+html[data-theme="dark"] #archiveWorkspace :is(label,input,select,textarea) {
+  color:var(--ink);
+}
+html[data-theme="dark"] #archiveWorkspace :is(.ar-details-placeholder,.ar-no-results,.ar-empty) {
+  background:var(--theme-surface);
+  color:var(--muted);
+}
+/* Non-semantic disabled controls retain legible text. Status colours are not inverted. */
+html[data-theme="dark"] :is(.stepBtn.locked,.gw-sideitem[disabled],
+  .gw-footer button:disabled) {
+  color:#b6c2cf;
+}
+html[data-theme="dark"] :is(.sensor-reconnect,.callout.warn,
+  .gw-alert.warn) { border-inline-start-color:#e5b45d; }
+html[data-theme="dark"] .sensor-reconnect {
+  background:#443620;
+  border-color:#aa844a;
+  color:#ffe0a3;
+}
+html[data-theme="dark"] .sensor-reconnect .sensor-export {
+  background:#263f55;
+  color:#e4f3ff;
+  border-color:#85b0cb;
+}
+
+
+/* The guided implementation uses ID-scoped CSS for specialised pages.
+ * Match that specificity so all its fixed light surfaces are actually dark. */
+html[data-theme="dark"] #guidedWorkspace :is(
+ .gw-page .gw-tile,.gw-setup-grid>.gw-tile,.gw-afe-page .gw-tile,
+ .gw-voltage-endpoint,.gw-setup-summary,.gw-afe-guide,.gw-afe-controls #gainInfo,
+ .gw-live-badge,.gw-afe-kpis>div,.gw-afe-quality,
+ .gw-finish-signal,.gw-finish-kpis>div,.gw-finish-chart,
+ .gw-afe-chart,.gw-config-details,.gw-setup-hint,
+ .tl-box,.tl-kpis>div,.tl-note,.tl-message
+) {
+  background:var(--theme-raised);
+  border-color:var(--line);
+  color:var(--ink);
+}
+html[data-theme="dark"] #guidedWorkspace :is(.gw-setup-page .gw-fields input,
+ .gw-setup-page .gw-fields select,.gw-voltage-endpoint input,
+ .tl-grid input,.tl-grid select,.tl-box textarea) {
+  background:var(--theme-input);
+  border-color:var(--control-border);
+  color:var(--ink);
+}
+html[data-theme="dark"] #guidedWorkspace :is(.gw-section-head h3,
+ .gw-afe-guide strong,.gw-afe-current strong,.gw-afe-kpis strong,
+ .gw-finish-top h3,.gw-finish-number strong,.gw-finish-kpis strong,
+ .tl-box h3,.tl-kpis strong,.tl-current,.tl-lead strong) {
+  color:#e5f5ff;
+}
+html[data-theme="dark"] #guidedWorkspace :is(.gw-section-head p,
+ .gw-setup-page .gw-fields label,.gw-voltage-label,
+ .gw-voltage-endpoint label,.gw-setup-hint,.gw-config-details summary span,
+ .gw-afe-guide li,.gw-monitor-head p,.gw-chart-legend,
+ .gw-afe-current span,.gw-afe-kpis span,.gw-finish-number span,
+ .gw-finish-caption,.gw-finish-limits,.gw-finish-kpis span,
+ .gw-finish-kpis small,.gw-finish-checklist>p,.tl-box label,
+ .tl-lead span,.tl-kpis small,.tl-reading) {
+  color:var(--muted);
+}
+html[data-theme="dark"] #guidedWorkspace :is(
+ .gw-config-details summary,.gw-secondary-link) {
+  color:var(--blue);
+}
+html[data-theme="dark"] #guidedWorkspace :is(
+ .gw-section-no,.gw-voltage-endpoint,.gw-afe-controls #gainInfo,
+ .gw-config-details[open],.gw-live-badge,.gw-finish-kpis>div) {
+  background:#29475b;
+  border-color:#5b7991;
+}
+html[data-theme="dark"] #guidedWorkspace .gw-afe-guide small,
+html[data-theme="dark"] #guidedWorkspace .gw-afe-quality.is-warning {
+  background:#443721;
+  border-color:#b09560;
+  color:#ffe1a5;
+}
+html[data-theme="dark"] #guidedWorkspace .gw-afe-quality.is-good,
+html[data-theme="dark"] #guidedWorkspace .gw-live-badge.is-live {
+  background:#204b3b;
+  border-color:#68b593;
+  color:#d7ffea;
+}
+html[data-theme="dark"] #guidedWorkspace .gw-afe-quality.is-neutral {
+  background:#294c65;
+  border-color:#6793b4;
+  color:#e2f3ff;
+}
+html[data-theme="dark"] #guidedWorkspace .gw-afe-chart,
+html[data-theme="dark"] #guidedWorkspace .gw-finish-chart {
+  background:#192b3c;
+}
+html[data-theme="dark"] #guidedWorkspace .gw-finish-warning {
+  color:#ffe1a5!important;
+}
+html[data-theme="dark"] #guidedWorkspace :is(
+ #gwAfeLiveActions button,.gw-secondary-btn) {
+  background:#2b455a;
+  border-color:#7198b1;
+  color:#e8f5ff;
+}
+html[data-theme="dark"] #guidedWorkspace .gw-secondary-btn:hover {
+  background:#365a76;
+}
+html[data-theme="dark"] #guidedWorkspace :is(.tl-lead strong,.tl-message) {
+  background:#2a5069;
+  color:#eaf7ff;
+}
+html[data-theme="dark"] #guidedWorkspace .tl-message.tl-error,
+html[data-theme="dark"] #classicLoggerHost .tl-message.tl-error {
+  background:#4a2732;
+  color:#ffd8e0;
+  border-color:#ad5b72;
+}
+html[data-theme="dark"] #classicLoggerHost :is(
+ .tl-box,.tl-kpis>div,.tl-note,.tl-message) {
+  background:var(--theme-raised);
+  color:var(--ink);
+  border-color:var(--line);
+}
+html[data-theme="dark"] #classicLoggerHost :is(
+ .tl-lead strong,.tl-box h3,.tl-kpis strong) { color:var(--ink); }
+html[data-theme="dark"] #classicLoggerHost :is(
+ .tl-box label,.tl-kpis small) { color:var(--muted); }
+html[data-theme="dark"] #classicLoggerHost :is(
+ .tl-box input,.tl-box select,.tl-box textarea) {
+  background:var(--theme-input);
+  border-color:var(--control-border);
+  color:var(--ink);
+}
+/* Keep alert meanings legible after stronger ID-scoped surfaces. */
+html[data-theme="dark"] #guidedWorkspace .gw-alert.warn {
+  background:#443620;color:#ffe0a3;border-color:#bd9358;
+}
+html[data-theme="dark"] #guidedWorkspace .gw-alert.error {
+  background:#4b2933;color:#ffdce2;border-color:#be6f82;
+}
+html[data-theme="dark"] #guidedWorkspace .gw-alert.success {
+  background:#204c3a;color:#dcffea;border-color:#67bd97;
+}
+html[data-theme="dark"] #archiveWorkspace :is(
+ .ar-details-placeholder h3,.ar-section-title h3,.ar-file-name strong,
+ .ar-data-pair strong,.ar-kpi strong,.ar-event summary,
+ .ar-dut-line,.ar-overline,.ar-voltage-extra,.ar-voltage-extra summary,
+ #archiveFolder) { color:var(--ink); }
+html[data-theme="dark"] #archiveWorkspace :is(.ar-grid>input,.ar-grid>select,
+ .ar-bar input,.ar-bar select) {
+  background:var(--theme-input);
+  border-color:var(--control-border);
+  color:var(--ink);
+}
+html[data-theme="dark"] #archiveWorkspace .ar-event pre {
+  background:#101c27;color:#d5e9fa;
+}
+
+/* Canvas is drawn with dark-aware axes and traces by app.js. */
+html[data-theme="dark"] canvas {background:#172838;border-color:var(--line)}
+html[data-theme="dark"] #guidedWorkspace .gw-afe-chart #chart,
+html[data-theme="dark"] #guidedWorkspace .gw-finish-chart #chart {
+  background:transparent;
+}

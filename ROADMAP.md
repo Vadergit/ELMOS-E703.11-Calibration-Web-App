@@ -1,6 +1,14 @@
 # Roadmap für den E703.11-Kalibrierassistenten
 
-Stand v0.7.6 · Web-App mit SSP3 im Vergleich zur Elmos-PSSC-Software. Die Reihenfolge zeigt die geplante Priorität. Veröffentlichungstermine sind offen.
+Stand v0.7.7 · Web-App mit SSP3 im Vergleich zur Elmos-PSSC-Software. Die Reihenfolge zeigt die geplante Priorität. Veröffentlichungstermine sind offen.
+
+## Darstellung / Darkmode (v0.7.7)
+
+- [x] Helles Standarddesign mit klarerem Kontrast.
+- [x] Dunkles Design für alle Ansichten, ohne Farbverläufe.
+- [x] Umschalter in den Einstellungen, lokal gespeicherte Benutzerpräferenz.
+- [x] Farbwechsel vor dem ersten Zeichnen und passende ADC-Graphfarben.
+- [ ] Praxistest auf verschiedenen Browsern und Monitoren.
 
 ## Geführte Schnellnavigation (v0.7.6)
 

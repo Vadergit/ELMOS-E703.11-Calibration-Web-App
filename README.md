@@ -2,7 +2,7 @@
 
 **Ein geführter Kalibrierassistent für den ELMOS E703.11 und das SSP3-Eval-Board.** Ziel ist ein verständlicher Abgleich, der auch ohne tiefere Vorkenntnisse Schritt für Schritt funktioniert. Wer mehr benötigt, kann zusätzliche Messpunkte, DSP-Parameter und einen geschützten Expertenmodus verwenden.
 
-**Version: v0.7.6 · Archiv/Nachmessung im geführten Einstieg und Hilfeseiten in neuen Tabs** · [Änderungsverlauf](CHANGELOG.md) · **[Geplante Funktionen](ROADMAP.md)**
+**Version: v0.7.7 · Höherer Kontrast und umschaltbarer Darkmode** · [Änderungsverlauf](CHANGELOG.md) · **[Geplante Funktionen](ROADMAP.md)**
 
 Über **Einstellungen → Demo-Modus** lässt sich der gesamte Kalibrierablauf mit simulierten Messwerten und NVM ausprobieren.
 
@@ -13,6 +13,12 @@
 > **Geführter Assistent:** Nach der bestätigten SSP3-Verbindung stehen die neue Schritt-für-Schritt-Führung, die klassische Ansicht und der optionale Kompaktmodus zur Verfügung. Ein E703.11-Chip muss für den Abgleich verbunden sein. Die USB-CDC-Bridge bleibt als experimenteller Verbindungstest ohne Sensorprogrammierung gesperrt.
 >
 > [Geführter Abgleich](docs/GEFUEHRTER_ASSISTENT.md) · [USB-Bridge](docs/USB_BRIDGE_GUIDE.md) · [ESP-Boards](docs/ESP_BOARD_OPTIONS.md) · [ESP32-C3 SuperMini Sketch](firmware/esp32c3_supermini/esp32c3_supermini.ino)
+
+## Neu in v0.7.7 – Kontrastreiches helles und dunkles Design
+
+Unter **⚙ Einstellungen → Darstellung / Farbmodus** kannst du zwischen **«Hell · hoher Kontrast»** und **«Dunkel · Darkmode»** wechseln. Die Auswahl gilt sofort für alle Teile der Web-App: geführter Assistent, klassische Ansicht, Kompaktmodus, Test/Logging, EEPROM Viewer, Archiv und Nachmessung. Die Einstellung bleibt lokal im Browser gespeichert und wird vor dem Anzeigen der Webseite geladen, damit beim Start im Darkmode kein heller Bildschirm aufblitzt.
+
+Im hellen Design sind feine Linien und Nebenbeschriftungen dunkler und deutlicher sichtbar. Im Darkmode werden dunkle Panels, gut lesbare Eingabefelder, farblich unterscheidbare Meldungen sowie ein an die Darstellung angepasster ADC-Verlauf verwendet. Es gibt **keine Änderungen an der Sensor- oder NVM-Programmierung**. [Bedienungsanleitung](ANLEITUNG.md).
 
 ## Neu in v0.7.6 – Sechs Aufgabenkacheln und Hilfeseiten in neuen Tabs
 
