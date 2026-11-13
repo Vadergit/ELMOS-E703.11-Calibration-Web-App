@@ -10,7 +10,7 @@ const ELMOS_ARCHIVE=(()=>{
  const note=(value,bad=false)=>{S.lastError=bad?String(value):'';text('archiveStatus',value);if($('archiveStatus'))$('archiveStatus').style.color=bad?'#a13b39':'#526982'};
  const el=(tag,content,css)=>{const e=document.createElement(tag);if(content!=null)e.textContent=String(content);if(css)e.className=css;return e};
  const bridge=()=>window.ELMOS_ARCHIVE_BRIDGE;
- const statusWords={running:'In Bearbeitung',completed:'Abgeschlossen',failed:'Fehlerhaft',
+ const statusWords={running:'Offen / eventuell unterbrochen',completed:'Abgeschlossen',failed:'Fehlerhaft',
   interrupted:'Unterbrochen',aborted:'Abgebrochen',incomplete:'Unvollständig'};
  const typeWords={calibration:'Kalibrierung',verification:'Nachmessung',output:'Ausgang'};
  const clone=x=>JSON.parse(JSON.stringify(x));
@@ -141,8 +141,9 @@ const ELMOS_ARCHIVE=(()=>{
   }
   if(status==='completed'&&S.record.type==='verification'){
    const summary=C.outcomes(S.record);
-   if(summary.measured!==summary.planned||S.record.plan.steps.some(s=>C.lastAttempt(S.record,s.index)?.pass===false))
-    status='failed';
+   const results=S.record.plan.steps.map(s=>C.lastAttempt(S.record,s.index));
+   if(summary.measured!==summary.planned||results.some(x=>x?.pass===false))status='failed';
+   else if(results.some(x=>x?.pass!==true))status='incomplete';
   }
   S.record.status=status;S.record.endedAt=iso();
   S.record.events.push({at:iso(),kind:'finished',data:{status}});
@@ -177,8 +178,8 @@ const ELMOS_ARCHIVE=(()=>{
      if(file.size>12*1024*1024)continue;
      const parsed=JSON.parse(await file.text());
      if(C.valid(parsed)){parsed._archiveName=name;all.push(parsed)}
-     else if(name.startsWith('ELMOS_'))corrupt++;
-    }catch(_){if(name.startsWith('ELMOS_'))corrupt++}
+     else if(/^ELMOS_\d{8}_\d{6}_[A-Z0-9]+_[a-f0-9-]{8,}\.json$/i.test(name))corrupt++;
+    }catch(_){if(/^ELMOS_\d{8}_\d{6}_[A-Z0-9]+_[a-f0-9-]{8,}\.json$/i.test(name))corrupt++}
    }
    S.records=all.sort((a,b)=>b.startedAt.localeCompare(a.startedAt));
    renderList();
@@ -411,7 +412,7 @@ const ELMOS_ARCHIVE=(()=>{
   '<div class="ar-results"><div><h3>Archiv <small id="archiveCount"></small></h3><div class="ar-grid">'+
   '<input id="archiveSearch" placeholder="UID, Datum, Board oder Softwareversion suchen">'+
   '<select id="archiveFilterType"><option value="all">Alle Protokolltypen</option><option value="calibration">Kalibrierung</option><option value="verification">Nachmessung</option><option value="output">Ausgang</option></select>'+
-  '<select id="archiveFilterStatus"><option value="all">Alle Ergebnisse</option><option value="completed">Abgeschlossen</option><option value="failed">Fehlerhaft</option><option value="incomplete">Unvollständig</option><option value="interrupted">Unterbrochen</option><option value="aborted">Abgebrochen</option></select></div>'+
+  '<select id="archiveFilterStatus"><option value="all">Alle Ergebnisse</option><option value="running">Offen / eventuell unterbrochen</option><option value="completed">Abgeschlossen</option><option value="failed">Fehlerhaft</option><option value="incomplete">Unvollständig</option><option value="interrupted">Unterbrochen</option><option value="aborted">Abgebrochen</option></select></div>'+
   '<div class="ar-buttons"><button id="archiveCompare" disabled>Zwei Einträge vergleichen</button></div>'+
   '<div id="archiveRows" class="ar-rows"></div></div><div id="archiveDetails" class="ar-details"><p>Ein Protokoll auswählen, um Einzelversuche, Konfiguration, NVM und Hysterese einzusehen.</p></div></div>';
  }
