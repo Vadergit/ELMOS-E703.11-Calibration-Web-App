@@ -328,9 +328,15 @@ const ELMOS_TEST_LOGGER=(()=>{
   '<div class="tl-message" id="tlMessage" role="status">Verbinde zuerst einen Sensor und wähle einen Archivordner. Beim Start wird die Ausgangskonfiguration dokumentiert.</div>';
  }
  function mount(host){
-  if(S.recordId)throw Error('Aktiver Logger darf nicht neu initialisiert werden.');
-  S.root=typeof host==='string'?$(host):host;
-  if(!S.root)throw Error('Logger-Ansicht fehlt');
+  const target=typeof host==='string'?$(host):host;
+  if(!target)throw Error('Logger-Ansicht fehlt');
+  if(S.root===target){render();return}
+  if(S.root){
+   // Move the *existing* form and event handlers; never reset an active test.
+   target.replaceChildren(...Array.from(S.root.childNodes));
+   S.root=target;render();return;
+  }
+  S.root=target;
   S.root.innerHTML=UI();
   $('tlStart').addEventListener('click',()=>{void start()});
   $('tlStop').addEventListener('click',()=>{void stop()});
@@ -344,12 +350,17 @@ const ELMOS_TEST_LOGGER=(()=>{
  }
  function unmount(){
   if(S.recordId||S.starting||S.stopping)return false;
-  clearTimer();
-  if(S.clock!==null){clearInterval(S.clock);S.clock=null}
-  S.root=null;return true
+  if($('classicLoggerHost'))mount($('classicLoggerHost'));
+  return true;
  }
  function isBusy(){return !!(S.recordId||S.starting||S.stopping)}
  window.addEventListener('elmos-archive-interrupted',onInterrupted);
  return {mount,unmount,isBusy,warn:message=>announce(message,true),get active(){return !!S.recordId}};
+
 })();
 if(typeof window!=='undefined')window.ELMOS_TEST_LOGGER=ELMOS_TEST_LOGGER;
+if(typeof document!=='undefined'){
+ const init=()=>{if(document.getElementById('classicLoggerHost'))ELMOS_TEST_LOGGER.mount('classicLoggerHost')};
+ if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',init);
+ else init();
+}
