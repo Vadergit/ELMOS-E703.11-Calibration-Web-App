@@ -86,5 +86,5 @@ test('disabling verification closes an idle verification view, but not the archi
 test('cache keys identify new app.js and archive.js on the v0.7.5 page',()=>{
  assert.match(html,/data-app-version="0\.7\.7"/);
  assert.match(html,/app\.js\?v=0\.7\.7/);
- assert.match(html,/archive\.js\?v=0\.7\.5/);
+ assert.match(html,/archive\.js\?v=0\.7\.7/);
 });
