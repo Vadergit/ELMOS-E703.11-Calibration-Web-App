@@ -2,7 +2,7 @@
 
 **Ein geführter Kalibrierassistent für den ELMOS E703.11 und das SSP3-Eval-Board.** Ziel ist ein verständlicher Abgleich, der auch ohne tiefere Vorkenntnisse Schritt für Schritt funktioniert. Wer mehr benötigt, kann zusätzliche Messpunkte, DSP-Parameter und einen geschützten Expertenmodus verwenden.
 
-**Version: v0.7.8 · Klare Bestätigung erfasster Referenzmesspunkte** · [Änderungsverlauf](CHANGELOG.md) · **[Geplante Funktionen](ROADMAP.md)**
+**Version: v0.7.9 · Aufgeräumte Messpunktansicht** · [Änderungsverlauf](CHANGELOG.md) · **[Geplante Funktionen](ROADMAP.md)**
 
 Über **Einstellungen → Demo-Modus** lässt sich der gesamte Kalibrierablauf mit simulierten Messwerten und NVM ausprobieren.
 
@@ -14,9 +14,13 @@
 >
 > [Geführter Abgleich](docs/GEFUEHRTER_ASSISTENT.md) · [USB-Bridge](docs/USB_BRIDGE_GUIDE.md) · [ESP-Boards](docs/ESP_BOARD_OPTIONS.md) · [ESP32-C3 SuperMini Sketch](firmware/esp32c3_supermini/esp32c3_supermini.ino)
 
+## Neu in v0.7.9 – Messpunktansicht vereinfacht
+
+Die zusätzliche grüne Tabelle **«Bereits aufgenommen»** wurde aus Schritt 5 entfernt, weil sie die linke Messpunktnavigation wiederholt und zu viel Platz benötigt. Nach einer erfolgreichen Aufnahme erscheint nur noch eine **kleine Bestätigung «✓ Messpunkt X aufgenommen»**; direkt darunter steht der **nächste Referenzpunkt**. Links bleiben die Status «Aufgenommen», «Jetzt messen» und «Noch offen» sichtbar. Wenn alle Punkte erfasst sind, erscheint eine einzige Abschlussanzeige. Die Originalmessdaten, ADC-Werte und Protokolle bleiben vollständig erhalten.
+
 ## Neu in v0.7.8 – Deutlicher Übergang zwischen Referenzmesspunkten
 
-Beim geführten Abgleich in Schritt 5 bleibt jeder tatsächlich erfasste Referenzmesspunkt in einer gut sichtbaren **grünen Zusammenfassung** stehen – einschliesslich Druck, Temperatur und, soweit verfügbar, originalem ADC_S/ADC_T und Anzahl Einzelmessungen. Ein eigener Status bestätigt: **«Messpunkt 1 erfolgreich übernommen»**. Erst danach wird der nächste offene Punkt in **Blau mit «Als Nächstes: Messpunkt 2 messen»** hervorgehoben.
+Im geführten Abgleich wird jeder tatsächlich erfasste Referenzmesspunkt links als abgeschlossen markiert. Eine kurze Bestätigung zeigt **«Messpunkt 1 aufgenommen»**. Erst danach wird der nächste offene Punkt in **Blau mit «Als Nächstes: Messpunkt 2 messen»** hervorgehoben.
 
 Links in der Messpunktliste sind aufgenommene Punkte dauerhaft **grün und als «Aufgenommen» bezeichnet**, der aktive Punkt zeigt **«Jetzt messen»**. Du kannst bereits erfasste Punkte jederzeit auswählen und bei Bedarf nochmals aufnehmen. Nach allen Punkten erscheint eine eindeutige Abschlussmeldung.
 
