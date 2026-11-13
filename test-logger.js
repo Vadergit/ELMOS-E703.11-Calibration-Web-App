@@ -5,7 +5,7 @@ const ELMOS_TEST_LOGGER=(()=>{
  const S={root:null,recordId:null,starting:false,stopping:false,stopRequested:false,
   paused:false,busy:false,timer:null,pending:null,settings:null,startedMono:0,nextDueMono:0,
   startedWall:0,groups:0,samples:0,missed:0,errors:0,consecutiveErrors:0,last:null,
-  recent:[],lastRecord:null,interrupted:false};
+  recent:[],lastRecord:null,interrupted:false,clock:null,reference:{pressure:null,temperature:null,source:null}};
  const now=()=>new Date().toISOString();
  const bridge=()=>window.ELMOS_ARCHIVE_BRIDGE,archive=()=>window.ELMOS_ARCHIVE;
  const text=(id,v)=>{if($(id))$(id).textContent=String(v)};
@@ -64,8 +64,12 @@ const ELMOS_TEST_LOGGER=(()=>{
   });
   const meta=bridge()?.meta?.();
   if(!meta?.online)throw Error('Sensor nicht verbunden');
+  const measuredText=value('tlVdd').trim(),measuredVdd=measuredText===''?null:Number(measuredText);
+  if(measuredVdd!==null&&(!Number.isFinite(measuredVdd)||measuredVdd<0||measuredVdd>30))
+   throw Error('VDD-Istspannung ist ungültig.');
   return {...fields,name,description,category:value('tlCategory'),
-   operator:value('tlOperator').trim().slice(0,100)};
+   operator:value('tlOperator').trim().slice(0,100),
+   measuredVdd,measuredVddSource:value('tlVddSource').trim().slice(0,200)};
  };
  const clearTimer=()=>{if(S.timer!==null){clearTimeout(S.timer);S.timer=null}};
  async function start(){
@@ -75,6 +79,10 @@ const ELMOS_TEST_LOGGER=(()=>{
   if(archive()?.active){announce('Es läuft bereits ein Archivprotokoll. Bitte dieses zuerst abschliessen.',true);return}
   S.starting=true;S.interrupted=false;render();
   try{
+   // Copy the operator's external measurement to the archive supply fields.
+   // Empty is intentionally NOT converted to a fictitious 0 V reading.
+   if($('archiveMeasuredVdd'))$('archiveMeasuredVdd').value=opts.measuredVdd===null?'':String(opts.measuredVdd);
+   if($('archiveMeasuredVddSource'))$('archiveMeasuredVddSource').value=opts.measuredVddSource;
    const record=await archive().begin('testlog');
    S.recordId=record.id;
    await archive().event('test_configuration',opts);
@@ -83,6 +91,8 @@ const ELMOS_TEST_LOGGER=(()=>{
    S.startedMono=performance.now();S.startedWall=Date.now();S.nextDueMono=S.startedMono;
    S.groups=0;S.samples=0;S.missed=0;S.errors=0;S.consecutiveErrors=0;S.recent=[];
    S.last=null;S.paused=false;S.stopRequested=false;S.lastRecord=null;
+   if(S.clock!==null)clearInterval(S.clock);
+   S.clock=setInterval(render,1000);
    announce('Test gestartet. Rohdaten werden laufend im gewählten lokalen Archivordner gespeichert.');
    schedule(0);
   }catch(e){
@@ -129,7 +139,7 @@ const ELMOS_TEST_LOGGER=(()=>{
      pressureUnit:raw.pressureUnit,pressureConversion:raw.pressureConversion,
      temperatureConversion:raw.temperatureConversion,
      AFE:raw.AFE,ramAFE0:raw.ramAFE0,ramAFE1:raw.ramAFE1,nvmCrc:raw.currentNvmCrc},
-    supply:raw.supply};
+    supply:raw.supply,reference:{...S.reference}};
    await archive().appendTelemetry(point); // Only count a measurement after durable file append.
    S.groups++;S.samples+=raw.samples?.length||0;S.missed+=point.skippedIntervals;
    S.errors+=raw.errors?.length||0;S.consecutiveErrors=0;
@@ -199,6 +209,7 @@ const ELMOS_TEST_LOGGER=(()=>{
    S.stopping=false;render();return;
   }
   S.recordId=null;S.settings=null;S.paused=false;S.stopRequested=false;
+  if(S.clock!==null){clearInterval(S.clock);S.clock=null}
   S.stopping=false;render();
  }
  function onInterrupted(e){
@@ -206,9 +217,22 @@ const ELMOS_TEST_LOGGER=(()=>{
   S.interrupted=true;S.stopRequested=true;clearTimer();
   bridge()?.stopTelemetry?.();
   S.recordId=null;S.stopping=false;S.paused=false;
+  if(S.clock!==null){clearInterval(S.clock);S.clock=null}
   announce('Sensorverbindung unterbrochen: '+(e?.detail?.reason||'unbekannt')+
    '. Die bereits gespeicherten Rohdaten bleiben im Archiv.',true);
   render();
+ }
+ async function updateReference(){
+  if(!S.recordId||S.stopping)return;
+  const pr=value('tlRefPressure').trim(),temp=value('tlRefTemperature').trim();
+  const pressure=pr===''?null:Number(pr),temperature=temp===''?null:Number(temp);
+  if((pressure!==null&&!Number.isFinite(pressure))||(temperature!==null&&!Number.isFinite(temperature)))
+   return announce('Referenzwerte müssen gültige Zahlen sein.',true);
+  S.reference={pressure,temperature,source:value('tlRefSource').trim().slice(0,200)||null};
+  try{
+   await archive().event('reference_changed',{...S.reference,afterGroup:S.groups});
+   announce('Externe Referenzwerte mit Zeitstempel gespeichert.');
+  }catch(e){announce(e.message,true)}
  }
  async function exportLast(format){
   if(!S.lastRecord)return;
@@ -220,7 +244,9 @@ const ELMOS_TEST_LOGGER=(()=>{
   '<section id="tlConfig" class="tl-box"><h3>Test beschreiben</h3><div class="tl-grid">'+
    '<label>Testname *<input id="tlName" maxlength="120" placeholder="z. B. Drucksprung 0 auf 10 bar"></label>'+
    '<label>Kategorie<select id="tlCategory"><option value="general">Allgemein</option><option value="pressure">Drucktest</option><option value="temperature">Temperaturtest</option><option value="longterm">Langzeitmessung</option><option value="communication">Kommunikation</option><option value="electrical">Elektrik / Versorgung</option><option value="other">Andere</option></select></label>'+
-   '<label>Operator / Kürzel (optional)<input id="tlOperator" maxlength="100" placeholder="z. B. DN"></label></div>'+
+   '<label>Operator / Kürzel (optional)<input id="tlOperator" maxlength="100" placeholder="z. B. DN"></label>'+
+   '<label>VDD-Istspannung (V, manuell gemessen)<input id="tlVdd" type="number" min="0" max="30" step="any" placeholder="z. B. 5.01"></label>'+
+   '<label>Quelle der VDD-Messung<input id="tlVddSource" maxlength="200" placeholder="z. B. Multimeter am Prüfling"></label></div>'+
    '<label>Beschreibung der Messung / Testaufbau<textarea id="tlDescription" rows="3" maxlength="4000" placeholder="Was wird geprüft? Referenzgeräte, Aufbau, Temperatur- oder Druckbedingungen, Auffälligkeiten …"></textarea></label>'+
    '<h3>Aufzeichnung konfigurieren</h3><div class="tl-grid">'+
    '<label>Messintervall zwischen Messpunkten (ms)<input id="tlInterval" type="number" min="1" max="3600000" step="1" value="1000"></label>'+
@@ -237,6 +263,11 @@ const ELMOS_TEST_LOGGER=(()=>{
    '<div><small>Fehler</small><strong id="tlErrors">0</strong></div>'+
    '<div><small>Dauer</small><strong id="tlElapsed">00:00:00</strong></div></div>'+
    '<p class="tl-current" id="tlLatest">Noch keine Messung</p>'+
+   '<details class="tl-references"><summary>Optionale externe Referenzwerte</summary><div class="tl-grid">'+
+   '<label>Referenzdruck<input id="tlRefPressure" type="number" step="any" placeholder="z. B. 5"></label>'+
+   '<label>Referenztemperatur (°C)<input id="tlRefTemperature" type="number" step="any" placeholder="z. B. 25"></label>'+
+   '<label>Referenzgerät / Quelle<input id="tlRefSource" placeholder="z. B. Klimakammer"></label></div>'+
+   '<button id="tlRefApply" type="button">Referenzen übernehmen & markieren</button></details>'+
    '<div class="tl-actions"><button id="tlPause" type="button">Pausieren</button>'+
    '<button id="tlSnapshot" type="button">Einzelaufnahme</button>'+
    '<button id="tlStop" type="button" class="primary">Aufzeichnung beenden & speichern</button></div>'+
@@ -259,11 +290,17 @@ const ELMOS_TEST_LOGGER=(()=>{
   $('tlPause').addEventListener('click',()=>{void pause()});
   $('tlSnapshot').addEventListener('click',()=>{void snapshot().catch(e=>announce(e.message,true))});
   $('tlMarkerAdd').addEventListener('click',()=>{void marker()});
+  $('tlRefApply').addEventListener('click',()=>{void updateReference()});
   $('tlExportJSON').addEventListener('click',()=>{void exportLast('json')});
   $('tlExportCSV').addEventListener('click',()=>{void exportLast('csv')});
   S.lastRecord=null;render();
  }
- function unmount(){if(S.recordId||S.starting||S.stopping)return false;clearTimer();S.root=null;return true}
+ function unmount(){
+  if(S.recordId||S.starting||S.stopping)return false;
+  clearTimer();
+  if(S.clock!==null){clearInterval(S.clock);S.clock=null}
+  S.root=null;return true
+ }
  function isBusy(){return !!(S.recordId||S.starting||S.stopping)}
  window.addEventListener('elmos-archive-interrupted',onInterrupted);
  return {mount,unmount,isBusy,get active(){return !!S.recordId}};
