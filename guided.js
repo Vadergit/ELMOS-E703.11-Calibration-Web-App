@@ -495,7 +495,7 @@ const ELMOS_GUIDED=(()=>{
    steps[stage][2];
   $('gwProgress').style.width=(loggerPage?100:(stage+1)/steps.length*100).toFixed(1)+'%';
   $('gwPrevious').disabled=stage===0;
-  $('gwNext').hidden=loggerPage;
+  $('gwNext').hidden=loggerPage||stage===0; // A card click now enters the chosen task immediately.
   $('gwNext').textContent=stage===8?'Abschluss prüfen':stage===9?'Fertig':'Weiter';
   if(stage===0)document.querySelectorAll('[data-gw-task]').forEach(x=>{
    x.setAttribute('aria-pressed',String(x.dataset.gwTask===task));
