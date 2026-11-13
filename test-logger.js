@@ -306,6 +306,6 @@ const ELMOS_TEST_LOGGER=(()=>{
  }
  function isBusy(){return !!(S.recordId||S.starting||S.stopping)}
  window.addEventListener('elmos-archive-interrupted',onInterrupted);
- return {mount,unmount,isBusy,get active(){return !!S.recordId}};
+ return {mount,unmount,isBusy,warn:message=>announce(message,true),get active(){return !!S.recordId}};
 })();
 if(typeof window!=='undefined')window.ELMOS_TEST_LOGGER=ELMOS_TEST_LOGGER;
