@@ -2,17 +2,30 @@
 
 **Ein geführter Kalibrierassistent für den ELMOS E703.11 und das SSP3-Eval-Board.** Ziel ist ein verständlicher Abgleich, der auch ohne tiefere Vorkenntnisse Schritt für Schritt funktioniert. Wer mehr benötigt, kann zusätzliche Messpunkte, DSP-Parameter und einen geschützten Expertenmodus verwenden.
 
-**Version: v0.6.49 · geführter Abgleich und klassische Ansicht** · [Änderungsverlauf](CHANGELOG.md) · **[Geplante Funktionen](ROADMAP.md)**
+**Version: v0.7.0 · geführter Abgleich, Kalibrierarchiv und Nachmessungen** · [Änderungsverlauf](CHANGELOG.md) · **[Geplante Funktionen](ROADMAP.md)**
 
 Über **Einstellungen → Demo-Modus** lässt sich der gesamte Kalibrierablauf mit simulierten Messwerten und NVM ausprobieren.
 
-**[Web-App öffnen](https://vadergit.github.io/ELMOS-E703.11-Calibration-Web-App/)** · **[Bedienungsanleitung](ANLEITUNG.md)** · **[Config-Dateien & EEPROM Viewer](CONFIG_DATEIEN.md)** · **[Ausgang & 1-Wire erklärt](AUSGANG_1WIRE.md)** · **[Testbericht und Grenzen](TESTBERICHT.md)**
+**[Web-App öffnen](https://vadergit.github.io/ELMOS-E703.11-Calibration-Web-App/)** · **[Archiv & Nachmessung](ARCHIV_NACHMESSUNG.md)** · **[Bedienungsanleitung](ANLEITUNG.md)** · **[Config-Dateien & EEPROM Viewer](CONFIG_DATEIEN.md)** · **[Ausgang & 1-Wire erklärt](AUSGANG_1WIRE.md)** · **[Testbericht und Grenzen](TESTBERICHT.md)**
 
 > **Entwicklungsstand: Laborprototyp.** Die vollständige Kalibrierung einschliesslich dauerhafter NVM-Programmierung ist **noch nicht mit einem echten E703.11 als Gesamtablauf freigegeben**. Hardwareverhalten, AODO-Ausgangsmodi und NVM-Wiederherstellung müssen am Testchip geprüft werden. Nicht für die Serienproduktion oder unersetzliche Sensoren einsetzen.
 
 > **Geführter Assistent:** Nach der bestätigten SSP3-Verbindung stehen die neue Schritt-für-Schritt-Führung, die klassische Ansicht und der optionale Kompaktmodus zur Verfügung. Ein E703.11-Chip muss für den Abgleich verbunden sein. Die USB-CDC-Bridge bleibt als experimenteller Verbindungstest ohne Sensorprogrammierung gesperrt.
 >
 > [Geführter Abgleich](docs/GEFUEHRTER_ASSISTENT.md) · [USB-Bridge](docs/USB_BRIDGE_GUIDE.md) · [ESP-Boards](docs/ESP_BOARD_OPTIONS.md) · [ESP32-C3 SuperMini Sketch](firmware/esp32c3_supermini/esp32c3_supermini.ino)
+
+## Neu in v0.7.0 – Lokales Kalibrierarchiv und Nachmessung
+
+Der neue Bereich **«Archiv & Nachmessung»** (oben in der Web-App) liest und speichert `elmos-e70311-record`-JSON-Dateien direkt in einem vom Benutzer freigegebenen Ordner. Fremde Dateien werden ignoriert. Es gibt keine Cloudspeicherung. Chrome kann eine erneute Berechtigung verlangen; empfohlen ist HTTPS oder `localhost`.
+
+- Vor dem geführten Abgleich wird ein Prüfprotokoll angelegt und die Ausgangskonfiguration von RAM und den 64 NVM-Wörtern ausgelesen. Auch die klassische Ansicht kann einen Abgleich explizit protokollieren.
+- Aufgezeichnet werden Chip-UID und USER-ID, **Web-App-Version und Board/Firmware (SSP3 oder ESP32-Bridge)**, alle aufgenommenen Rohsamples, Referenzen, PGA/Offset, Brückenspannung, DSP-Koeffizienten, Wiederholungen, Verifikationsfehler sowie ursprüngliches und programmiertes NVM.
+- VDD-Istwerte werden nur als gemessen gekennzeichnet, wenn sie ausdrücklich als manuelle Messung samt Quelle eingetragen wurden. VDD-Sollwert, aus Registern abgeleitete SVDD und S0/S1-Ausgangssollwerte bleiben davon getrennt.
+- Ein neuer Prüfplan-Editor unterstützt frei definierbare Druck- und Temperaturrampen, Umkehrpunkte, mehrere Zyklen und Hysteresepaare. Die Messung wird manuell bei stabilisiertem Prüfpunkt ausgelöst. Vorherige Fehlversuche werden nicht überschrieben.
+- Suche und Filter über alle Datensätze im gewählten Ordner, chronologischer Messverlauf, JSON-Export und NVM-Vergleich zweier Protokolle.
+- Temperatur-Abweichungen in °C werden nur bei ausdrücklich bestätigter DSP_T-Skalierung als bewertbar behandelt. Eine tatsächliche DUT-VDD- oder externe Temperaturmessung über zusätzliche Geräte ist derzeit **nicht** automatisch implementiert.
+
+**Sicherheitsstatus:** Die neue Archivierung ersetzt keine vollständige Hardwareprüfung. Die bisherige geschützte NVM-Programmierlogik bleibt bestehen; ohne beschreibbares Archiv wird ein neuer NVM-Schreibvorgang gesperrt. Die Software-Regressionstests sind unter `tests/archive.test.cjs` ergänzt. Siehe [Schritt-für-Schritt-Anleitung](ARCHIV_NACHMESSUNG.md).
 
 ## PLC-Adresse 0x6C / 0x7C automatisch erkennen (ab v0.6.40; Diagnose v0.6.41)
 
