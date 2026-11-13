@@ -228,7 +228,10 @@ const ELMOS_EXPERT=(()=>{
    }catch(e){$('expertRegisterDump').textContent=e.message}finally{if(live&&st.chip)startLive()}
   }
   const outputValues=()=>({mode:$('expertOutputMode').value,scaleEnabled:$('expertScaleEnable').checked,
-   gain:Number($('expertScaleGain').value),offset:Number($('expertScaleOffset').value),pwmPeriod:Number($('expertPwmPeriod').value)});
+   gain:Number($('expertScaleGain').value),offset:Number($('expertScaleOffset').value),pwmPeriod:Number($('expertPwmPeriod').value),
+   clipping:isAnalog($('expertOutputMode').value)?{mode:$('outputClippingMode').value,
+    low:$('outputClipLow').valueAsNumber,high:$('outputClipHigh').valueAsNumber,
+    vdd:Number($('psscVdd').value)}:undefined});
 
   let manualScaling=false,modeChoiceEdited=false;
   const isAnalog=mode=>['1','2','3'].includes(String(mode));
@@ -349,7 +352,7 @@ const ELMOS_EXPERT=(()=>{
      after[63]=CAL.crc16(after);
      const changes=after.map((v,i)=>v!==before[i]?{index:i,address:i*2,from:before[i],to:v}:null).filter(Boolean);
      if(!changes.length)throw Error('Ausgang ist bereits entsprechend konfiguriert');
-     if(changes.some(c=>![16,22,57,58,63].includes(c.index)))throw Error('Nicht erlaubtes Ausgangsregister im Änderungsplan');
+     if(changes.some(c=>![16,22,57,58,59,60,63].includes(c.index)))throw Error('Nicht erlaubtes Ausgangsregister im Änderungsplan');
      const plan={uid:st.uid.hex,outputOnly:true,limit,before:before.slice(),after,changes};
      st.outputOnlyPlan=plan;st.restorePlan=null;st.calImage=plan;
      st.expertOutputPlan=values;
@@ -438,6 +441,8 @@ const ELMOS_EXPERT=(()=>{
   }
   function renderOutputMode(){
    const mode=$('expertOutputMode').value;
+   $('outputClippingFields').hidden=!isAnalog(mode);
+   $('outputClipLow').disabled=$('outputClipHigh').disabled=$('outputClippingMode').value!=='on';
    $('expertPwmPeriodField').hidden=mode!=='4';
    $('psscAnalogFields').hidden=!isAnalog(mode);
    $('psscScalingSection').hidden=mode==='onewire';
@@ -477,6 +482,8 @@ const ELMOS_EXPERT=(()=>{
   }
   $('expertScaleEnable').addEventListener('change',()=>{manualScaling=true;renderOutputPreview();invalidateOutputPlan()});
   for(const id of ['expertScaleGain','expertScaleOffset'])$(id).addEventListener('change',()=>{manualScaling=true;renderOutputPreview();invalidateOutputPlan()});
+  for(const id of ['outputClippingMode','outputClipLow','outputClipHigh'])
+   $(id).addEventListener('input',()=>{renderOutputMode();invalidateOutputPlan()});
   $('expertPwmPeriod').addEventListener('change',invalidateOutputPlan);
   renderOutputMode();
   // Initialise the editable TARGET independently from existing chip values.

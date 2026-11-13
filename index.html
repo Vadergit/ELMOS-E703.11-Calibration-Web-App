@@ -671,8 +671,8 @@ html.compact-mode .foot{display:none}
 .operation-progress-dialog .operation-progress{position:static;max-width:100%;pointer-events:auto}
 .cal-point-recorded > .fieldrow{display:none!important}
 .operation-progress progress{display:block;width:100%;accent-color:var(--focus,#075874)}
-</style><link rel="stylesheet" href="guided.css?v=0.7.9"><link rel="stylesheet" href="interface.css?v=0.6.30"><link rel="stylesheet" href="theme.css?v=0.7.9"></head><body data-app-version="0.7.14"><div class="wrap"><header class="top">
-<div class="brand"><div class="logo" aria-hidden="true">E</div><div><div class="eyebrow">E703.11 · PSSC · v0.7.14</div><h1>Kalibrierassistent</h1></div></div>
+</style><link rel="stylesheet" href="guided.css?v=0.7.9"><link rel="stylesheet" href="interface.css?v=0.6.30"><link rel="stylesheet" href="theme.css?v=0.7.9"></head><body data-app-version="0.7.15"><div class="wrap"><header class="top">
+<div class="brand"><div class="logo" aria-hidden="true">E</div><div><div class="eyebrow">E703.11 · PSSC · v0.7.15</div><h1>Kalibrierassistent</h1></div></div>
 <div class="live-overview" role="group" aria-label="Sensorwerte · laufende Anzeige">
   <div class="live-kpi" title="Unkompensierter Druck-ADC. Warnung bei Beträgen über 25’000 Digits."><span class="live-kpi-label">ADC_S <span id="liveAdcAlert" class="live-alert" hidden>!</span></span><span class="live-kpi-reading" id="liveAdcS">—</span><span class="live-kpi-unit">Digits</span></div>
   <div class="live-kpi" title="ADC_T · Temperatur-Rohwert, keine direkte Temperatur in °C."><span class="live-kpi-label">ADC_T</span><span class="live-kpi-reading" id="liveAdcT">—</span><span class="live-kpi-unit">Digits</span></div>
@@ -1155,7 +1155,15 @@ html.compact-mode .foot{display:none}
     </label>
     <label id="expertPwmPeriodField" hidden>PWM Period (2–65’535 Takte)<input id="expertPwmPeriod" type="number" min="2" max="65535" step="1" value="16384"></label>
   </div>
-  <p id="outputClippingHint" class="muted small">S0/S1 legen die Spannungen an den Kalibrier-Endpunkten fest. Separate obere und untere Clipping-Grenzen sind in dieser Version nicht einstellbar.</p>
+  <div id="outputClippingFields" hidden>
+    <h3>Ausgang begrenzen (Clipping)</h3>
+    <div class="fieldrow">
+      <label>Clipping<select id="outputClippingMode"><option value="keep">Unverändert lassen</option><option value="on">Aktivieren</option><option value="off">Deaktivieren</option></select></label>
+      <label>Untergrenze (V)<input id="outputClipLow" type="number" step="any" min="0" placeholder="0.5" disabled></label>
+      <label>Obergrenze (V)<input id="outputClipHigh" type="number" step="any" min="0" placeholder="4.5" disabled></label>
+    </div>
+    <p class="muted small">Grenzen bezogen auf die eingetragene VDD. S0 und S1 bleiben die Zielspannungen der Kalibrier-Endpunkte. Beim Aktivieren werden die Grenzen ohne Hysterese vorgemerkt.</p>
+  </div>
   <p id="outputModeHint" class="muted small" role="status" aria-live="polite">Ausgangstyp wählen. Noch keine Änderung am Chip.</p>
   <div id="psscOneWireOnlyStatus" class="callout" hidden>One Wire only ist keine eigene AODO-Registerart. Zuerst das Original-NVM lesen; nur bei dauerhaft aktiviertem 1-Wire wird diese Auswahl bestätigt.</div>
   <div id="psscCurrentOutputStatus" class="callout">Aktuelle Chip-Ausgangseinstellungen können beim Verbinden ausgelesen werden. Die gewünschten Zielspannungen S0/S1 bleiben davon unabhängig.</div>
@@ -1167,7 +1175,7 @@ html.compact-mode .foot{display:none}
   <p class="muted small">Für <b>Analog Ratiometric 0..5 V</b> sind <strong>S0 = 10 % VDD</strong> und <strong>S1 = 90 % VDD</strong> voreingestellt (bei 5 V: 0.5 V und 4.5 V). Diese Werte sind <strong>Zielspannungen</strong>, keine aus dem Chip gelesenen Werte. Gain und Offset werden automatisch berechnet; das Auslesen der Chipregister verändert S0/S1 nicht.</p>
   <div id="psscAnalogFields">
     <div class="output-grid">
-      <label>VDD (V) · nur für Vorschau<input id="psscVdd" type="number" min="2.7" max="5.5" step="0.1" value="5"></label>
+      <label>VDD (V) · Referenz für Skalierung und Clipping<input id="psscVdd" type="number" min="2.7" max="5.5" step="0.1" value="5"></label>
       <label>DSP_S · Zielbereich (± Digits)<input id="psscOutputLimit" type="text" value="±32’000" readonly></label>
     </div>
     <p id="psscScalingSource" class="muted small">Der DSP-Endwert wird automatisch aus der Kalibrierung übernommen. ADC_S ist davon unabhängig.</p>
@@ -1302,5 +1310,5 @@ html.compact-mode .foot{display:none}
 </div>
 <div class="nav"><button data-next="0">Zur Verbindung</button><button data-next="6">Zum NVM-Schritt</button></div>
 </section>
-<div class="foot"><b>Version v0.7.14</b> · <a href="CHANGELOG.md" target="_blank" rel="noopener noreferrer">Änderungsverlauf</a> · ELMOS E703.11 · unabhängiger Kalibrierprototyp · Sicherheitsprinzip: Factory- und Kommunikations-Bootregister gesperrt; dokumentierte AODO-Ausgangsoptionen nur nach Prüfung im NVM-Plan; Wiederherstellung nur mit passender Chip-UID.</div>
-<section class="card panel" data-panel="8" hidden><div class="eyebrow">Werkzeuge · Sensorprotokoll</div><h2>Test / Logging</h2><p class="muted small">Messdaten, Rohwerte und Notizen jederzeit in einem lokalen Archiv protokollieren. Ohne NVM-Schreibvorgang.</p><div id="classicLoggerHost"></div></section></main></div></div><div id="tip" class="tooltip"></div><script src="calibration.js?v=0.6.58"></script><script src="eeprom-help.js?v=0.6.30"></script><script src="expert.js?v=0.7.10"></script><script src="config.js?v=0.6.36"></script><script src="guided-plan.js?v=0.6.30"></script><script src="demo.js?v=0.6.49"></script><script src="archive-core.js?v=0.7.3"></script><script src="test-logger-core.js?v=0.7.3"></script><script src="archive-analysis.js?v=0.7.4"></script><script src="archive.js?v=0.7.13"></script><script src="app.js?v=0.7.13"></script><script src="compact.js?v=0.7.13"></script><script src="test-logger.js?v=0.7.4"></script><script src="guided.js?v=0.7.14"></script></body></html>
+<div class="foot"><b>Version v0.7.15</b> · <a href="CHANGELOG.md" target="_blank" rel="noopener noreferrer">Änderungsverlauf</a> · ELMOS E703.11 · unabhängiger Kalibrierprototyp · Sicherheitsprinzip: Factory- und Kommunikations-Bootregister gesperrt; dokumentierte AODO-Ausgangsoptionen nur nach Prüfung im NVM-Plan; Wiederherstellung nur mit passender Chip-UID.</div>
+<section class="card panel" data-panel="8" hidden><div class="eyebrow">Werkzeuge · Sensorprotokoll</div><h2>Test / Logging</h2><p class="muted small">Messdaten, Rohwerte und Notizen jederzeit in einem lokalen Archiv protokollieren. Ohne NVM-Schreibvorgang.</p><div id="classicLoggerHost"></div></section></main></div></div><div id="tip" class="tooltip"></div><script src="calibration.js?v=0.7.15"></script><script src="eeprom-help.js?v=0.6.30"></script><script src="expert.js?v=0.7.15"></script><script src="config.js?v=0.6.36"></script><script src="guided-plan.js?v=0.6.30"></script><script src="demo.js?v=0.6.49"></script><script src="archive-core.js?v=0.7.3"></script><script src="test-logger-core.js?v=0.7.3"></script><script src="archive-analysis.js?v=0.7.4"></script><script src="archive.js?v=0.7.13"></script><script src="app.js?v=0.7.15"></script><script src="compact.js?v=0.7.13"></script><script src="test-logger.js?v=0.7.4"></script><script src="guided.js?v=0.7.15"></script></body></html>

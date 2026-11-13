@@ -1256,3 +1256,21 @@ test('Manual pause respected, RAM-only live correction exported and NVM gates un
  assert.ok(app.includes('cookiePeriodAdjusted:st.powerCycleResult?.livePeriodAdjustedInRam??false'));
  assert.ok(cal.includes('for(const index of [17,18,19])'));
 });
+
+test('analog clipping rounds voltage limits inward and preserves One Wire settings',()=>{
+ const before=safeNvm();
+ before[59]=3;before[60]=3;
+ const settings={mode:'1',scaleEnabled:true,gain:0.7,offset:0};
+ const clipping={mode:'on',low:0.5,high:4.5,vdd:5};
+ const after=CAL.prepareOutputConfig(before,{...settings,clipping},32000);
+ assert.equal(after[16]&0x80,0x80);
+ assert.equal(after[59],0x999c);
+ assert.equal(after[60],0x6664);
+ assert.deepEqual(after.slice(17,20),before.slice(17,20));
+ assert.equal(CAL.prepareOutputConfig(after,{...settings,clipping:{mode:'off'}})[16]&0x80,0);
+ assert.equal(CAL.prepareOutputConfig(after,settings)[16]&0x80,0x80);
+ assert.throws(()=>CAL.prepareOutputConfig(before,{...settings,clipping:{...clipping,high:4.6}}),/10–90/);
+ before[16]|=0x100;
+ before[61]=1;
+ assert.throws(()=>CAL.prepareOutputConfig(before,{...settings,clipping}),/Fehlerreaktionen/);
+});

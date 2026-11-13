@@ -101,7 +101,7 @@ const ELMOS_GUIDED=(()=>{
        <div class="gw-panel-actions" id="gwScalingActions"></div>
       </div>
       <div class="gw-advanced" id="gwAdvancedOutput" hidden><details><summary>Expertenparameter · AODO Gain/Offset</summary><div class="gw-fields" id="gwExpertOutputFields"></div></details></div>
-      <div class="gw-panel-actions" id="gwOutputActions"></div>
+      <div id="gwOutputClipping"></div><div class="gw-panel-actions" id="gwOutputActions"></div>
      </section>
      <section class="gw-tile is-soft gw-output-review">
       <div class="gw-section-head"><div><h3>Vorschau und Status</h3><p>Ausgelesene Werte, Skalierung und Startschutz</p></div></div>
@@ -153,7 +153,8 @@ const ELMOS_GUIDED=(()=>{
   moveId('psscDefaultScaling','gwScalingActions');
   for(const id of ['expertScaleGain','expertScaleOffset'])moveLabel(id,'gwExpertOutputFields');
   for(const id of ['expertOutputPreset','expertOutputStage','outputNvmRead'])moveId(id,'gwOutputActions');
-  for(const id of ['outputClippingHint','outputModeHint','psscScalingPreview','expertOutputMsg','outputOneWireStatus','psscOneWireOnlyStatus'])moveId(id,'gwOutputStatuses');
+  moveId('outputClippingFields','gwOutputClipping');
+  for(const id of ['outputModeHint','psscScalingPreview','expertOutputMsg','outputOneWireStatus','psscOneWireOnlyStatus'])moveId(id,'gwOutputStatuses');
   moveId('psscCurrentOutputStatus','gwOutputRegisters');
   moveLabel('nvmAutoBackup','gwNvmBackup');
   moveId('nvmPrepare','gwNvmPrepare');moveId('nvmProgress','gwNvmPrepare');

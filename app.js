@@ -2583,6 +2583,8 @@ if(typeof document!=='undefined') (function UI(){
    if(startup.requiresCookie&&!(st.powerCycleResult?.readVerified&&st.powerCycleResult.verifiedUid===st.uid.hex)&&!psscRecoveryProven())
     throw Error('One-Wire-Startfenster '+startup.windowLabel+' vorhanden, Magic-Cookie-Start am aktuellen Chip nicht bestätigt. Kein NVM-Schreiben.');
    const recovery=st.psscRamRecovery||(st.regs[0x06]===0x6C04&&st.nvmBackup[17]!==0x6C04);
+   if(recovery&&['on','off'].includes(st.expertOutputPlan?.clipping?.mode))
+    throw Error('Clipping kann in einer One-Wire-RAM-Recovery-Sitzung nicht gespeichert werden');
    const bridgeSupply=await readNvmBridgeSupply(st.afe0);
    const image=CAL.configFrom(st.nvmBackup,st.calfit,st.afe??0x800,{
     output:recovery?null:st.expertOutputPlan,bridgeSupply,userId:requestedNvmUserId()
@@ -2636,14 +2638,14 @@ if(typeof document!=='undefined') (function UI(){
    if(!restoring&&!outputOnly&&st.calfit.stats.maxDigits>100)throw Error('Fitfehler zu gross (>100 Digits)');
    if(!restoring&&!outputOnly&&modified[30]!==(requestedNvmUserId()??initial[30]))
     throw Error('USER-ID wurde geändert. Änderungsliste erneut vorbereiten.');
-   const allowedNormal=new Set([16,22,CAL.SVDD_INDEX,28,30,31,32,33,34,...Array.from({length:16},(_,i)=>35+i),51,52,53,54,57,58,63]);
-   if(st.calImage.changes.some(c=>restoring?(c.index<28||c.index>63):outputOnly?![16,22,57,58,63].includes(c.index):!allowedNormal.has(c.index)))throw Error('Unzulässige NVM-Änderung');
+   const allowedNormal=new Set([16,22,CAL.SVDD_INDEX,28,30,31,32,33,34,...Array.from({length:16},(_,i)=>35+i),51,52,53,54,57,58,59,60,63]);
+   if(st.calImage.changes.some(c=>restoring?(c.index<28||c.index>63):outputOnly?![16,22,57,58,59,60,63].includes(c.index):!allowedNormal.has(c.index)))throw Error('Unzulässige NVM-Änderung');
    if(restoring){
     for(let i=0;i<28;i++)if(modified[i]!==initial[i])throw Error('Factory-/Bootbereich weicht beim Restore ab');
-   }else if(outputOnly||st.calImage.changes.some(c=>c.index===16||c.index===22||c.index===57||c.index===58)){
+   }else if(outputOnly||st.calImage.changes.some(c=>[16,22,57,58,59,60].includes(c.index))){
     if(!st.expertOutputPlan)throw Error('AODO-NVM-Änderung ohne geprüften Expertenvorschlag');
     const expected=CAL.prepareOutputConfig(initial,st.expertOutputPlan,outputOnly?st.outputOnlyPlan.limit:st.calfit.outputLimit);
-    for(const i of [16,22,57,58])if(modified[i]!==expected[i])throw Error('Ausgangsregister entspricht nicht dem geprüften Vorschlag');
+    for(const i of [16,22,57,58,59,60])if(modified[i]!==expected[i])throw Error('Ausgangsregister entspricht nicht dem geprüften Vorschlag');
    }
    if(!window.ELMOS_ARCHIVE?.active||!['calibration','output'].includes(window.ELMOS_ARCHIVE.current?.type))
     throw Error('Für das NVM-Schreiben zuerst ein Kalibrier- oder Ausgangsprotokoll im Archiv starten. Danach die NVM-Änderungsliste erneut vorbereiten.');

@@ -116,7 +116,7 @@ const ELMOS_CAL = (() => {
    throw Error('1-Wire-Startschutz: Ungültiges 64-Wort-NVM-Abbild');
   for(let i=0;i<28;i++){
    if(i===16){
-    const allowed=((7<<9)|(1<<6));
+    const allowed=((7<<9)|(1<<6)|(1<<7));
     if(((before[i]^after[i])&~allowed)!==0)throw Error('1-Wire-Startschutz: Nicht erlaubte CFG_EN-Bits verändert');
    }else if(i===SVDD_INDEX&&allowSvdd&&before[i]!==after[i]){
     if(((before[i]^after[i])&~SVDD_MASK)!==0||(after[i]&SVDD_MASK)===SVDD_MASK)
@@ -192,6 +192,25 @@ const ELMOS_CAL = (() => {
   if(mode===4)out[22]=period;
   if(mode===5)out[22]=0x4200;
   if(scaleEnabled){out[57]=q(offset,12);out[58]=q(gain,12);}
+  const clipping=settings.clipping;
+  if(clipping&&clipping.mode!=='keep'){
+   if(mode>3)throw Error('Spannungs-Clipping ist nur für den ratiometrischen Analogausgang verfügbar');
+   if(clipping.mode==='off')out[16]&=~(1<<7);
+   else if(clipping.mode==='on'){
+    const {low,high,vdd}=clipping;
+    if(![low,high,vdd].every(Number.isFinite)||vdd<=0||low<vdd*0.1-1e-9||high>vdd*0.9+1e-9||low>=high)
+     throw Error('Clipping-Grenzen müssen aufsteigend und innerhalb 10–90 % VDD liegen');
+    const lo=Math.ceil(8192*(2*low/vdd-1)-1e-9);
+    const hi=Math.floor(8192*(2*high/vdd-1)+1e-9);
+    if(lo>=hi)throw Error('Abstand zwischen den Clipping-Grenzen zu klein');
+    if((out[16]&(1<<8))&&(original[61]&0xF))
+     throw Error('Aktive Fehlerreaktionen für AODO-Grenzen können das Clipping übersteuern');
+    // Bits 15:2 contain the signed Q0.13 threshold. Bits 1:0 = 0 disable hysteresis.
+    out[59]=(lo<<2)&0xFFFF;
+    out[60]=(hi<<2)&0xFFFF;
+    out[16]|=1<<7;
+   }else throw Error('Ungültige Clipping-Einstellung');
+  }
   if(original.slice(0,16).some((v,i)=>v!==out[i]))throw Error('Factory-Bereich darf nicht verändert werden');
   for(let i=17;i<28;i++)if(i!==22&&out[i]!==original[i])throw Error('Geschützte Kommunikation verändert');
   protectStartupCommunication(original,out);
@@ -214,7 +233,7 @@ const ELMOS_CAL = (() => {
   }
   cfg[63]=crc16(cfg);
   for(let i=0;i<=27;i++)if(cfg[i]!==original[i]&&![16,22,SVDD_INDEX].includes(i))throw Error('Sicherheitsfehler: schreibgeschützter NVM-Bereich verändert');
-  if(cfg[16]!==original[16]&&(((cfg[16]^original[16])&~((7<<9)|(1<<6)))!==0))throw Error('CFG_EN: fremde Bits dürfen nicht verändert werden');
+  if(cfg[16]!==original[16]&&(((cfg[16]^original[16])&~((7<<9)|(1<<6)|(1<<7)))!==0))throw Error('CFG_EN: fremde Bits dürfen nicht verändert werden');
   if(cfg.slice(0,16).some((v,i)=>v!==original[i]))throw Error('Werkskalibrierung verändert');
   protectStartupCommunication(original,cfg,{allowSvdd:opts.bridgeSupply!==undefined});
   return {before:original.slice(),after:cfg,changes:cfg.map((v,i)=>v!==original[i]?{index:i,address:i*2,from:original[i],to:v}:null).filter(Boolean)};

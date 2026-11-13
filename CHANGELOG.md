@@ -1,3 +1,7 @@
+## v0.7.15 – Clipping für den Analogausgang
+
+- Schritt 8 bietet optionale obere und untere Spannungsgrenzen für den ratiometrischen AODO-Ausgang. Die Änderung wird zur NVM-Prüfung vorgemerkt.
+
 ## v0.7.14 – Messpunkte nach Ansichtswechsel
 
 - Baut die Messpunktliste beim erneuten Öffnen der geführten Ansicht auch bei unveränderter Messmatrix wieder auf.
