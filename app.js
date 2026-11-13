@@ -1750,8 +1750,8 @@ if(typeof document!=='undefined') (function UI(){
  function markSensorUnavailable(reason){
   if(!st.port||st.closing||!st.chip)return;
   logging('Sensor-Kommunikation abgebrochen: '+reason);
-  archiveStopTelemetry();
-  st.sensorLost=true;st.chip=false;st.plcAddressVerified=false;st.mode='usb';st.afe0=null;
+  st.sensorLost=true;st.chip=false;st.plcAddressVerified=false;
+  archiveStopTelemetry();st.mode='usb';st.afe0=null;
   stopLive();
   st.adc=null;st.dsp=null;st.dspError=null;st.afe=null;st.afe0=null;st.boot=null;st.regs={};
   st.uid=null;st.uidShownForInput=null;
