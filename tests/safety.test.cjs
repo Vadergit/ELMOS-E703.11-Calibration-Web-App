@@ -628,8 +628,8 @@ test('Saving config now always exports all five groups regardless of import chec
  assert.ok(!app.includes('const profile=configFromUi(configSelectedGroups());'));
  assert.ok(html.includes('Gesamte Config speichern (.json)'));
  assert.ok(html.includes('id="configGroups" hidden'));
- assert.ok(html.includes('Welche Einstellungen möchtest du aus dieser Datei übernehmen?'));
- assert.ok(html.includes('.config-group-select[hidden]{display:none!important}'));
+ assert.ok(html.includes('id="configGroupsLegend"'));
+ assert.ok(html.includes('.config-group-select label[hidden]'));
  assert.ok(!html.includes('Was soll in der Config-Datei gespeichert werden?'));
 });
 test('Import checkbox selection controls which groups are applied and gates AFE writes',()=>{

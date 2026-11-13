@@ -66,7 +66,7 @@ const ELMOS_COMPACT=(()=>{
 
   for(const id of ['configLabel','configPreset','configFile'])label(id,'cpCfgFields');
   moveId('configGroups','cpCfgGroups');moveId('configImportEffect','cpCfgEffect');
-  actions(['configPresetSave','configPresetDelete','configSave','configApply'],'cpCfgActions');
+  actions(['configPresetEdit','configPresetSave','configPresetCancel','configPresetDelete','configSave','configApply'],'cpCfgActions');
   moveId('configPreview','cpCfgStatus');
 
   for(const id of ['calPointCount','calSampleCount','calUnit','calUnitOther','pmin','pmax'])label(id,'cpPointsSetup');

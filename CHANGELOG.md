@@ -1,3 +1,7 @@
+## v0.7.18 – Einstellungsgruppen im Preset auswählen
+
+- Presets speichern nur die gewählten Gruppen. Beim Laden zeigt die App nur enthaltene Gruppen.
+
 ## v0.7.17 – Sensor-Presets im Messplan
 
 - Lädt Presets direkt in «Abgleich planen» und speichert die genaue Druck-/Temperaturmatrix samt Temperatur-Sollwerten.

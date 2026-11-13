@@ -62,7 +62,7 @@ const ELMOS_GUIDED=(()=>{
      '<label>Abgleichart<select id="gwComplexity"><option value="simple">Automatisch · empfohlen</option><option value="advanced">Experte · Polynomordnung selber wählen</option></select></label>'+
     '</div><div class="gw-fields gw-3 gw-advanced" id="gwOrderFields" hidden><label>Druckpolynomordnung<select id="gwSOrder"><option value="1">1 · Linear</option><option value="2">2 · Quadratisch</option><option value="3">3 · Kubisch</option></select></label><label>Temperaturordnung<select id="gwTOrder"><option value="0">0 · Keine</option><option value="1">1 · Linear</option><option value="2">2 · Quadratisch</option></select></label></div>'+
     '<div class="gw-fieldnote">Jede Kombination wird an allen gewählten Temperaturbedingungen gemessen. Maximal 10 Kalibrierpunkte unterstützt die bestehende Engine.</div></div>'+
-    '<details class="gw-tile gw-config-details" id="gwConfigDetails"><summary><strong>Sensor-Preset laden oder speichern</strong> <span>Optional · Einstellungen eines ähnlichen Sensors</span></summary><p>Die Vorlage übernimmt nur Einstellungen. Aufgenommene Messwerte, Chip-UID, Werksdaten und EEPROM werden niemals importiert.</p><div class="gw-fields gw-3" id="gwConfigFields"></div><div id="gwConfigGroups"></div><div class="gw-panel-actions" id="gwConfigActions"></div><div id="gwConfigEffect"></div><div id="gwConfigStatus"></div></details>'+
+    '<details class="gw-tile gw-config-details" id="gwConfigDetails"><summary><strong>Sensor-Preset laden oder speichern</strong> <span>Optional · Einstellungen eines ähnlichen Sensors</span></summary><div class="gw-fields gw-3" id="gwConfigFields"></div><div id="gwConfigGroups"></div><div class="gw-panel-actions" id="gwConfigActions"></div><div id="gwConfigEffect"></div><div id="gwConfigStatus"></div></details>'+
     '<div id="gwPlanPreview" class="gw-summary"></div></div>'+
    `<div id="gwPage2" class="gw-page gw-setup-page" hidden>
     <div class="gw-columns gw-setup-grid">
@@ -127,7 +127,7 @@ const ELMOS_GUIDED=(()=>{
   moveLabel('calDspLimit','gwDspFields');
   for(const id of ['configLabel','configPreset','configFile'])moveLabel(id,'gwConfigFields');
   moveId('configGroups','gwConfigGroups');moveId('configImportEffect','gwConfigEffect');
-  for(const id of ['configApply','configPresetSave','configPresetDelete','configSave'])moveId(id,'gwConfigActions');
+  for(const id of ['configApply','configPresetEdit','configPresetSave','configPresetCancel','configPresetDelete','configSave'])moveId(id,'gwConfigActions');
   moveId('configPreview','gwConfigStatus');
   const stepper=document.querySelector('.afe-step-panel');move(stepper,'gwAFEPanel');
   moveId('gainInfo','gwGain');moveId('writeMsg','gwAFEMsg');moveId('configAfePending','gwConfigAFE');

@@ -2891,19 +2891,25 @@ if(typeof document!=='undefined') (function UI(){
   $('configApply').disabled=!profile||!selected.length;
   $('configApply').textContent=hasAfe?'Config übernehmen + AFE direkt ins RAM':'Ausgewählte Vorgaben übernehmen';
   $('configImportEffect').textContent=!profile?
-   'Datei auswählen, danach die zu übernehmenden Einstellungsgruppen bestimmen.':
+   '':
    !selected.length?'Bitte mindestens eine Einstellungsgruppe für den Import auswählen.':
-   hasAfe?'AFE ausgewählt: Mit «Übernehmen» werden PGA1, Offset, PGA2 und eine eventuell enthaltene Brückenspannung (SVDD) direkt ins Chip-RAM geschrieben und rückgelesen. Keine EEPROM-Programmierung.':
-   'AFE nicht ausgewählt: Nur die angehakten Gruppen werden als Vorgaben übernommen. Kein AFE-RAM- oder EEPROM-Schreibvorgang.';
+   hasAfe?'AFE wird beim Übernehmen ins Sensor-RAM geschrieben.':'';
  }
- function resetConfigImportSelection(profile){
+ function resetConfigImportSelection(profile,editing=false){
   const available=new Set(profile?configIncluded(profile):[]);
   for(const [group,id] of Object.entries(CONFIG_GROUP_CONTROLS)){
    const checkbox=$(id);
-   checkbox.checked=available.has(group);
-   checkbox.disabled=!available.has(group);
+   const present=available.has(group);
+   checkbox.checked=profile?present:editing;
+   checkbox.disabled=!present&&!editing;
+   checkbox.closest('label').hidden=!present&&!editing;
   }
-  $('configGroups').hidden=!profile;
+  $('configGroups').hidden=!profile&&!editing;
+  $('configGroupsLegend').textContent=editing?'Gruppen für das Preset':'Im Preset oder in der Datei enthalten';
+  $('configPresetSave').hidden=!editing;
+  $('configPresetCancel').hidden=!editing;
+  $('configPresetEdit').hidden=editing;
+  $('configApply').hidden=editing||!profile;
   showConfigImportEffect(profile);
  }
  for(const id of Object.values(CONFIG_GROUP_CONTROLS))
@@ -2930,13 +2936,23 @@ if(typeof document!=='undefined') (function UI(){
  }
  function previewPreset(profile){
   selectedConfig=profile;
+  $('configLabel').value=profile.label;
   resetConfigImportSelection(profile);
-  show('configPreview','Preset «'+profile.label+'» ausgewählt. Wähle die Gruppen und klicke auf «Übernehmen».\n'+ELMOS_CONFIG.describe(profile),'success');
+  show('configPreview','Preset «'+profile.label+'» ausgewählt.','success');
  }
  try{renderPresets(readPresets())}catch(e){show('configPreview',e.message,'error')}
+ $('configPresetCancel').addEventListener('click',()=>resetConfigImportSelection(selectedConfig));
+ $('configPresetEdit').addEventListener('click',()=>{
+  const checked=configSelectedGroups();
+  resetConfigImportSelection(selectedConfig,true);
+  if(selectedConfig)for(const [group,id] of Object.entries(CONFIG_GROUP_CONTROLS))$(id).checked=checked.includes(group);
+  $('configLabel').focus();
+ });
  $('configPresetSave').addEventListener('click',()=>{
   try{
-   const groups=ELMOS_CONFIG.GROUPS.filter(group=>group!=='afe'||(st.chip&&Number.isInteger(st.afe)));
+   const groups=configSelectedGroups();
+   if(groups.includes('afe')&&(!st.chip||!Number.isInteger(st.afe)))
+    throw Error('Für AFE zuerst den Sensor verbinden und auslesen oder AFE abwählen.');
    const profile=configFromUi(groups,window.ELMOS_GUIDED?.planForPreset?.()),entries=readPresets();
    const index=entries.findIndex(item=>item.label===profile.label);
    if(index>=0){
@@ -2947,8 +2963,7 @@ if(typeof document!=='undefined') (function UI(){
    $('configFile').value='';
    renderPresets(entries,profile.label);
    previewPreset(profile);
-   show('configPreview','Preset «'+profile.label+'» gespeichert. '+ELMOS_CONFIG.describe(profile)+
-    (groups.includes('afe')?'':' AFE wird bei einem verbundenen, ausgelesenen Sensor mitgespeichert.'),'success');
+   show('configPreview','Preset «'+profile.label+'» gespeichert.','success');
   }catch(e){show('configPreview','Preset konnte nicht gespeichert werden. '+e.message,'error')}
  });
  presetSelect.addEventListener('change',()=>{
@@ -3059,7 +3074,7 @@ if(typeof document!=='undefined') (function UI(){
    if(!target){st.profilePendingAFE=null;profileSummary()}
    $('configLabel').value=profile.label;
    renderFlowState();
-   show('configPreview','Config «'+profile.label+'» übernommen. Gruppen: '+included.join(', ')+'.\n'+
+   show('configPreview','Config «'+profile.label+'» übernommen. '+
     (target?'AFE: Im Chip-RAM geschrieben und rückgelesen – Werte aktiv. ':'Keine AFE-Änderung am Chip. ')+
     'Keine EEPROM-Programmierung. '+(affectsCalibration?
      'Messpunkte und DSP-Koeffizienten für diesen Sensor neu aufnehmen.':
