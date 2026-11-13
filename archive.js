@@ -124,6 +124,8 @@ const ELMOS_ARCHIVE=(()=>{
  async function event(kind,data={}){
   if(!S.record)return false;
   S.record.events.push({at:iso(),kind,data:safe(data)});
+  if(kind==='nvm_after'&&Array.isArray(data.words)&&Number.isInteger(data.words[30]))
+   S.record.customUID='0x'+data.words[30].toString(16).padStart(4,'0').toUpperCase();
   await flush();
   renderActive();
   return true;
@@ -187,7 +189,8 @@ const ELMOS_ARCHIVE=(()=>{
   }catch(e){note('Archiv nicht lesbar: '+e.message,true)}
  }
  function readable(r){
-  const parts=[r.chipUID,r.customUID,r.type,r.status,r.startedAt,r.equipment?.adapter,r.equipment?.firmware,
+  const parts=[r.chipUID,r.customUID,r.initial?.configuredUserId,r.final?.configuredUserId,
+   r.type,r.status,r.startedAt,r.equipment?.adapter,r.equipment?.firmware,
    r.software?.version,r.id];
   return parts.filter(Boolean).join(' ').toLowerCase();
  }
@@ -229,8 +232,10 @@ const ELMOS_ARCHIVE=(()=>{
    const h=C.hysteresis(r);
    root.append(el('h4','Hysterese-Auswertung ('+h.pairs.length+' vergleichbare Paare)'));
    for(const p of h.pairs)root.append(el('div',(p.axis==='pressure'?'Druck':'Temperatur')+
-    ' · Referenz '+p.reference+' · Gegenwert '+p.other+' · auf '+p.ascending+
-    ' / ab '+p.descending+' · Δ '+p.delta+' '+p.unit,'ar-detail-row'));
+    ' · Zyklus '+p.cycle+' · Referenz '+p.reference+' · Gegenwert '+p.other+
+    ' · auf '+p.ascending+' / ab '+p.descending+' · Δ '+p.delta+' '+p.unit+
+    (Number.isFinite(p.percentTestSpan)?' · '+p.percentTestSpan.toFixed(4)+' % der Prüfspanne':''),
+    'ar-detail-row'));
   }
   root.append(el('h4','Chronologisches Ereignisprotokoll'));
   const important=r.events.filter(e=>e.kind!=='transport');
