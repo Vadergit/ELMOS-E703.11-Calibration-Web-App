@@ -27,6 +27,18 @@ test('invalid plan or excessive amplification of steps is rejected',()=>{
  assert.throws(()=>C.makePlan({mode:'pressure',pressure:'0 10',fixedTemperature:25,cycles:0}),/Zyklen/);
  assert.throws(()=>C.makePlan({mode:'pressure',pressure:'0 10',fixedTemperature:25,cycles:31}),/Zyklen/);
 });
+test('hysteresis never pairs measurements from distinct cycles',()=>{
+ const plan=C.makePlan({mode:'pressure',pressure:'0, 5, 10, 5, 0',fixedTemperature:25,cycles:2});
+ const r={plan,events:[
+  {kind:'measurement',stepIndex:1,pass:true,sample:{dspS:1000}},
+  {kind:'measurement',stepIndex:8,pass:true,sample:{dspS:1300}}
+ ]};
+ assert.equal(C.hysteresis(r).pairs.length,0);
+ r.events.push({kind:'measurement',stepIndex:3,pass:true,sample:{dspS:990}});
+ assert.equal(C.hysteresis(r).pairs.length,1);
+ assert.equal(C.hysteresis(r).pairs[0].cycle,1);
+});
+
 test('archive schema rejects foreign JSON without throwing',()=>{
  const valid={format:C.FORMAT,schemaVersion:C.VERSION,id:'a-long-record-id',type:'calibration',startedAt:'2026-11-13T12:00:00Z',events:[]};
  assert.ok(C.valid(valid));
