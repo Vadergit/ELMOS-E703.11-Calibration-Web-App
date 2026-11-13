@@ -1,3 +1,7 @@
+## v0.7.19 – Vorlage für den nächsten Sensor
+
+- Zeigt Einstellungsgruppen und Namen erst beim Bearbeiten. Bietet die zuletzt übernommene Vorlage beim Anschliessen eines anderen Sensors erneut an.
+
 ## v0.7.18 – Einstellungsgruppen im Preset auswählen
 
 - Presets speichern nur die gewählten Gruppen. Beim Laden zeigt die App nur enthaltene Gruppen.

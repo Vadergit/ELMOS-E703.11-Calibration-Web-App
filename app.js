@@ -70,7 +70,7 @@ if(typeof document!=='undefined') (function UI(){
  const h=P.hx;
  const fmt=n=>n===null||n===undefined||!Number.isFinite(n)?'—':Math.round(n).toLocaleString('de-CH');
  const now=()=>new Date().toLocaleTimeString('de-CH',{hour12:false});
- const show=(id,text,type='')=>{const e=$(id);if(!e)return;e.textContent=text;e.className='callout'+(type?' '+type:'')};
+ const show=(id,text,type='')=>{const e=$(id);if(!e)return;if(id==='configPreview')e.hidden=false;e.textContent=text;e.className='callout'+(type?' '+type:'')};
  const logging=t=>{if(window.ELMOS_ARCHIVE?.active&&(st.calTask||st.writing||st.nvmWorking))window.ELMOS_ARCHIVE.trace(t);st.log.push(now()+'  '+t);if(st.log.length>500)st.log.shift();$('usbLog').textContent=st.log.slice(-90).join('\n')};
  const hexWords=arr=>arr.map(x=>P.hx(x,2)).join(' ');
  const sleep=ms=>new Promise(r=>setTimeout(r,ms));
@@ -1256,6 +1256,7 @@ if(typeof document!=='undefined') (function UI(){
   // until the entire startup process has completed.
   if(!st.powerCycleRunning&&!st.manualLivePause)startLive();
   window.ELMOS_GUIDED?.onConnected?.();
+  offerSeriesPreset();
  }
 
  // Repeated, bounded READ-only PLC probes on an ALREADY configured SSP3.
@@ -2904,7 +2905,11 @@ if(typeof document!=='undefined') (function UI(){
    checkbox.disabled=!present&&!editing;
    checkbox.closest('label').hidden=!present&&!editing;
   }
-  $('configGroups').hidden=!profile&&!editing;
+  $('configGroups').hidden=!editing;
+  $('configLabel').closest('label').hidden=!editing;
+  $('configSave').hidden=!editing;
+  $('configPresetDelete').hidden=!editing;
+  $('configImportEffect').hidden=editing||!profile;
   $('configGroupsLegend').textContent=editing?'Gruppen für das Preset':'Im Preset oder in der Datei enthalten';
   $('configPresetSave').hidden=!editing;
   $('configPresetCancel').hidden=!editing;
@@ -2938,7 +2943,7 @@ if(typeof document!=='undefined') (function UI(){
   selectedConfig=profile;
   $('configLabel').value=profile.label;
   resetConfigImportSelection(profile);
-  show('configPreview','Preset «'+profile.label+'» ausgewählt.','success');
+  $('configPreview').hidden=true;
  }
  try{renderPresets(readPresets())}catch(e){show('configPreview',e.message,'error')}
  $('configPresetCancel').addEventListener('click',()=>resetConfigImportSelection(selectedConfig));
@@ -3009,7 +3014,8 @@ if(typeof document!=='undefined') (function UI(){
   }catch(e){selectedConfig=null;resetConfigImportSelection(null);show('configPreview','Config-Laden abgelehnt: '+e.message,'error')}
   finally{operation.finish()}
  });
- $('configApply').addEventListener('click',async()=>{
+ $('configApply').addEventListener('click',()=>applySelectedConfig());
+ async function applySelectedConfig(){
   const button=$('configApply'),fileInput=$('configFile');
   const operation=beginOperation('Config wird übernommen',true);
   try{
@@ -3079,6 +3085,7 @@ if(typeof document!=='undefined') (function UI(){
     'Keine EEPROM-Programmierung. '+(affectsCalibration?
      'Messpunkte und DSP-Koeffizienten für diesen Sensor neu aufnehmen.':
      'Bestehende Messpunkte und DSP-Koeffizienten wurden durch diesen reinen Ausgangsimport nicht verändert.'),'success');
+   lsSet('elmos-series-preset-v1',JSON.stringify({profile,groups:included,uid:st.uid?.hex||null}));
    await window.ELMOS_ARCHIVE?.event('configuration_imported',{label:profile.label,include:included,version:profile.version,AFE:{...st.staged},supply:archiveVoltages()});
    document.dispatchEvent(new CustomEvent('elmos-config-applied',{detail:{included:included.slice(),version:profile.version,matrix:has('measurement')?values.measurement.matrix:null}}));
   }catch(e){
@@ -3092,7 +3099,41 @@ if(typeof document!=='undefined') (function UI(){
     $(id).disabled=!available.has(group);
    button.disabled=!selectedConfig||!configSelectedGroups().length;
   }
- });
+ }
+ let seriesOfferKey=null;
+ function offerSeriesPreset(){
+  if(demoEnabled||!st.uid?.hex)return;
+  const port=st.port,uid=st.uid.hex,session=st.sessionIndex;
+  const key=session+':'+uid;
+  if(seriesOfferKey===key)return;
+  seriesOfferKey=key;
+  const stillConnected=()=>st.port===port&&st.chip&&!st.closing&&st.uid?.hex===uid&&st.sessionIndex===session;
+  const busy=()=>st.powerCycleRunning||st.reinitRunning||st.ramMeasurementStarting||st.calTask||st.writing||st.nvmWorking;
+  const offer=async(attempt=0)=>{
+   if(!stillConnected())return;
+   if(busy()){
+    if(attempt<40)setTimeout(()=>void offer(attempt+1),250);
+    return;
+   }
+   try{
+    const raw=lsGet('elmos-series-preset-v1');
+    if(!raw)return;
+    const saved=JSON.parse(raw);
+    if(saved.uid===uid||!Array.isArray(saved.groups))return;
+    const profile=ELMOS_CONFIG.validate(saved.profile,CAL);
+    const groups=configIncluded(profile).filter(group=>saved.groups.includes(group));
+    if(!groups.length||!window.confirm('Vorlage «'+profile.label+'» für diesen Sensor übernehmen?'+
+       (groups.includes('afe')?' AFE wird ins Sensor-RAM geschrieben.':'')))return;
+    renderPresets(readPresets(),profile.label);
+    $('configFile').value='';
+    previewPreset(profile);
+    for(const [group,id] of Object.entries(CONFIG_GROUP_CONTROLS))$(id).checked=groups.includes(group);
+    if(stillConnected())await applySelectedConfig();
+   }catch(error){show('configPreview','Vorlage konnte nicht übernommen werden. '+error.message,'error')}
+  };
+  setTimeout(()=>void offer(),500);
+ }
+
  $('plcStartupLogExport').addEventListener('click',()=>{
   const log={
    tool:'ELMOS E703.11 – SSP3 Startdiagnose',version:'v0.7.13',at:new Date().toISOString(),
