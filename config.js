@@ -217,6 +217,32 @@ const ELMOS_CONFIG=(()=>{
   'Ausgang: '+(o.mode==='onewire'?'One Wire only (nur bei bestehendem PLC)':o.mode==='keep'?'Unverändert':o.mode)+
    (['1','2','3'].includes(o.mode)?', S0 '+o.s0+' V / S1 '+o.s1+' V bei VDD '+o.vdd+' V':'')
  ].join('\n');}
- return {FORMAT,VERSION,GROUPS,validate,create,createSelective,describe,fileName};
+ function importElmos(source,fileName,cal,protocol){
+  const input=source.trim();
+  let rawWords;
+  if(/\.hex$/i.test(fileName)){
+   rawWords=input.split(/\r?\n/).map(line=>line.split('//')[0].trim()).filter(Boolean);
+  }else{
+   if(/<!DOCTYPE|<!ENTITY/i.test(input))throw Error('XML mit DTD oder Entitäten wird nicht unterstützt');
+   const doc=new DOMParser().parseFromString(input,'application/xml');
+   if(doc.documentElement.localName!=='globalValues'||doc.querySelector('parsererror'))
+    throw Error('Ungültige Elmos-PSSC-XML-Datei');
+   const images=doc.querySelectorAll('chipCollection > cfgTable > MultiCfgTableEntry memFile');
+   if(images.length!==1)throw Error('Die XML muss genau ein Sensor-Abbild enthalten. Den gewünschten Sensor im Elmos-GUI einzeln exportieren.');
+   rawWords=Array.from(images[0].children,el=>el.localName==='hex'?el.textContent.trim():'');
+  }
+  if(![64,65].includes(rawWords.length)||rawWords.some(word=>!/^(?:0x)?[0-9a-f]{4}$/i.test(word)))
+   throw Error('E703.11-Abbild mit 64 Hex-Wörtern und optionaler Versionskennung erwartet');
+  const words=rawWords.map(word=>Number.parseInt(word,16));
+  if(words.length===65&&(words[64]&0xFFF8)!==0x0020)throw Error('Das Abbild gehört nicht zum E703.11');
+  if(cal.crc16(words)!==words[63]||cal.crc8(words)!==(words[15]>>>8))
+   throw Error('Elmos-Abbild hat eine ungültige CRC8 oder CRC16');
+  const afe=protocol.decAFE(words[28]);
+  const bridgeSupply=words[27]&cal.SVDD_MASK;
+  if(!protocol.goodG(afe)||bridgeSupply>2)throw Error('Das Elmos-Abbild enthält keine unterstützten AFE-Einstellungen');
+  return createSelective({label:fileName.replace(/\.(xml|hex)$/i,'').trim().slice(0,80)||'Elmos-Vorlage',
+   afe:{...afe,bridgeSupply}},['afe'],cal);
+ }
+ return {FORMAT,VERSION,GROUPS,validate,create,createSelective,describe,fileName,importElmos};
 })();
 if(typeof module!=='undefined'&&module.exports)module.exports=ELMOS_CONFIG;

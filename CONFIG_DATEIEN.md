@@ -101,3 +101,9 @@ Der normale EEPROM Viewer und Config-Laden/-Speichern sind **ohne Expertenmodus 
 - Eine Config spart **Setup-Zeit**, ersetzt aber **keine sensorspezifische Kalibrierung**.
 
 Weitere Details: [Bedienungsanleitung](ANLEITUNG.md), [1-Wire und Ausgang](AUSGANG_1WIRE.md), [Testbericht](TESTBERICHT.md) und [Änderungsverlauf](CHANGELOG.md).
+
+### Originaldateien aus Elmos PSSC
+
+Im Feld «Vorlage laden» lassen sich auch Elmos-XML-Dateien mit genau einem Sensor-Abbild und Elmos-HEX-Dateien mit einem 16-Bit-Wort pro Zeile auswählen. Der Import prüft CRC8 und CRC16 und erzeugt daraus eine Vorlage für PGA1, PGA2, Offset und SVDD. Bei XML-Dateien mit mehreren Sensoren den gewünschten Sensor einzeln exportieren. Elmos-Referenzdateien ohne gültige Prüfsummen werden abgelehnt.
+
+Die Vorschau zeigt die importierte AFE-Gruppe. «Übernehmen» verwendet den vorhandenen RAM-Ablauf mit Rücklesen am verbundenen Sensor. Kalibrierkoeffizienten, Messreihen, Chip-ID und Kommunikationsregister gehören nicht zur Vorlage.

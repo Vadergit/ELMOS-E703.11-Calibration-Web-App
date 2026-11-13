@@ -3005,11 +3005,14 @@ if(typeof document!=='undefined') (function UI(){
   const operation=beginOperation('Config-Datei wird geladen');
   try{
    if(file.size>65536)throw Error('Config-Datei ist zu gross (max. 64 kB)');
-   const profile=ELMOS_CONFIG.validate(JSON.parse(await file.text()),CAL);
+   const source=await file.text();
+   const elmos=/\.(xml|hex)$/i.test(file.name);
+   const profile=elmos?ELMOS_CONFIG.importElmos(source,file.name,CAL,P):
+    ELMOS_CONFIG.validate(JSON.parse(source),CAL);
    presetSelect.value='';$('configPresetDelete').disabled=true;
    selectedConfig=profile;
    resetConfigImportSelection(profile);
-   show('configPreview','Datei geprüft – noch NICHT übernommen.\n'+ELMOS_CONFIG.describe(profile)+
+   show('configPreview',(elmos?'Elmos-Datei geprüft. AFE und SVDD stehen zur Übernahme bereit.':'Datei geprüft – noch NICHT übernommen.')+'\n'+ELMOS_CONFIG.describe(profile)+
     '\nEs werden keine Messpunkte, Kalibrierkoeffizienten, EEPROM- oder Boot-/Kommunikationsdaten importiert.','success');
   }catch(e){selectedConfig=null;resetConfigImportSelection(null);show('configPreview','Config-Laden abgelehnt: '+e.message,'error')}
   finally{operation.finish()}

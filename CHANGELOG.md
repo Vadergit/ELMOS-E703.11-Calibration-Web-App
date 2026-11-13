@@ -1,3 +1,7 @@
+## v0.7.20 – Elmos-Vorlagen importieren
+
+- Liest AFE und SVDD aus CRC-geprüften Elmos-PSSC-XML- und HEX-Dateien als wiederverwendbare Vorlage.
+
 ## v0.7.19 – Vorlage für den nächsten Sensor
 
 - Zeigt Einstellungsgruppen und Namen erst beim Bearbeiten. Bietet die zuletzt übernommene Vorlage beim Anschliessen eines anderen Sensors erneut an.
