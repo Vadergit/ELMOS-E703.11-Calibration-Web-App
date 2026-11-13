@@ -91,6 +91,6 @@ test('NVM and initial state provenance and safety are not silently changed',()=>
  assert.match(archive,/createWritable/);
  assert.match(archive,/sensorTempC/);
  assert.match(archive,/pressureScaleConfirmed/i);
- assert.match(html,/archive-core\.js\?v=0\.7\.0/);
- assert.match(html,/archive\.js\?v=0\.7\.0/);
+ assert.match(html,/archive-core\.js\?v=0\.7\.3/);
+ assert.match(html,/archive\.js\?v=0\.7\.3/);
 });
