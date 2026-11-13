@@ -198,7 +198,7 @@ const ELMOS_ARCHIVE=(()=>{
   return record.telemetry.groups;
  }
  async function streamRows(record){
-  if(!record.telemetryFiles?.length&&!record.telemetryFile)throw Error('Keine Rohdaten-Dateien vermerkt');
+  if(!record.telemetryFiles?.length&&!record.telemetryFile)return [];
   if(!S.dir)throw Error('Kein lokaler Telemetrieordner verbunden');
   if(!await permitted(false))throw Error('Archivordner erneut freigeben');
   const result=[];
@@ -219,6 +219,8 @@ const ELMOS_ARCHIVE=(()=>{
   if(bridge()?.final)try{S.record.final=await bridge().final()}catch(e){
    S.record.events.push({at:iso(),kind:'error',data:{stage:'final_snapshot',message:e.message}});
   }
+  if(status==='completed'&&S.record.type==='testlog'&&!(S.record.telemetry?.groups>0))
+   status='incomplete';
   if(status==='completed'&&S.record.type!=='testlog'&&(!Array.isArray(S.record.initial?.nvm?.words)||
    S.record.initial.nvm.words.length!==64||!Array.isArray(S.record.final?.nvm?.words)||
    S.record.final.nvm.words.length!==64))status='incomplete';
@@ -333,6 +335,15 @@ const ELMOS_ARCHIVE=(()=>{
   const root=$('archiveDetails');root.replaceChildren();
   root.append(el('h3',(typeWords[r.type]||r.type)+' · '+(r.chipUID||'UID unbekannt')));
   const s=C.outcomes(r);
+  if(r.type==='testlog'){
+   root.append(el('p','Test: '+(r.testConfiguration?.name||'Unbenannt')+
+    ' · '+(r.testConfiguration?.category||'Allgemein')));
+   if(r.testConfiguration?.description)root.append(el('p',r.testConfiguration.description));
+   if(r.testConfiguration?.operator)root.append(el('p','Operator: '+r.testConfiguration.operator));
+   root.append(el('p','Intervall: '+(r.testConfiguration?.intervalMs||'?')+' ms · '+
+    (r.testConfiguration?.samplesPerPoint||'?')+' Einzelmessungen / Punkt · Aggregation: '+
+    (r.testConfiguration?.aggregation||'keine')));
+  }
   root.append(el('p',r.type==='testlog'?
    'Status: '+(statusWords[r.status]||r.status)+' · '+(r.telemetry?.groups||0)+' Messpunkte · '+
     (r.telemetry?.individualSamples||0)+' Einzelmessungen · '+(r.telemetry?.missedSlots||0)+' ausgelassene Intervalle':
