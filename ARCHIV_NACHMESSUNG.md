@@ -1,6 +1,8 @@
 # ELMOS E703.11 – Lokales Kalibrierarchiv und Nachmessungen
 
-**Softwarestand v0.7.0 · Funktions- und Benutzeranleitung · Laborprototyp**
+**Softwarestand v0.7.1 · Funktions- und Benutzeranleitung · Laborprototyp**
+
+Neu: Der Protokolltyp **Test / Logging** kann direkt über die vierte Kachel des geführten Assistenten gestartet werden. Er unterstützt frei einstellbare Messintervalle, beliebige Einzelmessgruppen, Mittelwert/Median, Kommentare und separate Rohdatenteile. [Ausführliche Anleitung](TEST_LOGGING.md).
 
 Das Archiv arbeitet ausschliesslich lokal. Die Webseite lädt weder Kalibrierdateien noch Messwerte auf einen Server hoch. Die Anwendung nutzt die File System Access API in einem dafür freigegebenen Chromium-Browser (empfohlen: aktuelle Desktop-Version von Google Chrome über HTTPS oder `http://localhost`). Eine Browserberechtigung kann bei einem späteren Besuch erneut erforderlich sein.
 
@@ -72,6 +74,7 @@ Jeder Datensatz enthält mindestens:
 - **Konfiguration:** RAM-Register und NVM vor/nach dem Abgleich, AFE, Koeffizienten und gespeicherte Sollwerte.
 - **Messungen:** Referenzen und Quellen, alle einzelnen Rohsamples, Median, DSP-Werte, Kennlinienzuordnung, Abweichungen und Grenzwerte.
 - **Verlauf:** Wiederholungen, Teilmessungen, Fehler, einzelne NVM-Schritte und soweit verfügbar die betreffenden TX/RX-Antworten.
+- **Test-Logging:** Name, Beschreibung, Operator, Intervall, Mittelungsverfahren, alle Einzelmessungen und zugehörige `.samples.jsonl`-Dateiteile. JSON-/CSV-Export kombiniert die Rohdaten wieder.
 - **Endstatus:** abgeschlossen, fehlgeschlagen, unvollständig, unterbrochen oder abgebrochen.
 
 Das JSON-Format verwendet `format: "elmos-e70311-record"` und `schemaVersion: 1`. Bei einem anderen Format oder einer falschen Version wird die Datei nicht als gültiger Archiveintrag angezeigt.

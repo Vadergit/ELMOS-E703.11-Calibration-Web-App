@@ -2,17 +2,30 @@
 
 **Ein geführter Kalibrierassistent für den ELMOS E703.11 und das SSP3-Eval-Board.** Ziel ist ein verständlicher Abgleich, der auch ohne tiefere Vorkenntnisse Schritt für Schritt funktioniert. Wer mehr benötigt, kann zusätzliche Messpunkte, DSP-Parameter und einen geschützten Expertenmodus verwenden.
 
-**Version: v0.7.0 · geführter Abgleich, Kalibrierarchiv und Nachmessungen** · [Änderungsverlauf](CHANGELOG.md) · **[Geplante Funktionen](ROADMAP.md)**
+**Version: v0.7.1 · geführter Abgleich, Kalibrierarchiv, Test-Logging und Nachmessungen** · [Änderungsverlauf](CHANGELOG.md) · **[Geplante Funktionen](ROADMAP.md)**
 
 Über **Einstellungen → Demo-Modus** lässt sich der gesamte Kalibrierablauf mit simulierten Messwerten und NVM ausprobieren.
 
-**[Web-App öffnen](https://vadergit.github.io/ELMOS-E703.11-Calibration-Web-App/)** · **[Archiv & Nachmessung](ARCHIV_NACHMESSUNG.md)** · **[Bedienungsanleitung](ANLEITUNG.md)** · **[Config-Dateien & EEPROM Viewer](CONFIG_DATEIEN.md)** · **[Ausgang & 1-Wire erklärt](AUSGANG_1WIRE.md)** · **[Testbericht und Grenzen](TESTBERICHT.md)**
+**[Web-App öffnen](https://vadergit.github.io/ELMOS-E703.11-Calibration-Web-App/)** · **[Archiv & Nachmessung](ARCHIV_NACHMESSUNG.md)** · **[Test / Logging](TEST_LOGGING.md)** · **[Bedienungsanleitung](ANLEITUNG.md)** · **[Config-Dateien & EEPROM Viewer](CONFIG_DATEIEN.md)** · **[Ausgang & 1-Wire erklärt](AUSGANG_1WIRE.md)** · **[Testbericht und Grenzen](TESTBERICHT.md)**
 
 > **Entwicklungsstand: Laborprototyp.** Die vollständige Kalibrierung einschliesslich dauerhafter NVM-Programmierung ist **noch nicht mit einem echten E703.11 als Gesamtablauf freigegeben**. Hardwareverhalten, AODO-Ausgangsmodi und NVM-Wiederherstellung müssen am Testchip geprüft werden. Nicht für die Serienproduktion oder unersetzliche Sensoren einsetzen.
 
 > **Geführter Assistent:** Nach der bestätigten SSP3-Verbindung stehen die neue Schritt-für-Schritt-Führung, die klassische Ansicht und der optionale Kompaktmodus zur Verfügung. Ein E703.11-Chip muss für den Abgleich verbunden sein. Die USB-CDC-Bridge bleibt als experimenteller Verbindungstest ohne Sensorprogrammierung gesperrt.
 >
 > [Geführter Abgleich](docs/GEFUEHRTER_ASSISTENT.md) · [USB-Bridge](docs/USB_BRIDGE_GUIDE.md) · [ESP-Boards](docs/ESP_BOARD_OPTIONS.md) · [ESP32-C3 SuperMini Sketch](firmware/esp32c3_supermini/esp32c3_supermini.ino)
+
+## Neu in v0.7.1 – Freies Sensor-Test-Logging
+
+Auf der ersten Seite des geführten Assistenten gibt es die vierte Auswahl **«Test / Logging»**. Hier lassen sich beliebige Versuche durchführen und archivieren, ohne eine neue Kalibrierung oder NVM-Programmierung.
+
+- Freie **Messintervalle von 1 bis 3’600’000 ms**, **1–100 Einzelmessungen pro Messpunkt** sowie ein frei bestimmbarer Abstand dazwischen (0–60’000 ms).
+- Pro Messpunkt frei wählbar: **keine Mittelung**, **arithmetischer Mittelwert** oder **Median**. Alle Einzelrohwerte bleiben vollständig erhalten.
+- Pro Einzelmessung alle verfügbaren ADC-/DSP-Rohwerte, Statusregister, Zeitstempel und Lesefehler; ausserdem Versorgungsvorgaben, AFE, Hardware/Firmware, UID und Web-App-Version.
+- Testname, Beschreibung, Kategorie und Operator. Während der Aufzeichnung: **Pause**, **Einzelaufnahme**, **Marker/Bemerkungen** und optionale manuelle Referenzwerte für Druck, Temperatur und VDD.
+- Automatische lokale Speicherung als Archiv-`JSON` plus fortlaufende `JSONL`-Rohdaten in Teilen à maximal 100 Messpunkte; Export eines vollständigen `JSON` oder einer `CSV` mit einzelnen Rohsamples und Mittelwerten. Fremde Dateien im selben Archivordner bleiben unverändert.
+- Der tatsächlich erreichte Zeitabstand und ausgelassene Sollintervalle werden protokolliert, weil Web Serial und der Sensor nicht zeitdeterministisch arbeiten.
+
+**Wichtig:** Browser-/USB-Latenzen setzen die tatsächliche Höchstgeschwindigkeit. Die Software misst die reale VDD nicht ohne zusätzliche Hardware; der Istwert kann manuell mit Quelle erfasst werden. Das Feature ist softwaregetestet, aber noch nicht am echten SSP3-/ESP32-Prüfplatz als Gesamtablauf freigegeben. [Schritt-für-Schritt-Anleitung](TEST_LOGGING.md).
 
 ## Neu in v0.7.0 – Lokales Kalibrierarchiv und Nachmessung
 

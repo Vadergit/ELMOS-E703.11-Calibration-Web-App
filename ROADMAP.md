@@ -1,6 +1,17 @@
 # Roadmap für den E703.11-Kalibrierassistenten
 
-Stand v0.7.0 · Web-App mit SSP3 im Vergleich zur Elmos-PSSC-Software. Die Reihenfolge zeigt die geplante Priorität. Veröffentlichungstermine sind offen.
+Stand v0.7.1 · Web-App mit SSP3 im Vergleich zur Elmos-PSSC-Software. Die Reihenfolge zeigt die geplante Priorität. Veröffentlichungstermine sind offen.
+
+## Test-Logging (v0.7.1)
+
+- [x] Vierte Kachel «Test / Logging» im geführten Einstieg.
+- [x] Freie Abtastintervalle in Millisekunden, Einzelmessungen pro Messpunkt und deren Abstand.
+- [x] Optionaler Mittelwert oder Median zusätzlich zu den vollständigen Rohsamples.
+- [x] Marker, Bemerkungen, Zeitstempel, echte Messdauer und übersprungene Sollintervalle.
+- [x] Lokale JSONL-Rohdaten im bestehenden Archiv mit JSON-/CSV-Gesamtexport.
+- [x] Optionale tatsächliche VDD mit Quellenangabe, externe Temperatur-/Druckreferenzen.
+- [ ] Echt-Hardware-Test der Abtastrate und Langzeitstabilität am SSP3 und den konkreten ESP32-Boards.
+- [ ] Automatischer Anschluss externer Temperatur-/Spannungsmessgeräte.
 
 ## Bereits als Softwarefunktion umgesetzt (v0.7.0)
 

@@ -43,10 +43,11 @@ const ELMOS_GUIDED=(()=>{
  function UI(){
   const sides=steps.map((v,i)=>'<button type="button" class="gw-sideitem" data-gw-side="'+i+'"><span class="gw-no">'+(i+1)+'</span><span>'+v[0]+'</span></button>').join('');
   return '<div class="gw-shell"><aside class="gw-sidebar"><div class="gw-backlogo"><span>◆</span> E703.11 · Geführter Abgleich</div><nav class="gw-sideitems">'+sides+'</nav><div class="gw-sidebar-footer">Die Originalsoftware bleibt jederzeit über «Klassisch» erreichbar.<div style="margin-top:9px">Laborversion · keine Hardwarefreigabe für NVM</div></div></aside><main class="gw-main"><div class="gw-topline"><span id="gwKicker" class="gw-kicker">Schritt 1</span><span id="gwChipStatus" class="gw-chipstatus"></span></div><div class="gw-progressbar"><span id="gwProgress"></span></div><h2 class="gw-title" id="gwTitle"></h2><p class="gw-desc" id="gwDesc"></p>'+
-   '<div id="gwPage0" class="gw-page"><div class="gw-columns gw-three">'+
+   '<div id="gwPage0" class="gw-page"><div class="gw-columns gw-four">'+
     '<button class="gw-choice" data-gw-task="calibration"><span class="gw-choice-icon">◉</span><strong>Sensor neu abgleichen</strong><small>Von der Messung über die DSP-Prüfung bis zur sicheren NVM-Programmierung.</small></button>'+
     '<button class="gw-choice" data-gw-task="output"><span class="gw-choice-icon">↗</span><strong>Nur Ausgang ändern</strong><small>Bereits kalibrierten Sensor prüfen und AODO-Ausgang neu konfigurieren.</small></button>'+
-    '<button class="gw-choice" data-gw-task="inspect"><span class="gw-choice-icon">▤</span><strong>EEPROM / Diagnose</strong><small>Die bestehende Register- und EEPROM-Ansicht ohne geführten Abgleich öffnen.</small></button></div>'+
+    '<button class="gw-choice" data-gw-task="inspect"><span class="gw-choice-icon">▤</span><strong>EEPROM / Diagnose</strong><small>Die bestehende Register- und EEPROM-Ansicht ohne geführten Abgleich öffnen.</small></button>'+
+    '<button class="gw-choice" data-gw-task="testlog"><span class="gw-choice-icon">◷</span><strong>Test / Logging</strong><small>Beliebige Sensortests durchführen, alle Telemetriedaten samt Notizen speichern.</small></button></div>'+
     '<div class="gw-alert">Der Chip muss zuerst über USB erkannt werden. Der geführte Modus verändert keine Register, bevor du eine entsprechende Aktion bestätigst.</div></div>'+
    '<div id="gwPage1" class="gw-page" hidden><div class="gw-preset-grid">'+
     '<button class="gw-preset" data-gw-preset="quick"><strong>Schnell</strong><small>2 Druckpunkte, ohne Temperaturkorrektur.</small></button>'+
@@ -109,11 +110,13 @@ const ELMOS_GUIDED=(()=>{
    '<div id="gwPage8" class="gw-page" hidden><div class="gw-columns"><div class="gw-tile gw-control"><h3>Änderungen prüfen und bestätigen</h3><div id="gwNvmBackup"></div><div class="gw-panel-actions" id="gwNvmPrepare"></div><div id="gwNvmMessages"></div><div class="gw-fields" id="gwNvmUID"></div><div class="gw-panel-actions" id="gwNvmWrite"></div><div id="gwNvmDetails"></div></div><div class="gw-tile is-warning"><h3>Wichtig vor dem NVM-Schreiben</h3><p>Ein Stromunterbruch während der Programmierung kann den Sensor unbrauchbar machen.</p><p>Prüfe Chip-UID und die Änderungsübersicht. Zuerst an einem entbehrlichen Testchip validieren.</p><p>Der Button ist nur freigegeben, wenn die bestehende Sicherheitslogik alle Voraussetzungen bestätigt.</p></div></div></div>'+
    '<div id="gwPage9" class="gw-page gw-finish-page" hidden><section class="gw-finish-signal"><div class="gw-finish-top"><div><span class="gw-kicker">Live-Sensorsignal</span><h3>Aktueller Sensorausgang</h3></div><span id="gwFinishStatus" class="gw-live-badge">Warte auf Chipwerte</span></div><div class="gw-finish-number" aria-live="off"><strong id="gwFinishSignalValue">—</strong><span id="gwFinishSignalUnit">—</span></div><div id="gwFinishSource" class="gw-finish-caption">DSP_S wird vom Chip gelesen und auf den eingestellten Anzeigebereich bezogen.</div><div class="gw-finish-bar"><span id="gwFinishBar"></span></div><div class="gw-finish-limits"><span id="gwFinishRangeMin">—</span><span id="gwFinishRangeMax">—</span></div><div class="gw-finish-kpis"><div><span>DSP_S</span><strong id="gwFinishDsp">—</strong><small>Digits</small></div><div><span>ADC_S</span><strong id="gwFinishAdc">—</strong><small>Digits</small></div><div><span>ADC_T</span><strong id="gwFinishTemp">—</strong><small>Digits</small></div><div><span>Letzte Messung</span><strong id="gwFinishTime">—</strong></div></div></section>'+
     '<div class="gw-columns gw-finish-bottom"><section class="gw-tile"><div class="gw-section-head"><div><h3>Signalverlauf</h3><p>ADC_S im Zeitverlauf · letzte 60 Sekunden</p></div></div><div id="gwFinishChartHost" class="gw-finish-chart"></div></section><section class="gw-tile gw-finish-checklist"><h3>Abgleich und Freigabe</h3><div id="gwFinishCompletion" class="gw-alert">NVM-Status prüfen.</div><p id="gwFinishConfig">Gewünschte Ausgangseinstellungen werden hier als Sollwerte dargestellt.</p><p class="gw-finish-warning">Vor der Freigabe den Sensor stromlos machen und den Ausgang nach dem Neustart mit einem Messgerät prüfen. Die Anzeige ersetzt keinen Hardwaretest.</p><div class="gw-panel-actions" id="gwPostBoot"></div><button class="gw-secondary-link" id="gwBackClassic" type="button">Zur vollständigen Expertenansicht wechseln</button></section></div></div>'+
+   '<div id="gwLogPage" class="gw-page gw-logger-page" hidden></div>'+
    '<div id="gwMessage" class="gw-alert" hidden></div><footer class="gw-footer"><small id="gwFooterHint">E703.11 · Kalibrierassistent</small><div class="gw-actions"><button id="gwClassic" type="button">Klassische Ansicht</button><button id="gwPrevious" type="button">Zurück</button><button id="gwNext" class="primary" type="button">Weiter</button></div></footer></main></div>';
  }
  function build(){
   root=$('guidedWorkspace');
   root.innerHTML=UI();
+  window.ELMOS_TEST_LOGGER?.mount($('gwLogPage'));
   for(const id of ['pmin','pmax','calUnit','calSampleCount','calUnitOther'])moveLabel(id,'gwSensorFields');
   moveLabel('calDspLimit','gwDspFields');
   for(const id of ['configLabel','configFile'])moveLabel(id,'gwConfigFields');
@@ -469,6 +472,9 @@ const ELMOS_GUIDED=(()=>{
  }
  function render(){
   if(!mode)return;
+  const loggerPage=stage===10;
+  root.classList.toggle('gw-logger-mode',loggerPage);
+  $('gwLogPage').hidden=!loggerPage;
   for(let i=0;i<steps.length;i++){
    $('gwPage'+i).hidden=i!==stage;
    const side=document.querySelector('[data-gw-side="'+i+'"]');
@@ -476,10 +482,14 @@ const ELMOS_GUIDED=(()=>{
    side.classList.toggle('is-done',visited.has(i)&&i!==stage);
    side.setAttribute('aria-current',i===stage?'step':'false');
   }
-  $('gwKicker').textContent='Schritt '+(stage+1)+' von '+steps.length;
-  $('gwTitle').textContent=steps[stage][1];$('gwDesc').textContent=steps[stage][2];
-  $('gwProgress').style.width=((stage+1)/steps.length*100).toFixed(1)+'%';
+  $('gwKicker').textContent=loggerPage?'Sensor-Testprotokoll':'Schritt '+(stage+1)+' von '+steps.length;
+  $('gwTitle').textContent=loggerPage?'Test / Logging':steps[stage][1];
+  $('gwDesc').textContent=loggerPage?
+   'Sensorwerte in frei wählbaren Intervallen aufzeichnen, mitteln und mit Notizen archivieren.':
+   steps[stage][2];
+  $('gwProgress').style.width=(loggerPage?100:(stage+1)/steps.length*100).toFixed(1)+'%';
   $('gwPrevious').disabled=stage===0;
+  $('gwNext').hidden=loggerPage;
   $('gwNext').textContent=stage===8?'Abschluss prüfen':stage===9?'Fertig':'Weiter';
   if(stage===0)document.querySelectorAll('[data-gw-task]').forEach(x=>x.setAttribute('aria-pressed',String(x.dataset.gwTask===task)));
   if(stage===1)renderPlan();
@@ -492,7 +502,10 @@ const ELMOS_GUIDED=(()=>{
   updateUI();
  }
  function goto(n){
-  stage=Math.max(0,Math.min(9,n));visited.add(stage);render();
+  if(stage===10&&window.ELMOS_TEST_LOGGER?.isBusy()){
+   msg('Bitte zuerst die laufende Testaufzeichnung beenden.','warn');return;
+  }
+  stage=Math.max(0,Math.min(10,n));visited.add(stage);render();
   root.scrollIntoView({behavior:'smooth',block:'start'});
  }
  async function next(){
@@ -500,6 +513,7 @@ const ELMOS_GUIDED=(()=>{
   if(!s.chip){msg('Zuerst den E703.11 über USB verbinden. Eine reine USB-CDC-Verbindung ohne Chipzugriff genügt nicht.','warn');return}
   if(stage===0){
    if(task==='inspect'){close();window.ELMOS_GUIDED_API?.navigate?.(7);return}
+   if(task==='testlog'){goto(10);return}
    msg('Ausgangskonfiguration wird gesichert: RAM und alle 64 NVM-Wörter lesen. Das kann einen Moment dauern.','warn');
    try{
     if(task==='output'){
@@ -528,6 +542,7 @@ const ELMOS_GUIDED=(()=>{
  }
  function previous(){
   if(stage===0)return;
+  if(stage===10){goto(0);return}
   if(task==='output'&&stage===7){goto(0);return}
   goto(stage-1);
  }
@@ -552,6 +567,10 @@ const ELMOS_GUIDED=(()=>{
  }
  function close(){
   if(!mode)return;
+  if(window.ELMOS_TEST_LOGGER?.isBusy()){
+   msg('Bitte die Testaufzeichnung zuerst beenden, bevor du die Ansicht wechselst.','warn');return;
+  }
+  window.ELMOS_TEST_LOGGER?.unmount();
   mode=false;
   if(poll){window.clearInterval(poll);poll=null}
   if(pendingCapture){window.clearInterval(pendingCapture);pendingCapture=null}
@@ -563,6 +582,9 @@ const ELMOS_GUIDED=(()=>{
  function onSensorReset(){
   if(!mode)return;
   if(pendingCapture){window.clearInterval(pendingCapture);pendingCapture=null}
+  if(window.ELMOS_TEST_LOGGER?.isBusy()){
+   msg('Sensor nicht mehr erreichbar. Die Testaufzeichnung wird unterbrochen.','warn');
+  }
   plan=null;signature=null;selectedPoint=0;stage=0;visited=new Set([0]);
   render();
   msg('Die Sensorverbindung wurde unterbrochen. Die bisherigen Kalibrierpunkte sind nicht mehr freigegeben. Nach der Neuinitialisierung einen neuen Abgleich starten.','warn');

@@ -41,7 +41,7 @@ const ELMOS_ARCHIVE_CORE=(()=>{
  function valid(record){
   return !!record&&record.format===FORMAT&&record.schemaVersion===VERSION&&
    typeof record.id==='string'&&record.id.length>=8&&
-   ['calibration','verification','output'].includes(record.type)&&
+   ['calibration','verification','output','testlog'].includes(record.type)&&
    Array.isArray(record.events)&&typeof record.startedAt==='string';
  }
  function filename(record){
