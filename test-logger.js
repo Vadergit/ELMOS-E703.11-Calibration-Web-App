@@ -5,7 +5,7 @@ const ELMOS_TEST_LOGGER=(()=>{
  const S={root:null,recordId:null,starting:false,stopping:false,stopRequested:false,
   paused:false,busy:false,timer:null,pending:null,settings:null,startedMono:0,nextDueMono:0,
   startedWall:0,groups:0,samples:0,missed:0,errors:0,consecutiveErrors:0,last:null,
-  recent:[],lastRecord:null,interrupted:false,clock:null,durationTimer:null,
+  recent:[],markers:[],lastRecord:null,interrupted:false,clock:null,durationTimer:null,
   activeAccumulatedMs:0,activeStartedMono:0,stopAfterCapture:null,
   reference:{pressure:null,temperature:null,source:null}};
  const now=()=>new Date().toISOString();
@@ -38,12 +38,50 @@ const ELMOS_TEST_LOGGER=(()=>{
   {key:'adcS',color:'#2867a6'},
   {key:'dspS',color:'#087d61'}
  ];
+ function renderChartMarkers(){
+  const lane=$('tlChartMarkers');
+  const first=S.recent[0]?.index??0;
+  const last=S.recent.at(-1)?.index??0;
+  const visible=S.markers.filter(marker=>marker.afterGroup>=Math.max(0,first-1));
+  const key=first+':'+last+':'+S.markers.length;
+  if(lane.dataset.rendered===key)return;
+  lane.dataset.rendered=key;
+  lane.replaceChildren();
+  $('tlChartNote').hidden=true;
+  lane.hidden=!visible.length;
+  const groups=new Map();
+  for(const marker of visible){
+   const position=Math.max(first,marker.afterGroup);
+   if(!groups.has(position))groups.set(position,[]);
+   groups.get(position).push(marker);
+  }
+  for(const [afterGroup,markers] of groups){
+   const button=document.createElement('button');
+   button.type='button';
+   button.className='tl-chart-marker';
+   button.style.left=(last>first?100*Math.max(0,afterGroup-first)/(last-first):50)+'%';
+   button.textContent=markers.length>1?String(markers.length):'●';
+   const note=markers.map(marker=>new Date(marker.at).toLocaleTimeString('de-CH')+' · '+marker.message).join('\n');
+   button.setAttribute('aria-label',note);
+   const showNote=()=>{
+    const panel=$('tlChartNote');
+    panel.textContent=note;
+    panel.hidden=false;
+   };
+   button.addEventListener('pointerenter',showNote);
+   button.addEventListener('focus',showNote);
+   button.addEventListener('click',showNote);
+   lane.appendChild(button);
+  }
+ }
  function drawRecentPoints(){
   const figure=$('tlChartFigure');
   const points=S.recent.map(item=>plotChannels.map(({key})=>
    item.aggregated?.channels?.[key]??item.samples?.at(-1)?.[key]));
   const values=points.flat().filter(Number.isFinite);
-  figure.hidden=!values.length;
+  figure.hidden=!values.length&&!S.markers.length;
+  renderChartMarkers();
+  $('tlChart').hidden=!values.length;
   if(!values.length)return;
   const canvas=$('tlChart'),width=canvas.clientWidth,height=canvas.clientHeight;
   if(!width||!height)return;
@@ -182,7 +220,7 @@ const ELMOS_TEST_LOGGER=(()=>{
    S.settings=opts;
    S.startedMono=performance.now();S.startedWall=Date.now();S.nextDueMono=S.startedMono;
    S.activeAccumulatedMs=0;S.activeStartedMono=S.startedMono;S.stopAfterCapture=null;
-   S.groups=0;S.samples=0;S.missed=0;S.errors=0;S.consecutiveErrors=0;S.recent=[];
+   S.groups=0;S.samples=0;S.missed=0;S.errors=0;S.consecutiveErrors=0;S.recent=[];S.markers=[];$('tlChartMarkers').dataset.rendered='';
    S.last=null;S.paused=false;S.stopRequested=false;S.lastRecord=null;
    S.reference={pressure:null,temperature:null,source:null};
    for(const id of ['tlRefPressure','tlRefTemperature','tlRefSource'])if($(id))$(id).value='';
@@ -285,7 +323,12 @@ const ELMOS_TEST_LOGGER=(()=>{
   if(!message)return announce('Bitte eine kurze Bemerkung eingeben.',true);
   if(message.length>1000)return announce('Bemerkung ist zu lang (maximal 1000 Zeichen).',true);
   try{
-   await archive().event('marker',{at:now(),message,afterGroup:S.groups});
+   const recordId=S.recordId;
+   const entry={at:now(),message,afterGroup:S.groups};
+   await archive().event('marker',entry);
+   if(S.recordId!==recordId)return;
+   S.markers.push(entry);
+   render();
    $('tlMarkerText').value='';
    announce('Marker mit Zeitstempel gespeichert.');
   }catch(e){announce('Marker konnte nicht gespeichert werden: '+e.message,true)}
@@ -399,7 +442,9 @@ const ELMOS_TEST_LOGGER=(()=>{
    '<button id="tlMarkerAdd" type="button">Marker mit Zeitstempel speichern</button>'+
    '<figure id="tlChartFigure" class="tl-chart" hidden>'+
    '<figcaption>Verlauf der letzten 20 Messpunkte · Digits <span class="tl-chart-adc">ADC_S</span> <span class="tl-chart-dsp">DSP_S</span></figcaption>'+
-   '<canvas id="tlChart" role="img" aria-label="ADC_S und DSP_S nach Messpunktnummer"></canvas></figure>'+
+   '<canvas id="tlChart" role="img" aria-label="ADC_S und DSP_S nach Messpunktnummer"></canvas>'+
+   '<div id="tlChartMarkers" aria-label="Notizen zum Messverlauf" hidden></div>'+
+   '<p id="tlChartNote" role="status" hidden></p></figure>'+
    '<h3>Letzte Messpunkte</h3><div id="tlRecent" class="tl-recent"></div></section>'+
   '<section id="tlExports" class="tl-box" hidden><strong>Letzte Aufzeichnung</strong>'+
    '<p>Im Archiv sind die Beschreibung, Marker, Geräteinformationen und vollständigen Rohwerte gespeichert.</p>'+
