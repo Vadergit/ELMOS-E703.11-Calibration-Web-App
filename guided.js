@@ -116,7 +116,7 @@ const ELMOS_GUIDED=(()=>{
     '<div class="gw-columns gw-finish-bottom"><section class="gw-tile"><div class="gw-section-head"><div><h3>Signalverlauf</h3><p>ADC_S im Zeitverlauf · letzte 60 Sekunden</p></div></div><div id="gwFinishChartHost" class="gw-finish-chart"></div></section><section class="gw-tile gw-finish-checklist"><h3>Abgleich und Freigabe</h3><div id="gwFinishCompletion" class="gw-alert">NVM-Status prüfen.</div><p id="gwFinishConfig">Gewünschte Ausgangseinstellungen werden hier als Sollwerte dargestellt.</p><p class="gw-finish-warning">Vor der Freigabe den Sensor stromlos machen und den Ausgang nach dem Neustart mit einem Messgerät prüfen. Die Anzeige ersetzt keinen Hardwaretest.</p><div class="gw-panel-actions" id="gwPostBoot"></div><button class="gw-secondary-link" id="gwBackClassic" type="button">Zur vollständigen Expertenansicht wechseln</button></section></div></div>'+
    '<section id="gwSwapPage" class="gw-tile" hidden><ol><li>Stecke den fertig abgeglichenen Sensor ab.</li><li>Schliesse den nächsten Sensor am Programmieradapter an.</li><li>Klicke auf «Neuen Sensor verbinden».</li></ol><p>Der Assistent übernimmt den Messplan und die Ausgangsvorgaben. Er schreibt die Frontend-Einstellungen ins RAM des neuen Sensors. Für ihn nimmst du danach neue Messwerte auf.</p><div class="gw-panel-actions"><button id="gwSwapConnect" class="primary" type="button">Neuen Sensor verbinden</button><button id="gwSwapChoose" type="button" hidden>USB-Port auswählen</button><button id="gwSwapCancel" type="button">Serie abbrechen</button></div></section>'+
    '<div id="gwLogPage" class="gw-page gw-logger-page" hidden></div>'+
-   '<div id="gwMessage" class="gw-alert" hidden></div><footer class="gw-footer"><small id="gwFooterHint">E703.11 · Kalibrierassistent</small><div class="gw-actions"><button id="gwClassic" type="button">Klassische Ansicht</button><button id="gwPrevious" type="button">Zurück</button><button id="gwNext" class="primary" type="button">Weiter</button></div></footer></main></div>';
+   '<div id="gwMessage" class="gw-alert" hidden></div><footer class="gw-footer"><small id="gwFooterHint">E703.11 · Kalibrierassistent</small><div class="gw-actions"><button id="gwClassic" type="button">Klassische Ansicht</button><button id="gwTasks" type="button" hidden>Zur Aufgabenübersicht</button><button id="gwPrevious" type="button">Zurück</button><button id="gwNext" class="primary" type="button">Weiter</button></div></footer></main></div>';
  }
  function build(){
   root=$('guidedWorkspace');
@@ -184,19 +184,8 @@ const ELMOS_GUIDED=(()=>{
   $('gwNext').addEventListener('click',()=>stage===9?prepareNextSensor():next());$('gwPrevious').addEventListener('click',previous);
   $('gwSwapConnect').addEventListener('click',()=>connectNextSensor(false));
   $('gwSwapChoose').addEventListener('click',()=>connectNextSensor(true));
-  $('gwSwapCancel').addEventListener('click',async()=>{
-   if(nextSensorBusy)return;
-   nextSensorBusy=true;
-   try{
-    await window.ELMOS_GUIDED_API.cancelSensorSwap();
-    nextSensorPending=null;
-    task='calibration';visited=new Set([0]);
-    plan=null;signature=null;seriesPointFields=null;latestCapture=null;lastCaptureRenderKey=null;
-    goto(0);
-    msg(state().chip?'Serie beendet.':'Serie beendet. Aktuell wurde kein Sensor erkannt.',state().chip?'success':'warn');
-   }catch(e){msg('Serie konnte nicht beendet werden: '+e.message,'error')}
-   finally{nextSensorBusy=false}
-  });
+  $('gwSwapCancel').addEventListener('click',returnToTasks);
+  $('gwTasks').addEventListener('click',returnToTasks);
   $('gwAfeReset').addEventListener('click',()=>{
    afeStatsStart=Date.now();afeGainSignature='';
    updateUI();
@@ -506,13 +495,10 @@ const ELMOS_GUIDED=(()=>{
  function updateFinishTelemetry(){
   const api=window.ELMOS_GUIDED_API,t=api?.telemetry?.(),s=state();
   if(!t)return;
-  const good=Number.isFinite(t.sensorValue)&&t.dspRaw!==null;
-  const primary=good?t.sensorValue:t.dspRaw;
-  const range=t.range;
-  let digits=2;
-  if(range&&Number.isFinite(range.max-range.min)&&range.max-range.min<=2)digits=3;
-  setText('gwFinishSignalValue',measurementNumber(primary,good?digits:0));
-  setText('gwFinishSignalUnit',good?(t.unit||'—'):t.dspRaw!==null?'Digits':'—');
+  const good=Number.isFinite(t.dspRaw)&&t.outputLimit>0;
+  const percent=good?50*(1+t.dspRaw/t.outputLimit):null;
+  setText('gwFinishSignalValue',measurementNumber(good?percent:t.dspRaw,good?2:0));
+  setText('gwFinishSignalUnit',good?'%':t.dspRaw!==null?'Digits':'—');
   setText('gwFinishDsp',measurementNumber(t.dspRaw));
   setText('gwFinishAdc',measurementNumber(t.adcS));
   setText('gwFinishTemp',measurementNumber(t.adcT));
@@ -522,15 +508,12 @@ const ELMOS_GUIDED=(()=>{
   badge.className='gw-live-badge'+(t.dspRaw!==null?' is-live':'');
   const source=$('gwFinishSource');
   source.textContent=t.dspRaw===null?'Kein aktueller DSP_S-Wert verfügbar. Bitte Verbindung und Live-Messung prüfen.':
-   !range?'DSP_S direkt aus Register 0x30. Druckwert erst mit korrekt bekanntem Anzeigebereich möglich.':
-   range.kind==='display'?'Manuelle Zuordnung des DSP_S auf einen Anzeigebereich; keine unabhängig bestätigte Kalibrierung.':
-   'Live-Wert aus DSP_S (Register 0x30) und dem aktuellen Kalibrierbereich.';
-  const bar=$('gwFinishBar');
-  const percent=good&&range&&range.max>range.min?
-   Math.max(0,Math.min(100,100*(t.sensorValue-range.min)/(range.max-range.min))):0;
-  bar.style.width=percent.toFixed(2)+'%';
-  setText('gwFinishRangeMin',good&&range?measurementNumber(range.min,2)+' '+(t.unit||''):'—');
-  setText('gwFinishRangeMax',good&&range?measurementNumber(range.max,2)+' '+(t.unit||''):'—');
+   !good?'DSP_S direkt aus Register 0x30.':
+   t.range?.kind==='display'?'DSP_S in Prozent anhand des eingestellten DSP-Endwerts.':
+   'DSP_S in Prozent anhand des kalibrierten DSP-Endwerts.';
+  $('gwFinishBar').style.width=(good?Math.max(0,Math.min(100,percent)):0).toFixed(2)+'%';
+  setText('gwFinishRangeMin',good?'0 %':'—');
+  setText('gwFinishRangeMax',good?'100 %':'—');
   const v=t.voltageTargets;
   setText('gwFinishConfig',v?
    'Ausgangs-Sollwerte: S0 '+measurementNumber(v.s0,3)+' V · S1 '+measurementNumber(v.s1,3)+' V · VDD '+measurementNumber(v.vdd,2)+' V. Diese Spannungen wurden nicht am Pin gemessen.':
@@ -586,6 +569,7 @@ const ELMOS_GUIDED=(()=>{
    steps[stage][2];
   $('gwProgress').style.width=(loggerPage?100:(stage+1)/steps.length*100).toFixed(1)+'%';
   $('gwPrevious').disabled=stage===0;
+  $('gwTasks').hidden=stage!==9;
   $('gwNext').hidden=loggerPage||stage===0||(stage===9&&state().demo); // A card click now enters the chosen task immediately.
   $('gwNext').textContent=stage===8?'Abschluss prüfen':stage===9?'Nächsten Sensor abgleichen':'Weiter';
   if(swapping){
@@ -669,6 +653,21 @@ const ELMOS_GUIDED=(()=>{
   if(stage===6){if(!s.calVerified){msg('Die unabhängige DSP-Prüfung muss erfolgreich abgeschlossen sein.','warn');return}goto(7);return}
   if(stage===7){goto(8);return}
   if(stage===8){if(!s.nvmDone){msg('Noch kein erfolgreicher NVM-Schreibvorgang bestätigt.','warn');return}goto(9);return}
+ }
+ async function returnToTasks(){
+  if(nextSensorBusy)return;
+  nextSensorBusy=true;
+  const pending=nextSensorPending;
+  try{
+   await window.ELMOS_GUIDED_API.returnToTasks(pending?.previousUid);
+   nextSensorPending=null;
+   task='calibration';visited=new Set([0]);
+   plan=null;signature=null;seriesPointFields=null;latestCapture=null;lastCaptureRenderKey=null;
+   goto(0);
+   if(pending)msg(state().chip?'Serie beendet.':'Serie beendet. Aktuell wurde kein Sensor erkannt.',state().chip?'success':'warn');
+  }catch(error){
+   msg('Abgleich konnte nicht abgeschlossen werden: '+error.message,'error');
+  }finally{nextSensorBusy=false;updateUI()}
  }
  async function prepareNextSensor(){
   const s=state(),api=window.ELMOS_GUIDED_API;

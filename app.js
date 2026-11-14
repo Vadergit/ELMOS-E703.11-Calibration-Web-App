@@ -3479,7 +3479,7 @@ if(typeof document!=='undefined') (function UI(){
   return {
    online,live:!!st.live,mode:st.mode,adcS:adc?.s??null,adcT:adc?.t??null,adcTC:adc?.tc??null,
    adcTime:adc?.time??null,dspRaw:dsp?.raw??null,dspTime:dsp?.time??null,
-   sensorValue:Number.isFinite(sensor)?sensor:null,unit:range?.unit??null,
+   sensorValue:Number.isFinite(sensor)?sensor:null,unit:range?.unit??null,outputLimit:range?.limit??null,
    range:range?{min:range.min,max:range.max,kind:range.kind}:null,
    gains:{...st.staged},nvmConfirmed:!!st.nvmDone,
    // These are editable desired values, NOT voltages measured on AODO.
@@ -3638,6 +3638,17 @@ if(typeof document!=='undefined') (function UI(){
   startTelemetry:archiveStartTelemetry,stopTelemetry:archiveStopTelemetry
  });
 
+ async function finishSensorArchive(uid){
+  const archive=window.ELMOS_ARCHIVE;
+  if(archive?.active){
+   if(!['calibration','output'].includes(archive.current.type)||archive.current.chipUID!==uid)
+    throw Error('Das offene Archivprotokoll gehört nicht zu diesem Sensorabgleich.');
+   const snapshot=st.programmedSnapshot;
+   const verified=snapshot?.session===st.sessionIndex&&snapshot.data.uid===uid;
+   await archive.finalise(verified?'completed':'incomplete',{snapshot:verified?snapshot.data:null});
+  }
+ }
+
  async function prepareNextSensor(matrix){
   if(demoEnabled||!st.port||!st.chip||!st.nvmDone||st.closing||
      st.calTask||st.nvmWorking||st.writing||st.powerCycleRunning||st.ramMeasurementStarting)
@@ -3647,14 +3658,7 @@ if(typeof document!=='undefined') (function UI(){
    if(!uid)throw Error('Chipkennung fehlt.');
    if(!Number.isInteger(st.afe))throw Error('Frontend-Einstellungen konnten nicht bestätigt werden.');
    const settings=configFromUi(ELMOS_CONFIG.GROUPS,matrix);
-   const archive=window.ELMOS_ARCHIVE;
-   if(archive?.active){
-    if(!['calibration','output'].includes(archive.current.type)||archive.current.chipUID!==uid)
-     throw Error('Das offene Archivprotokoll gehört nicht zu diesem Sensorabgleich.');
-    const snapshot=st.programmedSnapshot;
-    const verified=snapshot?.session===st.sessionIndex&&snapshot.data.uid===uid;
-    await archive.finalise(verified?'completed':'incomplete',{snapshot:verified?snapshot.data:null});
-   }
+   await finishSensorArchive(uid);
    if(st.port!==port||!st.chip||st.uid?.hex!==uid)
     throw Error('Sensorverbindung hat sich geändert.');
    stopLive();
@@ -3686,9 +3690,23 @@ if(typeof document!=='undefined') (function UI(){
    const ports=await navigator.serial.getPorts();
    return ports.length===1||(st.adapterKind==='ssp3'&&ports.filter(port=>port.getInfo?.().usbVendorId===0x0403).length===1);
   },
-  cancelSensorSwap:async()=>{
+  returnToTasks:async(previousUid)=>{
    stopSeriesPreset();
-   if(st.port&&st.readerAlive)await reinitializeSensor();
+   if(!previousUid){
+    return withProgress('Abgleich wird abgeschlossen',async()=>{
+     await finishSensorArchive(st.uid?.hex);
+     erasePoints();
+     $('nvmUserId').value='';
+    },true);
+   }
+   if(!st.chip||!st.port||!st.readerAlive)return;
+   try{
+    const uid=await expert.identify();
+    if(uid.hex!==previousUid)throw Error('Ein anderer Sensor ist angeschlossen.');
+    if(!st.manualLivePause)startLive();
+   }catch(error){
+    markSensorUnavailable(error.message);
+   }
   },
   connectNextSensor:async(selectPort)=>{
    if(st.port&&st.readerAlive){

@@ -1,3 +1,7 @@
+## v0.7.26 – Aufgabenübersicht und Prozentanzeige
+
+- Zeigt den Live-Ausgang zum Abschluss in Prozent und bietet einen direkten Rückweg zur Aufgabenübersicht. Beim Abbrechen des Sensorwechsels bleibt der USB-Port offen.
+
 ## v0.7.25 – Serie im Assistenten beenden
 
 - Hält den USB-Port beim Sensorwechsel offen. «Serie abbrechen» führt zurück zur Aufgabenübersicht.
