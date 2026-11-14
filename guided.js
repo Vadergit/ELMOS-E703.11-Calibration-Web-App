@@ -114,7 +114,7 @@ const ELMOS_GUIDED=(()=>{
    '<div id="gwPage8" class="gw-page" hidden><div class="gw-columns"><div class="gw-tile gw-control"><h3>Änderungen prüfen und bestätigen</h3><div id="gwNvmBackup"></div><div class="gw-panel-actions" id="gwNvmPrepare"></div><div id="gwNvmMessages"></div><div class="gw-panel-actions" id="gwNvmWrite"></div><div id="gwNvmDetails"></div></div><div class="gw-tile is-warning"><h3>Wichtig vor dem NVM-Schreiben</h3><p>Ein Stromunterbruch während der Programmierung kann den Sensor unbrauchbar machen.</p><p>Prüfe Chip-UID und die Änderungsübersicht. Zuerst an einem entbehrlichen Testchip validieren.</p><p>Der Button ist nur freigegeben, wenn die bestehende Sicherheitslogik alle Voraussetzungen bestätigt.</p></div></div></div>'+
    '<div id="gwPage9" class="gw-page gw-finish-page" hidden><section class="gw-finish-signal"><div class="gw-finish-top"><div><span class="gw-kicker">Live-Sensorsignal</span><h3>Aktueller Sensorausgang</h3></div><span id="gwFinishStatus" class="gw-live-badge">Warte auf Chipwerte</span></div><div class="gw-finish-number" aria-live="off"><strong id="gwFinishSignalValue">—</strong><span id="gwFinishSignalUnit">—</span></div><div id="gwFinishSource" class="gw-finish-caption">DSP_S wird vom Chip gelesen und auf den eingestellten Anzeigebereich bezogen.</div><div class="gw-finish-bar"><span id="gwFinishBar"></span></div><div class="gw-finish-limits"><span id="gwFinishRangeMin">—</span><span id="gwFinishRangeMax">—</span></div><div class="gw-finish-kpis"><div><span>DSP_S</span><strong id="gwFinishDsp">—</strong><small>Digits</small></div><div><span>ADC_S</span><strong id="gwFinishAdc">—</strong><small>Digits</small></div><div><span>ADC_T</span><strong id="gwFinishTemp">—</strong><small>Digits</small></div><div><span>Letzte Messung</span><strong id="gwFinishTime">—</strong></div></div></section>'+
     '<div class="gw-columns gw-finish-bottom"><section class="gw-tile"><div class="gw-section-head"><div><h3>Signalverlauf</h3><p>ADC_S im Zeitverlauf · letzte 60 Sekunden</p></div></div><div id="gwFinishChartHost" class="gw-finish-chart"></div></section><section class="gw-tile gw-finish-checklist"><h3>Abgleich und Freigabe</h3><div id="gwFinishCompletion" class="gw-alert">NVM-Status prüfen.</div><p id="gwFinishConfig">Gewünschte Ausgangseinstellungen werden hier als Sollwerte dargestellt.</p><p class="gw-finish-warning">Vor der Freigabe den Sensor stromlos machen und den Ausgang nach dem Neustart mit einem Messgerät prüfen. Die Anzeige ersetzt keinen Hardwaretest.</p><div class="gw-panel-actions" id="gwPostBoot"></div><button class="gw-secondary-link" id="gwBackClassic" type="button">Zur vollständigen Expertenansicht wechseln</button></section></div></div>'+
-   '<section id="gwSwapPage" class="gw-tile" hidden><ol><li>Stecke den fertig abgeglichenen Sensor ab.</li><li>Schliesse den nächsten Sensor am Programmieradapter an.</li><li>Klicke auf «Neuen Sensor verbinden».</li></ol><p>Der Assistent übernimmt den Messplan und die Ausgangsvorgaben. Er schreibt die Frontend-Einstellungen ins RAM des neuen Sensors. Für ihn nimmst du danach neue Messwerte auf.</p><div class="gw-panel-actions"><button id="gwSwapConnect" class="primary" type="button">Neuen Sensor verbinden</button><button id="gwSwapChoose" type="button">USB-Port auswählen</button><button id="gwSwapCancel" type="button">Serie abbrechen</button></div></section>'+
+   '<section id="gwSwapPage" class="gw-tile" hidden><ol><li>Stecke den fertig abgeglichenen Sensor ab.</li><li>Schliesse den nächsten Sensor am Programmieradapter an.</li><li>Klicke auf «Neuen Sensor verbinden».</li></ol><p>Der Assistent übernimmt den Messplan und die Ausgangsvorgaben. Er schreibt die Frontend-Einstellungen ins RAM des neuen Sensors. Für ihn nimmst du danach neue Messwerte auf.</p><div class="gw-panel-actions"><button id="gwSwapConnect" class="primary" type="button">Neuen Sensor verbinden</button><button id="gwSwapChoose" type="button" hidden>USB-Port auswählen</button><button id="gwSwapCancel" type="button">Serie abbrechen</button></div></section>'+
    '<div id="gwLogPage" class="gw-page gw-logger-page" hidden></div>'+
    '<div id="gwMessage" class="gw-alert" hidden></div><footer class="gw-footer"><small id="gwFooterHint">E703.11 · Kalibrierassistent</small><div class="gw-actions"><button id="gwClassic" type="button">Klassische Ansicht</button><button id="gwPrevious" type="button">Zurück</button><button id="gwNext" class="primary" type="button">Weiter</button></div></footer></main></div>';
  }
@@ -418,6 +418,16 @@ const ELMOS_GUIDED=(()=>{
    record?'Wähle einen noch offenen Punkt, um die Messreihe fortzusetzen.':
    'Stelle '+currentPoint.pressure+' '+plan.unit+' und '+currentPoint.temperature+
     ' °C ein, warte auf stabile Bedingungen und klicke dann auf «aufnehmen».';
+  if(allDone){
+   const first=points[0]?.record?.adc_s,second=points[1]?.record?.adc_s;
+   if(Number.isFinite(first)&&Number.isFinite(second)){
+    const hub=Math.abs(second-first).toLocaleString('de-CH',{maximumFractionDigits:2});
+    const difference=document.createElement('span');
+    difference.className='gw-point-hub';
+    difference.textContent='P1–P2 · '+hub+' Digits ADC_S';
+    heading.append(difference);
+   }
+  }
   current.append(heading,text);
   setText('gwFooterHint',captured.length+' / '+plan.total+' Messpunkte erfolgreich aufgenommen');
   lastCaptureRenderKey=key;
@@ -527,7 +537,7 @@ const ELMOS_GUIDED=(()=>{
  function updateUI(){
   if(!mode)return;
   const s=state();
-  if(nextSensorPending)return;
+  if(nextSensorPending){void refreshSwapPort();return}
   $('gwChipStatus').textContent=statusText();
   $('gwChipStatus').classList.toggle('is-offline',!s.chip);
   const completed=s.points?.length||0;
@@ -575,6 +585,7 @@ const ELMOS_GUIDED=(()=>{
    $('gwChipStatus').textContent='Sensorwechsel';
    $('gwChipStatus').classList.add('is-offline');
    msg('');
+   void refreshSwapPort();
    return;
   }
   if(stage===0)document.querySelectorAll('[data-gw-task]').forEach(x=>{
@@ -667,6 +678,14 @@ const ELMOS_GUIDED=(()=>{
   }catch(e){msg('Sensorwechsel fehlgeschlagen: '+e.message,'error')}
   finally{nextSensorBusy=false;updateUI()}
  }
+ async function refreshSwapPort(){
+  const pending=nextSensorPending;
+  const choose=$('gwSwapChoose');
+  if(!pending||!choose)return;
+  let known=false;
+  try{known=await window.ELMOS_GUIDED_API.hasKnownSwapPort()}catch(_){}
+  if(nextSensorPending===pending)choose.hidden=known&&!pending.offerPortPicker;
+ }
  async function connectNextSensor(selectPort){
   if(!nextSensorPending||nextSensorBusy)return;
   const pending=nextSensorPending,api=window.ELMOS_GUIDED_API;
@@ -676,10 +695,19 @@ const ELMOS_GUIDED=(()=>{
   msg('Sensor wird verbunden …');
   try{
    await api.connectNextSensor(selectPort);
+   pending.offerPortPicker=false;
    const {uid}=state();
-   if(!uid||uid===pending.previousUid){
+   if(!uid){
     await api.releaseSwapPort();
-    throw Error('Bitte den abgeglichenen Sensor abstecken und den nächsten Sensor anschliessen.');
+    throw Error('Die Chip-ID konnte nicht gelesen werden. Bitte erneut verbinden.');
+   }
+   if(uid===pending.previousUid&&!pending.repeatConfirmed){
+    if(!window.confirm('Dieser Sensor wurde bereits abgeglichen. Möchtest du ihn nochmals abgleichen?')){
+     await api.releaseSwapPort();
+     msg('Stecke den Sensor ab und schliesse den nächsten an.','warn');
+     return;
+    }
+    pending.repeatConfirmed=true;
    }
    const record=window.ELMOS_ARCHIVE?.current;
    if(record&&record.chipUID!==uid)
@@ -691,9 +719,13 @@ const ELMOS_GUIDED=(()=>{
    seriesPointFields=pending.fields;
    render();
    msg('Einstellungen übernommen. Frontend im Sensor-RAM bestätigt.','success');
-  }catch(e){msg(e.message,'error')}
+  }catch(e){
+   if(!state().chip)pending.offerPortPicker=true;
+   msg(e.message,'error');
+  }
   finally{
    nextSensorBusy=false;
+   void refreshSwapPort();
    controls.forEach(button=>button.disabled=false);
   }
  }

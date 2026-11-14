@@ -1,3 +1,7 @@
+## v0.7.24 – Messhub und Sensorwechsel
+
+- Zeigt den ADC-Hub zwischen P1 und P2, verwendet die vorhandene NVM-Rücklesung und fragt beim erneuten Abgleich desselben Sensors nach.
+
 ## v0.7.23 – Geführter Sensorwechsel
 
 - Führt durch den Sensorwechsel und übernimmt Messplan, Ausgangsvorgaben und Frontend aus dem letzten Abgleich. «Serie abbrechen» beendet die Übernahme.

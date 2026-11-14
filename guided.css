@@ -305,3 +305,6 @@ html.guided-active #guidedWorkspace [hidden]{display:none!important}
  #guidedWorkspace .gw-point-confirmation{padding:5px 8px}
  #guidedWorkspace .gw-next-point{padding:11px!important}
 }
+
+.gw-next-heading:has(.gw-point-hub){display:flex;flex-wrap:wrap;align-items:baseline;gap:4px 16px}
+.gw-point-hub{font-size:.82em;font-variant-numeric:tabular-nums}

@@ -72,7 +72,7 @@ test('the two views and visual comparison remain separate from physical measurem
  assert.match(archive,/async function renderDetails/);
  assert.match(archive,/async function compare/);
  assert.match(archive,/ANALYSIS\.compare\(a,b,ar,br\)/);
- assert.match(html,/data-app-version="0\.7\.23"/);
+ assert.match(html,/data-app-version="0\.7\.24"/);
  assert.match(guided,/data-gw-task="testlog"/);
  assert.match(guided,/await next\(\)/);
  assert.match(guided,/if\(taskOpening\)return/);

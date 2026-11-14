@@ -213,10 +213,11 @@ const ELMOS_ARCHIVE=(()=>{
   }
   return result;
  }
- async function finalise(status='incomplete'){
+ async function finalise(status='incomplete',{snapshot}={}){
   if(!S.record)return;
   if(S.measuring)throw Error('Messung läuft');
-  if(bridge()?.final)try{S.record.final=await bridge().final()}catch(e){
+  if(snapshot!==undefined)S.record.final=snapshot;
+  else if(bridge()?.final)try{S.record.final=await bridge().final()}catch(e){
    S.record.events.push({at:iso(),kind:'error',data:{stage:'final_snapshot',message:e.message}});
   }
   if(status==='completed'&&S.record.type==='testlog'&&!(S.record.telemetry?.groups>0))

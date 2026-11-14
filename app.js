@@ -2705,6 +2705,11 @@ if(typeof document!=='undefined') (function UI(){
    const cm=await readReg(0x46);if(cm&(1<<6))throw Error('Chip meldet CM CRC Fehler');
    if(!sameBoot(beforeBoot,await bootSnapshot()))throw Error('Bootregister nach Programmierung abweichend');
    st.nvmDone=true;st.nvmBackup=after;st.nvmBackupVerified=true;
+   st.programmedSnapshot={session:st.sessionIndex, data:{
+    at:new Date().toISOString(),uid:id,
+    nvm:{words:after.slice(),crc8Validated:CAL.crc8(after)===(after[15]>>>8),crc16Validated:true},
+    configuredUserId:'0x'+h(after[30],2),supply:archiveVoltages()
+   }};
    try{await window.ELMOS_ARCHIVE?.event('nvm_after',{uid:id,words:after,crc16:after[63],verified:true})}
    catch(archiveError){logging('KRITISCH: NVM erfolgreich geschrieben, Archiv-Export fehlgeschlagen: '+archiveError.message);ca('backupMsg','NVM erfolgreich verifiziert, aber der Archivordner ist nicht beschreibbar! Bitte unmittelbar NVM-Backup exportieren.','error')}st.calImage=null;st.restorePlan=null;st.outputOnlyPlan=null;if(saveOldNvm)expert.afterNvmScan();lsSet('elmos8-last-program',JSON.stringify({id,words:after,ts:new Date().toISOString(),restore:restoring}));
    ca('nvmMsg',restoring?'Backup-Wiederherstellung abgeschlossen, NVM rückgelesen und CRC16 bestätigt. Sensor neu starten und erneut prüfen.':outputOnly?'AODO-Ausgangseinstellungen dauerhaft gespeichert, NVM rückgelesen und CRC16 bestätigt. Sensor neu starten und Ausgabefunktion prüfen.':'NVM-Programmierung und vollständiges Rücklesen/CRC16 erfolgreich. Sensor neu starten und Schnittstelle erneut prüfen.','success');
@@ -3646,7 +3651,9 @@ if(typeof document!=='undefined') (function UI(){
    if(archive?.active){
     if(!['calibration','output'].includes(archive.current.type)||archive.current.chipUID!==uid)
      throw Error('Das offene Archivprotokoll gehört nicht zu diesem Sensorabgleich.');
-    await archive.finalise('completed');
+    const snapshot=st.programmedSnapshot;
+    const verified=snapshot?.session===st.sessionIndex&&snapshot.data.uid===uid;
+    await archive.finalise(verified?'completed':'incomplete',{snapshot:verified?snapshot.data:null});
    }
    if(st.port!==port||!st.chip||st.uid?.hex!==uid)
     throw Error('Sensorverbindung hat sich geändert.');
@@ -3674,6 +3681,12 @@ if(typeof document!=='undefined') (function UI(){
   prepareNextSensor,
   stopSeriesPreset,
   applySeriesSettings:profile=>applySeriesConfig(profile,configIncluded(profile)),
+  hasKnownSwapPort:async()=>{
+   if(st.port&&st.readerAlive)return true;
+   if(!navigator.serial)return false;
+   const ports=await navigator.serial.getPorts();
+   return ports.length===1||(st.adapterKind==='ssp3'&&ports.filter(port=>port.getInfo?.().usbVendorId===0x0403).length===1);
+  },
   releaseSwapPort:async()=>{
    if(st.port&&!await disconnect())throw Error('USB-Verbindung konnte nicht getrennt werden.');
   },
