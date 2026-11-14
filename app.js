@@ -129,12 +129,16 @@ if(typeof document!=='undefined') (function UI(){
   const operation=beginOperation(label,blocking);
   try{return await action(operation)}finally{operation.finish()}
  }
+ const webSerialAvailable=()=>window.isSecureContext&&typeof navigator.serial?.requestPort==='function';
+ const webSerialMessage=()=>window.isSecureContext?
+  'USB-Verbindung benötigt Web Serial. Öffne die App in Chrome oder Edge auf dem Computer.':
+  'Öffne die App über HTTPS oder localhost in Chrome oder Edge, um ein USB-Gerät zu verbinden.';
  function renderStatus(){let connected=!!st.port;
   const addrRow=$('plcAddressRow');
   if(addrRow)addrRow.hidden=st.iface!=='plc'||!$('expertMode').checked;
   if($('plcAddressLabel'))$('plcAddressLabel').textContent=(st.chip||st.readOnlySensor)&&st.plcAddressVerified?
    '0x'+h(st.plcAddress)+' (Sensorregister bestätigt)':
-   connected?'Suche: 0x6C / 0x7C':'—';$('status').textContent=demoEnabled?'Demo · Simulation':st.chip?'Sensor verbunden':st.readOnlySensor?'Sensor verbunden · Diagnose':st.reinitRunning||st.powerCycleRunning?'Sensor wird initialisiert':connected?(st.adapterNoReply?'SSP3 antwortet nicht':st.sensorLost?'Sensor nicht verbunden':'USB verbunden · Sensor nicht erkannt'):'Nicht verbunden';$('statusDot').className='dot'+(st.chip||st.readOnlySensor?' active':connected?' missing':'');$('fw').textContent=st.firmware?st.firmware.slice(0,19):'—';$('chip').textContent=st.readOnlySensor|| (st.chip?'Antwort erhalten':'—');$('ifaceLabel').textContent=st.iface==='plc'?'1-Wire':st.iface==='i2c'?'I²C':'SPI';$('srcLabel').textContent=st.adc?.source==='usb'?'USB / Chip':'Keine Messdaten';$('choose').disabled=connected||demoEnabled;$('auto').hidden=demoEnabled;$('disconnect').hidden=demoEnabled;$('adapterType').disabled=demoEnabled||st.closing;$('iface').disabled=demoEnabled;$('guidedLaunch').disabled=!st.chip||st.closing;$('guidedLaunch').classList.toggle('primary',st.chip&&!st.closing);$('auto').disabled=connected;$('disconnect').disabled=!connected||st.closing;$('readNow').disabled=!st.chip||st.magicRunning||st.powerCycleRunning;$('live').disabled=!connected||st.magicRunning||st.powerCycleRunning;$('live').textContent=st.live?'Live-Messung stoppen':'Live-Messung starten';$('readBoot').disabled=!st.chip;$('readRegs').disabled=!st.chip&&!st.readOnlySensor;$('afeWord').textContent=st.afe===null?'CFG_AFE1: —':'CFG_AFE1: 0x'+h(st.afe,2);const startupTools=$('plcStartupTools');if(startupTools)startupTools.hidden=demoEnabled||st.adapterKind!=='ssp3'||st.iface!=='plc'||!$('expertMode').checked;
+   connected?'Suche: 0x6C / 0x7C':'—';$('status').textContent=demoEnabled?'Demo · Simulation':st.chip?'Sensor verbunden':st.readOnlySensor?'Sensor verbunden · Diagnose':st.reinitRunning||st.powerCycleRunning?'Sensor wird initialisiert':connected?(st.adapterNoReply?'SSP3 antwortet nicht':st.sensorLost?'Sensor nicht verbunden':'USB verbunden · Sensor nicht erkannt'):'Nicht verbunden';$('statusDot').className='dot'+(st.chip||st.readOnlySensor?' active':connected?' missing':'');$('fw').textContent=st.firmware?st.firmware.slice(0,19):'—';$('chip').textContent=st.readOnlySensor|| (st.chip?'Antwort erhalten':'—');$('ifaceLabel').textContent=st.iface==='plc'?'1-Wire':st.iface==='i2c'?'I²C':'SPI';$('srcLabel').textContent=st.adc?.source==='usb'?'USB / Chip':'Keine Messdaten';$('choose').disabled=connected||demoEnabled||!webSerialAvailable();$('auto').hidden=demoEnabled;$('disconnect').hidden=demoEnabled;$('adapterType').disabled=demoEnabled||st.closing;$('iface').disabled=demoEnabled;$('guidedLaunch').disabled=!st.chip||st.closing;$('guidedLaunch').classList.toggle('primary',st.chip&&!st.closing);$('auto').disabled=connected||!webSerialAvailable();$('disconnect').disabled=!connected||st.closing;$('readNow').disabled=!st.chip||st.magicRunning||st.powerCycleRunning;$('live').disabled=!connected||st.magicRunning||st.powerCycleRunning;$('live').textContent=st.live?'Live-Messung stoppen':'Live-Messung starten';$('readBoot').disabled=!st.chip;$('readRegs').disabled=!st.chip&&!st.readOnlySensor;$('afeWord').textContent=st.afe===null?'CFG_AFE1: —':'CFG_AFE1: 0x'+h(st.afe,2);const startupTools=$('plcStartupTools');if(startupTools)startupTools.hidden=demoEnabled||st.adapterKind!=='ssp3'||st.iface!=='plc'||!$('expertMode').checked;
  $('connectionBaudOptions').hidden=!$('expertMode').checked;
  $('plcOptions').hidden=st.adapterKind!=='bridge'||!$('expertMode').checked;
  if($('chipDiagDetails'))$('chipDiagDetails').hidden=!$('expertMode').checked;
@@ -2057,6 +2061,7 @@ if(typeof document!=='undefined') (function UI(){
  }
  async function choose(){
   if(demoEnabled)return;
+  if(!webSerialAvailable())return show('connMsg',webSerialMessage(),'warn');
   let port;
   try{port=await navigator.serial.requestPort()}
   catch(e){show('connMsg',serialOpenError(e,null),e?.name==='NotFoundError'?'warn':'error');return}
@@ -2064,6 +2069,7 @@ if(typeof document!=='undefined') (function UI(){
  }
  async function auto(){
   if(demoEnabled)return;
+  if(!webSerialAvailable())return show('connMsg',webSerialMessage(),'warn');
   let port;
   try{
    const list=await navigator.serial.getPorts();
@@ -3504,7 +3510,15 @@ if(typeof document!=='undefined') (function UI(){
   window.addEventListener('DOMContentLoaded',()=>{
    setTimeout(()=>connect(demoPort,false).catch(e=>show('connMsg','Demo konnte nicht starten: '+e.message,'error')),0);
   },{once:true});
- }else if(!navigator.serial||!window.isSecureContext){show('connMsg','Für echte USB-Kommunikation Chrome Desktop über HTTPS oder localhost nutzen. Ohne USB-Verbindung ist kein Sensorzugriff möglich.','warn');$('choose').disabled=true;$('auto').disabled=true;}else{
+ }else if(!webSerialAvailable()){
+  $('browserNoticeText').textContent=webSerialMessage();
+  $('browserNotice').hidden=false;
+  $('browserNoticeClose').addEventListener('click',()=>{
+   $('browserNotice').hidden=true;
+   $('adapterType').focus();
+  });
+  show('connMsg',webSerialMessage(),'warn');
+ }else{
   navigator.serial.addEventListener('connect',async event=>{
    if(!reconnectSsp3OnUsb||$('adapterType').value!=='ssp3'||event.target.getInfo?.().usbVendorId!==0x0403)return;
    if(st.port){
