@@ -21,6 +21,8 @@ Die [vollständige ESP32-/Arduino-Boardliste](ESP_BOARD_OPTIONS.md) enthält die
 
 **Für den bereits vorhandenen ESP32-C3 SuperMini:** Statt des allgemeinen Arduino-Beispiels die neue [C3-SuperMini-Firmware](../firmware/esp32c3_supermini/esp32c3_supermini.ino) verwenden. Arduino IDE → Board **ESP32C3 Dev Module**, **USB CDC On Boot: Enabled**. Nach dem Flashen `BRIDGE_INFO` senden. Die SuperMini-PLC-Firmware meldet `CAPS=PLC_UID,PLC_READ,PLC_WRITE,NVM,POWER_GPIO_10,PSSC_RAM`.
 
+Der ATmega32U4 Pro Micro hat eine separate [PLC-Testfirmware und Pinbelegung](PRO_MICRO_PLC_TEST.md).
+
 ## 2. AODO / 1-Wire und I²C – passende MCU-Pins
 
 Der Anschluss am **E703.11 für 1-Wire heisst AODO** (nicht A0D0). Für **I²C** besitzt der Sensor die Anschlüsse **MISO/SDA (Daten)** und **SCK/SCL (Takt)**; ausserdem ist **NCS/SA0** für den Modus beziehungsweise die Adressbeschaltung zu berücksichtigen.
@@ -66,7 +68,8 @@ Die Neustart-Pins der übrigen Boards sind Vorschläge für eine eigene Firmware
 | UNO R3, Nano Classic, Nano Every | **D2** | A4 | A5 | 5 V | D5 |
 | Mega 2560 | **D2** | D20 | D21 | 5 V | D5 |
 | UNO R4 Minima / UNO R4 WiFi (RA4M1-Header) | **D2** | A4 | A5 | 5 V | D5 |
-| Leonardo, Micro, Pro Micro | **D4** | D2 | D3 | 5 V oder 3,3 V (Variante beachten) | D5 |
+| Leonardo, Micro | **D4** | D2 | D3 | 5 V | D5 (Vorschlag) |
+| Pro Micro mit PLC-Firmware | **D4** (TX), **D5** (OE), **D6** (RX) | D2 | D3 | 5 V oder 3,3 V | **D7** |
 | Nano 33 IoT / Nano 33 BLE | **D2** | A4 | A5 | 3,3 V | D5 |
 | Nano RP2040 Connect | **D2 / GPIO25** | A4 / GPIO12 | A5 / GPIO13 | 3,3 V | D5 |
 | Raspberry Pi Pico / Pico W / Pico 2 | **GP2** | GP4 | GP5 | 3,3 V | GP3 |

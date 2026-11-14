@@ -1,3 +1,7 @@
+## v0.7.29 – Pro Micro als PLC-Testbridge
+
+- Unterstützt ATmega32U4 als experimentelle Bridge zur Sensorerkennung und Live-Messung.
+
 ## v0.7.28 – Quelle der Preset-Werte anzeigen
 
 - Erklärt beim Erstellen einer Vorlage, welche Werte vom Sensor und welche aus den aktuellen Vorgaben der App stammen.

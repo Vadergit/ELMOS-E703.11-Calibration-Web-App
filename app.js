@@ -567,6 +567,7 @@ if(typeof document!=='undefined') (function UI(){
     trial.powerRestored&&trial.readVerified&&trial.verifiedUid===st.uid.hex);
  }
  function psscNvmBlock(initial,modified,restoring=false,outputOnly=false){
+  if(st.adapterKind==='bridge'&&st.bridgeReadOnly)return 'Diese Arduino-Testbridge unterstützt Live-Messungen. NVM-Schreiben ist gesperrt.';
   const recovered=st.psscRamRecovery||(st.regs[0x06]===0x6C04&&initial?.[17]!==0x6C04);
   if(st.coldStartAfeRestored)return 'NVM-Schreiben nach AFE-Wiederanlauf gesperrt. Kalibrierung im RAM ist verfügbar.';
   if(!recovered)return '';
@@ -860,14 +861,16 @@ if(typeof document!=='undefined') (function UI(){
   if(!match)throw Error('Kein kompatibler E703.11 USB-CDC-Bridge-Handshake. Bitte Bridge-Firmware prüfen.');
   const caps=match[1].split(',');
   st.bridgePsscRam=caps.includes('PSSC_RAM');
+  st.bridgeReadOnly=caps.includes('PLC_READ_ONLY')&&caps.includes('PLC_READ');
   st.bridgeRxDiag=caps.includes('PLC_RX_DIAG');
   st.bridgeGpio4Io=caps.includes('PLC_GPIO4_IO');
   $('plcGpio4Mode').disabled=!st.bridgeGpio4Io;
   st.firmware='USB-CDC Bridge v1 · '+caps.join('/');
   renderStatus();logging('USB-Bridge CAPS: '+caps.join(','));
-  const ready=['PLC_READ','PLC_WRITE','NVM'].every(cap=>caps.includes(cap));
+  const ready=st.bridgeReadOnly||['PLC_READ','PLC_WRITE','NVM'].every(cap=>caps.includes(cap));
   const powerPin=caps.find(cap=>/^POWER_GPIO_\d+$/.test(cap))?.slice('POWER_GPIO_'.length);
-  $('sensorPowerPin').textContent=ready?' (GPIO'+(powerPin??'7')+')':'';
+  const powerLabel=caps.includes('POWER_D7')?'D7':'GPIO'+(powerPin??'7');
+  $('sensorPowerPin').textContent=ready?' ('+powerLabel+')':'';
   if(!ready){
    show('connMsg','USB-Bridge erkannt. Für Chipzugriff ist die ESP32-C3 PLC-Firmware erforderlich.','warn');
   }
@@ -901,7 +904,7 @@ if(typeof document!=='undefined') (function UI(){
  }
  async function connectBridgeChip(){
   st.bridgeRxNote='';
-  st.bridgeSinglePin=$('plcGpio4Mode').checked;
+  st.bridgeSinglePin=st.bridgeGpio4Io&&$('plcGpio4Mode').checked;
   if(st.bridgeSinglePin&&!st.bridgeGpio4Io)throw Error('GPIO4 Senden/Empfangen benötigt ESP32-Firmware ab v0.6');
   if(st.bridgeGpio4Io)await exchange(st.bridgeSinglePin?'PLC IO GPIO4':'PLC IO SPLIT');
   await exchange('PLC_BAUD '+$('plcBaud').value);
