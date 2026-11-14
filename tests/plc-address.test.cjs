@@ -57,7 +57,7 @@ test('Address detection does not remove protected boot/NVM write restrictions',(
 
 test('PSSC recovery permits calibration only after a verified restart of the same chip',()=>{
  const app=read('app.js');
- const guard=app.slice(app.indexOf(' function psscRecoveryProven()'),app.indexOf(' function renderFlowState()'));
+ const guard=app.slice(app.indexOf(' function bridgeColdStartVerified()'),app.indexOf(' function renderFlowState()'));
  const state={psscRamRecovery:true,regs:{6:0x6C04},plcAddressVerified:true,plcAddress:0x6C,
   uid:{hex:'0020011DBBE7'},startupTrials:[]};
  const block=require('node:vm').runInNewContext(guard+'; psscNvmBlock',{st:state,CAL:require('../calibration.js')});
@@ -82,4 +82,13 @@ test('PSSC recovery permits calibration only after a verified restart of the sam
  state.psscRamRecovery=false;
  trial.verifiedUid='00200109F7DB';
  assert.match(block(initial,plan),/Neustart/);
+ state.adapterKind='bridge';
+ state.bridgeCalibrationNvm=true;
+ state.port={};
+ state.sessionIndex=1;
+ assert.match(block(initial,plan),/Sensorversorgung/);
+ state.bridgeColdStart={port:state.port,session:1,uid:state.uid.hex};
+ assert.equal(block(initial,plan),'');
+ state.sessionIndex++;
+ assert.match(block(initial,plan),/Sensorversorgung/);
 });

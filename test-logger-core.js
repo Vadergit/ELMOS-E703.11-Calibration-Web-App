@@ -17,16 +17,17 @@ const ELMOS_TEST_LOGGER_CORE=(()=>{
   return ms;
  }
  function settings(input){
-  const intervalMs=Number(input.intervalMs),samplesPerPoint=Number(input.samplesPerPoint),
+  const manual=input.manual===true;
+  const intervalMs=manual?null:Number(input.intervalMs),samplesPerPoint=Number(input.samplesPerPoint),
    sampleSpacingMs=Number(input.sampleSpacingMs??0),aggregation=String(input.aggregation||'none');
-  if(!Number.isInteger(intervalMs)||intervalMs<1||intervalMs>3600000)
+  if(!manual&&(!Number.isInteger(intervalMs)||intervalMs<1||intervalMs>3600000))
    throw Error('Messintervall muss eine ganze Zahl zwischen 1 und 3’600’000 ms sein.');
   if(!Number.isInteger(samplesPerPoint)||samplesPerPoint<1||samplesPerPoint>100)
    throw Error('Einzelmessungen pro Messpunkt: 1 bis 100.');
   if(!Number.isInteger(sampleSpacingMs)||sampleSpacingMs<0||sampleSpacingMs>60000)
    throw Error('Abstand zwischen Einzelmessungen: 0 bis 60’000 ms.');
   if(!MODES.includes(aggregation))throw Error('Unbekannte Mittelwertbildung.');
-  return {intervalMs,samplesPerPoint,sampleSpacingMs,aggregation,
+  return {intervalMs,...(manual?{manual}:{}),samplesPerPoint,sampleSpacingMs,aggregation,
    debug:input.debug===true};
  }
  function aggregate(samples,mode='none'){

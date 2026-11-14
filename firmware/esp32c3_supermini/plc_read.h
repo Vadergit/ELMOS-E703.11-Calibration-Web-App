@@ -194,15 +194,17 @@ inline void writeWord(uint8_t address, uint16_t word, unsigned baud, bool startu
 constexpr uint8_t PsscRamAccess[] = {0x02, 0xFE, 0x06, 0x07, 0x6C, 0x04, 0x4E};
 static_assert(writeCrc(0x06, 0x07, 0x6C, 0x04) == 0x4E);
 
-inline void enableAccess(unsigned baud, bool powerCycle, bool recover, uint8_t slave = ReadAddress) {
-  if (powerCycle) {
+inline void powerOffBeforeStart() {
     gpio_set_level(Power, 0);
     gpio_config_t power{};
     power.pin_bit_mask = 1ULL << Power;
     power.mode = GPIO_MODE_OUTPUT;
     gpio_config(&power);
     delay(100);
-  }
+}
+
+inline void enableAccess(unsigned baud, bool powerCycle, bool recover, uint8_t slave = ReadAddress) {
+  if (powerCycle) powerOffBeforeStart();
   writeWord(0xAC, 0x2B42, baud, powerCycle, false, slave);
   // During a cold start the first preamble has already established the bit rate.
   // The second frame still needs a gap, but must fit inside the 4 ms window.

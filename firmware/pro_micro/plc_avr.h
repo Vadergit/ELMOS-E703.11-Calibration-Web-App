@@ -7,6 +7,8 @@ namespace plc {
 constexpr uint8_t Tx = _BV(PD4);
 constexpr uint8_t Enable = _BV(PC6);
 constexpr uint8_t Rx = _BV(PD7);
+inline bool singlePin = true;
+inline bool highInterFrameGap = false;
 
 constexpr uint8_t Preamble = 0x02;
 constexpr uint8_t ReadAddress = 0x6D;
@@ -88,7 +90,7 @@ inline void configurePins() {
   PORTC &= ~Enable;
   DDRC |= Enable;
   PORTD &= ~(Tx | Rx);
-  DDRD = (DDRD | Tx) & ~Rx;
+  DDRD &= ~(Tx | Rx);
   // Timer1 is dedicated to PLC, with one tick per CPU cycle.
   TCCR1A = 0;
   TCCR1B = _BV(CS10);
@@ -105,18 +107,26 @@ inline void txLevel(bool high) {
 
 inline size_t transfer(const uint8_t *request, size_t length, uint32_t baud,
                        Edge *edges, size_t capacity, bool startup = false, bool shortGap = false,
-                       bool *rxStart = nullptr, uint8_t *txEcho = nullptr) {
+                       bool *rxStart = nullptr, uint8_t *txEcho = nullptr, uint16_t startupDelayUs = 500, uint16_t *firstEdgeTicks = nullptr, bool holdTx = false, uint16_t gapOverrideUs = 0) {
   const uint16_t half = F_CPU / baud;
   const uint16_t bitTime = 2 * half;
   size_t count = 0;
-  txLevel(false);
-  PORTC |= Enable;
+  const uint8_t input = singlePin ? Tx : Rx;
+  txLevel(!startup && highInterFrameGap);
   if (startup) {
+    // In direct mode hold AODO low before raising VDD, avoiding a rising
+    // edge before the first Manchester preamble.
+    if (singlePin) DDRD |= Tx;
     digitalWrite(7, HIGH);
-    delayMicroseconds(500);
+    DDRD |= Tx;
+    if (!singlePin) PORTC |= Enable;
+    if (startupDelayUs) delayMicroseconds(startupDelayUs);
   } else {
-    delayMicroseconds(shortGap ? 10 * (1000000UL / baud) : 3500);
+    DDRD |= Tx;
+    if (!singlePin) PORTC |= Enable;
+    delayMicroseconds(gapOverrideUs ? gapOverrideUs : shortGap ? 10 * (1000000UL / baud) : 3500);
   }
+  if (txEcho) *txEcho = 0;
   ATOMIC_BLOCK(ATOMIC_RESTORESTATE) {
     uint16_t next = TCNT1;
     for (size_t i = 0; i < length; ++i) {
@@ -125,6 +135,7 @@ inline size_t transfer(const uint8_t *request, size_t length, uint32_t baud,
         txLevel(one);
         next += half;
         waitUntil(next);
+        if (txEcho) *txEcho |= (PIND & input) ? 2 : 1;
         txLevel(!one);
         next += half;
         waitUntil(next);
@@ -132,18 +143,38 @@ inline size_t transfer(const uint8_t *request, size_t length, uint32_t baud,
     }
     txLevel(true);
     waitUntil(next + half);
-    PORTC &= ~Enable;
-    bool last = PIND & Rx;
-    if (rxStart) *rxStart = last;
-    if (txEcho) *txEcho = 0;
-    const uint16_t captureTicks = 48 * bitTime;
-    while (count < capacity) {
-      const bool high = PIND & Rx;
-      const uint16_t now = TCNT1;
-      if (uint16_t(now - next) >= captureTicks) break;
-      if (high != last) {
-        edges[count++] = {now, high};
-        last = high;
+    if (!holdTx) {
+      PORTC &= ~Enable;
+      DDRD &= ~Tx;
+      PORTD &= ~Tx;
+      bool last = PIND & input;
+      if (rxStart) *rxStart = last;
+      const uint16_t captureTicks = 48 * bitTime;
+      if (singlePin) {
+        // PD4 is ICP1. Timestamp edges in hardware and reject short glitches.
+        TCCR1B = _BV(CS10) | _BV(ICNC1) | (last ? 0 : _BV(ICES1));
+        TIFR1 = _BV(ICF1);
+        while (count < capacity && uint16_t(TCNT1 - next) < captureTicks) {
+          if (!(TIFR1 & _BV(ICF1))) continue;
+          const uint16_t captured = ICR1;
+          const bool rising = TCCR1B & _BV(ICES1);
+          TCCR1B ^= _BV(ICES1);
+          TIFR1 = _BV(ICF1);
+          if (firstEdgeTicks && count == 0) *firstEdgeTicks = uint16_t(captured - next);
+          edges[count++] = {captured, rising};
+        }
+        TCCR1B = _BV(CS10);
+      } else {
+        while (count < capacity) {
+          const bool high = PIND & input;
+          const uint16_t now = TCNT1;
+          if (uint16_t(now - next) >= captureTicks) break;
+          if (high != last) {
+            if (firstEdgeTicks && count == 0) *firstEdgeTicks = uint16_t(now - next);
+            edges[count++] = {now, high};
+            last = high;
+          }
+        }
       }
     }
   }
@@ -159,39 +190,48 @@ constexpr uint8_t writeCrc(uint8_t address, uint8_t header, uint8_t high, uint8_
 
 static_assert(writeCrc(0x6A, 0x0A, 0x67, 0x89) == 0x5F);
 
-inline void writeWord(uint8_t address, uint16_t word, uint32_t baud, bool startup = false, bool shortGap = false, uint8_t slave = ReadAddress) {
+inline void writeWord(uint8_t address, uint16_t word, uint32_t baud, bool startup = false, bool shortGap = false, uint8_t slave = ReadAddress, uint16_t startupDelayUs = 500, bool holdTx = false) {
   const uint8_t header = readHeader(address, slave);
   const uint8_t high = word >> 8;
   const uint8_t low = word & 0xFF;
   const uint8_t request[] = {Preamble, static_cast<uint8_t>(slave & 0xFE), address, header, high, low,
                              writeCrc(address, header, high, low)};
-  transfer(request, sizeof(request), baud, nullptr, 0, startup, shortGap);
+  transfer(request, sizeof(request), baud, nullptr, 0, startup, shortGap, nullptr, nullptr, startupDelayUs, nullptr, holdTx);
 }
 
 // PSSC 3.2.1 trace: 02 FE 06 07 6C 04 4E. Do not expose generic broadcast writes.
 constexpr uint8_t PsscRamAccess[] = {0x02, 0xFE, 0x06, 0x07, 0x6C, 0x04, 0x4E};
 static_assert(writeCrc(0x06, 0x07, 0x6C, 0x04) == 0x4E);
 
-inline void enableAccess(uint32_t baud, bool powerCycle, bool recover, uint8_t slave = ReadAddress) {
+inline void enableAccess(uint32_t baud, bool powerCycle, bool recover, uint8_t slave = ReadAddress, uint16_t startupDelayUs = 500) {
   if (powerCycle) {
     digitalWrite(7, LOW);
     pinMode(7, OUTPUT);
     delay(100);
   }
-  writeWord(0xAC, 0x2B42, baud, powerCycle, false, slave);
+  writeWord(0xAC, 0x2B42, baud, powerCycle, false, slave, startupDelayUs, powerCycle);
   // During a cold start the first preamble has already established the bit rate.
   // The second frame still needs a gap, but must fit inside the 4 ms window.
-  writeWord(0x0E, 0x5CFD, baud, false, powerCycle, slave);
+  writeWord(0x0E, 0x5CFD, baud, false, powerCycle, slave, 500, powerCycle && recover);
   if (recover) transfer(PsscRamAccess, sizeof(PsscRamAccess), baud, nullptr, 0, false, powerCycle);
+}
+
+// Try the PSSC volatile interface broadcast as the first cold-start frame.
+inline void recoverAtPowerOn(uint32_t baud, uint16_t startupDelayUs) {
+  digitalWrite(7, LOW);
+  pinMode(7, OUTPUT);
+  delay(100);
+  transfer(PsscRamAccess, sizeof(PsscRamAccess), baud, nullptr, 0, true, false, nullptr, nullptr, startupDelayUs);
 }
 
 inline const char *readWord(uint8_t address, uint32_t baud, uint16_t &word, uint8_t *checksum = nullptr, uint8_t slave = ReadAddress,
                             size_t *rxEdges = nullptr, bool *rxStart = nullptr,
-                            uint8_t *txEcho = nullptr) {
+                            uint8_t *txEcho = nullptr, uint16_t *firstEdgeTicks = nullptr, bool shortGap = false,
+                            bool powerOn = false, uint16_t startupDelayUs = 500) {
   const uint8_t header = readHeader(address, slave);
   const uint8_t request[] = {Preamble, slave, address, header};
   Edge edges[80];
-  const size_t count = transfer(request, sizeof(request), baud, edges, 80, false, false, rxStart, txEcho);
+  const size_t count = transfer(request, sizeof(request), baud, edges, 80, powerOn, shortGap, rxStart, txEcho, startupDelayUs, firstEdgeTicks);
   if (rxEdges) *rxEdges = count;
   const uint32_t bitTime = 2 * (F_CPU / baud);
   uint8_t reply[4];

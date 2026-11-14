@@ -31,6 +31,8 @@ static uint32_t requests = 0;
 static unsigned plcBaud = 100000;
 static uint8_t activeSlave = plc::ReadAddress;
 static bool recoveryUsed = false;
+static bool coldStartVerified = false;
+static bool nvmArmed = false;
 
 static void answer(const char *message) {
   // Same line-terminator as the existing SSP3-oriented Web Serial parser.
@@ -61,15 +63,17 @@ static int hexDigit(char ch) {
 }
 
 static bool allowedWrite(uint8_t address, uint16_t word) {
-  if (address == 0x1A || address == 0x1C || address == 0x4A) return true;
+  if (address == 0x1A || address == 0x1C) return true;
   if (address == 0x22) return word == 0x8B93;
   if (address >= 0x6C && address <= 0x9A) return true;
+  if (address == 0x4A) return nvmArmed;
   if (address != 0x4E) return false;
+  if ((word & 0xFF81) == 0x4C00) return true;
+  if (!nvmArmed) return false;
   if (word == 0x98BD || word == 0x25BF || word == 0x36D8 || word == 0 || word == 0x8800) return true;
-  const unsigned offset = word & 0xFF;
-  if ((word >> 8) == 0x4C) return offset <= 0x7E && !(offset & 1);
-  return !recoveryUsed && (word >> 8) == 0xA3 && (offset == 0x20 || offset == 0x2C ||
-                                  (offset >= 0x38 && offset <= 0x7E && !(offset & 1)));
+  const unsigned index = (word & 0xFF) >> 1;
+  return (word & 0xFF81) == 0xA300 &&
+         (index == 28 || (index >= 30 && index <= 54) || index == 63);
 }
 
 static void plcFrame(const char *hex) {
@@ -122,16 +126,34 @@ static void plcFrame(const char *hex) {
   answer("# PLC FRAME SENT");
 }
 
-static const char *probe(uint8_t slave) {
+static const char *probeAtRate(uint8_t slave, unsigned baud) {
   uint16_t afe, adc, cfg, pads;
-  if (const char *e = plc::readWord(0x1C, plcBaud, afe, nullptr, slave)) return e;
+  if (const char *e = plc::readWord(0x1C, baud, afe, nullptr, slave)) return e;
   if (!afe) return "!BRIDGE PLC_NO_VALID_FRAME";
-  if (const char *e = plc::readWord(0x2A, plcBaud, adc, nullptr, slave)) return e;
-  if (const char *e = plc::readWord(0x06, plcBaud, cfg, nullptr, slave)) return e;
-  if (const char *e = plc::readWord(0x0A, plcBaud, pads, nullptr, slave)) return e;
+  if (const char *e = plc::readWord(0x2A, baud, adc, nullptr, slave)) return e;
+  if (const char *e = plc::readWord(0x06, baud, cfg, nullptr, slave)) return e;
+  if (const char *e = plc::readWord(0x0A, baud, pads, nullptr, slave)) return e;
   const uint8_t configured = ((cfg >> 8) & 0x7E) | ((pads & 0x1000) ? 0x80 : 0) | 1;
   if (configured != slave) return "!BRIDGE PLC_ADDRESS_MISMATCH";
   activeSlave = slave;
+  return nullptr;
+}
+
+static const char *probe(uint8_t slave) {
+  return probeAtRate(slave, plcBaud);
+}
+
+// The startup cookie can leave CFG_PERIOD set to its second frame.
+static const char *startContinuousAfterCookie() {
+  uint16_t period;
+  if (const char *error = plc::readWord(0x0E, plcBaud, period, nullptr, activeSlave))
+    return error;
+  if (period != 0x5CFD) return nullptr;
+  plc::writeWord(0x0E, 0x0001, plcBaud, false, false, activeSlave);
+  if (const char *error = plc::readWord(0x0E, plcBaud, period, nullptr, activeSlave))
+    return error;
+  if (period != 0x0001) return "!BRIDGE PLC_PERIOD_READBACK_FAILED";
+  plc::writeWord(0x22, 0x8B93, plcBaud, false, false, activeSlave);
   return nullptr;
 }
 
@@ -143,8 +165,30 @@ static const char *probeAddresses() {
 }
 
 static void establishAccess(bool powerCycle, bool recover = false) {
+  nvmArmed = false;
+  if (powerCycle) {
+    coldStartVerified = false;
+    recoveryUsed = false;
+  }
   const char *error = nullptr;
-  if (recover) {
+  if (powerCycle && recover) {
+    // Replay the broadcast sequence captured from the SSP3 before falling back
+    // to the existing address-specific start at the selected rate.
+    constexpr unsigned ssp3Rate = 187500;
+    constexpr uint8_t first[] = {0x02, 0xFE, 0xAC, 0x1C, 0x2B, 0x42, 0x86};
+    constexpr uint8_t second[] = {0x02, 0xFE, 0x0E, 0x1A, 0x5C, 0xFD, 0xD5};
+    plc::powerOffBeforeStart();
+    plc::transfer(first, sizeof(first), ssp3Rate, nullptr, 0, true, false);
+    plc::transfer(second, sizeof(second), ssp3Rate, nullptr, 0, false, true);
+    plc::transfer(plc::PsscRamAccess, sizeof(plc::PsscRamAccess), ssp3Rate, nullptr, 0, false, true);
+    recoveryUsed = true;
+    error = probeAtRate(0x6D, ssp3Rate);
+    if (!error) plcBaud = ssp3Rate;
+    else {
+      plc::enableAccess(plcBaud, true, true);
+      error = probe(0x6D);
+    }
+  } else if (recover) {
     // Mark the session before attempting the write, including on a lost reply.
     recoveryUsed = true;
     plc::enableAccess(plcBaud, powerCycle, true);
@@ -161,10 +205,12 @@ static void establishAccess(bool powerCycle, bool recover = false) {
       }
     }
   }
+  if (!error) error = startContinuousAfterCookie();
   if (error) {
     answer(error);
     return;
   }
+  if (powerCycle) coldStartVerified = true;
   char response[40];
   snprintf(response, sizeof(response), "# PLC ACCESS ADDR=%02X RAM_RECOVERY=%u",
            unsigned(activeSlave & 0xFE), unsigned(recoveryUsed));
@@ -189,10 +235,17 @@ static void diagnoseRx() {
 
 static void onCommand(const char *command) {
   ++requests;
-  if (strcmp(command, "BRIDGE_INFO") == 0) {
-    answer("# E70311-BRIDGE V1 CAPS=PLC_UID,PLC_READ,PLC_WRITE,NVM,POWER_GPIO_10,PSSC_RAM,PLC_RX_DIAG,PLC_GPIO4_IO");
+  if (strcmp(command, "NVM ARM CALIBRATION") == 0) {
+    nvmArmed = coldStartVerified && !probe(activeSlave);
+    answer(nvmArmed ? "# NVM CALIBRATION ARMED" : "!BRIDGE NVM_COLD_START_REQUIRED");
+  } else if (strcmp(command, "NVM DISARM") == 0) {
+    nvmArmed = false;
+    answer("# NVM DISARMED");
+  } else if (strcmp(command, "BRIDGE_INFO") == 0) {
+    nvmArmed = false;
+    answer("# E70311-BRIDGE V1 CAPS=PLC_UID,PLC_READ,PLC_WRITE,NVM,POWER_GPIO_10,PSSC_RAM,BRIDGE_CAL_NVM,PLC_RX_DIAG,PLC_GPIO4_IO");
   } else if (strcmp(command, ".VERSION") == 0) {
-    answer("# ESP32-C3 SuperMini ELMOS PLC bridge v0.6");
+    answer("# ESP32-C3 SuperMini ELMOS PLC bridge v0.8");
   } else if (strcmp(command, "BRIDGE_PING") == 0) {
     answer("# PONG ESP32-C3 SUPERMini PLC_UID");
   } else if (strcmp(command, "BRIDGE_STATS") == 0) {
@@ -201,6 +254,7 @@ static void onCommand(const char *command) {
                   static_cast<unsigned long>(ESP.getFreeHeap()));
     Serial.flush();
   } else if (strcmp(command, "PLC IO GPIO4") == 0 || strcmp(command, "PLC IO SPLIT") == 0) {
+    nvmArmed = coldStartVerified = false;
     plc::singlePin = strcmp(command, "PLC IO GPIO4") == 0;
     activeSlave = plc::ReadAddress;
     answer(plc::singlePin ? "# PLC IO GPIO4" : "# PLC IO SPLIT");
@@ -213,6 +267,7 @@ static void onCommand(const char *command) {
   } else if (strcmp(command, "IF_CFG 7 0 0") == 0) {
     answer("# PLC");
   } else if (strcmp(command, "PLC_BAUD 25000") == 0 || strcmp(command, "PLC_BAUD 100000") == 0) {
+    nvmArmed = coldStartVerified = false;
     plcBaud = strcmp(command, "PLC_BAUD 25000") == 0 ? 25000 : 100000;
     answer("# PLC BAUD");
   } else if (strcmp(command, "PLC ACCESS") == 0 || strcmp(command, "PLC START") == 0) {

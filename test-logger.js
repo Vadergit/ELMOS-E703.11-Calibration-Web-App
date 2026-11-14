@@ -37,16 +37,21 @@ const ELMOS_TEST_LOGGER=(()=>{
  const render=()=>{
   if(!S.root)return;
   const active=!!S.recordId;
+  const manual=$('tlManual').checked;
+  $('tlIntervalField').hidden=manual;
+  $('tlMissed').parentElement.hidden=active&&S.settings?.manual===true;
   $('tlConfig').hidden=active;
   $('tlControls').hidden=!active;
   $('tlExports').hidden=active||!S.lastRecord;
   setDisabled('tlStart',S.starting);
   setDisabled('tlStop',S.stopping);
-  setDisabled('tlSnapshot',S.busy||S.stopping);
+  setDisabled('tlSnapshot',S.starting||S.busy||S.stopping||S.stopRequested||(S.paused&&S.settings?.manual===true));
+  text('tlSnapshot',S.settings?.manual?'Messpunkt aufnehmen':'Einzelaufnahme');
+  $('tlSnapshot').classList.toggle('primary',S.settings?.manual===true);
   setDisabled('tlPause',S.stopping);
   setDisabled('tlMarkerAdd',S.stopping);
   text('tlStatus',S.starting?'Archiv wird vorbereitet …':S.stopping?'Wird abgeschlossen …':
-   active?S.paused?'Pausiert':S.busy?'Messung läuft':'Aufzeichnung aktiv':S.lastRecord?'Letzter Test gespeichert':'Bereit');
+   active?S.paused?'Pausiert':S.busy?'Messung läuft':S.settings?.manual?'Bereit für Messpunkt':'Aufzeichnung aktiv':S.lastRecord?'Letzter Test gespeichert':'Bereit');
   text('tlCount',S.groups);
   text('tlSamples',S.samples);
   text('tlMissed',S.missed);
@@ -82,7 +87,7 @@ const ELMOS_TEST_LOGGER=(()=>{
   if(description.length>4000)throw Error('Beschreibung darf maximal 4000 Zeichen lang sein.');
   if(dutName.length>160)throw Error('DUT-Bezeichnung darf maximal 160 Zeichen lang sein.');
   const fields=C.settings({
-   intervalMs:value('tlInterval'),samplesPerPoint:value('tlSamplesPerPoint'),
+   manual:$('tlManual').checked,intervalMs:value('tlInterval'),samplesPerPoint:value('tlSamplesPerPoint'),
    sampleSpacingMs:value('tlSpacing'),aggregation:value('tlAggregation'),
    debug:$('tlDebug').checked
   });
@@ -123,7 +128,7 @@ const ELMOS_TEST_LOGGER=(()=>{
    if(S.clock!==null)clearInterval(S.clock);
    S.clock=setInterval(render,1000);
    armDurationTimer();
-   announce('Test gestartet. Rohdaten werden laufend im gewählten lokalen Archivordner gespeichert.');
+   announce(S.settings.manual?'Test gestartet. Klicke auf «Messpunkt aufnehmen», sobald der Messpunkt bereit ist.':'Test gestartet. Rohdaten werden laufend im gewählten lokalen Archivordner gespeichert.');
    schedule(0);
   }catch(e){
    clearDurationTimer();if(S.clock!==null){clearInterval(S.clock);S.clock=null}
@@ -138,7 +143,7 @@ const ELMOS_TEST_LOGGER=(()=>{
  }
  function schedule(waitMs){
   clearTimer();
-  if(!S.recordId||S.stopRequested||S.paused)return;
+  if(!S.recordId||S.stopRequested||S.paused||S.settings.manual)return;
   if(remaining()!=null&&remaining()<=0){void stop('completed','duration');return}
   S.timer=setTimeout(()=>{
    S.timer=null;
@@ -156,12 +161,13 @@ const ELMOS_TEST_LOGGER=(()=>{
   const lagMs=Math.max(0,started-due);
   render();
   try{
+   if(manual)await archive().event('manual_snapshot_requested',{at:startedAt});
    const raw=await bridge().measure(S.settings.samplesPerPoint,{
     testLogger:true,sampleSpacingMs:S.settings.sampleSpacingMs
    });
    const ended=performance.now();
    if(S.interrupted||archive()?.current?.id!==S.recordId)throw Error('Aufzeichnung durch Sensorverlust unterbrochen');
-   const next=C.scheduleNext(due,ended,S.settings.intervalMs);
+   const next=manual?null:C.scheduleNext(due,ended,S.settings.intervalMs);
    const point={kind:'telemetry_point',index:S.groups+1,manual:!!manual,
     scheduledAt,startedAt,endedAt:now(),durationMs:Math.round((ended-started)*10)/10,
     lagMs:Math.round(lagMs*10)/10,skippedIntervals:manual?0:next.skipped,
@@ -189,7 +195,7 @@ const ELMOS_TEST_LOGGER=(()=>{
     S.nextDueMono=performance.now()+S.settings.intervalMs;
     try{await archive()?.event('error',{stage:'test_measurement',message:e.message,
      partialSamples:e.rawSamples||null,partialReadErrors:e.partialReadErrors||null})}catch(_){}
-    announce('Messfehler: '+e.message+(S.consecutiveErrors<3?' · Nächster Versuch folgt.':' · Aufzeichnung wird beendet.'),true);
+    announce('Messfehler: '+e.message+(S.consecutiveErrors<3?(S.settings.manual?' · Messpunkt erneut aufnehmen.':' · Nächster Versuch folgt.'):' · Aufzeichnung wird beendet.'),true);
     if(S.consecutiveErrors>=3){S.stopRequested=true;S.stopAfterCapture='failed'}
    }
   }finally{
@@ -206,9 +212,9 @@ const ELMOS_TEST_LOGGER=(()=>{
   }
  }
  async function snapshot(){
-  if(!S.recordId||S.stopping||S.busy)return;
+  if(!S.recordId||S.starting||S.stopping||S.busy||S.stopRequested||(S.paused&&S.settings.manual))return;
+  if(remaining()!=null&&remaining()<=0){void stop('completed','duration');return}
   clearTimer();
-  await archive().event('manual_snapshot_requested',{at:now()});
   S.pending=capture(true);
   await S.pending;
  }
@@ -301,14 +307,16 @@ const ELMOS_TEST_LOGGER=(()=>{
    '<label>VDD-Istspannung (V, manuell gemessen)<input id="tlVdd" type="number" min="0" max="30" step="any" placeholder="z. B. 5.01"></label>'+
    '<label>Quelle der VDD-Messung<input id="tlVddSource" maxlength="200" placeholder="z. B. Multimeter am Prüfling"></label></div>'+
    '<label>Beschreibung der Messung / Testaufbau<textarea id="tlDescription" rows="3" maxlength="4000" placeholder="Was wird geprüft? Referenzgeräte, Aufbau, Temperatur- oder Druckbedingungen, Auffälligkeiten …"></textarea></label>'+
-   '<h3>Aufzeichnung konfigurieren</h3><div class="tl-grid">'+
-   '<label>Messintervall zwischen Messpunkten (ms)<input id="tlInterval" type="number" min="1" max="3600000" step="1" value="1000"></label>'+
+   '<h3>Aufzeichnung konfigurieren</h3>'+
+   '<label class="tl-check"><input id="tlManual" type="checkbox"> Messpunkte manuell auslösen</label>'+
+   '<div class="tl-grid">'+
+   '<label id="tlIntervalField">Messintervall zwischen Messpunkten (ms)<input id="tlInterval" type="number" min="1" max="3600000" step="1" value="1000"></label>'+
    '<label>Einzelmessungen pro Messpunkt<input id="tlSamplesPerPoint" type="number" min="1" max="100" step="1" value="1"></label>'+
    '<label>Abstand zwischen Einzelmessungen (ms)<input id="tlSpacing" type="number" min="0" max="60000" step="1" value="0"></label>'+
    '<label>Werte zusammenfassen<select id="tlAggregation"><option value="none">Keine Mittelung · Rohwerte</option><option value="mean">Arithmetischer Mittelwert</option><option value="median">Median</option></select></label>'+
    '<label>Testdauer (0 = unbegrenzt)<div class="tl-duration"><input id="tlDuration" type="number" min="0" max="2592000" step="any" value="0"><select id="tlDurationUnit"><option value="s">Sekunden</option><option value="min">Minuten</option><option value="h">Stunden</option></select></div></label></div>'+
    '<label class="tl-check"><input id="tlDebug" type="checkbox"> Zusätzlich TX/RX-Kommunikation aufzeichnen (Debug, grössere Dateien)</label>'+
-   '<p class="tl-note">Die Testdauer beendet die Aufzeichnung automatisch; 0 bedeutet manuelles Stoppen. Pausen halten die Testdauer an. Der zuletzt gestartete Messpunkt wird vollständig gespeichert. Jede einzelne Rohmessung bleibt erhalten, auch wenn du den Mittelwert oder Median aktivierst. Das Intervall ist eine Vorgabe, kein garantierter Hardwaretakt. Wenn die Abfrage länger dauert, werden tatsächliche Zeiten und übersprungene Intervalle geloggt.</p>'+
+   '<p class="tl-note">Die Testdauer beendet die Aufzeichnung automatisch; 0 bedeutet manuelles Stoppen. Pausen halten die Testdauer an. Der zuletzt gestartete Messpunkt wird vollständig gespeichert. Jede einzelne Rohmessung bleibt erhalten, auch wenn du den Mittelwert oder Median aktivierst. Bei automatischer Aufzeichnung werden tatsächliche Zeiten und übersprungene Intervalle gespeichert.</p>'+
    '<button class="primary" type="button" id="tlStart">Aufzeichnung starten</button></section>'+
   '<section id="tlControls" class="tl-box" hidden><div class="tl-kpis">'+
    '<div><small>Messpunkte</small><strong id="tlCount">0</strong></div>'+
@@ -346,6 +354,7 @@ const ELMOS_TEST_LOGGER=(()=>{
   }
   S.root=target;
   S.root.innerHTML=UI();
+  $('tlManual').addEventListener('change',render);
   $('tlStart').addEventListener('click',()=>{void start()});
   $('tlStop').addEventListener('click',()=>{void stop()});
   $('tlPause').addEventListener('click',()=>{void pause()});

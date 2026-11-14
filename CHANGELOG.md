@@ -1,3 +1,9 @@
+## v0.7.37 – Manuelle Messpunkte und USB-Bridges
+
+- Test / Logging kann Messpunkte auf Knopfdruck aufnehmen. Einzelmessungen und Mittelwertbildung gelten auch im manuellen Modus.
+- ESP32-C3 und Pro Micro unterstützen den Kaltstartnachweis für die NVM-Prüfung. Die ESP32-Firmware startet nach der One-Wire-Freigabe die kontinuierliche Messung.
+- Bridge-Optionen und Baudraten stehen im Expertenmodus. Beim Boardwechsel trennt die App den USB-Port automatisch.
+
 ## v0.7.29 – Pro Micro als PLC-Testbridge
 
 - Unterstützt ATmega32U4 als experimentelle Bridge zur Sensorerkennung und Live-Messung.

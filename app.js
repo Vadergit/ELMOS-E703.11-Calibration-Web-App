@@ -134,7 +134,9 @@ if(typeof document!=='undefined') (function UI(){
   if(addrRow)addrRow.hidden=st.iface!=='plc'||!$('expertMode').checked;
   if($('plcAddressLabel'))$('plcAddressLabel').textContent=(st.chip||st.readOnlySensor)&&st.plcAddressVerified?
    '0x'+h(st.plcAddress)+' (Sensorregister bestätigt)':
-   connected?'Suche: 0x6C / 0x7C':'—';$('status').textContent=demoEnabled?'Demo · Simulation':st.chip?'Sensor verbunden':st.readOnlySensor?'Sensor verbunden · Diagnose':st.reinitRunning||st.powerCycleRunning?'Sensor wird initialisiert':connected?(st.adapterNoReply?'SSP3 antwortet nicht':st.sensorLost?'Sensor nicht verbunden':'USB verbunden · Sensor nicht erkannt'):'Nicht verbunden';$('statusDot').className='dot'+(st.chip||st.readOnlySensor?' active':connected?' missing':'');$('fw').textContent=st.firmware?st.firmware.slice(0,19):'—';$('chip').textContent=st.readOnlySensor|| (st.chip?'Antwort erhalten':'—');$('ifaceLabel').textContent=st.iface==='plc'?'1-Wire':st.iface==='i2c'?'I²C':'SPI';$('srcLabel').textContent=st.adc?.source==='usb'?'USB / Chip':'Keine Messdaten';$('choose').disabled=connected||demoEnabled;$('auto').hidden=demoEnabled;$('disconnect').hidden=demoEnabled;$('adapterType').disabled=demoEnabled;$('iface').disabled=demoEnabled;$('guidedLaunch').disabled=!st.chip||st.closing;$('guidedLaunch').classList.toggle('primary',st.chip&&!st.closing);$('auto').disabled=connected;$('disconnect').disabled=!connected||st.closing;$('readNow').disabled=!st.chip||st.magicRunning||st.powerCycleRunning;$('live').disabled=!connected||st.magicRunning||st.powerCycleRunning;$('live').textContent=st.live?'Live-Messung stoppen':'Live-Messung starten';$('readBoot').disabled=!st.chip;$('readRegs').disabled=!st.chip&&!st.readOnlySensor;$('afeWord').textContent=st.afe===null?'CFG_AFE1: —':'CFG_AFE1: 0x'+h(st.afe,2);const startupTools=$('plcStartupTools');if(startupTools)startupTools.hidden=demoEnabled||st.adapterKind!=='ssp3'||st.iface!=='plc'||!$('expertMode').checked;
+   connected?'Suche: 0x6C / 0x7C':'—';$('status').textContent=demoEnabled?'Demo · Simulation':st.chip?'Sensor verbunden':st.readOnlySensor?'Sensor verbunden · Diagnose':st.reinitRunning||st.powerCycleRunning?'Sensor wird initialisiert':connected?(st.adapterNoReply?'SSP3 antwortet nicht':st.sensorLost?'Sensor nicht verbunden':'USB verbunden · Sensor nicht erkannt'):'Nicht verbunden';$('statusDot').className='dot'+(st.chip||st.readOnlySensor?' active':connected?' missing':'');$('fw').textContent=st.firmware?st.firmware.slice(0,19):'—';$('chip').textContent=st.readOnlySensor|| (st.chip?'Antwort erhalten':'—');$('ifaceLabel').textContent=st.iface==='plc'?'1-Wire':st.iface==='i2c'?'I²C':'SPI';$('srcLabel').textContent=st.adc?.source==='usb'?'USB / Chip':'Keine Messdaten';$('choose').disabled=connected||demoEnabled;$('auto').hidden=demoEnabled;$('disconnect').hidden=demoEnabled;$('adapterType').disabled=demoEnabled||st.closing;$('iface').disabled=demoEnabled;$('guidedLaunch').disabled=!st.chip||st.closing;$('guidedLaunch').classList.toggle('primary',st.chip&&!st.closing);$('auto').disabled=connected;$('disconnect').disabled=!connected||st.closing;$('readNow').disabled=!st.chip||st.magicRunning||st.powerCycleRunning;$('live').disabled=!connected||st.magicRunning||st.powerCycleRunning;$('live').textContent=st.live?'Live-Messung stoppen':'Live-Messung starten';$('readBoot').disabled=!st.chip;$('readRegs').disabled=!st.chip&&!st.readOnlySensor;$('afeWord').textContent=st.afe===null?'CFG_AFE1: —':'CFG_AFE1: 0x'+h(st.afe,2);const startupTools=$('plcStartupTools');if(startupTools)startupTools.hidden=demoEnabled||st.adapterKind!=='ssp3'||st.iface!=='plc'||!$('expertMode').checked;
+ $('connectionBaudOptions').hidden=!$('expertMode').checked;
+ $('plcOptions').hidden=st.adapterKind!=='bridge'||!$('expertMode').checked;
  if($('chipDiagDetails'))$('chipDiagDetails').hidden=!$('expertMode').checked;
  if($('usbAdvancedDetails'))$('usbAdvancedDetails').hidden=!$('expertMode').checked;
  if($('wiringStartDetails'))$('wiringStartDetails').hidden=!$('expertMode').checked;
@@ -561,19 +563,25 @@ if(typeof document!=='undefined') (function UI(){
  }
  // The recovery changes a RAM address, so require a fresh cold-start proof
  // and keep every factory, boot and output word identical to the original NVM.
+ function bridgeColdStartVerified(){
+  const proof=st.bridgeColdStart;
+  return st.adapterKind==='bridge'&&st.bridgeCalibrationNvm&&!!st.port&&!!st.uid?.hex&&
+   proof?.port===st.port&&proof.session===st.sessionIndex&&proof.uid===st.uid.hex;
+ }
  function psscRecoveryProven(){
   return !!st.uid?.hex&&st.plcAddressVerified&&st.plcAddress===0x6C&&
    st.startupTrials.some(trial=>trial.stage==='PSSC-RAM-Start'&&
     trial.powerRestored&&trial.readVerified&&trial.verifiedUid===st.uid.hex);
  }
  function psscNvmBlock(initial,modified,restoring=false,outputOnly=false){
+  if(st.adapterKind==='bridge'&&st.bridgeCalibrationNvm&&!bridgeColdStartVerified())return 'Sensorversorgung aktivieren und den Sensor vor dem Abgleich neu verbinden.';
   if(st.adapterKind==='bridge'&&st.bridgeReadOnly)return 'Diese Arduino-Testbridge unterstützt Live-Messungen. NVM-Schreiben ist gesperrt.';
   const recovered=st.psscRamRecovery||(st.regs[0x06]===0x6C04&&initial?.[17]!==0x6C04);
   if(st.coldStartAfeRestored)return 'NVM-Schreiben nach AFE-Wiederanlauf gesperrt. Kalibrierung im RAM ist verfügbar.';
-  if(!recovered)return '';
-  if(st.adapterKind==='bridge')
+  if(!recovered&&!(st.adapterKind==='bridge'&&st.bridgeCalibrationNvm))return '';
+  if(st.adapterKind==='bridge'&&!st.bridgeCalibrationNvm)
    return 'Nach temporärer ESP32-RAM-Freigabe ist NVM-Schreiben gesperrt. Live-Messung, RAM-Kalibrierung und NVM-Lesen sind verfügbar.';
-  if(!psscRecoveryProven())
+  if(!psscRecoveryProven()&&!bridgeColdStartVerified())
    return 'Für die PSSC-RAM-Verbindung fehlt der bestätigte Neustart dieses Chips. Sensor neu initialisieren und erneut prüfen.';
   if(!initial||!modified)return '';
   const calibrationWords=new Set([CAL.SVDD_INDEX,28,30,31,32,33,34,...Array.from({length:16},(_,i)=>35+i),51,52,53,54,63]);
@@ -617,7 +625,7 @@ if(typeof document!=='undefined') (function UI(){
   const outputStatus=$('outputOneWireStatus');
   const startup=st.nvmBackupVerified&&st.nvmBackup?.length===64?CAL.oneWireStartupStatus(st.nvmBackup):null;
   const cookieVerified=!!(st.powerCycleResult?.readVerified&&st.powerCycleResult.verifiedUid&&
-   st.powerCycleResult.verifiedUid===st.uid?.hex&&st.iface==='plc'&&st.port&&st.chip)||psscRecoveryProven();
+   st.powerCycleResult.verifiedUid===st.uid?.hex&&st.iface==='plc'&&st.port&&st.chip)||psscRecoveryProven()||bridgeColdStartVerified();
   if(outputStatus){
    const connected=st.mode==='usb'&&st.iface==='plc'&&st.chip;
    const saved=startup;
@@ -720,7 +728,7 @@ if(typeof document!=='undefined') (function UI(){
  };
 
  const rawLine=s=>{if(window.ELMOS_ARCHIVE?.active&&(st.calTask||st.writing||st.nvmWorking))window.ELMOS_ARCHIVE.trace(s);st.log.push(now()+'  '+s);if(st.log.length>500)st.log.shift();$('usbLog').textContent=st.log.slice(-90).join('\n')};
- async function readerLoop(port){try{let r=port.readable.getReader();st.readerAlive=true;st.reader=r;try{while(st.port===port&&!st.closing){const{value,done}=await r.read();if(done)break;if(!value)continue;let txt=new TextDecoder().decode(value);rawLine('RX '+txt.replace(/\r/g,'\\r').replace(/\n/g,'\\n'));if(st.responseWait){st.replyBuffer+=txt;const complete=P.ssp3PromptCount(st.replyBuffer)>=(st.responseWait.prompts||1);if(complete){const waiter=st.responseWait;st.responseWait=null;clearTimeout(waiter.timer);const out=st.replyBuffer;st.replyBuffer='';waiter.resolve(out)}else if(st.replyBuffer.length>16000){const waiter=st.responseWait;st.responseWait=null;clearTimeout(waiter.timer);waiter.reject(Error('SSP3-Antwort zu lang'))}}} }finally{r.releaseLock();if(st.reader===r)st.reader=null}}catch(e){
+ async function readerLoop(port){try{let r=port.readable.getReader();st.readerAlive=true;st.reader=r;try{while(st.port===port&&!st.closing){const{value,done}=await r.read();if(done)break;if(!value)continue;let txt=new TextDecoder().decode(value);rawLine('RX '+txt.replace(/\r/g,'\\r').replace(/\n/g,'\\n'));if(st.responseWait){st.replyBuffer+=txt;const complete=st.adapterKind==='bridge'?/(?:^|[\r\n]):\r?\n$/.test(st.replyBuffer):P.ssp3PromptCount(st.replyBuffer)>=(st.responseWait.prompts||1);if(complete){const waiter=st.responseWait;st.responseWait=null;clearTimeout(waiter.timer);const out=st.replyBuffer;st.replyBuffer='';waiter.resolve(out)}else if(st.replyBuffer.length>16000){const waiter=st.responseWait;st.responseWait=null;clearTimeout(waiter.timer);waiter.reject(Error('SSP3-Antwort zu lang'))}}} }finally{r.releaseLock();if(st.reader===r)st.reader=null}}catch(e){
    if(st.port===port&&!st.closing)logging('USB-Lesefehler: '+e.message);
   }finally{
    if(st.port===port&&!st.closing){
@@ -860,6 +868,7 @@ if(typeof document!=='undefined') (function UI(){
   const match=response.match(/E70311-BRIDGE\s+V1\s+CAPS=([A-Z0-9_,]+)/);
   if(!match)throw Error('Kein kompatibler E703.11 USB-CDC-Bridge-Handshake. Bitte Bridge-Firmware prüfen.');
   const caps=match[1].split(',');
+  st.bridgeCalibrationNvm=caps.includes('PRO_MICRO_NVM')||caps.includes('BRIDGE_CAL_NVM');
   st.bridgePsscRam=caps.includes('PSSC_RAM');
   st.bridgeReadOnly=caps.includes('PLC_READ_ONLY')&&caps.includes('PLC_READ');
   st.bridgeRxDiag=caps.includes('PLC_RX_DIAG');
@@ -868,9 +877,6 @@ if(typeof document!=='undefined') (function UI(){
   st.firmware='USB-CDC Bridge v1 · '+caps.join('/');
   renderStatus();logging('USB-Bridge CAPS: '+caps.join(','));
   const ready=st.bridgeReadOnly||['PLC_READ','PLC_WRITE','NVM'].every(cap=>caps.includes(cap));
-  const powerPin=caps.find(cap=>/^POWER_GPIO_\d+$/.test(cap))?.slice('POWER_GPIO_'.length);
-  const powerLabel=caps.includes('POWER_D7')?'D7':'GPIO'+(powerPin??'7');
-  $('sensorPowerPin').textContent=ready?' ('+powerLabel+')':'';
   if(!ready){
    show('connMsg','USB-Bridge erkannt. Für Chipzugriff ist die ESP32-C3 PLC-Firmware erforderlich.','warn');
   }
@@ -885,6 +891,7 @@ if(typeof document!=='undefined') (function UI(){
   if(!status)throw Error('ESP32 hat die One-Wire-Adresse nicht bestätigt');
   st.plcAddress=parseInt(status[1],16);
   if(status[2]==='1')st.psscRamRecovery=true;
+  return status[2]==='1';
  }
  async function noteBridgeRx(){
   if(!st.bridgeRxDiag||!st.port||st.closing)return;
@@ -896,7 +903,7 @@ if(typeof document!=='undefined') (function UI(){
    if(st.bridgeSinglePin&&readings.every(m=>Number(m[2])===0))
     st.bridgeRxNote='ESP32 per USB erreichbar. Nach dem Senden auf GPIO4 wurde keine Sensorantwort erkannt.';
    else if(readings.every(m=>m[1]!=='BOTH'&&Number(m[2])===0))
-    st.bridgeRxNote='ESP32 per USB erreichbar. GPIO6 sieht weder das eigene Sendesignal noch eine Sensorantwort. AODO-Treiber und RX-Anschluss prüfen.';
+    st.bridgeRxNote='USB-Bridge erreichbar. Auf der separaten Empfangsleitung wurde kein Signal erkannt. Bei gemeinsamer Signalleitung den entsprechenden Modus im Expertenbereich aktivieren.';
    else if(readings.every(m=>Number(m[2])===0))
     st.bridgeRxNote='ESP32 empfängt sein eigenes Sendesignal, aber keine Sensorantwort auf AODO. Startfenster und Sensorversorgung prüfen.';
    else st.bridgeRxNote='ESP32 erkennt Signalwechsel am AODO-Empfänger, aber keine bestätigte Chipantwort. Details im USB-Protokoll.';
@@ -904,16 +911,18 @@ if(typeof document!=='undefined') (function UI(){
  }
  async function connectBridgeChip(){
   st.bridgeRxNote='';
+  st.bridgeColdStart=null;
+  const port=st.port,session=st.sessionIndex,power=st.sensorPowerEnabled;
   st.bridgeSinglePin=st.bridgeGpio4Io&&$('plcGpio4Mode').checked;
   if(st.bridgeSinglePin&&!st.bridgeGpio4Io)throw Error('GPIO4 Senden/Empfangen benötigt ESP32-Firmware ab v0.6');
   if(st.bridgeGpio4Io)await exchange(st.bridgeSinglePin?'PLC IO GPIO4':'PLC IO SPLIT');
   await exchange('PLC_BAUD '+$('plcBaud').value);
-  try{await bridgeAccess({power:st.sensorPowerEnabled})}
+  try{await bridgeAccess({power})}
   catch(e){
    if(!st.bridgePsscRam||!e.message.includes('PLC_NO_VALID_FRAME')||st.closing||!st.port)throw e;
    st.psscRamRecovery=true;
    logging('ESP32: normale PLC-Adressen ohne Antwort; PSSC-Freigabe im Sensor-RAM.');
-   try{await bridgeAccess({power:st.sensorPowerEnabled,recover:true})}
+   try{await bridgeAccess({power,recover:true})}
    catch(recoveryError){
     if(recoveryError.message.includes('PLC_NO_VALID_FRAME'))await noteBridgeRx();
     throw recoveryError;
@@ -926,7 +935,11 @@ if(typeof document!=='undefined') (function UI(){
    catch(e){logging('ESP32: CFG_PERIOD nicht lesbar: '+e.message)}
   }
   await detect();
-  if(st.psscRamRecovery)show('connMsg','Sensor über temporäre One-Wire-Freigabe verbunden. Live-Messung und RAM-Kalibrierung sind bereit; NVM bleibt schreibgeschützt.','success');
+  if(st.bridgeCalibrationNvm&&power&&st.chip&&st.uid?.hex&&st.port===port&&st.sessionIndex===session){
+   st.bridgeColdStart={port,session,uid:st.uid.hex};
+   renderStatus();
+  }
+  if(st.psscRamRecovery&&!bridgeColdStartVerified())show('connMsg','Sensor über temporäre One-Wire-Freigabe verbunden. Live-Messung und RAM-Kalibrierung sind bereit; NVM bleibt schreibgeschützt.','success');
  }
 
  // CRC8 verification follows DS 25DS0170E.04, chapter 6.4.5.6.1:
@@ -1920,7 +1933,6 @@ if(typeof document!=='undefined') (function UI(){
   st.plcAddress=0x6C;st.plcAddressVerified=false;st.plcAddressSource='';st.plcAddressProbes=[];
   st.reinitRunning=false;st.firmware='';st.readOnlySensor=null;st.powerHelp=null;st.powerCycleResult=null;st.magicResult=null;st.liveReadAttempts=0;st.liveReadSuccesses=0;st.liveLastError=null;st.liveLastAttemptAt=null;st.measurementPeriod=null;st.measurementStatus=null;st.measurementError=null;st.measurementStarts=0;st.measurementFreshCount=0;st.measurementLastChangedAt=null;st.plcHostFormat=$('plcHostFormat').value;st.chip=false;st.afe=null;st.afe0=null;st.boot=null;st.regs={};st.dsp=null;st.dspError=null;st.calStaged=false;st.calVerified=false;st.nvmDone=false;st.adc=null;st.manualLivePause=false;st.afeWriteActive=false;st.ramWriteScope=null;st.uid=null;st.uidShownForInput=null;st.restorePlan=null;st.expertOutputPlan=null;st.outputOnlyPlan=null;st.iface=$('iface').value;st.adapterKind=$('adapterType').value;
   st.sensorPowerEnabled=st.adapterKind==='bridge'&&!demoEnabled&&$('plcPowerCycle').checked;
-  $('sensorPowerPin').textContent='';
   $('nvmRestartStatus').hidden=true;
   $('nvmRebootConfirm').checked=false;
   if(demoEnabled){st.iface='plc';st.adapterKind='ssp3'}
@@ -2584,7 +2596,7 @@ if(typeof document!=='undefined') (function UI(){
    if(!hasCurrentNvmBackup())throw Error('Kein vollständig geprüftes NVM für die aktuell verbundene Chip-UID verfügbar');
    const startup=CAL.oneWireStartupStatus(st.nvmBackup);
    if(!startup.ok)throw Error('1-Wire-Startfenster nicht sicher: '+startup.errors.join('; '));
-   if(startup.requiresCookie&&!(st.powerCycleResult?.readVerified&&st.powerCycleResult.verifiedUid===st.uid.hex)&&!psscRecoveryProven())
+   if(startup.requiresCookie&&!(st.powerCycleResult?.readVerified&&st.powerCycleResult.verifiedUid===st.uid.hex)&&!psscRecoveryProven()&&!bridgeColdStartVerified())
     throw Error('One-Wire-Startfenster '+startup.windowLabel+' vorhanden, Magic-Cookie-Start am aktuellen Chip nicht bestätigt. Kein NVM-Schreiben.');
    const recovery=st.psscRamRecovery||(st.regs[0x06]===0x6C04&&st.nvmBackup[17]!==0x6C04);
    if(recovery&&['on','off'].includes(st.expertOutputPlan?.clipping?.mode))
@@ -2636,7 +2648,7 @@ if(typeof document!=='undefined') (function UI(){
     throw Error('Brückenspannung dauerhaft speichern wird derzeit nur mit SSP3 unterstützt.');
    CAL.protectStartupCommunication(initial,modified,{allowSvdd});
    const startup=CAL.oneWireStartupStatus(initial);
-   if(startup.requiresCookie&&!(st.powerCycleResult?.readVerified&&st.powerCycleResult.verifiedUid===id)&&!psscRecoveryProven())
+   if(startup.requiresCookie&&!(st.powerCycleResult?.readVerified&&st.powerCycleResult.verifiedUid===id)&&!psscRecoveryProven()&&!bridgeColdStartVerified())
     throw Error('1-Wire-Startschutz: Cookie-Start für die aktuelle Chip-UID nicht verifiziert. NVM-Schreiben gesperrt.');
    if(CAL.crc16(initial)!==initial[63]||CAL.crc16(modified)!==modified[63])throw Error('CRC16-Prüfung fehlgeschlagen');
    if(!restoring&&!outputOnly&&st.calfit.stats.maxDigits>100)throw Error('Fitfehler zu gross (>100 Digits)');
@@ -2689,6 +2701,7 @@ if(typeof document!=='undefined') (function UI(){
    CAL.protectStartupCommunication(initial,modified,{allowSvdd});
    for(let i=0;i<28;i++)if(modified[i]!==initial[i]&&(restoring||![16,22,...(allowSvdd?[CAL.SVDD_INDEX]:[])].includes(i)))throw Error('Boot-/Werksbereich verändert');
    // Only USER region access is authorized; NEVER unlock factory calibration area.
+   if(st.adapterKind==='bridge'&&st.bridgeCalibrationNvm)await exchange('NVM ARM CALIBRATION');
    for(const x of [0x98BD,0x25BF,0x36D8])await maintWrite(0x4E,x);
    const status=await readReg(0x46);if(!(status&8))throw Error('NVM User-Bereich nicht freigegeben (CM_STATUS.ep_en=0)');
    const changes=st.calImage.changes.slice().sort((a,b)=>a.index===63?1:b.index===63?-1:a.index-b.index);
@@ -2722,6 +2735,9 @@ if(typeof document!=='undefined') (function UI(){
    try{
     if(st.calTask){
      try{await maintWrite(0x4E,0x0000)}catch(e){logging('NVM-Zugriffssperre: '+e.message)}
+     if(st.adapterKind==='bridge'&&st.bridgeCalibrationNvm){
+      try{await exchange('NVM DISARM')}catch(e){logging('USB-Bridge-Schreibsperre: '+e.message)}
+     }
      await ramLock()
     }
    }finally{
@@ -2758,6 +2774,7 @@ if(typeof document!=='undefined') (function UI(){
    const expected=JSON.parse(saved);
    if(!expected.words||expected.words.length!==64)throw Error('Vorheriges NVM-Backup ungültig');
 
+   let recoveredAfterBoot=false;
    checkingBoot=true;
    st.calTask=true;
    stopLive();
@@ -2768,7 +2785,14 @@ if(typeof document!=='undefined') (function UI(){
      await expert.identify();
      if(st.uid?.hex!==expected.id)throw Error('Anderer Chip angeschlossen');
      if(demoEnabled)demoPort.reboot();
-     else await bridgeAccess({power:true});
+     else if(st.adapterKind==='bridge'&&st.bridgeCalibrationNvm){
+      st.bridgeColdStart=null;
+      try{recoveredAfterBoot=await bridgeAccess({power:true})}
+      catch(e){
+       if(!e.message.includes('PLC_NO_VALID_FRAME'))throw e;
+       recoveredAfterBoot=await bridgeAccess({power:true,recover:true});
+      }
+     }else await bridgeAccess({power:true});
     }else if(demoEnabled)demoPort.reboot();
     await expert.identify();
     if(st.uid?.hex!==expected.id)throw Error('Anderer Chip angeschlossen');
@@ -2781,12 +2805,14 @@ if(typeof document!=='undefined') (function UI(){
    if(st.nvmBackup.some((word,index)=>expected.words[index]!==word))throw Error('NVM nach Neustart weicht vom programmierten Abbild ab');
    const boot=await bootSnapshot();
    for(const [index,addr] of [[16,4],[17,6],[18,8],[19,10],[20,12],[22,16]]){
-    if(boot[addr]!==st.nvmBackup[index])throw Error('RAM-Bootregister 0x'+h(addr)+' weicht vom NVM-Backup ab');
+    const expectedWord=recoveredAfterBoot&&addr===6?0x6C04:st.nvmBackup[index];
+    if(boot[addr]!==expectedWord)throw Error('RAM-Bootregister 0x'+h(addr)+' weicht vom NVM-Backup ab');
    }
    const actualSvdd=bridgeSupplyCode(await readReg(R_BRIDGE));
    if(actualSvdd!==bridgeSupplyCode(expected.words[CAL.SVDD_INDEX]))
     throw Error('Brückenspannung im RAM stimmt nach dem Neustart nicht mit dem NVM überein');
    await readADC();
+   if(automatic&&st.adapterKind==='bridge'&&st.bridgeCalibrationNvm)st.bridgeColdStart={port:st.port,session:st.sessionIndex,uid:expected.id};
    const success='NVM nach Neustart vollständig rückgelesen. Chip-ID, CRC8, CRC16, Bootregister und Brückenspannung stimmen.';
    await window.ELMOS_ARCHIVE?.event('post_boot_verified',{uid:st.uid?.hex,nvm:st.nvmBackup?.slice(),boot,svddCode:actualSvdd});
    reportBootCheck(success,'success');
@@ -3321,7 +3347,14 @@ if(typeof document!=='undefined') (function UI(){
  if(demoEnabled)$('iface').value='plc';
  if(!['ssp3','bridge'].includes($('adapterType').value))$('adapterType').value='ssp3';
  st.adapterKind=$('adapterType').value;
- $('plcOptions').hidden=st.adapterKind!=='bridge';
+ for(const id of ['plcPowerCycle','plcGpio4Mode']){
+  const option=$(id),key='elmos-bridge-'+id;
+  option.checked=(lsGet(key)??'1')==='1';
+  option.addEventListener('change',()=>lsSet(key,option.checked?'1':'0'));
+ }
+ const plcRate=lsGet('elmos-bridge-plc-baud');
+ if(Array.from($('plcBaud').options).some(option=>option.value===plcRate))$('plcBaud').value=plcRate;
+ $('plcBaud').addEventListener('change',()=>lsSet('elmos-bridge-plc-baud',$('plcBaud').value));
  $('tooltips').checked=(lsGet('elmos7-tooltips')??'1')==='1';tipEnabled=$('tooltips').checked;
  $('tooltips').addEventListener('change',()=>{tipEnabled=$('tooltips').checked;lsSet('elmos7-tooltips',tipEnabled?'1':'0');tip.classList.remove('visible')});
  // Visual theme affects only presentation. Use persistent localStorage even in demo mode.
@@ -3408,12 +3441,24 @@ if(typeof document!=='undefined') (function UI(){
   $('settingsMsg').textContent='Live-Abfrageintervall auf '+n+' ms eingestellt. Der nächste Lesezyklus verwendet diesen Wert.';
  });
  $('iface').addEventListener('change',()=>{if(st.port){$('iface').value=st.iface;show('connMsg','Zur Schnittstellenänderung zuerst USB trennen.','warn');return}st.iface=$('iface').value;lsSet('elmos8-iface',st.iface);renderStatus()});
- $('adapterType').addEventListener('change',()=>{
-  if(st.port){$('adapterType').value=st.adapterKind;show('connMsg','Zur Adapteränderung zuerst die USB-Verbindung trennen.','warn');return}
-  st.adapterKind=$('adapterType').value;
-  $('plcOptions').hidden=st.adapterKind!=='bridge';
-  lsSet('elmos-adapter-type-v1',st.adapterKind);
-  show('connMsg',st.adapterKind==='bridge'?'ESP32-C3-Bridge ausgewählt. PLC-Baudrate und Sensorversorgung prüfen.':'SSP3 Evaluation Board ausgewählt. Die originale Kommunikation bleibt unverändert.','warn');
+ $('adapterType').addEventListener('change',async()=>{
+  const adapter=$('adapterType');
+  const selected=adapter.value;
+  if(selected===st.adapterKind)return;
+  if(st.port){
+   adapter.value=st.adapterKind;
+   adapter.disabled=true;
+   const disconnected=await disconnect();
+   if(!disconnected){
+    renderStatus();
+    return;
+   }
+   reconnectSsp3OnUsb=false;
+  }
+  st.adapterKind=selected;
+  adapter.value=selected;
+  lsSet('elmos-adapter-type-v1',selected);
+  show('connMsg','Wähle den USB-Port für '+adapter.selectedOptions[0].textContent+'.');
   renderStatus();
  });
  const confirmedSsp3Baud=lsGet('ssp3-confirmed-baud');

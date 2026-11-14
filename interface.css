@@ -71,8 +71,6 @@ h3 { font-size: 15px; }
 .connectionActions { margin: 18px 0 0; gap: 8px; }
 .connectionActions #guidedLaunch.primary { order: -1; }
 .connectionActions #guidedLaunch:disabled, #compactWorkspace #choose:disabled, .connectionActions #choose:disabled { display: none; }
-.connectionActions .connection-link { background: transparent; border-color: transparent; color: var(--blue); }
-.connectionActions .connection-link:disabled { color: #536779; }
 .connection-summary { margin: 0; padding: 13px 15px; display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap: 12px; border-radius: 9px; background: var(--panel-subtle); }
 .connection-summary dt { font-size: 12px; color: var(--muted); }
 .connection-summary dd { margin: 2px 0 0; font-weight: 750; overflow-wrap: anywhere; }

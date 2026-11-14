@@ -2,6 +2,10 @@
 
 Die Firmware unterstützt USB, Chip-Erkennung und Live-Messwerte über AODO. Sie verwendet bei Bedarf die temporäre PLC-Freigabe im Sensor-RAM. EEPROM-Programmierung und Kalibrier-Schreibbefehle sind gesperrt.
 
+Ab Firmware v0.4 ist D4 standardmässig die bidirektionale AODO-Leitung. D4 schaltet nach jedem Telegramm auf Eingang ohne internen Pull-up. Für diesen Modus eine geeignete bidirektionale Anbindung mit Strombegrenzung verwenden. D5 und D6 bleiben frei. D2 (SDA) und D3 (SCL) bleiben für I²C reserviert.
+
+Für eine externe Treiberstufe mit getrenntem Sender und Empfänger im seriellen Monitor `PLC IO SPLIT` senden. `PLC IO D4` stellt den Standardmodus wieder her. Die folgende Tabelle beschreibt die getrennte Treiberstufe.
+
 | Aufdruck am Pro Micro | Anschluss |
 | --- | --- |
 | 4 | TX zum nichtinvertierenden Eingang des Tri-State-Treibers |
