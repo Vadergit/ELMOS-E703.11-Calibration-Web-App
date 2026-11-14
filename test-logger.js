@@ -34,6 +34,66 @@ const ELMOS_TEST_LOGGER=(()=>{
    void stop('completed','duration');
   },Math.min(Math.ceil(ms),2147483647));
  }
+ const plotChannels=[
+  {key:'adcS',color:'#2867a6'},
+  {key:'dspS',color:'#087d61'}
+ ];
+ function drawRecentPoints(){
+  const figure=$('tlChartFigure');
+  const points=S.recent.map(item=>plotChannels.map(({key})=>
+   item.aggregated?.channels?.[key]??item.samples?.at(-1)?.[key]));
+  const values=points.flat().filter(Number.isFinite);
+  figure.hidden=!values.length;
+  if(!values.length)return;
+  const canvas=$('tlChart'),width=canvas.clientWidth,height=canvas.clientHeight;
+  if(!width||!height)return;
+  const scale=window.devicePixelRatio||1;
+  if(canvas.width!==Math.round(width*scale)||canvas.height!==Math.round(height*scale)){
+   canvas.width=Math.round(width*scale);
+   canvas.height=Math.round(height*scale);
+  }
+  const ctx=canvas.getContext('2d');
+  ctx.setTransform(scale,0,0,scale,0,0);
+  ctx.clearRect(0,0,width,height);
+  const low=Math.min(...values),high=Math.max(...values);
+  const margin=Math.max(1,(high-low)*0.08);
+  const left=54,right=width-12,top=14,bottom=height-24;
+  const x=index=>points.length===1?(left+right)/2:left+index*(right-left)/(points.length-1);
+  const y=value=>bottom-(value-low+margin)*(bottom-top)/(high-low+2*margin);
+  const style=getComputedStyle(canvas);
+  ctx.font='11px '+style.fontFamily;
+  ctx.fillStyle=style.color;
+  ctx.strokeStyle=style.borderColor;
+  ctx.textBaseline='middle';
+  for(const tick of new Set([high,low])){
+   const row=y(tick);
+   ctx.fillText(number(tick),5,row);
+   ctx.beginPath();ctx.moveTo(left,row);ctx.lineTo(right,row);ctx.stroke();
+  }
+  ctx.fillText('#'+S.recent[0].index,left,bottom+13);
+  if(points.length>1){
+   const last='#'+S.recent.at(-1).index;
+   ctx.fillText(last,right-ctx.measureText(last).width,bottom+13);
+  }
+  for(const [channel,{color}] of plotChannels.entries()){
+   ctx.strokeStyle=ctx.fillStyle=color;
+   ctx.lineWidth=2;
+   ctx.beginPath();
+   let connected=false;
+   points.forEach((point,index)=>{
+    const value=point[channel];
+    if(!Number.isFinite(value)){connected=false;return}
+    if(connected)ctx.lineTo(x(index),y(value));
+    else ctx.moveTo(x(index),y(value));
+    connected=true;
+   });
+   ctx.stroke();
+   points.forEach((point,index)=>{
+    if(!Number.isFinite(point[channel]))return;
+    ctx.beginPath();ctx.arc(x(index),y(point[channel]),3,0,2*Math.PI);ctx.fill();
+   });
+  }
+ }
  const render=()=>{
   if(!S.root)return;
   const active=!!S.recordId;
@@ -67,6 +127,7 @@ const ELMOS_TEST_LOGGER=(()=>{
     ' · DSP_S '+number(last.aggregated?.channels?.dspS??last.samples?.at(-1)?.dspS)+
     ' · '+Math.round(last.durationMs)+' ms Messdauer':'Noch kein Messpunkt aufgenommen');
   text('tlPause',S.paused?'Aufzeichnung fortsetzen':'Pausieren');
+  drawRecentPoints();
   const list=$('tlRecent');list?.replaceChildren();
   for(const item of S.recent.slice(-9).reverse()){
    const row=document.createElement('div');row.className='tl-reading';
@@ -336,6 +397,9 @@ const ELMOS_TEST_LOGGER=(()=>{
    '<button id="tlStop" type="button" class="primary">Aufzeichnung beenden & speichern</button></div>'+
    '<label>Marker / Notiz während der Messung<textarea id="tlMarkerText" maxlength="1000" rows="2" placeholder="z. B. Referenzdruck auf 5 bar erhöht"></textarea></label>'+
    '<button id="tlMarkerAdd" type="button">Marker mit Zeitstempel speichern</button>'+
+   '<figure id="tlChartFigure" class="tl-chart" hidden>'+
+   '<figcaption>Verlauf der letzten 20 Messpunkte · Digits <span class="tl-chart-adc">ADC_S</span> <span class="tl-chart-dsp">DSP_S</span></figcaption>'+
+   '<canvas id="tlChart" role="img" aria-label="ADC_S und DSP_S nach Messpunktnummer"></canvas></figure>'+
    '<h3>Letzte Messpunkte</h3><div id="tlRecent" class="tl-recent"></div></section>'+
   '<section id="tlExports" class="tl-box" hidden><strong>Letzte Aufzeichnung</strong>'+
    '<p>Im Archiv sind die Beschreibung, Marker, Geräteinformationen und vollständigen Rohwerte gespeichert.</p>'+

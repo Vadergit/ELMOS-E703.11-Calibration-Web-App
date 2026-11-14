@@ -1,3 +1,7 @@
+## v0.7.38 – Messverlauf im Testprotokoll
+
+- Test / Logging zeigt den Verlauf von ADC_S und DSP_S für bis zu 20 gespeicherte Messpunkte.
+
 ## v0.7.37 – Manuelle Messpunkte und USB-Bridges
 
 - Test / Logging kann Messpunkte auf Knopfdruck aufnehmen. Einzelmessungen und Mittelwertbildung gelten auch im manuellen Modus.
