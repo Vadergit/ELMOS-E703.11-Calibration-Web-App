@@ -1,3 +1,7 @@
+## v0.7.23 – Geführter Sensorwechsel
+
+- Führt durch den Sensorwechsel und übernimmt Messplan, Ausgangsvorgaben und Frontend aus dem letzten Abgleich. «Serie abbrechen» beendet die Übernahme.
+
 ## v0.7.22 – Nächsten Sensor abgleichen
 
 - Startet den Sensorwechsel am Ende des geführten Abgleichs. Nach dem Verbinden beginnt der nächste Abgleich mit der Abfrage der zuletzt übernommenen Vorlage.

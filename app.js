@@ -3018,7 +3018,7 @@ if(typeof document!=='undefined') (function UI(){
   finally{operation.finish()}
  });
  $('configApply').addEventListener('click',()=>applySelectedConfig());
- async function applySelectedConfig(){
+ async function applySelectedConfig({rememberForSeries=true}={}){
   const button=$('configApply'),fileInput=$('configFile');
   const operation=beginOperation('Config wird übernommen',true);
   try{
@@ -3088,7 +3088,7 @@ if(typeof document!=='undefined') (function UI(){
     'Keine EEPROM-Programmierung. '+(affectsCalibration?
      'Messpunkte und DSP-Koeffizienten für diesen Sensor neu aufnehmen.':
      'Bestehende Messpunkte und DSP-Koeffizienten wurden durch diesen reinen Ausgangsimport nicht verändert.'),'success');
-   lsSet('elmos-series-preset-v1',JSON.stringify({profile,groups:included}));
+   if(rememberForSeries)lsSet('elmos-series-preset-v1',JSON.stringify({profile,groups:included}));
    if(st.chip&&st.uid?.hex)seriesOfferKey=st.sessionIndex+':'+st.uid.hex;
    await window.ELMOS_ARCHIVE?.event('configuration_imported',{label:profile.label,include:included,version:profile.version,AFE:{...st.staged},supply:archiveVoltages()});
    document.dispatchEvent(new CustomEvent('elmos-config-applied',{detail:{included:included.slice(),version:profile.version,matrix:has('measurement')?values.measurement.matrix:null}}));
@@ -3107,6 +3107,20 @@ if(typeof document!=='undefined') (function UI(){
   }
  }
  let seriesOfferKey=null;
+ function stopSeriesPreset(){
+  lsSet('elmos-series-preset-v1','');
+  seriesOfferKey=null;
+ }
+ async function applySeriesConfig(profile,groups){
+  renderPresets(readPresets(),profile.label);
+  $('configFile').value='';
+  previewPreset(profile);
+  for(const [group,id] of Object.entries(CONFIG_GROUP_CONTROLS))$(id).checked=groups.includes(group);
+  if(!await applySelectedConfig({rememberForSeries:false})){
+   seriesOfferKey=null;
+   throw Error($('configPreview').textContent);
+  }
+ }
  async function offerSeriesPreset(){
   if(demoEnabled||!st.chip||!st.uid?.hex)return;
   const port=st.port,uid=st.uid.hex,session=st.sessionIndex;
@@ -3121,17 +3135,14 @@ if(typeof document!=='undefined') (function UI(){
   if(!groups.length)return;
   seriesOfferKey=key;
   if(!window.confirm('Vorlage «'+profile.label+'» für diesen Sensor übernehmen?'+
-     (groups.includes('afe')?' AFE wird ins Sensor-RAM geschrieben.':'')))return;
+     (groups.includes('afe')?' AFE wird ins Sensor-RAM geschrieben.':'')+
+     ' Mit «Abbrechen» endet die automatische Vorlagenabfrage.')){
+   stopSeriesPreset();
+   return;
+  }
   if(st.port!==port||!st.chip||st.closing||st.uid?.hex!==uid||st.sessionIndex!==session)
    throw Error('Sensorverbindung hat sich geändert.');
-  renderPresets(readPresets(),profile.label);
-  $('configFile').value='';
-  previewPreset(profile);
-  for(const [group,id] of Object.entries(CONFIG_GROUP_CONTROLS))$(id).checked=groups.includes(group);
-  if(!await applySelectedConfig()){
-   seriesOfferKey=null;
-   throw Error($('configPreview').textContent);
-  }
+  await applySeriesConfig(profile,groups);
  }
 
  $('plcStartupLogExport').addEventListener('click',()=>{
@@ -3622,12 +3633,15 @@ if(typeof document!=='undefined') (function UI(){
   startTelemetry:archiveStartTelemetry,stopTelemetry:archiveStopTelemetry
  });
 
- async function prepareNextSensor(){
+ async function prepareNextSensor(matrix){
   if(demoEnabled||!st.port||!st.chip||!st.nvmDone||st.closing||
      st.calTask||st.nvmWorking||st.writing||st.powerCycleRunning||st.ramMeasurementStarting)
    throw Error('Bitte zuerst die laufenden Sensorvorgänge abschliessen.');
   return withProgress('Abgleich wird abgeschlossen',async()=>{
    const port=st.port,uid=st.uid?.hex;
+   if(!uid)throw Error('Chipkennung fehlt.');
+   if(!Number.isInteger(st.afe))throw Error('Frontend-Einstellungen konnten nicht bestätigt werden.');
+   const settings=configFromUi(ELMOS_CONFIG.GROUPS,matrix);
    const archive=window.ELMOS_ARCHIVE;
    if(archive?.active){
     if(!['calibration','output'].includes(archive.current.type)||archive.current.chipUID!==uid)
@@ -3637,9 +3651,12 @@ if(typeof document!=='undefined') (function UI(){
    if(st.port!==port||!st.chip||st.uid?.hex!==uid)
     throw Error('Sensorverbindung hat sich geändert.');
    if(!await disconnect())throw Error('USB-Verbindung konnte nicht getrennt werden.');
+   reconnectSsp3OnUsb=false;
    erasePoints();st.trend=[];st.profilePendingAFE=null;
    $('nvmUserId').value='';
-   show('connMsg','Sensor wechseln, dann über «Bekannten Port verbinden» oder «USB-Port auswählen» verbinden. Der geführte Abgleich startet danach automatisch.','success');
+   stopSeriesPreset();
+   show('connMsg','USB-Verbindung getrennt.','success');
+   return settings;
   },true);
  }
 
@@ -3655,6 +3672,18 @@ if(typeof document!=='undefined') (function UI(){
   navigate:n=>step(n),
   offerSeriesPreset,
   prepareNextSensor,
+  stopSeriesPreset,
+  applySeriesSettings:profile=>applySeriesConfig(profile,configIncluded(profile)),
+  releaseSwapPort:async()=>{
+   if(st.port&&!await disconnect())throw Error('USB-Verbindung konnte nicht getrennt werden.');
+  },
+  connectNextSensor:async(selectPort)=>{
+   if(st.port&&!st.chip&&!await disconnect())throw Error('USB-Verbindung konnte nicht getrennt werden.');
+   if(st.chip)return;
+   try{await (selectPort?choose():auto())}
+   finally{reconnectSsp3OnUsb=false}
+   if(!st.chip)throw Error($('connMsg').textContent);
+  },
   refresh:()=>{renderFlowState();renderStatus()},
   telemetry:()=>guidedTelemetry(),
   afeStats:since=>guidedAfeStats(since),
