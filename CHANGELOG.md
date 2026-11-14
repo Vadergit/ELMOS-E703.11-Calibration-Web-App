@@ -1,3 +1,7 @@
+## v0.7.25 – Serie im Assistenten beenden
+
+- Hält den USB-Port beim Sensorwechsel offen. «Serie abbrechen» führt zurück zur Aufgabenübersicht.
+
 ## v0.7.24 – Messhub und Sensorwechsel
 
 - Zeigt den ADC-Hub zwischen P1 und P2, verwendet die vorhandene NVM-Rücklesung und fragt beim erneuten Abgleich desselben Sensors nach.

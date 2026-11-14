@@ -184,11 +184,18 @@ const ELMOS_GUIDED=(()=>{
   $('gwNext').addEventListener('click',()=>stage===9?prepareNextSensor():next());$('gwPrevious').addEventListener('click',previous);
   $('gwSwapConnect').addEventListener('click',()=>connectNextSensor(false));
   $('gwSwapChoose').addEventListener('click',()=>connectNextSensor(true));
-  $('gwSwapCancel').addEventListener('click',()=>{
-   window.ELMOS_GUIDED_API.stopSeriesPreset();
-   nextSensorPending=null;
-   close();
-   window.ELMOS_GUIDED_API.navigate(0);
+  $('gwSwapCancel').addEventListener('click',async()=>{
+   if(nextSensorBusy)return;
+   nextSensorBusy=true;
+   try{
+    await window.ELMOS_GUIDED_API.cancelSensorSwap();
+    nextSensorPending=null;
+    task='calibration';visited=new Set([0]);
+    plan=null;signature=null;seriesPointFields=null;latestCapture=null;lastCaptureRenderKey=null;
+    goto(0);
+    msg(state().chip?'Serie beendet.':'Serie beendet. Aktuell wurde kein Sensor erkannt.',state().chip?'success':'warn');
+   }catch(e){msg('Serie konnte nicht beendet werden: '+e.message,'error')}
+   finally{nextSensorBusy=false}
   });
   $('gwAfeReset').addEventListener('click',()=>{
    afeStatsStart=Date.now();afeGainSignature='';
@@ -697,13 +704,9 @@ const ELMOS_GUIDED=(()=>{
    await api.connectNextSensor(selectPort);
    pending.offerPortPicker=false;
    const {uid}=state();
-   if(!uid){
-    await api.releaseSwapPort();
-    throw Error('Die Chip-ID konnte nicht gelesen werden. Bitte erneut verbinden.');
-   }
+   if(!uid)throw Error('Die Chip-ID konnte nicht gelesen werden. Bitte erneut verbinden.');
    if(uid===pending.previousUid&&!pending.repeatConfirmed){
     if(!window.confirm('Dieser Sensor wurde bereits abgeglichen. Möchtest du ihn nochmals abgleichen?')){
-     await api.releaseSwapPort();
      msg('Stecke den Sensor ab und schliesse den nächsten an.','warn');
      return;
     }
@@ -720,7 +723,7 @@ const ELMOS_GUIDED=(()=>{
    render();
    msg('Einstellungen übernommen. Frontend im Sensor-RAM bestätigt.','success');
   }catch(e){
-   if(!state().chip)pending.offerPortPicker=true;
+   pending.offerPortPicker=!state().usbReady;
    msg(e.message,'error');
   }
   finally{

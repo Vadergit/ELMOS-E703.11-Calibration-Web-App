@@ -3657,19 +3657,19 @@ if(typeof document!=='undefined') (function UI(){
    }
    if(st.port!==port||!st.chip||st.uid?.hex!==uid)
     throw Error('Sensorverbindung hat sich geändert.');
-   if(!await disconnect())throw Error('USB-Verbindung konnte nicht getrennt werden.');
-   reconnectSsp3OnUsb=false;
+   stopLive();
+   if(st.liveReadPromise)await st.liveReadPromise.catch(()=>{});
+   if(st.port!==port)throw Error('USB-Verbindung wurde unterbrochen.');
    erasePoints();st.trend=[];st.profilePendingAFE=null;
    $('nvmUserId').value='';
    stopSeriesPreset();
-   show('connMsg','USB-Verbindung getrennt.','success');
    return settings;
   },true);
  }
 
  window.ELMOS_GUIDED_API=Object.freeze({
   state:()=>({
-   chip:!!st.chip,demo:demoEnabled,mode:st.mode,adapter:st.adapterKind,uid:st.uid?.hex||null,
+   chip:!!st.chip,usbReady:!!(st.port&&st.readerAlive),demo:demoEnabled,mode:st.mode,adapter:st.adapterKind,uid:st.uid?.hex||null,
    // Read-only summary for the guided completion cards; measurements remain owned by the classic workflow.
    points:st.calpoints.map(x=>({kind:x.kind,slot:x.slot,at:x.at,pressure:x.pressure,temperature:x.temperature,
     adc_s:x.adc_s,adc_t:x.adc_t,adc_tc:x.adc_tc,sampleCount:x.sampleCount})),
@@ -3679,7 +3679,6 @@ if(typeof document!=='undefined') (function UI(){
   navigate:n=>step(n),
   offerSeriesPreset,
   prepareNextSensor,
-  stopSeriesPreset,
   applySeriesSettings:profile=>applySeriesConfig(profile,configIncluded(profile)),
   hasKnownSwapPort:async()=>{
    if(st.port&&st.readerAlive)return true;
@@ -3687,14 +3686,17 @@ if(typeof document!=='undefined') (function UI(){
    const ports=await navigator.serial.getPorts();
    return ports.length===1||(st.adapterKind==='ssp3'&&ports.filter(port=>port.getInfo?.().usbVendorId===0x0403).length===1);
   },
-  releaseSwapPort:async()=>{
-   if(st.port&&!await disconnect())throw Error('USB-Verbindung konnte nicht getrennt werden.');
+  cancelSensorSwap:async()=>{
+   stopSeriesPreset();
+   if(st.port&&st.readerAlive)await reinitializeSensor();
   },
   connectNextSensor:async(selectPort)=>{
-   if(st.port&&!st.chip&&!await disconnect())throw Error('USB-Verbindung konnte nicht getrennt werden.');
-   if(st.chip)return;
-   try{await (selectPort?choose():auto())}
-   finally{reconnectSsp3OnUsb=false}
+   if(st.port&&st.readerAlive){
+    await reinitializeSensor();
+   }else{
+    if(st.port&&!await disconnect())throw Error('USB-Port konnte nicht neu geöffnet werden.');
+    await (selectPort?choose():auto());
+   }
    if(!st.chip)throw Error($('connMsg').textContent);
   },
   refresh:()=>{renderFlowState();renderStatus()},
