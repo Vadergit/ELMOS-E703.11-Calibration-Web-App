@@ -2911,6 +2911,7 @@ if(typeof document!=='undefined') (function UI(){
    checkbox.closest('label').hidden=!present&&!editing;
   }
   $('configGroups').hidden=!editing;
+  $('configPresetSource').hidden=!editing;
   $('configLabel').closest('label').hidden=!editing;
   $('configSave').hidden=!editing;
   $('configPresetDelete').hidden=!editing;

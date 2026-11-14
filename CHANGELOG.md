@@ -1,3 +1,7 @@
+## v0.7.28 – Quelle der Preset-Werte anzeigen
+
+- Erklärt beim Erstellen einer Vorlage, welche Werte vom Sensor und welche aus den aktuellen Vorgaben der App stammen.
+
 ## v0.7.27 – Preset direkt beim Titel laden
 
 - Öffnet die Preset-Auswahl in Schritt 2 über einen Button neben dem Titel.
