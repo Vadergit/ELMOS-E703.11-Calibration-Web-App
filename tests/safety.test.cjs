@@ -589,7 +589,7 @@ test('Guided finish distinguishes measured DSP from requested output-voltage set
  for(const id of ['gwFinishSignalValue','gwFinishSignalUnit','gwFinishDsp','gwFinishAdc','gwFinishTemp','gwFinishTime','gwFinishBar','gwFinishStatus','gwFinishConfig'])
   assert.equal(guide.split('id="'+id+'"').length-1,1);
  assert.ok(guide.includes('function updateFinishTelemetry()'));
- assert.ok(guide.includes("range.kind==='display'"));
+ assert.ok(guide.includes("t.range?.kind==='display'"));
  assert.ok(guide.includes('t.dspRaw===null'));
  assert.ok(guide.includes('Diese Spannungen wurden nicht am Pin gemessen.'));
  assert.ok(guide.includes('Kaltstart und Ausgangsmessung stehen noch aus.'));
