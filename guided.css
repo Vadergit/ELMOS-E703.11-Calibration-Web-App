@@ -130,11 +130,6 @@ html.guided-active #guidedWorkspace [hidden]{display:none!important}
 #guidedWorkspace .gw-voltage-endpoint label{font-size:11px;display:flex;align-items:center;gap:7px;white-space:nowrap;color:#6b8296}
 #guidedWorkspace .gw-voltage-endpoint input{width:100%;min-width:0;height:36px;margin:0;font-weight:750;font-size:14px}
 #guidedWorkspace .gw-setup-hint{margin:12px 0 0;color:#677f93;font-size:11px;line-height:1.55}
-#guidedWorkspace .gw-config-details{margin-top:12px;padding:12px 16px!important}
-#guidedWorkspace .gw-config-details summary{font-size:12px;color:#276ba5;cursor:pointer;display:flex;justify-content:space-between;align-items:center;gap:12px;list-style:revert}
-#guidedWorkspace .gw-config-details summary span{font-size:11px;color:#8395a6;font-weight:450}
-#guidedWorkspace .gw-config-details[open]{padding-bottom:15px!important}
-#guidedWorkspace .gw-config-details[open] summary{margin-bottom:12px}
 #guidedWorkspace .gw-setup-summary{margin:11px 0 0;padding:11px 15px;font-size:11px;border:1px solid #dfe9f3;border-radius:10px;background:#f7faff;color:#496a87}
 
 /* AFE uses the classic live ADC_S chart. No duplicate data source or draw loop. */
@@ -219,8 +214,6 @@ html.guided-active #guidedWorkspace [hidden]{display:none!important}
  #guidedWorkspace .gw-main{padding:17px 13px}
  #guidedWorkspace .gw-setup-pressure{grid-template-columns:repeat(2,minmax(0,1fr))}
  #guidedWorkspace .gw-setup-temps{grid-template-columns:repeat(2,minmax(0,1fr))}
- #guidedWorkspace .gw-config-details summary{display:block}
- #guidedWorkspace .gw-config-details summary span{display:block;padding-top:5px}
  #guidedWorkspace .gw-afe-kpis{gap:5px}
  #guidedWorkspace .gw-afe-kpis strong{font-size:14px}
  #guidedWorkspace .gw-afe-chart{height:205px}
@@ -308,3 +301,12 @@ html.guided-active #guidedWorkspace [hidden]{display:none!important}
 
 .gw-next-heading:has(.gw-point-hub){display:flex;flex-wrap:wrap;align-items:baseline;gap:4px 16px}
 .gw-point-hub{font-size:.82em;font-variant-numeric:tabular-nums}
+
+.gw-heading-row{display:flex;align-items:flex-start;justify-content:space-between;gap:12px 20px}
+#guidedWorkspace .gw-preset-launch{min-height:44px;flex-shrink:0;padding:10px 16px}
+#guidedWorkspace .gw-preset-launch:hover{border-color:#438ac3}
+#gwPresetDialog{box-sizing:border-box;width:min(850px,calc(100% - 32px));max-height:calc(100dvh - 32px);overflow:auto;padding:22px;background:var(--paper);color:var(--ink);border:1px solid var(--line);border-radius:16px}
+#gwPresetDialog::backdrop{background:rgb(16 32 48 / 45%)}
+.gw-preset-dialog-heading{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:16px}
+.gw-preset-dialog-heading h3{margin:0}
+@media(max-width:600px){.gw-heading-row{flex-wrap:wrap;margin-bottom:14px}}

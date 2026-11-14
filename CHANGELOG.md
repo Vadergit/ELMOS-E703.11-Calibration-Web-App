@@ -1,3 +1,7 @@
+## v0.7.27 – Preset direkt beim Titel laden
+
+- Öffnet die Preset-Auswahl in Schritt 2 über einen Button neben dem Titel.
+
 ## v0.7.26 – Aufgabenübersicht und Prozentanzeige
 
 - Zeigt den Live-Ausgang zum Abschluss in Prozent und bietet einen direkten Rückweg zur Aufgabenübersicht. Beim Abbrechen des Sensorwechsels bleibt der USB-Port offen.

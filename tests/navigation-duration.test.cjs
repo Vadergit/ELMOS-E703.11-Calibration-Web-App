@@ -66,5 +66,5 @@ test('timer auto-stop is monotonic, pause-aware and preserves current capture',(
  assert.match(logger,/id="tlDuration"/);
  assert.match(logger,/id="tlDurationUnit"/);
  assert.match(logger,/id="tlRemaining"/);
- assert.match(read('index.html'),/data-app-version="0\.7\.26"/);
+ assert.match(read('index.html'),/data-app-version="0\.7\.27"/);
 });
