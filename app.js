@@ -61,6 +61,50 @@ if(typeof document!=='undefined') (function UI(){
  const demoPort=demoEnabled?ELMOS_DEMO.create(P,CAL,()=>({
   lower:Number($('pmin').value),upper:Number($('pmax').value),limit:getActiveDSPRange()?.limit??32000
  })):null;
+ // E703.11 datasheet 25DS0170E.04, table 7.5-1, continuous profiles.
+ const filterRegisters=[0x14,0x16,0x18];
+ const filterProfiles=[
+  ['Butterworth · 10,94 kHz · 50 kS/s · 5 Bit', [0x48D3,0x2A9E,0x0412]],
+  ['Butterworth · 12,56 kHz · 50 kS/s · 7 Bit', [0x4AA3,0x2AD6,0x0511]],
+  ['Butterworth · 10,98 kHz · 50 kS/s · 7 Bit', [0x49E3,0x2AD3,0x0512]],
+  ['Butterworth · 6,44 kHz · 50 kS/s · 8 Bit', [0x49A3,0x2E9B,0x0112]],
+  ['Butterworth · 4 kHz · 50 kS/s · 10 Bit', [0xCA13,0x2E1A,0x0536]],
+  ['Butterworth · 500 Hz · 50 kS/s · 13 Bit', [0xEB23,0x369F,0x0132]],
+  ['Butterworth · 2,1 kHz · 50 kS/s · 12 Bit', [0xCB22,0x3A1E,0x0136]],
+  ['Butterworth · 1,04 kHz · 50 kS/s · 13 Bit', [0xEA12,0x3A9F,0x0532]],
+  ['Butterworth · 7,21 kHz · 31 kS/s · 9 Bit', [0x48A3,0x0B56,0x0451]],
+  ['Butterworth · 1 kHz · 31 kS/s · 13 Bit', [0x49A2,0x1B9B,0x0076]],
+  ['Butterworth · 4,37 kHz · 20 kS/s · 7 Bit', [0x48D1,0x2A9E,0x0493]],
+  ['Butterworth · 3,39 kHz · 20 kS/s · 11 Bit', [0x4BE0,0x2E9B,0x0093]],
+  ['Butterworth · 1,97 kHz · 20 kS/s · 12 Bit', [0x48D0,0x2E53,0x01B4]],
+  ['Butterworth · 960 Hz · 20 kS/s · 13 Bit', [0x49E0,0x2E56,0x05B4]],
+  ['Butterworth · 490 Hz · 20 kS/s · 14 Bit', [0x68D0,0x32D7,0x01B0]],
+  ['Butterworth · 250 Hz · 8 kS/s · 14 Bit', [0x59A3,0x319B,0x00F7]],
+  ['Butterworth · 115 Hz · 2 kS/s · 14 Bit', [0x5A94,0x0C5F,0x04BE]],
+  ['Butterworth · 50 Hz · 2 kS/s · 14 Bit', [0x78D4,0x10D7,0x01B9]],
+  ['Butterworth · 20 Hz · 2 kS/s · 15 Bit', [0x7BA4,0x1497,0x01BA]],
+  ['Butterworth · 10 Hz · 2 kS/s · 15 Bit', [0x7894,0x1452,0x029E]],
+  ['Bessel · 7,89 kHz · 50 kS/s · 7 Bit', [0x4BE3,0x2E9F,0x0112]],
+  ['Bessel · 7,17 kHz · 50 kS/s · 8 Bit', [0x4BE3,0x2E9B,0x0111]],
+  ['Bessel · 6,33 kHz · 50 kS/s · 8 Bit', [0x49E3,0x2E9F,0x0012]],
+  ['Bessel · 5,15 kHz · 50 kS/s · 9 Bit', [0x4B93,0x2ED6,0x0115]],
+  ['Bessel · 3,11 kHz · 50 kS/s · 10 Bit', [0xC853,0x2E1F,0x0435]],
+  ['Bessel · 370 Hz · 50 kS/s · 14 Bit', [0xEB63,0x369F,0x0131]],
+  ['Bessel · 1,53 kHz · 50 kS/s · 12 Bit', [0xCB62,0x3A1B,0x0036]],
+  ['Bessel · 860 Hz · 50 kS/s · 12 Bit', [0xEA52,0x3A9F,0x0432]],
+  ['Bessel · 3,95 kHz · 31 kS/s · 10 Bit', [0x49E3,0x0F1F,0x0052]],
+  ['Bessel · 870 Hz · 31 kS/s · 13 Bit', [0x49A2,0x1B9B,0x0175]],
+  ['Bessel · 3,15 kHz · 20 kS/s · 11 Bit', [0x4BE1,0x2E9F,0x0193]],
+  ['Bessel · 2,13 kHz · 20 kS/s · 11 Bit', [0x49E0,0x2E9B,0x0090]],
+  ['Bessel · 1,51 kHz · 20 kS/s · 12 Bit', [0x4AD0,0x2E1F,0x05B4]],
+  ['Bessel · 790 Hz · 20 kS/s · 13 Bit', [0x48A0,0x2E56,0x04B4]],
+  ['Bessel · 410 Hz · 20 kS/s · 14 Bit', [0x6990,0x3257,0x00B0]],
+  ['Bessel · 190 Hz · 8 kS/s · 14 Bit', [0x59A3,0x319A,0x01F4]],
+  ['Bessel · 90 Hz · 2 kS/s · 14 Bit', [0x5AA4,0x0C56,0x05BD]],
+  ['Bessel · 40 Hz · 2 kS/s · 14 Bit', [0x7994,0x1057,0x00B9]],
+  ['Bessel · 15 Hz · 2 kS/s · 15 Bit', [0x7BE4,0x1497,0x01B9]],
+  ['Bessel · 10 Hz · 2 kS/s · 15 Bit', [0x78D4,0x1452,0x029D]],
+ ];
  const REG_NAMES={4:'CFG_EN',6:'CFG_SPI_I2C',8:'CFG_PADS0',10:'CFG_PADS1',12:'CFG_PADS2',16:'CFG_AODO',0x14:'CFG_ADC',0x16:'CFG_LP0',0x18:'CFG_LP1',0x1A:'CFG_AFE0',0x1C:'CFG_AFE1',0x1E:'CFG_AFE2',0x26:'ADC_TC',0x28:'ADC_T',0x2A:'ADC_S'};
  const st={chipDiag:null,diagRunning:false,lastPlcReply:null,mode:'offline',port:null,closing:false,reader:null,readerPromise:null,readerAlive:false,adapterNoReply:false,sessionStartedAt:null,sessionIndex:0,cmdQueue:Promise.resolve(),replyBuffer:'',responseWait:null,iface:'plc',adapterKind:'ssp3',sensorPowerEnabled:false,startupRunning:false,startupAbort:false,startupAttempts:0,magicRunning:false,magicResult:null,powerCycleRunning:false,powerCycleResult:null,startupTrials:[],powerHelp:null,plcHostFormat:'legacy',plcAddress:0x6C,plcAddressVerified:false,plcAddressSource:'',plcAddressProbes:[],firmware:'',chip:false,readOnlySensor:null,sensorLost:false,reinitRunning:false,boot:null,afe:null,afe0:null,bridgeWriteAllowed:false,bridgeReadBusy:false,staged:{pga1:0,pga2:0,offset:0},adc:null,dsp:null,dspError:null,liveReadPromise:null,trend:[],history:[],log:[],regs:{},points:{lo:null,hi:null},verify:null,live:false,manualLivePause:false,timeout:null,consecutiveErrors:0,liveReadAttempts:0,liveReadSuccesses:0,liveLastError:null,liveLastAttemptAt:null,measurementPeriod:null,measurementStatus:null,measurementError:null,measurementStarts:0,measurementFreshCount:0,measurementLastChangedAt:null,writing:false,pressure:5,calpoints:[],calfit:null,calImage:null,nvmBackup:null,nvmBackupVerified:false,calStaged:false,calVerified:false,calValidation:[],calTask:false,testLogging:false,nvmWorking:false,nvmDone:false,afeWriteActive:false,ramWriteScope:null,uid:null,expertOutputPlan:null,restorePlan:null,outputOnlyPlan:null,uidShownForInput:null,profilePendingAFE:null};
  let currentStep=0,pendingGain=null,writeTimer=null;let tipEnabled=true,liveIntervalMs=650;
@@ -155,7 +199,7 @@ if(typeof document!=='undefined') (function UI(){
   ramStart.hidden=!st.readOnlySensor;
   ramStart.disabled=st.ramMeasurementStarting||st.closing;
  }
- renderSensorReconnect();renderAFEStepperState();renderBridgeSupplyState();renderFlowState();renderDSPLive()};
+ renderSensorReconnect();renderAFEStepperState();renderBridgeSupplyState();renderFilterProfile();renderFlowState();renderDSPLive()};
 
  // SVDD is the internally regulated sensor bridge supply, NOT the SSP3 DUT VDD
  // and NOT the ratiometric AODO output voltage. DS 25DS0170E.04, CFG_AFE0
@@ -204,6 +248,64 @@ if(typeof document!=='undefined') (function UI(){
    logging('Brückenspannung lesen fehlgeschlagen: '+String(e.message||e));
    show('writeMsg','Brückenspannung konnte nicht gelesen werden: '+e.message,'warn');
   }finally{st.bridgeReadBusy=false;renderBridgeSupplyState()}
+ }
+ function renderFilterProfile(){
+  const select=$('afeFilterProfile');
+  const match=filterProfiles.findIndex(([,words])=>words.every((word,index)=>word===st.filterWords?.[index]));
+  select.options[0].textContent=st.filterWords?'Aktueller Filter (individuell)':'Filter wird beim Verbinden gelesen';
+  select.value=match<0?'':String(match);
+  const needsFirmware=st.chip&&st.adapterKind==='bridge'&&!st.bridgeAfeFilter;
+  $('afeFilterFirmwareHint').hidden=!needsFirmware;
+  select.disabled=!st.chip||!st.filterWords||st.writing||st.calTask||st.nvmWorking||
+   st.reinitRunning||st.powerCycleRunning||st.closing||
+   needsFirmware;
+ }
+ async function readFilterProfile(){
+  const words=[];
+  for(const addr of filterRegisters)words.push(await readReg(addr));
+  return words;
+ }
+ async function applyFilterProfile(index){
+  const profile=filterProfiles[index];
+  if(!profile||$('afeFilterProfile').disabled)return;
+  await withProgress('ADC-Filter wird eingestellt',async()=>{
+   const resumeLive=st.live&&!st.manualLivePause;
+   let before, attempted=false;
+   st.calTask=true;st.writing=true;st.ramWriteScope='afe-filter';
+   stopLive();renderStatus();
+   try{
+    if(st.liveReadPromise)await st.liveReadPromise.catch(()=>{});
+    const boot=await bootSnapshot();
+    before=await readFilterProfile();
+    if(profile[1].every((word,i)=>word===before[i]))return;
+    await ramGrant();
+    attempted=true;
+    for(const [i,addr] of filterRegisters.entries())await maintWrite(addr,profile[1][i]);
+    const actual=await readFilterProfile();
+    if(!actual.every((word,i)=>word===profile[1][i]))throw Error('Filterregister stimmen beim Rücklesen nicht überein.');
+    if(!sameBoot(boot,await bootSnapshot()))throw Error('Bootregister haben sich geändert.');
+    st.filterWords=actual;
+    erasePoints();
+    show('writeMsg','ADC-Filter im RAM bestätigt. Kalibrierpunkte neu aufnehmen.','success');
+   }catch(e){
+    let restored=false;
+    if(attempted){
+     erasePoints();
+     try{
+      for(const [i,addr] of filterRegisters.entries())await maintWrite(addr,before[i]);
+      st.filterWords=await readFilterProfile();
+      restored=st.filterWords.every((word,i)=>word===before[i]);
+     }catch(_){st.filterWords=null}
+    }
+    show('writeMsg','ADC-Filter konnte nicht übernommen werden. '+e.message+
+     (restored?' Der ursprüngliche Filter wurde wiederhergestellt.':attempted?' Filterzustand prüfen und Sensor neu verbinden.':''),'error');
+   }finally{
+    await ramLock();
+    st.ramWriteScope=null;st.calTask=false;st.writing=false;
+    renderStatus();
+    if(resumeLive&&st.chip)startLive();
+   }
+  });
  }
  async function commitBridgeSupply(targetCode){
   return withProgress('Brückenspannung wird geschrieben',()=>commitBridgeSupplyOperation(targetCode));
@@ -873,6 +975,7 @@ if(typeof document!=='undefined') (function UI(){
   if(!match)throw Error('Kein kompatibler E703.11 USB-CDC-Bridge-Handshake. Bitte Bridge-Firmware prüfen.');
   const caps=match[1].split(',');
   st.bridgeCalibrationNvm=caps.includes('PRO_MICRO_NVM')||caps.includes('BRIDGE_CAL_NVM');
+  st.bridgeAfeFilter=caps.includes('AFE_FILTER');
   st.bridgePsscRam=caps.includes('PSSC_RAM');
   st.bridgeReadOnly=caps.includes('PLC_READ_ONLY')&&caps.includes('PLC_READ');
   st.bridgeRxDiag=caps.includes('PLC_RX_DIAG');
@@ -1250,6 +1353,7 @@ if(typeof document!=='undefined') (function UI(){
   // or DSP registers. A full calibration capture remains strict and separate.
   const w=await readReg(R_AFE),g=decodeSafeAFE(w);
   const rawS=await readReg(0x2A),s=P.sign16(rawS);
+  st.filterWords=null;
   st.afe=w;st.staged={...g};st.chip=true;st.sensorLost=false;
   gainSummary();
   // Optional AFE0 read must not invalidate the already proven pressure channel.
@@ -1267,6 +1371,8 @@ if(typeof document!=='undefined') (function UI(){
    logging('Erster Live-Messzyklus teilweise fehlgeschlagen: '+e.message);
    show('adcMsg','ADC_S erkannt; weitere Live-Register sind noch nicht verfügbar: '+e.message,'warn');
   }
+  try{st.filterWords=await readFilterProfile()}
+  catch(e){logging('ADC-Filter konnte nicht gelesen werden: '+e.message)}
   await expert.onDetect();
   renderStatus();
   show('connMsg',demoEnabled?'Demo-Sensor verbunden. Messwerte und Schreibvorgänge sind simuliert.':
@@ -2425,7 +2531,7 @@ if(typeof document!=='undefined') (function UI(){
   // Restricted, never public raw-register interface. Only for controlled calibration/NVM transaction.
   if(!st.calTask||!st.port||!st.chip||!st.ramWriteScope)throw Error('Technischer Wartungszugriff nur während gewählter Schreib-/Backup-Aktion erlaubt');
   if(!Number.isInteger(word)||word<0||word>65535||!Number.isInteger(addr)||addr%2)throw Error('Ungültige Registerdaten');
-  const permitted=CAL_REGS.includes(addr)||addr===0x4A||addr===0x4E||addr===0x22;
+  const permitted=(st.ramWriteScope==='afe-filter'&&filterRegisters.includes(addr))||CAL_REGS.includes(addr)||addr===0x4A||addr===0x4E||addr===0x22;
   if(!permitted)throw Error(`Schreibzugriff 0x${h(addr)} ist gesperrt`);
   if(addr===0x22&&!([0xF75A,0x0CC7,0xD21E,0x62A2].includes(word)))throw Error('Nicht freigegebener RAM-Befehl');
   if(addr===0x4E){let ok=[0x98BD,0x25BF,0x36D8,0x0000,0x8800].includes(word)|| ((word&0xFF00)===0x4C00&&(word&1)===0) || ((word&0xFF00)===0xA300&&(word&1)===0&&(word&255)>=0x20&&(word&255)<=0x7E);
@@ -3482,6 +3588,10 @@ if(typeof document!=='undefined') (function UI(){
    commitBridgeSupply(next).catch(e=>show('writeMsg',e.message,'error'));
   });
  }
+ filterProfiles.forEach(([label],index)=>$('afeFilterProfile').add(new Option(label,String(index))));
+ $('afeFilterProfile').addEventListener('change',event=>{
+  if(event.target.value!=='')void applyFilterProfile(Number(event.target.value));
+ });
  $('brSupplyRead').addEventListener('click',()=>refreshBridgeSupply());
  $('readNow').addEventListener('click',()=>withProgress('ADC-Werte werden gelesen',()=>readADC()).catch(e=>show('adcMsg','ADC: '+e.message,'error')));$('live').addEventListener('click',()=>{if(st.live){st.manualLivePause=true;stopLive()}else{st.manualLivePause=false;startLive()}});
  for(const k of ['pga1','pga2','offset']){

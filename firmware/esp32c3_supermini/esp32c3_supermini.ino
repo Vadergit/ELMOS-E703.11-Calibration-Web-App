@@ -63,6 +63,7 @@ static int hexDigit(char ch) {
 }
 
 static bool allowedWrite(uint8_t address, uint16_t word) {
+  if (address == 0x14 || address == 0x16 || address == 0x18) return true;
   if (address == 0x1A || address == 0x1C) return true;
   if (address == 0x22) return word == 0x8B93;
   if (address >= 0x6C && address <= 0x9A) return true;
@@ -243,9 +244,9 @@ static void onCommand(const char *command) {
     answer("# NVM DISARMED");
   } else if (strcmp(command, "BRIDGE_INFO") == 0) {
     nvmArmed = false;
-    answer("# E70311-BRIDGE V1 CAPS=PLC_UID,PLC_READ,PLC_WRITE,NVM,POWER_GPIO_10,PSSC_RAM,BRIDGE_CAL_NVM,PLC_RX_DIAG,PLC_GPIO4_IO");
+    answer("# E70311-BRIDGE V1 CAPS=PLC_UID,PLC_READ,PLC_WRITE,NVM,POWER_GPIO_10,PSSC_RAM,AFE_FILTER,BRIDGE_CAL_NVM,PLC_RX_DIAG,PLC_GPIO4_IO");
   } else if (strcmp(command, ".VERSION") == 0) {
-    answer("# ESP32-C3 SuperMini ELMOS PLC bridge v0.8");
+    answer("# ESP32-C3 SuperMini ELMOS PLC bridge v0.9");
   } else if (strcmp(command, "BRIDGE_PING") == 0) {
     answer("# PONG ESP32-C3 SUPERMini PLC_UID");
   } else if (strcmp(command, "BRIDGE_STATS") == 0) {

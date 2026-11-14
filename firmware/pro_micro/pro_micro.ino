@@ -90,6 +90,7 @@ static void plcFrame(const char *hex) {
   const bool startMeasurement = address == 0x22 && word == 0x8B93;
   const bool readEepromWord = address == 0x4E && (word & 0xFF81) == 0x4C00;
   // DSP coefficients occupy the even RAM addresses 0x6C through 0x9A.
+  const bool writeAfeFilter = address == 0x14 || address == 0x16 || address == 0x18;
   const bool writeDspRam = address >= 0x6C && address <= 0x9A;
   // Only the explicit USB maintenance session can program calibration data.
   // Factory, startup, and interface words cannot be programmed by this path.
@@ -101,7 +102,7 @@ static void plcFrame(const char *hex) {
     (word == 0x98BD || word == 0x25BF || word == 0x36D8 ||
      word == 0x0000 || word == 0x8800 || programCalibration);
   const bool writeUserNvm = nvmArmed && (address == 0x4A || userNvmCommand);
-  if (slave != activeSlave || (!startMeasurement && !readEepromWord && !writeDspRam && !writeUserNvm)) {
+  if (slave != activeSlave || (!startMeasurement && !readEepromWord && !writeDspRam && !writeAfeFilter && !writeUserNvm)) {
     answer("!BRIDGE PLC_WRITE_DENIED");
     return;
   }
@@ -441,9 +442,9 @@ static void onCommand(const char *command) {
   if (strncmp(command, "PLC ", 4) == 0 && strncmp(command, "PLC 02", 6) != 0)
     nvmArmed = false;
   if (strcmp(command, "BRIDGE_INFO") == 0) {
-    answer("# E70311-BRIDGE V1 CAPS=PLC_UID,PLC_READ,PLC_WRITE,NVM,PRO_MICRO_NVM,PLC_RX_DIAG,POWER_D7,PSSC_RAM");
+    answer("# E70311-BRIDGE V1 CAPS=PLC_UID,PLC_READ,PLC_WRITE,NVM,PRO_MICRO_NVM,PLC_RX_DIAG,POWER_D7,PSSC_RAM,AFE_FILTER");
   } else if (strcmp(command, ".VERSION") == 0) {
-    answer(F_CPU == 16000000UL ? "# Pro Micro PLC v0.25 16 MHz" : "# Pro Micro PLC v0.25 8 MHz");
+    answer(F_CPU == 16000000UL ? "# Pro Micro PLC v0.26 16 MHz" : "# Pro Micro PLC v0.26 8 MHz");
   } else if (strcmp(command, "PLC IO D4") == 0 || strcmp(command, "PLC IO SPLIT") == 0) {
     plc::singlePin = strcmp(command, "PLC IO D4") == 0;
     answer(plc::singlePin ? "# PLC IO D4" : "# PLC IO SPLIT");
