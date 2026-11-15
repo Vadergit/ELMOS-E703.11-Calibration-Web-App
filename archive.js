@@ -53,7 +53,8 @@ const ELMOS_ARCHIVE=(()=>{
   const dir=await window.showDirectoryPicker({id:'elmos-archive',mode:'readwrite'});
   S.dir=dir;S.folderName=dir.name;
   try{await remembered('write',dir)}catch(_){/* Only persistence of permission is optional. */}
-  text('archiveFolder',dir.name+' · lokaler Ordner');
+  text('archiveFolder',dir.name+' · '+ui('lokaler Ordner','local folder'));
+
   note('Archivordner ausgewählt. Andere Dateien im Ordner bleiben unverändert.');
   await refresh();
   return dir;
@@ -289,8 +290,9 @@ const ELMOS_ARCHIVE=(()=>{
    S.resultsCache.clear();
    S.selection=S.selection.filter(id=>S.records.some(r=>r.id===id));
    renderList();
-   note(all.length+' gültige'+(all.length===1?'s Prüfprotokoll':' Prüfprotokolle')+' geladen'+
-    (corrupt?' · '+corrupt+' ungültige ELMOS-Dateien prüfen':'')+'.');
+   note(all.length+' '+(all.length===1?ui('gültiges Prüfprotokoll','valid test report'):ui('gültige Prüfprotokolle','valid test reports'))+
+    ' '+ui('geladen','loaded')+
+    (corrupt?' · '+corrupt+' '+ui('ungültige ELMOS-Dateien prüfen','invalid ELMOS files to review'):'')+'.');
   }catch(e){note('Archiv nicht lesbar: '+e.message,true)}
  }
  function readable(r){
@@ -842,7 +844,7 @@ const ELMOS_ARCHIVE=(()=>{
   modeUI();preview();renderActive();renderList();
   remembered('read').then(async dir=>{
    if(!dir)return;S.dir=dir;S.folderName=dir.name;
-   text('archiveFolder',dir.name+' · Ordner vormerkt');
+   text('archiveFolder',dir.name+' · '+ui('Ordner vorgemerkt','folder remembered'));
    if(await permitted(false))await refresh();
    else note('Archivordner bekannt. Falls nötig erneut auf «Archivordner auswählen» klicken, um den Zugriff freizugeben.');
   }).catch(()=>{});
