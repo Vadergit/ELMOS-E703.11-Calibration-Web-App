@@ -1,0 +1,14 @@
+/* Optional photographs used by verification and test/logging workflows. */
+.elmos-photo-panel{margin:14px 0;padding:14px;border:1px solid var(--line,#d5e2ea);border-radius:10px;background:var(--panel,#f8fafc)}
+.elmos-photo-panel h4{font-size:14px;margin:0 0 6px}
+.elmos-photo-panel .elmos-photo-help{font-size:12px;opacity:.74;margin:5px 0 10px}
+.elmos-photo-list{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px;margin:12px 0}
+.elmos-photo-item{display:grid;gap:8px;align-content:start;padding:8px;border:1px solid var(--line,#dce6ed);border-radius:8px;background:var(--card,#fff)}
+.elmos-photo-item img{width:100%;height:155px;object-fit:contain;background:#e8eef2;border-radius:6px}
+.elmos-photo-controls{display:grid;gap:8px}
+.elmos-photo-controls label{display:grid;gap:3px;font-size:12px}
+.elmos-photo-controls input{width:100%;min-width:0}
+.elmos-photo-controls button,.elmos-photo-add{width:max-content;max-width:100%;padding:8px 11px;border:1px solid #b1cbd9;border-radius:7px;cursor:pointer}
+.elmos-photo-add:disabled{cursor:not-allowed;opacity:.55}
+.elmos-photo-message{font-size:12px;color:#ae5730;margin:5px 0;min-height:1em}
+@media(max-width:600px){.elmos-photo-list{grid-template-columns:1fr}}
