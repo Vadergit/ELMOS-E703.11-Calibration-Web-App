@@ -1,13 +1,13 @@
 # ELMOS E703.11 – Test / Logging
 
-**Ab v0.7.73 · Benutzeranleitung (Laborprototyp)**
+**Aktueller Softwarestand v0.7.74 · Benutzeranleitung (Laborprototyp)**
 
 Das **Test / Logging** findest du auf zwei Wegen: in der **klassischen Ansicht als eigenen Reiter direkt unter «EEPROM Viewer»** und im geführten Assistenten auf der ersten Seite als **vierte Kachel**. Beide Wege öffnen denselben Logger, dessen Eingaben beim Wechsel erhalten bleiben. Damit können beliebige sensorbezogene Versuche protokolliert werden, ohne einen neuen Abgleich oder einen NVM-Schreibvorgang auszulösen.
 
 ## 1. Einen Test starten
 
 1. Sensor über das SSP3-Board bzw. einen tatsächlich unterstützten Adapter verbinden.
-2. Auf **Geführt** und bei «Was möchtest du machen?» auf **Test / Logging** klicken, dann **Weiter**.
+2. Auf **Geführt** und bei «Was möchtest du machen?» direkt auf die Kachel **Test / Logging** klicken. Alternativ den gleichnamigen Reiter in der klassischen Ansicht öffnen.
 3. **Testname** eingeben; optional die neue **Produkt / DUT-Bezeichnung**, **Kategorie**, **Operator**, **Beschreibung des Testaufbaus**, gemessene **VDD-Istspannung** mit Messquelle.
 4. Das Intervall, die Aufnahmeart und optional die **Testdauer** einstellen (siehe unten).
 5. **Aufzeichnung starten** drücken und einen lokalen Archivordner auswählen bzw. freigeben. Der Start erfasst zunächst die verfügbaren RAM- und NVM-Daten. Nicht lesbare Informationen werden als Fehler/fehlend gekennzeichnet.
@@ -15,6 +15,8 @@ Das **Test / Logging** findest du auf zwei Wegen: in der **klassischen Ansicht a
 7. Mit **Aufzeichnung beenden & speichern** abschliessen. Danach stehen ein **übersichtlicher CSV-Export**, der vollständige JSON-Export und ein PDF-Prüfprotokoll zur Verfügung. Alle Tests erscheinen im Archiv.
 
 Während einer Aufzeichnung ist der serielle Messpfad reserviert. **RAM-/NVM-Änderungen und der parallele Kalibrierablauf sind nicht erlaubt.** Der Logger selbst programmiert keine Sensorregister.
+
+**Live-Abfrage (Einstellungen) gegenüber Logging:** Die Option **«250 ms · Adaptiv»** betrifft nur die reguläre Live-Anzeige. Für Test/Logging gelten weiterhin das hier eingestellte Messintervall, die Sample-Anzahl und die tatsächlichen Sensorantwortzeiten. Die Web-App startet keine parallelen Sensorabfragen, um ein zu kurzes Intervall künstlich einzuhalten.
 
 ## 2. Frei definierbare Messintervalle
 
@@ -63,7 +65,7 @@ Die App misst die wirkliche externe Spannung **nicht selbst**, wenn der Adapter 
 
 Vor dem Start, während der Aufzeichnung und nach dem Speichern kannst du **ein oder zwei Fotos** hinzufügen. Der optionale Fotobereich zeigt Vorschaubilder und erlaubt eine kurze Beschriftung und das Entfernen einzelner Bilder. Zulässig sind JPG, PNG oder WebP bis 12 MB; im Browser werden die Bilder auf max. 1400 Pixel und 300 KB pro Bild komprimiert. Die Fotos werden lokal direkt in der Archiv-JSON-Datei gespeichert und später im PDF-Protokoll angezeigt. Im Archiv kann ein Foto auch nach Abschluss ergänzt werden. Die Rohmessdaten bleiben unverändert.
 
-## 4. Dateien, Archiv und Export (v0.7.72)
+## 4. Dateien, Archiv und Export (aktuell ab v0.7.72)
 
 Die Aufzeichnung speichert ihre Metadaten in einer `.json`-Datei und die fortlaufend aufgenommenen Sensorwerte in `.samples.jsonl`-Teildateien. Alle Teildateien gehören zum selben Vorgang.
 
