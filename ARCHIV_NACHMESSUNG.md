@@ -1,8 +1,8 @@
 # ELMOS E703.11 – Lokales Kalibrierarchiv und Nachmessungen
 
-**Softwarestand v0.7.73 · Funktions- und Benutzeranleitung · Laborprototyp**
+**Softwarestand v0.7.74 · Funktions- und Benutzeranleitung · Laborprototyp**
 
-**Archivexport ab v0.7.70:** Für jedes gespeicherte Protokoll steht «CSV · alle Infos» zur Verfügung. Test/Logging hat zusätzlich einen vollständigen PDF-Bericht mit Diagramm, Aufnahmepunkten und Ereignissen sowie einen eigenständigen «CSV · Messwerte»-Export für Tabellenanalysen. Die optionale VDD-Eingabe der Anschlussansicht wurde entfernt.
+**Archivexport ab v0.7.72:** Für jeden Archivdatensatz gibt es genau **einen übersichtlichen CSV-Export** sowie einen JSON-Export für die vollständigen technischen Originaldaten. Nachmessung und Test/Logging bieten zusätzlich einen PDF-Bericht; bis zu zwei optionale Fotos werden darin angezeigt. Die frühere separate VDD-Istspannungs-Eingabe der Anschlussansicht ist entfernt.
 
 **Firmware korrekt benannt:** `02.08.02.04` ist die SSP3-**Adapter-Firmware**, aus dem Befehl `.VERSION`, und keine E703.11-Sensorfirmware. Der rohe Chip-Versionsregisterwert `0x38` wird separat dargestellt, sofern beim Start ausgelesen. Für alte Archivdateien erfolgt diese Zuordnung automatisch, ohne ihre Daten zu verändern.
 
@@ -17,10 +17,10 @@ Das Archiv arbeitet ausschliesslich lokal. Die Webseite lädt weder Kalibrierdat
 ## 1. Archivordner einrichten
 
 1. [ELMOS-Web-App öffnen](https://vadergit.github.io/ELMOS-E703.11-Calibration-Web-App/).
-2. Oben auf **Archiv & Nachmessung** klicken.
+2. In der Start-/Aufgabenübersicht **Archiv** oder **Nachmessung** wählen (alternativ die entsprechende Navigation der klassischen Ansicht).
 3. **Archivordner auswählen** und einen eigenen oder bereits vorhandenen Ordner wählen, zum Beispiel `D:\Messdaten`. Der Ordner darf auch andere PDFs, Bilder, JSON-Dateien und Unterordner enthalten.
 4. Chrome die Lese- und Schreibberechtigung für diesen Ordner erteilen.
-5. Über **Ordner einlesen** wird die Archivliste aktualisiert.
+5. Über **Ordner einlesen** wird die Archivliste aktualisiert. Für einen neuen Prüfbericht zuerst die Nachmessung öffnen und bei Bedarf den Archivordner freigeben.
 
 Der Browser merkt sich den Ordner über IndexedDB, sofern die Berechtigungsspeicherung unterstützt wird. Eine erneute Freigabe kann nötig sein. Ein Netzwerkordner funktioniert dann, wenn Windows/macOS und Chrome den Zugriff zulassen. Die Anwendung selbst verwaltet keine Cloud und keine Benutzernamen.
 
@@ -49,11 +49,11 @@ Die bestehenden Schutzbedingungen für Factory-, Boot- und Kommunikationsregiste
 - Bei der Nachmessung zeigt das Feld **Referenzdruck (bar / mbar / …)** die gewählte Einheit unmittelbar beim Zahlenwert an.
 - Druck und ggf. Temperatur am Prüfstand manuell einstellen; Messpunkt aufnehmen und das Ergebnis prüfen. Die letzte Messung wird direkt beim Aufnahmebutton angezeigt.
 - Weitere Protokollangaben (Prüfer, Projekt, Prüfstand, Prüfmittel/Zertifikatsreferenz, Bemerkungen) bleiben **immer sichtbar**. Ein separates Feld für externe Messmittel und die freie Beschreibung des ursprünglichen Sensorabgleichs wurden entfernt.
-- Am letzten Prüfpunkt **Prüfung abschliessen und speichern** wählen. Archiv und PDF enthalten den kalibrierten Messbereich, die Eingabeart, den digitalen Sensorwert und die Toleranzbewertung. Der irreführende PDF-Eintrag «Adapter-Firmware: Antwort erhalten» wird nicht mehr ausgegeben.
+- Am letzten Prüfpunkt **Prüfung abschliessen und speichern** wählen. Archiv, Diagramm, übersichtliche CSV und PDF enthalten Referenzwerte, Sensormesswerte und Abweichungen. **Eine Toleranzbewertung erfolgt nur nach ausdrücklicher Aktivierung**; sonst werden die Werte ohne Bestanden-/Fehlerentscheid dokumentiert.
 
 **Messwertquelle:** Die Nachmessung verwendet den Sensorwert, den die Web-App bereits digital als Druck oder Prozent darstellt. Sie berechnet ihn nicht nochmals mit einem separaten DSP-Endwert. Im E703.11 basiert diese Anzeige intern auf dem digitalen korrigierten Druckwert des Chips (DSP_S). Ein physikalischer Druckwert ist nur dann verlässlich, wenn seine Zuordnung zum Druckbereich stimmt. Bei bekannter, passender aktueller RAM-Kalibrierung wird sie automatisch bestätigt, andernfalls ist eine unabhängige Bestätigung des angezeigten Sensorwerts nötig. Ist diese Zuordnung unbekannt, werden Messungen aufgezeichnet und im Diagramm angezeigt, aber **nicht als bestanden** bewertet.
 
-**Toleranzberechnung:** `Abweichung % Span = (Ist-Druck - Soll-Druck) / (kalibrierte Obergrenze - kalibrierte Untergrenze) × 100`. Wenn beide Druckwerte verschiedene physikalische Einheiten verwenden, wird zuerst die Einheit umgerechnet. Ist die Sensoranzeige in Prozent definiert, wird sie anhand des kalibrierten Druckbereichs auf Druck abgebildet. Beide Fälle setzen eine bestätigte Zuordnung voraus.
+**Abweichungsberechnung:** `Abweichung % Span = (Ist-Druck - Referenzdruck) / (kalibrierte Obergrenze - kalibrierte Untergrenze) × 100`. Die Anzeige dieser Abweichung ist auch ohne aktivierte Toleranzbewertung möglich. Wenn beide Druckwerte verschiedene physikalische Einheiten verwenden, wird zuerst die Einheit umgerechnet. Ist die Sensoranzeige in Prozent definiert, wird sie anhand des kalibrierten Druckbereichs auf Druck abgebildet. Beide Fälle setzen eine bestätigte Zuordnung voraus.
 
 **Hysterese:** Gemessene Sensorwerte bei gleicher Referenz und entgegengesetzter Druckrichtung werden gegenübergestellt; die prozentuale Druckhysterese wird aus der gesamten kalibrierten Messspanne berechnet. Alte Archive mit DSP-Rohwerten bleiben weiterhin lesbar.
 
@@ -61,7 +61,7 @@ Die bestehenden Schutzbedingungen für Factory-, Boot- und Kommunikationsregiste
 
 **Temperatur:** `ADC_T`, `ADC_TC` und `DSP_T` werden als Rohwerte gespeichert. Die Umrechnung von `DSP_T` in Grad Celsius ist in dieser Web-App noch nicht unabhängig hardwarevalidiert. Optional lassen sich Skalierung (Digits/°C) und Offset eingeben und **nach unabhängiger Überprüfung** für diesen Sensor bestätigen. Die Vorauswahl (387.88 Digits/°C, −16485 Digits) ist ausdrücklich **keine Freigabe**. Ohne Bestätigung wird Temperaturhysterese in Roh-Digits gezeigt und die Temperaturtoleranz nicht als bestanden bewertet.
 
-**Druck:** Bei vorhandenem DSP-Anzeigebereich wird die physikalische Umrechnung angeboten. Sie wird für eine Toleranzbewertung nur verwendet, wenn die aktuelle RAM-Kennlinie aus dem Abgleich stammt oder du den Anzeigebereich ausdrücklich für den Sensor bestätigst. Ohne verifizierbare Zuordnung bleibt der DSP_S-Rohwert erhalten und die Drucktoleranz unbewertet. Ein unbewerteter Prüfpunkt erhält niemals automatisch den Status «bestanden».
+**Druck:** Der digital angezeigte Sensorwert ist die Grundlage der Nachmessung. Seine physikalische Skalierung muss zum Sensor und zum eingestellten Druckbereich passen. Ohne bestätigte Zuordnung bleibt eine Toleranzbewertung aus; bei deaktivierter Toleranz werden Messpunkte grundsätzlich nur erfasst. Der DSP-Endwert muss für die Nachmessung nicht separat eingestellt werden.
 
 **Versorgung:** `VDD` (Sensorversorgung), `SVDD` (interne Brückenversorgung) und `S0/S1` (Ausgangssollwerte) sind verschieden. Die externe tatsächliche VDD-Spannung wird über den Programmieradapter nicht automatisch gemessen; deshalb wird ohne explizite externe Messung kein Istwert erfunden. Die gesonderte VDD-Istspannungs-Eingabe der Anschlussansicht ist entfernt. Der Testlogger kann einen optional manuell erfassten VDD-Wert als Bestandteil seiner Testkonfiguration dokumentieren.
 
@@ -77,7 +77,7 @@ Jeder Datensatz enthält mindestens:
 - **Konfiguration:** RAM-Register und NVM vor/nach dem Abgleich, AFE, Koeffizienten und gespeicherte Sollwerte.
 - **Messungen:** Referenzen und Quellen, alle einzelnen Rohsamples, Median, DSP-Werte, Kennlinienzuordnung, Abweichungen und Grenzwerte.
 - **Verlauf:** Wiederholungen, Teilmessungen, Fehler, einzelne NVM-Schritte und soweit verfügbar die betreffenden TX/RX-Antworten.
-- **Test-Logging:** Name, Beschreibung, Prüfer, Intervall, Mittelungsverfahren, alle Einzelmessungen und zugehörige `.samples.jsonl`-Dateiteile. JSON- und vollständiger CSV-Export beziehen die Rohdaten ein.
+- **Test-Logging:** Name, Beschreibung, Prüfer, Intervall, Mittelungsverfahren, alle Einzelmessungen und zugehörige `.samples.jsonl`-Dateiteile. Der **JSON-Export** enthält die vollständigen Rohdaten; der **CSV-Export** fasst sie bewusst zu einer lesbaren Messpunkttabelle zusammen.
 - **Endstatus:** abgeschlossen, fehlgeschlagen, unvollständig, unterbrochen oder abgebrochen.
 
 ### Optionale Fotos zum Prüfprotokoll (ab v0.7.73)
@@ -87,6 +87,10 @@ Bei **Nachmessung** und **Test/Logging** lassen sich **maximal zwei Bilder** hin
 Akzeptiert werden JPG, PNG und WebP bis **12 MB als Eingangsdatei**. Die Web-App verkleinert die Fotos im Browser auf maximal **1400 Pixel Kantenlänge** und speichert jedes als JPEG mit **höchstens 300 KB**. Durch die Neuerzeugung werden ursprüngliche Bildmetadaten wie EXIF nicht übernommen. Es wird **keine Online-Bildverarbeitung** verwendet.
 
 Die verkleinerten Bilder werden als eingebettete Bilddaten **direkt im lokalen JSON-Archivprotokoll** gespeichert. Damit bleiben sie bei der Datensicherung und beim erneuten Öffnen erhalten, ohne dass separate Bilddateien verwaltet werden müssen. Im PDF-Bericht werden beide Fotos mitsamt Bildbeschreibung in einem eigenen Abschnitt angezeigt. Bei Protokollen ohne Fotos entfällt dieser Abschnitt.
+
+### Live-Abfrageintervall (ab v0.7.74)
+
+Unter **Einstellungen → Live-Abfrageintervall** ist zusätzlich zu den bisherigen 400, 650, 1000, 1500 und 2000 ms die Option **«250 ms · Adaptiv (schneller)»** verfügbar. Die gewählte Zeit ist die Pause **nach** einem vollständig abgeschlossenen Sensorlesezyklus. Der neue Modus erhöht bei langsamen Sensorantworten die Pause auf 400 oder 650 ms und hält bei Kommunikationsfehlern die bestehende 2-Sekunden-Retry-Pause ein. Andere Abfrageintervalle sind unverändert; die App startet keine parallelen One-Wire-/I²C-Befehle und führt durch diese Änderung keine Register- oder NVM-Schreibvorgänge aus. **Die tatsächliche Live-Rate muss am Prüfstand geprüft werden.**
 
 ### PDF und CSV exportieren (ab v0.7.72)
 
