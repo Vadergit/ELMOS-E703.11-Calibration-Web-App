@@ -9,7 +9,8 @@ const ELMOS_ARCHIVE_EXPORT=(()=>{
  function quote(value){
   let str=value===null?'null':value===undefined?'':String(value);
   // Protect Excel/LibreOffice from CSV formula injection, without changing typed numbers.
-  if(typeof value==='string'&&/^[\s\uFEFF]*[=+\-@\t\r]/.test(str))str="'"+str;
+  if(typeof value==='string'&&/^[\s\uFEFF]*[=+\-@\t\r]/.test(str)&&
+   !/^-\d+(?:\.\d+)?(?:e[+\-]?\d+)?$/i.test(str))str="'"+str;
   return '"'+str.replace(/"/g,'""')+'"';
  }
  function csvAll(record,telemetryRows=[]){
@@ -179,13 +180,18 @@ const ELMOS_ARCHIVE_EXPORT=(()=>{
     data.pass===true?'Bestanden':data.pass===false?'Ausser Toleranz':'Nicht bewertet');
    lines.push(emit(row));
   }
-  const consumed=new Set();
+  const consumed=new Set(),byStep=new Map();
+  for(let i=0;i<attempts.length;i++){
+   const index=attempts[i].data.stepIndex;
+   if(!Number.isInteger(index)||index<0)continue;
+   if(!byStep.has(index))byStep.set(index,[]);
+   byStep.get(index).push(i);
+  }
   for(let i=0;i<steps.length;i++){
-   const match=attempts.filter((a,j)=>a.data.stepIndex===i);
-   if(!match.length)writePoint(steps[i],i,null);
-   for(const x of match){
-    const n=attempts.indexOf(x);consumed.add(n);
-    writePoint(steps[i],i,x);
+   const indices=byStep.get(i)||[];
+   if(!indices.length)writePoint(steps[i],i,null);
+   for(const index of indices){
+    consumed.add(index);writePoint(steps[i],i,attempts[index]);
    }
   }
   for(let i=0;i<attempts.length;i++){
