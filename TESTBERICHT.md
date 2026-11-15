@@ -1,10 +1,25 @@
 # Testbericht – ELMOS E703.11 Web-Kalibrierassistent
 
-**Stand: Version v0.6.11 · 12. November 2026 · Laborprototyp, keine Hardware- oder Produktionsfreigabe**
+**Aktueller Softwarestand v0.7.74 · 15. November 2026 · Laborprototyp, keine Hardware- oder Produktionsfreigabe**
 
 Dieser Bericht trennt den **im Code beziehungsweise mit simulierten Chipantworten geprüften Stand** von noch offenen Hardwareprüfungen. Ältere, überholte UI-Varianten und frühere Bestätigungswörter werden hier bewusst nicht als aktuelle Funktion beschrieben.
 
 **[Web-App](https://vadergit.github.io/ELMOS-E703.11-Calibration-Web-App/)** · **[README](README.md)** · **[Bedienungsanleitung](ANLEITUNG.md)** · **[Ausgang und 1-Wire](AUSGANG_1WIRE.md)** · **[Config & EEPROM Viewer](CONFIG_DATEIEN.md)**
+
+## Nachtrag zum aktuellen Softwarestand (v0.7.74)
+
+Die nachfolgende historische Testmatrix enthält weiterhin die dokumentierten Prüfungen früherer Versionen. Seitdem wurden neue Funktionen implementiert; sie werden hier **getrennt** aufgeführt, damit eine Softwareprüfung nicht mit einem realen Hardwaretest verwechselt wird.
+
+| Seit v0.7.63 implementierte Funktion | Überprüfung des Softwarestandes | Was am Prüfstand noch fehlt |
+| --- | --- | --- |
+| Nachmessung mit kalibriertem Druckbereich, Prozent- oder Druckeingabe und digitalem Sensorwert | JavaScript-Syntax, Einheiten-/Abweichungsfälle, Beispiel-Messpunkte und Archivdiagramm mit Testdaten geprüft | Mit kalibriertem E703.11, externem Referenzdruck und verschiedenen Druckbereichen prüfen |
+| Toleranzbewertung nur nach ausdrücklicher Aktivierung | Kontrolliert, dass ohne Toleranz keine Bestanden-/Fehlerentscheidung aus Testdaten entsteht | Praxisprüfung mit Grenzpunkten und bekannten Referenzen |
+| PDF für Nachmessung und Test/Logging | Berichtsgenerierung mit Beispieldaten und Messpunkten geprüft | Browserdruck und Archiv-Wiederöffnung unter realen Einsatzbedingungen prüfen |
+| Ein übersichtlicher CSV-Export pro Archivdatensatz | Exporttests für Nachmessung, Logging und verschachtelte Protokollfelder; JSON-Rohdaten bleiben erhalten | Stresstest grosser Log-Dateien und Excel-Import in der realen Laborumgebung |
+| Zwei optionale Fotos inklusive PDF | Automatische Tests für Mengen-/Grössenbegrenzung, Bildbeschriftung und PDF-Einbettung bestanden | Bildaufnahme, Speicherung und PDF-Druck mit echten Dateien und Browserfreigaben testen |
+| Adaptive 250-ms-Live-Abfrage | Sechs automatisierte Tests für 250/400/650-ms-Anpassung und unveränderte bisherige Einstellungen bestanden | SSP3/One-Wire oder I²C am echten E703.11 hinsichtlich Geschwindigkeit, Fehlerrate und Wiederanlauf prüfen |
+
+**GitHub Pages:** Die erfolgreiche Veröffentlichung des aktuellen Commits zeigt, dass die Web-App deployt wurde. Sie ersetzt keinen Test des Kalibrier- oder Archivablaufs mit einem real angeschlossenen Sensor. Die manuellen Hardwareprüfungen bleiben offen.
 
 ## Zusammenfassung
 
