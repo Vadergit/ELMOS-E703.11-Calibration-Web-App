@@ -735,6 +735,8 @@ const ELMOS_ARCHIVE=(()=>{
   $('archiveWorkspace').innerHTML=UI();
   $('archiveOpen').addEventListener('click',()=>open('archive'));
   $('verificationOpen').addEventListener('click',()=>open('verification'));
+  $('classicArchiveOpen')?.addEventListener('click',()=>open('archive'));
+  $('classicVerificationOpen')?.addEventListener('click',()=>open('verification'));
   $('archiveClose').addEventListener('click',close);
   $('archiveChoose').addEventListener('click',()=>chooseFolder().catch(e=>note(e.message,true)));
   $('archiveRefresh').addEventListener('click',()=>refresh());
