@@ -1,6 +1,8 @@
 # Ausgang und 1-Wire – E703.11
 
-**Stand: v0.5.0 · 11.11.2026 · Laborprototyp (keine Hardwarefreigabe)**
+**Projektstand v0.7.75 · 15. November 2026 · Laborprototyp, keine Hardwarefreigabe**
+
+Die folgenden elektrischen Hinweise stammen ursprünglich aus v0.5.0 und bleiben als technische Hintergrundinformationen erhalten. Für die aktuelle Bedienung, Abgleich-/NVM-Sicherungen und die zwei unterstützten DIY-Programmer gelten [Bedienungsanleitung](ANLEITUNG.md), [DIY-Programmer](docs/ESP_BOARD_OPTIONS.md) und [Testbericht](TESTBERICHT.md).
 
 Dieses Dokument erklärt die Auswahl **«One Wire only»**, die AODO-Ausgangsarten und die Sicherheitsregeln im [Kalibrierassistenten](https://vadergit.github.io/ELMOS-E703.11-Calibration-Web-App/). Grundlage: **ELMOS E703.11, Production Data 25DS0170E.04 vom 16.11.2023**. Das vollständige Herstellerdatenblatt ist nicht im Repository enthalten.
 
