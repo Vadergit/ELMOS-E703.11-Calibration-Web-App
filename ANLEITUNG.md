@@ -1,6 +1,6 @@
 # Bedienungsanleitung – ELMOS E703.11
 
-**Aktueller Dokumentationsstand v0.7.74** · Kalibrierassistent · Die anschliessenden älteren Versionsabschnitte bleiben als Funktionshistorie erhalten.
+**Aktueller Dokumentationsstand v0.7.75** · Kalibrierassistent · Die anschliessenden älteren Versionsabschnitte bleiben als Funktionshistorie erhalten.
 
 **[Web-App öffnen](https://vadergit.github.io/ELMOS-E703.11-Calibration-Web-App/)** · **[Projektübersicht](README.md)** · **[Test / Logging](TEST_LOGGING.md)** · **[Archiv](ARCHIV_NACHMESSUNG.md)** · **[Config-Dateien & EEPROM Viewer](CONFIG_DATEIEN.md)** · **[Testbericht](TESTBERICHT.md)**
 
@@ -98,7 +98,7 @@ Unter **Einstellungen → Arbeitsansicht nach dem Verbinden** zwischen «Geführ
 
 **Für den geführten Abgleich ist ein über SSP3 erkannter E703.11 erforderlich.** Die Oberfläche verwendet dieselben abgesicherten RAM-/NVM-Funktionen wie die klassische Ansicht.
 
-Vollständige Beschreibung: [Geführter Assistent](docs/GEFUEHRTER_ASSISTENT.md). Die experimentelle alternative USB-Bridge ist separat beschrieben: [ESP32/Arduino-Guide](docs/USB_BRIDGE_GUIDE.md).
+Vollständige Beschreibung: [Geführter Assistent](docs/GEFUEHRTER_ASSISTENT.md). Die experimentelle alternative USB-Bridge ist separat beschrieben: [DIY-Programmer: ESP32-C3 SuperMini / Pro Micro](docs/USB_BRIDGE_GUIDE.md).
 
 ## Kompaktmodus – One-Pager (optional)
 
