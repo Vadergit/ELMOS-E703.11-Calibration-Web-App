@@ -1,3 +1,11 @@
+## v0.7.75 – DIY-Programmer auf zwei unterstützte Boards begrenzt
+
+- Die auswählbare **DIY-Programmer-USB-Bridge** bezieht sich nur noch auf **ESP32-C3 SuperMini (Firmware v0.10)** und **Arduino Pro Micro (Firmware v0.27)**. Der originale **ELMOS SSP3** bleibt als separate Herstellerlösung verfügbar.
+- Die Firmwaremeldung `BRIDGE_INFO` wird nun auf die eindeutigen Eigenschaften der beiden aktuellen DIY-Firmwares geprüft. Ein unbekanntes Board oder eine reine USB-CDC-Beispielfirmware erhält **keine bestätigte Chip-Zugriffsfreigabe**. Die Web-App erkennt und protokolliert den tatsächlich verwendeten DIY-Programmer statt jeden Bridge-Adapter als ESP32 zu bezeichnen.
+- Die überholten breiten Tabellen mit vielen anderen ESP-, Arduino-, RP2040- und sonstigen Mikrocontrollerboards wurden aus [DIY-Boardübersicht](docs/ESP_BOARD_OPTIONS.md) und [USB-Bridge-Anleitung](docs/USB_BRIDGE_GUIDE.md) entfernt.
+- Verbindungsauswahl, Firmware-Installer, Einzelanleitungen für ESP32-C3/Pro Micro, README, Bedienungsanleitung, Roadmap und Testbericht auf **v0.7.75** abgeglichen.
+- Bestehende One-Wire-, I²C-, RAM-/NVM-Schutzmechanismen und die vorherige adaptive Live-Abfrage bleiben unverändert. Für beide DIY-Adapter bleibt die **Hardware-End-to-End-Validierung** am realen E703.11 offen.
+
 ## v0.7.74 – Optionale adaptive Live-Abfrage ab 250 ms
 
 - Die bisherigen Abfragepausen (400, 650, 1000, 1500 und 2000 ms) bleiben unverändert. Neu unter **Einstellungen → Live-Abfrageintervall**: **«250 ms · Adaptiv (schneller)»**. Der neue Modus ist bewusst optional; die gespeicherte persönliche Einstellung bleibt erhalten.
