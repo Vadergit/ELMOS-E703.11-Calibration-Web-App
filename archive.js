@@ -598,37 +598,103 @@ const ELMOS_ARCHIVE=(()=>{
    text('arPlanPreview',nodes.join('\n')+(p.steps.length>30?'\n… weitere Punkte im Ablauf':''));
   }catch(e){S.draft=null;text('arPlanStatus',e.message);text('arPlanPreview','')}
  }
+ const ui=(de,en)=>document.documentElement.lang==='en'?en:de;
+ function spanFromPlan(plan){
+  if(!plan?.steps?.length)return 0;
+  const values=plan.steps.map(p=>Number(p.pressure)).filter(Number.isFinite);
+  return values.length?Math.max(...values)-Math.min(...values):0;
+ }
+ function chartSummary(record){
+  return window.ELMOS_VERIFICATION_GRAPH?.summary?.(record)||{total:0,measured:0,passed:0,failed:0,unknown:0,pending:0,data:[]};
+ }
+ function renderStepStrip(info){
+  const strip=$('arStepStrip');
+  if(!strip)return;
+  strip.replaceChildren();
+  const record=S.record;
+  if(!record?.plan)return;
+  // Keep all points accessible without crowding the main measurement form.
+  for(const item of info.data){
+   const button=el('button',String(item.index+1),'ar-step-chip '+item.status+(S.step===item.index?' current':''));
+   button.type='button';
+   const meaning=item.status==='pass'?ui('Bestanden','Passed'):item.status==='fail'?ui('Ausser Toleranz','Out of tolerance'):
+    item.status==='unknown'?ui('Nicht bewertet','Not assessed'):ui('Noch offen','Pending');
+   button.title=ui('Prüfpunkt ','Verification point ')+(item.index+1)+' · '+meaning;
+   button.setAttribute('aria-current',S.step===item.index?'step':'false');
+   button.addEventListener('click',()=>{if(S.measuring)return;S.step=item.index;renderStep()});
+   strip.append(button);
+  }
+ }
  function renderActive(){
   const r=S.record;
-  $('arActive').hidden=!r||(S.view==='archive'&&r.type==='verification');
+  const visible=!!r&&(S.view!=='archive'||r.type!=='verification');
+  $('arActive').hidden=!visible;
   $('arPlanner').hidden=!!r||S.view!=='verification';
   $('arResults').hidden=S.view!=='archive';
   $('archiveStartCalibration').hidden=S.view!=='archive';
-  text('arActiveState',r?(typeWords[r.type]||r.type)+' · '+(r.chipUID||'?')+' · '+(statusWords[r.status]||r.status):
-   'Kein aktiver Prüfvorgang.');
-  if(r?.plan)renderStep();
+  $('arEndCalibration').hidden=!r||r.type==='verification';
+  $('arEndVerification').hidden=!r||r.type!=='verification';
+  $('arResultChart').parentElement.hidden=!r||r.type!=='verification';
+  $('arStepStrip').hidden=!r||r.type!=='verification';
+  $('arGuideProgress').hidden=!r||r.type!=='verification';
+  if(r){
+   text('arActiveState',r.type==='verification'?
+    ui('Prüfung · ','Verification · ')+(r.chipUID||'?'):
+    (typeWords[r.type]||r.type)+' · '+(r.chipUID||'?')+' · '+(statusWords[r.status]||r.status));
+  }
+  if(r?.plan&&r.type==='verification')renderStep();
+  else $('arMeasureControls').hidden=true;
  }
  function renderStep(){
   const r=S.record;
-  if(!r?.plan)return;
-  const point=r.plan.steps[S.step],done=S.step>=r.plan.steps.length;
-  text('arStepHeading',done?'Alle Prüfschritte bearbeitet':'Prüfschritt '+(S.step+1)+' / '+r.plan.steps.length);
-  text('arStepDescription',done?'Jetzt den Vorgang abschliessen. Fehlerhafte Versuche bleiben gespeichert.':
-   'Druck '+point.pressure+' · Temperatur '+point.temperature+' °C · Druckrichtung '+point.pressureDirection+
-    ' · Temperaturrichtung '+point.temperatureDirection+'. Referenzen zuerst am Prüfstand stabilisieren.');
+  if(!r?.plan||r.type!=='verification')return;
+  const total=r.plan.steps.length;
+  S.step=Math.max(0,Math.min(S.step,total));
+  const done=S.step>=total;
+  const point=done?null:r.plan.steps[S.step];
+  const overview=chartSummary(r);
   $('arMeasureControls').hidden=done;
   $('arEndVerification').hidden=!done;
+  const progress=(overview.total>0?overview.measured/overview.total:0)*100;
+  text('arOverallProgress',ui('Prüfablauf: ','Test progress: ')+overview.measured+' / '+overview.total);
+  $('arProgressFill').style.width=progress.toFixed(1)+'%';
+  text('arOverallVerdict',overview.passed+' '+ui('bestanden','passed')+' · '+overview.failed+' '+ui('ausser Toleranz','out of tolerance')+
+   (overview.unknown?' · '+overview.unknown+' '+ui('nicht bewertet','not assessed'):''));
+  renderStepStrip(overview);
   if(!done){
+   text('arStepHeading',ui('Prüfpunkt ','Point ')+(S.step+1)+' / '+total);
+   const d1=point.pressureDirection==='up'?ui('steigend','increasing'):point.pressureDirection==='down'?ui('fallend','decreasing'):ui('konstant','constant');
+   const d2=point.temperatureDirection==='up'?ui('steigend','increasing'):point.temperatureDirection==='down'?ui('fallend','decreasing'):ui('konstant','constant');
+   text('arStepDescription',ui('Soll: ','Target: ')+point.pressure+' · '+point.temperature+' °C'+
+    ' · '+ui('Druck ','Pressure ')+d1+' / '+ui('Temperatur ','temperature ')+d2);
    if($('arPointKey').value!==String(S.step)){
     $('arRefPressure').value=String(point.pressure);
     $('arRefTemp').value=String(point.temperature);
     $('arPointKey').value=String(S.step);
     $('arStable').checked=false;
    }
-   const attempts=r.events.filter(e=>e.kind==='measurement'&&e.stepIndex===S.step);
-   text('arAttemptNote',attempts.length?'Bereits '+attempts.length+' Versuch(e) erfasst. Wiederholen ist jederzeit möglich.':
-    'Noch keine Messung an diesem Prüfpunkt.');
+   const attempts=overview.data[S.step]?.tries||0;
+   const status=overview.data[S.step]?.status||'pending';
+   text('arAttemptNote',attempts?
+     attempts+' '+ui('Versuch(e) gespeichert. Du kannst wiederholen oder weitergehen.','attempt(s) saved. You can repeat or continue.'):
+     ui('Noch keine Messung. Bestätige die stabilen Sollwerte und starte die Aufnahme.','No measurement yet. Confirm stable targets and start capture.'));
+   text('arEvaluationHint',status==='fail'?
+    ui('Ausserhalb der Toleranz: Bedingungen prüfen und bei Bedarf erneut messen.','Out of tolerance: check conditions and repeat if needed.'):
+    status==='pass'?ui('Prüfpunkt bestanden. Du kannst mit dem nächsten Punkt fortfahren.','Point passed. You can continue to the next point.'):
+    status==='unknown'?ui('Die Auswertung ist offen. Kontrolliere die bestätigte Druck-/Temperaturumrechnung unter «Weitere Einstellungen».','Assessment pending. Check the verified pressure/temperature conversion under Additional settings.'):
+    ui('Hinweis: Maximal 0,2 % FS Druckabweichung als Standard. Unter «Weitere Einstellungen» anpassbar.','Note: default maximum pressure deviation is 0.2% FS. Change under Additional settings.'));
+   $('arPrevious').disabled=S.measuring||S.step===0;
+   $('arNext').disabled=S.measuring;
+   $('arMeasure').disabled=S.measuring||!$('arStable').checked;
+   $('arMeasure').textContent=S.measuring?ui('Messung läuft …','Measuring …'):
+    attempts?ui('Messung wiederholen','Repeat measurement'):ui('Messpunkt aufnehmen','Capture point');
+  }else{
+   text('arStepHeading',ui('Alle Punkte bearbeitet','All points processed'));
+   text('arStepDescription',ui('Prüfe die Übersicht und schliesse die Nachmessung ab. Rot markierte oder nicht bewertete Punkte bleiben im Protokoll sichtbar.','Review the overview and finish verification. Failed and unassessed points remain visible in the log.'));
   }
+  window.ELMOS_VERIFICATION_GRAPH?.render?.($('arResultChart'),r,S.step,(index)=>{
+   if(!S.measuring){S.step=index;renderStep()}
+  });
  }
  async function measure(){
   const r=S.record;
