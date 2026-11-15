@@ -14,13 +14,13 @@
 >
 > [Geführter Abgleich](docs/GEFUEHRTER_ASSISTENT.md) · [DIY-Programmer (ESP32-C3 / Pro Micro)](docs/USB_BRIDGE_GUIDE.md) · [Pinbelegung der zwei Boards](docs/ESP_BOARD_OPTIONS.md) · [DIY-Firmware-Installer](firmware-update.html)
 
-## Funktionsumfang – aktueller Stand v0.7.74
+## Funktionsumfang – aktueller Stand v0.7.75
 
 Die Software enthält die folgenden Bereiche; die verlinkten Anleitungen beschreiben die **aktuelle Bedienung**, während die nachfolgenden älteren Versionsabschnitte die Entwicklungshistorie dokumentieren:
 
 | Bereich | Aktuelle Möglichkeiten | Anleitung |
 | --- | --- | --- |
-| **Verbindung / Live** | SSP3 mit One-Wire (AODO), unterstützte USB-Bridges und I²C, Live-ADC-/DSP-Sensorwerte, Sensor neu initialisieren, **250 ms adaptive Abfragepause** neben den bisherigen Intervallen | [Bedienungsanleitung](ANLEITUNG.md) |
+| **Verbindung / Live** | ELMOS SSP3 sowie ausschliesslich **ESP32-C3 SuperMini / Arduino Pro Micro** als DIY-Programmer; One-Wire (AODO), I²C, Live-ADC-/DSP-Sensorwerte, Sensor neu initialisieren, **250 ms adaptive Abfragepause** neben den bisherigen Intervallen | [Bedienungsanleitung](ANLEITUNG.md) |
 | **Kalibrierung** | Geführter/klassischer Assistent, AFE-Optimierung, 2–10 Druckmesspunkte, optionale Temperaturpunkte, Berechnung, RAM-Prüfung und geschützte NVM-Abläufe | [Bedienungsanleitung](ANLEITUNG.md) |
 | **Nachmessung** | Druck-/Temperatur-Prüfplan, Eingabe in % oder physikalischer Einheit, digitale Sensorwerte, Referenzdruck, Abweichung und Hysterese, **optionale Toleranzbewertung** | [Archiv und Nachmessung](ARCHIV_NACHMESSUNG.md) |
 | **Test / Logging** | Intervall- oder Einzelaufnahme, Mittelwert/Median, Testdauer, Marker, externe Referenzangaben, vollständige JSON-/JSONL-Rohdaten | [Test / Logging](TEST_LOGGING.md) |
