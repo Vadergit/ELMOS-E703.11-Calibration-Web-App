@@ -869,6 +869,11 @@ const ELMOS_ARCHIVE=(()=>{
    detectedAt:iso()
   };
  }
+ function communicationLabel(kind){
+  const k=String(kind||'').trim().toLowerCase();
+  return ['plc','onewire','one-wire','one_wire'].includes(k)?'One-Wire (AODO)':
+   ['i2c','i²c'].includes(k)?'I²C':k==='spi'?'SPI':kind||null;
+ }
  function formatCalibrationTool(tool){
   if(!tool)return ui('Kein Adapter erkannt','No adapter detected');
   const app=(tool.application||'ELMOS E703.11 Calibration Assistant')+
@@ -880,7 +885,7 @@ const ELMOS_ARCHIVE=(()=>{
   const tool=calibrationToolFromMeta(bridge()?.meta?.());
   text('arDetectedCalibrationTool',formatCalibrationTool(tool));
   text('arDetectedCalibrationToolDetails',[
-   tool.interface?ui('Schnittstelle: ','Interface: ')+tool.interface:null,
+   tool.interface?ui('Schnittstelle: ','Interface: ')+communicationLabel(tool.interface):null,
    ui('Externe Prüfmittel können bei Bedarf unter den optionalen Protokollangaben erfasst werden.',
     'External test instruments may be recorded in the optional report fields.')
   ].filter(Boolean).join(' · '));
