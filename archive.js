@@ -500,6 +500,19 @@ const ELMOS_ARCHIVE=(()=>{
   top.append(heading,el('span',info.statusLabel,'ar-pill'+
    (info.status==='completed'?' ar-good':info.status==='failed'?' ar-bad':'')));
   root.append(top,outcome(info),section('Geräte- und Aufzeichnungsdaten'),facts(info));
+  // Reuse the live verification plot for stored results; this is read-only.
+  // Keep it above hysteresis and event logs so results are visible at a glance.
+  if(r.type==='verification'){
+   root.append(section('Prüfergebnisse im Diagramm',
+    'Messwerte, Toleranzgrenzen und Status aus dem gespeicherten Prüfprotokoll.'));
+   const historicalChart=el('div',null,'ar-archive-verification-graph');
+   root.append(historicalChart);
+   if(window.ELMOS_VERIFICATION_GRAPH?.renderArchive){
+    window.ELMOS_VERIFICATION_GRAPH.renderArchive(historicalChart,r);
+   }else{
+    historicalChart.append(el('p','Das Diagramm konnte nicht geladen werden. Bitte die Seite neu laden.','ar-warning'));
+   }
+  }
   if(r.type==='testlog'){
    root.append(section('Messresultate','Alle Rohsamples für Statistik und Verlauf ausgewertet.'),
     metrics(info),section('Signalverlauf · DSP_S'),chart(info.trend));
