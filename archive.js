@@ -652,6 +652,16 @@ const ELMOS_ARCHIVE=(()=>{
    '<label>Digitaler DSP-Endwert (± Digits)<input id="arDspLimit" type="number" min="1000" max="32000" step="1" value="32000"></label>';
   group.before(row);
   const hint=el('p',null,'ar-inline-tip');hint.id='arDigitalRangeHint';row.after(hint);
+  const details=el('details',null,'ar-optional-documentation');
+  details.innerHTML='<summary>Ursprünglicher Sensorabgleich (optionale Dokumentation)</summary>'+
+   '<p class="ar-inline-tip">Abgleichverfahren und Druck-/Temperaturpunkte dokumentieren, falls sie bekannt sind.</p>'+
+   '<div class="ar-grid"><label>Abgleichverfahren<select id="arCalibrationMethod">'+
+   '<option value="">Nicht angegeben</option><option value="2P">2-Punkt</option>'+
+   '<option value="3P">3-Punkt</option><option value="multi">Mehrpunkt</option></select></label>'+
+   '<label>Abgleichtemperaturen (°C, kommagetrennt)<input id="arCalibrationTemperatures" placeholder="z. B. 25, 75"></label></div>'+
+   '<label>Ursprüngliche Abgleichpunkte (Druck / Temperatur)'+
+   '<textarea id="arCalibrationPointNotes" rows="2" maxlength="2000" placeholder="z. B. 0 bar bei 25 °C; 6 bar bei 25 °C; 0 bar bei 75 °C"></textarea></label>';
+  range.after(details);
   $('arPressurePathLabel').firstChild.textContent='Druckreihe (hin und zurück, % der Messspanne, kommagetrennt)';
   $('arPressurePath').value='0, 25, 50, 75, 100, 75, 50, 25, 0';
   $('arPressureSpan').readOnly=true;
@@ -934,6 +944,9 @@ const ELMOS_ARCHIVE=(()=>{
    [ui('Abgleichbereich','Calibrated pressure range'),Number.isFinite(record.verificationConfig?.calibrationMin)?shownNumber(record.verificationConfig.calibrationMin)+' – '+shownNumber(record.verificationConfig.calibrationMax)+' '+unit:null],
    [ui('Prüfpunkt-Eingabe','Point input unit'),record.verificationConfig?.pressureEntryMode==='percent'?'%':unit],
    [ui('DSP-Endwert','DSP limit'),Number.isFinite(record.verificationConfig?.dspLimit)?'±'+record.verificationConfig.dspLimit+' Digits':null],
+   [ui('Ursprüngliches Abgleichverfahren','Original calibration method'),record.verificationConfig?.calibrationMethod],
+   [ui('Abgleichtemperaturen','Calibration temperatures'),record.verificationConfig?.calibrationTemperatures],
+   [ui('Abgleichpunkte','Calibration points'),record.verificationConfig?.originalCalibrationPoints],
    [ui('Prüfer','Examiner'),operator.operator],
    [ui('Auftrag / Projekt','Order / Project'),operator.project],
    [ui('Prüfort','Test location'),operator.location],
@@ -1200,6 +1213,9 @@ const ELMOS_ARCHIVE=(()=>{
   S.record.verificationConfig={pressureTolerancePercent:percent,pressureSpan:span,
    calibrationMin:calibrated.min,calibrationMax:calibrated.max,dspLimit,
    pressureEntryMode:S.draft.pressureEntryMode,inputPressurePath:S.draft.originalPressurePath,
+   calibrationMethod:$('arCalibrationMethod').value||null,
+   calibrationTemperatures:$('arCalibrationTemperatures').value.trim()||null,
+   originalCalibrationPoints:$('arCalibrationPointNotes').value.trim()||null,
    digitalReadout:'DSP_S',digitalRangeAutoVerified:dspRangeMatches({calibrationMin:calibrated.min,
     calibrationMax:calibrated.max,pressureSpan:span,pressureUnit:calibrated.unit,dspLimit}),
    toleranceBasis:'percent_full_scale',temperatureTolerance:Number($('arToleranceT').value),
