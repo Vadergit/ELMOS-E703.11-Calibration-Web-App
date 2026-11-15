@@ -1,6 +1,6 @@
 # ELMOS E703.11 – Lokales Kalibrierarchiv und Nachmessungen
 
-**Softwarestand v0.7.71 · Funktions- und Benutzeranleitung · Laborprototyp**
+**Softwarestand v0.7.72 · Funktions- und Benutzeranleitung · Laborprototyp**
 
 **Archivexport ab v0.7.70:** Für jedes gespeicherte Protokoll steht «CSV · alle Infos» zur Verfügung. Test/Logging hat zusätzlich einen vollständigen PDF-Bericht mit Diagramm, Aufnahmepunkten und Ereignissen sowie einen eigenständigen «CSV · Messwerte»-Export für Tabellenanalysen. Die optionale VDD-Eingabe der Anschlussansicht wurde entfernt.
 
@@ -80,20 +80,18 @@ Jeder Datensatz enthält mindestens:
 - **Test-Logging:** Name, Beschreibung, Prüfer, Intervall, Mittelungsverfahren, alle Einzelmessungen und zugehörige `.samples.jsonl`-Dateiteile. JSON- und vollständiger CSV-Export beziehen die Rohdaten ein.
 - **Endstatus:** abgeschlossen, fehlgeschlagen, unvollständig, unterbrochen oder abgebrochen.
 
-### PDF und CSV exportieren
+### PDF und CSV exportieren (ab v0.7.72)
 
-In der Archivliste besitzen Kalibrierung, Test/Logging und Ausgang weiterhin den Button **«CSV · alle Infos»** (Kalibrierung, Nachmessung, Test/Logging und Ausgang). Dieselbe Option erscheint in der Detailansicht. Der Export verwendet ein einheitliches **Langformat** mit den Spalten Bereich, Datensatz, Protokoll-ID, Chip-UID, Messpunkt-Nr, Einzelmessung-Nr, Zeitstempel, Feld und Wert. Auch verschachtelte Metadaten, Konfigurationen, RAM/NVM, alle Ereignisse, Referenzangaben, Fehler und vorhandene TX/RX-Logs werden als einzelne Feldzeilen ausgegeben. Bei Test/Logging werden zusätzlich **alle Telemetriedatenteile und Einzelmessungen** aus den zugehörigen JSONL-Dateien geladen. Es werden keine Felder aus der ursprünglichen Datei stillschweigend ausgelassen. Die Feldpfade wie `$.testConfiguration.intervalMs` oder `$.initial.nvm.words[0]` erlauben eine eindeutige Zuordnung.
+**Pro Archivprotokoll gibt es genau einen CSV-Export.** Im Archiv heisst der Button einfach **«CSV»**, in der Detailansicht und nach Abschluss einer Nachmessung **«CSV herunterladen»**. Die Datei ist bewusst übersichtlich: Die **Messwerte stehen am Anfang** als Tabelle, darunter folgen die wenigen wichtigsten Prüf- und Sensorangaben. Für technische Rohdaten stehen weiterhin das ursprüngliche JSON-Archiv und gegebenenfalls die zugehörigen JSONL-Dateien zur Verfügung.
 
-Für **Nachmessungen** gibt es ab v0.7.71 stattdessen zwei CSV-Varianten:
+- **Nachmessung:** Referenzdruck, digitaler Sensordruck, Abweichung in der Druckeinheit und in % FS, relevante Temperaturangaben, Prüfrichtung und Aufnahmezeit. Versuch, Zyklus, Samples und Bewertung erscheinen nur dann als Tabellenspalte, wenn sie einen zusätzlichen Nutzen haben. Wiederholungen und nicht aufgenommene geplante Prüfpunkte bleiben erhalten. Die Toleranzbewertung bleibt optional und wird nicht erfunden.
+- **Test / Logging:** Übersicht der Messpunktgruppen mit aufgenommenen ADC-/DSP-Kanälen, Referenz- und Sensordruck (soweit vorhanden), Zeit und Anzahl Samples. Wichtige Fehlermeldungen und Marker sind am Ende in einem separaten kurzen Bereich aufgeführt. Sämtliche Einzel-Rohsamples bleiben im JSON/JSONL.
+- **Kalibrierung:** Aufgenommene Abgleichpunkte, zugehöriger Referenzdruck, Temperatur, ADC-Werte und Messzeitpunkt.
+- **Ausgang:** Wichtige Programmier- und Prüfereignisse ohne unübersichtliche Rohregisterlisten.
 
-- **«CSV · Übersicht»**: übersichtlicher Prüfbericht mit wenigen Protokollangaben und einer klaren Messpunkttabelle. Pro aufgenommenem Versuch steht eine Zeile mit Soll-/Referenzdruck, digitalem Sensorwert, Abweichung in Druckeinheit und % der Messspanne, Temperatur, Richtung, Zeitstempel und Anzahl Einzelmessungen. Auch zusätzliche Versuche und noch offene geplante Punkte bleiben sichtbar. Eine Bestanden-/Fehlerbewertung wird nur bei tatsächlich aktivierter Toleranz ausgegeben. Der Export enthält keine TX/RX-Kommunikation, Registerdaten oder Einzel-Rohsamples.
-- **«CSV · Rohdaten»**: bisheriger vollständiger Audit-Export mit sämtlichen technischen Feldern, Ereignissen und Rohwerten. Er ist für detaillierte Fehlersuche und vollständige Dokumentation weiterhin vorhanden.
+Die CSV enthält **keine** verschachtelten JSON-Feldpfade, TX/RX-Massenlogs oder NVM-Registerdumps. Sie wird als UTF-8-Datei mit Semikolon-Trennzeichen exportiert, damit die Spalten in Excel gut lesbar sind.
 
-Die kompakte CSV kannst du im Archiv und direkt in der Abschlussübersicht der Nachmessung herunterladen. Sie ist als UTF-8-CSV mit **Semikolon** als Spaltentrenner ausgelegt, damit sie in Schweizer Excel einfach lesbar ist. Die Auswertung erzeugt Differenzen aus den tatsächlich gespeicherten digitalen Sensor- und Referenzdruckwerten; ohne aktivierte Toleranz gibt es keinen Bestanden-Entscheid.
-
-Bei **Test/Logging** stehen ausserdem **«CSV · Messwerte»** (kompakte, tabellarisch auswertbare ADC-/DSP-Rohsamples) und **«PDF»** zur Verfügung, sowohl im Archiv als auch direkt nach Abschluss einer Aufzeichnung. Der PDF-Bericht enthält Identifikation, Testaufbau und Einstellungen, Kennzahlen, einen ADC_S-/DSP_S-Verlauf, eine Tabelle aller aufgenommenen Messpunktgruppen sowie das Ereignisprotokoll mit Markern und Fehlermeldungen. Bei langen Aufzeichnungen wird lediglich die **Grafik** auf höchstens 400 Punkte reduziert; die Messpunkttabelle bleibt vollständig. Für sämtliche Einzel-Rohsamples und technische Zusatzfelder ist die vollständige CSV beziehungsweise das JSON mit JSONL-Dateien vorgesehen.
-
-**PDF:** Ein neues druckfähiges Fenster öffnet sich. Im Browserdruckdialog «Als PDF speichern» wählen. **CSV:** Die Datei wird vom Browser heruntergeladen; sie wird nicht automatisch in den Archivordner geschrieben. Die ursprünglichen JSON-/JSONL-Dateien werden nicht verändert. Excel kann CSV über den Datenimport (UTF-8, Komma als Feldtrennzeichen) öffnen.
+**PDF:** Für Nachmessung und Logging bleibt der PDF-Bericht separat verfügbar; er wird über den Browserdruckdialog als PDF gespeichert. **CSV:** Der Browser lädt die Datei herunter; die Originalarchive werden nicht verändert.
 
 Das JSON-Format verwendet `format: "elmos-e70311-record"` und `schemaVersion: 1`. Bei einem anderen Format oder einer falschen Version wird die Datei nicht als gültiger Archiveintrag angezeigt.
 
