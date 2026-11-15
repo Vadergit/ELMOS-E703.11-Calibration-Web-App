@@ -2985,6 +2985,24 @@ if(typeof document!=='undefined') (function UI(){
   handleReferenceChange()
  });
  $('calUnitOther').addEventListener('change',handleReferenceChange);
+
+ // Default independent DSP verification threshold: 0.2% of the selected full-scale range.
+ // The existing safety gate still reads the absolute-unit tolerance from calVerifyTolerance.
+ // Once the operator edits it, never overwrite their choice automatically.
+ const verifyToleranceField=$('calVerifyTolerance');
+ function applyDefaultVerificationTolerance(){
+  if(!verifyToleranceField||verifyToleranceField.dataset.userOverride==='1')return;
+  const lo=Number($('pmin').value),hi=Number($('pmax').value);
+  if(!Number.isFinite(lo)||!Number.isFinite(hi)||hi<=lo)return;
+  const absolute=(hi-lo)*0.002;
+  verifyToleranceField.value=String(Number(absolute.toPrecision(10)));
+  verifyToleranceField.title='0.2% of full scale (editable)';
+ }
+ verifyToleranceField?.addEventListener('input',()=>{verifyToleranceField.dataset.userOverride='1'});
+ for(const id of ['calUnit','calUnitOther','pmin','pmax'])
+  $(id)?.addEventListener('change',applyDefaultVerificationTolerance);
+ applyDefaultVerificationTolerance();
+
  for(const id of ['pmin','pmax'])$(id).addEventListener('change',handleReferenceChange);
  for(const id of ['pointLoName','pointHiName'])$(id).addEventListener('change',()=>{$(id).dataset.userEdited='1';syncPointNames()});
  for(const id of ['calSOrder','calTOrder'])$(id).addEventListener('change',()=>invalidateCalculation('Polynomordnung verändert. Neu berechnen und anschliessend neu ins RAM übertragen.'));
