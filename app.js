@@ -3747,13 +3747,10 @@ if(typeof document!=='undefined') (function UI(){
  function archiveVoltages(){
   const chosenVdd=Number($('psscVdd').value),s0=Number($('psscS0').value),s1=Number($('psscS1').value);
   const code=bridgeSupplyCode(st.afe0);
-  const measuredInput=$('archiveMeasuredVdd')?.value?.trim()||'';
-  const measuredV=measuredInput!==''&&Number.isFinite(Number(measuredInput))?Number(measuredInput):null;
-  const measuredSource=$('archiveMeasuredVddSource')?.value?.trim()||null;
+  const measuredV=null;
   return {
    externalVdd:{measuredV,configuredV:Number.isFinite(chosenVdd)?chosenVdd:null,
-    measuredSource:measuredV===null?null:'Manuell erfasst: '+(measuredSource||'Quelle nicht angegeben'),
-    source:'Eingestellter Sollwert ist keine VDD-Messung; Istwert nur bei manueller Eingabe'},
+    measuredSource:null,source:'Nur VDD-Sollwert verfügbar; keine externe Istspannungsmessung erfasst'},
    bridgeSvdd:{measuredV:null,derivedNominalV:Number.isInteger(code)&&code<3?BRIDGE_VOLTAGES[code]:null,
     rawRegister:st.afe0,source:'CFG_AFE0 Bits 1:0, abgeleitet und nicht elektrisch gemessen'},
    analogOutput:{measuredV:null,s0TargetV:Number.isFinite(s0)?s0:null,
