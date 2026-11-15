@@ -1,8 +1,8 @@
 # ELMOS E703.11 – Lokales Kalibrierarchiv und Nachmessungen
 
-**Softwarestand v0.7.4 · Funktions- und Benutzeranleitung · Laborprototyp**
+**Softwarestand v0.7.70 · Funktions- und Benutzeranleitung · Laborprototyp**
 
-**Kompakte Archivansicht v0.7.4:** Obere Bedienleiste und Kennzahlen wurden verkleinert; die optionale VDD-Istspannung befindet sich hinter «Optionale VDD-Istspannung». Geräteinformationen sind in mehreren Spalten angeordnet. Der Logger erfasst jetzt ausser dem Testnamen eine separate Produkt-/DUT-Bezeichnung, die auch im Vergleich und CSV-Export erscheint.
+**Archivexport ab v0.7.70:** Für jedes gespeicherte Protokoll steht «CSV · alle Infos» zur Verfügung. Test/Logging hat zusätzlich einen vollständigen PDF-Bericht mit Diagramm, Aufnahmepunkten und Ereignissen sowie einen eigenständigen «CSV · Messwerte»-Export für Tabellenanalysen. Die optionale VDD-Eingabe der Anschlussansicht wurde entfernt.
 
 **Firmware korrekt benannt:** `02.08.02.04` ist die SSP3-**Adapter-Firmware**, aus dem Befehl `.VERSION`, und keine E703.11-Sensorfirmware. Der rohe Chip-Versionsregisterwert `0x38` wird separat dargestellt, sofern beim Start ausgelesen. Für alte Archivdateien erfolgt diese Zuordnung automatisch, ohne ihre Daten zu verändern.
 
@@ -63,7 +63,7 @@ Die bestehenden Schutzbedingungen für Factory-, Boot- und Kommunikationsregiste
 
 **Druck:** Bei vorhandenem DSP-Anzeigebereich wird die physikalische Umrechnung angeboten. Sie wird für eine Toleranzbewertung nur verwendet, wenn die aktuelle RAM-Kennlinie aus dem Abgleich stammt oder du den Anzeigebereich ausdrücklich für den Sensor bestätigst. Ohne verifizierbare Zuordnung bleibt der DSP_S-Rohwert erhalten und die Drucktoleranz unbewertet. Ein unbewerteter Prüfpunkt erhält niemals automatisch den Status «bestanden».
 
-**Versorgung:** `VDD` (Sensorversorgung), `SVDD` (interne Brückenversorgung), `S0/S1` (Ausgangssollwerte) und der Schwellenwert der SSP3-Versorgungssequenz sind verschieden. Die aktuelle Hardware-Schnittstelle liefert **keine bestätigte Messung der realen VDD-Spannung**. Unter **VDD-Istspannung** kannst du deshalb einen mit Multimeter oder Prüfgerät gemessenen Wert samt Quelle erfassen. Ohne diese Eingabe wird im JSON `measuredV: null` gespeichert. Die aus `CFG_AFE0` abgeleitete nominale SVDD sowie eingestellte VDD- und S0/S1-Werte werden separat gespeichert, niemals als Istmessung ausgegeben.
+**Versorgung:** `VDD` (Sensorversorgung), `SVDD` (interne Brückenversorgung) und `S0/S1` (Ausgangssollwerte) sind verschieden. Die externe tatsächliche VDD-Spannung wird über den Programmieradapter nicht automatisch gemessen; deshalb wird ohne explizite externe Messung kein Istwert erfunden. Die gesonderte VDD-Istspannungs-Eingabe der Anschlussansicht ist entfernt. Der Testlogger kann einen optional manuell erfassten VDD-Wert als Bestandteil seiner Testkonfiguration dokumentieren.
 
 ## 5. Archivübersicht und Datenformat
 
@@ -77,8 +77,16 @@ Jeder Datensatz enthält mindestens:
 - **Konfiguration:** RAM-Register und NVM vor/nach dem Abgleich, AFE, Koeffizienten und gespeicherte Sollwerte.
 - **Messungen:** Referenzen und Quellen, alle einzelnen Rohsamples, Median, DSP-Werte, Kennlinienzuordnung, Abweichungen und Grenzwerte.
 - **Verlauf:** Wiederholungen, Teilmessungen, Fehler, einzelne NVM-Schritte und soweit verfügbar die betreffenden TX/RX-Antworten.
-- **Test-Logging:** Name, Beschreibung, Operator, Intervall, Mittelungsverfahren, alle Einzelmessungen und zugehörige `.samples.jsonl`-Dateiteile. JSON-/CSV-Export kombiniert die Rohdaten wieder.
+- **Test-Logging:** Name, Beschreibung, Prüfer, Intervall, Mittelungsverfahren, alle Einzelmessungen und zugehörige `.samples.jsonl`-Dateiteile. JSON- und vollständiger CSV-Export beziehen die Rohdaten ein.
 - **Endstatus:** abgeschlossen, fehlgeschlagen, unvollständig, unterbrochen oder abgebrochen.
+
+### PDF und CSV exportieren
+
+In der Archivliste hat **jeder Datensatz** einen Button **«CSV · alle Infos»** (Kalibrierung, Nachmessung, Test/Logging und Ausgang). Dieselbe Option erscheint in der Detailansicht. Der Export verwendet ein einheitliches **Langformat** mit den Spalten Bereich, Datensatz, Protokoll-ID, Chip-UID, Messpunkt-Nr, Einzelmessung-Nr, Zeitstempel, Feld und Wert. Auch verschachtelte Metadaten, Konfigurationen, RAM/NVM, alle Ereignisse, Referenzangaben, Fehler und vorhandene TX/RX-Logs werden als einzelne Feldzeilen ausgegeben. Bei Test/Logging werden zusätzlich **alle Telemetriedatenteile und Einzelmessungen** aus den zugehörigen JSONL-Dateien geladen. Es werden keine Felder aus der ursprünglichen Datei stillschweigend ausgelassen. Die Feldpfade wie `$.testConfiguration.intervalMs` oder `$.initial.nvm.words[0]` erlauben eine eindeutige Zuordnung.
+
+Bei **Test/Logging** stehen ausserdem **«CSV · Messwerte»** (kompakte, tabellarisch auswertbare ADC-/DSP-Rohsamples) und **«PDF»** zur Verfügung, sowohl im Archiv als auch direkt nach Abschluss einer Aufzeichnung. Der PDF-Bericht enthält Identifikation, Testaufbau und Einstellungen, Kennzahlen, einen ADC_S-/DSP_S-Verlauf, eine Tabelle aller aufgenommenen Messpunktgruppen sowie das Ereignisprotokoll mit Markern und Fehlermeldungen. Bei langen Aufzeichnungen wird lediglich die **Grafik** auf höchstens 400 Punkte reduziert; die Messpunkttabelle bleibt vollständig. Für sämtliche Einzel-Rohsamples und technische Zusatzfelder ist die vollständige CSV beziehungsweise das JSON mit JSONL-Dateien vorgesehen.
+
+**PDF:** Ein neues druckfähiges Fenster öffnet sich. Im Browserdruckdialog «Als PDF speichern» wählen. **CSV:** Die Datei wird vom Browser heruntergeladen; sie wird nicht automatisch in den Archivordner geschrieben. Die ursprünglichen JSON-/JSONL-Dateien werden nicht verändert. Excel kann CSV über den Datenimport (UTF-8, Komma als Feldtrennzeichen) öffnen.
 
 Das JSON-Format verwendet `format: "elmos-e70311-record"` und `schemaVersion: 1`. Bei einem anderen Format oder einer falschen Version wird die Datei nicht als gültiger Archiveintrag angezeigt.
 
@@ -90,4 +98,4 @@ Die Datei ist ein technisches Audit-Protokoll, kein manipulationssicherer, signi
 
 ## 7. Hardwareprüfung vor Produktion
 
-Die neuen Funktionen wurden mit Softwareprüfungen vorbereitet. Die vollständige Messung an echten Druck-/Temperaturprüfständen, Hysterese und NVM-Programmierung sind weiterhin am Testchip zu validieren. Bei der Nachmessung werden weder Temperaturkammer noch Druckkalibrator automatisch geregelt. Für einen echten externen VDD- oder Temperatur-Istwert ist bis zu einer späteren Geräteanbindung eine manuelle Eingabe erforderlich.
+Die neuen Funktionen wurden mit Softwareprüfungen vorbereitet. Die vollständige Messung an echten Druck-/Temperaturprüfständen, Hysterese und NVM-Programmierung sind weiterhin am Testchip zu validieren. Bei der Nachmessung werden weder Temperaturkammer noch Druckkalibrator automatisch geregelt. Extern gemessene Referenzwerte und Temperaturangaben werden nur dann übernommen, wenn sie ausdrücklich eingegeben beziehungsweise technisch bestätigt sind.
