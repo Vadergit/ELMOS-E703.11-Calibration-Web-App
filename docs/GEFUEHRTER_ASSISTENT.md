@@ -1,6 +1,8 @@
 # Geführter Kalibrierassistent
 
-**Version:** v0.6.0. In der Hauptversion verfügbar. Der ursprüngliche Testbranch bleibt als Entwicklungsstand erhalten.
+**Aktueller Projektstand: v0.7.75.** Der nachfolgende Leitfaden entstand ursprünglich für v0.6.0; ältere Schrittbezeichnungen sind als Entwicklungsverlauf zu verstehen.
+
+**Aktuelle Bedienung:** Die geführte Startansicht bietet sechs Aufgabenkacheln, darunter Kalibrierung, Ausgang, EEPROM/Diagnose, Test/Logging, Nachmessung und Archiv. Für den DIY-Anschluss sind nur **ESP32-C3 SuperMini** und **Arduino Pro Micro** vorgesehen; der ELMOS SSP3 bleibt separat verfügbar. Test/Logging und Nachmessung verfügen über lesbare CSV-Exporte, PDF-Protokolle und bis zu zwei optionale Fotos. Die aktuelle Navigation und Sicherheitsgrenzen stehen in der [Bedienungsanleitung](../ANLEITUNG.md), [DIY-Programmer-Anleitung](USB_BRIDGE_GUIDE.md) und [Roadmap](../ROADMAP.md).
 
 ## Wozu der neue Modus?
 
