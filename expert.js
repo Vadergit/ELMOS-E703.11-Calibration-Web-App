@@ -251,7 +251,7 @@ const ELMOS_EXPERT=(()=>{
    renderFlowState();
   }
   function refreshOutputReadOnly(){
-   $('psscDigitalType').value=!st.chip?'SSP3-Verbindung noch nicht bestätigt':st.iface==='plc'?'1-Wire über AODO (SSP3)':st.iface==='i2c'?'I²C (SSP3)':st.iface==='spi'?'SPI (SSP3)':'Nicht erkannt';
+   $('psscDigitalType').value=!st.chip?'SSP3-Verbindung noch nicht bestätigt':st.iface==='plc'?'1-Wire über AODO':st.iface==='i2c'?'I²C':st.iface==='spi'?'SPI (SSP3)':'Nicht erkannt';
    const words=st.nvmBackupVerified&&st.nvmBackup?.length===64?st.nvmBackup:null;
    $('psscLimitLow').value=words?String(CAL.signed(words[59]))+' · Rohwert':'';
    $('psscLimitHigh').value=words?String(CAL.signed(words[60]))+' · Rohwert':'';

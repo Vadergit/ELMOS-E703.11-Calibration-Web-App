@@ -110,7 +110,7 @@ if(typeof document!=='undefined') (function UI(){
  let currentStep=0,pendingGain=null,writeTimer=null;let tipEnabled=true,liveIntervalMs=650;
  let liveSecondaryIndex=0;
  let reconnectSsp3OnUsb=true;
- const HELP={interface:'Schnittstelle zwischen SSP3-Board und Sensorchip. 1-Wire nutzt AODO (VDD, GND und AODO). Die Einstellung IF_CFG ändert die Programmer-Pins, nicht die NVM-Konfiguration des Sensors.',baud:'Baudrate des USB-UART zwischen Chrome und dem SSP3. Die Herstellersoftware verwendet 115200 Baud als Standard.',adcs:'ADC_S ist der unkompensierte 16-Bit-Druck-ADC. ±25000 Digits ist ein vorsichtiges Ziel für den manuellen Abgleich, keine garantierte Hardwaregrenze.',dsp_live:'DSP_S (Register 0x30) ist der skalierte DSP-Sensorausgang. Die Anzeige liest den Chipwert wiederholt und rechnet ihn mit dem konfigurierten DSP-Endwert (standardmässig ±32’000 Digits) in den gewählten Anzeigebereich um. Ein DSP-Wert allein belegt keine gültige Kalibrierung.',pga1:'Erste Druckverstärkungsstufe: 3.5×, 6×, 8.5× oder 11× (typische Werte laut Datenblatt 2023). Für gutes SNR möglichst hoch ohne Übersteuerung.',pga2:'Zweite Verstärkungsstufe: typische Faktoren 2× bis 10×. Der Gesamtfaktor ist PGA1 × PGA2.',offset:'17 DAC-Stufen von −400 bis +400 mV/V bezogen auf die Brückenspannung. Die Verschiebung liegt zwischen PGA1 und PGA2.',bridgeSupply:'Interne Brückenversorgung SVDD gemäss E703.11 CFG_AFE0 (0x1A), Bits 1:0: 2,4 V (Standard), 1,6 V oder 2,0 V. Die externe Sensorversorgung VDD muss bei 2,4 V mindestens 3,0 V, sonst mindestens 2,7 V betragen. Beim Wechsel bleiben die übrigen AFE0-Bits inklusive Brückengain unverändert. Nur nach Klick wird ins RAM geschrieben; EEPROM bleibt unverändert.',pressureunit:'Einheit für die Referenz- und Prüfdruckwerte. Für relative Kalibrierungen kann beispielsweise % mit 0 bis 100 gewählt werden. Referenzwerte müssen zum tatsächlichen Prüfstand passen. Einheitenwechsel erfordert neue Messpunkte.',dsp_limit:'Symmetrischer DSP-Endwert für die neue Kalibrierung. Standard ±32’000 Digits. ±30’000 lässt zusätzlich Reserve. Der Wert verändert die berechneten Koeffizienten sowie DSP-Soll und Fehlerumrechnung; er ist keine Hardware-Clipping-Grenze.',ram:'PGA1, Offset und PGA2 werden mit jeder Pfeiltaste sofort ausschliesslich in CFG_AFE1 0x1C im RAM geändert und rückgelesen. Kein NVM-/EEPROM-Schreiben. Boot-/Kommunikationsregister werden kontrolliert.',};
+ const HELP={interface:'Schnittstelle zwischen Programmieradapter und Sensorchip. 1-Wire nutzt AODO (VDD, GND und AODO). Die Einstellung IF_CFG ändert die Programmer-Pins, nicht die NVM-Konfiguration des Sensors.',baud:'Baudrate des USB-UART zwischen Chrome und dem SSP3. Die Herstellersoftware verwendet 115200 Baud als Standard.',adcs:'ADC_S ist der unkompensierte 16-Bit-Druck-ADC. ±25000 Digits ist ein vorsichtiges Ziel für den manuellen Abgleich, keine garantierte Hardwaregrenze.',dsp_live:'DSP_S (Register 0x30) ist der skalierte DSP-Sensorausgang. Die Anzeige liest den Chipwert wiederholt und rechnet ihn mit dem konfigurierten DSP-Endwert (standardmässig ±32’000 Digits) in den gewählten Anzeigebereich um. Ein DSP-Wert allein belegt keine gültige Kalibrierung.',pga1:'Erste Druckverstärkungsstufe: 3.5×, 6×, 8.5× oder 11× (typische Werte laut Datenblatt 2023). Für gutes SNR möglichst hoch ohne Übersteuerung.',pga2:'Zweite Verstärkungsstufe: typische Faktoren 2× bis 10×. Der Gesamtfaktor ist PGA1 × PGA2.',offset:'17 DAC-Stufen von −400 bis +400 mV/V bezogen auf die Brückenspannung. Die Verschiebung liegt zwischen PGA1 und PGA2.',bridgeSupply:'Interne Brückenversorgung SVDD gemäss E703.11 CFG_AFE0 (0x1A), Bits 1:0: 2,4 V (Standard), 1,6 V oder 2,0 V. Die externe Sensorversorgung VDD muss bei 2,4 V mindestens 3,0 V, sonst mindestens 2,7 V betragen. Beim Wechsel bleiben die übrigen AFE0-Bits inklusive Brückengain unverändert. Nur nach Klick wird ins RAM geschrieben; EEPROM bleibt unverändert.',pressureunit:'Einheit für die Referenz- und Prüfdruckwerte. Für relative Kalibrierungen kann beispielsweise % mit 0 bis 100 gewählt werden. Referenzwerte müssen zum tatsächlichen Prüfstand passen. Einheitenwechsel erfordert neue Messpunkte.',dsp_limit:'Symmetrischer DSP-Endwert für die neue Kalibrierung. Standard ±32’000 Digits. ±30’000 lässt zusätzlich Reserve. Der Wert verändert die berechneten Koeffizienten sowie DSP-Soll und Fehlerumrechnung; er ist keine Hardware-Clipping-Grenze.',ram:'PGA1, Offset und PGA2 werden mit jeder Pfeiltaste sofort ausschliesslich in CFG_AFE1 0x1C im RAM geändert und rückgelesen. Kein NVM-/EEPROM-Schreiben. Boot-/Kommunikationsregister werden kontrolliert.',};
  const h=P.hx;
  const fmt=n=>n===null||n===undefined||!Number.isFinite(n)?'—':Math.round(n).toLocaleString('de-CH');
  const now=()=>new Date().toLocaleTimeString('de-CH',{hour12:false});
@@ -184,6 +184,9 @@ if(typeof document!=='undefined') (function UI(){
    '0x'+h(st.plcAddress)+' (Sensorregister bestätigt)':
    connected?'Suche: 0x6C / 0x7C':'—';$('status').textContent=demoEnabled?'Demo · Simulation':st.chip?'Sensor verbunden':st.readOnlySensor?'Sensor verbunden · Diagnose':st.reinitRunning||st.powerCycleRunning?'Sensor wird initialisiert':connected?(st.adapterNoReply?'SSP3 antwortet nicht':st.sensorLost?'Sensor nicht verbunden':'USB verbunden · Sensor nicht erkannt'):'Nicht verbunden';$('statusDot').className='dot'+(st.chip||st.readOnlySensor?' active':connected?' missing':'');$('fw').textContent=st.firmware?st.firmware.slice(0,19):'—';$('chip').textContent=st.readOnlySensor|| (st.chip?'Antwort erhalten':'—');$('ifaceLabel').textContent=st.iface==='plc'?'1-Wire':st.iface==='i2c'?'I²C':'SPI';$('srcLabel').textContent=st.adc?.source==='usb'?'USB / Chip':'Keine Messdaten';$('choose').disabled=connected||demoEnabled||!webSerialAvailable();$('auto').hidden=demoEnabled;$('disconnect').hidden=demoEnabled;$('adapterType').disabled=demoEnabled||st.closing;$('iface').disabled=demoEnabled;$('guidedLaunch').disabled=!st.chip||st.closing;$('guidedLaunch').classList.toggle('primary',st.chip&&!st.closing);$('auto').disabled=connected||!webSerialAvailable();$('disconnect').disabled=!connected||st.closing;$('readNow').disabled=!st.chip||st.magicRunning||st.powerCycleRunning;$('live').disabled=!connected||st.magicRunning||st.powerCycleRunning;$('live').textContent=st.live?'Live-Messung stoppen':'Live-Messung starten';$('readBoot').disabled=!st.chip;$('readRegs').disabled=!st.chip&&!st.readOnlySensor;$('afeWord').textContent=st.afe===null?'CFG_AFE1: —':'CFG_AFE1: 0x'+h(st.afe,2);const startupTools=$('plcStartupTools');if(startupTools)startupTools.hidden=demoEnabled||st.adapterKind!=='ssp3'||st.iface!=='plc'||!$('expertMode').checked;
  $('connectionBaudOptions').hidden=!$('expertMode').checked;
+ $('iface').querySelector('option[value=spi]').disabled=st.adapterKind==='bridge';
+ $('plcBaud').closest('label').hidden=st.iface!=='plc';
+ $('plcGpio4Mode').closest('label').hidden=st.iface!=='plc';
  $('plcOptions').hidden=st.adapterKind!=='bridge'||!$('expertMode').checked;
  if($('chipDiagDetails'))$('chipDiagDetails').hidden=!$('expertMode').checked;
  if($('usbAdvancedDetails'))$('usbAdvancedDetails').hidden=!$('expertMode').checked;
@@ -336,7 +339,7 @@ if(typeof document!=='undefined') (function UI(){
    if((before&0x0C00)!==0x0C00)throw Error('CFG_AFE0: reservierte Pflichtbits 11:10 sind nicht 11.');
    if(st.afe0!==before)throw Error('CFG_AFE0 hat sich seit der letzten Anzeige verändert. Bitte Wert erneut lesen.');
    const next=(before&0xFFFC)|targetCode; // preserve br_gain, bridge checks and all other bits
-   if(st.iface!=='plc'&&(beforeBoot[6]&0x8000))
+   if(st.iface!=='plc'&&!(st.iface==='i2c'&&st.bridgeI2c&&st.adapterKind==='bridge')&&(beforeBoot[6]&0x8000))
     throw Error('CRC-geschützte I²C/SPI-Verbindung: RAM-Schreiben gesperrt.');
    if(next!==before){
     await unlockRAM();
@@ -571,6 +574,7 @@ if(typeof document!=='undefined') (function UI(){
    for(let i=0;i<required;i++){
     const value={at:new Date().toISOString(),s:null,t:null,tc:null};
     try{
+     if(st.iface==='i2c'&&st.adapterKind==='bridge')await triggerSingleMeasurement({capture:true});
      value.s=P.sign16(await readReg(0x2A));
      value.t=P.sign16(await readReg(0x28));
      value.tc=P.sign16(await readReg(0x26));
@@ -981,11 +985,12 @@ if(typeof document!=='undefined') (function UI(){
   const caps=match[1].split(',');
   st.bridgeCalibrationNvm=caps.includes('PRO_MICRO_NVM')||caps.includes('BRIDGE_CAL_NVM');
   st.bridgeAfeFilter=caps.includes('AFE_FILTER');
+  st.bridgeI2c=caps.includes('I2C_CRC');
+  st.bridgePlcIo=caps.includes('PLC_D4_IO')?'D4':caps.includes('PLC_GPIO4_IO')?'GPIO4':null;
   st.bridgePsscRam=caps.includes('PSSC_RAM');
   st.bridgeReadOnly=caps.includes('PLC_READ_ONLY')&&caps.includes('PLC_READ');
   st.bridgeRxDiag=caps.includes('PLC_RX_DIAG');
-  st.bridgeGpio4Io=caps.includes('PLC_GPIO4_IO');
-  $('plcGpio4Mode').disabled=!st.bridgeGpio4Io;
+  $('plcGpio4Mode').disabled=!st.bridgePlcIo;
   st.firmware='USB-CDC Bridge v1 · '+caps.join('/');
   renderStatus();logging('USB-Bridge CAPS: '+caps.join(','));
   const ready=st.bridgeReadOnly||['PLC_READ','PLC_WRITE','NVM'].every(cap=>caps.includes(cap));
@@ -1025,9 +1030,20 @@ if(typeof document!=='undefined') (function UI(){
   st.bridgeRxNote='';
   st.bridgeColdStart=null;
   const port=st.port,session=st.sessionIndex,power=st.sensorPowerEnabled;
-  st.bridgeSinglePin=st.bridgeGpio4Io&&$('plcGpio4Mode').checked;
-  if(st.bridgeSinglePin&&!st.bridgeGpio4Io)throw Error('GPIO4 Senden/Empfangen benötigt ESP32-Firmware ab v0.6');
-  if(st.bridgeGpio4Io)await exchange(st.bridgeSinglePin?'PLC IO GPIO4':'PLC IO SPLIT');
+  if(st.iface==='i2c'){
+   if(!st.bridgeI2c)throw Error('I²C benötigt ESP32-C3 v0.10 oder Pro Micro v0.27.');
+   if(power){
+    if(st.bridgePlcIo)await exchange('PLC IO '+($('plcGpio4Mode').checked?st.bridgePlcIo:'SPLIT'));
+    await exchange('PLC_BAUD '+$('plcBaud').value);
+   }
+   const reply=await exchange(power?'I2C START':'I2C ACCESS',6000);
+   if(reply.includes('RAM_ENABLE=1'))logging('I²C für diese Sitzung über One-Wire im RAM aktiviert.');
+   st.measurementPeriod=await readReg(0x0E);
+   await detect();
+   return;
+  }
+  st.bridgeSinglePin=!!st.bridgePlcIo&&$('plcGpio4Mode').checked;
+  if(st.bridgePlcIo)await exchange('PLC IO '+(st.bridgeSinglePin?st.bridgePlcIo:'SPLIT'));
   await exchange('PLC_BAUD '+$('plcBaud').value);
   try{await bridgeAccess({power})}
   catch(e){
@@ -1090,7 +1106,8 @@ if(typeof document!=='undefined') (function UI(){
     throw e
    }
   }else if(st.iface==='i2c'){
-   const bytes=P.readData(await exchange(P.i2cRead(addr)),2);
+   const cmd=st.adapterKind==='bridge'?'I2C READ '+h(addr):P.i2cRead(addr);
+   const bytes=P.readData(await exchange(cmd,timeoutMs),2);
    result=bytes[0]|(bytes[1]<<8)
   }else{
    const bytes=P.readData(await exchange(P.spiRead(addr)),4);
@@ -2057,10 +2074,10 @@ if(typeof document!=='undefined') (function UI(){
   try{
    if(st.adapterKind==='bridge'){
     st.plcHostFormat='legacy';
-    st.iface='plc';
-    $('iface').value='plc';
     const bridgeReady=await bridgeHello();
     if(!bridgeReady)return;
+    if(st.iface==='i2c'&&!st.bridgeI2c)throw Error('I²C benötigt ESP32-C3 v0.10 oder Pro Micro v0.27. Für diese Bridge kannst du 1-Wire wählen.');
+    if(st.iface==='spi')throw Error('Diese USB-Bridge unterstützt kein SPI. Wähle 1-Wire oder I²C.');
    }
    await firmware();
    await selectChipInterface();
@@ -2109,7 +2126,7 @@ if(typeof document!=='undefined') (function UI(){
   }catch(e){
    if(st.closing||st.port!==port)return;
    logging('Handshake: '+e.message);
-   show('connMsg','USB offen, aber SSP3 antwortet noch nicht korrekt: '+e.message,'warn');
+   show('connMsg','USB offen. Initialisierung fehlgeschlagen: '+e.message,'warn');
   }
   renderStatus();
  }
@@ -2192,8 +2209,26 @@ if(typeof document!=='undefined') (function UI(){
   }catch(e){logging('Bekannten USB-Port öffnen: '+String(e));show('connMsg',serialOpenError(e,port),'error')}
  }
  function updateADC(a,source){st.adc={...a,source,time:Date.now()};st.trend.push({x:Date.now(),y:a.s});st.trend=st.trend.filter(v=>Date.now()-v.x<60000);st.history.push({time:new Date().toISOString(),adc_s:a.s,adc_t:a.t,adc_tc:a.tc,source:demoEnabled?'Demo':source,gains:{...st.staged}});if(st.history.length>5000)st.history.shift();$('adc').textContent=fmt(a.s);$('adct').textContent=fmt(a.t);$('adctc').textContent=fmt(a.tc);show('adcMsg',Math.abs(a.s)>25000?'ADC_S liegt ausserhalb des vorsichtigen ±25’000-Arbeitsbereichs. Gain reduzieren oder Offset kontrollieren.':`ADC_S ${fmt(a.s)} Digits · USB / E703.11 · ${new Date().toLocaleTimeString('de-CH')}`,Math.abs(a.s)>25000?'warn':'success');renderStatus();draw();return a.s}
+ async function triggerSingleMeasurement({capture=false}={}){
+  if(st.measurementPeriod!==2)return;
+  if(st.writing||(!capture&&st.calTask)||st.nvmWorking||st.afeWriteActive||st.powerCycleRunning||st.closing)
+   throw Error('CMD start während eines anderen Chipvorgangs gesperrt.');
+  const command=st.iface==='i2c'?i2cWriteCommand(0x22,0x8B93):
+   P.plcHostCommand(P.plcWrite(0x22,0x8B93,st.plcAddress),st.plcHostFormat);
+  await exchange(command,1600);
+  st.measurementStarts++;
+  let fresh=false;
+  for(let k=0;k<12;k++){
+   await sleep(25);
+   const flags=await readReg(0x36,1600);
+   st.measurementStatus=flags;
+   if(flags&0x0002){fresh=true;break}
+  }
+  if(!fresh)throw Error('CMD start gesendet, aber STATUS.adc_s_up blieb 0: keine neue ADC-Konversion bestätigt.');
+ }
  async function readADC({allowPartial=false}={}){
   if(!st.chip)throw Error('Chip-Lesezugriff noch nicht bestätigt');
+  if(st.iface==='i2c'&&st.adapterKind==='bridge')await triggerSingleMeasurement({capture:true});
   // ADC_S first: a missing temperature reply must never hide a valid pressure
   // live value. Strict callers (calibration/verification) still require both
   // temperature registers; the live loop uses allowPartial:true only.
@@ -2234,23 +2269,8 @@ if(typeof document!=='undefined') (function UI(){
  async function readLiveSample(){
   if(!st.chip||!st.port)throw Error('Kein bestätigter Chip für Live-Messung');
   const previous=st.adc;
-  // Only for confirmed SSP3 single-measurement mode. This is CMD (RAM)
-  // and NOT a CFG_PERIOD, interface or NVM write.
-  if((st.adapterKind==='ssp3'||(st.adapterKind==='bridge'&&st.bridgePsscRam))&&st.iface==='plc'&&st.measurementPeriod===2){
-   if(st.writing||st.calTask||st.nvmWorking||st.afeWriteActive||st.powerCycleRunning||st.closing)
-    throw Error('CMD start während eines anderen Chipvorgangs gesperrt.');
-   const command=P.plcHostCommand(P.plcWrite(0x22,0x8B93,st.plcAddress),st.plcHostFormat);
-   await exchange(command,1600);
-   st.measurementStarts++;
-   let fresh=false;
-   for(let k=0;k<12;k++){
-    await sleep(25);
-    const flags=await readReg(0x36,1600);
-    st.measurementStatus=flags;
-    if(flags&0x0002){fresh=true;break}
-   }
-   if(!fresh)throw Error('CMD start gesendet, aber STATUS.adc_s_up blieb 0: keine neue ADC-Konversion bestätigt.');
-  }
+  if(st.iface==='plc'&&(st.adapterKind==='ssp3'||st.bridgePsscRam))await triggerSingleMeasurement();
+  if(st.iface==='i2c'&&st.adapterKind==='bridge')await triggerSingleMeasurement();
   const s=P.sign16(await readReg(0x2A,1600)); // primary: every cycle
   if(previous&&Number.isFinite(previous.s)&&previous.s!==s){
    st.measurementFreshCount++;
@@ -2337,8 +2357,11 @@ if(typeof document!=='undefined') (function UI(){
   return withProgress('Chipregister werden gelesen',()=>registerDumpOperation());
  }
  async function registerDumpOperation(){try{if(!st.chip&&!st.readOnlySensor)throw Error('Chip-Lesezugriff nicht bestätigt');const regs=[...LOCKED,0x14,0x16,0x18,0x1A,0x1C,0x1E,0x26,0x28,0x2A];for(const a of regs)st.regs[a]=await readReg(a);$('regdump').textContent=regs.map(a=>`0x${h(a)}  ${REG_NAMES[a]||'Register'}  0x${h(st.regs[a],2)} ${LOCKED.includes(a)?'GESCHÜTZT':''}`).join('\n');show('bootMsg','Diagnoseregister gelesen. Bootregister bleiben schreibgeschützt.','success')}catch(e){show('bootMsg','Registerlesen: '+e.message,'error')}}
- async function unlockRAM(){if(st.adapterKind==='bridge'){await exchange('PLC ACCESS',3500)}else if(st.iface==='plc'){await exchange('PLC P',3500);await exchange('PLC T',3500)}else {for(const w of [0xF75A,0x0CC7,0xD21E])await lowLevelWrite(0x22,w,true)}}
- async function lowLevelWrite(addr,word,forUnlock=false){if(!st.port||!st.afeWriteActive||!st.chip)throw Error('AFE-Schreibzugriff nur während expliziter RAM-Übernahme zulässig');if(addr!==R_AFE&&!(addr===R_BRIDGE&&st.bridgeWriteAllowed)&&!(forUnlock&&addr===0x22))throw Error('Nur freigegebene AFE0/AFE1-RAM-Bits und RAM-Freigabecookies zulässig');if(addr===0x22&&!([0xF75A,0x0CC7,0xD21E].includes(word)))throw Error('Nicht erlaubtes CMD-Cookie');let cmd;if(st.iface==='plc'){if(addr!==R_AFE&&addr!==R_BRIDGE)throw Error('PLC nutzt PLC P / PLC T für RAM-Freigabe');cmd=P.plcWrite(addr,word,st.plcAddress)}else if(st.iface==='i2c'){cmd=P.i2cWrite(addr,word)}else{cmd=P.spiWrite(addr,word)}await exchange(cmd,2300)}
+ function i2cWriteCommand(addr,word){
+  return st.adapterKind==='bridge'?'I2C WRITE '+h(addr)+h(word,2):P.i2cWrite(addr,word);
+ }
+ async function unlockRAM(){if(st.adapterKind==='bridge'&&st.iface==='plc'){await exchange('PLC ACCESS',3500)}else if(st.iface==='plc'){await exchange('PLC P',3500);await exchange('PLC T',3500)}else {for(const w of [0xF75A,0x0CC7,0xD21E])await lowLevelWrite(0x22,w,true)}}
+ async function lowLevelWrite(addr,word,forUnlock=false){if(!st.port||!st.afeWriteActive||!st.chip)throw Error('AFE-Schreibzugriff nur während expliziter RAM-Übernahme zulässig');if(addr!==R_AFE&&!(addr===R_BRIDGE&&st.bridgeWriteAllowed)&&!(forUnlock&&addr===0x22))throw Error('Nur freigegebene AFE0/AFE1-RAM-Bits und RAM-Freigabecookies zulässig');if(addr===0x22&&!([0xF75A,0x0CC7,0xD21E].includes(word)))throw Error('Nicht erlaubtes CMD-Cookie');let cmd;if(st.iface==='plc'){if(addr!==R_AFE&&addr!==R_BRIDGE)throw Error('PLC nutzt PLC P / PLC T für RAM-Freigabe');cmd=P.plcWrite(addr,word,st.plcAddress)}else if(st.iface==='i2c'){cmd=i2cWriteCommand(addr,word)}else{cmd=P.spiWrite(addr,word)}await exchange(cmd,2300)}
  async function commitGain(target){
   return withProgress('AFE-Einstellung wird geschrieben',()=>commitGainOperation(target));
  }
@@ -2370,7 +2393,7 @@ if(typeof document!=='undefined') (function UI(){
    const originalWord=await readReg(R_AFE);
    const original=decodeSafeAFE(originalWord);
    const next=P.encAFE(originalWord,target);
-   if(st.iface!=='plc'&&(beforeBoot[6]&0x8000))throw Error('CRC-geschützte I²C/SPI-Verbindung: RAM-Schreiben gesperrt');
+   if(st.iface!=='plc'&&!(st.iface==='i2c'&&st.bridgeI2c&&st.adapterKind==='bridge')&&(beforeBoot[6]&0x8000))throw Error('CRC-geschützte I²C/SPI-Verbindung: RAM-Schreiben gesperrt');
    if(next===originalWord){
     st.afe=originalWord;
     st.staged={...original};
@@ -2544,12 +2567,12 @@ if(typeof document!=='undefined') (function UI(){
    if((word&0xFF00)===0xA300&&!st.nvmWorking)throw Error('NVM-Programmierung nicht freigegeben');
   }
   if(addr===0x4A&&!st.nvmWorking)throw Error('CM_WDATA nur während des NVM-Programmierens');
-  const cmd=st.iface==='plc'?P.plcHostCommand(P.plcWrite(addr,word,st.plcAddress),st.plcHostFormat):st.iface==='i2c'?P.i2cWrite(addr,word):P.spiWrite(addr,word);
+  const cmd=st.iface==='plc'?P.plcHostCommand(P.plcWrite(addr,word,st.plcAddress),st.plcHostFormat):st.iface==='i2c'?i2cWriteCommand(addr,word):P.spiWrite(addr,word);
   await exchange(cmd,4000);
  }
  async function ramGrant(){
-  if(st.iface!=='plc'&&(Number(st.boot?.[6]||0)&0x8000))throw Error('I²C/SPI benötigt CRC-geschützte Frames – Wartung gesperrt');
-  if(st.adapterKind==='bridge'){await exchange('PLC ACCESS',3500)}else if(st.iface==='plc'){await exchange('PLC P',3500);await exchange('PLC T',3500)}
+  if(st.iface!=='plc'&&!(st.iface==='i2c'&&st.bridgeI2c&&st.adapterKind==='bridge')&&(Number(st.boot?.[6]||0)&0x8000))throw Error('I²C/SPI benötigt CRC-geschützte Frames – Wartung gesperrt');
+  if(st.adapterKind==='bridge'&&st.iface==='plc'){await exchange('PLC ACCESS',3500)}else if(st.iface==='plc'){await exchange('PLC P',3500);await exchange('PLC T',3500)}
   else for(const w of [0xF75A,0x0CC7,0xD21E])await maintWrite(0x22,w);
  }
  async function ramLock(){
@@ -2656,6 +2679,7 @@ if(typeof document!=='undefined') (function UI(){
    if(st.liveReadPromise)await st.liveReadPromise.catch(()=>{});
    const outputLimit=st.calfit.outputLimit??32000;
    demoPort?.setReference(p,temp);
+   if(st.iface==='i2c'&&st.adapterKind==='bridge')await triggerSingleMeasurement({capture:true});
    const got=P.sign16(await readReg(0x30)),target=2*outputLimit*(p-pmin)/(pmax-pmin)-outputLimit;
    updateDSP(got,'usb');
    const stat=await readReg(0x32),delta=got-target,errorBar=delta/(2*outputLimit)*(pmax-pmin);
@@ -3464,6 +3488,7 @@ if(typeof document!=='undefined') (function UI(){
  if(demoEnabled)$('iface').value='plc';
  if(!['ssp3','bridge'].includes($('adapterType').value))$('adapterType').value='ssp3';
  st.adapterKind=$('adapterType').value;
+ if(st.adapterKind==='bridge'&&st.iface==='spi')st.iface=$('iface').value='plc';
  for(const id of ['plcPowerCycle','plcGpio4Mode']){
   const option=$(id),key='elmos-bridge-'+id;
   option.checked=(lsGet(key)??'1')==='1';
@@ -3574,6 +3599,10 @@ if(typeof document!=='undefined') (function UI(){
   }
   st.adapterKind=selected;
   adapter.value=selected;
+  if(selected==='bridge'&&st.iface==='spi'){
+   st.iface=$('iface').value='plc';
+   lsSet('elmos8-iface',st.iface);
+  }
   lsSet('elmos-adapter-type-v1',selected);
   show('connMsg','Wähle den USB-Port für '+adapter.selectedOptions[0].textContent+'.');
   renderStatus();

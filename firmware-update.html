@@ -1,0 +1,89 @@
+<!doctype html>
+<html lang="de-CH">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>USB-Bridge aktualisieren · E703.11</title>
+  <style>
+    :root { color-scheme: light dark; font: 1rem/1.55 system-ui, sans-serif; }
+    body { max-width: 36rem; margin: 3rem auto; padding: 0 1rem; }
+    h1 { line-height: 1.15; }
+    section { padding: 1rem 1.25rem; margin: 1rem 0; border: 1px solid GrayText; border-radius: .75rem; }
+    h2 { font-size: 1.1rem; margin-top: 0; }
+    p { margin: .7rem 0; }
+    table { width: 100%; margin: .85rem 0; border-collapse: collapse; }
+    th, td { padding: .35rem .5rem; text-align: left; border-bottom: 1px solid GrayText; }
+    button { font: inherit; padding: .55rem .9rem; cursor: pointer; }
+  </style>
+</head>
+<body>
+  <a href="index.html">Zum Kalibrierassistenten</a>
+  <h1>USB-Bridge aktualisieren</h1>
+  <p>Trenne zuerst die USB-Verbindung im Kalibrierassistenten. Lass danach das Board per USB angeschlossen.</p>
+
+  <section aria-labelledby="esp32">
+    <h2 id="esp32">ESP32-C3 SuperMini · v0.10</h2>
+    <p>One-Wire und I²C. Wähle im USB-Dialog den ESP32-C3 SuperMini.</p>
+    <esp-web-install-button manifest="firmware/releases/esp32-c3/v0.10/manifest.json">
+      <button type="button" slot="activate" disabled>Firmware installieren</button>
+      <span slot="unsupported">Öffne diese Seite in Chrome oder Edge auf dem Computer.</span>
+      <span slot="not-allowed">Öffne diese Seite über HTTPS oder localhost.</span>
+    </esp-web-install-button>
+    <p id="installerStatus" role="status">Installer wird geladen …</p>
+    <noscript>Für den Browser-Installer muss JavaScript aktiv sein.</noscript>
+    <table aria-label="Anschlüsse ESP32-C3 SuperMini">
+      <thead><tr><th scope="col">ESP32-C3</th><th scope="col">Elmos E703.11</th></tr></thead>
+      <tbody>
+        <tr><td>GPIO4</td><td>AODO (Pin 14) · One-Wire</td></tr>
+        <tr><td>GPIO6</td><td>SDA (Pin 11) · I²C</td></tr>
+        <tr><td>GPIO7</td><td>SCL (Pin 10) · I²C</td></tr>
+        <tr><td>GPIO10</td><td>Optional: Enable am Lastschalter für Sensor-VDD</td></tr>
+        <tr><td>GND</td><td>Sensor-GND</td></tr>
+      </tbody>
+    </table>
+    <p>3,3-V-Logik. Bei kombinierter Verdrahtung One-Wire über GPIO4 als gemeinsame Sende- und Empfangsleitung verwenden.</p>
+    <p><a href="docs/ESP32_C3_PLC_TEST.md">Anschlussplan und Firmware-Stand</a></p>
+  </section>
+
+  <section aria-labelledby="pro-micro">
+    <h2 id="pro-micro">Pro Micro · v0.27</h2>
+    <p>One-Wire und I²C. Wähle die HEX-Datei passend zur Taktfrequenz deines Boards und lade sie mit einem AVR109-Uploader hoch.</p>
+    <ul>
+      <li><a href="firmware/releases/pro-micro/v0.27/pro-micro-16mhz.hex" download>HEX für 5 V / 16 MHz</a></li>
+      <li><a href="firmware/releases/pro-micro/v0.27/pro-micro-8mhz.hex" download>HEX für 3,3 V / 8 MHz</a></li>
+    </ul>
+    <table aria-label="Anschlüsse Pro Micro">
+      <thead><tr><th scope="col">Pro Micro</th><th scope="col">Elmos E703.11</th></tr></thead>
+      <tbody>
+        <tr><td>D4</td><td>AODO (Pin 14) · One-Wire</td></tr>
+        <tr><td>D2</td><td>SDA (Pin 11) · I²C</td></tr>
+        <tr><td>D3</td><td>SCL (Pin 10) · I²C</td></tr>
+        <tr><td>D7</td><td>Optional: Enable am Lastschalter für Sensor-VDD</td></tr>
+        <tr><td>GND</td><td>Sensor-GND</td></tr>
+      </tbody>
+    </table>
+    <p>Beim 5-V-Pro-Micro einen Pegelwandler für SDA/SCL verwenden, wenn der Sensor mit 3,3 V läuft.</p>
+    <a href="docs/PRO_MICRO_PLC_TEST.md">Anleitung für Pro Micro</a>
+  </section>
+
+  <p>Wenn I²C im Sensor deaktiviert ist, AODO angeschlossen lassen. Bei aktivierter Sensorversorgung über den Adapter kann die Firmware I²C für die laufende Sitzung im Sensor-RAM einschalten.</p>
+
+  <script type="module">
+    const installer = document.querySelector('esp-web-install-button');
+    const status = document.getElementById('installerStatus');
+    if (!window.isSecureContext || !('serial' in navigator)) {
+      installer.hidden = true;
+      status.textContent = 'Öffne diese Seite in Chrome oder Edge über HTTPS oder localhost.';
+    } else {
+      try {
+        await import('https://unpkg.com/esp-web-tools@10.5.2/dist/web/install-button.js?module');
+        await customElements.whenDefined('esp-web-install-button');
+        installer.querySelector('button').disabled = false;
+        status.hidden = true;
+      } catch {
+        status.textContent = 'Installer konnte nicht geladen werden. Prüfe die Internetverbindung und lade die Seite neu.';
+      }
+    }
+  </script>
+</body>
+</html>

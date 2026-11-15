@@ -1,6 +1,13 @@
 ## v0.7.38 – Messverlauf im Testprotokoll
 
+## v0.7.45
+
+- ESP32-C3 SuperMini USB-Bridge v0.10 ergänzt CRC-geschütztes I²C für Registerzugriff, Live-Messung und RAM-Kalibrierung. Die Schnittstelle lässt sich direkt bei der USB-Verbindung wählen.
+- Bei einem Sensor mit deaktiviertem I²C kann die Bridge den Bus für die aktuelle Sitzung über AODO im RAM aktivieren. Für das dauerhafte Speichern im NVM ist weiterhin der One-Wire-Kaltstartnachweis erforderlich.
+
+
 - Test / Logging zeigt den Verlauf von ADC_S und DSP_S für bis zu 20 gespeicherte Messpunkte.
+- Pro Micro v0.27 ergänzt CRC-geschütztes I²C für die Varianten mit 8 und 16 MHz. Unter Einstellungen führt «USB-Bridge aktualisieren» zum ESP32-Browser-Flasher, den Pro-Micro-Downloads und den Pinbelegungen beider Boards.
 
 ## v0.7.37 – Manuelle Messpunkte und USB-Bridges
 

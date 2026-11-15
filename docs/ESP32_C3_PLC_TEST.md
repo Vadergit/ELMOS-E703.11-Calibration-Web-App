@@ -1,6 +1,21 @@
 # ESP32-C3 SuperMini mit E703.11 testen
 
-Firmware v0.6 unterstützt den PLC-Zugriff über AODO und stellt der lokalen Web-App die bestehenden Abläufe für Registerlesen, AFE/DSP im RAM und User-NVM bereit. Das PLC-Timing und die elektrische Schaltung müssen am Sensor geprüft werden. Den ersten Test auf Chip-Erkennung, Live-Werte und das Lesen des Original-NVM beschränken. RAM-Schreiben anschliessend an einem Testchip prüfen. Vor permanentem Schreiben das Original-NVM exportieren.
+Firmware v0.10 unterstützt den PLC-Zugriff über AODO und stellt der lokalen Web-App die bestehenden Abläufe für Registerlesen, AFE/DSP im RAM und User-NVM bereit. Das PLC-Timing und die elektrische Schaltung müssen am Sensor geprüft werden. Den ersten Test auf Chip-Erkennung, Live-Werte und das Lesen des Original-NVM beschränken. RAM-Schreiben anschliessend an einem Testchip prüfen. Vor permanentem Schreiben das Original-NVM exportieren.
+
+
+## I²C mit USB-Bridge v0.10
+
+| ESP32-C3 | Elmos E703.11 |
+|---|---|
+| GPIO6 | SDA (Pin 11, MISO/SDA) |
+| GPIO7 | SCL (Pin 10, SCK/SCL) |
+| GND | Gemeinsame Masse |
+| GPIO4 | AODO (Pin 14), für One-Wire und bei Bedarf die I²C-Aktivierung im RAM |
+| GPIO10 | Vorhandener Schaltausgang für die Sensorversorgung |
+
+Die Firmware schaltet interne Pull-ups ein. Für kurze Leitungen kann das für den ersten Test genügen. Bei Bedarf externe Pull-ups zur 3,3-V-Versorgung des Sensors ergänzen, beispielsweise je 4,7 kΩ. Bei schaltbarer Versorgung liegen die Pull-ups auf der geschalteten Seite. Für gemeinsame Verdrahtung den One-Wire-Modus «Dieselbe Leitung für Senden und Empfangen» verwenden. Im getrennten One-Wire-Aufbau dient GPIO6 als RX und darf nicht zugleich mit SDA verbunden sein.
+
+In der Web-App «ESP32 / Arduino USB-Bridge» und «I²C · SCL / SDA» wählen und den USB-Port verbinden. Die Bridge prüft die Chip-Kennung und nutzt CRC-geschützte Übertragung. Ist I²C im Sensor deaktiviert, versucht die Bridge bei aktivierter Steuerung der Sensorversorgung, I²C über AODO für die laufende Sitzung einzuschalten. Dafür muss AODO ebenfalls angeschlossen sein. Nach einem Stromunterbruch gilt wieder die ursprüngliche Chip-Konfiguration. Live-Messung, NVM-Lesen und der Abgleich im RAM stehen über I²C zur Verfügung. Dauerhaftes NVM-Schreiben nutzt die bestehende Freigabe über One-Wire.
 
 ## Anschluss über eine externe Treiberstufe
 
@@ -35,3 +50,5 @@ Wenn GPIO10 den externen Lastschalter steuert, aktiviere vor dem Verbinden **Sen
 Ohne Web-App kann im seriellen Monitor mit 115200 Baud und Zeilenende `Newline` die Firmware per `BRIDGE_INFO` geprüft werden. Ein Sensor mit bereits aktivem PLC-Registerzugriff lässt sich mit `PLC_UID 100000` oder `PLC_UID 25000` identifizieren.
 
 Mit `PLC RX DIAG` prüft die Bridge bei der aktuell gewählten Baudrate beide Adressen lesend. `ECHO=BOTH` bedeutet, dass GPIO6 beim eigenen Senden beide Pegel gesehen hat. `EDGES` zählt die Signalwechsel nach Freigabe der Leitung. Erst `CRC_OK` bestätigt ein gültiges Antworttelegramm.
+
+Beim Kompilieren mit Arduino CLI die gemeinsame Bibliothek mit `--libraries firmware/libraries` einbinden. In der Arduino IDE kann `firmware/libraries/ElmosI2c` in den Arduino-Bibliotheksordner kopiert werden.

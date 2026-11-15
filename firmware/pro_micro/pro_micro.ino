@@ -2,6 +2,7 @@
 #include <Arduino.h>
 #include <string.h>
 #include "plc_avr.h"
+#include <ElmosI2c.h>
 
 #if !defined(__AVR_ATmega32U4__)
 #error "Select an ATmega32U4 board with the matching CPU clock."
@@ -19,6 +20,12 @@ static void answer(const char *message) {
   delay(2);
   Serial.print(message);
   Serial.print("\r\n:\r\n");
+}
+
+static void answer(const __FlashStringHelper *message) {
+  delay(2);
+  Serial.print(message);
+  Serial.print(F("\r\n:\r\n"));
 }
 
 static void printUid(uint32_t baud) {
@@ -43,20 +50,21 @@ static int hexDigit(char ch) {
 }
 
 static bool nvmArmed = false;
+static bool i2cMode = false;
 static bool nvmUserIdOnly = false;
 
 static void plcFrame(const char *hex) {
   const size_t length = strlen(hex);
   const bool read = length == 9 && hex[8] == '.';
   if (!read && length != 14) {
-    answer("!BRIDGE PLC_BAD_LENGTH");
+    answer(F("!BRIDGE PLC_BAD_LENGTH"));
     return;
   }
   uint8_t frame[7];
   for (size_t i = 0; i < length / 2; ++i) {
     const int high = hexDigit(hex[2 * i]), low = hexDigit(hex[2 * i + 1]);
     if (high < 0 || low < 0) {
-      answer("!BRIDGE PLC_BAD_HEX");
+      answer(F("!BRIDGE PLC_BAD_HEX"));
       return;
     }
     frame[i] = (high << 4) | low;
@@ -66,7 +74,7 @@ static void plcFrame(const char *hex) {
   if (frame[0] != plc::Preamble || (frame[1] & 1) != read ||
       (slave != 0x6D && slave != 0x7D) || (address & 1) ||
       header != plc::readHeader(address, slave)) {
-    answer("!BRIDGE PLC_BAD_HEADER");
+    answer(F("!BRIDGE PLC_BAD_HEADER"));
     return;
   }
   if (read) {
@@ -84,7 +92,7 @@ static void plcFrame(const char *hex) {
   }
   const uint16_t word = (uint16_t(frame[4]) << 8) | frame[5];
   if (frame[6] != plc::writeCrc(address, header, frame[4], frame[5])) {
-    answer("!BRIDGE PLC_BAD_CRC");
+    answer(F("!BRIDGE PLC_BAD_CRC"));
     return;
   }
   const bool startMeasurement = address == 0x22 && word == 0x8B93;
@@ -103,11 +111,11 @@ static void plcFrame(const char *hex) {
      word == 0x0000 || word == 0x8800 || programCalibration);
   const bool writeUserNvm = nvmArmed && (address == 0x4A || userNvmCommand);
   if (slave != activeSlave || (!startMeasurement && !readEepromWord && !writeDspRam && !writeAfeFilter && !writeUserNvm)) {
-    answer("!BRIDGE PLC_WRITE_DENIED");
+    answer(F("!BRIDGE PLC_WRITE_DENIED"));
     return;
   }
   plc::writeWord(address, word, plcBaud, false, false, slave);
-  answer("# PLC FRAME SENT");
+  answer(F("# PLC FRAME SENT"));
 }
 
 static const char *probe(uint8_t slave) {
@@ -160,7 +168,7 @@ static bool startLikeSsp3(bool recover) {
   return false;
 }
 
-static void establishAccess(bool powerCycle, bool recover = false) {
+static const char *openPlcAccess(bool powerCycle, bool recover = false) {
   const char *error = nullptr;
   if (powerCycle && startLikeSsp3(recover)) {
     // The captured SSP3 sequence returned valid register data.
@@ -190,7 +198,11 @@ static void establishAccess(bool powerCycle, bool recover = false) {
       }
     }
   }
-  if (error) {
+  return error;
+}
+
+static void establishAccess(bool powerCycle, bool recover = false) {
+  if (const char *error = openPlcAccess(powerCycle, recover)) {
     answer(error);
     return;
   }
@@ -299,7 +311,7 @@ static void testColdStart() {
       return;
     }
   }
-  answer("!BRIDGE PLC_COLD_NO_VALID_FRAME");
+  answer(F("!BRIDGE PLC_COLD_NO_VALID_FRAME"));
 }
 
 // Power-cycle per address so every read lands in the startup window.
@@ -336,7 +348,7 @@ static void scanStartupTiming() {
       Serial.println(result);
     }
   }
-  answer("!BRIDGE PLC_TIMING_NO_VALID_FRAME");
+  answer(F("!BRIDGE PLC_TIMING_NO_VALID_FRAME"));
 }
 
 static void scanColdAddresses() {
@@ -352,7 +364,7 @@ static void scanColdAddresses() {
     answer(response);
     return;
   }
-  answer("!BRIDGE PLC_SCAN_NO_VALID_FRAME");
+  answer(F("!BRIDGE PLC_SCAN_NO_VALID_FRAME"));
 }
 
 // The PSSC frame changes CFG_SPI_I2C, but does not change the upper
@@ -376,7 +388,7 @@ static void testRecoveryAddress() {
       }
     }
   }
-  answer("!BRIDGE PLC_RECOVERY_NO_VALID_FRAME");
+  answer(F("!BRIDGE PLC_RECOVERY_NO_VALID_FRAME"));
 }
 
 static void measureStartupAodo() {
@@ -404,7 +416,7 @@ static void measureStartupAodo() {
 
 static void measureIdleAodo() {
   if (!plc::singlePin) {
-    answer("!BRIDGE USE_D4_MODE");
+    answer(F("!BRIDGE USE_D4_MODE"));
     return;
   }
   // D4 is also ADC8. Sample passively while the target powers up.
@@ -427,75 +439,202 @@ static void measureIdleAodo() {
   answer(response);
 }
 
+// Some AODO sensors boot with SPI/I2C disabled. Only change the interface
+// selector for this session, after confirming the chip over One-Wire.
+static const char *activateI2cThroughPlc() {
+  Wire.end();
+  plc::configurePins();
+  const char *error = openPlcAccess(true);
+  if (error && !strcmp(error, "!BRIDGE PLC_NO_VALID_FRAME"))
+    error = openPlcAccess(true, true);
+  if (error) return error;
+  uint16_t version, ser0, ser1, config, verified;
+  if (plc::readWord(0x38, plcBaud, version, nullptr, activeSlave) ||
+      plc::readWord(0x50, plcBaud, ser0, nullptr, activeSlave) ||
+      plc::readWord(0x52, plcBaud, ser1, nullptr, activeSlave) ||
+      (version & 0xFFF8) != 0x0020 || !(ser0 || ser1) || (ser0 == 0xFFFF && ser1 == 0xFFFF) ||
+      plc::readWord(0x06, plcBaud, config, nullptr, activeSlave))
+    return "!BRIDGE I2C_PLC_IDENTITY_UNVERIFIED";
+  if ((config & 3) == 1 || (config & 3) == 2)
+    return "!BRIDGE I2C_SENSOR_NOT_FOUND";
+  const uint16_t updated = (config & 0xFFFC) | 2;
+  plc::writeWord(0x06, updated, plcBaud, false, false, activeSlave);
+  if (plc::readWord(0x06, plcBaud, verified, nullptr, activeSlave) || verified != updated)
+    return "!BRIDGE I2C_RAM_ENABLE_FAILED";
+  uint16_t period;
+  if (const char *error = plc::readWord(0x0E, plcBaud, period, nullptr, activeSlave))
+    return error;
+  if (period == 0x5CFD) {
+    plc::writeWord(0x0E, 1, plcBaud, false, false, activeSlave);
+    if (plc::readWord(0x0E, plcBaud, period, nullptr, activeSlave) || period != 1)
+      return "!BRIDGE PLC_PERIOD_READBACK_FAILED";
+    plc::writeWord(0x22, 0x8B93, plcBaud, false, false, activeSlave);
+  }
+  return nullptr;
+}
+
+static void i2cCommand(const char *command) {
+  if (!i2cMode) {
+    answer(F("!BRIDGE I2C_MODE_REQUIRED"));
+    return;
+  }
+  if (!strcmp_P(command, PSTR("ACCESS")) || !strcmp_P(command, PSTR("START"))) {
+    const bool start = !strcmp_P(command, PSTR("START"));
+    bool enabledInRam = false;
+    const char *error = elmosI2c::connect(start);
+    if (start && error && !strcmp(error, "!BRIDGE I2C_SENSOR_NOT_FOUND")) {
+      error = activateI2cThroughPlc();
+      if (!error) {
+        enabledInRam = true;
+        error = elmosI2c::connect(false);
+      }
+    }
+    if (error) {
+      answer(error);
+      return;
+    }
+    char reply[48];
+    snprintf(reply, sizeof(reply), "# I2C ACCESS ADDR=%02X RAM_ENABLE=%u",
+             unsigned(elmosI2c::slave), unsigned(enabledInRam));
+    answer(reply);
+    return;
+  }
+  const bool read = strncmp_P(command, PSTR("READ "), 5) == 0 && strlen(command) == 7;
+  const bool write = strncmp_P(command, PSTR("WRITE "), 6) == 0 && strlen(command) == 12;
+  if ((!read && !write) || !elmosI2c::slave) {
+    answer(F("!BRIDGE I2C_COMMAND_OR_ACCESS_REQUIRED"));
+    return;
+  }
+  const char *hex = command + (read ? 5 : 6);
+  unsigned data = 0;
+  for (unsigned i = 0; i < (read ? 2u : 6u); ++i) {
+    const int digit = hexDigit(hex[i]);
+    if (digit < 0) {
+      answer(F("!BRIDGE I2C_BAD_HEX"));
+      return;
+    }
+    data = (data << 4) | digit;
+  }
+  const uint8_t reg = read ? data : data >> 16;
+  if (reg & 1) {
+    answer(F("!BRIDGE I2C_UNALIGNED_REGISTER"));
+    return;
+  }
+  uint16_t word = data;
+  if (read) {
+    if (const char *error = elmosI2c::readWord(elmosI2c::slave, reg, word)) {
+      answer(error);
+      return;
+    }
+    char reply[8];
+    snprintf(reply, sizeof(reply), "%02X %02X", unsigned(word & 0xFF), unsigned(word >> 8));
+    answer(reply);
+  } else {
+    const bool ramCookie = reg == 0x22 &&
+        (word == 0xF75A || word == 0x0CC7 || word == 0xD21E || word == 0x62A2);
+    const bool afe = reg == 0x14 || reg == 0x16 || reg == 0x18 || reg == 0x1A || reg == 0x1C;
+    const bool dsp = reg >= 0x6C && reg <= 0x9A;
+    const bool measure = reg == 0x22 && word == 0x8B93;
+    const bool readNvm = reg == 0x4E && (word & 0xFF81) == 0x4C00;
+    if (!ramCookie && !afe && !dsp && !measure && !readNvm) {
+      answer(F("!BRIDGE I2C_WRITE_DENIED"));
+      return;
+    }
+    const char *error = elmosI2c::writeWord(reg, word);
+    answer(error ? error : "# I2C WRITE");
+  }
+}
+
 static void onCommand(const char *command) {
-  if (strcmp(command, "NVM ARM CALIBRATION") == 0 || strcmp(command, "NVM ARM USER ID") == 0) {
-    nvmUserIdOnly = strcmp(command, "NVM ARM USER ID") == 0;
+  if (strcmp_P(command, PSTR("IF_CFG 2 1 0")) == 0 || strcmp_P(command, PSTR("IF_CFG 7 0 0")) == 0) {
+    if (i2cMode) Wire.end();
+    i2cMode = strcmp_P(command, PSTR("IF_CFG 2 1 0")) == 0;
+    elmosI2c::slave = 0;
+    nvmArmed = false;
+    answer(i2cMode ? "# I2C" : "# PLC");
+    return;
+  }
+  if (strncmp_P(command, PSTR("I2C "), 4) == 0) {
+    i2cCommand(command + 4);
+    return;
+  }
+  if (i2cMode && ((strncmp_P(command, PSTR("PLC"), 3) == 0 &&
+                   strncmp_P(command, PSTR("PLC IO "), 7) != 0 &&
+                   strncmp_P(command, PSTR("PLC_BAUD "), 9) != 0) ||
+                  strncmp_P(command, PSTR("NVM ARM "), 8) == 0)) {
+    answer(F("!BRIDGE I2C_MODE_ACTIVE"));
+    return;
+  }
+  if (strcmp_P(command, PSTR("NVM ARM CALIBRATION")) == 0 || strcmp_P(command, PSTR("NVM ARM USER ID")) == 0) {
+    nvmUserIdOnly = strcmp_P(command, PSTR("NVM ARM USER ID")) == 0;
     nvmArmed = true;
-    answer("# NVM CALIBRATION ARMED");
+    answer(F("# NVM CALIBRATION ARMED"));
     return;
   }
-  if (strcmp(command, "NVM DISARM") == 0) {
+  if (strcmp_P(command, PSTR("NVM DISARM")) == 0) {
     nvmArmed = false;
-    answer("# NVM DISARMED");
+    answer(F("# NVM DISARMED"));
     return;
   }
-  if (strncmp(command, "PLC ", 4) == 0 && strncmp(command, "PLC 02", 6) != 0)
+  if (strncmp_P(command, PSTR("PLC "), 4) == 0 && strncmp_P(command, PSTR("PLC 02"), 6) != 0)
     nvmArmed = false;
-  if (strcmp(command, "BRIDGE_INFO") == 0) {
-    answer("# E70311-BRIDGE V1 CAPS=PLC_UID,PLC_READ,PLC_WRITE,NVM,PRO_MICRO_NVM,PLC_RX_DIAG,POWER_D7,PSSC_RAM,AFE_FILTER");
-  } else if (strcmp(command, ".VERSION") == 0) {
-    answer(F_CPU == 16000000UL ? "# Pro Micro PLC v0.26 16 MHz" : "# Pro Micro PLC v0.26 8 MHz");
-  } else if (strcmp(command, "PLC IO D4") == 0 || strcmp(command, "PLC IO SPLIT") == 0) {
-    plc::singlePin = strcmp(command, "PLC IO D4") == 0;
+  if (strcmp_P(command, PSTR("BRIDGE_INFO")) == 0) {
+    answer(F("# E70311-BRIDGE V1 CAPS=PLC_UID,PLC_READ,PLC_WRITE,NVM,PRO_MICRO_NVM,PLC_RX_DIAG,POWER_D7,PSSC_RAM,AFE_FILTER,I2C_CRC,PLC_D4_IO"));
+  } else if (strcmp_P(command, PSTR(".VERSION")) == 0) {
+    #if F_CPU == 16000000UL
+    answer(F("# Pro Micro PLC/I2C v0.27 16 MHz"));
+#else
+    answer(F("# Pro Micro PLC/I2C v0.27 8 MHz"));
+#endif
+  } else if (strcmp_P(command, PSTR("PLC IO D4")) == 0 || strcmp_P(command, PSTR("PLC IO SPLIT")) == 0) {
+    plc::singlePin = strcmp_P(command, PSTR("PLC IO D4")) == 0;
     answer(plc::singlePin ? "# PLC IO D4" : "# PLC IO SPLIT");
-  } else if (strcmp(command, "PLC POWER TEST") == 0) {
+  } else if (strcmp_P(command, PSTR("PLC POWER TEST")) == 0) {
     PORTC &= ~plc::Enable;
     DDRD &= ~plc::Tx;
     PORTD &= ~plc::Tx;
     digitalWrite(7, LOW);
     pinMode(7, OUTPUT);
-    answer("# D7 LOW 15s");
+    answer(F("# D7 LOW 15s"));
     delay(15000);
     digitalWrite(7, HIGH);
-    answer("# D7 HIGH");
-  } else if (strcmp(command, "PLC AODO STARTUP") == 0) {
+    answer(F("# D7 HIGH"));
+  } else if (strcmp_P(command, PSTR("PLC AODO STARTUP")) == 0) {
     measureStartupAodo();
-  } else if (strcmp(command, "PLC AODO LEVEL") == 0) {
+  } else if (strcmp_P(command, PSTR("PLC AODO LEVEL")) == 0) {
     measureIdleAodo();
-  } else if (strcmp(command, "PLC START TIMING") == 0) {
+  } else if (strcmp_P(command, PSTR("PLC START TIMING")) == 0) {
     scanStartupTiming();
-  } else if (strcmp(command, "PLC COLD SCAN") == 0) {
+  } else if (strcmp_P(command, PSTR("PLC COLD SCAN")) == 0) {
     scanColdAddresses();
-  } else if (strcmp(command, "PLC GAP HIGH") == 0 || strcmp(command, "PLC GAP LOW") == 0) {
-    plc::highInterFrameGap = strcmp(command, "PLC GAP HIGH") == 0;
+  } else if (strcmp_P(command, PSTR("PLC GAP HIGH")) == 0 || strcmp_P(command, PSTR("PLC GAP LOW")) == 0) {
+    plc::highInterFrameGap = strcmp_P(command, PSTR("PLC GAP HIGH")) == 0;
     answer(plc::highInterFrameGap ? "# GAP HIGH" : "# GAP LOW");
-  } else if (strcmp(command, "PLC RECOVERY ADDRESS TEST") == 0) {
+  } else if (strcmp_P(command, PSTR("PLC RECOVERY ADDRESS TEST")) == 0) {
     testRecoveryAddress();
-  } else if (strcmp(command, "PLC COLD TEST") == 0) {
+  } else if (strcmp_P(command, PSTR("PLC COLD TEST")) == 0) {
     testColdStart();
-  } else if (strcmp(command, "PLC RX DIAG") == 0) {
+  } else if (strcmp_P(command, PSTR("PLC RX DIAG")) == 0) {
     diagnoseRx();
-  } else if (strcmp(command, "PLC_UID 25000") == 0) {
+  } else if (strcmp_P(command, PSTR("PLC_UID 25000")) == 0) {
     printUid(25000);
-  } else if (strcmp(command, "PLC_UID 100000") == 0) {
+  } else if (strcmp_P(command, PSTR("PLC_UID 100000")) == 0) {
     printUid(100000);
-  } else if (strcmp(command, "IF_CFG 7 0 0") == 0) {
-    answer("# PLC");
-  } else if (strcmp(command, "PLC_BAUD 25000") == 0 || strcmp(command, "PLC_BAUD 100000") == 0) {
-    plcBaud = strcmp(command, "PLC_BAUD 25000") == 0 ? 25000 : 100000;
-    answer("# PLC BAUD");
-  } else if (strcmp(command, "PLC ACCESS") == 0 || strcmp(command, "PLC START") == 0) {
-    establishAccess(strcmp(command, "PLC START") == 0);
-  } else if (strcmp(command, "PLC RECOVER") == 0 || strcmp(command, "PLC RECOVER START") == 0) {
-    establishAccess(strcmp(command, "PLC RECOVER START") == 0, true);
-  } else if (strncmp(command, "PLC ", 4) == 0) {
+  } else if (strcmp_P(command, PSTR("PLC_BAUD 25000")) == 0 || strcmp_P(command, PSTR("PLC_BAUD 100000")) == 0) {
+    plcBaud = strcmp_P(command, PSTR("PLC_BAUD 25000")) == 0 ? 25000 : 100000;
+    answer(F("# PLC BAUD"));
+  } else if (strcmp_P(command, PSTR("PLC ACCESS")) == 0 || strcmp_P(command, PSTR("PLC START")) == 0) {
+    establishAccess(strcmp_P(command, PSTR("PLC START")) == 0);
+  } else if (strcmp_P(command, PSTR("PLC RECOVER")) == 0 || strcmp_P(command, PSTR("PLC RECOVER START")) == 0) {
+    establishAccess(strcmp_P(command, PSTR("PLC RECOVER START")) == 0, true);
+  } else if (strncmp_P(command, PSTR("PLC "), 4) == 0) {
     plcFrame(command + 4);
-  } else if (strncmp(command, "IF_CFG", 6) == 0 ||
-             strncmp(command, "PLC", 3) == 0 ||
-             strncmp(command, "#PLC", 4) == 0) {
-    answer("!BRIDGE PLC_COMMAND_NOT_SUPPORTED");
+  } else if (strncmp_P(command, PSTR("IF_CFG"), 6) == 0 ||
+             strncmp_P(command, PSTR("PLC"), 3) == 0 ||
+             strncmp_P(command, PSTR("#PLC"), 4) == 0) {
+    answer(F("!BRIDGE PLC_COMMAND_NOT_SUPPORTED"));
   } else {
-    answer("!BRIDGE UNSUPPORTED_COMMAND");
+    answer(F("!BRIDGE UNSUPPORTED_COMMAND"));
   }
 }
 
@@ -521,7 +660,7 @@ void loop() {
       lineBuffer[lineLength++] = c;
     } else {
       lineLength = 0;
-      answer("!BRIDGE INVALID_OR_TOO_LONG");
+      answer(F("!BRIDGE INVALID_OR_TOO_LONG"));
     }
   }
   delay(1);

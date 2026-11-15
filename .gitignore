@@ -16,3 +16,6 @@
 
 # Arduino export artifacts
 firmware/esp32c3_supermini/build/
+
+# Public firmware installer manifests
+!firmware/releases/**/manifest.json
