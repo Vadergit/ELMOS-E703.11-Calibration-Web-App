@@ -713,6 +713,77 @@ const ELMOS_ARCHIVE=(()=>{
    ui('Ausser Toleranz','Out of tolerance'):ui('Nicht bewertet','Not assessed'));
   text('arMeasuredContext',comparison+(raw?' · '+raw:'')+capturedAt);
  }
+
+ // Software and USB calibration/programming adapter are detected from the active
+ // connection. External pressure calibrators / climate chambers cannot be
+ // identified via this interface and remain optional user-entered instruments.
+ function calibrationToolFromMeta(meta){
+  const equipment=meta?.equipment||{};
+  const software=meta?.software||{};
+  const adapter=String(equipment.adapter||'').trim()||null;
+  const version=String(software.version||document.body?.dataset?.appVersion||'').trim()||null;
+  return {
+   application:'ELMOS E703.11 Calibration Assistant',
+   applicationVersion:version,
+   communicationAdapter:adapter,
+   adapterKind:String(equipment.adapterKind||'').trim()||null,
+   interface:String(equipment.interface||'').trim()||null,
+   adapterFirmware:String(equipment.adapterFirmware||equipment.firmware||'').trim()||null,
+   serialPort:String(equipment.serialPort||'').trim()||null,
+   detectedAutomatically:!!adapter,
+   detectedAt:iso()
+  };
+ }
+ function formatCalibrationTool(tool){
+  if(!tool)return ui('Kein Adapter erkannt','No adapter detected');
+  const app=(tool.application||'ELMOS E703.11 Calibration Assistant')+
+   (tool.applicationVersion?' v'+tool.applicationVersion:'');
+  const adapter=tool.communicationAdapter||ui('Kein Adapter erkannt','No adapter detected');
+  return app+' · '+adapter;
+ }
+ function refreshDetectedCalibrationTool(){
+  const tool=calibrationToolFromMeta(bridge()?.meta?.());
+  text('arDetectedCalibrationTool',formatCalibrationTool(tool));
+  text('arDetectedCalibrationToolDetails',[
+   tool.interface?ui('Schnittstelle: ','Interface: ')+tool.interface:null,
+   tool.adapterFirmware?ui('Adapter-Firmware: ','Adapter firmware: ')+tool.adapterFirmware:null,
+   ui('Externe Messmittel sind nicht automatisch erkennbar und können optional ergänzt werden.',
+    'External measurement instruments cannot be detected automatically and may be entered below.')
+  ].filter(Boolean).join(' · '));
+ }
+ const trimInput=(id,max)=>{
+  const value=String($(id)?.value||'').trim();
+  return value?value.slice(0,max):null;
+ };
+ function optionalVerificationMetadata(){
+  return {
+   operator:trimInput('arVerificationOperator',120),
+   project:trimInput('arVerificationProject',150),
+   location:trimInput('arVerificationLocation',160),
+   instrumentCertificate:trimInput('arVerificationCertificate',200),
+   externalInstruments:trimInput('arVerificationInstruments',3000),
+   notes:trimInput('arVerificationNotes',4000)
+  };
+ }
+ function exportVerificationPdf(record){
+  if(!record||record.type!=='verification'){
+   note(ui('Kein gespeichertes Prüfprotokoll für den PDF-Export ausgewählt.',
+    'No saved verification report selected for PDF export.'),true);
+   return;
+  }
+  if(!window.ELMOS_VERIFICATION_REPORT?.print){
+   note(ui('PDF-Bericht nicht geladen. Bitte Seite neu laden.',
+    'PDF report module is not loaded. Please refresh the page.'),true);
+   return;
+  }
+  try{
+   const ok=window.ELMOS_VERIFICATION_REPORT.print(record);
+   if(!ok)note(ui('Der Browser hat das PDF-Fenster blockiert. Bitte Pop-ups für diese Webseite erlauben.',
+    'The browser blocked the PDF report window. Please allow pop-ups for this site.'),true);
+  }catch(e){
+   note(ui('PDF-Export fehlgeschlagen: ','PDF export failed: ')+e.message,true);
+  }
+ }
  function renderFinishedReview(record){
   if(!record?.plan)return;
   const summary=chartSummary(record);
@@ -734,6 +805,25 @@ const ELMOS_ARCHIVE=(()=>{
    const tile=el('div',null,'ar-finished-stat '+css);
    tile.append(el('strong',count),el('span',label));
    stats.append(tile);
+  }
+
+  const metaHost=$('arFinishedMetadata');metaHost.replaceChildren();
+  const tool=record.calibrationTool||calibrationToolFromMeta({software:record.software,equipment:record.equipment});
+  const operator=record.verificationMetadata||{};
+  const entries=[
+   [ui('Kalibrierwerkzeug (automatisch erkannt)','Calibration tool (automatically detected)'),formatCalibrationTool(tool)],
+   [ui('Adapter-Firmware','Adapter firmware'),tool.adapterFirmware],
+   [ui('Prüfer','Examiner'),operator.operator],
+   [ui('Auftrag / Projekt','Order / Project'),operator.project],
+   [ui('Prüfort','Test location'),operator.location],
+   [ui('Messmittel / Prüfmittel','Measurement instruments'),operator.externalInstruments],
+   [ui('Zertifikat / Referenz','Certificate / Reference'),operator.instrumentCertificate],
+   [ui('Bemerkungen','Notes'),operator.notes]
+  ].filter(([key,val])=>val);
+  for(const [name,value] of entries){
+   const item=el('div',null,'ar-finished-meta-item');
+   item.append(el('small',name),el('strong',value));
+   metaHost.append(item);
   }
   const chartHost=$('arFinishedChart');
   const rows=$('arFinishedRows');rows.replaceChildren();
@@ -965,11 +1055,14 @@ const ELMOS_ARCHIVE=(()=>{
   if(S.draft.mode!=='temperature')effectivePressure(0,S.draft.mode);
   if(S.draft.mode!=='temperature'&&(!Number.isFinite(span)||span<=0))
    throw Error(ui('Eine positive Druck-Messspanne ist für die Prozenttoleranz erforderlich.','A positive full-scale pressure span is required for the percentage tolerance.'));
+  refreshDetectedCalibrationTool();
   const percent=Number($('arToleranceP').value);
   if(!Number.isFinite(percent)||percent<0)throw Error(ui('Ungültige Drucktoleranz.','Invalid pressure tolerance.'));
   await begin('verification',S.draft);
   if(!S.record)return;
   const correction=effectivePressure(0,S.draft.mode);
+  S.record.verificationMetadata=optionalVerificationMetadata();
+  S.record.calibrationTool=calibrationToolFromMeta(bridge()?.meta?.());
   S.record.verificationConfig={pressureTolerancePercent:percent,pressureSpan:span,
    toleranceBasis:'percent_full_scale',temperatureTolerance:Number($('arToleranceT').value),
    pressureUnit:correction.pressureUnit,sensorType:correction.sensorType,
