@@ -1,3 +1,12 @@
+## v0.7.62 – Messwert direkt am Prüfpunkt und geführter Prüfabschluss
+
+- Nach jeder Nachmessung wird der zuletzt gespeicherte Sensorwert direkt neben der Messaktion angezeigt, inklusive Einheit, DSP_S-Rohwert, Bewertung und Aufnahmezeit.
+- Am letzten Prüfpunkt heisst die Navigation «Prüfung abschliessen und speichern». Unaufgenommene letzte Punkte können nur nach ausdrücklicher Bestätigung übersprungen werden.
+- Nach erfolgreichem Speichern erscheint eine schreibgeschützte Abschlussübersicht mit Diagramm, allen Prüfpunkten, Soll-/Ist-Werten, Abweichungen und Bewertungen.
+- «Zur Hauptseite» beendet die Ansicht erst nach dem gespeicherten Ergebnis; fehlgeschlagene und nicht bewertete Messungen werden korrekt als solche ausgewiesen.
+- Fehlende oder nicht bewertete Messungen führen zu «Unvollständig», tatsächlich fehlgeschlagene Prüfpunkte zu «Fehlerhaft». Keine automatische Freigabe durch den Abschluss.
+- Versionsanzeige, Cache-Kennungen der geänderten Dateien und App-Versionsmetadaten auf v0.7.62 aktualisiert.
+
 ## v0.7.61 – Messdiagramm in archivierten Nachmessungen
 
 - Archivierte Nachmessungen zeigen neu direkt im Detailbereich das Ergebnisdiagramm mit Prüfpunkten, Abweichungen, Toleranzgrenzen und Bewertungsstatus sowie den DSP_S-Rohwertverlauf.
