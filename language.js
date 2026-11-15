@@ -43,25 +43,52 @@
   'Datei auswählen':'Choose file','Datei exportieren':'Export file',
   'Deutsch':'German','English':'English',
  };
+ Object.assign(translations,window.ELMOS_TRANSLATIONS_EN||{});
  const originalTexts=new WeakMap(), originalAttrs=new WeakMap();
+ const phrases=Object.entries(translations).filter(([key])=>key.length>=8&&key.length<130&&/[äöüÄÖÜ]|\b(?:Kalibrier|Mess|prüf|Sensor|Temperatur|Druck|Speicher|Sicherheit|Konfigurier|Einstellung|starten|verbinden|schreiben|lesen|Aufzeichnung|weiter|zurück|Archiv|Nachmessung|Abgleich|Verbindung|Verfahren)/i.test(key))
+  .sort((a,b)=>b[0].length-a[0].length);
+ const translateString=(original)=>{
+  if(language!=='en'||!original)return original;
+  const exact=translations[original];
+  if(exact!==undefined)return exact;
+  // Compose status texts that contain live values without modifying the numerical values.
+  if(!/[äöüÄÖÜ]|\b(?:Schritt|Punkt|Messung|Wert|Sensor|Verbindung|Druck|Temperatur|Abgleich|Kalibrier|Archiv|NVM|RAM|keine|nicht|Bitte|erfolgreich|fehlgeschlagen|Verifizieren|Übernehmen|Aufnahme|Bereit|Aufzeichnung|Geführt|Klassisch)/i.test(original))return original;
+  let result=original;
+  for(const [de,en] of phrases){
+   if(de===result)return en;
+   if(result.includes(de))result=result.split(de).join(en);
+  }
+  return result;
+ };
+
  let language='de',observer=null,queued=false;
  const translateText=(node)=>{
   if(node.nodeType!==Node.TEXT_NODE||!node.parentElement)return;
   if(node.parentElement.closest('script,style,textarea,code,pre,[data-no-translate]'))return;
-  const initial=originalTexts.has(node)?originalTexts.get(node):node.nodeValue;
-  if(!originalTexts.has(node))originalTexts.set(node,initial);
-  const trimmed=initial.trim(), result=language==='en'&&translations[trimmed];
-  const next=result?initial.replace(trimmed,result):initial;
+  let entry=originalTexts.get(node);
+  if(!entry||(node.nodeValue!==entry.rendered&&node.nodeValue!==entry.original)){
+   entry={original:node.nodeValue,rendered:node.nodeValue};
+   originalTexts.set(node,entry);
+  }
+  const original=entry.original,trimmed=original.trim();
+  const translated=translateString(trimmed);
+  const next=original.replace(trimmed,translated);
+  entry.rendered=next;
   if(node.nodeValue!==next)node.nodeValue=next;
  };
  const translateAttrs=(el)=>{
   if(el.closest('script,style,[data-no-translate]'))return;
-  for(const attr of ['title','aria-label','placeholder']){
+  for(const attr of ['title','aria-label','placeholder','aria-description']){
    if(!el.hasAttribute(attr))continue;
-   let old=originalAttrs.get(el);
-   if(!old){old={};originalAttrs.set(el,old);}
-   if(!(attr in old))old[attr]=el.getAttribute(attr);
-   const next=language==='en'?(translations[old[attr]]||old[attr]):old[attr];
+   let previous=originalAttrs.get(el);
+   if(!previous){previous={};originalAttrs.set(el,previous);}
+   let item=previous[attr];
+   if(!item||(el.getAttribute(attr)!==item.rendered&&el.getAttribute(attr)!==item.original)){
+    item={original:el.getAttribute(attr),rendered:el.getAttribute(attr)};
+    previous[attr]=item;
+   }
+   const next=translateString(item.original);
+   item.rendered=next;
    if(el.getAttribute(attr)!==next)el.setAttribute(attr,next);
   }
  };
@@ -78,12 +105,13 @@
  const setLanguage=(lang)=>{
   language=lang==='en'?'en':'de';
   document.documentElement.lang=language==='en'?'en':'de-CH';
+  document.title=language==='en'?'ELMOS E703.11 – Calibration Assistant':'ELMOS E703.11 – Kalibrierassistent';
   try{localStorage.setItem(KEY,language)}catch(_){}
   if(observer)observer.disconnect();
   walk(document.body);
   const select=document.getElementById('uiLanguage');
   if(select)select.value=language;
-  if(observer)observer.observe(document.body,{subtree:true,childList:true});
+  if(observer)observer.observe(document.body,{subtree:true,childList:true,characterData:true});
  };
  const init=()=>{
   const sel=document.getElementById('uiLanguage');
@@ -104,7 +132,7 @@
     observer.disconnect();
     for(const node of pendingNodes){if(node.isConnected)walk(node);}
     pendingNodes.clear();
-    observer.observe(document.body,{subtree:true,childList:true});
+    observer.observe(document.body,{subtree:true,childList:true,characterData:true});
    });
   });
   sel.addEventListener('change',()=>setLanguage(sel.value));
