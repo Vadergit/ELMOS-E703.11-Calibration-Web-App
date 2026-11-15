@@ -44,23 +44,27 @@ Die bestehenden Schutzbedingungen für Factory-, Boot- und Kommunikationsregiste
 
 ## 3. Nachmessung, Druck- und Temperaturhysterese
 
-1. Den kalibrierten Sensor verbinden und **Archiv & Nachmessung** öffnen.
-2. Prüfart wählen: **Druckrampe**, **Temperaturrampe** oder **Druck × Temperatur**.
-3. Druck- und Temperaturwerte in der gewünschten Reihenfolge eingeben, getrennt durch Komma, Leerzeichen oder Semikolon. Dezimaltrennzeichen ist **Punkt**.
-4. Zyklen (1–30) einstellen und **Prüfplan berechnen**.
-5. **Nachmessung starten**. Die App legt einen neuen Archivdatensatz mit der aktuellen Chip-UID und den Anfangszuständen an.
-6. Klimakammer und Druckkalibrator von Hand auf den angezeigten Prüfpunkt einstellen, Werte stabilisieren, tatsächliche Referenzen und Quelle erfassen, Häkchen zur Stabilisierung setzen.
-7. **Messung aufnehmen / wiederholen** drücken. Alle einzelnen Samples bleiben erhalten.
-8. Bei Bedarf denselben Punkt beliebig oft nachmessen oder zum nächsten bzw. vorherigen Punkt wechseln.
-9. Nach allen Punkten **Nachmessung abschliessen** wählen.
+1. Den kalibrierten Sensor verbinden und **Nachmessung** öffnen.
+2. **Ursprünglichen kalibrierten Druckbereich** (Unter-/Obergrenze) und die physikalische Druckeinheit festlegen: bar, mbar, kPa, MPa oder psi. Eine bekannte DSP-Skalierung wird aus dem aktiven RAM-Abgleich übernommen, falls vorhanden. Andernfalls Werte prüfen und manuell eingeben.
+3. **Digitalen DSP-Endwert (± Digits)** angeben; dieser legt zusammen mit dem Druckbereich die Abbildung von DSP_S auf den physikalischen Druck fest. Die Messung verwendet ausschliesslich digital ausgelesene DSP_S-Werte. Analoge Ausgangsspannungen, Ströme und ratiometrische Umrechnungen sind nicht erforderlich.
+4. **Prüfpunkte eingeben als** auswählen:
+   - **% der Messspanne:** zum Beispiel `0, 25, 50, 75, 100, 75, 50, 25, 0`. Bei einem kalibrierten Druckbereich von 0 bis 10 bar werden daraus `0, 2.5, 5, 7.5, 10, 7.5, 5, 2.5, 0` bar.
+   - **Druck:** dieselben Werte direkt in der gewählten physikalischen Einheit eingeben.
+   Ein Wechsel der Eingabeart rechnet die bestehende Druckreihe um, ohne die physikalischen Prüfpunkte zu verändern. Der Druckeinheiten-Wechsel konvertiert die eingestellten physikalischen Werte ebenfalls.
+5. Prüfart und Zyklen (1–30) einstellen. Optional das ursprüngliche Abgleichverfahren (2-Punkt, 3-Punkt, Mehrpunkt), Abgleichtemperaturen und Abgleichpunkte dokumentieren.
+6. **Nachmessung starten.** Die App speichert Chip-UID, Kalibrierwerkzeug, Druckbereich, Original-Prüfreihe, Eingabeeinheit, DSP-Endwert und die weiteren Protokollangaben im lokalen Archiv.
+7. Klimakammer und Druckkalibrator manuell auf den angezeigten physikalischen Sollwert stellen, Bedingungen stabilisieren und Messpunkt aufnehmen. Die letzten Istwerte erscheinen direkt beim Messbutton. Ein Prüfpunkt kann wiederholt werden; alle Versuche werden gespeichert.
+8. Den nächsten Prüfpunkt wählen. Beim letzten Punkt heisst die Aktion **Prüfung abschliessen und speichern**. Anschliessend werden sämtliche Ergebnisse, Abweichungen und das Diagramm angezeigt; das Protokoll lässt sich als PDF drucken bzw. speichern.
 
-Beispiel Druckrampe: `0, 2.5, 5, 7.5, 10, 7.5, 5, 2.5, 0`.
+**Digitale Zuordnung und Bewertung:** Die App rechnet den ausgelesenen DSP_S-Wert mit dem konfigurierten Bereich und DSP-Endwert um. Bei passender aktiver RAM-Zuordnung gilt die Umrechnung automatisch als bestätigt. Ist keine solche Zuordnung vorhanden, muss der Prüfer die Skalierung vor der Toleranzbewertung ausdrücklich bestätigen. Nicht bestätigte Punkte werden **nicht bewertet**, nicht fälschlich als bestanden dargestellt. Jede Druckabweichung wird als physikalische Differenz und als **% der gesamten kalibrierten Messspanne** ermittelt:
 
-Beispiel Temperaturrampe: `10, 40, 90, 40, 10`.
+`Abweichung % Span = (Ist-Druck - Soll-Druck) / (Druckobergrenze - Druckuntergrenze) × 100`.
 
-Bei **Druck × Temperatur** wird jede Druckrampe bei jeder Temperaturstufe durchlaufen. Beide Rampen können unabhängig mehrere Umkehrpunkte enthalten. Mehrere komplette Zyklen sind erlaubt. Es werden keine festen zwei, drei oder sechs Punkte vorausgesetzt; zur Begrenzung von Fehlbedienung gilt ein technisches Maximum von 100 Werten je Rampe und 3000 gesamten Schritten je Vorgang.
+Beispiel: 0–10 bar, Soll 5.00 bar, Ist 5.10 bar ergibt +0.10 bar bzw. +1.00 % Span. Die maximal erlaubte Toleranz ist separat einstellbar (Standard ±0.2 % Span).
 
-Für die Hysterese werden nur Punkte mit demselben Referenzdruck und derselben Referenztemperatur, aber **entgegengesetzter Anfahrrichtung**, verglichen. Druck- und Temperaturhysterese werden getrennt berechnet. Fehlt ein Gegenpunkt, wird keine Hysterese erfunden. Am Umkehrpunkt kann nur ein Messwert vorhanden sein; dafür wird ohne zweiten Vergleich kein Hysteresewert angegeben.
+Für Druck × Temperatur wird jede Druckreihe bei jeder Temperaturstufe durchlaufen. Hysterese wird nur bei gleicher Referenz und entgegengesetzter Anfahrrichtung berechnet. Die prozentuale Druckhysterese verwendet ebenfalls die **gesamte kalibrierte Messspanne**, nicht nur den im Prüfplan abgefahrenen Teilbereich.
+
+Es gelten maximal 100 Werte je Rampe und 3000 gesamte Prüfpunkte pro Vorgang. Die bisherigen Archivprotokolle behalten ihre gespeicherten Einheiten und Bewertungen und bleiben lesbar.
 
 ## 4. Temperatureinheit, Versorgung und Grenzen
 
