@@ -3857,7 +3857,7 @@ if(typeof document!=='undefined') (function UI(){
   }
  }
  window.ELMOS_ARCHIVE_BRIDGE=Object.freeze({
-  meta:archiveMeta,initial:archiveCaptureConfig,final:archiveCaptureConfig,measure:archiveMeasure,
+  meta:archiveMeta,digitalRange:getActiveDSPRange,initial:archiveCaptureConfig,final:archiveCaptureConfig,measure:archiveMeasure,
   startTelemetry:archiveStartTelemetry,stopTelemetry:archiveStopTelemetry
  });
 
