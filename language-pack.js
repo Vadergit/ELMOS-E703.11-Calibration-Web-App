@@ -1947,3 +1947,33 @@ window.ELMOS_TRANSLATIONS_EN=Object.assign(window.ELMOS_TRANSLATIONS_EN||{}, {
  "Dieses ältere Protokoll enthält keinen vollständigen Prüfplan. Die gespeicherten DSP_S-Rohwerte werden gezeigt, aber ohne erfundene Sollwerte oder Toleranzbewertung.": "This older report has no complete test plan. The saved raw DSP_S readings are displayed without invented targets or tolerance verdicts.",
  "Für dieses Archivprotokoll sind keine darstellbaren Prüfpunkt-Messwerte gespeichert.": "No plottable verification-point measurements are stored in this archived report."
 });
+
+// v0.7.62: measured-value card and saved verification review.
+window.ELMOS_TRANSLATIONS_EN=Object.assign(window.ELMOS_TRANSLATIONS_EN||{}, {
+ "Gemessener Sensorwert": "Measured sensor value",
+ "Noch keine Messung": "No measurement yet",
+ "Der letzte Messwert erscheint direkt nach der Aufnahme.": "The latest recorded reading appears here immediately after capture.",
+ "Prüfung abschliessen und speichern": "Finish verification and save",
+ "PRÜFPROTOKOLL GESPEICHERT": "VERIFICATION REPORT SAVED",
+ "Zusammenfassung der Nachmessung": "Verification summary",
+ "Zur Hauptseite": "Back to main page",
+ "Alle Prüfpunkte und Ergebnisse": "All verification points and results",
+ "Punkt": "Point",
+ "Gemessen": "Measured",
+ "Abweichung": "Deviation",
+ "Ergebnis": "Result",
+ "Aufnahmezeit: ": "Captured at: ",
+ "Nachmessung gespeichert": "Verification saved",
+ "Prüfung wird gespeichert …": "Saving verification …",
+ "Speichern …": "Saving …",
+ "Archivstatus: ": "Archive status: ",
+ "Prüfpunkte gemessen": "points measured",
+ "Geplante Prüfpunkte": "Planned points",
+ "Ohne Messung": "Not measured",
+ "Ungeprüft: ": "Unverified: ",
+ "Ergebnis zu Prüfpunkt ": "Result for verification point ",
+ "Der letzte Prüfpunkt": "Last verification point",
+ "Prüfung im lokalen Archiv gespeichert. Du kannst alle Ergebnisse prüfen und danach zur Hauptseite zurückkehren.": "Verification saved to the local archive. Review all results, then return to the main page.",
+ "Das Prüfprotokoll wurde im ausgewählten lokalen Archiv gespeichert. Nicht bewertete oder fehlgeschlagene Prüfpunkte bleiben im Bericht sichtbar. Die Grafik und die Messwerte können hier nur angesehen werden.": "The verification report was saved to the selected local archive. Unassessed and failed points remain visible. This overview is read-only.",
+ "Den letzten Prüfpunkt ohne Messung abschliessen und als unvollständig speichern?": "Finish without measuring the last point and save as incomplete?"
+});
