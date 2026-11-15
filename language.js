@@ -58,6 +58,11 @@
   if(language!=='en'||!original)return original;
   const exact=translations[original];
   if(exact!==undefined)return exact;
+  // Common numeric progress text is built at runtime, not present as a literal in source files.
+  const progress=original.match(/^Schritt\s+(\d+)\s+von\s+(\d+)$/);
+  if(progress)return 'Step '+progress[1]+' of '+progress[2];
+  const point=original.match(/^(Messpunkt|Prüfpunkt)\s+(\d+)(.*)$/);
+  if(point)return (point[1]==='Messpunkt'?'Measurement point ':'Verification point ')+point[2]+(point[3]?translateString(point[3]):'');
   // Preserve live readings in interpolated status and error templates.
   for(const entry of templates){
    const match=original.match(entry.regexp);
