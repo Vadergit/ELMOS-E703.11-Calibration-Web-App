@@ -720,7 +720,7 @@ const ELMOS_ARCHIVE=(()=>{
    (mode!=='temperature'&&(!Number.isFinite(pressureSpan)||pressureSpan<=0))||
    !Number.isFinite(toleranceT)||toleranceT<0||!Number.isInteger(count)||count<1||count>100)
    return note(ui('Referenzen, Toleranz oder Messspanne ungültig. Bitte «Weitere Einstellungen» prüfen.','Invalid reference, tolerance or pressure span. Check Additional settings.'),true);
-  const attempts=r.events.filter(e=>e.kind==='measurement'&&e.stepIndex===S.step).length;
+  const attempts=r.events.filter(e=>e.kind==='measurement'&&(e.data?.stepIndex??e.stepIndex)===S.step).length;
   S.measuring=true;$('arMeasure').disabled=true;
   note('Messung '+(attempts+1)+' läuft …');
   try{
@@ -764,7 +764,7 @@ const ELMOS_ARCHIVE=(()=>{
  async function advance(){
   if(!S.record?.plan||S.measuring)return;
   const current=S.step;
-  const hasAttempt=S.record.events.some(e=>e.kind==='measurement'&&e.stepIndex===current);
+  const hasAttempt=S.record.events.some(e=>e.kind==='measurement'&&(e.data?.stepIndex??e.stepIndex)===current);
   if(current<S.record.plan.steps.length&&!hasAttempt){
    if(!window.confirm(ui('Diesen Prüfpunkt ohne Messung überspringen? Er wird im Protokoll als offen markiert.','Skip this point without measuring? It will remain unassessed in the log.')))return;
    await event('point_skipped',{stepIndex:current,reason:'Manuell übersprungen'});
