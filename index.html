@@ -108,6 +108,10 @@ button.danger{background:#9e3e34;border-color:#9e3e34;color:#fff}button.danger:h
 /* Permanente Messwertübersicht – eine Zeile mit sauberen Spalten auf Desktop. */
 .top{display:grid;grid-template-columns:minmax(205px,245px) minmax(0,1fr) auto;align-items:center;gap:16px;padding:8px 0 15px;position:sticky;top:0;z-index:24;background:var(--bg);border-bottom:1px solid var(--line)}
 .brand{min-width:0}
+#homeButton{border:0;background:none;padding:0;color:inherit;font:inherit;text-align:left;cursor:pointer}
+.brand:has(#homeButton){position:relative}
+#homeButton::after{content:"";position:absolute;inset:0}
+#homeButton:hover{text-decoration:underline;text-underline-offset:.2em}
 .live-overview{min-width:0;display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:6px;align-items:stretch}
 .live-kpi{display:flex;flex-direction:column;justify-content:center;min-width:0;padding:6px 10px;border:1px solid var(--line);background:#fff;border-radius:8px}
 .live-kpi-primary{border-color:#b9d3ea;background:#f1f7fd}
@@ -672,7 +676,7 @@ html.compact-mode .foot{display:none}
 .cal-point-recorded > .fieldrow{display:none!important}
 .operation-progress progress{display:block;width:100%;accent-color:var(--focus,#075874)}
 </style><link rel="stylesheet" href="guided.css?v=0.7.27"><link rel="stylesheet" href="interface.css?v=0.7.39"><link rel="stylesheet" href="theme.css?v=0.7.9"></head><body data-app-version="0.7.45"><div class="wrap"><header class="top">
-<div class="brand"><div class="logo" aria-hidden="true">E</div><div><div class="eyebrow">E703.11 · PSSC · v0.7.45</div><h1>Kalibrierassistent</h1></div></div>
+<div class="brand"><div class="logo" aria-hidden="true">E</div><div><div class="eyebrow">E703.11 · PSSC · v0.7.45</div><h1><button type="button" id="homeButton" aria-label="Kalibrierassistent – zur Hauptseite">Kalibrierassistent</button></h1></div></div>
 <div class="live-overview" role="group" aria-label="Sensorwerte · laufende Anzeige">
   <div class="live-kpi" title="Unkompensierter Druck-ADC. Warnung bei Beträgen über 25’000 Digits."><span class="live-kpi-label">ADC_S <span id="liveAdcAlert" class="live-alert" hidden>!</span></span><span class="live-kpi-reading" id="liveAdcS">—</span><span class="live-kpi-unit">Digits</span></div>
   <div class="live-kpi" title="ADC_T · Temperatur-Rohwert, keine direkte Temperatur in °C."><span class="live-kpi-label">ADC_T</span><span class="live-kpi-reading" id="liveAdcT">—</span><span class="live-kpi-unit">Digits</span></div>
@@ -1322,4 +1326,4 @@ html.compact-mode .foot{display:none}
 <div class="nav"><button data-next="0">Zur Verbindung</button><button data-next="6">Zum NVM-Schritt</button></div>
 </section>
 <div class="foot"><b>Version v0.7.45</b> · <a href="CHANGELOG.md" target="_blank" rel="noopener noreferrer">Änderungsverlauf</a> · ELMOS E703.11 · unabhängiger Kalibrierprototyp · Sicherheitsprinzip: Factory- und Kommunikations-Bootregister gesperrt; dokumentierte AODO-Ausgangsoptionen nur nach Prüfung im NVM-Plan; Wiederherstellung nur mit passender Chip-UID.</div>
-<section class="card panel" data-panel="8" hidden><div class="eyebrow">Werkzeuge · Sensorprotokoll</div><h2>Test / Logging</h2><p class="muted small">Messdaten, Rohwerte und Notizen jederzeit in einem lokalen Archiv protokollieren. Ohne NVM-Schreibvorgang.</p><div id="classicLoggerHost"></div></section></main></div></div><div id="tip" class="tooltip"></div><script src="calibration.js?v=0.7.29"></script><script src="eeprom-help.js?v=0.6.30"></script><script src="expert.js?v=0.7.45"></script><script src="config.js?v=0.7.17"></script><script src="guided-plan.js?v=0.6.30"></script><script src="demo.js?v=0.6.49"></script><script src="archive-core.js?v=0.7.3"></script><script src="test-logger-core.js?v=0.7.39"></script><script src="archive-analysis.js?v=0.7.4"></script><script src="archive.js?v=0.7.24"></script><script src="app.js?v=0.7.45"></script><script src="compact.js?v=0.7.18"></script><script src="test-logger.js?v=0.7.39"></script><script src="guided.js?v=0.7.29"></script></body></html>
+<section class="card panel" data-panel="8" hidden><div class="eyebrow">Werkzeuge · Sensorprotokoll</div><h2>Test / Logging</h2><p class="muted small">Messdaten, Rohwerte und Notizen jederzeit in einem lokalen Archiv protokollieren. Ohne NVM-Schreibvorgang.</p><div id="classicLoggerHost"></div></section></main></div></div><div id="tip" class="tooltip"></div><script src="calibration.js?v=0.7.29"></script><script src="eeprom-help.js?v=0.6.30"></script><script src="expert.js?v=0.7.45"></script><script src="config.js?v=0.7.17"></script><script src="guided-plan.js?v=0.6.30"></script><script src="demo.js?v=0.6.49"></script><script src="archive-core.js?v=0.7.3"></script><script src="test-logger-core.js?v=0.7.39"></script><script src="archive-analysis.js?v=0.7.4"></script><script src="archive.js?v=0.7.24"></script><script src="app.js?v=0.7.45&amp;nav=1"></script><script src="compact.js?v=0.7.18"></script><script src="test-logger.js?v=0.7.39"></script><script src="guided.js?v=0.7.29&amp;nav=1"></script></body></html>

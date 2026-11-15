@@ -3542,6 +3542,20 @@ if(typeof document!=='undefined') (function UI(){
  }
  $('settingsOpen').addEventListener('click',()=>toggleSettings($('settingsPanel').hidden));
  $('settingsClose').addEventListener('click',()=>toggleSettings(false));
+ $('homeButton').addEventListener('click',()=>{
+  toggleSettings(false);
+  window.ELMOS_ARCHIVE?.close();
+  if(window.ELMOS_GUIDED?.isOpen()){
+   window.ELMOS_GUIDED.goToStart();
+   return;
+  }
+  if(!window.ELMOS_TEST_LOGGER?.isBusy()){
+   ELMOS_COMPACT.set(false);
+   $('compactMode').checked=false;
+  }
+  step(0);
+  window.scrollTo({top:0,behavior:'auto'});
+ });
  const demoMode=$('demoMode');
  demoMode.checked=demoEnabled;
  async function changeDemoMode(enabled){
