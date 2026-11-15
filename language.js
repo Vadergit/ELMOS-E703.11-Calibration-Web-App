@@ -89,10 +89,23 @@
   const sel=document.getElementById('uiLanguage');
   if(!sel)return;
   try{language=localStorage.getItem(KEY)==='en'?'en':'de'}catch(_){}
-  observer=new MutationObserver(()=>{
-   if(queued)return;
+  // Translate only new DOM nodes; repeatedly scanning the whole UI slows down live telemetry.
+  const pendingNodes=new Set();
+  observer=new MutationObserver((mutations)=>{
+   for(const mutation of mutations){
+    for(const node of mutation.addedNodes){
+     if(node.nodeType===Node.ELEMENT_NODE||node.nodeType===Node.TEXT_NODE)pendingNodes.add(node);
+    }
+   }
+   if(queued||!pendingNodes.size)return;
    queued=true;
-   queueMicrotask(()=>{queued=false;observer.disconnect();walk(document.body);observer.observe(document.body,{subtree:true,childList:true});});
+   queueMicrotask(()=>{
+    queued=false;
+    observer.disconnect();
+    for(const node of pendingNodes){if(node.isConnected)walk(node);}
+    pendingNodes.clear();
+    observer.observe(document.body,{subtree:true,childList:true});
+   });
   });
   sel.addEventListener('change',()=>setLanguage(sel.value));
   setLanguage(language);
