@@ -7,7 +7,7 @@ const ELMOS_TEST_LOGGER=(()=>{
   startedWall:0,groups:0,samples:0,missed:0,errors:0,consecutiveErrors:0,last:null,
   recent:[],markers:[],lastRecord:null,interrupted:false,clock:null,durationTimer:null,
   activeAccumulatedMs:0,activeStartedMono:0,stopAfterCapture:null,
-  reference:{pressure:null,temperature:null,source:null}};
+  reference:{pressure:null,temperature:null,source:null},photoDraft:[],photoPanels:null};
  const now=()=>new Date().toISOString();
  const bridge=()=>window.ELMOS_ARCHIVE_BRIDGE,archive=()=>window.ELMOS_ARCHIVE;
  const text=(id,v)=>{if($(id))$(id).textContent=String(v)};
@@ -211,13 +211,15 @@ const ELMOS_TEST_LOGGER=(()=>{
   try{
    const record=await archive().begin('testlog');
    S.recordId=record.id;
+   if(S.photoDraft.length)await archive().setPhotos(record,S.photoDraft);
    await archive().event('test_configuration',opts);
    await bridge().startTelemetry();
    S.settings=opts;
    S.startedMono=performance.now();S.startedWall=Date.now();S.nextDueMono=S.startedMono;
    S.activeAccumulatedMs=0;S.activeStartedMono=S.startedMono;S.stopAfterCapture=null;
    S.groups=0;S.samples=0;S.missed=0;S.errors=0;S.consecutiveErrors=0;S.recent=[];S.markers=[];$('tlChartMarkers').dataset.rendered='';
-   S.last=null;S.paused=false;S.stopRequested=false;S.lastRecord=null;
+   S.last=null;S.paused=false;S.stopRequested=false;S.lastRecord=null;S.photoDraft=[];
+   S.photoPanels?.setup.refresh();S.photoPanels?.active.refresh();S.photoPanels?.finished.refresh();
    S.reference={pressure:null,temperature:null,source:null};
    for(const id of ['tlRefPressure','tlRefTemperature','tlRefSource'])if($(id))$(id).value='';
    if(S.clock!==null)clearInterval(S.clock);
@@ -358,6 +360,7 @@ const ELMOS_TEST_LOGGER=(()=>{
      activeElapsedMs:S.activeAccumulatedMs,targetDurationMs:S.settings?.durationMs??null,
      completionReason:reason,status});
     S.lastRecord=await archive().finalise(status);
+    S.photoPanels?.finished.refresh();S.photoPanels?.active.refresh();
     announce(reason==='duration'?'Eingestellte Testdauer erreicht. Aufzeichnung automatisch beendet und gespeichert.':
      'Test abgeschlossen und im lokalen Archiv gespeichert.');
    }else announce('Archivprotokoll wurde unterbrochen. Bitte Ordner und Sensorverbindung prüfen.',true);
@@ -412,7 +415,7 @@ const ELMOS_TEST_LOGGER=(()=>{
    '<label>VDD-Istspannung (V, manuell gemessen)<input id="tlVdd" type="number" min="0" max="30" step="any" placeholder="z. B. 5.01"></label>'+
    '<label>Quelle der VDD-Messung<input id="tlVddSource" maxlength="200" placeholder="z. B. Multimeter am Prüfling"></label></div>'+
    '<label>Beschreibung der Messung / Testaufbau<textarea id="tlDescription" rows="3" maxlength="4000" placeholder="Was wird geprüft? Referenzgeräte, Aufbau, Temperatur- oder Druckbedingungen, Auffälligkeiten …"></textarea></label>'+
-   '<h3>Aufzeichnung konfigurieren</h3>'+
+   '<div id="tlPhotoSetup"></div><h3>Aufzeichnung konfigurieren</h3>'+ 
    '<label class="tl-check"><input id="tlManual" type="checkbox"> Messpunkte manuell auslösen</label>'+
    '<div class="tl-grid">'+
    '<label id="tlIntervalField">Messintervall zwischen Messpunkten (ms)<input id="tlInterval" type="number" min="1" max="3600000" step="1" value="1000"></label>'+
@@ -440,7 +443,7 @@ const ELMOS_TEST_LOGGER=(()=>{
    '<button id="tlSnapshot" type="button">Einzelaufnahme</button>'+
    '<button id="tlStop" type="button" class="primary">Aufzeichnung beenden & speichern</button></div>'+
    '<label>Marker / Notiz während der Messung<textarea id="tlMarkerText" maxlength="1000" rows="2" placeholder="z. B. Referenzdruck auf 5 bar erhöht"></textarea></label>'+
-   '<button id="tlMarkerAdd" type="button">Marker mit Zeitstempel speichern</button>'+
+   '<button id="tlMarkerAdd" type="button">Marker mit Zeitstempel speichern</button><div id="tlPhotoActive"></div>'+ 
    '<figure id="tlChartFigure" class="tl-chart" hidden>'+
    '<figcaption>Verlauf der letzten 20 Messpunkte · Digits <span class="tl-chart-adc">ADC_S</span> <span class="tl-chart-dsp">DSP_S</span></figcaption>'+
    '<canvas id="tlChart" role="img" aria-label="ADC_S und DSP_S nach Messpunktnummer"></canvas>'+
@@ -448,7 +451,7 @@ const ELMOS_TEST_LOGGER=(()=>{
    '<p id="tlChartNote" role="status" hidden></p></figure>'+
    '<h3>Letzte Messpunkte</h3><div id="tlRecent" class="tl-recent"></div></section>'+
   '<section id="tlExports" class="tl-box" hidden><strong>Letzte Aufzeichnung</strong>'+
-   '<p>Im Archiv sind die Beschreibung, Marker, Geräteinformationen und vollständigen Rohwerte gespeichert.</p>'+
+   '<p>Im Archiv sind die Beschreibung, Marker, Geräteinformationen und vollständigen Rohwerte gespeichert.</p><div id="tlPhotoFinished"></div>'+ 
    '<div class="tl-actions"><button id="tlExportJSON" type="button">JSON inkl. Rohwerte</button>'+
    '<button id="tlExportCSV" type="button">CSV herunterladen</button>'+
     '<button id="tlExportPDF" type="button">Prüfprotokoll als PDF speichern</button></div></section>'+
@@ -475,6 +478,29 @@ const ELMOS_TEST_LOGGER=(()=>{
   $('tlExportJSON').addEventListener('click',()=>{void exportLast('json')});
   $('tlExportCSV').addEventListener('click',()=>{void exportLast('csv')});
   $('tlExportPDF').addEventListener('click',()=>{void exportLast('pdf')});
+  if(window.ELMOS_ARCHIVE_PHOTOS?.mount){
+   const mount=window.ELMOS_ARCHIVE_PHOTOS.mount;
+   const setup=mount($('tlPhotoSetup'),{
+    getPhotos:()=>S.photoDraft,
+    onChange:async next=>{S.photoDraft=next}
+   });
+   const active=mount($('tlPhotoActive'),{
+    getPhotos:()=>archive()?.current?.type==='testlog'?archive().current.photos||[]:[],
+    onChange:next=>{
+     if(!S.recordId||archive()?.current?.id!==S.recordId)
+      throw Error('Keine laufende Testaufzeichnung.');
+     return archive().setPhotos(archive().current,next);
+    }
+   });
+   const finished=mount($('tlPhotoFinished'),{
+    getPhotos:()=>S.lastRecord?.photos||[],
+    onChange:next=>{
+     if(!S.lastRecord)throw Error('Keine gespeicherte Aufzeichnung vorhanden.');
+     return archive().setPhotos(S.lastRecord,next);
+    }
+   });
+   S.photoPanels={setup,active,finished};
+  }
   S.lastRecord=null;render();
  }
  function unmount(){
