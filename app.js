@@ -128,7 +128,7 @@ if(typeof document!=='undefined') (function UI(){
   banner.hidden=!visible;
   if(!visible)return;
   const working=st.reinitRunning||st.powerCycleRunning||st.magicRunning||st.startupRunning||st.diagRunning;
-  const adapter=st.adapterKind==='bridge'?'ESP32':'SSP3';
+  const adapter=st.adapterKind==='bridge'?(st.bridgeBoard||'DIY-Programmer'):'SSP3';
   message.textContent=working?'Verbindung wird geprüft und initialisiert …':
    st.adapterNoReply?`Der ${adapter} antwortet nicht auf USB-Befehle. USB-Port neu öffnen und prüfen, ob ein anderes Programm den Port verwendet.`:
    st.adapterKind==='bridge'&&st.bridgeRxNote?st.bridgeRxNote:
@@ -987,6 +987,12 @@ if(typeof document!=='undefined') (function UI(){
   const match=response.match(/E70311-BRIDGE\s+V1\s+CAPS=([A-Z0-9_,]+)/);
   if(!match)throw Error('Kein kompatibler E703.11 USB-CDC-Bridge-Handshake. Bitte Bridge-Firmware prüfen.');
   const caps=match[1].split(',');
+  // Only the two approved DIY-programmer firmware families may access a chip.
+  const isProMicro=caps.includes('PLC_D4_IO')&&caps.includes('PRO_MICRO_NVM');
+  const isEsp32C3=caps.includes('PLC_GPIO4_IO')&&caps.includes('POWER_GPIO_10');
+  if(isProMicro===isEsp32C3)
+   throw Error('DIY-Programmer nicht unterstützt. Nur ESP32-C3 SuperMini (v0.10) und Arduino Pro Micro (v0.27) auswählen.');
+  st.bridgeBoard=isProMicro?'Arduino Pro Micro':'ESP32-C3 SuperMini';
   st.bridgeCalibrationNvm=caps.includes('PRO_MICRO_NVM')||caps.includes('BRIDGE_CAL_NVM');
   st.bridgeAfeFilter=caps.includes('AFE_FILTER');
   st.bridgeI2c=caps.includes('I2C_CRC');
@@ -995,11 +1001,11 @@ if(typeof document!=='undefined') (function UI(){
   st.bridgeReadOnly=caps.includes('PLC_READ_ONLY')&&caps.includes('PLC_READ');
   st.bridgeRxDiag=caps.includes('PLC_RX_DIAG');
   $('plcGpio4Mode').disabled=!st.bridgePlcIo;
-  st.firmware='USB-CDC Bridge v1 · '+caps.join('/');
+  st.firmware=st.bridgeBoard+' · USB-Bridge · '+caps.join('/');
   renderStatus();logging('USB-Bridge CAPS: '+caps.join(','));
   const ready=st.bridgeReadOnly||['PLC_READ','PLC_WRITE','NVM'].every(cap=>caps.includes(cap));
   if(!ready){
-   show('connMsg','USB-Bridge erkannt. Für Chipzugriff ist die ESP32-C3 PLC-Firmware erforderlich.','warn');
+   show('connMsg',st.bridgeBoard+' erkannt. Chipzugriff benötigt die passende E703.11-DIY-Firmware.','warn');
   }
   return ready;
  }
@@ -1009,7 +1015,7 @@ if(typeof document!=='undefined') (function UI(){
   const response=await exchange(recover?'PLC RECOVER'+(power?' START':''):power?'PLC START':'PLC ACCESS',3500);
   if(!st.bridgePsscRam)return;
   const status=response.match(/PLC ACCESS ADDR=(6C|7C) RAM_RECOVERY=([01])/);
-  if(!status)throw Error('ESP32 hat die One-Wire-Adresse nicht bestätigt');
+  if(!status)throw Error((st.bridgeBoard||'DIY-Programmer')+' hat die One-Wire-Adresse nicht bestätigt');
   st.plcAddress=parseInt(status[1],16);
   if(status[2]==='1')st.psscRamRecovery=true;
   return status[2]==='1';
@@ -1022,12 +1028,12 @@ if(typeof document!=='undefined') (function UI(){
    const readings=[...reply.matchAll(/ECHO=(BOTH|LOW|HIGH) EDGES=(\d+)/g)];
    if(readings.length!==2)return;
    if(st.bridgeSinglePin&&readings.every(m=>Number(m[2])===0))
-    st.bridgeRxNote='ESP32 per USB erreichbar. Nach dem Senden auf GPIO4 wurde keine Sensorantwort erkannt.';
+    st.bridgeRxNote=(st.bridgeBoard||'DIY-Programmer')+' per USB erreichbar. Nach dem Senden auf AODO wurde keine Sensorantwort erkannt.';
    else if(readings.every(m=>m[1]!=='BOTH'&&Number(m[2])===0))
     st.bridgeRxNote='USB-Bridge erreichbar. Auf der separaten Empfangsleitung wurde kein Signal erkannt. Bei gemeinsamer Signalleitung den entsprechenden Modus im Expertenbereich aktivieren.';
    else if(readings.every(m=>Number(m[2])===0))
-    st.bridgeRxNote='ESP32 empfängt sein eigenes Sendesignal, aber keine Sensorantwort auf AODO. Startfenster und Sensorversorgung prüfen.';
-   else st.bridgeRxNote='ESP32 erkennt Signalwechsel am AODO-Empfänger, aber keine bestätigte Chipantwort. Details im USB-Protokoll.';
+    st.bridgeRxNote=(st.bridgeBoard||'DIY-Programmer')+' empfängt sein eigenes Sendesignal, aber keine Sensorantwort auf AODO. Startfenster und Sensorversorgung prüfen.';
+   else st.bridgeRxNote=(st.bridgeBoard||'DIY-Programmer')+' erkennt Signalwechsel am AODO-Empfänger, aber keine bestätigte Chipantwort. Details im USB-Protokoll.';
   }catch(e){logging('ESP32 RX-Diagnose: '+e.message)}
  }
  async function connectBridgeChip(){
@@ -2067,7 +2073,7 @@ if(typeof document!=='undefined') (function UI(){
   st.psscRamRecovery=false;st.coldStartAfeRestored=false;
   st.startupTrials=[];st.chipDiag=null;st.lastPlcReply=null;st.readerAlive=false;
   st.plcAddress=0x6C;st.plcAddressVerified=false;st.plcAddressSource='';st.plcAddressProbes=[];
-  st.reinitRunning=false;st.firmware='';st.readOnlySensor=null;st.powerHelp=null;st.powerCycleResult=null;st.magicResult=null;st.liveReadAttempts=0;st.liveReadSuccesses=0;st.liveLastError=null;st.liveLastAttemptAt=null;st.measurementPeriod=null;st.measurementStatus=null;st.measurementError=null;st.measurementStarts=0;st.measurementFreshCount=0;st.measurementLastChangedAt=null;st.plcHostFormat=$('plcHostFormat').value;st.chip=false;st.afe=null;st.afe0=null;st.boot=null;st.regs={};st.dsp=null;st.dspError=null;st.calStaged=false;st.calVerified=false;st.nvmDone=false;st.adc=null;st.manualLivePause=false;st.afeWriteActive=false;st.ramWriteScope=null;st.uid=null;st.uidShownForInput=null;st.restorePlan=null;st.expertOutputPlan=null;st.outputOnlyPlan=null;st.iface=$('iface').value;st.adapterKind=$('adapterType').value;
+  st.reinitRunning=false;st.firmware='';st.bridgeBoard=null;st.readOnlySensor=null;st.powerHelp=null;st.powerCycleResult=null;st.magicResult=null;st.liveReadAttempts=0;st.liveReadSuccesses=0;st.liveLastError=null;st.liveLastAttemptAt=null;st.measurementPeriod=null;st.measurementStatus=null;st.measurementError=null;st.measurementStarts=0;st.measurementFreshCount=0;st.measurementLastChangedAt=null;st.plcHostFormat=$('plcHostFormat').value;st.chip=false;st.afe=null;st.afe0=null;st.boot=null;st.regs={};st.dsp=null;st.dspError=null;st.calStaged=false;st.calVerified=false;st.nvmDone=false;st.adc=null;st.manualLivePause=false;st.afeWriteActive=false;st.ramWriteScope=null;st.uid=null;st.uidShownForInput=null;st.restorePlan=null;st.expertOutputPlan=null;st.outputOnlyPlan=null;st.iface=$('iface').value;st.adapterKind=$('adapterType').value;
   st.sensorPowerEnabled=st.adapterKind==='bridge'&&!demoEnabled&&$('plcPowerCycle').checked;
   $('nvmRestartStatus').hidden=true;
   $('nvmRebootConfirm').checked=false;
@@ -2115,9 +2121,10 @@ if(typeof document!=='undefined') (function UI(){
      return;
     }
     if(st.adapterKind==='bridge'){
+     const board=st.bridgeBoard||'DIY-Programmer';
      const message=st.bridgeRxNote||(e.message.includes('PLC_NO_VALID_FRAME')
-      ?'ESP32 verbunden. Warte auf E703.11. Prüfe Versorgung und AODO-Verkabelung und verbinde den Adapter erneut.'
-      :'ESP32 erreichbar. E703.11-Zugriff fehlgeschlagen: '+e.message);
+      ?board+' verbunden. Warte auf E703.11. Prüfe Versorgung und AODO-Verkabelung und verbinde den Adapter erneut.'
+      :board+' erreichbar. E703.11-Zugriff fehlgeschlagen: '+e.message);
      show('connMsg',message,'warn');
      renderStatus();
      return;
@@ -3796,8 +3803,8 @@ if(typeof document!=='undefined') (function UI(){
    online:!!st.chip,uid:st.uid?.hex||null,customUID:userId,nvmDone:!!st.nvmDone,calVerified:!!st.calVerified,
    software:{version:document.body.dataset.appVersion||'nicht angegeben',url:location.href,
     userAgent:navigator.userAgent,local:location.protocol==='file:',demo:demoEnabled},
-   equipment:{adapter:demoEnabled?'Demo':st.adapterKind==='ssp3'?'ELMOS SSP3':st.adapterKind==='bridge'?'ESP32-USB-Bridge':st.adapterKind,
-    adapterKind:st.adapterKind,
+   equipment:{adapter:demoEnabled?'Demo':st.adapterKind==='ssp3'?'ELMOS SSP3':st.adapterKind==='bridge'?(st.bridgeBoard||'DIY-Programmer'):st.adapterKind,
+    adapterKind:st.adapterKind,board:st.adapterKind==='bridge'?st.bridgeBoard:null,
     // SSP3 .VERSION or USB bridge firmware: not a version of the E703.11 sensor.
     firmware:st.firmware,adapterFirmware:st.firmware,serialPort:serialPortInfo(st.port),
     interface:st.iface,plcAddress:'0x'+h(st.plcAddress),plcAddressVerified:st.plcAddressVerified,
