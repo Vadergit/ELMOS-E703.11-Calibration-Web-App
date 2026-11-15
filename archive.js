@@ -296,7 +296,9 @@ const ELMOS_ARCHIVE=(()=>{
   }catch(e){note('Archiv nicht lesbar: '+e.message,true)}
  }
  function readable(r){
-  return [r.chipUID,r.customUID,r.initial?.configuredUserId,r.final?.configuredUserId,
+  return [r.verificationMetadata?.operator,r.verificationMetadata?.project,
+   r.verificationMetadata?.location,r.verificationMetadata?.externalInstruments,
+   r.calibrationTool?.communicationAdapter,r.chipUID,r.customUID,r.initial?.configuredUserId,r.final?.configuredUserId,
    r.type,r.status,r.startedAt,r.equipment?.adapter,r.equipment?.adapterFirmware,
    r.equipment?.firmware,
    r.software?.version,r.testConfiguration?.name,r.testConfiguration?.dutName,
@@ -499,7 +501,33 @@ const ELMOS_ARCHIVE=(()=>{
   heading.append(el('p',info.description||info.chipUID||'–','ar-muted'));
   top.append(heading,el('span',info.statusLabel,'ar-pill'+
    (info.status==='completed'?' ar-good':info.status==='failed'?' ar-bad':'')));
+  if(r.type==='verification'){
+   const pdfBtn=el('button',ui('Prüfprotokoll als PDF speichern','Save verification report as PDF'),'ar-pdf-export');
+   pdfBtn.type='button';
+   pdfBtn.addEventListener('click',()=>exportVerificationPdf(r));
+   top.append(pdfBtn);
+  }
   root.append(top,outcome(info),section('Geräte- und Aufzeichnungsdaten'),facts(info));
+  if(r.type==='verification'){
+   const meta=r.verificationMetadata||{},tool=r.calibrationTool||
+    calibrationToolFromMeta({equipment:r.equipment,software:r.software});
+   const details=[
+    [ui('Kalibrierwerkzeug (automatisch erkannt)','Calibration tool (automatically detected)'),formatCalibrationTool(tool)],
+    [ui('Prüfer','Examiner'),meta.operator],
+    [ui('Auftrag / Projekt','Order / Project'),meta.project],
+    [ui('Prüfort / Prüfstand','Test location / Bench'),meta.location],
+    [ui('Externe Messmittel','External instruments'),meta.externalInstruments],
+    [ui('Zertifikat / Referenz','Certificate / Reference'),meta.instrumentCertificate],
+    [ui('Zusätzliche Informationen','Additional information'),meta.notes]
+   ].filter(([,v])=>v);
+   const sectionBox=el('div',null,'ar-finished-metadata');
+   for(const [key,value] of details){
+    const item=el('div',null,'ar-finished-meta-item');
+    item.append(el('small',key),el('strong',value));
+    sectionBox.append(item);
+   }
+   root.append(section(ui('Prüfdokumentation','Verification documentation')),sectionBox);
+  }
   // Reuse the live verification plot for stored results; this is read-only.
   // Keep it above hysteresis and event logs so results are visible at a glance.
   if(r.type==='verification'){
@@ -1161,6 +1189,7 @@ const ELMOS_ARCHIVE=(()=>{
   }
   S.view=view==='verification'?'verification':'archive';
   $('archiveWorkspace').classList.toggle('ar-guided-verification',S.view==='verification');
+  if(S.view==='verification')refreshDetectedCalibrationTool();
   text('arViewTitle',S.view==='verification'?'Nachmessung':'Kalibrierarchiv');
   text('arViewSubtitle',S.view==='verification'?
    'Druck- und Temperaturprüfpläne mit Hysterese und vollständigem lokalen Protokoll':
