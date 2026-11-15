@@ -763,6 +763,8 @@ const ELMOS_GUIDED=(()=>{
   }catch(_){}
  }
  function toggleTopView(){
+  // Top navigation switches views, even if the archive/verification overlay is open.
+  window.ELMOS_ARCHIVE?.close?.();
   if(mode)close();
   else open();
  }
