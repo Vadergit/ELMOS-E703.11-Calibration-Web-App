@@ -649,6 +649,7 @@ const ELMOS_ARCHIVE=(()=>{
   if(r){
    text('arActiveState',r.type==='verification'?
     ui('Prüfung · ','Verification · ')+(r.chipUID||'?'):
+    S.view==='verification'?ui('Es läuft noch ein Kalibrierprotokoll. Bitte zuerst abschliessen oder archivieren.','A calibration log is still active. Finish or archive it before starting verification.'):
     (typeWords[r.type]||r.type)+' · '+(r.chipUID||'?')+' · '+(statusWords[r.status]||r.status));
   }
   if(r?.plan&&r.type==='verification')renderStep();
