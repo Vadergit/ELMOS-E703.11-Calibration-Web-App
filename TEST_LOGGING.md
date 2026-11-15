@@ -1,6 +1,6 @@
 # ELMOS E703.11 – Test / Logging
 
-**Ab v0.7.72 · Benutzeranleitung (Laborprototyp)**
+**Ab v0.7.73 · Benutzeranleitung (Laborprototyp)**
 
 Das **Test / Logging** findest du auf zwei Wegen: in der **klassischen Ansicht als eigenen Reiter direkt unter «EEPROM Viewer»** und im geführten Assistenten auf der ersten Seite als **vierte Kachel**. Beide Wege öffnen denselben Logger, dessen Eingaben beim Wechsel erhalten bleiben. Damit können beliebige sensorbezogene Versuche protokolliert werden, ohne einen neuen Abgleich oder einen NVM-Schreibvorgang auszulösen.
 
@@ -58,6 +58,10 @@ Status-Bitfelder sind keine analogen Messgrössen und werden **nicht gemittelt**
 Ist **«Zusätzlich TX/RX-Kommunikation aufzeichnen»** aktiv, werden auch die vom bestehenden USB-Logger bereitgestellten Befehle und Antworten gespeichert. Das erzeugt deutlich grössere Dateien.
 
 Die App misst die wirkliche externe Spannung **nicht selbst**, wenn der Adapter keinen bestätigten VDD-Messwert liefert. In diesem Fall bleibt `measuredV: null`, ausser du trägst die Messung mit Quellenangabe manuell ein.
+
+## Optionale Bilder des Prüfaufbaus
+
+Vor dem Start, während der Aufzeichnung und nach dem Speichern kannst du **ein oder zwei Fotos** hinzufügen. Der optionale Fotobereich zeigt Vorschaubilder und erlaubt eine kurze Beschriftung und das Entfernen einzelner Bilder. Zulässig sind JPG, PNG oder WebP bis 12 MB; im Browser werden die Bilder auf max. 1400 Pixel und 300 KB pro Bild komprimiert. Die Fotos werden lokal direkt in der Archiv-JSON-Datei gespeichert und später im PDF-Protokoll angezeigt. Im Archiv kann ein Foto auch nach Abschluss ergänzt werden. Die Rohmessdaten bleiben unverändert.
 
 ## 4. Dateien, Archiv und Export (v0.7.72)
 
