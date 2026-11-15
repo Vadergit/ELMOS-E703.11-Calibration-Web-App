@@ -107,6 +107,7 @@ const ELMOS_ARCHIVE_EXPORT=(()=>{
   const unit=cfg.pressureUnit||attempts.find(a=>a.data.pressureUnit)?.data.pressureUnit||'';
   const isPressure=(record.plan?.mode||'pressure')!=='temperature';
   const isTemperature=(record.plan?.mode||'pressure')!=='pressure';
+  const isCombined=isPressure&&isTemperature;
   const hasTemperature=steps.some(s=>finite(s.temperature))||attempts.some(a=>finite(a.data.referenceTemperature));
   const hasAssessment=cfg.toleranceEnabled===true||attempts.some(a=>a.data.toleranceApplied===true);
   const emit=a=>a.map(quote).join(';');
@@ -121,6 +122,12 @@ const ELMOS_ARCHIVE_EXPORT=(()=>{
    ['Kalibrierter Druckbereich',isPressure&&finite(cfg.calibrationMin)&&finite(cfg.calibrationMax)?
     format(cfg.calibrationMin)+' bis '+format(cfg.calibrationMax)+' '+unit:null],
    ['Prüfpunkte eingegeben als',isPressure?(cfg.pressureEntryMode==='percent'?'% der Messspanne':unit):null],
+   ['Sensor-/Referenzdruckart',isPressure&&cfg.sensorType&&cfg.referenceKind&&
+    (cfg.sensorType!=='gauge'||cfg.referenceKind!=='gauge')?
+    (cfg.sensorType==='absolute'?'Absolutdruck':'Relativdruck')+' / '+
+    (cfg.referenceKind==='absolute'?'Absolutdruck':'Relativdruck'):null],
+   ['Umgebungsdruck',cfg.correctionApplied&&finite(cfg.ambientPressure)?
+    format(cfg.ambientPressure)+' '+unit:null],
    ['Toleranzbewertung',hasAssessment?
     (finite(cfg.pressureTolerancePercent)?'±'+format(cfg.pressureTolerancePercent,4)+' % FS':'Aktiv'):'Nicht aktiviert'],
    ['Kalibrierwerkzeug',record.calibrationTool?.application],
@@ -134,6 +141,7 @@ const ELMOS_ARCHIVE_EXPORT=(()=>{
   }
   lines.push('');
   const cols=['Punkt','Zyklus','Richtung','Versuch','Zeitpunkt'];
+  if(isCombined)cols.splice(3,0,'Temp.-Richtung');
   if(isPressure)cols.push('Soll ['+unit+']','Referenz ['+unit+']',
     'Sensorwert ['+unit+']','Abweichung ['+unit+']','Abweichung [% FS]');
   if(isTemperature)cols.push('Solltemp. [°C]','Ref.temp. [°C]',
@@ -164,8 +172,9 @@ const ELMOS_ARCHIVE_EXPORT=(()=>{
    const dt=finite(data.referenceTemperature)?data.referenceTemperature:
     finite(step?.temperature)?step.temperature:null;
    const row=[index+1,step?.cycle??data.setpoint?.cycle??'',
-    direction(isTemperature&&!isPressure?step?.temperatureDirection:step?.pressureDirection),
-    data.attempt??'',localTime(sample.at||entry?.event?.at)];
+    direction(isTemperature&&!isPressure?step?.temperatureDirection:step?.pressureDirection)];
+   if(isCombined)row.push(direction(step?.temperatureDirection));
+   row.push(data.attempt??'',localTime(sample.at||entry?.event?.at));
    if(isPressure)row.push(format(target),format(reference),format(actual),
      format(diff),format(deviation,6));
    if(isTemperature){
