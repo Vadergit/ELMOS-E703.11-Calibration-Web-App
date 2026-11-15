@@ -39,6 +39,40 @@
 
 - Unter «Einstellungen → Feedback melden» lassen sich Fehler und Funktionswünsche mit optionalen Screenshots melden. Das Formular gibt den Link zum öffentlichen GitHub-Issue zurück.
 
+## v0.7.69 – Reduzierte Hinweise bei der Nachmessung
+
+- Den langen, wiederholten Warntext zur provisorischen Sensor-Skalierung aus der Detailansicht entfernt; gespeicherte Messwerte und Bewertungen unverändert belassen.
+
+## v0.7.68 – Einheitliche Abweichungsbezeichnung
+
+- In Webansicht, Archivübersicht und PDF ist die Messgrösse einheitlich als «Abweichung» beschriftet, unabhängig davon, ob eine Toleranzprüfung aktiviert oder die Skalierung bereits bestätigt ist.
+- Hinweise zur Skalierungsunsicherheit werden getrennt vom Zahlenwert angezeigt; dadurch entfällt die verwirrende Mischung aus «Geprüft», «Vorläufig» und «Ungeprüft» als Zahlenpräfix.
+
+## v0.7.67 – Bewertung optional und klarer Protokollname
+
+- Toleranzbewertung der Nachmessung ist **standardmässig deaktiviert**; ohne ausdrückliche Aktivierung werden Messwerte und Abweichungen erfasst, aber nicht als bestanden oder ausser Toleranz klassiert.
+- Die vier Bestanden-/Fehler-/Offen-Statuszähler in der Nachmessung, Grafik und im PDF wurden durch eine einfache Anzahl aufgenommener Messpunkte ersetzt. Toleranzbalken werden nur bei aktivierter Bewertung angezeigt.
+- Schnittstelle wird im Archiv und PDF passend als **One-Wire (AODO)** oder **I²C** benannt. Interne SSP3-Protokollkennungen bleiben unverändert.
+- Die frühere optionale VDD-Istspannungs-Eingabe in der Anschlussansicht wurde entfernt. Die manuelle VDD-Dokumentation innerhalb des separaten Testloggers blieb bestehen.
+
+## v0.7.66 – Aufgenommene, aber unbewertete Punkte im Diagramm
+
+- Bereits aufgezeichnete digitale Sensorwerte werden im Druckabweichungsdiagramm auch dann sichtbar, wenn eine bestätigte Toleranzbewertung noch nicht möglich ist. Solche Punkte dürfen nicht als «Bestanden» erscheinen.
+- Tests für Messpunkte mit unbekannter Skalierung, vorliegender physikalischer Einheit, vorhandenen Altarchiven und fehlenden Messpunkten hinzugefügt.
+
+## v0.7.65 – Nachmessung vereinfacht
+
+- Eingabefelder für den DSP-Endwert, die freie Beschreibung des ursprünglichen Abgleichs und doppelte Prüfmittelangaben aus der Nachmessung entfernt.
+- Optionale Protokollinformationen bleiben dauerhaft aufgeklappt. Referenzdruck zeigt die gewählte physikalische Einheit direkt am Eingabefeld.
+- Die Nachmessung orientiert sich am **digital angezeigten Sensorwert** und benötigt keinen separat zu erratenden DSP-Endwert. Diagramm, Archiv und PDF zeigen diesen Wert.
+- Überflüssige PDF-Felder wie «Adapter-Firmware: Antwort erhalten» entfernt. Ältere Protokolle mit DSP-Samples bleiben lesbar.
+
+## v0.7.64 – Physikalischer Prüfdruck oder Prozent der Messspanne
+
+- Kalibrierte Druckunter- und -obergrenze mit Einheit (bar, mbar, kPa, MPa, psi) einstellbar.
+- Nachmessungspunkte entweder direkt in Druckeinheiten oder in Prozent der gesamten Messspanne vorgeben; Umrechnung konsistent im Prüfplan, Archiv, Diagramm, Hysterese und PDF dokumentiert.
+- Die prozentuale Abweichung wird auf die **gesamte kalibrierte Druckspanne** bezogen, nicht auf einen möglicherweise kleineren Prüfplanbereich.
+
 ## v0.7.63 – PDF-Prüfprotokoll, optionale Dokumentation und automatische Werkzeugerkennung
 
 - Nach dem Speichern einer Nachmessung steht «Prüfprotokoll als PDF speichern» in der Abschlussübersicht zur Verfügung. Dieselbe Funktion ist auch für ältere Nachmessungen in der Archiv-Detailansicht verfügbar.
