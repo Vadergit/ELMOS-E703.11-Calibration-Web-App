@@ -625,11 +625,12 @@ const ELMOS_ARCHIVE=(()=>{
     ' '+ui('Zyklen','cycles')+
     (p.mode==='temperature'?'':' · '+p.pressure.length+' '+ui('Druckstufen','pressure levels'))+
     (p.mode==='pressure'?'':' · '+p.temperature.length+' '+ui('Temperaturstufen','temperature levels'))+'.');
-   const nodes=p.steps.slice(0,30).map(s=>(s.index+1)+'. '+
+   const nodes=p.steps.map(s=>(s.index+1)+'. '+
     (p.mode==='temperature'?'':ui('Druck ','Pressure ')+s.pressure+' · ')+
     (s.temperature===null?'':ui('Temperatur ','Temperature ')+s.temperature+' °C')+
     (p.mode==='pressure'?'': ' · '+ui('Temperatur-Richtung ','Temperature direction ')+s.temperatureDirection));
-   text('arPlanPreview',nodes.join('\n')+(p.steps.length>30?'\n… weitere Punkte im Ablauf':''));
+   text('arPlanPreview',nodes.join('\n'));
+
   }catch(e){S.draft=null;text('arPlanStatus',e.message);text('arPlanPreview','')}
  }
  const ui=(de,en)=>document.documentElement.lang==='en'?en:de;
