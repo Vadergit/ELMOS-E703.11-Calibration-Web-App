@@ -4,7 +4,7 @@ const ELMOS_ARCHIVE=(()=>{
  const C=ELMOS_ARCHIVE_CORE,ANALYSIS=ELMOS_ARCHIVE_ANALYSIS;
  const $=id=>document.getElementById(id);
  const S={dir:null,record:null,records:[],filename:null,writeQueue:Promise.resolve(),selection:[],step:0,
-  measuring:false,finishing:false,finishedReview:null,showDetails:null,lastError:'',folderName:'',draft:null,view:'archive',detailsToken:0,resultsCache:new Map(),debugLines:[],debugDropped:0,lastStreamMetaFlush:0};
+  measuring:false,finishing:false,finishedReview:null,showDetails:null,lastError:'',folderName:'',draft:null,view:'archive',detailsToken:0,resultsCache:new Map(),debugLines:[],debugDropped:0,lastStreamMetaFlush:0,pressureEntryBefore:'percent',pressureUnitBefore:'bar',autoRangeUid:null};
  const iso=()=>new Date().toISOString();
  const text=(id,value)=>{if($(id))$(id).textContent=String(value)};
  const note=(value,bad=false)=>{S.lastError=bad?String(value):'';text('archiveStatus',value);if($('archiveStatus'))$('archiveStatus').style.color=bad?'var(--red)':'var(--muted)'};
@@ -619,6 +619,89 @@ const ELMOS_ARCHIVE=(()=>{
     'ar-difference'));root.append(list);
   }
  }
+
+ const UNIT_TO_BAR={bar:1,mbar:0.001,kPa:0.01,MPa:10,psi:0.0689475729318};
+ const pFmt=n=>String(Number(Number(n).toPrecision(11)));
+ function calRange(){
+  const min=Number($('arCalMin').value),max=Number($('arCalMax').value),unit=$('arPressureUnit').value;
+  if(!UNIT_TO_BAR[unit]||!$('arCalMin').value.trim()||!$('arCalMax').value.trim()||
+    !Number.isFinite(min)||!Number.isFinite(max)||max<=min)
+   throw Error('Bitte einen gültigen kalibrierten Druckbereich und die Druckeinheit angeben.');
+  return {min,max,unit,span:max-min};
+ }
+ function dspRangeMatches(cfg){
+  const live=bridge()?.digitalRange?.();
+  if(live?.kind!=='ram'||!UNIT_TO_BAR[live.unit]||!UNIT_TO_BAR[cfg.pressureUnit]||
+    !Number.isFinite(live.min)||!Number.isFinite(live.max)||!Number.isFinite(live.limit))return false;
+  const source=UNIT_TO_BAR[live.unit],target=UNIT_TO_BAR[cfg.pressureUnit],eps=Math.max(1e-9,Math.abs(cfg.pressureSpan*target)*1e-7);
+  return Math.abs(live.min*source-cfg.calibrationMin*target)<eps&&
+   Math.abs(live.max*source-cfg.calibrationMax*target)<eps&&live.limit===cfg.dspLimit;
+ }
+ function addPressureUI(){
+  const group=$('arPressurePathLabel').closest('.ar-grid');
+  const range=el('div',null,'ar-grid');
+  range.innerHTML='<label>Kalibrierter Druckbereich von<input id="arCalMin" type="number" step="any" value="0"></label>'+
+   '<label>Kalibrierter Druckbereich bis<input id="arCalMax" type="number" step="any" value="10"></label>';
+  group.before(range);
+  const unit=$('arPressureUnit'),label=unit.closest('label');label.firstChild.textContent='Druckeinheit';
+  unit.querySelector('option[value="%"]')?.remove();
+  const mpa=el('option','MPa');mpa.value='MPa';unit.append(mpa);range.append(label);
+  const row=el('div',null,'ar-grid');
+  row.innerHTML='<label>Prüfpunkte eingeben als<select id="arPressureEntryMode"><option value="percent">% der Messspanne</option>'+
+   '<option value="pressure">Druck</option></select></label>'+
+   '<label>Digitaler DSP-Endwert (± Digits)<input id="arDspLimit" type="number" min="1000" max="32000" step="1" value="32000"></label>';
+  group.before(row);
+  const hint=el('p',null,'ar-inline-tip');hint.id='arDigitalRangeHint';row.after(hint);
+  $('arPressurePathLabel').firstChild.textContent='Druckreihe (hin und zurück, % der Messspanne, kommagetrennt)';
+  $('arPressurePath').value='0, 25, 50, 75, 100, 75, 50, 25, 0';
+  $('arPressureSpan').readOnly=true;
+  $('arPressureSpan').closest('label').firstChild.textContent='Druck-Messspanne (aus Kalibrierbereich)';
+  $('arFixedPressure').closest('label').firstChild.textContent='Konstanter Prüfdruck (gewählte Einheit)';
+  $('arPressureScaleConfirmed').closest('label').lastChild.textContent=' Digitalen DSP-Endwert und kalibrierten Druckbereich unabhängig geprüft (falls keine passende RAM-Skalierung erkannt wird).';
+ }
+ function scaleHint(){
+  try{
+   const c=calRange();
+   const ok=dspRangeMatches({calibrationMin:c.min,calibrationMax:c.max,pressureUnit:c.unit,pressureSpan:c.span,dspLimit:Number($('arDspLimit').value)});
+   text('arDigitalRangeHint',ok?'Digitale DSP_S-Skalierung entspricht dem aktuellen RAM-Abgleich.':
+    'DSP_S wird digital gelesen und anhand von Druckbereich und DSP-Endwert umgerechnet. Ohne passenden RAM-Abgleich ist eine manuelle Bestätigung vor der Toleranzbewertung notwendig.');
+  }catch(e){text('arDigitalRangeHint',e.message)}
+ }
+ function autoCalibrationRange(){
+  const meta=bridge()?.meta?.();
+  if(!meta?.online||!meta.uid||S.autoRangeUid===meta.uid)return;
+  S.autoRangeUid=meta.uid;
+  const range=bridge()?.digitalRange?.();
+  if(range&&UNIT_TO_BAR[range.unit]&&Number.isFinite(range.min)&&Number.isFinite(range.max)&&range.max>range.min){
+   $('arCalMin').value=pFmt(range.min);$('arCalMax').value=pFmt(range.max);
+   $('arPressureUnit').value=range.unit;S.pressureUnitBefore=range.unit;
+  }
+  if(range&&Number.isInteger(range.limit)&&range.limit>=1000&&range.limit<=32000)$('arDspLimit').value=String(range.limit);
+  $('arPressureScaleConfirmed').checked=false;
+  modeUI();preview();
+ }
+ function onUnitChange(){
+  const old=S.pressureUnitBefore,next=$('arPressureUnit').value;
+  S.pressureUnitBefore=next;const factor=UNIT_TO_BAR[old]/UNIT_TO_BAR[next];
+  if(Number.isFinite(factor)){
+   for(const id of ['arCalMin','arCalMax','arFixedPressure','arAmbientPressure']){
+    const field=$(id);if(field?.value.trim()&&Number.isFinite(Number(field.value)))field.value=pFmt(Number(field.value)*factor);
+   }
+   if($('arPressureEntryMode').value==='pressure'){
+    try{$('arPressurePath').value=C.points($('arPressurePath').value,'Druckreihe').map(v=>pFmt(v*factor)).join(', ')}catch(_){}
+   }
+  }
+  modeUI();preview();
+ }
+ function onEntryChange(){
+  const old=S.pressureEntryBefore;S.pressureEntryBefore=$('arPressureEntryMode').value;
+  try{
+   const range=calRange();
+   $('arPressurePath').value=C.points($('arPressurePath').value,'Druckreihe').map(v=>
+    pFmt(old==='percent'?range.min+range.span*v/100:(v-range.min)/range.span*100)).join(', ');
+  }catch(_){}
+  preview();
+ }
  function modeUI(){
   const mode=$('arMode').value;
   const hasPressure=mode!=='temperature';
@@ -1134,6 +1217,7 @@ const ELMOS_ARCHIVE=(()=>{
  function init(){
   if(!$('archiveWorkspace'))return;
   $('archiveWorkspace').innerHTML=UI();
+  addPressureUI();
   $('archiveOpen').addEventListener('click',()=>open('archive'));
   $('verificationOpen').addEventListener('click',()=>open('verification'));
   $('classicArchiveOpen')?.addEventListener('click',()=>open('archive'));
@@ -1149,7 +1233,7 @@ const ELMOS_ARCHIVE=(()=>{
   $('arExportPdfBottom').addEventListener('click',()=>exportVerificationPdf(S.finishedReview));
   $('arMeasure').addEventListener('click',()=>measure());
 
-  $('arPressureSpan').addEventListener('input',()=>{$('arPressureSpan').dataset.custom='1'});
+  // Span always follows the calibration endpoints.
   $('arToleranceP').addEventListener('input',()=>{if(S.record?.type==='verification')renderStep()});
   $('arNext').addEventListener('click',()=>advance().catch(e=>note(e.message,true)));
   $('arPrevious').addEventListener('click',previous);
@@ -1165,8 +1249,11 @@ const ELMOS_ARCHIVE=(()=>{
     source:$('archiveMeasuredVddSource').value||null}).catch(e=>note(e.message,true));
   });
   $('arMode').addEventListener('change',()=>{modeUI();preview()});
-  for(const id of ['arSensorType','arReferenceKind','arPressureUnit'])
+  for(const id of ['arSensorType','arReferenceKind'])
    $(id).addEventListener('change',()=>{modeUI();preview()});
+  $('arPressureUnit').addEventListener('change',onUnitChange);
+  $('arPressureEntryMode').addEventListener('change',onEntryChange);
+  for(const id of ['arCalMin','arCalMax','arDspLimit'])$(id).addEventListener('input',preview);
   $('arAmbientPressure').addEventListener('input',modeUI);
   for(const id of ['arPressurePath','arTempPath','arCycles','arFixedPressure','arFixedTemp'])
    $(id).addEventListener('input',preview);
@@ -1189,7 +1276,7 @@ const ELMOS_ARCHIVE=(()=>{
   }
   S.view=view==='verification'?'verification':'archive';
   $('archiveWorkspace').classList.toggle('ar-guided-verification',S.view==='verification');
-  if(S.view==='verification')refreshDetectedCalibrationTool();
+  if(S.view==='verification'){refreshDetectedCalibrationTool();autoCalibrationRange();}
   text('arViewTitle',S.view==='verification'?'Nachmessung':'Kalibrierarchiv');
   text('arViewSubtitle',S.view==='verification'?
    'Druck- und Temperaturprüfpläne mit Hysterese und vollständigem lokalen Protokoll':
