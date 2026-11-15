@@ -63,9 +63,12 @@ const ELMOS_VERIFICATION_GRAPH=(()=>{
   const displayValue=data.some(x=>finite(x.value)&&finite(x.tolerance));
   const spanMax=Math.max(0.3,...data.map(x=>Math.max(Math.abs(x.value||0),Math.abs(x.tolerance||0))),0.2)*1.25;
   const max=Math.ceil(spanMax*20)/20;
-  const width=Math.max(740,data.length*35+90),height=272,left=65,right=25,top=20,bottom=50,plotW=width-left-right,plotH=height-top-bottom;
+  const windowSize=48;
+  const first=data.length<=windowSize?0:Math.min(data.length-windowSize,Math.max(0,active-Math.floor(windowSize/2)));
+  const visible=data.slice(first,first+windowSize);
+  const width=Math.max(740,visible.length*30+90),height=272,left=65,right=25,top=20,bottom=50,plotW=width-left-right,plotH=height-top-bottom;
   const y=v=>top+(max-v)*plotH/(2*max);
-  const x=i=>left+(i+.5)*plotW/data.length;
+  const x=i=>left+(i-first+.5)*plotW/visible.length;
   const chart=node('div',null,'vg-chartscroll');
   const canvas=svg('svg',{viewBox:'0 0 '+width+' '+height,width,height,role:'img',
    'aria-label':local('Messabweichungen und Toleranzgrenzen für alle Prüfpunkte','Measurement deviations and tolerance limits for all verification points')});
@@ -74,14 +77,12 @@ const ELMOS_VERIFICATION_GRAPH=(()=>{
    const lab=svg('text',{x:left-12,y:yy+4,'text-anchor':'end',class:'vg-axis'},decimal(tick,2));canvas.append(lab);
   }
   canvas.append(svg('text',{x:12,y:12,class:'vg-axis-title'},axisUnits));
-  const maxLabels=Math.min(data.length,16),labelEvery=Math.max(1,Math.ceil(data.length/maxLabels));
-  // Keep SVG responsive for long test plans: focus on an operator-selectable window.
-  const visible=data.length>100?data.filter(item=>Math.abs(item.index-active)<=50):data;
+  const maxLabels=Math.min(visible.length,16),labelEvery=Math.max(1,Math.ceil(visible.length/maxLabels));
   for(const p of visible){
    const xx=x(p.index);
    const tol=finite(p.tolerance)?p.tolerance:0.2;
    canvas.append(svg('line',{x1:xx,y1:y(-tol),x2:xx,y2:y(tol),class:'vg-tolerance', 'stroke-width':data.length>40?8:14}));
-   if(p.index%labelEvery===0||p.index===data.length-1)
+   if((p.index-first)%labelEvery===0||p.index===data.length-1)
     canvas.append(svg('text',{x:xx,y:height-bottom+23,'text-anchor':'middle',class:'vg-axis'},String(p.index+1)));
    const center=finite(p.value)?p.value:0;
    const marker=svg('circle',{cx:xx,cy:y(center),r:data.length>60?5:7.2,
@@ -97,6 +98,7 @@ const ELMOS_VERIFICATION_GRAPH=(()=>{
   }
   canvas.append(svg('text',{x:width-right,y:height-10,'text-anchor':'end',class:'vg-axis'},local('Prüfpunkt','Point')));
   chart.append(canvas);host.append(chart);
+  if(data.length>visible.length)host.append(node('p',local('Angezeigte Prüfpunkte: ','Visible points: ')+(first+1)+'–'+(first+visible.length)+' / '+data.length,'vg-muted'));
   const foot=node('p',mode==='temperature'?
    local('Diagramm: Temperaturabweichung in °C. Die Balken zeigen die zulässige Toleranz je Punkt.','Chart: temperature deviation in °C. Bars show the permitted tolerance for each point.'):
    local('Diagramm: Druckabweichung in % der Messspanne. Die Balken zeigen die zulässige Toleranz je Punkt. Rot bedeutet, dass mindestens eine bewertete Bedingung nicht bestanden wurde.','Chart: pressure deviation as % of full scale. Bars show the permitted tolerance per point. Red means at least one assessed criterion failed.'),'vg-caption');
