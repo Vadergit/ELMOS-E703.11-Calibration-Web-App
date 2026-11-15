@@ -2,7 +2,7 @@
 
 **Ein geführter Kalibrierassistent für den ELMOS E703.11 und das SSP3-Eval-Board.** Ziel ist ein verständlicher Abgleich, der auch ohne tiefere Vorkenntnisse Schritt für Schritt funktioniert. Wer mehr benötigt, kann zusätzliche Messpunkte, DSP-Parameter und einen geschützten Expertenmodus verwenden.
 
-**Version: v0.7.9 · Aufgeräumte Messpunktansicht** · [Änderungsverlauf](CHANGELOG.md) · **[Geplante Funktionen](ROADMAP.md)**
+**Version: v0.7.74 · Adaptive Live-Abfrage** · [Änderungsverlauf](CHANGELOG.md) · **[Geplante Funktionen](ROADMAP.md)**
 
 Über **Einstellungen → Demo-Modus** lässt sich der gesamte Kalibrierablauf mit simulierten Messwerten und NVM ausprobieren.
 
@@ -13,6 +13,12 @@
 > **Geführter Assistent:** Nach der bestätigten SSP3-Verbindung stehen die neue Schritt-für-Schritt-Führung, die klassische Ansicht und der optionale Kompaktmodus zur Verfügung. Ein E703.11-Chip muss für den Abgleich verbunden sein. Die USB-CDC-Bridge bleibt als experimenteller Verbindungstest ohne Sensorprogrammierung gesperrt.
 >
 > [Geführter Abgleich](docs/GEFUEHRTER_ASSISTENT.md) · [USB-Bridge](docs/USB_BRIDGE_GUIDE.md) · [ESP-Boards](docs/ESP_BOARD_OPTIONS.md) · [ESP32-C3 SuperMini Sketch](firmware/esp32c3_supermini/esp32c3_supermini.ino)
+
+## Neu in v0.7.74 – Optional schnellerer Live-Modus
+
+Unter **Einstellungen → Live-Abfrageintervall** ist zusätzlich **«250 ms · Adaptiv (schneller)»** auswählbar. Die bisherigen Einstellungen und die bisherige 650-ms-Standardpause bleiben unverändert. Die angegebene Zahl beschreibt die Pause **nach** dem vollständig abgeschlossenen ADC-/DSP-Lesezyklus; die tatsächliche Live-Aktualisierung kann durch USB, SSP3, Chipmodus und Sensor-Konversionszeit länger dauern.
+
+Im adaptiven Modus erhöht die App bei langsamen Antwortzeiten die Pause vorübergehend auf 400 oder 650 ms und reduziert sie nach stabilen erfolgreichen Abfragen wieder. Bei Lesefehlern gelten weiterhin die vorhandene 2-Sekunden-Retry-Pause und die bisherigen Verbindungs-Schutzmechanismen. Es gibt **keine parallelen seriellen Sensorbefehle** und keine Änderungen an Registern oder NVM. Vor einem produktiven Einsatz bitte mit deinem Sensor und Adapter auf Stabilität prüfen.
 
 ## Neu in v0.7.9 – Messpunktansicht vereinfacht
 
