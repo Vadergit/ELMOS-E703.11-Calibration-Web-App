@@ -261,12 +261,12 @@ const ELMOS_ARCHIVE=(()=>{
   if(format==='csv'){
    if(!window.ELMOS_ARCHIVE_EXPORT?.csvAll)throw Error('Vollständiger CSV-Export nicht geladen');
    data=window.ELMOS_ARCHIVE_EXPORT.csvAll(record,rows);
-   mime='text/csv;charset=utf-8';name=base.replace(/\\.json$/i,'.csv');
+   mime='text/csv;charset=utf-8';name=base.replace(/\.json$/i,'.csv');
   }else if(format==='samples-csv'&&record.type==='testlog'){
    data=window.ELMOS_TEST_LOGGER_CORE.csvRows(rows,{
     name:record.testConfiguration?.name,dutName:record.testConfiguration?.dutName,chipUID:record.chipUID
    });
-   mime='text/csv;charset=utf-8';name=base.replace(/\\.json$/i,'.samples.csv');
+   mime='text/csv;charset=utf-8';name=base.replace(/\.json$/i,'.samples.csv');
   }else if(format==='json'){
    data=JSON.stringify(record.type==='testlog'?{...record,telemetryPoints:rows}:record,null,2);
    mime='application/json';name=base;
