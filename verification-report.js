@@ -64,7 +64,6 @@ const ELMOS_VERIFICATION_REPORT=(()=>{
   const application=tool.application||'ELMOS E703.11 Calibration Assistant';
   const version=tool.applicationVersion||record.software?.version||null;
   const adapter=tool.communicationAdapter||record.equipment?.adapter||null;
-  const firmware=tool.adapterFirmware||record.equipment?.adapterFirmware||record.equipment?.firmware||null;
   const summ=window.ELMOS_VERIFICATION_GRAPH?.summary?.(record)||{total:0,passed:0,failed:0,unknown:0,pending:0,data:[]};
   const series=summ.data.length?summ.data:(record.events||[]).filter(x=>x.kind==='measurement').map((raw,index)=>{
    const item=raw.data||raw;
@@ -76,8 +75,7 @@ const ELMOS_VERIFICATION_REPORT=(()=>{
    fld(tr('USER-ID','User ID'),record.customUID),
    fld(tr('Kalibrierwerkzeug (automatisch)','Calibration tool (automatic)'),application+(version?' v'+version:'')),
    fld(tr('Verwendeter Adapter (automatisch)','Adapter used (automatic)'),adapter),
-   fld(tr('Adapter-Firmware','Adapter firmware'),firmware),
-   fld(tr('Kommunikation','Interface'),tool.interface||record.equipment?.interface),
+      fld(tr('Kommunikation','Interface'),tool.interface||record.equipment?.interface),
    fld(tr('Protokoll-ID','Report ID'),record.id),
    fld(tr('Beginn','Started'),dt(record.startedAt)),
    fld(tr('Ende','Ended'),dt(record.endedAt))
@@ -86,8 +84,7 @@ const ELMOS_VERIFICATION_REPORT=(()=>{
    [tr('Prüfer','Examiner'),meta.operator],
    [tr('Auftrag / Projekt','Order / Project'),meta.project],
    [tr('Prüfort / Prüfstand','Test location / bench'),meta.location],
-   [tr('Verwendete externe Messmittel','External measurement instruments'),meta.externalInstruments],
-   [tr('Kalibrierzertifikat / Referenz','Calibration certificate / reference'),meta.instrumentCertificate],
+      [tr('Kalibrierzertifikat / Referenz','Calibration certificate / reference'),meta.instrumentCertificate],
    [tr('Zusätzliche Informationen','Additional information'),meta.notes]
   ].filter(x=>x[1]).map(x=>fld(x[0],x[1])).join('');
   const settings=[
@@ -99,12 +96,8 @@ const ELMOS_VERIFICATION_REPORT=(()=>{
    fld(tr('Prüfpunkte eingegeben als','Verification points entered as'),
     config.pressureEntryMode==='percent'?'% der Messspanne':config.pressureEntryMode==='pressure'?config.pressureUnit:null),
    fld(tr('Ursprüngliche Prüfreihe','Original setpoint series'),config.inputPressurePath),
-   fld(tr('Digitale Auslesung','Digital readout'),config.digitalReadout||null),
-   fld(tr('DSP-Endwert','DSP full scale'),Number.isFinite(config.dspLimit)?'±'+n(config.dspLimit,0)+' Digits':null),
-   fld(tr('Ursprüngliches Abgleichverfahren','Original calibration method'),config.calibrationMethod),
-   fld(tr('Abgleichtemperaturen','Calibration temperatures'),config.calibrationTemperatures),
-   fld(tr('Ursprüngliche Abgleichpunkte','Original calibration points'),config.originalCalibrationPoints),
-   fld(tr('Max. Druckabweichung','Max. pressure deviation'),Number.isFinite(config.pressureTolerancePercent)?n(config.pressureTolerancePercent)+' % FS':null),
+   fld(tr('Digitale Messwertquelle','Digital measurement source'),config.digitalReadout||null),
+               fld(tr('Max. Druckabweichung','Max. pressure deviation'),Number.isFinite(config.pressureTolerancePercent)?n(config.pressureTolerancePercent)+' % FS':null),
    fld(tr('Temperaturtoleranz','Temperature tolerance'),Number.isFinite(config.temperatureTolerance)?n(config.temperatureTolerance)+' °C':null),
    fld(tr('Drucksensortyp','Pressure sensor type'),config.sensorType==='absolute'?tr('Absolut','Absolute'):config.sensorType==='gauge'?tr('Relativ','Gauge'):null),
    fld(tr('Referenzdruckart','Pressure reference type'),config.referenceKind==='absolute'?tr('Absolut','Absolute'):config.referenceKind==='gauge'?tr('Relativ','Gauge'):null),
