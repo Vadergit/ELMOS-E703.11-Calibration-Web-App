@@ -1,3 +1,7 @@
+## Öffentliches Feedback
+
+- Unter «Einstellungen → Feedback melden» lassen sich Fehler und Funktionswünsche mit optionalen Screenshots melden. Das Formular gibt den Link zum öffentlichen GitHub-Issue zurück.
+
 ## v0.7.63 – PDF-Prüfprotokoll, optionale Dokumentation und automatische Werkzeugerkennung
 
 - Nach dem Speichern einer Nachmessung steht «Prüfprotokoll als PDF speichern» in der Abschlussübersicht zur Verfügung. Dieselbe Funktion ist auch für ältere Nachmessungen in der Archiv-Detailansicht verfügbar.

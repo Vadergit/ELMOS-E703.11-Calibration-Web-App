@@ -3537,6 +3537,8 @@ if(typeof document!=='undefined') (function UI(){
   $('verificationOpen').hidden=true;
   $('verificationOpen').setAttribute('aria-hidden','true');
  }
+ const feedbackLink=$('feedbackLink');
+ if(feedbackLink)feedbackLink.href='feedback.html?version='+encodeURIComponent(document.body.dataset.appVersion||'');
  function toggleSettings(open){
   $('settingsPanel').hidden=!open;
   $('settingsOpen').setAttribute('aria-expanded',String(open));

@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="de-CH">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Feedback melden · E703.11</title>
+  <style>
+    :root { color-scheme: light dark; font: 1rem/1.5 system-ui, sans-serif; }
+    main { max-width: 38rem; margin: 2rem auto; padding: 0 1rem; }
+    label:not(.check) { display: grid; gap: .25rem; margin: .9rem 0; }
+    input, select, textarea, button { font: inherit; }
+    input:not([type=checkbox]), select, textarea, button { padding: .5rem; }
+    input[type=file] { max-width: 100%; }
+    textarea { resize: vertical; }
+    .notice { border: 1px solid currentColor; border-radius: .5rem; padding: .8rem; }
+    #challenge, #submit { margin-top: .8rem; }
+  </style>
+</head>
+<body>
+<main>
+  <a href="index.html">Zurück zum Kalibrierassistenten</a>
+  <h1>Feedback melden</h1>
+  <p>Melde einen Fehler oder wünsche dir eine Funktion. Nach dem Absenden erhältst du den Link zum öffentlichen GitHub-Issue.</p>
+  <form id="feedback">
+    <fieldset id="fields" disabled>
+      <legend>Deine Meldung</legend>
+      <label>Art der Meldung
+        <select name="kind" required><option value="bug">Fehler</option><option value="feature">Funktionswunsch</option></select>
+      </label>
+      <label>Titel <input name="title" required minlength="4" maxlength="120"></label>
+      <label>Beschreibung <textarea name="description" required minlength="10" maxlength="5000" rows="6"></textarea></label>
+      <label>Screenshots (optional, bis zu 3 PNG- oder JPG-Bilder)
+        <input type="file" name="images" accept="image/png,image/jpeg" multiple>
+      </label>
+      <p class="notice">Der Text und die Bilder werden öffentlich. Entferne persönliche und vertrauliche Angaben und lade nur Bilder hoch, die du veröffentlichen darfst. GitHub speichert die Meldung und ihre Anhänge. Der Meldedienst leitet die Daten an GitHub weiter und prüft sie mit Cloudflare Turnstile auf Spam.</p>
+      <details>
+        <summary>Datenschutz und Löschung</summary>
+        <p>Dieses Formular dient zur öffentlichen Bearbeitung von Fehlern und Funktionswünschen. Cloudflare prüft und vermittelt die Einsendung. Das Projekt speichert die Meldung und ihre Bilder auf GitHub. Für eine Löschanfrage wende dich an <a href="https://github.com/Vadergit">den Projektbetreiber auf GitHub</a> und gib die Issue-Nummer an. Persönliche Angaben gehören dabei nicht in einen öffentlichen Kommentar.</p>
+      </details>
+      <label class="check"><input type="checkbox" name="public" value="yes" required> Ich bestätige die öffentliche Veröffentlichung von Text und Bildern.</label>
+      <div id="challenge"></div>
+      <button id="submit" type="submit" disabled>Meldung senden</button>
+    </fieldset>
+  </form>
+  <p id="status" role="status">Meldedienst wird geladen …</p>
+  <p id="result" hidden><a id="issue" target="_blank" rel="noopener noreferrer">Issue öffnen und Antworten verfolgen</a></p>
+</main>
+<script type="module" src="feedback.js"></script>
+</body>
+</html>

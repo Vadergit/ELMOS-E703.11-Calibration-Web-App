@@ -1,5 +1,6 @@
 /* Static English text for the E703.11 interface. */
 window.ELMOS_TRANSLATIONS_EN=Object.assign(window.ELMOS_TRANSLATIONS_EN||{}, {
+ "Feedback melden": "Report feedback",
  "Nicht verbunden": "Not connected",
  "Keine Live-Messung": "No live measurement",
  "Sensor nicht verbunden": "Sensor disconnected",

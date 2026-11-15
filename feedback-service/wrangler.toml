@@ -1,0 +1,11 @@
+name = "elmos-calibration-feedback"
+main = "worker.mjs"
+compatibility_date = "2025-03-01"
+
+[observability]
+enabled = false
+
+[[ratelimits]]
+name = "SUBMISSIONS"
+namespace_id = "1"
+simple = { limit = 4, period = 60 }
