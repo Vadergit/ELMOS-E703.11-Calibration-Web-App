@@ -839,7 +839,8 @@ const ELMOS_ARCHIVE=(()=>{
    return;
   }
   const sample=entry.sample||{};
-  const raw=Number.isFinite(sample.dspS)?'DSP_S '+shownNumber(sample.dspS,0)+' Digits':'';
+  const raw=Number.isFinite(sample.sensorValue)?ui('Digitaler Sensorwert ','Digital sensor value ')+
+   shownNumber(sample.sensorValue,5)+' '+(sample.sensorUnit||sample.pressureUnit||''):'';
   const at=sample.at?new Date(sample.at):null;
   const capturedAt=at&&!Number.isNaN(at.getTime())?
    ui(' · aufgenommen ',' · captured ')+at.toLocaleTimeString(document.documentElement.lang==='en'?'en-US':'de-CH'):'';
@@ -880,9 +881,8 @@ const ELMOS_ARCHIVE=(()=>{
   text('arDetectedCalibrationTool',formatCalibrationTool(tool));
   text('arDetectedCalibrationToolDetails',[
    tool.interface?ui('Schnittstelle: ','Interface: ')+tool.interface:null,
-   tool.adapterFirmware?ui('Adapter-Firmware: ','Adapter firmware: ')+tool.adapterFirmware:null,
-   ui('Externe Messmittel sind nicht automatisch erkennbar und können optional ergänzt werden.',
-    'External measurement instruments cannot be detected automatically and may be entered below.')
+   ui('Externe Prüfmittel können bei Bedarf unter den optionalen Protokollangaben erfasst werden.',
+    'External test instruments may be recorded in the optional report fields.')
   ].filter(Boolean).join(' · '));
  }
  const trimInput=(id,max)=>{
@@ -895,7 +895,6 @@ const ELMOS_ARCHIVE=(()=>{
    project:trimInput('arVerificationProject',150),
    location:trimInput('arVerificationLocation',160),
    instrumentCertificate:trimInput('arVerificationCertificate',200),
-   externalInstruments:trimInput('arVerificationInstruments',3000),
    notes:trimInput('arVerificationNotes',4000)
   };
  }
@@ -946,17 +945,11 @@ const ELMOS_ARCHIVE=(()=>{
   const operator=record.verificationMetadata||{};
   const entries=[
    [ui('Kalibrierwerkzeug (automatisch erkannt)','Calibration tool (automatically detected)'),formatCalibrationTool(tool)],
-   [ui('Adapter-Firmware','Adapter firmware'),tool.adapterFirmware],
    [ui('Abgleichbereich','Calibrated pressure range'),Number.isFinite(record.verificationConfig?.calibrationMin)?shownNumber(record.verificationConfig.calibrationMin)+' – '+shownNumber(record.verificationConfig.calibrationMax)+' '+unit:null],
    [ui('Prüfpunkt-Eingabe','Point input unit'),record.verificationConfig?.pressureEntryMode==='percent'?'%':unit],
-   [ui('DSP-Endwert','DSP limit'),Number.isFinite(record.verificationConfig?.dspLimit)?'±'+record.verificationConfig.dspLimit+' Digits':null],
-   [ui('Ursprüngliches Abgleichverfahren','Original calibration method'),record.verificationConfig?.calibrationMethod],
-   [ui('Abgleichtemperaturen','Calibration temperatures'),record.verificationConfig?.calibrationTemperatures],
-   [ui('Abgleichpunkte','Calibration points'),record.verificationConfig?.originalCalibrationPoints],
    [ui('Prüfer','Examiner'),operator.operator],
    [ui('Auftrag / Projekt','Order / Project'),operator.project],
    [ui('Prüfort','Test location'),operator.location],
-   [ui('Messmittel / Prüfmittel','Measurement instruments'),operator.externalInstruments],
    [ui('Zertifikat / Referenz','Certificate / Reference'),operator.instrumentCertificate],
    [ui('Bemerkungen','Notes'),operator.notes]
   ].filter(([key,val])=>val);
@@ -1049,6 +1042,7 @@ const ELMOS_ARCHIVE=(()=>{
    $('arRefTempLabel').hidden=!temperatureShown;
    $('arRefPressureLabel').hidden=mode==='temperature';
    const unit=r.verificationConfig?.pressureUnit||$('arPressureUnit').value||'bar';
+   $('arRefPressureLabel').firstChild.textContent=ui('Referenzdruck (','Reference pressure (')+unit+')';
    const targetPressure=(r.verificationConfig?.correctionApplied?
     point.pressure+(r.verificationConfig?.sensorType==='absolute'?1:-1)*(r.verificationConfig?.ambientPressure||0):
     point.pressure);
@@ -1202,9 +1196,6 @@ const ELMOS_ARCHIVE=(()=>{
   preview();
   if(!S.draft)throw Error(ui('Bitte den Prüfplan korrigieren.','Please correct the test plan.'));
   const calibrated=calRange(),span=calibrated.span;
-  const dspLimit=Number($('arDspLimit').value);
-  if(!Number.isInteger(dspLimit)||dspLimit<1000||dspLimit>32000)
-   throw Error('Der digitale DSP-Endwert muss zwischen 1000 und 32000 Digits liegen.');
   if(S.draft.mode!=='temperature')effectivePressure(0,S.draft.mode);
   if(S.draft.mode!=='temperature'&&(!Number.isFinite(span)||span<=0))
    throw Error(ui('Eine positive Druck-Messspanne ist für die Prozenttoleranz erforderlich.','A positive full-scale pressure span is required for the percentage tolerance.'));
@@ -1217,13 +1208,11 @@ const ELMOS_ARCHIVE=(()=>{
   S.record.verificationMetadata=optionalVerificationMetadata();
   S.record.calibrationTool=calibrationToolFromMeta(bridge()?.meta?.());
   S.record.verificationConfig={pressureTolerancePercent:percent,pressureSpan:span,
-   calibrationMin:calibrated.min,calibrationMax:calibrated.max,dspLimit,
+   calibrationMin:calibrated.min,calibrationMax:calibrated.max,
    pressureEntryMode:S.draft.pressureEntryMode,inputPressurePath:S.draft.originalPressurePath,
-   calibrationMethod:$('arCalibrationMethod').value||null,
-   calibrationTemperatures:$('arCalibrationTemperatures').value.trim()||null,
-   originalCalibrationPoints:$('arCalibrationPointNotes').value.trim()||null,
-   digitalReadout:'DSP_S',digitalRangeAutoVerified:dspRangeMatches({calibrationMin:calibrated.min,
-    calibrationMax:calibrated.max,pressureSpan:span,pressureUnit:calibrated.unit,dspLimit}),
+   digitalReadout:'Digitaler Sensorwert',
+   digitalRangeAutoVerified:sensorRangeMatches({calibrationMin:calibrated.min,
+    calibrationMax:calibrated.max,pressureSpan:span,pressureUnit:calibrated.unit}),
    toleranceBasis:'percent_full_scale',temperatureTolerance:Number($('arToleranceT').value),
    pressureUnit:correction.pressureUnit,sensorType:correction.sensorType,
    referenceKind:correction.referenceKind,ambientPressure:correction.ambientPressure,
