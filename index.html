@@ -755,13 +755,6 @@ html.compact-mode .foot{display:none}
   <div class="fieldrow" id="plcOptions" hidden><label>One-Wire-Baudrate<select id="plcBaud"><option value="100000">100 kBd</option><option value="25000">25 kBd</option></select></label><label class="toggle"><input type="checkbox" id="plcPowerCycle"> Sensorversorgung über Adapter steuern</label><label class="toggle"><input type="checkbox" id="plcGpio4Mode"> Dieselbe Leitung für Senden und Empfangen (3,3-V-Logik)</label></div>
   <div class="flex connectionActions"><button class="primary" id="choose">USB-Port auswählen</button><button id="auto">Bekannten Port verbinden</button><button id="disconnect" disabled>Trennen</button><button id="guidedLaunch" type="button" disabled>Geführten Abgleich starten</button></div>
   <div id="connMsg" class="callout" role="status">Wähle den USB-Port deines Adapters. Chrome fragt beim ersten Verbinden nach der Freigabe.</div>
-  <details id="calibrationSupply" class="calibration-supply">
-    <summary>Gemessene Versorgungsspannung fürs Protokoll (optional)</summary>
-    <div class="fieldrow">
-      <label>Gemessene VDD (V)<input id="archiveMeasuredVdd" type="number" min="0" step="any" placeholder="z. B. 5.01"></label>
-      <label>Messquelle<input id="archiveMeasuredVddSource" placeholder="z. B. Multimeter"></label>
-    </div>
-  </details>
   <button type="button" id="startRamMeasurement" title="Startet die Messung im RAM und merkt sich den automatischen Wiederanlauf für diesen Sensor." hidden>Live-Messung im RAM starten</button>
   <dl class="connection-summary">
     <div><dt>Adapter-Firmware</dt><dd id="fw">—</dd></div>
