@@ -1,6 +1,6 @@
 # ELMOS E703.11 – Lokales Kalibrierarchiv und Nachmessungen
 
-**Softwarestand v0.7.72 · Funktions- und Benutzeranleitung · Laborprototyp**
+**Softwarestand v0.7.73 · Funktions- und Benutzeranleitung · Laborprototyp**
 
 **Archivexport ab v0.7.70:** Für jedes gespeicherte Protokoll steht «CSV · alle Infos» zur Verfügung. Test/Logging hat zusätzlich einen vollständigen PDF-Bericht mit Diagramm, Aufnahmepunkten und Ereignissen sowie einen eigenständigen «CSV · Messwerte»-Export für Tabellenanalysen. Die optionale VDD-Eingabe der Anschlussansicht wurde entfernt.
 
@@ -79,6 +79,14 @@ Jeder Datensatz enthält mindestens:
 - **Verlauf:** Wiederholungen, Teilmessungen, Fehler, einzelne NVM-Schritte und soweit verfügbar die betreffenden TX/RX-Antworten.
 - **Test-Logging:** Name, Beschreibung, Prüfer, Intervall, Mittelungsverfahren, alle Einzelmessungen und zugehörige `.samples.jsonl`-Dateiteile. JSON- und vollständiger CSV-Export beziehen die Rohdaten ein.
 - **Endstatus:** abgeschlossen, fehlgeschlagen, unvollständig, unterbrochen oder abgebrochen.
+
+### Optionale Fotos zum Prüfprotokoll (ab v0.7.73)
+
+Bei **Nachmessung** und **Test/Logging** lassen sich **maximal zwei Bilder** hinzufügen – beispielsweise vom Sensor, Prüfaufbau oder angeschlossenen Messgerät. Fotos können vor, während oder nach der Aufnahme sowie später in der Archiv-Detailansicht ergänzt oder entfernt werden. Jedes Bild kann eine kurze optionale Beschriftung erhalten.
+
+Akzeptiert werden JPG, PNG und WebP bis **12 MB als Eingangsdatei**. Die Web-App verkleinert die Fotos im Browser auf maximal **1400 Pixel Kantenlänge** und speichert jedes als JPEG mit **höchstens 300 KB**. Durch die Neuerzeugung werden ursprüngliche Bildmetadaten wie EXIF nicht übernommen. Es wird **keine Online-Bildverarbeitung** verwendet.
+
+Die verkleinerten Bilder werden als eingebettete Bilddaten **direkt im lokalen JSON-Archivprotokoll** gespeichert. Damit bleiben sie bei der Datensicherung und beim erneuten Öffnen erhalten, ohne dass separate Bilddateien verwaltet werden müssen. Im PDF-Bericht werden beide Fotos mitsamt Bildbeschreibung in einem eigenen Abschnitt angezeigt. Bei Protokollen ohne Fotos entfällt dieser Abschnitt.
 
 ### PDF und CSV exportieren (ab v0.7.72)
 
