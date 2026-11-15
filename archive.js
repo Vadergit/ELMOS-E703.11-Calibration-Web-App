@@ -4,7 +4,7 @@ const ELMOS_ARCHIVE=(()=>{
  const C=ELMOS_ARCHIVE_CORE,ANALYSIS=ELMOS_ARCHIVE_ANALYSIS;
  const $=id=>document.getElementById(id);
  const S={dir:null,record:null,records:[],filename:null,writeQueue:Promise.resolve(),selection:[],step:0,
-  measuring:false,finishing:false,finishedReview:null,showDetails:null,lastError:'',folderName:'',draft:null,view:'archive',detailsToken:0,resultsCache:new Map(),debugLines:[],debugDropped:0,lastStreamMetaFlush:0,pressureEntryBefore:'percent',pressureUnitBefore:'bar',autoRangeUid:null};
+  measuring:false,finishing:false,finishedReview:null,showDetails:null,lastError:'',folderName:'',draft:null,view:'archive',detailsToken:0,resultsCache:new Map(),debugLines:[],debugDropped:0,lastStreamMetaFlush:0,pressureEntryBefore:'percent',pressureUnitBefore:'bar',autoRangeUid:null,pendingPhotos:[]};
  const iso=()=>new Date().toISOString();
  const text=(id,value)=>{if($(id))$(id).textContent=String(value)};
  const note=(value,bad=false)=>{S.lastError=bad?String(value):'';text('archiveStatus',value);if($('archiveStatus'))$('archiveStatus').style.color=bad?'var(--red)':'var(--muted)'};
@@ -75,6 +75,32 @@ const ELMOS_ARCHIVE=(()=>{
   });
   try{await S.writeQueue}
   catch(e){note('Speichern fehlgeschlagen: '+e.message+'. Messvorgang nicht fortsetzen.',true);throw e}
+ }
+ async function setPhotos(record,images){
+  if(!record?.id||!['verification','testlog'].includes(record.type))
+   throw Error('Bilder können nur zu Nachmessungen und Test/Logging gespeichert werden.');
+  if(!window.ELMOS_ARCHIVE_PHOTOS?.validate)throw Error('Bildmodul ist nicht geladen.');
+  const photos=window.ELMOS_ARCHIVE_PHOTOS.validate(images);
+  if(S.record?.id===record.id){
+   const previous=S.record.photos;
+   S.record.photos=clone(photos);
+   try{await flush()}catch(error){S.record.photos=previous;throw error}
+   return clone(S.record.photos);
+  }
+  if(!S.dir)throw Error('Bitte zuerst den lokalen Archivordner verbinden.');
+  if(!await permitted(true))throw Error('Schreibberechtigung für das Archiv fehlt.');
+  const filename=C.filename(record);
+  const file=await S.dir.getFileHandle(filename);
+  const disk=JSON.parse(await (await file.getFile()).text());
+  if(disk.id!==record.id||disk.type!==record.type)
+   throw Error('Archivdatei stimmt nicht mit dem ausgewählten Protokoll überein.');
+  disk.photos=clone(photos);
+  const writer=await file.createWritable();
+  try{await writer.write(JSON.stringify(disk,null,2));await writer.close()}
+  catch(error){try{await writer.abort()}catch(_){}throw error}
+  record.photos=clone(photos);
+  for(const existing of S.records)if(existing.id===record.id)existing.photos=clone(photos);
+  return clone(photos);
  }
  async function begin(type,plan=null){
   if(S.record)throw Error('Zuerst den laufenden Vorgang abschliessen.');
@@ -544,6 +570,14 @@ const ELMOS_ARCHIVE=(()=>{
     sectionBox.append(item);
    }
    root.append(section(ui('Prüfdokumentation','Verification documentation')),sectionBox);
+  }
+  if(['verification','testlog'].includes(r.type)&&window.ELMOS_ARCHIVE_PHOTOS?.mount){
+   const photos=el('div');
+   root.append(photos);
+   window.ELMOS_ARCHIVE_PHOTOS.mount(photos,{
+    getPhotos:()=>r.photos||[],
+    onChange:next=>setPhotos(r,next)
+   });
   }
   // Reuse the live verification plot for stored results; this is read-only.
   // Keep it above hysteresis and event logs so results are visible at a glance.
@@ -1286,6 +1320,10 @@ const ELMOS_ARCHIVE=(()=>{
   await begin('verification',S.draft);
   if(!S.record)return;
   const correction=effectivePressure(0,S.draft.mode);
+  if(S.pendingPhotos.length){
+   await setPhotos(S.record,S.pendingPhotos);
+   S.pendingPhotos=[];
+  }
   S.record.verificationMetadata=optionalVerificationMetadata();
   S.record.calibrationTool=calibrationToolFromMeta(bridge()?.meta?.());
   S.record.verificationConfig={toleranceEnabled:enabled,pressureTolerancePercent:percent,pressureSpan:span,
@@ -1337,6 +1375,24 @@ const ELMOS_ARCHIVE=(()=>{
   if(!$('archiveWorkspace'))return;
   $('archiveWorkspace').innerHTML=UI();
   addPressureUI();
+  if(window.ELMOS_ARCHIVE_PHOTOS?.mount){
+   const mount=window.ELMOS_ARCHIVE_PHOTOS.mount;
+   const setup=el('div');$('arVerificationDocumentation').append(setup);
+   mount(setup,{getPhotos:()=>S.pendingPhotos,
+    onChange:async next=>{S.pendingPhotos=clone(next)}});
+   const active=el('div');$('arMeasureControls').append(active);
+   mount(active,{getPhotos:()=>S.record?.type==='verification'?S.record.photos||[]:[],
+    onChange:next=>{
+     if(S.record?.type!=='verification')throw Error('Keine laufende Nachmessung.');
+     return setPhotos(S.record,next);
+    }});
+   const finished=el('div');$('arFinishedMetadata').after(finished);
+   mount(finished,{getPhotos:()=>S.finishedReview?.photos||[],
+    onChange:next=>{
+     if(!S.finishedReview)throw Error('Kein abgeschlossenes Prüfprotokoll vorhanden.');
+     return setPhotos(S.finishedReview,next);
+    }});
+  }
   $('archiveOpen').addEventListener('click',()=>open('archive'));
   $('verificationOpen').addEventListener('click',()=>open('verification'));
   $('classicArchiveOpen')?.addEventListener('click',()=>open('archive'));
@@ -1412,7 +1468,7 @@ const ELMOS_ARCHIVE=(()=>{
   $('archiveWorkspace').hidden=true;
   S.finishedReview=null;
  }
- return {init,open,openVerification:()=>open('verification'),close,begin,ensureCalibration,event,trace,appendTelemetry,streamRows,download,exportLoggingPdf,flush,finalise,interrupted,
+ return {init,open,openVerification:()=>open('verification'),close,begin,ensureCalibration,event,trace,appendTelemetry,streamRows,download,exportLoggingPdf,setPhotos,flush,finalise,interrupted,
   get active(){return !!S.record},get current(){return S.record},get view(){return S.view},refresh};
 })();
 if(typeof window!=='undefined'){
