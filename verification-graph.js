@@ -24,19 +24,30 @@ const ELMOS_VERIFICATION_GRAPH=(()=>{
    const pressurePct=item&&finite(item.pressureError)&&itemSpan>0?100*item.pressureError/itemSpan:null;
    const tempError=item&&finite(item.temperatureError)?item.temperatureError:null;
    const value=mode==='temperature'?tempError:pressurePct;
-   // A sensor reading displayed in % cannot be directly compared to a reference in bar.
-   // It is still useful to plot the *unverified* deviation on the % FS axis.
-   // Only use that fallback when the recorded sample really has unit %.
-   const measuredPercent=item?.sample?.pressureUnit==='%'&&finite(item.sample.sensorPressure)?
-     item.sample.sensorPressure:null;
-   const pressureSetpoint=finite(item?.referencePressureInput)?item.referencePressureInput:
-    finite(item?.referencePressure)?item.referencePressure:step.pressure;
+   // Display recorded but unverified pressure readings as provisional points.
+   // This is ONLY a visual estimate: pass/fail remains unknown until sensor
+   // pressure scaling is confirmed. Do not mistake preview for a verified error.
+   const sample=item?.sample||{};
+   const referencePressure=finite(item?.referencePressure)?item.referencePressure:step.pressure;
+   const sourceUnit=String(sample.sensorUnit||sample.pressureUnit||'');
+   const outputUnit=String(item?.pressureUnit||record?.verificationConfig?.pressureUnit||'');
    const referenceMin=finite(record?.verificationConfig?.calibrationMin)?
      record.verificationConfig.calibrationMin:steps.length?Math.min(...steps.map(p=>p.pressure)):null;
-   const referencePercent=finite(referenceMin)&&span>0&&finite(pressureSetpoint)?
-     (pressureSetpoint-referenceMin)/span*100:null;
-   const previewPercent=mode!=='temperature'&&!finite(pressurePct)&&
-     finite(measuredPercent)&&finite(referencePercent)?measuredPercent-referencePercent:null;
+   const referencePercent=finite(referenceMin)&&itemSpan>0&&finite(referencePressure)?
+     (referencePressure-referenceMin)/itemSpan*100:null;
+   const measuredPercent=sourceUnit==='%'?
+     (finite(sample.sensorValue)?sample.sensorValue:
+      finite(sample.sensorPressure)?sample.sensorPressure:null):null;
+   // New records contain the displayed digital sensor value converted to the
+   // chosen physical unit; older records may have a native %-display instead.
+   const physicalPreview=finite(sample.sensorPressure)&&
+     String(sample.pressureUnit||'')===outputUnit&&outputUnit!==''&&
+     finite(referencePressure)&&itemSpan>0?
+      100*(sample.sensorPressure-referencePressure)/itemSpan:null;
+   const percentPreview=finite(measuredPercent)&&finite(referencePercent)?
+     measuredPercent-referencePercent:null;
+   const previewPercent=mode!=='temperature'&&!finite(pressurePct)?
+     (finite(physicalPreview)?physicalPreview:percentPreview):null;
    const plotValue=finite(value)?value:previewPercent;
    const valueSource=finite(value)?'verified':finite(previewPercent)?'unverified-percent':'none';
    const tolerance=mode==='temperature'?
@@ -162,7 +173,7 @@ const ELMOS_VERIFICATION_GRAPH=(()=>{
     class:'vg-marker '+p.status+(preview?' provisional':'')+(p.index===active?' selected':''),
     tabindex:0,role:'button','aria-label':local('Prüfpunkt ','Verification point ')+(p.index+1)});
    const tt=local('Punkt ','Point ')+(p.index+1)+' · '+local('Soll','Target')+': '+decimal(p.step.pressure,3)+(p.step.temperature==null?'':' / '+decimal(p.step.temperature,2)+' °C')+' · '+
-    (preview?local('Ungeprüfte Abweichung der Prozentanzeige','Unverified percent-display deviation'):local('Abweichung','Deviation'))+': '+decimal(p.plotValue,4)+' '+axisUnits+' · '+
+    (preview?local('Unbestätigte Anzeigeabweichung','Unverified display deviation'):local('Abweichung','Deviation'))+': '+decimal(p.plotValue,4)+' '+axisUnits+' · '+
     (p.status==='pass'?local('Bestanden','Passed'):p.status==='fail'?local('Ausser Toleranz','Out of tolerance'):local('Nicht bewertet','Not evaluated'));
    marker.append(svg('title',{},tt));
    marker.addEventListener('click',()=>onSelect?.(p.index));
@@ -181,7 +192,7 @@ const ELMOS_VERIFICATION_GRAPH=(()=>{
   if(data.length>visible.length)host.append(node('p',local('Angezeigte Prüfpunkte: ','Visible points: ')+(first+1)+'–'+(first+visible.length)+' / '+data.length,'vg-muted'));
   const foot=node('p',mode==='temperature'?
    local('Diagramm: Temperaturabweichung in °C. Die Balken zeigen die zulässige Toleranz je Punkt.','Chart: temperature deviation in °C. Bars show the permitted tolerance for each point.'):
-   local('Diagramm: Druckabweichung in % der Messspanne. Die Balken zeigen die zulässige Toleranz je Punkt. Rot bedeutet, dass mindestens eine bewertete Bedingung nicht bestanden wurde.','Chart: pressure deviation as % of full scale. Bars show the permitted tolerance per point. Red means at least one assessed criterion failed.'),'vg-caption');
+   local('Diagramm: Druckabweichung in % der Messspanne. Orange Punkte zeigen vorläufige Abweichungen aus noch nicht bestätigten Sensorwerten. Diese werden nicht als bestanden bewertet. Rot zeigt eine bestätigte Toleranzüberschreitung.','Chart: pressure deviation in % of full scale. Orange points show provisional errors from unconfirmed sensor readings. They are not counted as passed. Red indicates a confirmed tolerance failure.'),'vg-caption');
   host.append(foot);
   const current=data[Math.min(data.length-1,Math.max(0,active))];
   const resultCard=node('div',null,'vg-current '+(current.status==='pass'?'pass':current.status==='fail'?'fail':'pending'));
