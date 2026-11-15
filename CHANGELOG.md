@@ -1,3 +1,10 @@
+## v0.7.73 – Bis zu zwei optionale Fotos im Prüfprotokoll
+
+- Nachmessung und Test/Logging unterstützen bis zu **zwei Fotos mit optionaler Bildbeschreibung**, vor, während und nach der Messung sowie in der Archiv-Detailansicht.
+- JPG, PNG und WebP werden vollständig lokal im Browser als JPEG neu gespeichert, auf maximal **1400 Pixel** und **300 KB pro Foto** begrenzt; Quellen über 12 MB werden abgelehnt. Durch das Neucodieren fallen ursprüngliche Bildmetadaten weg.
+- Fotos liegen eingebettet im jeweiligen **lokalen JSON-Archivprotokoll**, nicht als zusätzliche lose Dateien.
+- Die bestehenden PDF-Berichte für Nachmessung und Test/Logging zeigen vorhandene Bilder mit ihrer Beschriftung in einem eigenen, druckoptimierten Abschnitt; ohne Bilder bleibt das Layout unverändert.
+
 ## v0.7.72 – Ein lesbarer CSV-Export pro Protokoll
 
 - Je Archiveintrag nur noch **ein CSV-Button**, auch beim Logging-Abschluss und in der Nachmessungs-Zusammenfassung. Die verwirrenden zusätzlichen CSV-Varianten «Rohdaten», «Übersicht», «alle Infos» und «Messwerte» wurden aus der Bedienoberfläche entfernt.
