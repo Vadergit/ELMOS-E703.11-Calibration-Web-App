@@ -31,7 +31,8 @@ const ELMOS_VERIFICATION_GRAPH=(()=>{
      item.sample.sensorPressure:null;
    const pressureSetpoint=finite(item?.referencePressureInput)?item.referencePressureInput:
     finite(item?.referencePressure)?item.referencePressure:step.pressure;
-   const referenceMin=steps.length?Math.min(...steps.map(p=>p.pressure)):null;
+   const referenceMin=finite(record?.verificationConfig?.calibrationMin)?
+     record.verificationConfig.calibrationMin:steps.length?Math.min(...steps.map(p=>p.pressure)):null;
    const referencePercent=finite(referenceMin)&&span>0&&finite(pressureSetpoint)?
      (pressureSetpoint-referenceMin)/span*100:null;
    const previewPercent=mode!=='temperature'&&!finite(pressurePct)&&
