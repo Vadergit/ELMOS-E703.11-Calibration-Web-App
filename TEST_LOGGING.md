@@ -1,6 +1,6 @@
 # ELMOS E703.11 – Test / Logging
 
-**Aktueller Softwarestand v0.7.74 · Benutzeranleitung (Laborprototyp)**
+**Aktueller Softwarestand v0.7.75 · Benutzeranleitung (Laborprototyp)**
 
 Das **Test / Logging** findest du auf zwei Wegen: in der **klassischen Ansicht als eigenen Reiter direkt unter «EEPROM Viewer»** und im geführten Assistenten auf der ersten Seite als **vierte Kachel**. Beide Wege öffnen denselben Logger, dessen Eingaben beim Wechsel erhalten bleiben. Damit können beliebige sensorbezogene Versuche protokolliert werden, ohne einen neuen Abgleich oder einen NVM-Schreibvorgang auszulösen.
 
