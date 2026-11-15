@@ -10,7 +10,7 @@ const ELMOS_VERIFICATION_REPORT=(()=>{
  const val=x=>x==null||String(x).trim()===''?'–':String(x);
  const fld=(label,value)=>'<div class="datum"><small>'+esc(label)+'</small><strong>'+esc(val(value))+'</strong></div>';
  const status=v=>({completed:tr('Abgeschlossen','Completed'),failed:tr('Fehlerhaft','Failed'),incomplete:tr('Unvollständig','Incomplete'),interrupted:tr('Unterbrochen','Interrupted'),aborted:tr('Abgebrochen','Aborted')})[v]||val(v);
- const badge=k=>'<span class="tag '+esc(k||'pending')+'">'+esc(({pass:tr('Bestanden','Passed'),fail:tr('Ausser Toleranz','Out of tolerance'),unknown:tr('Nicht bewertet','Not assessed'),pending:tr('Offen','Pending')})[k]||tr('Offen','Pending'))+'</span>';
+ const badge=k=>'<span class="tag '+esc(k||'pending')+'">'+esc(({pass:tr('Bestanden','Passed'),fail:tr('Ausser Toleranz','Out of tolerance'),unknown:tr('Nicht bewertet','Not assessed'),recorded:tr('Erfasst','Recorded'),pending:tr('Offen','Pending')})[k]||tr('Offen','Pending'))+'</span>';
  const communicationLabel=value=>{
   const k=String(value||'').trim().toLowerCase();
   return ['plc','onewire','one-wire','one_wire'].includes(k)?'One-Wire (AODO)':
@@ -34,7 +34,7 @@ const ELMOS_VERIFICATION_REPORT=(()=>{
     n(item.item.pressureError,5)+' '+(item.item.pressureUnit||item.item.sample?.pressureUnit||'')+' / ':'';
    return absolute+(item.pressurePct>0?'+':'')+n(item.pressurePct,4)+' % FS';
   }
-  if(mode!=='temperature'&&Number.isFinite(item.previewPercent))return tr('Ungeprüft: ','Unverified: ')+n(item.previewPercent,4)+' % FS';
+  if(mode!=='temperature'&&Number.isFinite(item.previewPercent))return (item.status==='recorded'?tr('Vorläufig: ','Provisional: '):tr('Ungeprüft: ','Unverified: '))+n(item.previewPercent,4)+' % FS';
   return '–';
  };
  function chartSegment(items,mode){
@@ -51,9 +51,9 @@ const ELMOS_VERIFICATION_REPORT=(()=>{
   }
   for(let i=0;i<items.length;i++){
    const x=items[i],cx=px(i),tol=Number.isFinite(x.tolerance)?x.tolerance:0;
-   lines.push('<line x1="'+cx+'" x2="'+cx+'" y1="'+py(tol)+'" y2="'+py(-tol)+'" stroke="#d6e5ed" stroke-width="12" stroke-linecap="round"/>');
+   if(Number.isFinite(x.tolerance))lines.push('<line x1="'+cx+'" x2="'+cx+'" y1="'+py(tol)+'" y2="'+py(-tol)+'" stroke="#d6e5ed" stroke-width="12" stroke-linecap="round"/>');
    if(Number.isFinite(x.plotValue)){
-    const color=x.status==='pass'?'#218056':x.status==='fail'?'#c6454f':'#c59436';
+    const color=x.status==='pass'?'#218056':x.status==='fail'?'#c6454f':x.status==='recorded'?'#4b7893':'#c59436';
     lines.push('<circle cx="'+cx+'" cy="'+py(x.plotValue)+'" r="6" fill="'+color+'" stroke="#fff" stroke-width="2"/>');
     lines.push('<text x="'+cx+'" y="'+Math.max(12,Math.min(H-B-5,py(x.plotValue)+(x.plotValue>=0?-12:18)))+'" text-anchor="middle" font-size="10" font-weight="bold" fill="'+color+'">'+esc(n(x.plotValue,2))+'</text>');
    }
@@ -122,13 +122,7 @@ const ELMOS_VERIFICATION_REPORT=(()=>{
     esc(measured(x.item,mode))+'</td><td>'+esc(diff(x,mode))+'</td><td>'+badge(x.status)+'</td><td>'+
     esc(x.item?.attempt??'–')+'</td></tr>';
   }).join('');
-  const kpis=[
-   [summ.total,tr('Prüfpunkte','Points'),''],
-   [summ.passed,tr('Bestanden','Passed'),'green'],
-   [summ.failed,tr('Ausser Toleranz','Out of tolerance'),'red'],
-   [summ.unknown,tr('Nicht bewertet','Not assessed'),'yellow'],
-   [summ.pending,tr('Offen','Pending'),'']
-  ].map(([c,l,k])=>'<div class="kpi '+k+'"><b>'+esc(c)+'</b><span>'+esc(l)+'</span></div>').join('');
+  const progress=tr('Messpunkte erfasst: ','Measurement points recorded: ')+summ.measured+' / '+summ.total;
   const css='*{box-sizing:border-box}body{margin:0;background:#edf2f6;color:#15344b;font-family:Arial,sans-serif;font-size:11px;line-height:1.48}.toolbar{background:#124260;color:#fff;padding:11px 18px;display:flex;align-items:center;justify-content:space-between;gap:20px}.toolbar button{background:white;color:#124260;border:0;border-radius:7px;padding:10px 16px;font-weight:bold;cursor:pointer}.sheet{background:white;max-width:990px;margin:18px auto;padding:34px 42px;box-shadow:0 8px 28px #314e642a}header{display:flex;justify-content:space-between;gap:14px;border-bottom:3px solid #176487;padding-bottom:18px}h1{font-size:26px;margin:4px 0}h2{color:#1a4d6d;font-size:15px;margin:23px 0 10px}.muted{color:#6a8292;font-size:10px}.kpis{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:9px;margin:18px 0}.kpi{border:1px solid #d8e6ef;background:#f6f9fb;border-radius:8px;padding:9px}.kpi b{display:block;font-size:20px;color:#174c6d}.kpi span{font-size:9px;color:#587286}.kpi.green b{color:#177953}.kpi.red b{color:#ab373c}.kpi.yellow b{color:#936923}.grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:7px 13px}.datum{min-width:0;border-bottom:1px solid #e4ebf1;padding:6px 3px;overflow-wrap:anywhere;white-space:pre-wrap}.datum small{color:#6d8191;font-size:9px;display:block}.datum strong{font-size:11px;color:#2b4c62}.plot{border:1px solid #dae6ef;border-radius:8px;padding:8px;margin:12px 0;break-inside:avoid;page-break-inside:avoid}.plot-label{font-size:10px;font-weight:bold;color:#2d5d7d}table{width:100%;border-collapse:collapse;font-size:10px}th{background:#edf4f9;text-align:left;color:#365d77;padding:8px 6px}td{border-top:1px solid #e3ebf1;padding:7px 6px;vertical-align:top}.tag{font-size:9px;padding:3px 5px;border-radius:4px;white-space:nowrap}.tag.pass{background:#e7f7ed;color:#167450}.tag.fail{background:#ffe9eb;color:#a6323e}.tag.unknown{background:#fff2d7;color:#8d661b}.tag.pending{background:#e9f0f5;color:#63798a}.warning{background:#fff8e6;border-left:3px solid #cfa341;padding:10px;margin:17px 0;color:#725c2b}.footer{border-top:1px solid #dce7ef;margin-top:25px;padding-top:12px;color:#6a8292;font-size:9px;display:flex;justify-content:space-between;gap:10px}@page{size:A4;margin:15mm 13mm}@media print{body{background:white;-webkit-print-color-adjust:exact;print-color-adjust:exact}.toolbar{display:none}.sheet{max-width:none;padding:0;margin:0;box-shadow:none}h2{page-break-after:avoid;break-after:avoid}.grid,.kpis{break-inside:avoid;page-break-inside:avoid}tr{break-inside:avoid}}';
   return '<!doctype html><html lang="'+(en()?'en':'de-CH')+'"><head><meta charset="UTF-8"><title>'+
    esc('E70311_Verification_'+(record.chipUID||'Unknown'))+'</title><style>'+css+'</style></head><body>'+
@@ -138,7 +132,7 @@ const ELMOS_VERIFICATION_REPORT=(()=>{
    '<h1>'+esc(tr('Nachmessung – Prüfprotokoll','Verification test report'))+'</h1>'+
    '<div class="muted">'+esc(dt(record.startedAt))+' – '+esc(dt(record.endedAt))+'</div></div>'+
    '<b>'+esc(status(record.status))+'</b></header>'+
-   '<div class="kpis">'+kpis+'</div>'+
+   '<p class="muted">'+esc(progress)+'</p>'+
    '<h2>'+esc(tr('Kalibrierwerkzeug, Adapter und Sensor','Calibration tool, adapter and sensor'))+'</h2><div class="grid">'+info+'</div>'+
    (extras?'<h2>'+esc(tr('Weitere Protokollangaben','Additional report details'))+'</h2><div class="grid">'+extras+'</div>':'')+
    '<h2>'+esc(tr('Prüfbedingungen','Test conditions'))+'</h2><div class="grid">'+settings+'</div>'+
