@@ -53,42 +53,56 @@ const ELMOS_VERIFICATION_GRAPH=(()=>{
    pending:data.filter(x=>x.status==='pending').length,total:data.length};
  }
  function renderRaw(host,items,active,choose){
-  const withDSP=items.filter(x=>finite(x.item?.sample?.dspS));
-  if(!withDSP.length){
-   host.append(node('p',local('Noch keine DSP_S-Rohmesswerte vorhanden.','No DSP_S raw measurements recorded yet.'),'vg-muted'));
+  // Show sensor values for new recordings; legacy archives retain the raw DSP_S chart.
+  const hasSensor=items.some(p=>finite(p.item?.sample?.sensorValue));
+  const reading=p=>hasSensor?p.item?.sample?.sensorValue:p.item?.sample?.dspS;
+  const valid=items.filter(p=>finite(reading(p)));
+  if(!valid.length){
+   host.append(node('p',local('Noch keine digitalen Sensorwerte vorhanden.','No digital sensor readings available yet.'),'vg-muted'));
    return;
   }
-  const raw=items.length>48?items.slice(Math.max(0,Math.min(items.length-48,active-24)),Math.max(0,Math.min(items.length-48,active-24))+48):items;
-  const values=raw.map(p=>p.item?.sample?.dspS).filter(finite);
-  const low=Math.min(...values),high=Math.max(...values),padding=Math.max(75,(high-low)*0.15,Math.abs(high)*0.002);
+  const start=Math.max(0,Math.min(Math.max(0,items.length-48),active-24));
+  const raw=items.length>48?items.slice(start,start+48):items;
+  const values=raw.map(reading).filter(finite);
+  if(!values.length)return;
+  const low=Math.min(...values),high=Math.max(...values);
+  const padding=hasSensor?Math.max(0.001,(high-low)*0.15,Math.abs(high)*0.01):
+   Math.max(75,(high-low)*0.15,Math.abs(high)*0.002);
   const minY=low-padding,maxY=high+padding;
   const w=Math.max(650,raw.length*27+75),h=148,le=66,ri=20,top=14,bottom=32;
   const x=i=>le+(i+.5)*(w-le-ri)/raw.length;
   const y=v=>top+(maxY-v)/(maxY-minY)*(h-top-bottom);
+  const unit=hasSensor?(valid[0].item.sample.sensorUnit||valid[0].item.sample.pressureUnit||''):'Digits';
   const wrapper=node('div',null,'vg-raw');
-  wrapper.append(node('strong',local('Gemessene DSP_S-Rohwerte','Measured DSP_S raw readings')));
+  wrapper.append(node('strong',hasSensor?local('Gemessene digitale Sensorwerte','Measured digital sensor values')+
+   (unit?' ('+unit+')':''):local('Gemessene DSP_S-Rohwerte (älteres Protokoll)','Measured DSP_S raw readings (legacy report)')));
   const scroller=node('div',null,'vg-chartscroll');
   const plot=svg('svg',{viewBox:'0 0 '+w+' '+h,width:w,height:h,
-    role:'img','aria-label':local('Rohmesswerte pro Prüfpunkt, automatisch skaliert','Automatically scaled raw measurements per verification point')});
+   role:'img','aria-label':local('Sensorwerte pro Prüfpunkt','Sensor values per point')});
   for(const v of [minY,(minY+maxY)/2,maxY]){
-    const yy=y(v);
-    plot.append(svg('line',{x1:le,x2:w-ri,y1:yy,y2:yy,class:'vg-grid'}));
-    plot.append(svg('text',{x:le-9,y:yy+3,'text-anchor':'end',class:'vg-axis'},decimal(v,0)));
+   const yy=y(v);
+   plot.append(svg('line',{x1:le,x2:w-ri,y1:yy,y2:yy,class:'vg-grid'}));
+   plot.append(svg('text',{x:le-9,y:yy+3,'text-anchor':'end',class:'vg-axis'},decimal(v,hasSensor?3:0)));
   }
   let last=null;
-  for(const p of raw){
-    if(!finite(p.item?.sample?.dspS))continue;
-    const cx=x(raw.indexOf(p)),cy=y(p.item.sample.dspS);
-    if(last)plot.append(svg('line',{x1:last.x,y1:last.y,x2:cx,y2:cy,class:'vg-raw-line'}));
-    const dot=svg('circle',{cx,cy,r:5.3,class:'vg-marker '+p.status,'aria-label':'DSP_S '+p.item.sample.dspS,tabindex:0,role:'button'});
-    dot.append(svg('title',{},local('Prüfpunkt ','Point ')+(p.index+1)+' · DSP_S '+decimal(p.item.sample.dspS,0)));
-    dot.addEventListener('click',()=>choose?.(p.index));
-    dot.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();choose?.(p.index)}});
-    plot.append(dot);
-    last={x:cx,y:cy};
+  for(let i=0;i<raw.length;i++){
+   const p=raw[i],v=reading(p);
+   if(!finite(v)){last=null;continue}
+   const cx=x(i),cy=y(v);
+   if(last)plot.append(svg('line',{x1:last.x,y1:last.y,x2:cx,y2:cy,class:'vg-raw-line'}));
+   const caption=(hasSensor?local('Sensorwert ','Sensor value '):'DSP_S ')+decimal(v,hasSensor?5:0);
+   const dot=svg('circle',{cx,cy,r:5.3,class:'vg-marker '+p.status,'aria-label':caption,tabindex:0,role:'button'});
+   dot.append(svg('title',{},local('Prüfpunkt ','Point ')+(p.index+1)+' · '+caption+(unit?' '+unit:'')));
+   dot.addEventListener('click',()=>choose?.(p.index));
+   dot.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();choose?.(p.index)}});
+   plot.append(dot);
+   last={x:cx,y:cy};
   }
   scroller.append(plot);wrapper.append(scroller);
-  wrapper.append(node('p',local('Die Kurve zeigt echte DSP_S-Rohwerte – auch wenn die Druckumrechnung noch nicht bestätigt ist. Grau bedeutet nicht bewertet.','This chart always shows actual DSP_S values, even when pressure conversion has not been confirmed. Grey means not assessed.'),'vg-caption'));
+  wrapper.append(node('p',hasSensor?
+   local('Die Kurve zeigt den digitalen Sensorwert. Ohne bestätigte Druckskalierung bleibt die Bewertung offen.',
+    'The curve shows the digital sensor value. Without confirmed pressure scaling, the result remains unassessed.'):
+   local('Dieses ältere Protokoll enthält DSP_S-Rohwerte.','This older report contains DSP_S raw readings.'),'vg-caption'));
   host.append(wrapper);
  }
  function render(host,record,active=0,onSelect){
