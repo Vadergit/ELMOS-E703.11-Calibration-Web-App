@@ -3844,6 +3844,9 @@ if(typeof document!=='undefined') (function UI(){
    const sensorPressure=range?range.min+(dspS+range.limit)/(2*range.limit)*(range.max-range.min):null;
    return {at:new Date().toISOString(),samples,errors,count,
     adcS,adcT,adcTC,dspS,dspT,sensorPressure,
+    // Canonical digital sensor display value for verification. No secondary DSP-limit conversion.
+    sensorValue:Number.isFinite(sensorPressure)?sensorPressure:null,
+    sensorUnit:Number.isFinite(sensorPressure)?range.unit:null,
     pressureUnit:Number.isFinite(sensorPressure)?range.unit:null,pressureConversionKind:range?.kind||null,
     pressureConversion:range?.kind==='ram'?'Aktuelle RAM-Zuordnung (DSP-Verifikation separat beachten)':
      'Manuelle Anzeigezuordnung; nur nach ausdrücklicher Bestätigung zur Toleranzbewertung verwenden',
