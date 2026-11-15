@@ -105,7 +105,8 @@ const ELMOS_VERIFICATION_GRAPH=(()=>{
   for(const [label,amount,cls] of [
    [local('Bestanden','Passed'),result.passed,'pass'],
    [local('Ausser Toleranz','Out of tolerance'),result.failed,'fail'],
-   [local('Offen','Pending'),result.pending+result.unknown,'pending']]){
+   [local('Nicht bewertet','Not assessed'),result.unknown,'unknown'],
+   [local('Offen','Pending'),result.pending,'pending']]){
    const chip=node('span',null,'vg-count '+cls);
    chip.append(node('strong',amount),document.createTextNode(' '+label));tally.append(chip);
   }
