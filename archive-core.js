@@ -22,8 +22,9 @@ const ELMOS_ARCHIVE_CORE=(()=>{
   const cycles=Number(input.cycles??1);
   if(!Number.isInteger(cycles)||cycles<1||cycles>30)throw Error('Zyklen: ganze Zahl von 1 bis 30');
   const pressure=mode==='temperature'?[asNumber(input.fixedPressure)]:points(input.pressure,'Druckrampe');
-  const temperature=mode==='pressure'?[asNumber(input.fixedTemperature)]:points(input.temperature,'Temperaturrampe');
-  if(pressure.some(x=>!Number.isFinite(x))||temperature.some(x=>!Number.isFinite(x)))throw Error('Fixe Referenz ungültig');
+  // In a pressure-only check ambient temperature is optional metadata, not a required test setpoint.
+  const temperature=mode==='pressure'?[input.fixedTemperature===''||input.fixedTemperature==null?null:asNumber(input.fixedTemperature)]:points(input.temperature,'Temperaturrampe');
+  if(pressure.some(x=>!Number.isFinite(x))||temperature.some(x=>x!==null&&!Number.isFinite(x)))throw Error('Fixe Referenz ungültig');
   const steps=[];
   for(let cycle=0;cycle<cycles;cycle++){
    for(let ti=0;ti<temperature.length;ti++){
