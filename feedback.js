@@ -10,7 +10,8 @@ function loadChallenge() {
   return new Promise((resolve, reject) => {
     const script = document.createElement('script');
     script.src = 'https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit';
-    script.onload = () => window.turnstile.ready(resolve);
+    script.async = false;
+    script.onload = () => window.turnstile?.render ? resolve() : reject();
     script.onerror = reject;
     document.head.append(script);
   });
