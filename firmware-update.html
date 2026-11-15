@@ -25,7 +25,7 @@
     <h2 id="esp32">ESP32-C3 SuperMini · v0.10</h2>
     <p>One-Wire und I²C. Wähle im USB-Dialog den ESP32-C3 SuperMini.</p>
     <esp-web-install-button manifest="firmware/releases/esp32-c3/v0.10/manifest.json">
-      <button type="button" slot="activate" disabled>Firmware installieren</button>
+      <button type="button" slot="activate" disabled>ESP32 installieren</button>
       <span slot="unsupported">Öffne diese Seite in Chrome oder Edge auf dem Computer.</span>
       <span slot="not-allowed">Öffne diese Seite über HTTPS oder localhost.</span>
     </esp-web-install-button>
@@ -47,11 +47,21 @@
 
   <section aria-labelledby="pro-micro">
     <h2 id="pro-micro">Pro Micro · v0.27</h2>
-    <p>One-Wire und I²C. Wähle die HEX-Datei passend zur Taktfrequenz deines Boards und lade sie mit einem AVR109-Uploader hoch.</p>
-    <ul>
+    <p>One-Wire und I²C. Wähle die auf deinem Board angegebene Ausführung.</p>
+    <p><label for="proMicroClock">Ausführung</label>
+      <select id="proMicroClock">
+        <option value="">Bitte wählen</option>
+        <option value="16">5 V / 16 MHz</option>
+        <option value="8">3,3 V / 8 MHz</option>
+      </select>
+    </p>
+    <p><button type="button" id="proMicroStart" disabled>Bootloader starten</button>
+      <button type="button" id="proMicroChoose" disabled>Pro Micro installieren</button></p>
+    <p id="proMicroStatus" role="status"></p>
+    <details><summary>HEX-Datei für manuellen Upload</summary><ul>
       <li><a href="firmware/releases/pro-micro/v0.27/pro-micro-16mhz.hex" download>HEX für 5 V / 16 MHz</a></li>
       <li><a href="firmware/releases/pro-micro/v0.27/pro-micro-8mhz.hex" download>HEX für 3,3 V / 8 MHz</a></li>
-    </ul>
+    </ul></details>
     <table aria-label="Anschlüsse Pro Micro">
       <thead><tr><th scope="col">Pro Micro</th><th scope="col">Elmos E703.11</th></tr></thead>
       <tbody>
@@ -69,6 +79,8 @@
   <p>Wenn I²C im Sensor deaktiviert ist, AODO angeschlossen lassen. Bei aktivierter Sensorversorgung über den Adapter kann die Firmware I²C für die laufende Sitzung im Sensor-RAM einschalten.</p>
 
   <script type="module">
+    import { setupProMicroInstaller } from './pro-micro-installer.js';
+    setupProMicroInstaller();
     const installer = document.querySelector('esp-web-install-button');
     const status = document.getElementById('installerStatus');
     if (!window.isSecureContext || !('serial' in navigator)) {
