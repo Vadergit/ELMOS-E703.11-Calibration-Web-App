@@ -1906,3 +1906,25 @@ window.ELMOS_TRANSLATIONS_EN=Object.assign(window.ELMOS_TRANSLATIONS_EN||{}, {
  "Ergebnis": "Result",
  "Prüfung · ": "Verification · "
 });
+
+// 0.7.59 additional mode-specific and absolute-pressure wording.
+window.ELMOS_TRANSLATIONS_EN=Object.assign(window.ELMOS_TRANSLATIONS_EN||{}, {
+ "Stelle den Prüfdruck am Kalibrator ein und starte die Messung, sobald die Bedingungen stabil sind.": "Set the test pressure on the calibrator and start measurement once the conditions are stable.",
+ "Konstanter Prüfdruck": "Constant test pressure",
+ "Relativdrucksensor (Überdruck)": "Gauge pressure sensor",
+ "Relativdruck (gegen Umgebung)": "Gauge pressure (relative to ambient)",
+ "Gemessener Umgebungsdruck (gleiche Einheit wie Prüfdruck)": "Measured ambient pressure (same unit as test pressure)",
+ "Wird verwendet, wenn der Kalibrator Relativdruck und der Sensor Absolutdruck angibt (oder umgekehrt). 1,01325 bar ist nur ein Beispiel – den tatsächlichen Umgebungsdruck eingeben.": "Used when the calibrator reports gauge pressure and the sensor reports absolute pressure (or vice versa). 1.01325 bar is only an example – enter the actual measured ambient pressure.",
+ "2. Wenn die Bedingungen stabil sind, nimm den Prüfpunkt auf.": "2. Once conditions are stable, capture the verification point.",
+ "Umgebungstemperatur (optional, °C)": "Ambient temperature (optional, °C)",
+ "Sensortyp": "Sensor type",
+ "Absolutdrucksensor": "Absolute pressure sensor",
+ "Absolutdruck": "Absolute pressure",
+ "Einheit der Druckreferenz": "Pressure reference unit",
+ "Referenzdruck vom Kalibrator": "Calibrator pressure reference",
+ "z. B. Druckkalibrator oder Klimakammer": "e.g. pressure calibrator or climate chamber",
+ "Referenzdruck": "Reference pressure",
+ "Relativdruck": "Gauge pressure",
+ "1. Stelle Druck und Temperatur am Prüfstand ein.": "1. Set pressure and temperature at the test bench.",
+ "Prüfplan": "Test plan"
+});
