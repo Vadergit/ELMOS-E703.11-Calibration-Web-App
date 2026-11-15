@@ -704,19 +704,28 @@ const ELMOS_ARCHIVE=(()=>{
    text('arStepHeading',ui('Prüfpunkt ','Point ')+(S.step+1)+' / '+total);
    const d1=point.pressureDirection==='up'?ui('steigend','increasing'):point.pressureDirection==='down'?ui('fallend','decreasing'):ui('konstant','constant');
    const d2=point.temperatureDirection==='up'?ui('steigend','increasing'):point.temperatureDirection==='down'?ui('fallend','decreasing'):ui('konstant','constant');
-   text('arStepDescription',ui('Soll: ','Target: ')+point.pressure+' · '+point.temperature+' °C'+
-    ' · '+ui('Druck ','Pressure ')+d1+' / '+ui('Temperatur ','temperature ')+d2);
+   const mode=r.plan.mode;
+   const temperatureShown=mode!=='pressure'&&point.temperature!==null;
+   $('arRefTempLabel').hidden=!temperatureShown;
+   const unit=r.verificationConfig?.pressureUnit||$('arPressureUnit').value||'bar';
+   const targetPressure=(r.verificationConfig?.correctionApplied?
+    point.pressure+(r.verificationConfig?.sensorType==='absolute'?1:-1)*(r.verificationConfig?.ambientPressure||0):
+    point.pressure);
+   text('arStepDescription',ui('Soll: ','Target: ')+
+    (mode==='temperature'?'':ui('Druck ','Pressure ')+point.pressure+' '+unit+' · ')+
+    (temperatureShown?ui('Temperatur ','Temperature ')+point.temperature+' °C · ':'')+
+    (r.verificationConfig?.correctionApplied&&mode!=='temperature'?ui('Korrigierter Sensor-Sollwert: ','Corrected sensor target: ')+Number(targetPressure.toFixed(5))+' '+unit+' · ':'')+
+    ui('Druckrichtung ','Pressure direction ')+d1+(mode==='pressure'?'':' · '+ui('Temperaturrichtung ','Temperature direction ')+d2));
    if($('arPointKey').value!==String(S.step)){
     $('arRefPressure').value=String(point.pressure);
-    $('arRefTemp').value=String(point.temperature);
+    $('arRefTemp').value=point.temperature===null?'':String(point.temperature);
     $('arPointKey').value=String(S.step);
-    $('arStable').checked=false;
    }
    const attempts=overview.data[S.step]?.tries||0;
    const status=overview.data[S.step]?.status||'pending';
    text('arAttemptNote',attempts?
      attempts+' '+ui('Versuch(e) gespeichert. Du kannst wiederholen oder weitergehen.','attempt(s) saved. You can repeat or continue.'):
-     ui('Noch keine Messung. Bestätige die stabilen Sollwerte und starte die Aufnahme.','No measurement yet. Confirm stable targets and start capture.'));
+     ui('Noch keine Messung. Stelle die Sollwerte ein und starte die Aufnahme.','No measurement yet. Set the target values and start capture.'));
    text('arEvaluationHint',status==='fail'?
     ui('Ausserhalb der Toleranz: Bedingungen prüfen und bei Bedarf erneut messen.','Out of tolerance: check conditions and repeat if needed.'):
     status==='pass'?ui('Prüfpunkt bestanden. Du kannst mit dem nächsten Punkt fortfahren.','Point passed. You can continue to the next point.'):
@@ -724,7 +733,7 @@ const ELMOS_ARCHIVE=(()=>{
     ui('Hinweis: Maximal 0,2 % FS Druckabweichung als Standard. Unter «Weitere Einstellungen» anpassbar.','Note: default maximum pressure deviation is 0.2% FS. Change under Additional settings.'));
    $('arPrevious').disabled=S.measuring||S.step===0;
    $('arNext').disabled=S.measuring;
-   $('arMeasure').disabled=S.measuring||!$('arStable').checked;
+   $('arMeasure').disabled=S.measuring;
    $('arMeasure').textContent=S.measuring?ui('Messung läuft …','Measuring …'):
     attempts?ui('Messung wiederholen','Repeat measurement'):ui('Messpunkt aufnehmen','Capture point');
   }else{
@@ -739,14 +748,19 @@ const ELMOS_ARCHIVE=(()=>{
   const r=S.record;
   if(!r||r.type!=='verification'||S.measuring||!r.plan)return;
   const step=r.plan.steps[S.step];if(!step)return;
-  const p=Number($('arRefPressure').value),t=Number($('arRefTemp').value),
-   tolerancePercent=Number($('arToleranceP').value),toleranceT=Number($('arToleranceT').value),
+  const p=Number($('arRefPressure').value);
+  const tValue=$('arRefTemp').value.trim();
+  const t=tValue===''?null:Number(tValue);
+  const tolerancePercent=Number($('arToleranceP').value),toleranceT=Number($('arToleranceT').value),
    pressureSpan=Number($('arPressureSpan').value),count=Number($('arSamples').value);
   const mode=r.plan.mode;
-  // Pressure tolerance is always % full scale, never % of setpoint (0 bar is valid).
+  // Pressure tolerance is expressed in % FS; a zero-pressure reference is valid.
   const toleranceP=mode==='temperature'?null:pressureSpan*tolerancePercent/100;
-  if(!$('arStable').checked)return note('Bitte die Stabilisierung bestätigen.',true);
-  if(!Number.isFinite(p)||!Number.isFinite(t)||!Number.isFinite(tolerancePercent)||tolerancePercent<0||
+  let pressureReference;
+  try{pressureReference=effectivePressure(p,mode)}
+  catch(error){return note(error.message,true)}
+  if(!Number.isFinite(p)||(mode!=='pressure'&&!Number.isFinite(t))||
+   !Number.isFinite(tolerancePercent)||tolerancePercent<0||
    (mode!=='temperature'&&(!Number.isFinite(pressureSpan)||pressureSpan<=0))||
    !Number.isFinite(toleranceT)||toleranceT<0||!Number.isInteger(count)||count<1||count>100)
    return note(ui('Referenzen, Toleranz oder Messspanne ungültig. Bitte «Weitere Einstellungen» prüfen.','Invalid reference, tolerance or pressure span. Check Additional settings.'),true);
@@ -755,11 +769,20 @@ const ELMOS_ARCHIVE=(()=>{
   note('Messung '+(attempts+1)+' läuft …');
   try{
    const sample=await bridge().measure(count);
-   const pressureConfirmed=$('arPressureScaleConfirmed').checked||sample.pressureConversionKind==='ram';
+   const conversionConfirmed=$('arPressureScaleConfirmed').checked||sample.pressureConversionKind==='ram';
+   const sensorUnit=String(sample.pressureUnit||'').trim().toLowerCase();
+   const expectedUnit=pressureReference.pressureUnit.toLowerCase();
+   const matchingUnit=sensorUnit===expectedUnit;
+   // Never compare sensor % to a bar reference; the raw DSP plot remains available.
+   const pressureConfirmed=conversionConfirmed&&matchingUnit;
    sample.pressureConfidence=pressureConfirmed?'confirmed':'unverified';
-   const errP=pressureConfirmed&&Number.isFinite(sample.sensorPressure)?sample.sensorPressure-p:null;
+   sample.pressureReferenceMismatch=!matchingUnit;
+   sample.expectedPressureUnit=pressureReference.pressureUnit;
+   sample.pressureTarget=pressureReference.value;
+   const errP=mode!=='temperature'&&pressureConfirmed&&Number.isFinite(sample.sensorPressure)?
+    sample.sensorPressure-pressureReference.value:null;
    // °C conversions require an operator-verified model. Always preserve DSP_T raw.
-   const tempConfirmed=$('arTempConversionConfirmed').checked;
+   const tempConfirmed=mode!=='pressure'&&$('arTempConversionConfirmed').checked;
    const tempScale=Number($('arTempScale').value),tempOffset=Number($('arTempOffset').value);
    if(tempConfirmed&&(!Number.isFinite(tempScale)||tempScale===0||!Number.isFinite(tempOffset)))
     throw Error('Temperatur-Umrechnung benötigt gültige Skalierung und Offset');
@@ -768,13 +791,17 @@ const ELMOS_ARCHIVE=(()=>{
    sample.temperatureConversion=tempConfirmed?{operatorConfirmed:true,dspTScaleDigitsPerC:tempScale,
     dspTOffsetDigits:tempOffset,source:'Manuelle Bestätigung, nicht vom System validiert'}:
     {operatorConfirmed:false,source:'Rohdaten ohne kalibrierte °C-Umrechnung'};
-   const errT=Number.isFinite(sample.sensorTempC)?sample.sensorTempC-t:null;
+   const errT=mode!=='pressure'&&Number.isFinite(sample.sensorTempC)&&Number.isFinite(t)?sample.sensorTempC-t:null;
    const pPass=errP===null?null:Math.abs(errP)<=toleranceP+1e-12;
    const tPass=errT===null?null:Math.abs(errT)<=toleranceT+1e-12;
    const pass=mode==='pressure'?pPass:mode==='temperature'?tPass:
     (pPass===false||tPass===false)?false:(pPass===null||tPass===null)?null:true;
-   await event('measurement',{stepIndex:S.step,attempt:attempts+1,referencePressure:p,referenceTemperature:t,
+   await event('measurement',{stepIndex:S.step,attempt:attempts+1,
+    referencePressure:pressureReference.value,referencePressureInput:p,referenceTemperature:t,
     referenceSource:$('arReferenceSource').value||'Manuelle Eingabe',setpoint:step,
+    pressureSensorType:pressureReference.sensorType,pressureReferenceKind:pressureReference.referenceKind,
+    atmosphericPressure:pressureReference.ambientPressure,
+    pressureUnit:pressureReference.pressureUnit,pressureCorrection:pressureReference.correction,
     pressureTolerance:toleranceP,pressureTolerancePercent:tolerancePercent,
     pressureFullScaleSpan:mode==='temperature'?null:pressureSpan,
     temperatureTolerance:toleranceT,
@@ -783,8 +810,10 @@ const ELMOS_ARCHIVE=(()=>{
    const errPercent=Number.isFinite(errP)&&pressureSpan>0?Math.abs(errP)/pressureSpan*100:null;
    note(ui('Prüfpunkt ','Point ')+(S.step+1)+' · '+
     (pass===true?ui('Bestanden','Passed'):pass===false?ui('Ausser Toleranz','Out of tolerance'):ui('Nicht bewertet','Not assessed'))+
-    ' · '+ui('Druckabweichung','Pressure deviation')+' '+(errPercent===null?'–':errPercent.toFixed(4)+' % FS')+
-    ' / '+tolerancePercent+' % FS',pass===false);
+    (mode==='temperature'?' · '+ui('Temperaturabweichung ','Temperature deviation ')+(errT===null?'–':errT.toFixed(3)+' °C'):
+    ' · '+ui('Druckabweichung ','Pressure deviation ')+(errPercent===null?'–':errPercent.toFixed(4)+' % FS')+' / '+tolerancePercent+' % FS')+
+    (!matchingUnit&&mode!=='temperature'?' · '+ui('Einheiten nicht identisch: ','Units differ: ')+(sample.pressureUnit||'–')+' / '+expectedUnit:''),
+    pass===false);
   }catch(e){
    try{await event('error',{stage:'verification_measurement',stepIndex:S.step,attempt:attempts+1,message:e.message,rawSamples:e.rawSamples||null,partialReadErrors:e.partialReadErrors||null})}
    catch(_){}
@@ -851,7 +880,7 @@ const ELMOS_ARCHIVE=(()=>{
   $('archiveStartCalibration').addEventListener('click',()=>ensureCalibration().then(()=>note('Kalibrierprotokoll gestartet. Jetzt wie gewohnt abgleichen.')).catch(e=>note(e.message,true)));
   $('arStart').addEventListener('click',()=>startVerification().catch(e=>note(e.message,true)));
   $('arMeasure').addEventListener('click',()=>measure());
-  $('arStable').addEventListener('change',()=>{if(S.record?.type==='verification')renderStep()});
+
   $('arPressureSpan').addEventListener('input',()=>{$('arPressureSpan').dataset.custom='1'});
   $('arToleranceP').addEventListener('input',()=>{if(S.record?.type==='verification')renderStep()});
   $('arNext').addEventListener('click',()=>advance().catch(e=>note(e.message,true)));
@@ -868,8 +897,12 @@ const ELMOS_ARCHIVE=(()=>{
     source:$('archiveMeasuredVddSource').value||null}).catch(e=>note(e.message,true));
   });
   $('arMode').addEventListener('change',()=>{modeUI();preview()});
-  for(const id of ['arPressurePath','arTempPath','arCycles','arFixedPressure','arFixedTemp'])$(id).addEventListener('change',preview);
-  $('arPreview').addEventListener('click',preview);
+  for(const id of ['arSensorType','arReferenceKind','arPressureUnit'])
+   $(id).addEventListener('change',()=>{modeUI();preview()});
+  $('arAmbientPressure').addEventListener('input',modeUI);
+  for(const id of ['arPressurePath','arTempPath','arCycles','arFixedPressure','arFixedTemp'])
+   $(id).addEventListener('input',preview);
+
   $('archiveSearch').addEventListener('input',renderList);
   for(const id of ['archiveFilterType','archiveFilterStatus'])$(id).addEventListener('change',renderList);
   $('archiveCompare').addEventListener('click',compare);
