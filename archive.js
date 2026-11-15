@@ -265,12 +265,17 @@ const ELMOS_ARCHIVE=(()=>{
   if(!record)throw Error('Kein Archivprotokoll ausgewählt');
   let data,mime,name;
   const base=C.filename(record);
-  const rows=record.type==='testlog'&&(format==='json'||format==='csv'||format==='samples-csv')?
+  const rows=record.type==='testlog'&&(format==='json'||format==='csv'||format==='csv-full'||format==='samples-csv')?
    await streamRows(record):[];
-  if(format==='csv'){
-   if(!window.ELMOS_ARCHIVE_EXPORT?.csvAll)throw Error('Vollständiger CSV-Export nicht geladen');
-   data=window.ELMOS_ARCHIVE_EXPORT.csvAll(record,rows);
-   mime='text/csv;charset=utf-8';name=base.replace(/\.json$/i,'.csv');
+  if(format==='csv'||format==='csv-full'){
+   const module=window.ELMOS_ARCHIVE_EXPORT;
+   if(!module?.csvAll||!module?.csvVerification)
+    throw Error('CSV-Exportmodul nicht geladen');
+   const concise=record.type==='verification'&&format==='csv';
+   data=concise?module.csvVerification(record):module.csvAll(record,rows);
+   mime='text/csv;charset=utf-8';
+   name=base.replace(/\.json$/i,concise?'.nachmessung.csv':
+    format==='csv-full'?'.vollstaendig.csv':'.csv');
   }else if(format==='samples-csv'&&record.type==='testlog'){
    data=window.ELMOS_TEST_LOGGER_CORE.csvRows(rows,{
     name:record.testConfiguration?.name,dutName:record.testConfiguration?.dutName,chipUID:record.chipUID
@@ -416,9 +421,15 @@ const ELMOS_ARCHIVE=(()=>{
    view.addEventListener('click',()=>{void renderDetails(record)});
    const exportJSON=el('button','JSON','ar-small');
    exportJSON.addEventListener('click',()=>download(record).catch(e=>note(e.message,true)));
-   const csv=el('button',ui('CSV · alle Infos','CSV · all data'),'ar-small');
+   const csv=el('button',record.type==='verification'?
+    ui('CSV · Übersicht','CSV · summary'):ui('CSV · alle Infos','CSV · all data'),'ar-small');
    csv.addEventListener('click',()=>download(record,'csv').catch(e=>note(e.message,true)));
    actions.append(view,exportJSON,csv);
+   if(record.type==='verification'){
+    const full=el('button',ui('CSV · Rohdaten','CSV · raw data'),'ar-small');
+    full.addEventListener('click',()=>download(record,'csv-full').catch(e=>note(e.message,true)));
+    actions.append(full);
+   }
    if(record.type==='testlog'){
     const samples=el('button',ui('CSV · Messwerte','CSV · samples'),'ar-small');
     samples.addEventListener('click',()=>download(record,'samples-csv').catch(e=>note(e.message,true)));
@@ -582,9 +593,15 @@ const ELMOS_ARCHIVE=(()=>{
   const exports=el('div',null,'ar-buttons');
   const btn=el('button','Protokoll als JSON herunterladen','ar-small ar-export');
   btn.addEventListener('click',()=>download(r).catch(e=>note(e.message,true)));
-  const csv=el('button',ui('CSV · alle Infos','CSV · all data'),'ar-small ar-export');
+  const csv=el('button',r.type==='verification'?
+   ui('CSV · Übersicht','CSV · summary'):ui('CSV · alle Infos','CSV · all data'),'ar-small ar-export');
   csv.addEventListener('click',()=>download(r,'csv').catch(e=>note(e.message,true)));
   exports.append(btn,csv);
+  if(r.type==='verification'){
+   const full=el('button',ui('CSV · Rohdaten','CSV · raw data'),'ar-small ar-export');
+   full.addEventListener('click',()=>download(r,'csv-full').catch(e=>note(e.message,true)));
+   exports.append(full);
+  }
   if(r.type==='testlog'){
    const samples=el('button',ui('CSV · Messwerte','CSV · samples'),'ar-small ar-export');
    samples.addEventListener('click',()=>download(r,'samples-csv').catch(e=>note(e.message,true)));
