@@ -1301,10 +1301,6 @@ const ELMOS_ARCHIVE=(()=>{
   });
   $('arAbort').addEventListener('click',()=>finalise('aborted').catch(e=>note(e.message,true)));
   $('arSaveCurrent').addEventListener('click',()=>flush().then(()=>note('Zwischenstand gespeichert.')).catch(e=>note(e.message,true)));
-  for(const id of ['archiveMeasuredVdd','archiveMeasuredVddSource'])$(id).addEventListener('change',()=>{
-   if(S.record)void event('supply_reference_changed',{actualVdd:$('archiveMeasuredVdd').value||null,
-    source:$('archiveMeasuredVddSource').value||null}).catch(e=>note(e.message,true));
-  });
   $('arMode').addEventListener('change',()=>{modeUI();preview()});
   for(const id of ['arSensorType','arReferenceKind'])
    $(id).addEventListener('change',()=>{modeUI();preview()});
