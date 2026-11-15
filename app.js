@@ -2670,7 +2670,9 @@ if(typeof document!=='undefined') (function UI(){
    if(slot>=required)throw Error('Prüfpunkt ist nicht ausgewählt');
    const [pressure,temperature]=verificationRows()[slot].querySelectorAll('input');
    const p=pressure.valueAsNumber,temp=temperature.valueAsNumber,pmin=Number($('pmin').value),pmax=Number($('pmax').value),tol=Number($('calVerifyTolerance').value);
-   if(!Number.isFinite(p)||!(p>pmin&&p<pmax)||!Number.isFinite(tol)||tol<=0)throw Error('Prüfdruck innerhalb des Kalibrierbereichs und positive Toleranz eingeben');
+   if(!Number.isFinite(p)||!Number.isFinite(pmin)||!Number.isFinite(pmax)||pmax<=pmin||p<pmin||p>pmax)
+    throw Error('Prüfdruck im Kalibrierbereich eingeben. Beide Endpunkte sind erlaubt.');
+   if(!Number.isFinite(tol)||tol<=0)throw Error('Positive Toleranz eingeben');
    if(!Number.isFinite(temp)||temp< -40||temp>125)throw Error('Prüftemperatur zwischen −40 und 125 °C eingeben');
    if(st.calValidation.some(point=>point.slot!==slot&&Math.abs(point.pressure-p)<=(pmax-pmin)*0.10))
     throw Error('Prüfdruck muss mehr als 10 % der Messspanne von bestätigten Prüfpunkten entfernt sein');
