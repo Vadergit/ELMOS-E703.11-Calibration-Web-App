@@ -1928,3 +1928,12 @@ window.ELMOS_TRANSLATIONS_EN=Object.assign(window.ELMOS_TRANSLATIONS_EN||{}, {
  "1. Stelle Druck und Temperatur am Prüfstand ein.": "1. Set pressure and temperature at the test bench.",
  "Prüfplan": "Test plan"
 });
+
+// 0.7.60 always-visible verification plan and provisional percent plots.
+window.ELMOS_TRANSLATIONS_EN=Object.assign(window.ELMOS_TRANSLATIONS_EN||{}, {
+ "Alle geplanten Prüfpunkte": "All planned verification points",
+ "Ungeprüfte Anzeigeabweichung": "Unverified display deviation",
+ "Aufnahmezeit: ": "Captured at: ",
+ "Sensoranzeige": "Sensor display",
+ "Ungeprüfte Abweichung der Prozentanzeige": "Unverified percent-display deviation"
+});
