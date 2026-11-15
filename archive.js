@@ -988,7 +988,7 @@ const ELMOS_ARCHIVE=(()=>{
    else if(mode!=='temperature'&&Number.isFinite(data.pressurePct))
     deviation=(data.pressurePct>0?'+':'')+shownNumber(data.pressurePct,4)+' % FS';
    else if(mode!=='temperature'&&Number.isFinite(data.previewPercent))
-    deviation=ui('Ungeprüft: ','Unverified: ')+(data.previewPercent>0?'+':'')+shownNumber(data.previewPercent,4)+' % FS';
+    deviation=(data.previewPercent>0?'+':'')+shownNumber(data.previewPercent,4)+' % FS';
    for(const val of [String(data.index+1),refParts.join(' · ')||'–',actual,deviation,testStatus(data.status)]){
     row.append(el('td',val));
    }
