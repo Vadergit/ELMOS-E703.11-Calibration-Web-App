@@ -1,3 +1,11 @@
+## v0.7.74 – Optionale adaptive Live-Abfrage ab 250 ms
+
+- Die bisherigen Abfragepausen (400, 650, 1000, 1500 und 2000 ms) bleiben unverändert. Neu unter **Einstellungen → Live-Abfrageintervall**: **«250 ms · Adaptiv (schneller)»**. Der neue Modus ist bewusst optional; die gespeicherte persönliche Einstellung bleibt erhalten.
+- 250 ms bezeichnet die **Pause nach einer bereits abgeschlossenen** Sensorabfrage. Der tatsächliche Abstand zwischen zwei ADC_S-Werten umfasst zusätzlich die Zeit für One-Wire-/I²C-Befehle, USB und Chipkonversion.
+- Die Web-App wartet weiterhin jede vollständige Live-Abfrage ab und sendet keine parallelen ADC-/DSP-Abfragen. Sekundärkanäle bleiben rotierend verteilt. Es erfolgen **keine Änderungen an CFG_PERIOD, DSP- oder NVM-Registern und keine neuen USB-Befehle**.
+- Im adaptiven Modus führen zwei nacheinander langsame Lesezyklen (je mindestens 600 ms) zu einer Erhöhung auf 400 bzw. 650 ms. Ein Lesezyklus ab 1200 ms oder ein Lesefehler erzwingt die 650-ms-Stufe; die bisherige 2-Sekunden-Fehlerpause und Sensor-Verlust-Erkennung bleiben bestehen. Nach jeweils zehn normalen Lesezyklen wird die Pause stufenweise zurückgenommen.
+- Der technische Live-Status und der SSP3-Diagnoseexport zeigen die aktuell effektive Abfragepause. Die Funktion wurde mit automatisierten Simulationen geprüft, **nicht** am realen SSP3/E703.11 freigegeben.
+
 ## v0.7.73 – Bis zu zwei optionale Fotos im Prüfprotokoll
 
 - Nachmessung und Test/Logging unterstützen bis zu **zwei Fotos mit optionaler Bildbeschreibung**, vor, während und nach der Messung sowie in der Archiv-Detailansicht.
