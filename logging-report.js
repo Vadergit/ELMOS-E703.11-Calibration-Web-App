@@ -116,6 +116,9 @@ const ELMOS_LOGGING_REPORT=(()=>{
   const eventRows=events.map((e,i)=>
    '<tr><td>'+esc(i+1)+'</td><td>'+esc(date(e.at))+'</td><td>'+esc(e.kind||'')+
     '</td><td class="data">'+esc(JSON.stringify(e.data??{}))+'</td></tr>').join('');
+  const photosHtml=typeof ELMOS_ARCHIVE_PHOTOS!=='undefined'?
+   ELMOS_ARCHIVE_PHOTOS.reportPhotos(record.photos):'';
+  const photosCss=typeof ELMOS_ARCHIVE_PHOTOS!=='undefined'?ELMOS_ARCHIVE_PHOTOS.pdfCss:'';
   const css=`*{box-sizing:border-box}body{margin:0;background:#edf3f6;color:#15334a;font:11px/1.45 Arial,sans-serif}
    .toolbar{display:flex;align-items:center;justify-content:space-between;padding:12px 24px;background:#155272;color:#fff;gap:20px}
    button{cursor:pointer;background:white;color:#155272;font-weight:bold;border:0;border-radius:7px;padding:10px 16px}
@@ -139,7 +142,7 @@ const ELMOS_LOGGING_REPORT=(()=>{
     .meta,.metrics,.plot{break-inside:avoid;page-break-inside:avoid}h2{break-after:avoid}}`;
   return '<!doctype html><html lang="de-CH"><head><meta charset="UTF-8"><title>'+
    esc('E70311_Logging_'+(meta.name||record.chipUID||record.id||'Test'))+
-   '</title><style>'+css+'</style></head><body>'+
+   '</title><style>'+css+photosCss+'</style></head><body>'+ 
    '<div class="toolbar"><span>PDF-Bericht: Im Druckdialog «Als PDF speichern» auswählen.</span>'+
    '<button onclick="window.print()">Als PDF speichern / Drucken</button></div>'+
    '<main><header><div><div class="muted">ELMOS E703.11 · Kalibrierassistent</div>'+
@@ -158,7 +161,7 @@ const ELMOS_LOGGING_REPORT=(()=>{
    '<th>Ref. Druck</th><th>Ref. Temp.</th></tr></thead><tbody>'+tableRows+'</tbody></table>'+
    '<h2>Ereignisse und Marker ('+events.length+')</h2>'+
    '<table><thead><tr><th>#</th><th>Zeit</th><th>Ereignis</th><th>Details</th></tr></thead><tbody>'+
-   eventRows+'</tbody></table><div class="footer">Lokales Prüfprotokoll · '+esc(record.id||'')+
+   eventRows+'</tbody></table>'+photosHtml+'<div class="footer">Lokales Prüfprotokoll · '+esc(record.id||'')+
    ' · '+esc(date(new Date().toISOString()))+'</div></main></body></html>';
  }
  function openReport(record,loadRows){
