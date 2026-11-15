@@ -210,7 +210,10 @@ const ELMOS_VERIFICATION_GRAPH=(()=>{
  function renderArchive(host,record){
   if(!host)return;
   if(record?.plan?.steps?.length){
-   render(host,record,-1,null);
+   // Archived points remain selectable for inspection, but this never acquires
+   // data or changes the archived record.
+   const inspect=index=>render(host,record,index,inspect);
+   render(host,record,0,inspect);
    return;
   }
   host.replaceChildren();
