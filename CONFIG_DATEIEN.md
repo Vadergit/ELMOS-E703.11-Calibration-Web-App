@@ -1,6 +1,8 @@
 # Config-Dateien und EEPROM Viewer
 
-**Version v0.6.9 · 12. November 2026 · ELMOS E703.11 Kalibrierassistent**
+**Projektstand v0.7.75 · 15. November 2026 · ELMOS E703.11 Kalibrierassistent**
+
+Die nachfolgenden Abschnitte dokumentieren teilweise ältere Config-Formate und deren Abwärtskompatibilität. Aktuelle Arbeitsschritte, EEPROM Viewer, Archivformate sowie die ausschliesslich unterstützten DIY-Programmer ESP32-C3 SuperMini und Arduino Pro Micro sind in [Bedienungsanleitung](ANLEITUNG.md), [Archiv & Nachmessung](ARCHIV_NACHMESSUNG.md) und [DIY-Programmer](docs/USB_BRIDGE_GUIDE.md) beschrieben.
 
 Die Web-App unterstützt die Wiederverwendung von **chipunabhängigen Konfigurationen**, ohne dass sensorspezifische Kalibrierwerte, Werksdaten oder Kommunikationsregister von einem Sensor auf einen anderen übertragen werden.
 
