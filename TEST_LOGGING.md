@@ -1,6 +1,6 @@
 # ELMOS E703.11 – Test / Logging
 
-**Ab v0.7.70 · Benutzeranleitung (Laborprototyp)**
+**Ab v0.7.72 · Benutzeranleitung (Laborprototyp)**
 
 Das **Test / Logging** findest du auf zwei Wegen: in der **klassischen Ansicht als eigenen Reiter direkt unter «EEPROM Viewer»** und im geführten Assistenten auf der ersten Seite als **vierte Kachel**. Beide Wege öffnen denselben Logger, dessen Eingaben beim Wechsel erhalten bleiben. Damit können beliebige sensorbezogene Versuche protokolliert werden, ohne einen neuen Abgleich oder einen NVM-Schreibvorgang auszulösen.
 
@@ -12,7 +12,7 @@ Das **Test / Logging** findest du auf zwei Wegen: in der **klassischen Ansicht a
 4. Das Intervall, die Aufnahmeart und optional die **Testdauer** einstellen (siehe unten).
 5. **Aufzeichnung starten** drücken und einen lokalen Archivordner auswählen bzw. freigeben. Der Start erfasst zunächst die verfügbaren RAM- und NVM-Daten. Nicht lesbare Informationen werden als Fehler/fehlend gekennzeichnet.
 6. Die Aufzeichnung beginnt. Bei Bedarf **Pause**, **Einzelaufnahme**, **Marker mit Zeitstempel** oder **Referenzdruck/-temperatur übernehmen** verwenden.
-7. Mit **Aufzeichnung beenden & speichern** abschliessen. Danach sind JSON, zwei CSV-Formate sowie ein PDF-Prüfprotokoll verfügbar. Alle Tests erscheinen auch im normalen Archiv.
+7. Mit **Aufzeichnung beenden & speichern** abschliessen. Danach stehen ein **übersichtlicher CSV-Export**, der vollständige JSON-Export und ein PDF-Prüfprotokoll zur Verfügung. Alle Tests erscheinen im Archiv.
 
 Während einer Aufzeichnung ist der serielle Messpfad reserviert. **RAM-/NVM-Änderungen und der parallele Kalibrierablauf sind nicht erlaubt.** Der Logger selbst programmiert keine Sensorregister.
 
@@ -59,22 +59,20 @@ Ist **«Zusätzlich TX/RX-Kommunikation aufzeichnen»** aktiv, werden auch die v
 
 Die App misst die wirkliche externe Spannung **nicht selbst**, wenn der Adapter keinen bestätigten VDD-Messwert liefert. In diesem Fall bleibt `measuredV: null`, ausser du trägst die Messung mit Quellenangabe manuell ein.
 
-## 4. Dateien, Archiv und Export (v0.7.70)
+## 4. Dateien, Archiv und Export (v0.7.72)
 
-Für jede Aufzeichnung entsteht eine Metadatendatei mit der Endung `.json`, die über UID, Testname, Datum, Kategorie, Adapter und Softwareversion suchbar ist. Die fortlaufende Telemetrie wird im selben freigegebenen Ordner in `.samples.jsonl`-Teildateien mit maximal 100 Messpunkten pro Teil aufbewahrt. Alle Dateien dieses Tests haben dieselbe Vorgangs-ID.
+Die Aufzeichnung speichert ihre Metadaten in einer `.json`-Datei und die fortlaufend aufgenommenen Sensorwerte in `.samples.jsonl`-Teildateien. Alle Teildateien gehören zum selben Vorgang.
 
-Nach **Aufzeichnung beenden & speichern** erscheinen vier Exportoptionen:
+Nach Abschluss gibt es drei Exportmöglichkeiten:
 
-- **JSON inkl. Rohwerte:** Die Metadaten und alle Einzelmessungen werden wieder zu einem vollständigen JSON zusammengeführt.
-- **CSV · alle Infos:** Exportiert das ganze Archivprotokoll inklusive Prüfer, Sensor- und Testinformationen, RAM-/NVM-Daten, Testkonfiguration, Zeitstempel, Marker, Fehlern, TX/RX-Logs, jeder Messpunktgruppe und jedem einzelnen Sample. Das CSV verwendet eine Langformatstruktur mit den Spalten `Bereich`, `Datensatz`, `Protokoll-ID`, `Chip-UID`, `Messpunkt-Nr`, `Einzelmessung-Nr`, `Zeitstempel`, `Feld` und `Wert`. Dadurch gehen auch unbekannte oder verschachtelte Zusatzfelder nicht verloren.
-- **CSV · Messwerte:** Tabellarischer Export, besonders für Diagramme und die Auswertung in Excel geeignet. Testname, Produkt-/DUT-Bezeichnung und Chip-UID werden jeder Zeile zugeordnet. Rohsamples erhalten je eine eigene Zeile; bei aktiver Mittelung gibt es eine zusätzliche Aggregat-Zeile pro Messpunkt.
-- **Prüfprotokoll als PDF speichern:** Öffnet einen lokalen, druckoptimierten Bericht mit Testbezeichnung, Gerätedaten, Einstellungen, Statistik, ADC_S-/DSP_S-Signalverlauf, allen aufgezeichneten Messpunktgruppen und vollständigem Ereignisprotokoll mit Markern. Im Browserdruckdialog **«Als PDF speichern»** wählen. Bei langen Tests wird nur die Grafik auf maximal 400 Punkte reduziert; die Messpunkttabelle enthält alle Gruppen. Für sämtliche Einzel-Rohsamples ist der CSV-/JSON-Export massgebend.
+- **CSV herunterladen:** Ein einziger, gut lesbarer CSV-Bericht. Zuerst erscheinen die Messpunkte mit Zeit, ADC-/DSP-Werten, Referenz- und Sensordruck (soweit vorhanden) sowie der Anzahl Samples. Danach folgen Angaben zu Test, DUT, Prüfer, Messintervall und Gerät. Marker und Fehler werden in einem eigenen Abschnitt aufgeführt. Keine TX/RX-Massenlogs und keine verschachtelten JSON-Pfade.
+- **JSON inkl. Rohwerte:** Vollständige technische Dokumentation mit allen Einzelmessungen, Rohdaten, Einstellungen und Ereignissen. Für eine umfassende Nachprüfung oder weitere Analyse ist dieser Export gedacht.
+- **Prüfprotokoll als PDF speichern:** Druckfertiger Bericht mit Testdaten, Statistik, Signalverlauf, Messpunktgruppen und Ereignissen. Im Browserdruckdialog «Als PDF speichern» wählen.
 
-Die Exporte stehen auch später in der Archivliste und in der Detailansicht zur Verfügung. **CSV · alle Infos** wird für sämtliche Archivtypen angeboten (nicht nur Logging). Der Browser lädt CSV-/JSON-Dateien in seinen gewählten Downloadordner; sie werden nicht automatisch neben die ursprünglichen Archivdateien geschrieben. Weder PDF noch CSV verändern die archivierten Originaldateien.
+Pro archiviertem Logging-Protokoll gibt es **nur einen CSV-Button**. Das gilt auch für die übrigen Protokolltypen. Der CSV-Download speichert in den Browser-Downloadordner und verändert die Originaldaten nicht.
 
-Die Dateien werden **lokal** gespeichert. Die Webseite sendet sie nicht automatisch an GitHub oder einen anderen Online-Dienst. Der Archivordner darf andere Dateien enthalten – diese werden nicht als Tests eingelesen oder verändert.
+**Für die vollständige Datensicherung immer den gesamten Archivordner mit sämtlichen `.jsonl`-Dateien aufbewahren.**
 
-**Unbedingt den gesamten Archivordner inklusive aller `.jsonl`-Teildateien sichern**, nicht nur die einzelne `.json`-Metadatendatei. Das gilt besonders bei Langzeittests.
 
 ## 5. Grenzen und Sicherheit
 
