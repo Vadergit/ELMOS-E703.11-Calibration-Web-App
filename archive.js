@@ -591,8 +591,12 @@ const ELMOS_ARCHIVE=(()=>{
  function preview(){
   try{
    const p=C.makePlan(config());S.draft=p;
-   text('arPlanStatus',p.steps.length+' Prüfschritte · '+p.cycles+' Zyklen · '+p.pressure.length+
-    ' Druckpunkte · '+p.temperature.length+' Temperaturpunkte. Die Reihenfolge bleibt erhalten.');
+   const pressureSpan=spanFromPlan(p);
+   const spanField=$('arPressureSpan');
+   if(spanField&&spanField.dataset.custom!=='1')spanField.value=String(pressureSpan);
+   text('arPlanStatus',p.steps.length+' '+ui('Prüfpunkte','verification points')+' · '+p.cycles+
+    ' '+ui('Zyklen','cycles')+' · '+p.pressure.length+' '+ui('Druckstufen','pressure levels')+
+    ' · '+p.temperature.length+' '+ui('Temperaturstufen','temperature levels')+'.');
    const nodes=p.steps.slice(0,30).map(s=>(s.index+1)+'. '+s.pressure+' / '+s.temperature+
     ' °C · Druck '+s.pressureDirection+' · Temperatur '+s.temperatureDirection);
    text('arPlanPreview',nodes.join('\n')+(p.steps.length>30?'\n… weitere Punkte im Ablauf':''));
@@ -755,17 +759,31 @@ const ELMOS_ARCHIVE=(()=>{
  async function advance(){
   if(!S.record?.plan||S.measuring)return;
   const current=S.step;
-  if(current<S.record.plan.steps.length&&!C.lastAttempt(S.record,current))
+  const hasAttempt=S.record.events.some(e=>e.kind==='measurement'&&e.stepIndex===current);
+  if(current<S.record.plan.steps.length&&!hasAttempt){
+   if(!window.confirm(ui('Diesen Prüfpunkt ohne Messung überspringen? Er wird im Protokoll als offen markiert.','Skip this point without measuring? It will remain unassessed in the log.')))return;
    await event('point_skipped',{stepIndex:current,reason:'Manuell übersprungen'});
+  }
   S.step=Math.min(S.record.plan.steps.length,current+1);
   renderStep();
  }
  function previous(){if(!S.record?.plan||S.measuring)return;S.step=Math.max(0,S.step-1);renderStep()}
  async function startVerification(){
-  if(!S.draft)preview();
-  if(!S.draft)throw Error('Prüfplan zuerst korrigieren');
+  // Revalidate the draft and full-scale configuration before creating an archive record.
+  preview();
+  if(!S.draft)throw Error(ui('Bitte den Prüfplan korrigieren.','Please correct the test plan.'));
+  const span=Number($('arPressureSpan').value);
+  if(S.draft.mode!=='temperature'&&(!Number.isFinite(span)||span<=0))
+   throw Error(ui('Eine positive Druck-Messspanne ist für die Prozenttoleranz erforderlich.','A positive full-scale pressure span is required for the percentage tolerance.'));
+  const percent=Number($('arToleranceP').value);
+  if(!Number.isFinite(percent)||percent<0)throw Error(ui('Ungültige Drucktoleranz.','Invalid pressure tolerance.'));
   await begin('verification',S.draft);
-  note('Nachmessung gestartet. Referenzen stammen aus deiner Eingabe, nicht von der Klimakammer.');
+  if(!S.record)return;
+  S.record.verificationConfig={pressureTolerancePercent:percent,pressureSpan:span,
+   toleranceBasis:'percent_full_scale',temperatureTolerance:Number($('arToleranceT').value)};
+  await flush();
+  renderActive();
+  note(ui('Nachmessung gestartet. Referenzwerte manuell am Prüfstand einstellen.','Verification started. Apply the reference values manually at the test bench.'));
  }
  async function endVerification(){await finalise('completed');note('Nachmessung mit allen Versuchen archiviert.')}
  function UI(){
@@ -793,6 +811,9 @@ const ELMOS_ARCHIVE=(()=>{
   $('archiveStartCalibration').addEventListener('click',()=>ensureCalibration().then(()=>note('Kalibrierprotokoll gestartet. Jetzt wie gewohnt abgleichen.')).catch(e=>note(e.message,true)));
   $('arStart').addEventListener('click',()=>startVerification().catch(e=>note(e.message,true)));
   $('arMeasure').addEventListener('click',()=>measure());
+  $('arStable').addEventListener('change',()=>{if(S.record?.type==='verification')renderStep()});
+  $('arPressureSpan').addEventListener('input',()=>{$('arPressureSpan').dataset.custom='1'});
+  $('arToleranceP').addEventListener('input',()=>{if(S.record?.type==='verification')renderStep()});
   $('arNext').addEventListener('click',()=>advance().catch(e=>note(e.message,true)));
   $('arPrevious').addEventListener('click',previous);
   $('arEndVerification').addEventListener('click',()=>endVerification().catch(e=>note(e.message,true)));
@@ -826,6 +847,7 @@ const ELMOS_ARCHIVE=(()=>{
    return;
   }
   S.view=view==='verification'?'verification':'archive';
+  $('archiveWorkspace').classList.toggle('ar-guided-verification',S.view==='verification');
   text('arViewTitle',S.view==='verification'?'Nachmessung':'Kalibrierarchiv');
   text('arViewSubtitle',S.view==='verification'?
    'Druck- und Temperaturprüfpläne mit Hysterese und vollständigem lokalen Protokoll':
