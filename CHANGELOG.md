@@ -1,3 +1,13 @@
+## v0.7.63 – PDF-Prüfprotokoll, optionale Dokumentation und automatische Werkzeugerkennung
+
+- Nach dem Speichern einer Nachmessung steht «Prüfprotokoll als PDF speichern» in der Abschlussübersicht zur Verfügung. Dieselbe Funktion ist auch für ältere Nachmessungen in der Archiv-Detailansicht verfügbar.
+- Der PDF-Bericht wird vollständig lokal als druckoptimierte Vorschau erzeugt (im Browser «Drucken» → «Als PDF speichern»), ohne externe Bibliothek, Cloud-Upload oder Sensorzugriff. Er enthält Chip-UID, Prüfstatus, Zeitangaben, Prüfeinstellungen, Soll-/Ist-Werte, Abweichungen, Diagramme und alle Prüfpunkte.
+- Optionale Angaben: Prüfer, Auftrag/Projekt, Prüfstand, externe Messmittel, Zertifikatsreferenz und zusätzliche Bemerkungen. Diese Felder sind nicht für den Start einer Prüfung erforderlich und werden im lokalen JSON-Archiv gespeichert.
+- Das eingesetzte Kalibrierwerkzeug (ELMOS E703.11 Calibration Assistant mit Version) und der verbundene Kommunikations-/Programmieradapter (ELMOS SSP3 oder ESP32-USB-Bridge), Schnittstelle und verfügbare Firmware-Informationen werden bei Prüfstart automatisch aus den Verbindungsmetadaten übernommen.
+- Externe Druckkalibratoren und Temperaturreferenzen werden nicht automatisch erkannt, solange keine unterstützte digitale Schnittstelle existiert; sie können optional dokumentiert werden.
+- Archiv-Detailansicht und Abschlussübersicht zeigen die gespeicherten Informationen und einen PDF-Export.
+- Versionsanzeige, App-Metadaten und Cacheversionen auf v0.7.63 gesetzt.
+
 ## v0.7.62 – Messwert direkt am Prüfpunkt und geführter Prüfabschluss
 
 - Nach jeder Nachmessung wird der zuletzt gespeicherte Sensorwert direkt neben der Messaktion angezeigt, inklusive Einheit, DSP_S-Rohwert, Bewertung und Aufnahmezeit.
