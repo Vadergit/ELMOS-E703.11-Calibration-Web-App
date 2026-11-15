@@ -58,6 +58,8 @@
   if(language!=='en'||!original)return original;
   const exact=translations[original];
   if(exact!==undefined)return exact;
+  // Guided status includes a dynamic chip UID, so translate its stable prefix.
+  if(original.startsWith('E703.11 verbunden ·'))return original.replace(/^E703\.11 verbunden\s*·/,'E703.11 connected ·');
   // Common numeric progress text is built at runtime, not present as a literal in source files.
   const progress=original.match(/^Schritt\s+(\d+)\s+von\s+(\d+)$/);
   if(progress)return 'Step '+progress[1]+' of '+progress[2];
