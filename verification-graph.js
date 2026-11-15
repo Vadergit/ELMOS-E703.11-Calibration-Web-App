@@ -217,8 +217,8 @@ const ELMOS_VERIFICATION_GRAPH=(()=>{
    resultCard.append(node('p',parts.join(' · ')));
    if(current.valueSource==='unverified-percent')
     resultCard.append(node('p',local(
-     'Diese Abweichung wird aus der prozentualen Sensoranzeige und dem Prüfbereich berechnet. Da die Einheiten nicht übereinstimmen, ist sie nur ein Anzeigewert und kein gültiger Toleranzentscheid.',
-     'This deviation is calculated from the sensor percentage display and the test range. Since the units differ, it is a display-only value, not a valid tolerance verdict.'),'vg-provisional-note'));
+     'Vorläufige Abweichung aus dem digital angezeigten Sensorwert und dem konfigurierten Druckbereich. Die Sensorskalierung ist noch nicht unabhängig bestätigt; deshalb ist der Punkt sichtbar, aber nicht bewertet.',
+     'Provisional deviation from the displayed digital sensor value and configured pressure range. The sensor scaling is not yet independently confirmed; the point is visible but not assessed.'),'vg-provisional-note'));
    if(observed?.at)resultCard.append(node('small',local('Aufnahmezeit: ','Captured at: ')+
      (new Date(observed.at)).toLocaleTimeString(document.documentElement.lang==='en'?'en-US':'de-CH')));
    resultCard.append(node('small',local('Versuche an diesem Punkt: ','Attempts at this point: ')+current.tries));
