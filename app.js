@@ -252,13 +252,18 @@ if(typeof document!=='undefined') (function UI(){
  function renderFilterProfile(){
   const select=$('afeFilterProfile');
   const match=filterProfiles.findIndex(([,words])=>words.every((word,index)=>word===st.filterWords?.[index]));
-  select.options[0].textContent=st.filterWords?'Aktueller Filter (individuell)':'Filter wird beim Verbinden gelesen';
-  select.value=match<0?'':String(match);
+  // Replacing option text while the native menu is open makes it flicker.
+  const placeholder=st.filterWords?'Aktueller Filter (individuell)':'Filter wird beim Verbinden gelesen';
+  if(select.options[0].textContent!==placeholder)select.options[0].textContent=placeholder;
+  const activeValue=match<0?'':String(match);
+  if(select.value!==activeValue)select.value=activeValue;
   const needsFirmware=st.chip&&st.adapterKind==='bridge'&&!st.bridgeAfeFilter;
-  $('afeFilterFirmwareHint').hidden=!needsFirmware;
-  select.disabled=!st.chip||!st.filterWords||st.writing||st.calTask||st.nvmWorking||
+  const hint=$('afeFilterFirmwareHint');
+  if(hint.hidden===needsFirmware)hint.hidden=!needsFirmware;
+  const disabled=!st.chip||!st.filterWords||st.writing||st.calTask||st.nvmWorking||
    st.reinitRunning||st.powerCycleRunning||st.closing||
    needsFirmware;
+  if(select.disabled!==disabled)select.disabled=disabled;
  }
  async function readFilterProfile(){
   const words=[];
