@@ -17,8 +17,9 @@ const ELMOS_VERIFICATION_GRAPH=(()=>{
   const mode=plan?.mode||'combined';
   const data=steps.map((step,i)=>{
    // The latest attempt is authoritative; a later failed retest must not be hidden by an older pass.
-   const tries=(record.events||[]).filter(x=>x.kind==='measurement'&&x.stepIndex===i);
-   const item=tries.at(-1)||null;
+   const tries=(record.events||[]).filter(x=>x.kind==='measurement'&&(x.data?.stepIndex??x.stepIndex)===i);
+   const last=tries.at(-1);
+   const item=last?(last.data&&typeof last.data==='object'?last.data:last):null;
    const itemSpan=finite(item?.pressureFullScaleSpan)&&item.pressureFullScaleSpan>0?item.pressureFullScaleSpan:span;
    const pressurePct=item&&finite(item.pressureError)&&itemSpan>0?100*item.pressureError/itemSpan:null;
    const tempError=item&&finite(item.temperatureError)?item.temperatureError:null;
