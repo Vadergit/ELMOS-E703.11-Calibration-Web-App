@@ -50,10 +50,12 @@ const ELMOS_ARCHIVE_CORE=(()=>{
   const id=String(record.id||'').replace(/[^a-z0-9-]/gi,'').slice(0,36);
   return 'ELMOS_'+stamp+'_'+uid+'_'+id+'.json';
  }
+ const eventPayload=e=>e?.data&&typeof e.data==='object'?e.data:e;
  function lastAttempt(record,stepIndex){
-  const attempts=(record.events||[]).filter(e=>e.kind==='measurement'&&e.stepIndex===stepIndex);
+  // Records store event details under .data; allow legacy flat events as well.
+  const attempts=(record.events||[]).filter(e=>e.kind==='measurement'&&eventPayload(e)?.stepIndex===stepIndex);
   // Latest verification attempt is decisive: do not hide a later failed retest behind an older pass.
-  return attempts.at(-1)||null;
+  return attempts.length?eventPayload(attempts.at(-1)):null;
  }
  function hysteresis(record){
   const plan=record.plan,steps=plan?.steps||[];
@@ -98,7 +100,7 @@ const ELMOS_ARCHIVE_CORE=(()=>{
  }
  function outcomes(record){
   const all=(record.events||[]).filter(e=>e.kind==='measurement');
-  const failed=all.filter(e=>e.pass===false), errors=(record.events||[]).filter(e=>e.kind==='error');
+  const failed=all.filter(e=>eventPayload(e)?.pass===false), errors=(record.events||[]).filter(e=>e.kind==='error');
   const latest=(record.plan?.steps||[]).map(s=>lastAttempt(record,s.index));
   return {total:all.length,failed:failed.length,errors:errors.length,repeated:Math.max(0,all.length-latest.filter(Boolean).length),
    measured:latest.filter(Boolean).length,planned:latest.length,
