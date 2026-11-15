@@ -107,7 +107,9 @@ const ELMOS_READABLE_CSV=(()=>{
   const showDirection=pMode&&pressureDirections.size>1;
   const showTempDirection=tMode&&tempDirections.size>1;
   const hasTemp=entries.some(x=>finite(x.event?.data?.referenceTemperature)||finite(x.step?.temperature));
-  const showSamples=entries.some(x=>(x.event?.data?.sample?.count||0)>1);
+  const sampleCounts=[...new Set(entries.filter(x=>x.event).map(x=>
+   x.event.data?.sample?.count||x.event.data?.sample?.samples?.length||0).filter(x=>x>0))];
+  const showSamples=sampleCounts.length>1;
   const showReview=cfg.toleranceEnabled===true||entries.some(x=>x.event?.data?.toleranceApplied===true);
   const showPending=entries.some(x=>!x.event);
   const headers=['Nr.'];
@@ -158,7 +160,6 @@ const ELMOS_READABLE_CSV=(()=>{
    return row;
   });
   const info=[
-   ...meta(record),
    ['Prüfart',({pressure:'Druck',temperature:'Temperatur',combined:'Druck und Temperatur'})[mode]||mode],
    ['Druckbereich',pMode&&finite(cfg.calibrationMin)&&finite(cfg.calibrationMax)?
     number(cfg.calibrationMin)+' bis '+number(cfg.calibrationMax)+' '+unit:null],
@@ -168,7 +169,9 @@ const ELMOS_READABLE_CSV=(()=>{
    ['Umgebungsdruck',cfg.correctionApplied&&finite(cfg.ambientPressure)?number(cfg.ambientPressure)+' '+unit:null],
    ['Toleranz',showReview?
     (finite(cfg.pressureTolerancePercent)?'±'+number(cfg.pressureTolerancePercent,3)+' % FS':'Aktiv'):
-    'Keine Toleranzbewertung']
+    'Keine Toleranzbewertung'],
+   ['Samples pro Messpunkt',sampleCounts.length===1?sampleCounts[0]:null],
+   ...meta(record)
   ];
   return sections('NACHMESSUNG – PRÜFPROTOKOLL',headers,data,info);
  }
