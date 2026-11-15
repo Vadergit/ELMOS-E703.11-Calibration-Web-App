@@ -1,6 +1,6 @@
 # ELMOS E703.11 – Lokales Kalibrierarchiv und Nachmessungen
 
-**Softwarestand v0.7.74 · Funktions- und Benutzeranleitung · Laborprototyp**
+**Softwarestand v0.7.75 · Funktions- und Benutzeranleitung · Laborprototyp**
 
 **Archivexport ab v0.7.72:** Für jeden Archivdatensatz gibt es genau **einen übersichtlichen CSV-Export** sowie einen JSON-Export für die vollständigen technischen Originaldaten. Nachmessung und Test/Logging bieten zusätzlich einen PDF-Bericht; bis zu zwei optionale Fotos werden darin angezeigt. Die frühere separate VDD-Istspannungs-Eingabe der Anschlussansicht ist entfernt.
 
