@@ -1,3 +1,11 @@
+## v0.7.71 – Übersichtlicher CSV-Export für Nachmessungen
+
+- **«CSV · Übersicht»** ist der neue Standardexport für Nachmessungen: kompakte Protokollangaben und eine klare Tabelle mit genau einer Zeile je aufgenommenem Messversuch. Unaufgenommene geplante Prüfpunkte bleiben als leere Zeilen erkennbar.
+- Die Tabelle enthält je nach Prüfart Soll- und Referenzdruck, digitalen Sensordruck, absolute und prozentuale Druckabweichung (% FS), Druck-/Temperaturrichtung, Prüf- und Sensortemperatur, Aufnahmezeitpunkt, Versuch, Anzahl Rohsamples und nur bei aktiver Toleranzbewertung einen Ergebnisstatus.
+- Es werden **keine** TX/RX-Meldungen, einzelnen ADC-/DSP-Rohsamples, NVM-Register oder verschachtelten JSON-Feldpfade in der Übersicht angezeigt. Für eine vollständige technische Nachprüfung bleiben **«CSV · Rohdaten»** und JSON verfügbar.
+- Beide CSV-Varianten können in der Archivliste und Detailansicht exportiert werden. Die kompakte CSV ist auch direkt in der Abschlussübersicht einer Nachmessung verfügbar. Sie nutzt UTF-8, Semikolon als Trennzeichen und erhält negative Messwerte als Excel-kompatible Zahlen.
+- Bei nicht aktivierter Toleranz erfolgt keine Bestanden-/Fehlerbewertung. Die rein rechnerische Druckabweichung wird trotzdem angezeigt, wenn Referenzdruck und physikalisch dargestellter Sensorwert vorhanden sind.
+
 ## v0.7.70 – PDF-Export für Test/Logging und vollständiger CSV-Export im Archiv
 
 - Nach Abschluss von Test/Logging kann ein druckfertiger PDF-Bericht erzeugt werden. Er enthält Testbezeichnung, Chip-/Geräteangaben, Aufnahmeeinstellungen, Statistik, ADC_S-/DSP_S-Verlauf, alle Messpunktgruppen sowie sämtliche Ereignisse und Marker. Die Darstellung verwendet den Browserdruckdialog «Als PDF speichern». Bei mehr als 400 Gruppen wird lediglich der Kurvenverlauf für die Grafik reduziert; die Tabelle enthält weiterhin alle Gruppen.
