@@ -108,3 +108,10 @@
 #archiveWorkspace .vg-raw .vg-axis{font-size:11px}
 #archiveWorkspace .vg-raw .vg-marker{cursor:pointer}
 #archiveWorkspace.ar-guided-verification .ar-wizard-card>h3{margin:5px 0 10px}
+
+/* Hidden attributes must override grid/flex display declarations for conditional wizard fields. */
+#archiveWorkspace.ar-guided-verification [hidden]{display:none!important}
+#archiveWorkspace.ar-guided-verification .ar-fixed-meta:has(>label[hidden]:first-child +label[hidden]){display:none}
+#archiveWorkspace.ar-guided-verification .ar-ambient-field{max-width:650px}
+#archiveWorkspace.ar-guided-verification .ar-ambient-field small{font-size:11px;color:#668096;font-weight:400;line-height:1.45}
+#archiveWorkspace.ar-guided-verification .ar-pressure-reference{display:grid;grid-template-columns:repeat(auto-fit,minmax(195px,1fr));gap:10px}
