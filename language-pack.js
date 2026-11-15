@@ -1937,3 +1937,13 @@ window.ELMOS_TRANSLATIONS_EN=Object.assign(window.ELMOS_TRANSLATIONS_EN||{}, {
  "Sensoranzeige": "Sensor display",
  "Ungeprüfte Abweichung der Prozentanzeige": "Unverified percent-display deviation"
 });
+
+// 0.7.61 archived verification results graph.
+window.ELMOS_TRANSLATIONS_EN=Object.assign(window.ELMOS_TRANSLATIONS_EN||{}, {
+ "Prüfergebnisse im Diagramm": "Verification results chart",
+ "Messwerte, Toleranzgrenzen und Status aus dem gespeicherten Prüfprotokoll.": "Measurements, tolerance limits and status from the saved verification report.",
+ "Das Diagramm konnte nicht geladen werden. Bitte die Seite neu laden.": "The chart could not be loaded. Please refresh the page.",
+ "Aufgezeichnete Sensorwerte": "Recorded sensor readings",
+ "Dieses ältere Protokoll enthält keinen vollständigen Prüfplan. Die gespeicherten DSP_S-Rohwerte werden gezeigt, aber ohne erfundene Sollwerte oder Toleranzbewertung.": "This older report has no complete test plan. The saved raw DSP_S readings are displayed without invented targets or tolerance verdicts.",
+ "Für dieses Archivprotokoll sind keine darstellbaren Prüfpunkt-Messwerte gespeichert.": "No plottable verification-point measurements are stored in this archived report."
+});
