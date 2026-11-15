@@ -6,7 +6,7 @@ Dieser Bericht trennt den **im Code beziehungsweise mit simulierten Chipantworte
 
 **[Web-App](https://vadergit.github.io/ELMOS-E703.11-Calibration-Web-App/)** · **[README](README.md)** · **[Bedienungsanleitung](ANLEITUNG.md)** · **[Ausgang und 1-Wire](AUSGANG_1WIRE.md)** · **[Config & EEPROM Viewer](CONFIG_DATEIEN.md)**
 
-## Nachtrag zum aktuellen Softwarestand (v0.7.74)
+## Nachtrag zum aktuellen Softwarestand (v0.7.75)
 
 Die nachfolgende historische Testmatrix enthält weiterhin die dokumentierten Prüfungen früherer Versionen. Seitdem wurden neue Funktionen implementiert; sie werden hier **getrennt** aufgeführt, damit eine Softwareprüfung nicht mit einem realen Hardwaretest verwechselt wird.
 
@@ -18,6 +18,7 @@ Die nachfolgende historische Testmatrix enthält weiterhin die dokumentierten Pr
 | Ein übersichtlicher CSV-Export pro Archivdatensatz | Exporttests für Nachmessung, Logging und verschachtelte Protokollfelder; JSON-Rohdaten bleiben erhalten | Stresstest grosser Log-Dateien und Excel-Import in der realen Laborumgebung |
 | Zwei optionale Fotos inklusive PDF | Automatische Tests für Mengen-/Grössenbegrenzung, Bildbeschriftung und PDF-Einbettung bestanden | Bildaufnahme, Speicherung und PDF-Druck mit echten Dateien und Browserfreigaben testen |
 | Adaptive 250-ms-Live-Abfrage | Sechs automatisierte Tests für 250/400/650-ms-Anpassung und unveränderte bisherige Einstellungen bestanden | SSP3/One-Wire oder I²C am echten E703.11 hinsichtlich Geschwindigkeit, Fehlerrate und Wiederanlauf prüfen |
+| DIY-Programmer-Auswahl (v0.7.75) | Firmwarekennung und Dokumentationsliste auf ESP32-C3 SuperMini (v0.10) und Arduino Pro Micro (v0.27) eingegrenzt; vier statische Regressionstests bestanden | Beiderseitige USB-/One-Wire-/I²C-Verbindung und dauerhafte NVM-Schreibfreigabe am realen Testchip noch prüfen |
 
 **GitHub Pages:** Die erfolgreiche Veröffentlichung des aktuellen Commits zeigt, dass die Web-App deployt wurde. Sie ersetzt keinen Test des Kalibrier- oder Archivablaufs mit einem real angeschlossenen Sensor. Die manuellen Hardwareprüfungen bleiben offen.
 
