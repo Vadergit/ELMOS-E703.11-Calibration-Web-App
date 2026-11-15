@@ -701,12 +701,16 @@ const ELMOS_ARCHIVE=(()=>{
   if(!r||r.type!=='verification'||S.measuring||!r.plan)return;
   const step=r.plan.steps[S.step];if(!step)return;
   const p=Number($('arRefPressure').value),t=Number($('arRefTemp').value),
-   toleranceP=Number($('arToleranceP').value),toleranceT=Number($('arToleranceT').value),
-   count=Number($('arSamples').value);
+   tolerancePercent=Number($('arToleranceP').value),toleranceT=Number($('arToleranceT').value),
+   pressureSpan=Number($('arPressureSpan').value),count=Number($('arSamples').value);
+  const mode=r.plan.mode;
+  // Pressure tolerance is always % full scale, never % of setpoint (0 bar is valid).
+  const toleranceP=mode==='temperature'?null:pressureSpan*tolerancePercent/100;
   if(!$('arStable').checked)return note('Bitte die Stabilisierung bestätigen.',true);
-  if(!Number.isFinite(p)||!Number.isFinite(t)||!Number.isFinite(toleranceP)||toleranceP<0||
+  if(!Number.isFinite(p)||!Number.isFinite(t)||!Number.isFinite(tolerancePercent)||tolerancePercent<0||
+   (mode!=='temperature'&&(!Number.isFinite(pressureSpan)||pressureSpan<=0))||
    !Number.isFinite(toleranceT)||toleranceT<0||!Number.isInteger(count)||count<1||count>100)
-   return note('Referenzen, Toleranzen oder Sample-Anzahl ungültig.',true);
+   return note(ui('Referenzen, Toleranz oder Messspanne ungültig. Bitte «Weitere Einstellungen» prüfen.','Invalid reference, tolerance or pressure span. Check Additional settings.'),true);
   const attempts=r.events.filter(e=>e.kind==='measurement'&&e.stepIndex===S.step).length;
   S.measuring=true;$('arMeasure').disabled=true;
   note('Messung '+(attempts+1)+' läuft …');
@@ -726,25 +730,27 @@ const ELMOS_ARCHIVE=(()=>{
     dspTOffsetDigits:tempOffset,source:'Manuelle Bestätigung, nicht vom System validiert'}:
     {operatorConfirmed:false,source:'Rohdaten ohne kalibrierte °C-Umrechnung'};
    const errT=Number.isFinite(sample.sensorTempC)?sample.sensorTempC-t:null;
-   const pPass=errP===null?null:Math.abs(errP)<=toleranceP;
-   const tPass=errT===null?null:Math.abs(errT)<=toleranceT;
-   const mode=r.plan.mode;
+   const pPass=errP===null?null:Math.abs(errP)<=toleranceP+1e-12;
+   const tPass=errT===null?null:Math.abs(errT)<=toleranceT+1e-12;
    const pass=mode==='pressure'?pPass:mode==='temperature'?tPass:
     (pPass===false||tPass===false)?false:(pPass===null||tPass===null)?null:true;
    await event('measurement',{stepIndex:S.step,attempt:attempts+1,referencePressure:p,referenceTemperature:t,
     referenceSource:$('arReferenceSource').value||'Manuelle Eingabe',setpoint:step,
-    pressureTolerance:toleranceP,temperatureTolerance:toleranceT,
+    pressureTolerance:toleranceP,pressureTolerancePercent:tolerancePercent,
+    pressureFullScaleSpan:mode==='temperature'?null:pressureSpan,
+    temperatureTolerance:toleranceT,
     pressureError:errP,temperatureError:errT,pressureVerdict:pPass,temperatureVerdict:tPass,
     pass,sample});
-   note('Versuch '+(attempts+1)+': DSP_S '+sample.dspS+' · DSP_T '+sample.dspT+
-    ' · Druckfehler '+(errP===null?'nicht bewertet':errP.toFixed(5))+
-    ' · Temperaturfehler '+(errT===null?'nicht bewertet':errT.toFixed(3)+' °C')+
-    ' · '+(pass===false?'ausser Toleranz':pass===null?'Bewertung teilweise offen':'innerhalb Toleranz')+'.',pass===false);
+   const errPercent=Number.isFinite(errP)&&pressureSpan>0?Math.abs(errP)/pressureSpan*100:null;
+   note(ui('Prüfpunkt ','Point ')+(S.step+1)+' · '+
+    (pass===true?ui('Bestanden','Passed'):pass===false?ui('Ausser Toleranz','Out of tolerance'):ui('Nicht bewertet','Not assessed'))+
+    ' · '+ui('Druckabweichung','Pressure deviation')+' '+(errPercent===null?'–':errPercent.toFixed(4)+' % FS')+
+    ' / '+tolerancePercent+' % FS',pass===false);
   }catch(e){
    try{await event('error',{stage:'verification_measurement',stepIndex:S.step,attempt:attempts+1,message:e.message,rawSamples:e.rawSamples||null,partialReadErrors:e.partialReadErrors||null})}
    catch(_){}
    note('Messung fehlgeschlagen: '+e.message,true);
-  }finally{S.measuring=false;$('arMeasure').disabled=false;renderStep()}
+  }finally{S.measuring=false;renderStep()}
  }
  async function advance(){
   if(!S.record?.plan||S.measuring)return;
