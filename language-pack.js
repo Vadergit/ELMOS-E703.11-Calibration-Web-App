@@ -1633,3 +1633,27 @@ window.ELMOS_TRANSLATIONS_EN=Object.assign(window.ELMOS_TRANSLATIONS_EN||{}, {
  "Drücke auswählen": "Select pressures",
  "Prüfbereich öffnen": "Open verification area"
 });
+
+window.ELMOS_TRANSLATIONS_EN=Object.assign(window.ELMOS_TRANSLATIONS_EN||{}, {
+ "ADC_T": "ADC_T",
+ "Letzte Messung": "Last measurement",
+ "Signalverlauf": "Signal history",
+ "ADC_S im Zeitverlauf · letzte 60 Sekunden": "ADC_S over time · last 60 seconds",
+ "Abgleich und Freigabe": "Calibration and release",
+ "NVM-Status prüfen.": "Check NVM status.",
+ "Gewünschte Ausgangseinstellungen werden hier als Sollwerte dargestellt.": "Desired output settings are shown here as target values.",
+ "Vor der Freigabe den Sensor stromlos machen und den Ausgang nach dem Neustart mit einem Messgerät prüfen. Die Anzeige ersetzt keinen Hardwaretest.": "Before releasing the sensor, power it off and verify output using a meter after restart. The display does not replace hardware testing.",
+ "Zur vollständigen Expertenansicht wechseln": "Switch to full expert view",
+ "Stecke den fertig abgeglichenen Sensor ab.": "Disconnect the calibrated sensor.",
+ "Schliesse den nächsten Sensor am Programmieradapter an.": "Connect the next sensor to the programming adapter.",
+ "Klicke auf «Neuen Sensor verbinden».": "Click 'Connect new sensor'.",
+ "Der Assistent übernimmt den Messplan und die Ausgangsvorgaben. Er schreibt die Frontend-Einstellungen ins RAM des neuen Sensors. Für ihn nimmst du danach neue Messwerte auf.": "The assistant reuses the test plan and output targets. It writes the front-end settings to the new sensor's RAM. You must capture new measurements for this sensor.",
+ "Neuen Sensor verbinden": "Connect new sensor",
+ "USB-Port auswählen": "Select USB port",
+ "Serie abbrechen": "Cancel batch",
+ "Sensor-Presets": "Sensor presets",
+ "E703.11 · Kalibrierassistent": "E703.11 · Calibration assistant",
+ "Zur Aufgabenübersicht": "Back to tasks",
+ "Schritt": "Step",
+ "von": "of"
+});
