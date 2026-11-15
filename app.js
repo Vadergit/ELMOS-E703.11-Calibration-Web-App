@@ -3511,30 +3511,9 @@ if(typeof document!=='undefined') (function UI(){
    'Darkmode aktiviert. Die Auswahl bleibt lokal gespeichert.':
    'Heller Modus mit höherem Kontrast aktiviert. Die Auswahl bleibt lokal gespeichert.';
  });
- // Optional post-measurement UI: default OFF, locally remembered per browser.
- const verificationPreferenceKey='elmos-show-verification-v1';
- const verificationSetting=$('settingsVerificationEnabled');
- function applyVerificationVisibility(enabled){
-  const visible=enabled===true;
-  verificationSetting.checked=visible;
-  $('verificationOpen').hidden=!visible;
-  $('verificationOpen').setAttribute('aria-hidden',String(!visible));
- }
- applyVerificationVisibility(lsGet(verificationPreferenceKey)==='1');
- verificationSetting.addEventListener('change',()=>{
-  const enabled=verificationSetting.checked;
-  if(!enabled&&window.ELMOS_ARCHIVE?.current?.type==='verification'){
-   applyVerificationVisibility(true);
-   $('settingsMsg').textContent='Die Nachmessung läuft noch. Bitte den Prüfablauf zuerst abschliessen oder abbrechen.';
-   return;
-  }
-  applyVerificationVisibility(enabled);
-  lsSet(verificationPreferenceKey,enabled?'1':'0');
-  if(!enabled&&window.ELMOS_ARCHIVE?.view==='verification')window.ELMOS_ARCHIVE.close();
-  $('settingsMsg').textContent=enabled?
-   'Nachmessung aktiviert: Der Button ist in der oberen Navigation sichtbar.':
-   'Nachmessung deaktiviert: Der Button ist ausgeblendet.';
- });
+ // Nachmessung is always accessible; the former settings toggle is removed.
+ $('verificationOpen').hidden=false;
+ $('verificationOpen').removeAttribute('aria-hidden');
  function toggleSettings(open){
   $('settingsPanel').hidden=!open;
   $('settingsOpen').setAttribute('aria-expanded',String(open));
