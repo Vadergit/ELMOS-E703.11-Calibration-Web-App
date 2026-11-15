@@ -11,6 +11,11 @@ const ELMOS_VERIFICATION_REPORT=(()=>{
  const fld=(label,value)=>'<div class="datum"><small>'+esc(label)+'</small><strong>'+esc(val(value))+'</strong></div>';
  const status=v=>({completed:tr('Abgeschlossen','Completed'),failed:tr('Fehlerhaft','Failed'),incomplete:tr('Unvollständig','Incomplete'),interrupted:tr('Unterbrochen','Interrupted'),aborted:tr('Abgebrochen','Aborted')})[v]||val(v);
  const badge=k=>'<span class="tag '+esc(k||'pending')+'">'+esc(({pass:tr('Bestanden','Passed'),fail:tr('Ausser Toleranz','Out of tolerance'),unknown:tr('Nicht bewertet','Not assessed'),pending:tr('Offen','Pending')})[k]||tr('Offen','Pending'))+'</span>';
+ const communicationLabel=value=>{
+  const k=String(value||'').trim().toLowerCase();
+  return ['plc','onewire','one-wire','one_wire'].includes(k)?'One-Wire (AODO)':
+   ['i2c','i²c'].includes(k)?'I²C':k==='spi'?'SPI':value||null;
+ };
  const modeName=m=>m==='pressure'?tr('Druck','Pressure'):m==='temperature'?tr('Temperatur','Temperature'):tr('Druck und Temperatur','Pressure and temperature');
  const measured=(item,mode)=>{
   const x=item?.sample;
@@ -75,7 +80,7 @@ const ELMOS_VERIFICATION_REPORT=(()=>{
    fld(tr('USER-ID','User ID'),record.customUID),
    fld(tr('Kalibrierwerkzeug (automatisch)','Calibration tool (automatic)'),application+(version?' v'+version:'')),
    fld(tr('Verwendeter Adapter (automatisch)','Adapter used (automatic)'),adapter),
-      fld(tr('Kommunikation','Interface'),tool.interface||record.equipment?.interface),
+      fld(tr('Kommunikation','Interface'),communicationLabel(tool.interface||record.equipment?.interface)),
    fld(tr('Protokoll-ID','Report ID'),record.id),
    fld(tr('Beginn','Started'),dt(record.startedAt)),
    fld(tr('Ende','Ended'),dt(record.endedAt))
