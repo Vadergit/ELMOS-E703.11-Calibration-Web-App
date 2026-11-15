@@ -190,7 +190,8 @@ const ELMOS_READABLE_CSV=(()=>{
   const hasPressure=rows.some(p=>finite(p.sensorSnapshot?.sensorPressure));
   const hasReference=rows.some(p=>finite(p.reference?.pressure));
   const unit=rows.find(p=>p.sensorSnapshot?.pressureUnit)?.sensorSnapshot?.pressureUnit||'';
-  const headings=['Nr.','Zeit','Samples',...selected.map(key=>key.toUpperCase()+' [Digits]')];
+  const channelLabel={adcS:'ADC_S',adcT:'ADC_T',adcTC:'ADC_TC',dspS:'DSP_S',dspT:'DSP_T'};
+  const headings=['Nr.','Zeit','Samples',...selected.map(key=>channelLabel[key]+' [Digits]')];
   if(hasPressure)headings.push('Sensordruck'+(unit?' ['+unit+']':''));
   if(hasReference)headings.push('Referenzdruck'+(unit?' ['+unit+']':''));
   const data=rows.map((p,i)=>{
