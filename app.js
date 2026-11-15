@@ -108,6 +108,8 @@ if(typeof document!=='undefined') (function UI(){
  const REG_NAMES={4:'CFG_EN',6:'CFG_SPI_I2C',8:'CFG_PADS0',10:'CFG_PADS1',12:'CFG_PADS2',16:'CFG_AODO',0x14:'CFG_ADC',0x16:'CFG_LP0',0x18:'CFG_LP1',0x1A:'CFG_AFE0',0x1C:'CFG_AFE1',0x1E:'CFG_AFE2',0x26:'ADC_TC',0x28:'ADC_T',0x2A:'ADC_S'};
  const st={chipDiag:null,diagRunning:false,lastPlcReply:null,mode:'offline',port:null,closing:false,reader:null,readerPromise:null,readerAlive:false,adapterNoReply:false,sessionStartedAt:null,sessionIndex:0,cmdQueue:Promise.resolve(),replyBuffer:'',responseWait:null,iface:'plc',adapterKind:'ssp3',sensorPowerEnabled:false,startupRunning:false,startupAbort:false,startupAttempts:0,magicRunning:false,magicResult:null,powerCycleRunning:false,powerCycleResult:null,startupTrials:[],powerHelp:null,plcHostFormat:'legacy',plcAddress:0x6C,plcAddressVerified:false,plcAddressSource:'',plcAddressProbes:[],firmware:'',chip:false,readOnlySensor:null,sensorLost:false,reinitRunning:false,boot:null,afe:null,afe0:null,bridgeWriteAllowed:false,bridgeReadBusy:false,staged:{pga1:0,pga2:0,offset:0},adc:null,dsp:null,dspError:null,liveReadPromise:null,trend:[],history:[],log:[],regs:{},points:{lo:null,hi:null},verify:null,live:false,manualLivePause:false,timeout:null,consecutiveErrors:0,liveReadAttempts:0,liveReadSuccesses:0,liveLastError:null,liveLastAttemptAt:null,measurementPeriod:null,measurementStatus:null,measurementError:null,measurementStarts:0,measurementFreshCount:0,measurementLastChangedAt:null,writing:false,pressure:5,calpoints:[],calfit:null,calImage:null,nvmBackup:null,nvmBackupVerified:false,calStaged:false,calVerified:false,calValidation:[],calTask:false,testLogging:false,nvmWorking:false,nvmDone:false,afeWriteActive:false,ramWriteScope:null,uid:null,expertOutputPlan:null,restorePlan:null,outputOnlyPlan:null,uidShownForInput:null,profilePendingAFE:null};
  let currentStep=0,pendingGain=null,writeTimer=null;let tipEnabled=true,liveIntervalMs=650;
+ // Optional faster live mode: serial requests only, with automatic pacing backoff.
+ const livePacing=typeof ELMOS_LIVE_POLLING!=='undefined'?ELMOS_LIVE_POLLING.create():null;
  let liveSecondaryIndex=0;
  let reconnectSsp3OnUsb=true;
  const HELP={interface:'Schnittstelle zwischen Programmieradapter und Sensorchip. 1-Wire nutzt AODO (VDD, GND und AODO). Die Einstellung IF_CFG ändert die Programmer-Pins, nicht die NVM-Konfiguration des Sensors.',baud:'Baudrate des USB-UART zwischen Chrome und dem SSP3. Die Herstellersoftware verwendet 115200 Baud als Standard.',adcs:'ADC_S ist der unkompensierte 16-Bit-Druck-ADC. ±25000 Digits ist ein vorsichtiges Ziel für den manuellen Abgleich, keine garantierte Hardwaregrenze.',dsp_live:'DSP_S (Register 0x30) ist der skalierte DSP-Sensorausgang. Die Anzeige liest den Chipwert wiederholt und rechnet ihn mit dem konfigurierten DSP-Endwert (standardmässig ±32’000 Digits) in den gewählten Anzeigebereich um. Ein DSP-Wert allein belegt keine gültige Kalibrierung.',pga1:'Erste Druckverstärkungsstufe: 3.5×, 6×, 8.5× oder 11× (typische Werte laut Datenblatt 2023). Für gutes SNR möglichst hoch ohne Übersteuerung.',pga2:'Zweite Verstärkungsstufe: typische Faktoren 2× bis 10×. Der Gesamtfaktor ist PGA1 × PGA2.',offset:'17 DAC-Stufen von −400 bis +400 mV/V bezogen auf die Brückenspannung. Die Verschiebung liegt zwischen PGA1 und PGA2.',bridgeSupply:'Interne Brückenversorgung SVDD gemäss E703.11 CFG_AFE0 (0x1A), Bits 1:0: 2,4 V (Standard), 1,6 V oder 2,0 V. Die externe Sensorversorgung VDD muss bei 2,4 V mindestens 3,0 V, sonst mindestens 2,7 V betragen. Beim Wechsel bleiben die übrigen AFE0-Bits inklusive Brückengain unverändert. Nur nach Klick wird ins RAM geschrieben; EEPROM bleibt unverändert.',pressureunit:'Einheit für die Referenz- und Prüfdruckwerte. Für relative Kalibrierungen kann beispielsweise % mit 0 bis 100 gewählt werden. Referenzwerte müssen zum tatsächlichen Prüfstand passen. Einheitenwechsel erfordert neue Messpunkte.',dsp_limit:'Symmetrischer DSP-Endwert für die neue Kalibrierung. Standard ±32’000 Digits. ±30’000 lässt zusätzlich Reserve. Der Wert verändert die berechneten Koeffizienten sowie DSP-Soll und Fehlerumrechnung; er ist keine Hardware-Clipping-Grenze.',ram:'PGA1, Offset und PGA2 werden mit jeder Pfeiltaste sofort ausschliesslich in CFG_AFE1 0x1C im RAM geändert und rückgelesen. Kein NVM-/EEPROM-Schreiben. Boot-/Kommunikationsregister werden kontrolliert.',};
@@ -450,7 +452,8 @@ if(typeof document!=='undefined') (function UI(){
   $('liveState').textContent=mode;
   $('liveState').title='Live ADC_S: '+st.liveReadSuccesses+'/'+st.liveReadAttempts+
    ' erfolgreiche Abfragen'+(st.liveLastError?' · Letzter Fehler: '+st.liveLastError:'')+
-   (plcNotLatched?' · CFG_SPI_I2C.plc_en im RAM ist 0':'');
+   (plcNotLatched?' · CFG_SPI_I2C.plc_en im RAM ist 0':'')+
+   (st.live?' · Abfragepause '+(livePacing?.delay(liveIntervalMs)??Math.max(400,liveIntervalMs))+' ms':'');
   if($('liveDiagnostic'))$('liveDiagnostic').textContent=connected?
    'ADC '+st.liveReadSuccesses+'/'+st.liveReadAttempts+
    ' · CFG_PERIOD '+(st.measurementPeriod==null?'?':'0x'+P.hx(st.measurementPeriod,2))+
@@ -458,6 +461,7 @@ if(typeof document!=='undefined') (function UI(){
    (periodMode==='single'?' (Einzelmessung)':'')+
    (periodMode==='disabled'?' (deaktiviert)':'')+
    (st.measurementStatus!=null?' · STATUS '+(st.measurementStatus&1?'idle':'run'):'')+
+   (st.live?' · Pause '+(livePacing?.delay(liveIntervalMs)??Math.max(400,liveIntervalMs))+' ms':'')+
    '':'';
   
   $('liveStateDot').className='live-meta-dot'+(ongoing?' is-working':st.live&&!staleLive?' is-live':'');
@@ -2309,18 +2313,26 @@ if(typeof document!=='undefined') (function UI(){
  function startLive(){
   if(st.live||st.calTask||!st.chip||st.powerCycleRunning||st.closing||!st.port)return;
   st.live=true;st.consecutiveErrors=0;
+  livePacing?.reset();
   logging('Live-Messung gestartet: ADC_S zyklisch, ADC_T/ADC_TC/DSP_S verteilt; kein NVM-Schreiben.');
   renderStatus();
   (async function loop(){
    if(!st.live)return;
+   let successful=null,readDurationMs=null;
    try{
     if(!st.writing&&!st.calTask&&!st.nvmWorking){
      st.liveReadAttempts++;
      st.liveLastAttemptAt=Date.now();
+     const readStarted=performance.now();
      const p=readLiveSample();st.liveReadPromise=p;
      try{
       await p;st.liveReadSuccesses++;st.liveLastError=null;
-     }finally{if(st.liveReadPromise===p)st.liveReadPromise=null}
+      successful=true;
+     }catch(e){successful=false;throw e}
+     finally{
+      readDurationMs=performance.now()-readStarted;
+      if(st.liveReadPromise===p)st.liveReadPromise=null;
+     }
     }
     st.consecutiveErrors=0;
    }catch(e){
@@ -2338,8 +2350,13 @@ if(typeof document!=='undefined') (function UI(){
      renderStatus();
     }
    }finally{
+    // Fast mode is strictly opt-in. All existing intervals stay unchanged.
+    // This timer fires only AFTER the complete serial read finishes.
+    if(liveIntervalMs===250&&successful!==null)
+     livePacing?.observe(successful,readDurationMs);
     if(st.live&&st.port&&!st.closing){
-     const interval=st.consecutiveErrors?2000:liveIntervalMs;
+     const interval=st.consecutiveErrors?2000:
+      liveIntervalMs===250?(livePacing?.delay(250)??400):liveIntervalMs;
      st.timeout=setTimeout(loop,interval);
     }
     renderLiveOverview();
@@ -3351,6 +3368,7 @@ if(typeof document!=='undefined') (function UI(){
    startupTrials:st.startupTrials,sessionStartedAt:st.sessionStartedAt,sessionIndex:st.sessionIndex,adapterNoReply:st.adapterNoReply,readerAlive:st.readerAlive,startupAttempts:st.startupAttempts,lastPlcReply:st.lastPlcReply,
    chipDiag:st.chipDiag,magicCookie:st.magicResult,powerCycle:st.powerCycleResult,powerHelp:st.powerHelp,plcHostFormat:st.plcHostFormat,
     liveDiagnostic:{active:st.live,attempts:st.liveReadAttempts,successes:st.liveReadSuccesses,
+     requestedDelayMs:liveIntervalMs,adaptiveTiming:livePacing?.snapshot(liveIntervalMs)||null,
      failures:st.consecutiveErrors,lastError:st.liveLastError,lastAttemptAt:st.liveLastAttemptAt,
      lastADC:st.adc?.s??null,lastADCTime:st.adc?.time??null,plcEnabledInRam:st.powerCycleResult?.plcEnabledInRam??null,
      cfgPeriod:st.measurementPeriod,cfgPeriodMode:P.periodMode(st.measurementPeriod),status:st.measurementStatus,
@@ -3591,14 +3609,23 @@ if(typeof document!=='undefined') (function UI(){
   $('settingsMsg').textContent='Standard-Sample-Anzahl: '+n+'. Gilt für neue Messpunkte.';
  });
  const intervalStored=Number(lsGet('elmos-live-interval-v1'));
- if([400,650,1000,1500,2000].includes(intervalStored))liveIntervalMs=intervalStored;
+ if([250,400,650,1000,1500,2000].includes(intervalStored))
+  liveIntervalMs=intervalStored===250&&!livePacing?400:intervalStored;
  $('settingsLiveInterval').value=String(liveIntervalMs);
  $('settingsLiveInterval').addEventListener('change',()=>{
   const n=Number($('settingsLiveInterval').value);
-  if(![400,650,1000,1500,2000].includes(n))return;
+  if(![250,400,650,1000,1500,2000].includes(n))return;
+  if(n===250&&!livePacing){
+   $('settingsLiveInterval').value=String(liveIntervalMs);
+   $('settingsMsg').textContent='Adaptive Live-Abfrage nicht verfügbar. Die bisherigen Einstellungen bleiben aktiv.';
+   return;
+  }
   liveIntervalMs=n;
+  livePacing?.reset();
   lsSet('elmos-live-interval-v1',String(n));
-  $('settingsMsg').textContent='Live-Abfrageintervall auf '+n+' ms eingestellt. Der nächste Lesezyklus verwendet diesen Wert.';
+  $('settingsMsg').textContent=n===250?
+   'Adaptiver Live-Modus: mindestens 250 ms Pause nach der seriellen Messrunde. Bei langsamen Antworten automatische Rückkehr zu 400 oder 650 ms; bei Fehlern wie bisher 2 s.':
+   'Live-Abfragepause auf '+n+' ms eingestellt. Die tatsächliche Aktualisierung umfasst zusätzlich die Sensor-Lesedauer.';
  });
  $('iface').addEventListener('change',()=>{if(st.port){$('iface').value=st.iface;show('connMsg','Zur Schnittstellenänderung zuerst USB trennen.','warn');return}st.iface=$('iface').value;lsSet('elmos8-iface',st.iface);renderStatus()});
  $('adapterType').addEventListener('change',async()=>{
