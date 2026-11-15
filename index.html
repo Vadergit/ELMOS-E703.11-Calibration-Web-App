@@ -485,7 +485,7 @@ html.compact-mode .foot{display:none}
 @media(max-width:600px){.sensor-reconnect button{width:100%}}
 
 /* Sichtbarer Einstieg zur lokalen Installation – ohne Einfluss auf die Kalibrierlogik. */
-#verificationOpen[hidden]{display:none!important}
+#verificationOpen{display:none!important}
 .settings-panel .settings-offline-help{border-top:1px solid #dbe5ef;padding-top:12px;display:grid;gap:5px}
 .settings-panel .settings-offline-help strong{font-size:12px;color:#244c6d}
 .settings-panel .settings-offline-help p{font-size:11px;line-height:1.45;color:#607790;margin:0}
@@ -720,6 +720,8 @@ html.compact-mode .foot{display:none}
 <label class="toggle"><input id="compactMode" type="checkbox"> <strong>Kompaktmodus · One-Pager</strong></label>
 <p class="muted small" style="margin:2px 0 9px">Alle Hauptfunktionen zum Kalibrieren und Programmieren dicht nebeneinander. Die normale Ansicht bleibt unverändert. Für kleine Bildschirme werden einzelne Karten bei Bedarf intern scrollbar.</p>
 <label class="toggle"><input id="expertMode" type="checkbox"> <strong>Expertenparameter freischalten</strong></label>
+<!-- Compatibility with previously cached app.js versions. Never shown to users. -->
+<input type="checkbox" id="settingsVerificationEnabled" hidden aria-hidden="true" tabindex="-1">
 <label>Sprache / Language<select id="uiLanguage"><option value="de">Deutsch</option><option value="en">English</option></select></label>
 <div id="expertPanel" class="settings-expert-hint" hidden><strong>Expertenmodus aktiv</strong><p>Erweiterte Einstellungen erscheinen direkt im passenden Reiter: AFE, Ausgang und EEPROM Viewer. Es wird kein eigenes Fenster geöffnet und kein Register beschrieben.</p></div>
 <label class="toggle"><input id="tooltips" type="checkbox" checked> Hover-Erklärungen aktivieren</label>
