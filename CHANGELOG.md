@@ -1,3 +1,10 @@
+## v0.7.70 – PDF-Export für Test/Logging und vollständiger CSV-Export im Archiv
+
+- Nach Abschluss von Test/Logging kann ein druckfertiger PDF-Bericht erzeugt werden. Er enthält Testbezeichnung, Chip-/Geräteangaben, Aufnahmeeinstellungen, Statistik, ADC_S-/DSP_S-Verlauf, alle Messpunktgruppen sowie sämtliche Ereignisse und Marker. Die Darstellung verwendet den Browserdruckdialog «Als PDF speichern». Bei mehr als 400 Gruppen wird lediglich der Kurvenverlauf für die Grafik reduziert; die Tabelle enthält weiterhin alle Gruppen.
+- In **jeder Archivkarte** und Detailansicht gibt es **«CSV · alle Infos»**, unabhängig vom Protokolltyp. Der universelle CSV-Export umfasst alle ursprünglichen JSON-Felder und verschachtelten Werte, einschliesslich RAM/NVM, Einstellungen, Referenzen, Zeitstempel, Fehler, Ereignisse und bei Logging zusätzlich alle JSONL-Messpunktgruppen, Einzel-Rohsamples und gegebenenfalls TX/RX-Logs. UTF-8 mit BOM und Excel-Formelschutz.
+- Der frühere tabellarische Logger-CSV bleibt separat als **«CSV · Messwerte»** verfügbar.
+- Im Logger-Abschlussbereich werden JSON, beide CSV-Varianten und PDF direkt angeboten. Die Berichte werden lokal erzeugt; der CSV-Download verändert weder die JSON-Dateien noch den Archivordner.
+
 ## Öffentliches Feedback
 
 - Unter «Einstellungen → Feedback melden» lassen sich Fehler und Funktionswünsche mit optionalen Screenshots melden. Das Formular gibt den Link zum öffentlichen GitHub-Issue zurück.
