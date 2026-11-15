@@ -15,7 +15,7 @@ Firmware v0.10 unterstützt den PLC-Zugriff über AODO und stellt der lokalen We
 
 Die Firmware schaltet interne Pull-ups ein. Für kurze Leitungen kann das für den ersten Test genügen. Bei Bedarf externe Pull-ups zur 3,3-V-Versorgung des Sensors ergänzen, beispielsweise je 4,7 kΩ. Bei schaltbarer Versorgung liegen die Pull-ups auf der geschalteten Seite. Für gemeinsame Verdrahtung den One-Wire-Modus «Dieselbe Leitung für Senden und Empfangen» verwenden. Im getrennten One-Wire-Aufbau dient GPIO6 als RX und darf nicht zugleich mit SDA verbunden sein.
 
-In der Web-App «ESP32 / Arduino USB-Bridge» und «I²C · SCL / SDA» wählen und den USB-Port verbinden. Die Bridge prüft die Chip-Kennung und nutzt CRC-geschützte Übertragung. Ist I²C im Sensor deaktiviert, versucht die Bridge bei aktivierter Steuerung der Sensorversorgung, I²C über AODO für die laufende Sitzung einzuschalten. Dafür muss AODO ebenfalls angeschlossen sein. Nach einem Stromunterbruch gilt wieder die ursprüngliche Chip-Konfiguration. Live-Messung, NVM-Lesen und der Abgleich im RAM stehen über I²C zur Verfügung. Dauerhaftes NVM-Schreiben nutzt die bestehende Freigabe über One-Wire.
+In der Web-App «DIY: ESP32-C3 SuperMini / Arduino Pro Micro» und «I²C · SCL / SDA» wählen und den USB-Port verbinden. Die Bridge prüft die Chip-Kennung und nutzt CRC-geschützte Übertragung. Ist I²C im Sensor deaktiviert, versucht die Bridge bei aktivierter Steuerung der Sensorversorgung, I²C über AODO für die laufende Sitzung einzuschalten. Dafür muss AODO ebenfalls angeschlossen sein. Nach einem Stromunterbruch gilt wieder die ursprüngliche Chip-Konfiguration. Live-Messung, NVM-Lesen und der Abgleich im RAM stehen über I²C zur Verfügung. Dauerhaftes NVM-Schreiben nutzt die bestehende Freigabe über One-Wire.
 
 ## Anschluss über eine externe Treiberstufe
 
@@ -40,7 +40,7 @@ Bei Firmware ab v0.6 in der Web-App **GPIO4 für Senden und Empfangen** wählen,
 ## Ablauf
 
 1. Die [Web-App auf GitHub Pages](https://vadergit.github.io/ELMOS-E703.11-Calibration-Web-App/) in Chrome öffnen. Für einen lokalen Test im Projektordner `python3 -m http.server 8765 --bind 127.0.0.1` starten und [die lokale App](http://127.0.0.1:8765/) öffnen.
-2. **ESP32 / Arduino USB-Bridge** wählen. **100 kBd** ist der Startwert für automatische Erkennung oder fest eingestellte 100 kBd. **25 kBd** für entsprechend konfigurierte Sensoren wählen.
+2. **DIY: ESP32-C3 SuperMini / Arduino Pro Micro** wählen. **100 kBd** ist der Startwert für automatische Erkennung oder fest eingestellte 100 kBd. **25 kBd** für entsprechend konfigurierte Sensoren wählen.
 3. Bei dauerhaft verfügbarem PLC den Sensor einschalten und **USB-Port auswählen**. Für Sensoren mit kurzem Startfenster die GPIO10-Option nur bei angeschlossenem Lastschalter aktivieren. Der Aufbau muss PLC-Empfang und Sensorantwort zulassen.
 4. Die App prüft zuerst 0x6C und 0x7C. Nur wenn beide ohne gültige Antwort bleiben, versucht sie die PSSC-Freigabe, die CFG_SPI_I2C temporär im Sensor-RAM setzt. Danach ist NVM-Schreiben gesperrt. Chip-ID und Live-Werte kontrollieren. Falls ein Sensor antwortet, aber CRC- oder Framefehler auftreten, AODO und OE mit dem Oszilloskop prüfen.
 5. Original-NVM lesen und exportieren. Danach AFE und DSP im RAM testen und die rückgelesenen Werte kontrollieren. Permanentes Speichern verwendet den vorhandenen Ablauf mit Chip-ID, Änderungsprüfung, CRC und Rücklesekontrolle.
