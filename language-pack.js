@@ -1839,3 +1839,17 @@ window.ELMOS_TRANSLATIONS_EN=Object.assign(window.ELMOS_TRANSLATIONS_EN||{}, {
  "Gesamte Prüfreihe": "Entire verification series",
  "Alle Messwerte": "All measurements"
 });
+
+// Guided sidebar and live chip badge: verified against the English screenshot.
+window.ELMOS_TRANSLATIONS_EN=Object.assign(window.ELMOS_TRANSLATIONS_EN||{}, {
+  "Aufgabe": "Task",
+  "Frontend einstellen": "Adjust front end",
+  "DSP verifizieren": "Verify DSP",
+  "AFE optimal einstellen": "Optimise AFE",
+  "NVM": "NVM",
+  "E703.11 verbunden": "E703.11 connected",
+  "E703.11 verbunden · ": "E703.11 connected · ",
+  "E703.11 verbunden ·": "E703.11 connected ·",
+  "Messpunkt überprüfen": "Verify measurement point",
+  "Sensor und Referenzen definieren": "Define sensor and references"
+});
