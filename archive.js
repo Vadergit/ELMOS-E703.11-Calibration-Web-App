@@ -735,27 +735,34 @@ const ELMOS_ARCHIVE=(()=>{
  }
  function config(){
   return {mode:$('arMode').value,
-   pressure:$('arPressurePath').value,temperature:$('arTempPath').value,
+   pressure:$('arMode').value==='temperature'?[]:($('arPressureEntryMode').value==='percent'?
+    C.points($('arPressurePath').value,'Druckreihe').map(v=>{const range=calRange();return range.min+range.span*v/100}):
+    C.points($('arPressurePath').value,'Druckreihe')),temperature:$('arTempPath').value,
    fixedPressure:$('arFixedPressure').value,fixedTemperature:$('arFixedTemp').value,
    cycles:$('arCycles').value};
  }
  function preview(){
   try{
    const p=C.makePlan(config());S.draft=p;
-   const pressureSpan=spanFromPlan(p);
-   const spanField=$('arPressureSpan');
-   if(spanField&&spanField.dataset.custom!=='1')spanField.value=String(pressureSpan);
+   const range=calRange();
+   p.calibrationRange={min:range.min,max:range.max,unit:range.unit};
+   p.pressureEntryMode=$('arPressureEntryMode').value;
+   p.originalPressurePath=$('arPressurePath').value;
+   $('arPressureSpan').value=pFmt(range.span);
+   $('arPressurePathLabel').firstChild.textContent='Druckreihe (hin und zurück, '+(p.pressureEntryMode==='percent'?'% der Messspanne':range.unit)+', kommagetrennt)';
    text('arPlanStatus',p.steps.length+' '+ui('Prüfpunkte','verification points')+' · '+p.cycles+
     ' '+ui('Zyklen','cycles')+
     (p.mode==='temperature'?'':' · '+p.pressure.length+' '+ui('Druckstufen','pressure levels'))+
     (p.mode==='pressure'?'':' · '+p.temperature.length+' '+ui('Temperaturstufen','temperature levels'))+'.');
    const nodes=p.steps.map(s=>(s.index+1)+'. '+
-    (p.mode==='temperature'?'':ui('Druck ','Pressure ')+s.pressure+' · ')+
+    (p.mode==='temperature'?'':ui('Druck ','Pressure ')+pFmt(s.pressure)+' '+range.unit+
+     (p.pressureEntryMode==='percent'?' ('+pFmt((s.pressure-range.min)/range.span*100)+' %)':'')+' · ')+
     (s.temperature===null?'':ui('Temperatur ','Temperature ')+s.temperature+' °C')+
     (p.mode==='pressure'?'': ' · '+ui('Temperatur-Richtung ','Temperature direction ')+s.temperatureDirection));
    text('arPlanPreview',nodes.join('\n'));
 
   }catch(e){S.draft=null;text('arPlanStatus',e.message);text('arPlanPreview','')}
+  scaleHint();
  }
  const ui=(de,en)=>document.documentElement.lang==='en'?en:de;
  function spanFromPlan(plan){
