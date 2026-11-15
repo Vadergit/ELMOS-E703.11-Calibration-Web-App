@@ -115,3 +115,12 @@
 #archiveWorkspace.ar-guided-verification .ar-ambient-field{max-width:650px}
 #archiveWorkspace.ar-guided-verification .ar-ambient-field small{font-size:11px;color:#668096;font-weight:400;line-height:1.45}
 #archiveWorkspace.ar-guided-verification .ar-pressure-reference{display:grid;grid-template-columns:repeat(auto-fit,minmax(195px,1fr));gap:10px}
+
+/* The verification plan is now an always-visible, noncollapsible overview. */
+#archiveWorkspace.ar-guided-verification .ar-plan-always-visible{border-top:1px solid #c6d9e8;padding-top:11px;margin-top:10px}
+#archiveWorkspace.ar-guided-verification .ar-plan-always-visible strong{display:block;color:#21577c;font-weight:750;font-size:12px;margin:0 0 6px}
+#archiveWorkspace.ar-guided-verification .ar-plan-always-visible #arPlanPreview{max-height:240px;overflow-y:auto;overflow-x:auto;white-space:pre-wrap;line-height:1.55;padding:2px 0 6px;border:0;background:none;margin:0}
+#archiveWorkspace .vg-point-label{font-size:12px;font-weight:700;fill:#266b55}
+#archiveWorkspace .vg-point-label.provisional{fill:#996a23}
+#archiveWorkspace .vg-marker.provisional{fill:#d9a044;stroke:#fff;stroke-width:2.5}
+#archiveWorkspace .vg-provisional-note{padding:8px 10px;border-left:3px solid #d0a450;border-radius:5px;background:#fff8e9;color:#755b2a;font-size:12px;line-height:1.45}
