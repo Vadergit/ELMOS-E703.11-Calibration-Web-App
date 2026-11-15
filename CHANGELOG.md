@@ -1,3 +1,7 @@
+## v0.7.57 – DSP-Prüfung an den Kalibriergrenzen
+
+- Beide Endpunkte des Kalibrierbereichs sind als DSP-Prüfpunkte zulässig, beispielsweise 0 und 6 bar bei einem Bereich von 0 bis 6 bar.
+
 ## v0.7.38 – Messverlauf im Testprotokoll
 
 ## v0.7.45
