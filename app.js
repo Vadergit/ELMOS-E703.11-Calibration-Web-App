@@ -3511,9 +3511,12 @@ if(typeof document!=='undefined') (function UI(){
    'Darkmode aktiviert. Die Auswahl bleibt lokal gespeichert.':
    'Heller Modus mit höherem Kontrast aktiviert. Die Auswahl bleibt lokal gespeichert.';
  });
- // Nachmessung is always accessible; the former settings toggle is removed.
- $('verificationOpen').hidden=false;
- $('verificationOpen').removeAttribute('aria-hidden');
+ // The classic sidebar and guided tile are the sole entry points.
+ // Keep the legacy element hidden for modules that still register its click handler.
+ if($('verificationOpen')){
+  $('verificationOpen').hidden=true;
+  $('verificationOpen').setAttribute('aria-hidden','true');
+ }
  function toggleSettings(open){
   $('settingsPanel').hidden=!open;
   $('settingsOpen').setAttribute('aria-expanded',String(open));
