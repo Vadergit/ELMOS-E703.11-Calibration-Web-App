@@ -62,7 +62,8 @@ form.addEventListener('submit', async event => {
       attachment: 'GitHub konnte den Screenshot nicht annehmen. Du kannst es nochmals oder ohne Bild versuchen.',
       form: 'Prüfe Titel, Beschreibung und die Bestätigung zur Veröffentlichung.',
       challenge: 'Bitte wiederhole den Spamschutz.',
-    }[message.code] || 'Die Meldung konnte nicht bestätigt werden.');
+    }[message.code] || 'Die Meldung konnte nicht bestätigt werden. Fehlercode: ' +
+      [response.status, message.stage, message.upstreamStatus, message.errorType].filter(Boolean).join('/'));
     if (!/^https:\/\/github\.com\/Vadergit\/ELMOS-E703\.11-Calibration-Web-App\/issues\/\d+$/.test(message.url))
       throw Error('Der Link zur Meldung konnte nicht bestätigt werden.');
     document.querySelector('#issue').href = message.url;

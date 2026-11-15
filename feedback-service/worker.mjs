@@ -44,7 +44,7 @@ async function submit(request, env) {
   const check = await fetch('https://challenges.cloudflare.com/turnstile/v0/siteverify', {
     method: 'POST', body: new URLSearchParams({ secret: env.TURNSTILE_SECRET, response: token }),
   });
-  if (!check.ok) return json({ code: 'service' }, 502);
+  if (!check.ok) return json({ code: 'service', stage: 'turnstile', upstreamStatus: check.status }, 504);
   const verification = await check.json();
   if (!verification.success || verification.hostname !== 'vadergit.github.io' || verification.action !== action)
     return json({ code: 'challenge' }, 400);
@@ -69,7 +69,7 @@ async function submit(request, env) {
       redirect: 'error',
       headers: {
         Accept: 'application/vnd.github+json',
-        Authorization: 'token ' + env.GITHUB_ISSUES_TOKEN,
+        Authorization: 'token ' + env.GITHUB_ISSUES_TOKEN.trim(),
         'Content-Type': 'application/octet-stream',
         'User-Agent': 'Elmos-Calibration-Feedback',
         'X-GitHub-Api-Version': '2022-11-28',
@@ -96,14 +96,14 @@ async function submit(request, env) {
     redirect: 'error',
     headers: {
       Accept: 'application/vnd.github+json',
-      Authorization: 'Bearer ' + env.GITHUB_ISSUES_TOKEN,
+      Authorization: 'Bearer ' + env.GITHUB_ISSUES_TOKEN.trim(),
       'Content-Type': 'application/json',
       'User-Agent': 'Elmos-Calibration-Feedback',
       'X-GitHub-Api-Version': '2022-11-28',
     },
     body: JSON.stringify({ title: '[' + label + '] ' + title.replace(/[\r\n]/g, ' ').replace(/@/g, '＠'), body }),
   });
-  if (result.status !== 201) return json({ code: 'service' }, 502);
+  if (result.status !== 201) return json({ code: 'service', stage: 'issues', upstreamStatus: result.status }, 503);
   const issue = await result.json();
   return json({ url: issue.html_url }, 201);
 }
@@ -124,8 +124,8 @@ export default {
     if (request.method !== 'POST') return json({ code: 'method' }, 405);
     try {
       return await submit(request, env);
-    } catch {
-      return json({ code: 'service' }, 502);
+    } catch (error) {
+      return json({ code: 'service', stage: 'worker', errorType: error.name }, 500);
     }
   },
 };
