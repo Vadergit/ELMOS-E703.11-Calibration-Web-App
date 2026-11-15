@@ -52,7 +52,8 @@ const ELMOS_ARCHIVE_CORE=(()=>{
  }
  function lastAttempt(record,stepIndex){
   const attempts=(record.events||[]).filter(e=>e.kind==='measurement'&&e.stepIndex===stepIndex);
-  return attempts.filter(e=>e.pass===true).at(-1)||attempts.at(-1)||null;
+  // Latest verification attempt is decisive: do not hide a later failed retest behind an older pass.
+  return attempts.at(-1)||null;
  }
  function hysteresis(record){
   const plan=record.plan,steps=plan?.steps||[];
