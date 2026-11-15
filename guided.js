@@ -116,7 +116,7 @@ const ELMOS_GUIDED=(()=>{
    '<section id="gwSwapPage" class="gw-tile" hidden><ol><li>Stecke den fertig abgeglichenen Sensor ab.</li><li>Schliesse den nächsten Sensor am Programmieradapter an.</li><li>Klicke auf «Neuen Sensor verbinden».</li></ol><p>Der Assistent übernimmt den Messplan und die Ausgangsvorgaben. Er schreibt die Frontend-Einstellungen ins RAM des neuen Sensors. Für ihn nimmst du danach neue Messwerte auf.</p><div class="gw-panel-actions"><button id="gwSwapConnect" class="primary" type="button">Neuen Sensor verbinden</button><button id="gwSwapChoose" type="button" hidden>USB-Port auswählen</button><button id="gwSwapCancel" type="button">Serie abbrechen</button></div></section>'+
    '<div id="gwLogPage" class="gw-page gw-logger-page" hidden></div>'+
    '<dialog id="gwPresetDialog" aria-labelledby="gwPresetTitle"><div class="gw-preset-dialog-heading"><h3 id="gwPresetTitle">Sensor-Presets</h3><button id="gwPresetClose" type="button">Schliessen</button></div><div class="gw-fields gw-3" id="gwConfigFields"></div><div id="gwConfigSource"></div><div id="gwConfigGroups"></div><div class="gw-panel-actions" id="gwConfigActions"></div><div id="gwConfigEffect"></div><div id="gwConfigStatus"></div></dialog>'+
-   '<div id="gwMessage" class="gw-alert" hidden></div><footer class="gw-footer"><small id="gwFooterHint">E703.11 · Kalibrierassistent</small><div class="gw-actions"><button id="gwClassic" type="button">Klassische Ansicht</button><button id="gwTasks" type="button" hidden>Zur Aufgabenübersicht</button><button id="gwPrevious" type="button">Zurück</button><button id="gwNext" class="primary" type="button">Weiter</button></div></footer></main></div>';
+   '<div id="gwMessage" class="gw-alert" hidden></div><footer class="gw-footer"><small id="gwFooterHint">E703.11 · Kalibrierassistent</small><div class="gw-actions"><button id="gwTasks" type="button" hidden>Zur Aufgabenübersicht</button><button id="gwPrevious" type="button">Zurück</button><button id="gwNext" class="primary" type="button">Weiter</button></div></footer></main></div>';
  }
  function build(){
   root=$('guidedWorkspace');
@@ -193,7 +193,7 @@ const ELMOS_GUIDED=(()=>{
    afeStatsStart=Date.now();afeGainSignature='';
    updateUI();
   });
-  $('gwClassic').addEventListener('click',close);$('gwBackClassic').addEventListener('click',close);
+  $('gwBackClassic').addEventListener('click',close);
   document.querySelectorAll('[data-gw-side]').forEach(button=>button.addEventListener('click',()=>{const index=Number(button.dataset.gwSide);if(visited.has(index)){stage=index;render()}}));
   subscribe(document,'elmos-config-applied',syncImportedConfig);
   subscribe($('expertMode'),'change',renderOutputOptions);
@@ -557,7 +557,7 @@ const ELMOS_GUIDED=(()=>{
   $('gwSwapPage').hidden=!swapping;
   $('gwPresetLaunch').hidden=swapping||stage!==1;
   if($('gwPresetLaunch').hidden&&$('gwPresetDialog').open)$('gwPresetDialog').close();
-  $('gwClassic').closest('footer').hidden=swapping;
+  root.querySelector('.gw-footer').hidden=swapping;
   root.classList.toggle('gw-logger-mode',loggerPage);
   $('gwLogPage').hidden=!loggerPage;
   for(let i=0;i<steps.length;i++){
