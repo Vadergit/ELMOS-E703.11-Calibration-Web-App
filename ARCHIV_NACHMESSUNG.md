@@ -1,6 +1,6 @@
 # ELMOS E703.11 – Lokales Kalibrierarchiv und Nachmessungen
 
-**Softwarestand v0.7.70 · Funktions- und Benutzeranleitung · Laborprototyp**
+**Softwarestand v0.7.71 · Funktions- und Benutzeranleitung · Laborprototyp**
 
 **Archivexport ab v0.7.70:** Für jedes gespeicherte Protokoll steht «CSV · alle Infos» zur Verfügung. Test/Logging hat zusätzlich einen vollständigen PDF-Bericht mit Diagramm, Aufnahmepunkten und Ereignissen sowie einen eigenständigen «CSV · Messwerte»-Export für Tabellenanalysen. Die optionale VDD-Eingabe der Anschlussansicht wurde entfernt.
 
@@ -82,7 +82,14 @@ Jeder Datensatz enthält mindestens:
 
 ### PDF und CSV exportieren
 
-In der Archivliste hat **jeder Datensatz** einen Button **«CSV · alle Infos»** (Kalibrierung, Nachmessung, Test/Logging und Ausgang). Dieselbe Option erscheint in der Detailansicht. Der Export verwendet ein einheitliches **Langformat** mit den Spalten Bereich, Datensatz, Protokoll-ID, Chip-UID, Messpunkt-Nr, Einzelmessung-Nr, Zeitstempel, Feld und Wert. Auch verschachtelte Metadaten, Konfigurationen, RAM/NVM, alle Ereignisse, Referenzangaben, Fehler und vorhandene TX/RX-Logs werden als einzelne Feldzeilen ausgegeben. Bei Test/Logging werden zusätzlich **alle Telemetriedatenteile und Einzelmessungen** aus den zugehörigen JSONL-Dateien geladen. Es werden keine Felder aus der ursprünglichen Datei stillschweigend ausgelassen. Die Feldpfade wie `$.testConfiguration.intervalMs` oder `$.initial.nvm.words[0]` erlauben eine eindeutige Zuordnung.
+In der Archivliste besitzen Kalibrierung, Test/Logging und Ausgang weiterhin den Button **«CSV · alle Infos»** (Kalibrierung, Nachmessung, Test/Logging und Ausgang). Dieselbe Option erscheint in der Detailansicht. Der Export verwendet ein einheitliches **Langformat** mit den Spalten Bereich, Datensatz, Protokoll-ID, Chip-UID, Messpunkt-Nr, Einzelmessung-Nr, Zeitstempel, Feld und Wert. Auch verschachtelte Metadaten, Konfigurationen, RAM/NVM, alle Ereignisse, Referenzangaben, Fehler und vorhandene TX/RX-Logs werden als einzelne Feldzeilen ausgegeben. Bei Test/Logging werden zusätzlich **alle Telemetriedatenteile und Einzelmessungen** aus den zugehörigen JSONL-Dateien geladen. Es werden keine Felder aus der ursprünglichen Datei stillschweigend ausgelassen. Die Feldpfade wie `$.testConfiguration.intervalMs` oder `$.initial.nvm.words[0]` erlauben eine eindeutige Zuordnung.
+
+Für **Nachmessungen** gibt es ab v0.7.71 stattdessen zwei CSV-Varianten:
+
+- **«CSV · Übersicht»**: übersichtlicher Prüfbericht mit wenigen Protokollangaben und einer klaren Messpunkttabelle. Pro aufgenommenem Versuch steht eine Zeile mit Soll-/Referenzdruck, digitalem Sensorwert, Abweichung in Druckeinheit und % der Messspanne, Temperatur, Richtung, Zeitstempel und Anzahl Einzelmessungen. Auch zusätzliche Versuche und noch offene geplante Punkte bleiben sichtbar. Eine Bestanden-/Fehlerbewertung wird nur bei tatsächlich aktivierter Toleranz ausgegeben. Der Export enthält keine TX/RX-Kommunikation, Registerdaten oder Einzel-Rohsamples.
+- **«CSV · Rohdaten»**: bisheriger vollständiger Audit-Export mit sämtlichen technischen Feldern, Ereignissen und Rohwerten. Er ist für detaillierte Fehlersuche und vollständige Dokumentation weiterhin vorhanden.
+
+Die kompakte CSV kannst du im Archiv und direkt in der Abschlussübersicht der Nachmessung herunterladen. Sie ist als UTF-8-CSV mit **Semikolon** als Spaltentrenner ausgelegt, damit sie in Schweizer Excel einfach lesbar ist. Die Auswertung erzeugt Differenzen aus den tatsächlich gespeicherten digitalen Sensor- und Referenzdruckwerten; ohne aktivierte Toleranz gibt es keinen Bestanden-Entscheid.
 
 Bei **Test/Logging** stehen ausserdem **«CSV · Messwerte»** (kompakte, tabellarisch auswertbare ADC-/DSP-Rohsamples) und **«PDF»** zur Verfügung, sowohl im Archiv als auch direkt nach Abschluss einer Aufzeichnung. Der PDF-Bericht enthält Identifikation, Testaufbau und Einstellungen, Kennzahlen, einen ADC_S-/DSP_S-Verlauf, eine Tabelle aller aufgenommenen Messpunktgruppen sowie das Ereignisprotokoll mit Markern und Fehlermeldungen. Bei langen Aufzeichnungen wird lediglich die **Grafik** auf höchstens 400 Punkte reduziert; die Messpunkttabelle bleibt vollständig. Für sämtliche Einzel-Rohsamples und technische Zusatzfelder ist die vollständige CSV beziehungsweise das JSON mit JSONL-Dateien vorgesehen.
 
