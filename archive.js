@@ -199,7 +199,11 @@ const ELMOS_ARCHIVE=(()=>{
   return record.telemetry.groups;
  }
  async function streamRows(record){
-  if(!record.telemetryFiles?.length&&!record.telemetryFile)return [];
+  if(!record.telemetryFiles?.length&&!record.telemetryFile){
+   if((record.telemetry?.groups||0)>0)
+    throw Error('Zum vollständigen Export fehlen die zugehörigen .samples.jsonl-Messdateien.');
+   return [];
+  }
   if(!S.dir)throw Error('Kein lokaler Telemetrieordner verbunden');
   if(!await permitted(false))throw Error('Archivordner erneut freigeben');
   const result=[];
@@ -212,6 +216,11 @@ const ELMOS_ARCHIVE=(()=>{
     if(row.kind==='telemetry_point')result.push(row);
    }
   }
+  // A previously interrupted write must never masquerade as a complete export.
+  const declared=Number(record.telemetry?.groups);
+  if(Number.isFinite(declared)&&declared>result.length)
+   throw Error('Rohdaten unvollständig: '+result.length+' / '+declared+
+    ' Messpunktgruppen gefunden. Fehlende JSONL-Dateien wiederherstellen.');
   return result;
  }
  async function finalise(status='incomplete',{snapshot}={}){
