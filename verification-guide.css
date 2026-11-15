@@ -128,3 +128,16 @@
 #archiveWorkspace .vg-count.unknown{background:#fff8e9;border-color:#e8cc91;color:#90661e}
 html[data-theme="dark"] #archiveWorkspace .vg-provisional-note{background:#393222;color:#f1ce87;border-left-color:#e0b15b}
 html[data-theme="dark"] #archiveWorkspace .vg-marker.provisional{fill:#e8ab45}
+
+/* Archived verification reports reuse the read-only per-point chart. */
+#archiveWorkspace .ar-archive-verification-graph{
+  width:100%;max-width:100%;min-width:0;margin:10px 0 22px;padding:15px 16px;
+  border:1px solid #d8e4ef;border-radius:12px;background:var(--paper,#fff);
+}
+#archiveWorkspace .ar-archive-verification-graph .vg-chartscroll{max-width:100%}
+#archiveWorkspace .ar-archive-verification-graph .vg-current{margin-top:12px}
+#archiveWorkspace .ar-archive-verification-graph .vg-raw{margin-top:18px}
+html[data-theme="dark"] #archiveWorkspace .ar-archive-verification-graph{border-color:#475d6d;background:var(--paper,#1b2632)}
+@media(max-width:750px){
+ #archiveWorkspace .ar-archive-verification-graph{padding:11px 9px}
+}
