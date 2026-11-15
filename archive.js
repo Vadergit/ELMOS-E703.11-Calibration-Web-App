@@ -4,7 +4,7 @@ const ELMOS_ARCHIVE=(()=>{
  const C=ELMOS_ARCHIVE_CORE,ANALYSIS=ELMOS_ARCHIVE_ANALYSIS;
  const $=id=>document.getElementById(id);
  const S={dir:null,record:null,records:[],filename:null,writeQueue:Promise.resolve(),selection:[],step:0,
-  measuring:false,finishing:false,finishedReview:null,showDetails:null,lastError:'',folderName:'',draft:null,view:'archive',detailsToken:0,resultsCache:new Map(),debugLines:[],debugDropped:0,lastStreamMetaFlush:0,pressureEntryBefore:'percent',pressureUnitBefore:'bar',autoRangeUid:null,pendingPhotos:[]};
+  measuring:false,finishing:false,finishedReview:null,showDetails:null,lastError:'',folderName:'',draft:null,view:'archive',detailsToken:0,resultsCache:new Map(),debugLines:[],debugDropped:0,lastStreamMetaFlush:0,pressureEntryBefore:'percent',pressureUnitBefore:'bar',autoRangeUid:null,pendingPhotos:[],photoPanels:null};
  const iso=()=>new Date().toISOString();
  const text=(id,value)=>{if($(id))$(id).textContent=String(value)};
  const note=(value,bad=false)=>{S.lastError=bad?String(value):'';text('archiveStatus',value);if($('archiveStatus'))$('archiveStatus').style.color=bad?'var(--red)':'var(--muted)'};
@@ -1323,6 +1323,7 @@ const ELMOS_ARCHIVE=(()=>{
   if(S.pendingPhotos.length){
    await setPhotos(S.record,S.pendingPhotos);
    S.pendingPhotos=[];
+   S.photoPanels?.setup.refresh();S.photoPanels?.active.refresh();
   }
   S.record.verificationMetadata=optionalVerificationMetadata();
   S.record.calibrationTool=calibrationToolFromMeta(bridge()?.meta?.());
@@ -1350,6 +1351,7 @@ const ELMOS_ARCHIVE=(()=>{
    const saved=await finalise('completed');
    if(!saved||!saved.id)throw Error(ui('Das Protokoll konnte nicht bestätigt werden.','The saved report could not be confirmed.'));
    S.finishedReview=saved;
+   S.photoPanels?.finished.refresh();
    renderActive();
    note(ui('Prüfung im lokalen Archiv gespeichert. Du kannst alle Ergebnisse prüfen und danach zur Hauptseite zurückkehren.',
     'Verification saved to the local archive. Review all results, then return to the main page.'));
@@ -1378,20 +1380,21 @@ const ELMOS_ARCHIVE=(()=>{
   if(window.ELMOS_ARCHIVE_PHOTOS?.mount){
    const mount=window.ELMOS_ARCHIVE_PHOTOS.mount;
    const setup=el('div');$('arVerificationDocumentation').append(setup);
-   mount(setup,{getPhotos:()=>S.pendingPhotos,
+   const setupPanel=mount(setup,{getPhotos:()=>S.pendingPhotos,
     onChange:async next=>{S.pendingPhotos=clone(next)}});
    const active=el('div');$('arMeasureControls').append(active);
-   mount(active,{getPhotos:()=>S.record?.type==='verification'?S.record.photos||[]:[],
+   const activePanel=mount(active,{getPhotos:()=>S.record?.type==='verification'?S.record.photos||[]:[],
     onChange:next=>{
      if(S.record?.type!=='verification')throw Error('Keine laufende Nachmessung.');
      return setPhotos(S.record,next);
     }});
    const finished=el('div');$('arFinishedMetadata').after(finished);
-   mount(finished,{getPhotos:()=>S.finishedReview?.photos||[],
+   const finishedPanel=mount(finished,{getPhotos:()=>S.finishedReview?.photos||[],
     onChange:next=>{
      if(!S.finishedReview)throw Error('Kein abgeschlossenes Prüfprotokoll vorhanden.');
      return setPhotos(S.finishedReview,next);
     }});
+   S.photoPanels={setup:setupPanel,active:activePanel,finished:finishedPanel};
   }
   $('archiveOpen').addEventListener('click',()=>open('archive'));
   $('verificationOpen').addEventListener('click',()=>open('verification'));
