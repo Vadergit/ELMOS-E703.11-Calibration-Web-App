@@ -24,7 +24,11 @@ const ELMOS_VERIFICATION_REPORT=(()=>{
  };
  const diff=(item,mode)=>{
   if(mode==='temperature'&&Number.isFinite(item.tempError))return n(item.tempError,4)+' °C';
-  if(mode!=='temperature'&&Number.isFinite(item.pressurePct))return n(item.pressurePct,4)+' % FS';
+  if(mode!=='temperature'&&Number.isFinite(item.pressurePct)){
+   const absolute=Number.isFinite(item.item?.pressureError)?
+    n(item.item.pressureError,5)+' '+(item.item.pressureUnit||item.item.sample?.pressureUnit||'')+' / ':'';
+   return absolute+(item.pressurePct>0?'+':'')+n(item.pressurePct,4)+' % FS';
+  }
   if(mode!=='temperature'&&Number.isFinite(item.previewPercent))return tr('Ungeprüft: ','Unverified: ')+n(item.previewPercent,4)+' % FS';
   return '–';
  };
@@ -88,7 +92,15 @@ const ELMOS_VERIFICATION_REPORT=(()=>{
   ].filter(x=>x[1]).map(x=>fld(x[0],x[1])).join('');
   const settings=[
    fld(tr('Prüfart','Test type'),modeName(mode)),
+   fld(tr('Kalibrierter Druckbereich','Calibrated pressure range'),
+    Number.isFinite(config.calibrationMin)&&Number.isFinite(config.calibrationMax)?
+     n(config.calibrationMin)+' bis '+n(config.calibrationMax)+' '+(config.pressureUnit||''):null),
    fld(tr('Messspanne','Full scale'),Number.isFinite(config.pressureSpan)?n(config.pressureSpan)+' '+(config.pressureUnit||''):null),
+   fld(tr('Prüfpunkte eingegeben als','Verification points entered as'),
+    config.pressureEntryMode==='percent'?'% der Messspanne':config.pressureEntryMode==='pressure'?config.pressureUnit:null),
+   fld(tr('Ursprüngliche Prüfreihe','Original setpoint series'),config.inputPressurePath),
+   fld(tr('Digitale Auslesung','Digital readout'),config.digitalReadout||null),
+   fld(tr('DSP-Endwert','DSP full scale'),Number.isFinite(config.dspLimit)?'±'+n(config.dspLimit,0)+' Digits':null),
    fld(tr('Max. Druckabweichung','Max. pressure deviation'),Number.isFinite(config.pressureTolerancePercent)?n(config.pressureTolerancePercent)+' % FS':null),
    fld(tr('Temperaturtoleranz','Temperature tolerance'),Number.isFinite(config.temperatureTolerance)?n(config.temperatureTolerance)+' °C':null),
    fld(tr('Drucksensortyp','Pressure sensor type'),config.sensorType==='absolute'?tr('Absolut','Absolute'):config.sensorType==='gauge'?tr('Relativ','Gauge'):null),
