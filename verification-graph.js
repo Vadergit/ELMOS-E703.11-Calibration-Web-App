@@ -19,13 +19,14 @@ const ELMOS_VERIFICATION_GRAPH=(()=>{
    // The latest attempt is authoritative; a later failed retest must not be hidden by an older pass.
    const tries=(record.events||[]).filter(x=>x.kind==='measurement'&&x.stepIndex===i);
    const item=tries.at(-1)||null;
-   const pressurePct=item&&finite(item.pressureError)&&span>0?100*item.pressureError/span:null;
+   const itemSpan=finite(item?.pressureFullScaleSpan)&&item.pressureFullScaleSpan>0?item.pressureFullScaleSpan:span;
+   const pressurePct=item&&finite(item.pressureError)&&itemSpan>0?100*item.pressureError/itemSpan:null;
    const tempError=item&&finite(item.temperatureError)?item.temperatureError:null;
    const value=mode==='temperature'?tempError:pressurePct;
    const tolerance=mode==='temperature'?
     (finite(item?.temperatureTolerance)?item.temperatureTolerance:1):
     (finite(item?.pressureTolerancePercent)?item.pressureTolerancePercent:
-     finite(item?.pressureTolerance)&&span>0?100*item.pressureTolerance/span:
+     finite(item?.pressureTolerance)&&itemSpan>0?100*item.pressureTolerance/itemSpan:
      Number.isFinite(record?.verificationConfig?.pressureTolerancePercent)?record.verificationConfig.pressureTolerancePercent:0.2);
    return {index:i,step,item,tries:tries.length,value,tolerance,pressurePct,tempError,
     status:!item?'pending':item.pass===true?'pass':item.pass===false?'fail':'unknown'};
@@ -74,7 +75,9 @@ const ELMOS_VERIFICATION_GRAPH=(()=>{
   }
   canvas.append(svg('text',{x:12,y:12,class:'vg-axis-title'},axisUnits));
   const maxLabels=Math.min(data.length,16),labelEvery=Math.max(1,Math.ceil(data.length/maxLabels));
-  for(const p of data){
+  // Keep SVG responsive for long test plans: focus on an operator-selectable window.
+  const visible=data.length>100?data.filter(item=>Math.abs(item.index-active)<=50):data;
+  for(const p of visible){
    const xx=x(p.index);
    const tol=finite(p.tolerance)?p.tolerance:0.2;
    canvas.append(svg('line',{x1:xx,y1:y(-tol),x2:xx,y2:y(tol),class:'vg-tolerance', 'stroke-width':data.length>40?8:14}));
