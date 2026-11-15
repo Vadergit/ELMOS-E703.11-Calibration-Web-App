@@ -214,10 +214,6 @@ const ELMOS_VERIFICATION_GRAPH=(()=>{
    if(mode!=='pressure')parts.push(finite(current.tempError)?local('Temperaturfehler','Temperature error')+
        ' '+decimal(current.tempError,3)+' °C':local('Temperatur nicht bewertet','Temperature not assessed'));
    resultCard.append(node('p',parts.join(' · ')));
-   if(current.valueSource==='unverified-percent')
-    resultCard.append(node('p',local(
-     'Die Druckskalierung des angezeigten Sensorwerts ist nicht bestätigt. Die angezeigte Abweichung ist ein rechnerischer Vergleich, keine bestätigte Druckabweichung.',
-     'The displayed sensor value has no confirmed pressure scaling. The shown deviation is a calculated comparison, not a verified pressure error.'),'vg-provisional-note'));
    if(observed?.at)resultCard.append(node('small',local('Aufnahmezeit: ','Captured at: ')+
      (new Date(observed.at)).toLocaleTimeString(document.documentElement.lang==='en'?'en-US':'de-CH')));
    resultCard.append(node('small',local('Versuche an diesem Punkt: ','Attempts at this point: ')+current.tries));
