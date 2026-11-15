@@ -768,8 +768,8 @@ const ELMOS_GUIDED=(()=>{
  }
  function open(){
   if(mode)return;
-  const s=state();
-  if(!s.chip){const panel=$('connMsg');if(panel){panel.textContent='Bitte zuerst den Programmieradapter mit dem E703.11 verbinden.';panel.className='callout warn'};return}
+  // The guided workspace can be opened without a connected chip.
+  // Measurement and write actions remain guarded by the existing chip checks.
   if(typeof ELMOS_COMPACT!=='undefined')ELMOS_COMPACT.set(false);
   if($('compactMode'))$('compactMode').checked=false;
   mode=true;
