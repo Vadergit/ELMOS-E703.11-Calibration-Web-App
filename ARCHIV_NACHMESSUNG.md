@@ -42,29 +42,20 @@ Jeder aufgenommene Punkt enthält Referenzdruck und Temperatur, Einheit, Zeitpun
 
 Die bestehenden Schutzbedingungen für Factory-, Boot- und Kommunikationsregister, CRC, Chip-UID und NVM-Schreibfreigaben bleiben unverändert. Ein Archiv ersetzt keinen Hardwaretest.
 
-## 3. Nachmessung, Druck- und Temperaturhysterese
+## 3. Nachmessung mit digitalem Sensorwert (ab v0.7.65)
 
-1. Den kalibrierten Sensor verbinden und **Nachmessung** öffnen.
-2. **Ursprünglichen kalibrierten Druckbereich** (Unter-/Obergrenze) und die physikalische Druckeinheit festlegen: bar, mbar, kPa, MPa oder psi. Eine bekannte DSP-Skalierung wird aus dem aktiven RAM-Abgleich übernommen, falls vorhanden. Andernfalls Werte prüfen und manuell eingeben.
-3. **Digitalen DSP-Endwert (± Digits)** angeben; dieser legt zusammen mit dem Druckbereich die Abbildung von DSP_S auf den physikalischen Druck fest. Die Messung verwendet ausschliesslich digital ausgelesene DSP_S-Werte. Analoge Ausgangsspannungen, Ströme und ratiometrische Umrechnungen sind nicht erforderlich.
-4. **Prüfpunkte eingeben als** auswählen:
-   - **% der Messspanne:** zum Beispiel `0, 25, 50, 75, 100, 75, 50, 25, 0`. Bei einem kalibrierten Druckbereich von 0 bis 10 bar werden daraus `0, 2.5, 5, 7.5, 10, 7.5, 5, 2.5, 0` bar.
-   - **Druck:** dieselben Werte direkt in der gewählten physikalischen Einheit eingeben.
-   Ein Wechsel der Eingabeart rechnet die bestehende Druckreihe um, ohne die physikalischen Prüfpunkte zu verändern. Der Druckeinheiten-Wechsel konvertiert die eingestellten physikalischen Werte ebenfalls.
-5. Prüfart und Zyklen (1–30) einstellen. Optional das ursprüngliche Abgleichverfahren (2-Punkt, 3-Punkt, Mehrpunkt), Abgleichtemperaturen und Abgleichpunkte dokumentieren.
-6. **Nachmessung starten.** Die App speichert Chip-UID, Kalibrierwerkzeug, Druckbereich, Original-Prüfreihe, Eingabeeinheit, DSP-Endwert und die weiteren Protokollangaben im lokalen Archiv.
-7. Klimakammer und Druckkalibrator manuell auf den angezeigten physikalischen Sollwert stellen, Bedingungen stabilisieren und Messpunkt aufnehmen. Die letzten Istwerte erscheinen direkt beim Messbutton. Ein Prüfpunkt kann wiederholt werden; alle Versuche werden gespeichert.
-8. Den nächsten Prüfpunkt wählen. Beim letzten Punkt heisst die Aktion **Prüfung abschliessen und speichern**. Anschliessend werden sämtliche Ergebnisse, Abweichungen und das Diagramm angezeigt; das Protokoll lässt sich als PDF drucken bzw. speichern.
+- Kalibrierten Druckbereich (von/bis) und physikalische Einheit (bar, mbar, kPa, MPa, psi) angeben.
+- Prüfpunkte entweder in **% der Messspanne** oder direkt als Druck eingeben. Der Prüfplan speichert die umgerechneten physikalischen Druckwerte. Beispiel für 0–10 bar: `0,25,50,75,100,75,50,25,0` % entspricht `0,2.5,5,7.5,10,7.5,5,2.5,0` bar.
+- Bei der Nachmessung zeigt das Feld **Referenzdruck (bar / mbar / …)** die gewählte Einheit unmittelbar beim Zahlenwert an.
+- Druck und ggf. Temperatur am Prüfstand manuell einstellen; Messpunkt aufnehmen und das Ergebnis prüfen. Die letzte Messung wird direkt beim Aufnahmebutton angezeigt.
+- Weitere Protokollangaben (Prüfer, Projekt, Prüfstand, Prüfmittel/Zertifikatsreferenz, Bemerkungen) bleiben **immer sichtbar**. Ein separates Feld für externe Messmittel und die freie Beschreibung des ursprünglichen Sensorabgleichs wurden entfernt.
+- Am letzten Prüfpunkt **Prüfung abschliessen und speichern** wählen. Archiv und PDF enthalten den kalibrierten Messbereich, die Eingabeart, den digitalen Sensorwert und die Toleranzbewertung. Der irreführende PDF-Eintrag «Adapter-Firmware: Antwort erhalten» wird nicht mehr ausgegeben.
 
-**Digitale Zuordnung und Bewertung:** Die App rechnet den ausgelesenen DSP_S-Wert mit dem konfigurierten Bereich und DSP-Endwert um. Bei passender aktiver RAM-Zuordnung gilt die Umrechnung automatisch als bestätigt. Ist keine solche Zuordnung vorhanden, muss der Prüfer die Skalierung vor der Toleranzbewertung ausdrücklich bestätigen. Nicht bestätigte Punkte werden **nicht bewertet**, nicht fälschlich als bestanden dargestellt. Jede Druckabweichung wird als physikalische Differenz und als **% der gesamten kalibrierten Messspanne** ermittelt:
+**Messwertquelle:** Die Nachmessung verwendet den Sensorwert, den die Web-App bereits digital als Druck oder Prozent darstellt. Sie berechnet ihn nicht nochmals mit einem separaten DSP-Endwert. Im E703.11 basiert diese Anzeige intern auf dem digitalen korrigierten Druckwert des Chips (DSP_S). Ein physikalischer Druckwert ist nur dann verlässlich, wenn seine Zuordnung zum Druckbereich stimmt. Bei bekannter, passender aktueller RAM-Kalibrierung wird sie automatisch bestätigt, andernfalls ist eine unabhängige Bestätigung des angezeigten Sensorwerts nötig. Ist diese Zuordnung unbekannt, werden Messungen aufgezeichnet und im Diagramm angezeigt, aber **nicht als bestanden** bewertet.
 
-`Abweichung % Span = (Ist-Druck - Soll-Druck) / (Druckobergrenze - Druckuntergrenze) × 100`.
+**Toleranzberechnung:** `Abweichung % Span = (Ist-Druck - Soll-Druck) / (kalibrierte Obergrenze - kalibrierte Untergrenze) × 100`. Wenn beide Druckwerte verschiedene physikalische Einheiten verwenden, wird zuerst die Einheit umgerechnet. Ist die Sensoranzeige in Prozent definiert, wird sie anhand des kalibrierten Druckbereichs auf Druck abgebildet. Beide Fälle setzen eine bestätigte Zuordnung voraus.
 
-Beispiel: 0–10 bar, Soll 5.00 bar, Ist 5.10 bar ergibt +0.10 bar bzw. +1.00 % Span. Die maximal erlaubte Toleranz ist separat einstellbar (Standard ±0.2 % Span).
-
-Für Druck × Temperatur wird jede Druckreihe bei jeder Temperaturstufe durchlaufen. Hysterese wird nur bei gleicher Referenz und entgegengesetzter Anfahrrichtung berechnet. Die prozentuale Druckhysterese verwendet ebenfalls die **gesamte kalibrierte Messspanne**, nicht nur den im Prüfplan abgefahrenen Teilbereich.
-
-Es gelten maximal 100 Werte je Rampe und 3000 gesamte Prüfpunkte pro Vorgang. Die bisherigen Archivprotokolle behalten ihre gespeicherten Einheiten und Bewertungen und bleiben lesbar.
+**Hysterese:** Gemessene Sensorwerte bei gleicher Referenz und entgegengesetzter Druckrichtung werden gegenübergestellt; die prozentuale Druckhysterese wird aus der gesamten kalibrierten Messspanne berechnet. Alte Archive mit DSP-Rohwerten bleiben weiterhin lesbar.
 
 ## 4. Temperatureinheit, Versorgung und Grenzen
 
