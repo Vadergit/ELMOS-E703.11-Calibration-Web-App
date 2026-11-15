@@ -629,13 +629,17 @@ const ELMOS_ARCHIVE=(()=>{
    throw Error('Bitte einen gültigen kalibrierten Druckbereich und die Druckeinheit angeben.');
   return {min,max,unit,span:max-min};
  }
- function dspRangeMatches(cfg){
+
+ function sensorRangeMatches(cfg){
+  // Automatic trust is possible only for a current RAM calibration with known physical range.
+  // A manually configured display mapping is not independently verified.
   const live=bridge()?.digitalRange?.();
   if(live?.kind!=='ram'||!UNIT_TO_BAR[live.unit]||!UNIT_TO_BAR[cfg.pressureUnit]||
-    !Number.isFinite(live.min)||!Number.isFinite(live.max)||!Number.isFinite(live.limit))return false;
-  const source=UNIT_TO_BAR[live.unit],target=UNIT_TO_BAR[cfg.pressureUnit],eps=Math.max(1e-9,Math.abs(cfg.pressureSpan*target)*1e-7);
-  return Math.abs(live.min*source-cfg.calibrationMin*target)<eps&&
-   Math.abs(live.max*source-cfg.calibrationMax*target)<eps&&live.limit===cfg.dspLimit;
+    !Number.isFinite(live.min)||!Number.isFinite(live.max))return false;
+  const source=UNIT_TO_BAR[live.unit],target=UNIT_TO_BAR[cfg.pressureUnit];
+  const eps=Math.max(1e-9,Math.abs(cfg.pressureSpan*target)*1e-7);
+  return Math.abs(live.min*source-cfg.calibrationMin*target)<=eps&&
+   Math.abs(live.max*source-cfg.calibrationMax*target)<=eps;
  }
  function addPressureUI(){
   const group=$('arPressurePathLabel').closest('.ar-grid');
@@ -643,38 +647,41 @@ const ELMOS_ARCHIVE=(()=>{
   range.innerHTML='<label>Kalibrierter Druckbereich von<input id="arCalMin" type="number" step="any" value="0"></label>'+
    '<label>Kalibrierter Druckbereich bis<input id="arCalMax" type="number" step="any" value="10"></label>';
   group.before(range);
-  const unit=$('arPressureUnit'),label=unit.closest('label');label.firstChild.textContent='Druckeinheit';
+  const unit=$('arPressureUnit'),label=unit.closest('label');
+  label.firstChild.textContent='Druckeinheit';
   unit.querySelector('option[value="%"]')?.remove();
   const mpa=el('option','MPa');mpa.value='MPa';unit.append(mpa);range.append(label);
   const row=el('div',null,'ar-grid');
   row.innerHTML='<label>Prüfpunkte eingeben als<select id="arPressureEntryMode"><option value="percent">% der Messspanne</option>'+
-   '<option value="pressure">Druck</option></select></label>'+
-   '<label>Digitaler DSP-Endwert (± Digits)<input id="arDspLimit" type="number" min="1000" max="32000" step="1" value="32000"></label>';
+   '<option value="pressure">Druck</option></select></label>';
   group.before(row);
   const hint=el('p',null,'ar-inline-tip');hint.id='arDigitalRangeHint';row.after(hint);
-  const details=el('details',null,'ar-optional-documentation');
-  details.innerHTML='<summary>Ursprünglicher Sensorabgleich (optionale Dokumentation)</summary>'+
-   '<p class="ar-inline-tip">Abgleichverfahren und Druck-/Temperaturpunkte dokumentieren, falls sie bekannt sind.</p>'+
-   '<div class="ar-grid"><label>Abgleichverfahren<select id="arCalibrationMethod">'+
-   '<option value="">Nicht angegeben</option><option value="2P">2-Punkt</option>'+
-   '<option value="3P">3-Punkt</option><option value="multi">Mehrpunkt</option></select></label>'+
-   '<label>Abgleichtemperaturen (°C, kommagetrennt)<input id="arCalibrationTemperatures" placeholder="z. B. 25, 75"></label></div>'+
-   '<label>Ursprüngliche Abgleichpunkte (Druck / Temperatur)'+
-   '<textarea id="arCalibrationPointNotes" rows="2" maxlength="2000" placeholder="z. B. 0 bar bei 25 °C; 6 bar bei 25 °C; 0 bar bei 75 °C"></textarea></label>';
-  range.after(details);
   $('arPressurePathLabel').firstChild.textContent='Druckreihe (hin und zurück, % der Messspanne, kommagetrennt)';
   $('arPressurePath').value='0, 25, 50, 75, 100, 75, 50, 25, 0';
   $('arPressureSpan').readOnly=true;
   $('arPressureSpan').closest('label').firstChild.textContent='Druck-Messspanne (aus Kalibrierbereich)';
   $('arFixedPressure').closest('label').firstChild.textContent='Konstanter Prüfdruck (gewählte Einheit)';
-  $('arPressureScaleConfirmed').closest('label').lastChild.textContent=' Digitalen DSP-Endwert und kalibrierten Druckbereich unabhängig geprüft (falls keine passende RAM-Skalierung erkannt wird).';
+  $('arPressureScaleConfirmed').closest('label').lastChild.textContent=
+   ' Die Druckskalierung des digital angezeigten Sensorwerts ist für diesen Sensor unabhängig überprüft.';
+  // Remove the now redundant free-text calibration description entirely.
+  // Also remove duplicate instrument lists while keeping the remaining optional metadata permanently visible.
+  $('arVerificationInstruments')?.closest('label')?.remove();
+  const optional=$('arVerificationDocumentation');
+  const fixed=el('section',null,optional.className);
+  fixed.id=optional.id;
+  optional.querySelector('summary').replaceWith(el('h3','Weitere Protokollangaben (optional)'));
+  while(optional.firstChild)fixed.append(optional.firstChild);
+  optional.replaceWith(fixed);
  }
  function scaleHint(){
   try{
    const c=calRange();
-   const ok=dspRangeMatches({calibrationMin:c.min,calibrationMax:c.max,pressureUnit:c.unit,pressureSpan:c.span,dspLimit:Number($('arDspLimit').value)});
-   text('arDigitalRangeHint',ok?'Digitale DSP_S-Skalierung entspricht dem aktuellen RAM-Abgleich.':
-    'DSP_S wird digital gelesen und anhand von Druckbereich und DSP-Endwert umgerechnet. Ohne passenden RAM-Abgleich ist eine manuelle Bestätigung vor der Toleranzbewertung notwendig.');
+   const ok=sensorRangeMatches({calibrationMin:c.min,calibrationMax:c.max,pressureUnit:c.unit,pressureSpan:c.span});
+   text('arDigitalRangeHint',ok?
+    ui('Der digitale Sensorwert wird mit einer passenden aktuellen RAM-Kalibrierung angezeigt.',
+     'The digital sensor value is displayed using a matching active RAM calibration.'):
+    ui('Gemessen wird der angezeigte digitale Sensorwert. Falls dessen Druckskalierung nicht bestätigt ist, bleibt die Toleranzbewertung offen. Die Eingabe eines DSP-Endwerts ist nicht nötig.',
+     'The displayed digital sensor value is measured. If its pressure scaling is unconfirmed, the tolerance assessment remains pending. No DSP limit is required.'));
   }catch(e){text('arDigitalRangeHint',e.message)}
  }
  function autoCalibrationRange(){
@@ -686,7 +693,6 @@ const ELMOS_ARCHIVE=(()=>{
    $('arCalMin').value=pFmt(range.min);$('arCalMax').value=pFmt(range.max);
    $('arPressureUnit').value=range.unit;S.pressureUnitBefore=range.unit;
   }
-  if(range&&Number.isInteger(range.limit)&&range.limit>=1000&&range.limit<=32000)$('arDspLimit').value=String(range.limit);
   $('arPressureScaleConfirmed').checked=false;
   modeUI();preview();
  }
@@ -1296,7 +1302,7 @@ const ELMOS_ARCHIVE=(()=>{
    $(id).addEventListener('change',()=>{modeUI();preview()});
   $('arPressureUnit').addEventListener('change',onUnitChange);
   $('arPressureEntryMode').addEventListener('change',onEntryChange);
-  for(const id of ['arCalMin','arCalMax','arDspLimit'])$(id).addEventListener('input',preview);
+  for(const id of ['arCalMin','arCalMax'])$(id).addEventListener('input',preview);
   $('arAmbientPressure').addEventListener('input',modeUI);
   for(const id of ['arPressurePath','arTempPath','arCycles','arFixedPressure','arFixedTemp'])
    $(id).addEventListener('input',preview);
