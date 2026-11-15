@@ -253,19 +253,24 @@ const ELMOS_ARCHIVE=(()=>{
   void flush().then(()=>{if(S.record!==interruptedRecord)return;S.record=null;S.filename=null;renderActive();return refresh()}).catch(()=>{});
  }
  async function download(record,format='json'){
+  if(!record)throw Error('Kein Archivprotokoll ausgewählt');
   let data,mime,name;
-  if(record.type==='testlog'){
-   const rows=await streamRows(record);
-   if(format==='csv'){
-    data=window.ELMOS_TEST_LOGGER_CORE.csvRows(rows,{
-     name:record.testConfiguration?.name,dutName:record.testConfiguration?.dutName,chipUID:record.chipUID
-    });mime='text/csv;charset=utf-8';
-    name=C.filename(record).replace(/\.json$/i,'.csv');
-   }else{
-    data=JSON.stringify({...record,telemetryPoints:rows},null,2);
-    mime='application/json';name=C.filename(record);
-   }
-  }else{data=JSON.stringify(record,null,2);mime='application/json';name=C.filename(record)}
+  const base=C.filename(record);
+  const rows=record.type==='testlog'&&(format==='json'||format==='csv'||format==='samples-csv')?
+   await streamRows(record):[];
+  if(format==='csv'){
+   if(!window.ELMOS_ARCHIVE_EXPORT?.csvAll)throw Error('Vollständiger CSV-Export nicht geladen');
+   data=window.ELMOS_ARCHIVE_EXPORT.csvAll(record,rows);
+   mime='text/csv;charset=utf-8';name=base.replace(/\\.json$/i,'.csv');
+  }else if(format==='samples-csv'&&record.type==='testlog'){
+   data=window.ELMOS_TEST_LOGGER_CORE.csvRows(rows,{
+    name:record.testConfiguration?.name,dutName:record.testConfiguration?.dutName,chipUID:record.chipUID
+   });
+   mime='text/csv;charset=utf-8';name=base.replace(/\\.json$/i,'.samples.csv');
+  }else if(format==='json'){
+   data=JSON.stringify(record.type==='testlog'?{...record,telemetryPoints:rows}:record,null,2);
+   mime='application/json';name=base;
+  }else throw Error('Unbekanntes Exportformat: '+format);
   const url=URL.createObjectURL(new Blob([data],{type:mime}));
   const a=el('a');a.href=url;a.download=name;a.click();
   setTimeout(()=>URL.revokeObjectURL(url),3000);
@@ -402,11 +407,17 @@ const ELMOS_ARCHIVE=(()=>{
    view.addEventListener('click',()=>{void renderDetails(record)});
    const exportJSON=el('button','JSON','ar-small');
    exportJSON.addEventListener('click',()=>download(record).catch(e=>note(e.message,true)));
-   actions.append(view,exportJSON);
+   const csv=el('button',ui('CSV · alle Infos','CSV · all data'),'ar-small');
+   csv.addEventListener('click',()=>download(record,'csv').catch(e=>note(e.message,true)));
+   actions.append(view,exportJSON,csv);
    if(record.type==='testlog'){
-    const csv=el('button','CSV','ar-small');
-    csv.addEventListener('click',()=>download(record,'csv').catch(e=>note(e.message,true)));
-    actions.append(csv);
+    const pdf=el('button','PDF','ar-small');
+    pdf.addEventListener('click',()=>exportLoggingPdf(record));
+    actions.append(pdf);
+   }else if(record.type==='verification'){
+    const pdf=el('button','PDF','ar-small');
+    pdf.addEventListener('click',()=>exportVerificationPdf(record));
+    actions.append(pdf);
    }
    card.append(title,detail,quick,actions);root.append(card);
   }
@@ -501,10 +512,10 @@ const ELMOS_ARCHIVE=(()=>{
   heading.append(el('p',info.description||info.chipUID||'–','ar-muted'));
   top.append(heading,el('span',info.statusLabel,'ar-pill'+
    (info.status==='completed'?' ar-good':info.status==='failed'?' ar-bad':'')));
-  if(r.type==='verification'){
-   const pdfBtn=el('button',ui('Prüfprotokoll als PDF speichern','Save verification report as PDF'),'ar-pdf-export');
+  if(r.type==='verification'||r.type==='testlog'){
+   const pdfBtn=el('button',ui('Prüfprotokoll als PDF speichern','Save report as PDF'),'ar-pdf-export');
    pdfBtn.type='button';
-   pdfBtn.addEventListener('click',()=>exportVerificationPdf(r));
+   pdfBtn.addEventListener('click',()=>r.type==='testlog'?exportLoggingPdf(r):exportVerificationPdf(r));
    top.append(pdfBtn);
   }
   root.append(top,outcome(info),section('Geräte- und Aufzeichnungsdaten'),facts(info));
@@ -557,8 +568,12 @@ const ELMOS_ARCHIVE=(()=>{
      ' · Δ '+num(point.delta,4)+' '+point.unit,'ar-difference'));
   }
   root.append(eventsView(r));
+  const exports=el('div',null,'ar-buttons');
   const btn=el('button','Protokoll als JSON herunterladen','ar-small ar-export');
-  btn.addEventListener('click',()=>download(r).catch(e=>note(e.message,true)));root.append(btn);
+  btn.addEventListener('click',()=>download(r).catch(e=>note(e.message,true)));
+  const csv=el('button',ui('CSV · alle Infos','CSV · all data'),'ar-small ar-export');
+  csv.addEventListener('click',()=>download(r,'csv').catch(e=>note(e.message,true)));
+  exports.append(btn,csv);root.append(exports);
  }
  async function compare(){
   if(S.selection.length!==2)return;
@@ -909,6 +924,28 @@ const ELMOS_ARCHIVE=(()=>{
    instrumentCertificate:trimInput('arVerificationCertificate',200),
    notes:trimInput('arVerificationNotes',4000)
   };
+ }
+ function exportLoggingPdf(record){
+  if(!record||record.type!=='testlog'){
+   note(ui('Kein gespeichertes Logging-Protokoll ausgewählt.',
+    'No saved logging report selected.'),true);
+   return false;
+  }
+  if(!window.ELMOS_LOGGING_REPORT?.openReport){
+   note(ui('Logging-PDF-Modul nicht geladen. Bitte Webseite neu laden.',
+    'Logging PDF module not loaded. Refresh the page.'),true);
+   return false;
+  }
+  try{
+   // Open synchronously on user click, then load local JSONL asynchronously.
+   const ok=window.ELMOS_LOGGING_REPORT.openReport(record,()=>rowsFor(record));
+   if(!ok)note(ui('PDF-Fenster blockiert. Bitte Pop-ups erlauben.',
+    'PDF popup blocked. Please allow popups.'),true);
+   return ok;
+  }catch(error){
+   note(ui('Logging-PDF fehlgeschlagen: ','Logging PDF failed: ')+error.message,true);
+   return false;
+  }
  }
  function exportVerificationPdf(record){
   if(!record||record.type!=='verification'){
@@ -1366,7 +1403,7 @@ const ELMOS_ARCHIVE=(()=>{
   $('archiveWorkspace').hidden=true;
   S.finishedReview=null;
  }
- return {init,open,openVerification:()=>open('verification'),close,begin,ensureCalibration,event,trace,appendTelemetry,streamRows,download,flush,finalise,interrupted,
+ return {init,open,openVerification:()=>open('verification'),close,begin,ensureCalibration,event,trace,appendTelemetry,streamRows,download,exportLoggingPdf,flush,finalise,interrupted,
   get active(){return !!S.record},get current(){return S.record},get view(){return S.view},refresh};
 })();
 if(typeof window!=='undefined'){
