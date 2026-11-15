@@ -66,7 +66,7 @@ async function submit(request, env) {
     });
     const result = await fetch(upload, {
       method: 'POST',
-      redirect: 'error',
+      redirect: 'manual',
       headers: {
         Accept: 'application/vnd.github+json',
         Authorization: 'token ' + env.GITHUB_ISSUES_TOKEN.trim(),
@@ -93,7 +93,7 @@ async function submit(request, env) {
   ].filter(Boolean).join('\n\n');
   const result = await fetch(endpoint, {
     method: 'POST',
-    redirect: 'error',
+    redirect: 'manual',
     headers: {
       Accept: 'application/vnd.github+json',
       Authorization: 'Bearer ' + env.GITHUB_ISSUES_TOKEN.trim(),
@@ -124,8 +124,8 @@ export default {
     if (request.method !== 'POST') return json({ code: 'method' }, 405);
     try {
       return await submit(request, env);
-    } catch (error) {
-      return json({ code: 'service', stage: 'worker', errorType: error.name }, 500);
+    } catch {
+      return json({ code: 'service', stage: 'worker' }, 500);
     }
   },
 };
