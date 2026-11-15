@@ -222,7 +222,8 @@ const ELMOS_ARCHIVE=(()=>{
   }
   if(status==='completed'&&S.record.type==='testlog'&&!(S.record.telemetry?.groups>0))
    status='incomplete';
-  if(status==='completed'&&S.record.type!=='testlog'&&(!Array.isArray(S.record.initial?.nvm?.words)||
+  // A read-only verification can pass without NVM snapshots; calibration/output writes still require them.
+  if(status==='completed'&&['calibration','output'].includes(S.record.type)&&(!Array.isArray(S.record.initial?.nvm?.words)||
    S.record.initial.nvm.words.length!==64||!Array.isArray(S.record.final?.nvm?.words)||
    S.record.final.nvm.words.length!==64))status='incomplete';
   if(status==='completed'&&S.record.type==='verification'){
