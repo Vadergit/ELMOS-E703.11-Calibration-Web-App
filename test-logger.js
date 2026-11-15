@@ -450,8 +450,7 @@ const ELMOS_TEST_LOGGER=(()=>{
   '<section id="tlExports" class="tl-box" hidden><strong>Letzte Aufzeichnung</strong>'+
    '<p>Im Archiv sind die Beschreibung, Marker, Geräteinformationen und vollständigen Rohwerte gespeichert.</p>'+
    '<div class="tl-actions"><button id="tlExportJSON" type="button">JSON inkl. Rohwerte</button>'+
-   '<button id="tlExportCSV" type="button">CSV · alle Infos</button>'+
-    '<button id="tlExportSamplesCSV" type="button">CSV · Messwerte</button>'+
+   '<button id="tlExportCSV" type="button">CSV herunterladen</button>'+
     '<button id="tlExportPDF" type="button">Prüfprotokoll als PDF speichern</button></div></section>'+
   '<div class="tl-message" id="tlMessage" role="status">Verbinde zuerst einen Sensor und wähle einen Archivordner. Beim Start wird die Ausgangskonfiguration dokumentiert.</div>';
  }
@@ -475,7 +474,6 @@ const ELMOS_TEST_LOGGER=(()=>{
   $('tlRefApply').addEventListener('click',()=>{void updateReference()});
   $('tlExportJSON').addEventListener('click',()=>{void exportLast('json')});
   $('tlExportCSV').addEventListener('click',()=>{void exportLast('csv')});
-  $('tlExportSamplesCSV').addEventListener('click',()=>{void exportLast('samples-csv')});
   $('tlExportPDF').addEventListener('click',()=>{void exportLast('pdf')});
   S.lastRecord=null;render();
  }
