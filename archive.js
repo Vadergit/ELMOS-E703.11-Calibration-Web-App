@@ -1112,21 +1112,35 @@ const ELMOS_ARCHIVE=(()=>{
   try{
    if(bridge()?.meta?.()?.uid!==r.chipUID)throw Error('Anderer Sensor verbunden: Die Chip-UID stimmt nicht mit dem gestarteten Prüfprotokoll überein.');
    const sample=await bridge().measure(count);
-   const cfg=r.verificationConfig||{},limit=cfg.dspLimit;
-   if(!Number.isFinite(sample.dspS)||!Number.isFinite(limit)||limit<=0)
-    throw Error('Digitaler DSP_S-Messwert oder DSP-Endwert fehlt.');
-   // Digital measurement only: no voltage / current or ratiometric conversion.
-   sample.sensorPressure=cfg.calibrationMin+(sample.dspS+limit)/(2*limit)*cfg.pressureSpan;
-   sample.pressureUnit=cfg.pressureUnit;
-   const matched=dspRangeMatches(cfg),confirmed=matched||$('arPressureScaleConfirmed').checked;
-   sample.pressureConversionKind=matched?'matched-ram':confirmed?'operator-confirmed':'unverified';
-   sample.pressureConversion=matched?'Übereinstimmende RAM-Skalierung':
-     confirmed?'DSP-Endwert und Druckbereich vom Prüfer bestätigt':'Digitaler Abgleichbereich noch nicht bestätigt';
-   sample.digitalMapping={min:cfg.calibrationMin,max:cfg.calibrationMax,
-    unit:cfg.pressureUnit,limit,source:sample.pressureConversionKind};
-   const expectedUnit=pressureReference.pressureUnit;
-   const matchingUnit=sample.pressureUnit===expectedUnit;
+   const cfg=r.verificationConfig||{};
+   // This is the sensor reading already exposed digitally by the app.
+   // Do not calculate it a second time from DSP_S or a separately entered DSP limit.
+   const value=Number.isFinite(sample.sensorValue)?sample.sensorValue:sample.sensorPressure;
+   const sourceUnit=String(sample.sensorUnit||sample.pressureUnit||'').trim();
+   const sourceKind=sample.pressureConversionKind;
+   let converted=null;
+   if(Number.isFinite(value)&&sourceUnit==='%'){
+    // The displayed sensor value is already in percent; map this physical percentage
+    // to the selected pressure range only after the sensor scale has been confirmed.
+    converted=cfg.calibrationMin+cfg.pressureSpan*value/100;
+   }else if(Number.isFinite(value)&&UNIT_TO_BAR[sourceUnit]&&UNIT_TO_BAR[cfg.pressureUnit]){
+    converted=value*UNIT_TO_BAR[sourceUnit]/UNIT_TO_BAR[cfg.pressureUnit];
+   }
+   sample.sensorValue=Number.isFinite(value)?value:null;
+   sample.sensorUnit=sourceUnit||null;
+   sample.sensorPressure=Number.isFinite(converted)?converted:null;
+   sample.pressureUnit=Number.isFinite(converted)?cfg.pressureUnit:null;
+   sample.pressureValueSource='digital-sensor-value';
+   const matched=sourceKind==='ram'&&sensorRangeMatches(cfg);
+   const confirmed=matched||$('arPressureScaleConfirmed').checked;
+   const matchingUnit=Number.isFinite(converted);
    const pressureConfirmed=confirmed&&matchingUnit;
+   sample.pressureConversion=matched?'Digitaler Sensorwert mit bestätigtem RAM-Abgleich':
+    confirmed?'Angezeigte Sensordruckskalierung manuell bestätigt':
+    'Sensordruckskalierung unbekannt – keine Toleranzbewertung';
+   sample.sensorValueMapping={sourceUnit,pressureUnit:cfg.pressureUnit,
+    calibrationMin:cfg.calibrationMin,calibrationMax:cfg.calibrationMax,
+    confirmed:pressureConfirmed,source:matched?'current-ram':'operator-or-unknown'};
    sample.pressureConfidence=pressureConfirmed?'confirmed':'unverified';
    sample.pressureReferenceMismatch=!matchingUnit;
    sample.expectedPressureUnit=pressureReference.pressureUnit;
