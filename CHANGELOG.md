@@ -1,3 +1,10 @@
+## v0.7.61 – Messdiagramm in archivierten Nachmessungen
+
+- Archivierte Nachmessungen zeigen neu direkt im Detailbereich das Ergebnisdiagramm mit Prüfpunkten, Abweichungen, Toleranzgrenzen und Bewertungsstatus sowie den DSP_S-Rohwertverlauf.
+- Einzelne Prüfpunkte lassen sich im Archivdiagramm anklicken, um das aufgezeichnete Resultat zu prüfen, ohne Mess- oder NVM-Funktionen auszuführen.
+- Ältere Protokolle ohne vollständigen Prüfplan zeigen vorhandene DSP_S-Rohwerte ohne erfundene Sollwerte oder automatische Freigabe.
+- Versionsanzeige, JavaScript-/CSS-Cacheversion und die in neue Archivdateien geschriebene App-Version sind auf v0.7.61 synchronisiert.
+
 ## v0.7.57 – DSP-Prüfung an den Kalibriergrenzen
 
 - Beide Endpunkte des Kalibrierbereichs sind als DSP-Prüfpunkte zulässig, beispielsweise 0 und 6 bar bei einem Bereich von 0 bis 6 bar.
