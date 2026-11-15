@@ -92,3 +92,19 @@
  #archiveWorkspace.ar-guided-verification .ar-guide-progress{flex-wrap:wrap}
  #archiveWorkspace.ar-guided-verification .ar-progress-track{flex-basis:100%;max-width:none}
 }
+
+
+/* Make conditional setup fields genuinely disappear despite grid display styles. */
+#archiveWorkspace.ar-guided-verification [hidden]{display:none!important}
+#archiveWorkspace.ar-guided-verification .ar-ambient-field{padding:12px 14px;background:#f0f7fc;border:1px solid #c8dce9;border-radius:10px;font-size:13px;margin:10px 0}
+#archiveWorkspace.ar-guided-verification .ar-ambient-field small{font-weight:400;color:#5d7488;font-size:11px;line-height:1.5}
+#archiveWorkspace.ar-guided-verification #arPressureFormula{margin:8px 0 14px;max-width:750px}
+#archiveWorkspace.ar-guided-verification .ar-fixed-meta{margin-top:0}
+#archiveWorkspace.ar-guided-verification .ar-ref-inputs:has(> label:only-child){grid-template-columns:1fr}
+#archiveWorkspace .vg-raw{margin-top:16px;border-top:1px solid #e0e9f1;padding-top:14px}
+#archiveWorkspace .vg-raw>strong{font-size:13px;color:#245878}
+#archiveWorkspace .vg-raw-line{stroke:#79a6c3;stroke-width:2;fill:none}
+#archiveWorkspace .vg-raw .vg-chartscroll{margin:6px 0}
+#archiveWorkspace .vg-raw .vg-axis{font-size:11px}
+#archiveWorkspace .vg-raw .vg-marker{cursor:pointer}
+#archiveWorkspace.ar-guided-verification .ar-wizard-card>h3{margin:5px 0 10px}
