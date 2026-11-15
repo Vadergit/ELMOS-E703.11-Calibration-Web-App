@@ -203,7 +203,37 @@ const ELMOS_VERIFICATION_GRAPH=(()=>{
   renderRaw(host,data,active,onSelect);
   return result;
  }
- return {summary,render};
+
+ // Archives from older releases may contain measurement events but no saved test plan.
+ // In that case show the actual DSP measurements only, without inventing setpoints
+ // or claiming that a pressure tolerance was met.
+ function renderArchive(host,record){
+  if(!host)return;
+  if(record?.plan?.steps?.length){
+   render(host,record,-1,null);
+   return;
+  }
+  host.replaceChildren();
+  const attempts=(record?.events||[]).filter(e=>e.kind==='measurement')
+   .map(e=>e.data&&typeof e.data==='object'?e.data:e)
+   .filter(e=>e?.sample&&typeof e.sample==='object');
+  if(!attempts.length){
+   host.append(node('p',local('Für dieses Archivprotokoll sind keine darstellbaren Prüfpunkt-Messwerte gespeichert.',
+    'No plottable verification-point measurements are stored in this archived report.'),'vg-placeholder'));
+   return;
+  }
+  host.append(node('h3',local('Aufgezeichnete Sensorwerte','Recorded sensor readings')));
+  host.append(node('p',local(
+   'Dieses ältere Protokoll enthält keinen vollständigen Prüfplan. Die gespeicherten DSP_S-Rohwerte werden gezeigt, aber ohne erfundene Sollwerte oder Toleranzbewertung.',
+   'This older report has no complete test plan. The saved raw DSP_S values are shown without invented targets or tolerance verdicts.'),'vg-muted'));
+  const items=attempts.map((item,index)=>({
+   index,step:{pressure:Number.isFinite(item.referencePressure)?item.referencePressure:null,
+                temperature:Number.isFinite(item.referenceTemperature)?item.referenceTemperature:null},
+   item,status:item.pass===true?'pass':item.pass===false?'fail':'unknown'
+  }));
+  renderRaw(host,items,0,null);
+ }
+ return {summary,render,renderArchive};
 })();
 if(typeof window!=='undefined')window.ELMOS_VERIFICATION_GRAPH=ELMOS_VERIFICATION_GRAPH;
 if(typeof module!=='undefined'&&module.exports)module.exports=ELMOS_VERIFICATION_GRAPH;
