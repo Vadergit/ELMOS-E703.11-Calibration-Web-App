@@ -759,7 +759,10 @@ const ELMOS_ARCHIVE=(()=>{
    for(const val of [String(data.index+1),refParts.join(' · ')||'–',actual,deviation,testStatus(data.status)]){
     row.append(el('td',val));
    }
+   row.tabIndex=0;
+   row.setAttribute('aria-label',ui('Ergebnis zu Prüfpunkt ','Result for verification point ')+(data.index+1));
    row.addEventListener('click',()=>selectPoint(data.index));
+   row.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();selectPoint(data.index)}});
    rows.append(row);
   }
   selectPoint(0);
@@ -773,7 +776,7 @@ const ELMOS_ARCHIVE=(()=>{
   $('arActive').hidden=!visible;
   const finished=S.view==='verification'&&!!S.finishedReview&&!r;
   $('arFinishedSummary').hidden=!finished;
-  $('arPlanner').hidden=!!r||finished||S.view!=='verification';
+  $('arPlanner').hidden=!!r||finished||S.finishing||S.view!=='verification';
   if(finished)renderFinishedReview(S.finishedReview);
   $('arResults').hidden=S.view!=='archive';
   $('archiveStartCalibration').hidden=S.view!=='archive';
