@@ -1,3 +1,10 @@
+## v0.7.72 – Ein lesbarer CSV-Export pro Protokoll
+
+- Je Archiveintrag nur noch **ein CSV-Button**, auch beim Logging-Abschluss und in der Nachmessungs-Zusammenfassung. Die verwirrenden zusätzlichen CSV-Varianten «Rohdaten», «Übersicht», «alle Infos» und «Messwerte» wurden aus der Bedienoberfläche entfernt.
+- CSV enthält zuerst eine direkt lesbare Messwerttabelle, darunter wenige Protokoll- und Sensorangaben. Bei Nachmessungen werden redundante Soll-/Referenzspalten, konstante Samples- und Zyklusangaben sowie nicht benötigte Bewertungsfelder automatisch weggelassen.
+- Der CSV-Export für Test/Logging, Kalibrierung und Ausgang verwendet ebenfalls kurze, fachlich passende Tabellen statt tausender technischer Rohdatenzeilen. Technische Detailinformationen bleiben im unveränderten JSON/JSONL-Archiv verfügbar.
+- Excel-freundlicher UTF-8-Export mit Semikolon und Schutz vor Formelinterpretation.
+
 ## v0.7.71 – Übersichtlicher CSV-Export für Nachmessungen
 
 - **«CSV · Übersicht»** ist der neue Standardexport für Nachmessungen: kompakte Protokollangaben und eine klare Tabelle mit genau einer Zeile je aufgenommenem Messversuch. Unaufgenommene geplante Prüfpunkte bleiben als leere Zeilen erkennbar.
