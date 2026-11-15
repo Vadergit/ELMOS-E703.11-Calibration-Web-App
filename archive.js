@@ -580,10 +580,34 @@ const ELMOS_ARCHIVE=(()=>{
  }
  function modeUI(){
   const mode=$('arMode').value;
-  $('arPressurePath').disabled=mode==='temperature';
+  const hasPressure=mode!=='temperature';
+  $('arPressurePathLabel').hidden=!hasPressure;
+  $('arTempPathLabel').hidden=mode==='pressure';
+  $('arFixedPressureLabel').hidden=mode!=='temperature';
+  $('arFixedTempLabel').hidden=mode!=='pressure';
+  $('arPressureReferenceSettings').hidden=!hasPressure;
+  $('arPressurePath').disabled=!hasPressure;
   $('arTempPath').disabled=mode==='pressure';
   $('arFixedPressure').disabled=mode!=='temperature';
   $('arFixedTemp').disabled=mode!=='pressure';
+  const correction=hasPressure&&$('arSensorType').value!==$('arReferenceKind').value;
+  $('arAmbientPressureLabel').hidden=!correction;
+  const unit=$('arPressureUnit')?.value||'bar';
+  const supported=unit!=='%';
+  $('arPressureFormula').textContent=!hasPressure?'':correction?
+    (supported?ui('Für diese Kombination wird der gemessene Umgebungsdruck bei der Druckauswertung '+($('arSensorType').value==='absolute'?'addiert.':'subtrahiert.'),'The measured ambient pressure is '+($('arSensorType').value==='absolute'?'added':'subtracted')+' when evaluating this pressure reference.'):
+    ui('Absolutdruckkorrektur ist mit Prozent als Druckeinheit nicht möglich. Bitte eine Druckeinheit wählen.','Absolute-pressure correction cannot use % as a pressure unit. Select a pressure unit.')):
+    ui('Sensortyp und Kalibrator verwenden dieselbe Druckreferenz: keine Umgebungsdruck-Korrektur erforderlich.','Sensor and calibrator use the same pressure reference: no ambient-pressure correction is required.');
+ }
+ function effectivePressure(reference,mode){
+  const sensorType=$('arSensorType')?.value||'gauge',referenceKind=$('arReferenceKind')?.value||'gauge';
+  const pressureUnit=$('arPressureUnit')?.value||'bar';
+  const needAmbient=mode!=='temperature'&&sensorType!==referenceKind;
+  const ambient=Number($('arAmbientPressure')?.value);
+  if(needAmbient&&(!Number.isFinite(ambient)||ambient<=0||pressureUnit==='%'))throw Error(ui('Für diesen Sensortyp ist ein gültiger gemessener Umgebungsdruck in derselben Druckeinheit erforderlich.','A valid measured ambient pressure in the same pressure unit is required for this sensor type.'));
+  const delta=needAmbient?(sensorType==='absolute'?ambient:-ambient):0;
+  return {value:reference+delta,ambientPressure:needAmbient?ambient:null,pressureUnit,
+   sensorType,referenceKind,correctionApplied:needAmbient,correction:delta};
  }
  function config(){
   return {mode:$('arMode').value,
@@ -598,10 +622,13 @@ const ELMOS_ARCHIVE=(()=>{
    const spanField=$('arPressureSpan');
    if(spanField&&spanField.dataset.custom!=='1')spanField.value=String(pressureSpan);
    text('arPlanStatus',p.steps.length+' '+ui('Prüfpunkte','verification points')+' · '+p.cycles+
-    ' '+ui('Zyklen','cycles')+' · '+p.pressure.length+' '+ui('Druckstufen','pressure levels')+
-    ' · '+p.temperature.length+' '+ui('Temperaturstufen','temperature levels')+'.');
-   const nodes=p.steps.slice(0,30).map(s=>(s.index+1)+'. '+s.pressure+' / '+s.temperature+
-    ' °C · Druck '+s.pressureDirection+' · Temperatur '+s.temperatureDirection);
+    ' '+ui('Zyklen','cycles')+
+    (p.mode==='temperature'?'':' · '+p.pressure.length+' '+ui('Druckstufen','pressure levels'))+
+    (p.mode==='pressure'?'':' · '+p.temperature.length+' '+ui('Temperaturstufen','temperature levels'))+'.');
+   const nodes=p.steps.slice(0,30).map(s=>(s.index+1)+'. '+
+    (p.mode==='temperature'?'':ui('Druck ','Pressure ')+s.pressure+' · ')+
+    (s.temperature===null?'':ui('Temperatur ','Temperature ')+s.temperature+' °C')+
+    (p.mode==='pressure'?'': ' · '+ui('Temperatur-Richtung ','Temperature direction ')+s.temperatureDirection));
    text('arPlanPreview',nodes.join('\n')+(p.steps.length>30?'\n… weitere Punkte im Ablauf':''));
   }catch(e){S.draft=null;text('arPlanStatus',e.message);text('arPlanPreview','')}
  }
@@ -781,14 +808,19 @@ const ELMOS_ARCHIVE=(()=>{
   preview();
   if(!S.draft)throw Error(ui('Bitte den Prüfplan korrigieren.','Please correct the test plan.'));
   const span=Number($('arPressureSpan').value);
+  if(S.draft.mode!=='temperature')effectivePressure(0,S.draft.mode);
   if(S.draft.mode!=='temperature'&&(!Number.isFinite(span)||span<=0))
    throw Error(ui('Eine positive Druck-Messspanne ist für die Prozenttoleranz erforderlich.','A positive full-scale pressure span is required for the percentage tolerance.'));
   const percent=Number($('arToleranceP').value);
   if(!Number.isFinite(percent)||percent<0)throw Error(ui('Ungültige Drucktoleranz.','Invalid pressure tolerance.'));
   await begin('verification',S.draft);
   if(!S.record)return;
+  const correction=effectivePressure(0,S.draft.mode);
   S.record.verificationConfig={pressureTolerancePercent:percent,pressureSpan:span,
-   toleranceBasis:'percent_full_scale',temperatureTolerance:Number($('arToleranceT').value)};
+   toleranceBasis:'percent_full_scale',temperatureTolerance:Number($('arToleranceT').value),
+   pressureUnit:correction.pressureUnit,sensorType:correction.sensorType,
+   referenceKind:correction.referenceKind,ambientPressure:correction.ambientPressure,
+   correctionApplied:correction.correctionApplied,ambientTemperature:S.draft.mode==='pressure'?(S.draft.temperature[0]??null):null};
   await flush();
   renderActive();
   note(ui('Nachmessung gestartet. Referenzwerte manuell am Prüfstand einstellen.','Verification started. Apply the reference values manually at the test bench.'));
