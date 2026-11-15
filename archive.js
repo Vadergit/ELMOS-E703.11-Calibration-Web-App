@@ -931,6 +931,9 @@ const ELMOS_ARCHIVE=(()=>{
   const entries=[
    [ui('Kalibrierwerkzeug (automatisch erkannt)','Calibration tool (automatically detected)'),formatCalibrationTool(tool)],
    [ui('Adapter-Firmware','Adapter firmware'),tool.adapterFirmware],
+   [ui('Abgleichbereich','Calibrated pressure range'),Number.isFinite(record.verificationConfig?.calibrationMin)?shownNumber(record.verificationConfig.calibrationMin)+' – '+shownNumber(record.verificationConfig.calibrationMax)+' '+unit:null],
+   [ui('Prüfpunkt-Eingabe','Point input unit'),record.verificationConfig?.pressureEntryMode==='percent'?'%':unit],
+   [ui('DSP-Endwert','DSP limit'),Number.isFinite(record.verificationConfig?.dspLimit)?'±'+record.verificationConfig.dspLimit+' Digits':null],
    [ui('Prüfer','Examiner'),operator.operator],
    [ui('Auftrag / Projekt','Order / Project'),operator.project],
    [ui('Prüfort','Test location'),operator.location],
@@ -1078,7 +1081,7 @@ const ELMOS_ARCHIVE=(()=>{
   const tValue=$('arRefTemp').value.trim();
   const t=tValue===''?null:Number(tValue);
   const tolerancePercent=Number($('arToleranceP').value),toleranceT=Number($('arToleranceT').value),
-   pressureSpan=Number($('arPressureSpan').value),count=Number($('arSamples').value);
+   pressureSpan=Number(r.verificationConfig?.pressureSpan),count=Number($('arSamples').value);
   const mode=r.plan.mode;
   // Pressure tolerance is expressed in % FS; a zero-pressure reference is valid.
   const toleranceP=mode==='temperature'?null:pressureSpan*tolerancePercent/100;
@@ -1094,13 +1097,23 @@ const ELMOS_ARCHIVE=(()=>{
   S.measuring=true;$('arMeasure').disabled=true;
   note('Messung '+(attempts+1)+' läuft …');
   try{
+   if(bridge()?.meta?.()?.uid!==r.chipUID)throw Error('Anderer Sensor verbunden: Die Chip-UID stimmt nicht mit dem gestarteten Prüfprotokoll überein.');
    const sample=await bridge().measure(count);
-   const conversionConfirmed=$('arPressureScaleConfirmed').checked||sample.pressureConversionKind==='ram';
-   const sensorUnit=String(sample.pressureUnit||'').trim().toLowerCase();
-   const expectedUnit=pressureReference.pressureUnit.toLowerCase();
-   const matchingUnit=sensorUnit===expectedUnit;
-   // Never compare sensor % to a bar reference; the raw DSP plot remains available.
-   const pressureConfirmed=conversionConfirmed&&matchingUnit;
+   const cfg=r.verificationConfig||{},limit=cfg.dspLimit;
+   if(!Number.isFinite(sample.dspS)||!Number.isFinite(limit)||limit<=0)
+    throw Error('Digitaler DSP_S-Messwert oder DSP-Endwert fehlt.');
+   // Digital measurement only: no voltage / current or ratiometric conversion.
+   sample.sensorPressure=cfg.calibrationMin+(sample.dspS+limit)/(2*limit)*cfg.pressureSpan;
+   sample.pressureUnit=cfg.pressureUnit;
+   const matched=dspRangeMatches(cfg),confirmed=matched||$('arPressureScaleConfirmed').checked;
+   sample.pressureConversionKind=matched?'matched-ram':confirmed?'operator-confirmed':'unverified';
+   sample.pressureConversion=matched?'Übereinstimmende RAM-Skalierung':
+     confirmed?'DSP-Endwert und Druckbereich vom Prüfer bestätigt':'Digitaler Abgleichbereich noch nicht bestätigt';
+   sample.digitalMapping={min:cfg.calibrationMin,max:cfg.calibrationMax,
+    unit:cfg.pressureUnit,limit,source:sample.pressureConversionKind};
+   const expectedUnit=pressureReference.pressureUnit;
+   const matchingUnit=sample.pressureUnit===expectedUnit;
+   const pressureConfirmed=confirmed&&matchingUnit;
    sample.pressureConfidence=pressureConfirmed?'confirmed':'unverified';
    sample.pressureReferenceMismatch=!matchingUnit;
    sample.expectedPressureUnit=pressureReference.pressureUnit;
@@ -1133,7 +1146,7 @@ const ELMOS_ARCHIVE=(()=>{
     temperatureTolerance:toleranceT,
     pressureError:errP,temperatureError:errT,pressureVerdict:pPass,temperatureVerdict:tPass,
     pass,sample});
-   const errPercent=Number.isFinite(errP)&&pressureSpan>0?Math.abs(errP)/pressureSpan*100:null;
+   const errPercent=Number.isFinite(errP)&&pressureSpan>0?errP/pressureSpan*100:null;
    note(ui('Prüfpunkt ','Point ')+(S.step+1)+' · '+
     (pass===true?ui('Bestanden','Passed'):pass===false?ui('Ausser Toleranz','Out of tolerance'):ui('Nicht bewertet','Not assessed'))+
     (mode==='temperature'?' · '+ui('Temperaturabweichung ','Temperature deviation ')+(errT===null?'–':errT.toFixed(3)+' °C'):
@@ -1169,7 +1182,10 @@ const ELMOS_ARCHIVE=(()=>{
   // Revalidate the draft and full-scale configuration before creating an archive record.
   preview();
   if(!S.draft)throw Error(ui('Bitte den Prüfplan korrigieren.','Please correct the test plan.'));
-  const span=Number($('arPressureSpan').value);
+  const calibrated=calRange(),span=calibrated.span;
+  const dspLimit=Number($('arDspLimit').value);
+  if(!Number.isInteger(dspLimit)||dspLimit<1000||dspLimit>32000)
+   throw Error('Der digitale DSP-Endwert muss zwischen 1000 und 32000 Digits liegen.');
   if(S.draft.mode!=='temperature')effectivePressure(0,S.draft.mode);
   if(S.draft.mode!=='temperature'&&(!Number.isFinite(span)||span<=0))
    throw Error(ui('Eine positive Druck-Messspanne ist für die Prozenttoleranz erforderlich.','A positive full-scale pressure span is required for the percentage tolerance.'));
@@ -1182,6 +1198,10 @@ const ELMOS_ARCHIVE=(()=>{
   S.record.verificationMetadata=optionalVerificationMetadata();
   S.record.calibrationTool=calibrationToolFromMeta(bridge()?.meta?.());
   S.record.verificationConfig={pressureTolerancePercent:percent,pressureSpan:span,
+   calibrationMin:calibrated.min,calibrationMax:calibrated.max,dspLimit,
+   pressureEntryMode:S.draft.pressureEntryMode,inputPressurePath:S.draft.originalPressurePath,
+   digitalReadout:'DSP_S',digitalRangeAutoVerified:dspRangeMatches({calibrationMin:calibrated.min,
+    calibrationMax:calibrated.max,pressureSpan:span,pressureUnit:calibrated.unit,dspLimit}),
    toleranceBasis:'percent_full_scale',temperatureTolerance:Number($('arToleranceT').value),
    pressureUnit:correction.pressureUnit,sensorType:correction.sensorType,
    referenceKind:correction.referenceKind,ambientPressure:correction.ambientPressure,
