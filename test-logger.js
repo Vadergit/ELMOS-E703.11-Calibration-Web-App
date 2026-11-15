@@ -394,8 +394,13 @@ const ELMOS_TEST_LOGGER=(()=>{
  }
  async function exportLast(format){
   if(!S.lastRecord)return;
-  try{await archive().download(S.lastRecord,format)}
-  catch(e){announce('Export fehlgeschlagen: '+e.message,true)}
+  try{
+   if(format==='pdf'){
+    archive().exportLoggingPdf(S.lastRecord);
+    return;
+   }
+   await archive().download(S.lastRecord,format);
+  }catch(e){announce('Export fehlgeschlagen: '+e.message,true)}
  }
  function UI(){
   return '<div class="tl-lead"><strong id="tlStatus">Bereit</strong><span>Sensor-Tests und Telemetrie ohne NVM-Schreibvorgänge</span></div>'+
@@ -445,7 +450,9 @@ const ELMOS_TEST_LOGGER=(()=>{
   '<section id="tlExports" class="tl-box" hidden><strong>Letzte Aufzeichnung</strong>'+
    '<p>Im Archiv sind die Beschreibung, Marker, Geräteinformationen und vollständigen Rohwerte gespeichert.</p>'+
    '<div class="tl-actions"><button id="tlExportJSON" type="button">JSON inkl. Rohwerte</button>'+
-   '<button id="tlExportCSV" type="button">CSV mit Messpunkten</button></div></section>'+
+   '<button id="tlExportCSV" type="button">CSV · alle Infos</button>'+
+    '<button id="tlExportSamplesCSV" type="button">CSV · Messwerte</button>'+
+    '<button id="tlExportPDF" type="button">Prüfprotokoll als PDF speichern</button></div></section>'+
   '<div class="tl-message" id="tlMessage" role="status">Verbinde zuerst einen Sensor und wähle einen Archivordner. Beim Start wird die Ausgangskonfiguration dokumentiert.</div>';
  }
  function mount(host){
@@ -468,6 +475,8 @@ const ELMOS_TEST_LOGGER=(()=>{
   $('tlRefApply').addEventListener('click',()=>{void updateReference()});
   $('tlExportJSON').addEventListener('click',()=>{void exportLast('json')});
   $('tlExportCSV').addEventListener('click',()=>{void exportLast('csv')});
+  $('tlExportSamplesCSV').addEventListener('click',()=>{void exportLast('samples-csv')});
+  $('tlExportPDF').addEventListener('click',()=>{void exportLast('pdf')});
   S.lastRecord=null;render();
  }
  function unmount(){
