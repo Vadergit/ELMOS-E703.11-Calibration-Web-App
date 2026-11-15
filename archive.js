@@ -656,6 +656,12 @@ const ELMOS_ARCHIVE=(()=>{
    '<option value="pressure">Druck</option></select></label>';
   group.before(row);
   const hint=el('p',null,'ar-inline-tip');hint.id='arDigitalRangeHint';row.after(hint);
+  const toleranceToggle=el('label',null,'ar-check');
+  toleranceToggle.innerHTML='<input type="checkbox" id="arEnableTolerance"> Toleranzbewertung aktivieren (optional)';
+  $('arEvaluationSettings').querySelector('.ar-grid').before(toleranceToggle);
+  const toleranceHint=el('p','Ohne aktivierte Toleranz werden nur Messwerte und Abweichungen erfasst. Es gibt keinen Bestanden-/Nicht-bestanden-Entscheid.','ar-inline-tip');
+  toleranceToggle.after(toleranceHint);
+  $('arToleranceP').disabled=true;$('arToleranceT').disabled=true;
   $('arPressurePathLabel').firstChild.textContent='Druckreihe (hin und zurück, % der Messspanne, kommagetrennt)';
   $('arPressurePath').value='0, 25, 50, 75, 100, 75, 50, 25, 0';
   $('arPressureSpan').readOnly=true;
@@ -815,7 +821,7 @@ const ELMOS_ARCHIVE=(()=>{
  const shownNumber=(value,places=4)=>Number.isFinite(value)?
   value.toLocaleString(document.documentElement.lang==='en'?'en-US':'de-CH',{maximumFractionDigits:places}):'–';
  const testStatus=(state)=>state==='pass'?ui('Bestanden','Passed'):state==='fail'?
-  ui('Ausser Toleranz','Out of tolerance'):state==='unknown'?
+  ui('Ausser Toleranz','Out of tolerance'):state==='recorded'?ui('Erfasst','Recorded'):state==='unknown'?
   ui('Nicht bewertet','Not assessed'):ui('Offen','Pending');
  function capturedValue(item,mode){
   const sample=item?.sample;
@@ -844,7 +850,8 @@ const ELMOS_ARCHIVE=(()=>{
   const at=sample.at?new Date(sample.at):null;
   const capturedAt=at&&!Number.isNaN(at.getTime())?
    ui(' · aufgenommen ',' · captured ')+at.toLocaleTimeString(document.documentElement.lang==='en'?'en-US':'de-CH'):'';
-  const comparison=(entry.pass===true?ui('Bestanden','Passed'):entry.pass===false?
+  const comparison=entry.toleranceApplied===false?ui('Messung erfasst','Measurement recorded'):
+   (entry.pass===true?ui('Bestanden','Passed'):entry.pass===false?
    ui('Ausser Toleranz','Out of tolerance'):ui('Nicht bewertet','Not assessed'));
   text('arMeasuredContext',comparison+(raw?' · '+raw:'')+capturedAt);
  }
@@ -934,11 +941,9 @@ const ELMOS_ARCHIVE=(()=>{
    ' · '+summary.measured+' / '+summary.total+' '+ui('Prüfpunkte gemessen','points measured'));
   const stats=$('arFinishedStats');stats.replaceChildren();
   for(const [count,label,css] of [
-   [summary.total,ui('Geplante Prüfpunkte','Planned points'),'total'],
-   [summary.passed,ui('Bestanden','Passed'),'pass'],
-   [summary.failed,ui('Ausser Toleranz','Out of tolerance'),'fail'],
-   [summary.unknown,ui('Nicht bewertet','Not assessed'),'unknown'],
-   [summary.pending,ui('Ohne Messung','Not measured'),'pending']
+   [summary.total,ui('Prüfpunkte geplant','Points planned'),'total'],
+   [summary.measured,ui('Prüfpunkte erfasst','Points recorded'),'total'],
+   [summary.pending,ui('Noch offen','Remaining'),'pending']
   ]){
    const tile=el('div',null,'ar-finished-stat '+css);
    tile.append(el('strong',count),el('span',label));
@@ -1035,8 +1040,7 @@ const ELMOS_ARCHIVE=(()=>{
   const progress=(overview.total>0?overview.measured/overview.total:0)*100;
   text('arOverallProgress',ui('Prüfablauf: ','Test progress: ')+overview.measured+' / '+overview.total);
   $('arProgressFill').style.width=progress.toFixed(1)+'%';
-  text('arOverallVerdict',overview.passed+' '+ui('bestanden','passed')+' · '+overview.failed+' '+ui('ausser Toleranz','out of tolerance')+
-   (overview.unknown?' · '+overview.unknown+' '+ui('nicht bewertet','not assessed'):''));
+  text('arOverallVerdict',overview.measured+' '+ui('erfasst','recorded'));
   renderStepStrip(overview);
   if(!done){
    text('arStepHeading',ui('Prüfpunkt ','Point ')+(S.step+1)+' / '+total);
@@ -1069,11 +1073,13 @@ const ELMOS_ARCHIVE=(()=>{
    text('arAttemptNote',attempts?
      attempts+' '+ui('Versuch(e) gespeichert. Du kannst wiederholen oder weitergehen.','attempt(s) saved. You can repeat or continue.'):
      ui('Noch keine Messung. Stelle die Sollwerte ein und starte die Aufnahme.','No measurement yet. Set the target values and start capture.'));
-   text('arEvaluationHint',status==='fail'?
+   text('arEvaluationHint',status==='recorded'?
+    ui('Messwert erfasst. Es ist keine Toleranzbewertung aktiviert.','Reading recorded. Tolerance assessment is disabled.'):
+    status==='fail'?
     ui('Ausserhalb der Toleranz: Bedingungen prüfen und bei Bedarf erneut messen.','Out of tolerance: check conditions and repeat if needed.'):
     status==='pass'?ui('Prüfpunkt bestanden. Du kannst mit dem nächsten Punkt fortfahren.','Point passed. You can continue to the next point.'):
     status==='unknown'?ui('Die Auswertung ist offen. Kontrolliere die bestätigte Druck-/Temperaturumrechnung unter «Weitere Einstellungen».','Assessment pending. Check the verified pressure/temperature conversion under Additional settings.'):
-    ui('Hinweis: Maximal 0,2 % FS Druckabweichung als Standard. Unter «Weitere Einstellungen» anpassbar.','Note: default maximum pressure deviation is 0.2% FS. Change under Additional settings.'));
+    ui('Messwerte und Abweichungen werden ohne Toleranzbewertung erfasst.','Readings and deviations are recorded without tolerance assessment.'));
    $('arPrevious').disabled=S.measuring||S.finishing||S.step===0;
    $('arNext').disabled=S.measuring||S.finishing;
    $('arNext').textContent=S.step===total-1?
@@ -1098,18 +1104,21 @@ const ELMOS_ARCHIVE=(()=>{
   const p=Number($('arRefPressure').value);
   const tValue=$('arRefTemp').value.trim();
   const t=tValue===''?null:Number(tValue);
-  const tolerancePercent=Number($('arToleranceP').value),toleranceT=Number($('arToleranceT').value),
-   pressureSpan=Number(r.verificationConfig?.pressureSpan),count=Number($('arSamples').value);
+  const toleranceEnabled=$('arEnableTolerance').checked;
+  const tolerancePercent=toleranceEnabled?Number($('arToleranceP').value):null;
+  const toleranceT=toleranceEnabled?Number($('arToleranceT').value):null;
+  const pressureSpan=Number(r.verificationConfig?.pressureSpan),count=Number($('arSamples').value);
   const mode=r.plan.mode;
   // Pressure tolerance is expressed in % FS; a zero-pressure reference is valid.
-  const toleranceP=mode==='temperature'?null:pressureSpan*tolerancePercent/100;
+  const toleranceP=mode==='temperature'||!toleranceEnabled?null:pressureSpan*tolerancePercent/100;
   let pressureReference;
   try{pressureReference=effectivePressure(p,mode)}
   catch(error){return note(error.message,true)}
   if(!Number.isFinite(p)||(mode!=='pressure'&&!Number.isFinite(t))||
-   !Number.isFinite(tolerancePercent)||tolerancePercent<0||
+   (toleranceEnabled&&(!Number.isFinite(tolerancePercent)||tolerancePercent<0||
+    !Number.isFinite(toleranceT)||toleranceT<0))||
    (mode!=='temperature'&&(!Number.isFinite(pressureSpan)||pressureSpan<=0))||
-   !Number.isFinite(toleranceT)||toleranceT<0||!Number.isInteger(count)||count<1||count>100)
+   !Number.isInteger(count)||count<1||count>100)
    return note(ui('Referenzen, Toleranz oder Messspanne ungültig. Bitte «Weitere Einstellungen» prüfen.','Invalid reference, tolerance or pressure span. Check Additional settings.'),true);
   const attempts=r.events.filter(e=>e.kind==='measurement'&&(e.data?.stepIndex??e.stepIndex)===S.step).length;
   S.measuring=true;$('arMeasure').disabled=true;
@@ -1163,11 +1172,14 @@ const ELMOS_ARCHIVE=(()=>{
     dspTOffsetDigits:tempOffset,source:'Manuelle Bestätigung, nicht vom System validiert'}:
     {operatorConfirmed:false,source:'Rohdaten ohne kalibrierte °C-Umrechnung'};
    const errT=mode!=='pressure'&&Number.isFinite(sample.sensorTempC)&&Number.isFinite(t)?sample.sensorTempC-t:null;
-   const pPass=errP===null?null:Math.abs(errP)<=toleranceP+1e-12;
-   const tPass=errT===null?null:Math.abs(errT)<=toleranceT+1e-12;
+   const pPass=!toleranceEnabled||errP===null?null:Math.abs(errP)<=toleranceP+1e-12;
+   const tPass=!toleranceEnabled||errT===null?null:Math.abs(errT)<=toleranceT+1e-12;
    const pass=mode==='pressure'?pPass:mode==='temperature'?tPass:
     (pPass===false||tPass===false)?false:(pPass===null||tPass===null)?null:true;
-   await event('measurement',{stepIndex:S.step,attempt:attempts+1,
+   r.verificationConfig.toleranceEnabled=toleranceEnabled;
+   r.verificationConfig.pressureTolerancePercent=toleranceEnabled?tolerancePercent:null;
+   r.verificationConfig.temperatureTolerance=toleranceEnabled?toleranceT:null;
+   await event('measurement',{stepIndex:S.step,attempt:attempts+1,toleranceApplied:toleranceEnabled,
     referencePressure:pressureReference.value,referencePressureInput:p,referenceTemperature:t,
     referenceSource:$('arReferenceSource').value||'Manuelle Eingabe',setpoint:step,
     pressureSensorType:pressureReference.sensorType,pressureReferenceKind:pressureReference.referenceKind,
@@ -1180,9 +1192,12 @@ const ELMOS_ARCHIVE=(()=>{
     pass,sample});
    const errPercent=Number.isFinite(errP)&&pressureSpan>0?errP/pressureSpan*100:null;
    note(ui('Prüfpunkt ','Point ')+(S.step+1)+' · '+
-    (pass===true?ui('Bestanden','Passed'):pass===false?ui('Ausser Toleranz','Out of tolerance'):ui('Nicht bewertet','Not assessed'))+
+    (!toleranceEnabled?ui('Messung erfasst','Measurement recorded'):
+     pass===true?ui('Bestanden','Passed'):pass===false?
+     ui('Ausser Toleranz','Out of tolerance'):ui('Nicht bewertet','Not assessed'))+
     (mode==='temperature'?' · '+ui('Temperaturabweichung ','Temperature deviation ')+(errT===null?'–':errT.toFixed(3)+' °C'):
-    ' · '+ui('Druckabweichung ','Pressure deviation ')+(errPercent===null?'–':errPercent.toFixed(4)+' % FS')+' / '+tolerancePercent+' % FS')+
+    ' · '+ui('Druckabweichung ','Pressure deviation ')+(errPercent===null?'–':errPercent.toFixed(4)+' % FS')+
+      (toleranceEnabled?' / '+tolerancePercent+' % FS':''))+
     (!matchingUnit&&mode!=='temperature'?' · '+ui('Einheiten nicht identisch: ','Units differ: ')+(sample.pressureUnit||'–')+' / '+expectedUnit:''),
     pass===false);
   }catch(e){
@@ -1219,20 +1234,23 @@ const ELMOS_ARCHIVE=(()=>{
   if(S.draft.mode!=='temperature'&&(!Number.isFinite(span)||span<=0))
    throw Error(ui('Eine positive Druck-Messspanne ist für die Prozenttoleranz erforderlich.','A positive full-scale pressure span is required for the percentage tolerance.'));
   refreshDetectedCalibrationTool();
-  const percent=Number($('arToleranceP').value);
-  if(!Number.isFinite(percent)||percent<0)throw Error(ui('Ungültige Drucktoleranz.','Invalid pressure tolerance.'));
+  const enabled=$('arEnableTolerance').checked;
+  const percent=enabled?Number($('arToleranceP').value):null;
+  if(enabled&&(!Number.isFinite(percent)||percent<0||
+   !Number.isFinite(Number($('arToleranceT').value))||Number($('arToleranceT').value)<0))
+   throw Error(ui('Ungültige Toleranz.','Invalid tolerance.'));
   await begin('verification',S.draft);
   if(!S.record)return;
   const correction=effectivePressure(0,S.draft.mode);
   S.record.verificationMetadata=optionalVerificationMetadata();
   S.record.calibrationTool=calibrationToolFromMeta(bridge()?.meta?.());
-  S.record.verificationConfig={pressureTolerancePercent:percent,pressureSpan:span,
+  S.record.verificationConfig={toleranceEnabled:enabled,pressureTolerancePercent:percent,pressureSpan:span,
    calibrationMin:calibrated.min,calibrationMax:calibrated.max,
    pressureEntryMode:S.draft.pressureEntryMode,inputPressurePath:S.draft.originalPressurePath,
    digitalReadout:'Digitaler Sensorwert',
    digitalRangeAutoVerified:sensorRangeMatches({calibrationMin:calibrated.min,
     calibrationMax:calibrated.max,pressureSpan:span,pressureUnit:calibrated.unit}),
-   toleranceBasis:'percent_full_scale',temperatureTolerance:Number($('arToleranceT').value),
+   toleranceBasis:'percent_full_scale',temperatureTolerance:enabled?Number($('arToleranceT').value):null,
    pressureUnit:correction.pressureUnit,sensorType:correction.sensorType,
    referenceKind:correction.referenceKind,ambientPressure:correction.ambientPressure,
    correctionApplied:correction.correctionApplied,ambientTemperature:S.draft.mode==='pressure'?(S.draft.temperature[0]??null):null};
@@ -1292,6 +1310,11 @@ const ELMOS_ARCHIVE=(()=>{
 
   // Span always follows the calibration endpoints.
   $('arToleranceP').addEventListener('input',()=>{if(S.record?.type==='verification')renderStep()});
+  $('arEnableTolerance').addEventListener('change',()=>{
+   const enabled=$('arEnableTolerance').checked;
+   $('arToleranceP').disabled=!enabled;$('arToleranceT').disabled=!enabled;
+   if(S.record?.type==='verification')renderStep();
+  });
   $('arNext').addEventListener('click',()=>advance().catch(e=>note(e.message,true)));
   $('arPrevious').addEventListener('click',previous);
   $('arEndVerification').addEventListener('click',()=>endVerification().catch(e=>note(e.message,true)));
