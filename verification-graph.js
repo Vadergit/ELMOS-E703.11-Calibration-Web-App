@@ -24,12 +24,27 @@ const ELMOS_VERIFICATION_GRAPH=(()=>{
    const pressurePct=item&&finite(item.pressureError)&&itemSpan>0?100*item.pressureError/itemSpan:null;
    const tempError=item&&finite(item.temperatureError)?item.temperatureError:null;
    const value=mode==='temperature'?tempError:pressurePct;
+   // A sensor reading displayed in % cannot be directly compared to a reference in bar.
+   // It is still useful to plot the *unverified* deviation on the % FS axis.
+   // Only use that fallback when the recorded sample really has unit %.
+   const measuredPercent=item?.sample?.pressureUnit==='%'&&finite(item.sample.sensorPressure)?
+     item.sample.sensorPressure:null;
+   const pressureSetpoint=finite(item?.referencePressureInput)?item.referencePressureInput:
+    finite(item?.referencePressure)?item.referencePressure:step.pressure;
+   const referenceMin=steps.length?Math.min(...steps.map(p=>p.pressure)):null;
+   const referencePercent=finite(referenceMin)&&span>0&&finite(pressureSetpoint)?
+     (pressureSetpoint-referenceMin)/span*100:null;
+   const previewPercent=mode!=='temperature'&&!finite(pressurePct)&&
+     finite(measuredPercent)&&finite(referencePercent)?measuredPercent-referencePercent:null;
+   const plotValue=finite(value)?value:previewPercent;
+   const valueSource=finite(value)?'verified':finite(previewPercent)?'unverified-percent':'none';
    const tolerance=mode==='temperature'?
     (finite(item?.temperatureTolerance)?item.temperatureTolerance:1):
     (finite(item?.pressureTolerancePercent)?item.pressureTolerancePercent:
      finite(item?.pressureTolerance)&&itemSpan>0?100*item.pressureTolerance/itemSpan:
      Number.isFinite(record?.verificationConfig?.pressureTolerancePercent)?record.verificationConfig.pressureTolerancePercent:0.2);
    return {index:i,step,item,tries:tries.length,value,tolerance,pressurePct,tempError,
+    plotValue,valueSource,measuredPercent,referencePercent,previewPercent,
     status:!item?'pending':item.pass===true?'pass':item.pass===false?'fail':'unknown'};
   });
   return {data,span,mode,passed:data.filter(x=>x.status==='pass').length,failed:data.filter(x=>x.status==='fail').length,
@@ -99,9 +114,9 @@ const ELMOS_VERIFICATION_GRAPH=(()=>{
   if(mode!=='temperature'&&!(result.span>0)){
    host.append(node('p',local('Für die Prozentbewertung fehlt eine gültige Druck-Messspanne. Gib diese unter «Weitere Einstellungen» ein.','A valid pressure full-scale span is required for percentage evaluation. Enter it under Additional settings.'),'vg-warning'));
   }
-  const lastAttempts=data.filter(x=>x.item);
-  const displayValue=data.some(x=>finite(x.value)&&finite(x.tolerance));
-  const spanMax=Math.max(0.3,...data.map(x=>Math.max(Math.abs(x.value||0),Math.abs(x.tolerance||0))),0.2)*1.25;
+  // Autoscale both verified errors and provisional percent-display differences.
+  // A provisional point must not be silently clamped to zero.
+  const spanMax=Math.max(0.3,...data.map(x=>Math.max(Math.abs(x.plotValue||0),Math.abs(x.tolerance||0))),0.2)*1.20;
   const max=Math.ceil(spanMax*20)/20;
   const windowSize=48;
   const first=data.length<=windowSize?0:Math.min(data.length-windowSize,Math.max(0,active-Math.floor(windowSize/2)));
@@ -124,17 +139,26 @@ const ELMOS_VERIFICATION_GRAPH=(()=>{
    canvas.append(svg('line',{x1:xx,y1:y(-tol),x2:xx,y2:y(tol),class:'vg-tolerance', 'stroke-width':data.length>40?8:14}));
    if((p.index-first)%labelEvery===0||p.index===data.length-1)
     canvas.append(svg('text',{x:xx,y:height-bottom+23,'text-anchor':'middle',class:'vg-axis'},String(p.index+1)));
-   const center=finite(p.value)?p.value:0;
-   const marker=svg('circle',{cx:xx,cy:y(center),r:data.length>60?5:7.2,
-    class:'vg-marker '+p.status+(p.index===active?' selected':''),
+   // Do not put pending or unmeasurable points on the 0% line.
+   if(!finite(p.plotValue))continue;
+   const preview=p.valueSource==='unverified-percent';
+   const marker=svg('circle',{cx:xx,cy:y(p.plotValue),r:data.length>60?5:7.2,
+    class:'vg-marker '+p.status+(preview?' provisional':'')+(p.index===active?' selected':''),
     tabindex:0,role:'button','aria-label':local('Prüfpunkt ','Verification point ')+(p.index+1)});
    const tt=local('Punkt ','Point ')+(p.index+1)+' · '+local('Soll','Target')+': '+decimal(p.step.pressure,3)+(p.step.temperature==null?'':' / '+decimal(p.step.temperature,2)+' °C')+' · '+
-    (p.item?local('Abweichung','Deviation')+': '+(finite(p.value)?decimal(p.value,4)+' '+axisUnits:local('nicht bewertet','not evaluated'))+
-      ' · '+(p.status==='pass'?local('Bestanden','Passed'):p.status==='fail'?local('Ausser Toleranz','Out of tolerance'):local('Nicht bewertet','Not evaluated')):local('Noch offen','Pending'));
+    (preview?local('Ungeprüfte Abweichung der Prozentanzeige','Unverified percent-display deviation'):local('Abweichung','Deviation'))+': '+decimal(p.plotValue,4)+' '+axisUnits+' · '+
+    (p.status==='pass'?local('Bestanden','Passed'):p.status==='fail'?local('Ausser Toleranz','Out of tolerance'):local('Nicht bewertet','Not evaluated'));
    marker.append(svg('title',{},tt));
    marker.addEventListener('click',()=>onSelect?.(p.index));
    marker.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();onSelect?.(p.index)}});
    canvas.append(marker);
+   // Show the value next to each actual measurement, even if it is beyond the tolerance band.
+   const valueText=(p.plotValue>0?'+':'')+decimal(p.plotValue,2)+'%';
+   if(mode!=='temperature'){
+    const above=y(p.plotValue)<top+20, labelY=Math.max(top+12,Math.min(height-bottom-6,y(p.plotValue)+(above?20:-12)));
+    canvas.append(svg('text',{x:xx,y:labelY,'text-anchor':'middle',
+      class:'vg-point-label'+(preview?' provisional':'')},valueText));
+   }
   }
   canvas.append(svg('text',{x:width-right,y:height-10,'text-anchor':'end',class:'vg-axis'},local('Prüfpunkt','Point')));
   chart.append(canvas);host.append(chart);
@@ -150,13 +174,26 @@ const ELMOS_VERIFICATION_GRAPH=(()=>{
    current.status==='unknown'?local('! Nicht bewertet','! Not assessed'):local('○ Noch nicht gemessen','○ Not measured yet');
   resultCard.append(node('strong',local('Punkt ','Point ')+(current.index+1)+' · '+label));
   if(current.item){
-   const parts=[
-    local('Soll','Target')+' '+decimal(current.item.referencePressure,3)+' · '+decimal(current.item.referenceTemperature,2)+' °C',
-    finite(current.item.sample?.sensorPressure)?local('Ist-Druck','Measured pressure')+' '+decimal(current.item.sample.sensorPressure,5):'DSP_S '+String(current.item.sample?.dspS??'–'),
-    finite(current.pressurePct)?local('Druckfehler','Pressure error')+' '+decimal(current.pressurePct,4)+' % FS':local('Druck nicht bewertet','Pressure not assessed'),
-    finite(current.tempError)?local('Temperaturfehler','Temperature error')+' '+decimal(current.tempError,3)+' °C':local('Temperatur nicht bewertet','Temperature not assessed')
+   const observed=current.item.sample;
+   const parts=[local('Soll','Target')+' '+decimal(current.item.referencePressure,3)+
+     (current.item.referenceTemperature==null?'':' · '+decimal(current.item.referenceTemperature,2)+' °C'),
+    finite(observed?.sensorPressure)?local('Sensoranzeige','Sensor display')+' '+decimal(observed.sensorPressure,5)+' '+(observed.pressureUnit||''):
+     'DSP_S '+String(observed?.dspS??'–'),
+    finite(current.pressurePct)?local('Bestätigte Druckabweichung','Verified pressure deviation')+' '+
+      (current.pressurePct>0?'+':'')+decimal(current.pressurePct,4)+' % FS':
+      finite(current.previewPercent)?local('Ungeprüfte Anzeigeabweichung','Unverified display deviation')+' '+
+        (current.previewPercent>0?'+':'')+decimal(current.previewPercent,4)+' % FS':
+        local('Druck nicht bewertet','Pressure not assessed')
    ];
+   if(mode!=='pressure')parts.push(finite(current.tempError)?local('Temperaturfehler','Temperature error')+
+       ' '+decimal(current.tempError,3)+' °C':local('Temperatur nicht bewertet','Temperature not assessed'));
    resultCard.append(node('p',parts.join(' · ')));
+   if(current.valueSource==='unverified-percent')
+    resultCard.append(node('p',local(
+     'Diese Abweichung wird aus der prozentualen Sensoranzeige und dem Prüfbereich berechnet. Da die Einheiten nicht übereinstimmen, ist sie nur ein Anzeigewert und kein gültiger Toleranzentscheid.',
+     'This deviation is calculated from the sensor percentage display and the test range. Since the units differ, it is a display-only value, not a valid tolerance verdict.'),'vg-provisional-note'));
+   if(observed?.at)resultCard.append(node('small',local('Aufnahmezeit: ','Captured at: ')+
+     (new Date(observed.at)).toLocaleTimeString(document.documentElement.lang==='en'?'en-US':'de-CH')));
    resultCard.append(node('small',local('Versuche an diesem Punkt: ','Attempts at this point: ')+current.tries));
   }else{
    resultCard.append(node('p',local('Stelle die Referenzbedingungen ein und starte die Messung.','Set the reference conditions and start the measurement.')));
