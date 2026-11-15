@@ -1,6 +1,6 @@
 # Roadmap für den E703.11-Kalibrierassistenten
 
-Stand v0.7.74 · Softwarestand im öffentlichen `main`-Branch. Abgehakte Punkte sind im Code umgesetzt; sie bedeuten **keine** automatische Hardware- oder Produktionsfreigabe. Veröffentlichungstermine für noch offene Punkte sind nicht festgelegt.
+Stand v0.7.75 · Softwarestand im öffentlichen `main`-Branch. Abgehakte Punkte sind im Code umgesetzt; sie bedeuten **keine** automatische Hardware- oder Produktionsfreigabe. Veröffentlichungstermine für noch offene Punkte sind nicht festgelegt.
 
 ## Neu umgesetzt seit v0.7.9 (v0.7.63–v0.7.74)
 
@@ -12,6 +12,7 @@ Stand v0.7.74 · Softwarestand im öffentlichen `main`-Branch. Abgehakte Punkte 
 - [x] **Ein übersichtlicher CSV-Export pro Archivdatensatz**; vollständige technische Daten weiterhin in JSON und bei Logging JSONL.
 - [x] Bis zu **zwei optional beschriftete und komprimierte Fotos** für Nachmessung und Test/Logging im lokalen JSON-Protokoll und im PDF.
 - [x] Schnittstellenanzeige **One-Wire (AODO)** oder **I²C** entsprechend dem tatsächlich verwendeten Verbindungsweg.
+- [x] DIY-Programmer-Auswahl und Firmware-Unterlagen auf **ESP32-C3 SuperMini** und **Arduino Pro Micro** beschränkt; unbekannte Bridge-Firmware nicht freigegeben.
 - [x] Neu: **250-ms-Live-Abfrage als optionale adaptive Einstellung**, mit automatischer Rücknahme auf 400/650 ms bei langen Antworten, ohne parallele Registerabfragen.
 - [ ] Echt-Hardwaretest mit SSP3/E703.11 zur minimalen stabilen Live-Abfragepause und zur erreichbaren Aktualisierungsrate.
 - [ ] Vollständigen Nachmessungs- und Logging-Ablauf inklusive Bildspeicherung und PDF-/CSV-Export im Browser an einem realen Sensor prüfen.
