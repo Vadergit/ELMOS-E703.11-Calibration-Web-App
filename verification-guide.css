@@ -124,3 +124,7 @@
 #archiveWorkspace .vg-point-label.provisional{fill:#996a23}
 #archiveWorkspace .vg-marker.provisional{fill:#d9a044;stroke:#fff;stroke-width:2.5}
 #archiveWorkspace .vg-provisional-note{padding:8px 10px;border-left:3px solid #d0a450;border-radius:5px;background:#fff8e9;color:#755b2a;font-size:12px;line-height:1.45}
+
+#archiveWorkspace .vg-count.unknown{background:#fff8e9;border-color:#e8cc91;color:#90661e}
+html[data-theme="dark"] #archiveWorkspace .vg-provisional-note{background:#393222;color:#f1ce87;border-left-color:#e0b15b}
+html[data-theme="dark"] #archiveWorkspace .vg-marker.provisional{fill:#e8ab45}
