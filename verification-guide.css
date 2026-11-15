@@ -195,7 +195,7 @@ html[data-theme="dark"] #archiveWorkspace .ar-archive-verification-graph{border-
 #archiveWorkspace .ar-calibration-tool strong{font-size:13px;color:#184d6d;overflow-wrap:anywhere}
 #archiveWorkspace .ar-calibration-tool small{font-size:11px;color:#59778d;line-height:1.55}
 #archiveWorkspace .ar-optional-documentation{margin:14px 0;padding:14px 15px;border:1px solid #d5e2ec;border-radius:11px;background:var(--paper,#fff)}
-#archiveWorkspace .ar-optional-documentation summary{cursor:pointer;font-size:13px;color:#215a7f;font-weight:800}
+#archiveWorkspace .ar-optional-documentation h3{margin:0 0 8px;font-size:13px;color:#215a7f;font-weight:800}
 #archiveWorkspace .ar-optional-documentation p{font-size:11px;color:#708399;margin:8px 0 12px}
 #archiveWorkspace .ar-optional-documentation label{display:block;font-size:11px;color:#46647b;font-weight:600;margin:8px 0}
 #archiveWorkspace .ar-optional-documentation textarea{min-height:72px;display:block;resize:vertical;line-height:1.4;max-width:100%;width:100%;margin-top:6px;border:1px solid #bfd2e1;border-radius:8px;padding:9px;background:var(--paper,#fff);color:var(--ink,#16344c)}
