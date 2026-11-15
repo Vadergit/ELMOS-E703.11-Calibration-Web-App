@@ -14,6 +14,21 @@
 >
 > [Geführter Abgleich](docs/GEFUEHRTER_ASSISTENT.md) · [USB-Bridge](docs/USB_BRIDGE_GUIDE.md) · [ESP-Boards](docs/ESP_BOARD_OPTIONS.md) · [ESP32-C3 SuperMini Sketch](firmware/esp32c3_supermini/esp32c3_supermini.ino)
 
+## Funktionsumfang – aktueller Stand v0.7.74
+
+Die Software enthält die folgenden Bereiche; die verlinkten Anleitungen beschreiben die **aktuelle Bedienung**, während die nachfolgenden älteren Versionsabschnitte die Entwicklungshistorie dokumentieren:
+
+| Bereich | Aktuelle Möglichkeiten | Anleitung |
+| --- | --- | --- |
+| **Verbindung / Live** | SSP3 mit One-Wire (AODO), unterstützte USB-Bridges und I²C, Live-ADC-/DSP-Sensorwerte, Sensor neu initialisieren, **250 ms adaptive Abfragepause** neben den bisherigen Intervallen | [Bedienungsanleitung](ANLEITUNG.md) |
+| **Kalibrierung** | Geführter/klassischer Assistent, AFE-Optimierung, 2–10 Druckmesspunkte, optionale Temperaturpunkte, Berechnung, RAM-Prüfung und geschützte NVM-Abläufe | [Bedienungsanleitung](ANLEITUNG.md) |
+| **Nachmessung** | Druck-/Temperatur-Prüfplan, Eingabe in % oder physikalischer Einheit, digitale Sensorwerte, Referenzdruck, Abweichung und Hysterese, **optionale Toleranzbewertung** | [Archiv und Nachmessung](ARCHIV_NACHMESSUNG.md) |
+| **Test / Logging** | Intervall- oder Einzelaufnahme, Mittelwert/Median, Testdauer, Marker, externe Referenzangaben, vollständige JSON-/JSONL-Rohdaten | [Test / Logging](TEST_LOGGING.md) |
+| **Archiv / Berichte** | Lokaler Archivordner, Suche und Vergleich, **ein übersichtlicher CSV-Export pro Protokoll**, **PDF für Nachmessung und Logging**, maximal **zwei komprimierte Fotos** inklusive PDF-Anhang | [Archiv und Nachmessung](ARCHIV_NACHMESSUNG.md) |
+| **Ausgang / EEPROM** | Ausgangskonfiguration und Diagnose, Config-Vorlagen, EEPROM Viewer, abgesicherte Schreib- und Rückleseschritte | [Config & EEPROM Viewer](CONFIG_DATEIEN.md) |
+
+**Wichtig:** «Im Code umgesetzt» bedeutet nicht «am realen Sensor vollständig validiert». Die Verbindungsstabilität bei 250 ms, längere Logging-Aufzeichnungen, Fotos im PDF sowie die komplette Druck-/Temperatur- und NVM-Hardwareprüfung sind weiterhin praktisch am Prüfstand zu bestätigen. Siehe [Testbericht](TESTBERICHT.md) und [Roadmap](ROADMAP.md).
+
 ## Neu in v0.7.74 – Optional schnellerer Live-Modus
 
 Unter **Einstellungen → Live-Abfrageintervall** ist zusätzlich **«250 ms · Adaptiv (schneller)»** auswählbar. Die bisherigen Einstellungen und die bisherige 650-ms-Standardpause bleiben unverändert. Die angegebene Zahl beschreibt die Pause **nach** dem vollständig abgeschlossenen ADC-/DSP-Lesezyklus; die tatsächliche Live-Aktualisierung kann durch USB, SSP3, Chipmodus und Sensor-Konversionszeit länger dauern.
