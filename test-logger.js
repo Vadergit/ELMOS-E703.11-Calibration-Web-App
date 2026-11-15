@@ -209,10 +209,6 @@ const ELMOS_TEST_LOGGER=(()=>{
   if(archive()?.active){announce('Es läuft bereits ein Archivprotokoll. Bitte dieses zuerst abschliessen.',true);return}
   S.starting=true;S.interrupted=false;render();
   try{
-   // Copy the operator's external measurement to the archive supply fields.
-   // Empty is intentionally NOT converted to a fictitious 0 V reading.
-   if($('archiveMeasuredVdd'))$('archiveMeasuredVdd').value=opts.measuredVdd===null?'':String(opts.measuredVdd);
-   if($('archiveMeasuredVddSource'))$('archiveMeasuredVddSource').value=opts.measuredVddSource;
    const record=await archive().begin('testlog');
    S.recordId=record.id;
    await archive().event('test_configuration',opts);
