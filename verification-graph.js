@@ -168,7 +168,7 @@ const ELMOS_VERIFICATION_GRAPH=(()=>{
     class:'vg-marker '+p.status+(preview?' provisional':'')+(p.index===active?' selected':''),
     tabindex:0,role:'button','aria-label':local('Prüfpunkt ','Verification point ')+(p.index+1)});
    const tt=local('Punkt ','Point ')+(p.index+1)+' · '+local('Soll','Target')+': '+decimal(p.step.pressure,3)+(p.step.temperature==null?'':' / '+decimal(p.step.temperature,2)+' °C')+' · '+
-    (preview?local('Unbestätigte Anzeigeabweichung','Unverified display deviation'):local('Abweichung','Deviation'))+': '+decimal(p.plotValue,4)+' '+axisUnits+' · '+
+    local('Abweichung','Deviation')+': '+decimal(p.plotValue,4)+' '+axisUnits+' · '+
     (p.status==='pass'?local('Bestanden','Passed'):p.status==='fail'?local('Ausser Toleranz','Out of tolerance'):p.status==='recorded'?local('Erfasst, keine Bewertung','Recorded, not assessed'):local('Nicht bewertet','Not evaluated'));
    marker.append(svg('title',{},tt));
    marker.addEventListener('click',()=>onSelect?.(p.index));
@@ -191,7 +191,7 @@ const ELMOS_VERIFICATION_GRAPH=(()=>{
     'Chart: recorded sensor readings and calculated deviations, without tolerance assessment. Orange indicates unverified sensor scaling.'):
    mode==='temperature'?
    local('Diagramm: Temperaturabweichung in °C. Die Balken zeigen die zulässige Toleranz je Punkt.','Chart: temperature deviation in °C. Bars show the permitted tolerance for each point.'):
-   local('Diagramm: Druckabweichung in % der Messspanne. Orange Punkte zeigen vorläufige Abweichungen aus noch nicht bestätigten Sensorwerten. Diese werden nicht als bestanden bewertet. Rot zeigt eine bestätigte Toleranzüberschreitung.','Chart: pressure deviation in % of full scale. Orange points show provisional errors from unconfirmed sensor readings. They are not counted as passed. Red indicates a confirmed tolerance failure.'),'vg-caption');
+   local('Diagramm: Druckabweichung in % der Messspanne. Orange bedeutet: Sensorskalierung nicht bestätigt. Diese Messpunkte erhalten keinen Toleranzentscheid. Rot zeigt eine bestätigte Toleranzüberschreitung.','Chart: pressure deviation as % of full scale. Orange means the sensor scaling is unconfirmed, so no tolerance decision is made for these points. Red indicates a confirmed tolerance failure.'),'vg-caption');
   host.append(foot);
   const current=data[Math.min(data.length-1,Math.max(0,active))];
   const resultCard=node('div',null,'vg-current '+(current.status==='pass'?'pass':current.status==='fail'?'fail':'pending'));
@@ -205,9 +205,9 @@ const ELMOS_VERIFICATION_GRAPH=(()=>{
      (current.item.referenceTemperature==null?'':' · '+decimal(current.item.referenceTemperature,2)+' °C'),
     finite(observed?.sensorPressure)?local('Sensoranzeige','Sensor display')+' '+decimal(observed.sensorPressure,5)+' '+(observed.pressureUnit||''):
      'DSP_S '+String(observed?.dspS??'–'),
-    finite(current.pressurePct)?local('Bestätigte Druckabweichung','Verified pressure deviation')+' '+
+    finite(current.pressurePct)?local('Abweichung','Deviation')+' '+
       (current.pressurePct>0?'+':'')+decimal(current.pressurePct,4)+' % FS':
-      finite(current.previewPercent)?local('Ungeprüfte Anzeigeabweichung','Unverified display deviation')+' '+
+      finite(current.previewPercent)?local('Abweichung','Deviation')+' '+
         (current.previewPercent>0?'+':'')+decimal(current.previewPercent,4)+' % FS':
         local('Druck nicht bewertet','Pressure not assessed')
    ];
@@ -216,8 +216,8 @@ const ELMOS_VERIFICATION_GRAPH=(()=>{
    resultCard.append(node('p',parts.join(' · ')));
    if(current.valueSource==='unverified-percent')
     resultCard.append(node('p',local(
-     'Vorläufige Abweichung aus dem digital angezeigten Sensorwert und dem konfigurierten Druckbereich. Die Sensorskalierung ist noch nicht unabhängig bestätigt; deshalb ist der Punkt sichtbar, aber nicht bewertet.',
-     'Provisional deviation from the displayed digital sensor value and configured pressure range. The sensor scaling is not yet independently confirmed; the point is visible but not assessed.'),'vg-provisional-note'));
+     'Die Druckskalierung des angezeigten Sensorwerts ist nicht bestätigt. Die angezeigte Abweichung ist ein rechnerischer Vergleich, keine bestätigte Druckabweichung.',
+     'The displayed sensor value has no confirmed pressure scaling. The shown deviation is a calculated comparison, not a verified pressure error.'),'vg-provisional-note'));
    if(observed?.at)resultCard.append(node('small',local('Aufnahmezeit: ','Captured at: ')+
      (new Date(observed.at)).toLocaleTimeString(document.documentElement.lang==='en'?'en-US':'de-CH')));
    resultCard.append(node('small',local('Versuche an diesem Punkt: ','Attempts at this point: ')+current.tries));
