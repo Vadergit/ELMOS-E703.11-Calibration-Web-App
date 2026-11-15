@@ -50,14 +50,15 @@ const ELMOS_VERIFICATION_GRAPH=(()=>{
      (finite(physicalPreview)?physicalPreview:percentPreview):null;
    const plotValue=finite(value)?value:previewPercent;
    const valueSource=finite(value)?'verified':finite(previewPercent)?'unverified-percent':'none';
-   const tolerance=mode==='temperature'?
+   const toleranceDisabled=item?.toleranceApplied===false||(item?.toleranceApplied==null&&record?.verificationConfig?.toleranceEnabled===false);
+   const tolerance=toleranceDisabled?null:mode==='temperature'?
     (finite(item?.temperatureTolerance)?item.temperatureTolerance:1):
     (finite(item?.pressureTolerancePercent)?item.pressureTolerancePercent:
      finite(item?.pressureTolerance)&&itemSpan>0?100*item.pressureTolerance/itemSpan:
      Number.isFinite(record?.verificationConfig?.pressureTolerancePercent)?record.verificationConfig.pressureTolerancePercent:0.2);
    return {index:i,step,item,tries:tries.length,value,tolerance,pressurePct,tempError,
     plotValue,valueSource,measuredPercent,referencePercent,previewPercent,
-    status:!item?'pending':item.pass===true?'pass':item.pass===false?'fail':'unknown'};
+    status:!item?'pending':toleranceDisabled?'recorded':item.pass===true?'pass':item.pass===false?'fail':'unknown'};
   });
   return {data,span,mode,passed:data.filter(x=>x.status==='pass').length,failed:data.filter(x=>x.status==='fail').length,
    unknown:data.filter(x=>x.status==='unknown').length,measured:data.filter(x=>x.item).length,
@@ -127,16 +128,8 @@ const ELMOS_VERIFICATION_GRAPH=(()=>{
   title.append(node('h3',local('Ergebnisse auf einen Blick','Results at a glance')));
   title.append(node('p',local('Jeder Punkt wird direkt nach der Messung eingezeichnet.','Each point is plotted immediately after measurement.'),'vg-muted'));
   head.append(title);
-  const tally=node('div',null,'vg-tally');
-  for(const [label,amount,cls] of [
-   [local('Bestanden','Passed'),result.passed,'pass'],
-   [local('Ausser Toleranz','Out of tolerance'),result.failed,'fail'],
-   [local('Nicht bewertet','Not assessed'),result.unknown,'unknown'],
-   [local('Offen','Pending'),result.pending,'pending']]){
-   const chip=node('span',null,'vg-count '+cls);
-   chip.append(node('strong',amount),document.createTextNode(' '+label));tally.append(chip);
-  }
-  head.append(tally);host.append(head);
+  head.append(node('p',result.measured+' / '+result.total+' '+local('Messpunkte erfasst','measurement points recorded'),'vg-muted'));
+  host.append(head);
   const axisUnits=mode==='temperature'?'°C':'% FS';
   if(mode!=='temperature'&&!(result.span>0)){
    host.append(node('p',local('Für die Prozentbewertung fehlt eine gültige Druck-Messspanne. Gib diese unter «Weitere Einstellungen» ein.','A valid pressure full-scale span is required for percentage evaluation. Enter it under Additional settings.'),'vg-warning'));
@@ -162,8 +155,10 @@ const ELMOS_VERIFICATION_GRAPH=(()=>{
   const maxLabels=Math.min(visible.length,16),labelEvery=Math.max(1,Math.ceil(visible.length/maxLabels));
   for(const p of visible){
    const xx=x(p.index);
-   const tol=finite(p.tolerance)?p.tolerance:0.2;
-   canvas.append(svg('line',{x1:xx,y1:y(-tol),x2:xx,y2:y(tol),class:'vg-tolerance', 'stroke-width':data.length>40?8:14}));
+   if(finite(p.tolerance)){
+    const tol=p.tolerance;
+    canvas.append(svg('line',{x1:xx,y1:y(-tol),x2:xx,y2:y(tol),class:'vg-tolerance', 'stroke-width':data.length>40?8:14}));
+   }
    if((p.index-first)%labelEvery===0||p.index===data.length-1)
     canvas.append(svg('text',{x:xx,y:height-bottom+23,'text-anchor':'middle',class:'vg-axis'},String(p.index+1)));
    // Do not put pending or unmeasurable points on the 0% line.
@@ -174,7 +169,7 @@ const ELMOS_VERIFICATION_GRAPH=(()=>{
     tabindex:0,role:'button','aria-label':local('Prüfpunkt ','Verification point ')+(p.index+1)});
    const tt=local('Punkt ','Point ')+(p.index+1)+' · '+local('Soll','Target')+': '+decimal(p.step.pressure,3)+(p.step.temperature==null?'':' / '+decimal(p.step.temperature,2)+' °C')+' · '+
     (preview?local('Unbestätigte Anzeigeabweichung','Unverified display deviation'):local('Abweichung','Deviation'))+': '+decimal(p.plotValue,4)+' '+axisUnits+' · '+
-    (p.status==='pass'?local('Bestanden','Passed'):p.status==='fail'?local('Ausser Toleranz','Out of tolerance'):local('Nicht bewertet','Not evaluated'));
+    (p.status==='pass'?local('Bestanden','Passed'):p.status==='fail'?local('Ausser Toleranz','Out of tolerance'):p.status==='recorded'?local('Erfasst, keine Bewertung','Recorded, not assessed'):local('Nicht bewertet','Not evaluated'));
    marker.append(svg('title',{},tt));
    marker.addEventListener('click',()=>onSelect?.(p.index));
    marker.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();onSelect?.(p.index)}});
@@ -190,7 +185,11 @@ const ELMOS_VERIFICATION_GRAPH=(()=>{
   canvas.append(svg('text',{x:width-right,y:height-10,'text-anchor':'end',class:'vg-axis'},local('Prüfpunkt','Point')));
   chart.append(canvas);host.append(chart);
   if(data.length>visible.length)host.append(node('p',local('Angezeigte Prüfpunkte: ','Visible points: ')+(first+1)+'–'+(first+visible.length)+' / '+data.length,'vg-muted'));
-  const foot=node('p',mode==='temperature'?
+  const noTolerance=record?.verificationConfig?.toleranceEnabled===false;
+  const foot=node('p',noTolerance?
+   local('Diagramm: Aufgenommene Sensorwerte und berechnete Abweichungen, ohne Toleranzbewertung. Orange markiert eine unbestätigte Sensorskalierung.',
+    'Chart: recorded sensor readings and calculated deviations, without tolerance assessment. Orange indicates unverified sensor scaling.'):
+   mode==='temperature'?
    local('Diagramm: Temperaturabweichung in °C. Die Balken zeigen die zulässige Toleranz je Punkt.','Chart: temperature deviation in °C. Bars show the permitted tolerance for each point.'):
    local('Diagramm: Druckabweichung in % der Messspanne. Orange Punkte zeigen vorläufige Abweichungen aus noch nicht bestätigten Sensorwerten. Diese werden nicht als bestanden bewertet. Rot zeigt eine bestätigte Toleranzüberschreitung.','Chart: pressure deviation in % of full scale. Orange points show provisional errors from unconfirmed sensor readings. They are not counted as passed. Red indicates a confirmed tolerance failure.'),'vg-caption');
   host.append(foot);
@@ -198,7 +197,7 @@ const ELMOS_VERIFICATION_GRAPH=(()=>{
   const resultCard=node('div',null,'vg-current '+(current.status==='pass'?'pass':current.status==='fail'?'fail':'pending'));
   const label=current.status==='pass'?local('✓ Prüfpunkt bestanden','✓ Point passed'):
    current.status==='fail'?local('✕ Ausser Toleranz','✕ Out of tolerance'):
-   current.status==='unknown'?local('! Nicht bewertet','! Not assessed'):local('○ Noch nicht gemessen','○ Not measured yet');
+   current.status==='recorded'?local('● Messpunkt erfasst','● Measurement recorded'):current.status==='unknown'?local('! Nicht bewertet','! Not assessed'):local('○ Noch nicht gemessen','○ Not measured yet');
   resultCard.append(node('strong',local('Punkt ','Point ')+(current.index+1)+' · '+label));
   if(current.item){
    const observed=current.item.sample;
