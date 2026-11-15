@@ -47,10 +47,25 @@
  const originalTexts=new WeakMap(), originalAttrs=new WeakMap();
  const phrases=Object.entries(translations).filter(([key])=>key.length>=8&&key.length<130&&/[äöüÄÖÜ]|\b(?:Kalibrier|Mess|prüf|Sensor|Temperatur|Druck|Speicher|Sicherheit|Konfigurier|Einstellung|starten|verbinden|schreiben|lesen|Aufzeichnung|weiter|zurück|Archiv|Nachmessung|Abgleich|Verbindung|Verfahren)/i.test(key))
   .sort((a,b)=>b[0].length-a[0].length);
+ const escapedRegex=(value)=>Array.from(value).map(ch=>'.*+?^$[](){}|\\'.includes(ch)?'\\'+ch:ch).join('');
+ const templates=Object.entries(translations).filter(([de,en])=>de.includes('$'+'{')&&en.includes('$'+'{')).map(([de,en])=>{
+  const source=de.split(/\$\{[^}]*\}/g),target=en.split(/\$\{[^}]*\}/g);
+  if(source.length!==target.length)return null;
+  try{return {regexp:new RegExp('^'+source.map(escapedRegex).join('([\\s\\S]*?)')+'$'),target};}
+  catch(_){return null;}
+ }).filter(Boolean);
  const translateString=(original)=>{
   if(language!=='en'||!original)return original;
   const exact=translations[original];
   if(exact!==undefined)return exact;
+  // Preserve live readings in interpolated status and error templates.
+  for(const entry of templates){
+   const match=original.match(entry.regexp);
+   if(!match)continue;
+   let result=entry.target[0];
+   for(let i=1;i<entry.target.length;i++)result+=translateString(match[i])+entry.target[i];
+   return result;
+  }
   // Compose status texts that contain live values without modifying the numerical values.
   if(!/[äöüÄÖÜ]|\b(?:Schritt|Punkt|Messung|Wert|Sensor|Verbindung|Druck|Temperatur|Abgleich|Kalibrier|Archiv|NVM|RAM|keine|nicht|Bitte|erfolgreich|fehlgeschlagen|Verifizieren|Übernehmen|Aufnahme|Bereit|Aufzeichnung|Geführt|Klassisch)/i.test(original))return original;
   let result=original;
@@ -111,7 +126,7 @@
   walk(document.body);
   const select=document.getElementById('uiLanguage');
   if(select)select.value=language;
-  if(observer)observer.observe(document.body,{subtree:true,childList:true,characterData:true});
+  if(observer)observer.observe(document.body,{subtree:true,childList:true,characterData:true,attributes:true,attributeFilter:['title','aria-label','placeholder','aria-description']});
  };
  const init=()=>{
   const sel=document.getElementById('uiLanguage');
@@ -121,6 +136,7 @@
   const pendingNodes=new Set();
   observer=new MutationObserver((mutations)=>{
    for(const mutation of mutations){
+    if(mutation.type==='characterData'||mutation.type==='attributes')pendingNodes.add(mutation.target);
     for(const node of mutation.addedNodes){
      if(node.nodeType===Node.ELEMENT_NODE||node.nodeType===Node.TEXT_NODE)pendingNodes.add(node);
     }
@@ -132,7 +148,7 @@
     observer.disconnect();
     for(const node of pendingNodes){if(node.isConnected)walk(node);}
     pendingNodes.clear();
-    observer.observe(document.body,{subtree:true,childList:true,characterData:true});
+    observer.observe(document.body,{subtree:true,childList:true,characterData:true,attributes:true,attributeFilter:['title','aria-label','placeholder','aria-description']});
    });
   });
   sel.addEventListener('change',()=>setLanguage(sel.value));
