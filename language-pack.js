@@ -1977,3 +1977,38 @@ window.ELMOS_TRANSLATIONS_EN=Object.assign(window.ELMOS_TRANSLATIONS_EN||{}, {
  "Das Prüfprotokoll wurde im ausgewählten lokalen Archiv gespeichert. Nicht bewertete oder fehlgeschlagene Prüfpunkte bleiben im Bericht sichtbar. Die Grafik und die Messwerte können hier nur angesehen werden.": "The verification report was saved to the selected local archive. Unassessed and failed points remain visible. This overview is read-only.",
  "Den letzten Prüfpunkt ohne Messung abschliessen und als unvollständig speichern?": "Finish without measuring the last point and save as incomplete?"
 });
+
+// v0.7.63: optional report metadata, automatic tool detection, PDF print.
+window.ELMOS_TRANSLATIONS_EN=Object.assign(window.ELMOS_TRANSLATIONS_EN||{}, {
+ "Prüfprotokoll als PDF speichern": "Save verification report as PDF",
+ "Kalibrierwerkzeug · automatisch erkannt": "Calibration tool · detected automatically",
+ "Wird beim Verbinden erkannt": "Detected on connection",
+ "Web-App und angeschlossener Kommunikationsadapter werden automatisch protokolliert. Externe Druck- und Temperaturmessmittel bitte bei Bedarf unten ergänzen.": "The web app and connected communication adapter are recorded automatically. Add external pressure or temperature measurement equipment below if needed.",
+ "Weitere Protokollangaben (optional)": "Additional report details (optional)",
+ "Alle Angaben sind freiwillig und werden zusammen mit den Messungen archiviert.": "All fields are optional and are saved together with the measurements.",
+ "Prüfer": "Examiner",
+ "Auftrag / Projekt": "Order / Project",
+ "Prüfort / Prüfstand": "Test location / Test bench",
+ "Prüfmittel / Zertifikatsreferenz": "Test equipment / Certificate reference",
+ "Name oder Kürzel": "Name or initials",
+ "z. B. Prüfauftrag": "e.g. test order",
+ "z. B. Labor 1": "e.g. laboratory 1",
+ "z. B. Zertifikat-ID": "e.g. certificate ID",
+ "Verwendete externe Messmittel (ein Eintrag pro Zeile)": "External measurement instruments used (one per line)",
+ "Gerät, Hersteller, Modell, Seriennummer ...": "Instrument, manufacturer, model, serial number ...",
+ "Zusätzliche Informationen / Bemerkungen": "Additional information / Notes",
+ "Prüfaufbau, besondere Bedingungen, Abweichungen ...": "Test setup, special conditions, deviations ...",
+ "Kalibrierwerkzeug (automatisch erkannt)": "Calibration tool (automatically detected)",
+ "Prüfdokumentation": "Verification documentation",
+ "Prüfprotokoll": "Verification report",
+ "Messmittel / Prüfmittel": "Measurement instruments",
+ "Zertifikat / Referenz": "Certificate / Reference",
+ "Adapter-Firmware": "Adapter firmware",
+ "Externe Messmittel": "External instruments",
+ "Externe Messmittel sind nicht automatisch erkennbar und können optional ergänzt werden.": "External measurement instruments cannot be detected automatically and may be entered below.",
+ "Kein Adapter erkannt": "No adapter detected",
+ "PDF-Bericht nicht geladen. Bitte Seite neu laden.": "PDF report module is not loaded. Please refresh the page.",
+ "Kein gespeichertes Prüfprotokoll für den PDF-Export ausgewählt.": "No saved verification report selected for PDF export.",
+ "Der Browser hat das PDF-Fenster blockiert. Bitte Pop-ups für diese Webseite erlauben.": "The browser blocked the PDF report window. Please allow pop-ups for this site.",
+ "PDF-Export fehlgeschlagen: ": "PDF export failed: "
+});
