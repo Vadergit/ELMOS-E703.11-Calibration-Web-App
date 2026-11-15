@@ -1,12 +1,28 @@
 # Bedienungsanleitung – ELMOS E703.11
 
-**Dokumentationsstand v0.7.9** Kalibrierassistent
+**Aktueller Dokumentationsstand v0.7.74** · Kalibrierassistent · Die anschliessenden älteren Versionsabschnitte bleiben als Funktionshistorie erhalten.
 
 **[Web-App öffnen](https://vadergit.github.io/ELMOS-E703.11-Calibration-Web-App/)** · **[Projektübersicht](README.md)** · **[Test / Logging](TEST_LOGGING.md)** · **[Archiv](ARCHIV_NACHMESSUNG.md)** · **[Config-Dateien & EEPROM Viewer](CONFIG_DATEIEN.md)** · **[Testbericht](TESTBERICHT.md)**
 
 Diese Anleitung beschreibt die derzeitige Benutzeroberfläche der browserbasierten App für den **ELMOS E703.11** mit **SSP3-Eval-Board**. Ziel ist ein geführter Abgleich mit möglichst wenig Vorwissen und optionalen Expertenfunktionen.
 
 > **Laborprototyp, keine Produktionsfreigabe.** Der vollständige Kalibrier- und NVM-Schreibablauf wurde noch nicht am realen E703.11 als Gesamtsystem validiert. Permanente Änderungen zunächst nur an einem entbehrlichen Testchip erproben.
+
+## Aktuelle Bedienung – v0.7.74
+
+Die aktuelle Web-App bietet **geführten und klassischen Abgleich**, **Ausgang konfigurieren**, **EEPROM Viewer**, **Archiv**, **Nachmessung** sowie **Test / Logging**. Nach dem Verbinden des Sensors stehen die Live-Werte ADC_S, ADC_T, DSP_S und der digital angezeigte Sensorwert zur Verfügung. Zwischen One-Wire (AODO) und I²C wird in der technischen Protokollanzeige passend zur aktiven Schnittstelle unterschieden.
+
+**Schnellere Live-Anzeige (v0.7.74):** Öffne **⚙ Einstellungen → Live-Abfrageintervall**. Neu gibt es die optionale Einstellung **«250 ms · Adaptiv (schneller)»**; weiterhin verfügbar sind 400, 650 (Standard), 1000, 1500 und 2000 ms. Die Zeit ist die Pause *nach* der vollständigen seriellen Abfrage, nicht die garantierte Messfrequenz. Im adaptiven Modus wird bei langsamen Antworten automatisch auf 400 oder 650 ms verlängert, bei Fehlern gilt die bisherige 2-Sekunden-Pause. Es werden keine parallelen Sensorlesungen oder zusätzlichen RAM-/NVM-Schreibvorgänge ausgelöst. Die reale Geschwindigkeit und Stabilität sind am E703.11 zu prüfen.
+
+**Nachmessung (ab v0.7.64–v0.7.69):** In **Nachmessung** kalibrierten Druckbereich und Einheit wählen und Prüfpunkte in **% der Spanne** oder direkt in Druckeinheiten eingeben. Die Messung nutzt den digital angezeigten Sensorwert und zeigt Referenzdruck mit seiner Einheit, Abweichung in Druckeinheit sowie in % FS. Zusätzliche Protokollfelder bleiben sichtbar. **Toleranzbewertung ist standardmässig deaktiviert** – ohne aktivierte Toleranz werden Werte dokumentiert, aber nicht als bestanden oder fehlerhaft klassiert. Die Ergebnisse erscheinen in Diagrammen und im lokalen Archiv. Nach Abschluss und beim späteren Archivaufruf ist ein PDF-Bericht möglich. Siehe [Archiv & Nachmessung](ARCHIV_NACHMESSUNG.md).
+
+**Test / Logging (ab v0.7.70):** Frei wählbare Aufnahmeintervalle, Einzelmessungen, Mittelung, Testdauer, Marker, optionale Referenzen und Protokollierung im lokalen Archiv. Das Logging besitzt einen **PDF-Bericht** und **einen lesbaren CSV-Export pro Datensatz**. Die umfassenden technischen Einzel-Rohwerte werden im JSON/JSONL gespeichert und können per JSON exportiert werden. Die Live-Abfrageeinstellung ist vom eigens eingestellten Logger-Messintervall getrennt. Siehe [Test / Logging](TEST_LOGGING.md).
+
+**Fotos (v0.7.73):** In **Nachmessung** und **Test / Logging** können bis zu zwei JPG-/PNG-/WebP-Bilder angehängt werden – vor, während und nach der Messung, auch später im Archiv. Beim Import werden sie auf maximal 1400 Pixel und **300 KB je Foto** verkleinert. Beschriftung ist optional; die komprimierten Bilder bleiben direkt im lokalen JSON-Protokoll und werden im PDF angezeigt.
+
+**Archiv und Export (v0.7.72):** **Ein CSV-Button pro archiviertem Datensatz** erzeugt eine kurze Tabelle mit den wichtigsten Messwerten und Prüfbedingungen. Der vollständige technische Nachweis ist weiterhin als JSON verfügbar. Bestehende Archivdaten werden durch Exporte nicht verändert. Für Browser-Zugriff auf den Archivordner sind die entsprechenden Berechtigungen erforderlich.
+
+Die verfügbaren Funktionen sind **Softwarestand**, keine Garantie für eine validierte Hardwarekalibrierung oder zuverlässige NVM-Programmierung im Serienbetrieb. [Testbericht und offene Prüfungen](TESTBERICHT.md).
 
 ## Kompakte Messpunktanzeige (v0.7.9)
 
