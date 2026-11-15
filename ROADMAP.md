@@ -1,6 +1,20 @@
 # Roadmap für den E703.11-Kalibrierassistenten
 
-Stand v0.7.9 · Web-App mit SSP3 im Vergleich zur Elmos-PSSC-Software. Die Reihenfolge zeigt die geplante Priorität. Veröffentlichungstermine sind offen.
+Stand v0.7.74 · Softwarestand im öffentlichen `main`-Branch. Abgehakte Punkte sind im Code umgesetzt; sie bedeuten **keine** automatische Hardware- oder Produktionsfreigabe. Veröffentlichungstermine für noch offene Punkte sind nicht festgelegt.
+
+## Neu umgesetzt seit v0.7.9 (v0.7.63–v0.7.74)
+
+- [x] Nachmessung mit frei definierbaren Druck- und Temperaturpunkten, kalibriertem Bereich und Einheit sowie wahlweise %- oder Druckeingabe.
+- [x] Digitale Sensorwertanzeige als Grundlage der Nachmessung, klare Referenzeinheiten und Abweichung in physikalischer Einheit und % FS.
+- [x] Standardmässig **keine automatische Bestanden-/Fehlerbewertung**; optional aktivierbare Toleranzbewertung, ohne die Messwerte zu verlieren.
+- [x] Ergebnisdiagramme und PDF-Prüfprotokoll für Nachmessungen, einschliesslich gespeicherter Prüfbedingungen.
+- [x] Druckfähiger **PDF-Bericht auch für Test / Logging** mit Signalverlauf, Messpunkttabelle und Markern.
+- [x] **Ein übersichtlicher CSV-Export pro Archivdatensatz**; vollständige technische Daten weiterhin in JSON und bei Logging JSONL.
+- [x] Bis zu **zwei optional beschriftete und komprimierte Fotos** für Nachmessung und Test/Logging im lokalen JSON-Protokoll und im PDF.
+- [x] Schnittstellenanzeige **One-Wire (AODO)** oder **I²C** entsprechend dem tatsächlich verwendeten Verbindungsweg.
+- [x] Neu: **250-ms-Live-Abfrage als optionale adaptive Einstellung**, mit automatischer Rücknahme auf 400/650 ms bei langen Antworten, ohne parallele Registerabfragen.
+- [ ] Echt-Hardwaretest mit SSP3/E703.11 zur minimalen stabilen Live-Abfragepause und zur erreichbaren Aktualisierungsrate.
+- [ ] Vollständigen Nachmessungs- und Logging-Ablauf inklusive Bildspeicherung und PDF-/CSV-Export im Browser an einem realen Sensor prüfen.
 
 ## Kompakte Messpunkte (v0.7.9)
 
@@ -66,7 +80,7 @@ Stand v0.7.9 · Web-App mit SSP3 im Vergleich zur Elmos-PSSC-Software. Die Reihe
 - [x] Freie Abtastintervalle in Millisekunden, Einzelmessungen pro Messpunkt und deren Abstand.
 - [x] Optionaler Mittelwert oder Median zusätzlich zu den vollständigen Rohsamples.
 - [x] Marker, Bemerkungen, Zeitstempel, echte Messdauer und übersprungene Sollintervalle.
-- [x] Lokale JSONL-Rohdaten im bestehenden Archiv mit JSON-/CSV-Gesamtexport.
+- [x] Lokale JSONL-Rohdaten im bestehenden Archiv, vollständiger technischer JSON-Export sowie ein kompakter CSV-Messbericht pro Datensatz.
 - [x] Optionale tatsächliche VDD mit Quellenangabe, externe Temperatur-/Druckreferenzen.
 - [ ] Echt-Hardware-Test der Abtastrate und Langzeitstabilität am SSP3 und den konkreten ESP32-Boards.
 - [ ] Automatischer Anschluss externer Temperatur-/Spannungsmessgeräte.
