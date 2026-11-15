@@ -88,7 +88,9 @@ const ELMOS_ARCHIVE_CORE=(()=>{
     const up=item.up.at(-1),down=item.down.at(-1);
     if(up.unit!==down.unit)continue;
     const delta=down.value-up.value;
-    const span=axis==='pressure'?Math.max(...plan.pressure)-Math.min(...plan.pressure):null;
+    const specified=Number(record.verificationConfig?.pressureSpan);
+    const span=axis==='pressure'?(Number.isFinite(specified)&&specified>0?specified:
+      Math.max(...plan.pressure)-Math.min(...plan.pressure)):null;
     const percentTestSpan=axis==='pressure'&&up.unit!=='DSP_S Digits'&&span>0?
       Math.abs(delta)/span*100:null;
     pairs.push({axis,cycle:item.cycle,temperatureStage:item.temperatureStage,
