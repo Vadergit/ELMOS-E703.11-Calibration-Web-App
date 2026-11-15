@@ -743,6 +743,29 @@ const ELMOS_GUIDED=(()=>{
   if(task==='output'&&stage===7){goto(0);return}
   goto(stage-1);
  }
+ function syncTopMode(){
+  const button=$('guidedLaunchTop');
+  if(!button)return;
+  const guided=mode;
+  button.textContent=guided?'▦ Klassisch':'◇ Geführt';
+  button.title=guided?'Zur klassischen Ansicht wechseln':'Zur geführten Ansicht wechseln';
+  button.setAttribute('aria-label',button.title);
+  button.setAttribute('aria-pressed',String(guided));
+  button.classList.toggle('is-guided-mode',guided);
+  document.documentElement.classList.toggle('top-guided-active',guided);
+ }
+ function saveViewPreference(value){
+  const select=$('workflowMode');
+  if(select)select.value=value;
+  try{
+   const store=new URLSearchParams(location.search).get('demo')==='1'?sessionStorage:localStorage;
+   store.setItem('elmos-workflow-mode-v1',value);
+  }catch(_){}
+ }
+ function toggleTopView(){
+  if(mode)close();
+  else open();
+ }
  function open(){
   if(mode)return;
   const s=state();
@@ -764,6 +787,7 @@ const ELMOS_GUIDED=(()=>{
   }
   document.documentElement.classList.add('guided-active');
   root.hidden=false;render();
+  saveViewPreference('guided');syncTopMode();
   poll=window.setInterval(updateUI,750);
   window.scrollTo({top:0,behavior:'auto'});
  }
@@ -779,6 +803,7 @@ const ELMOS_GUIDED=(()=>{
   for(const {el,type,handler} of subscriptions)el.removeEventListener(type,handler);
   subscriptions.length=0;
   restore();root.hidden=true;root.replaceChildren();document.documentElement.classList.remove('guided-active');
+  saveViewPreference('classic');syncTopMode();
   window.ELMOS_GUIDED_API?.refresh?.();
  }
  function onSensorReset(){
@@ -808,7 +833,8 @@ const ELMOS_GUIDED=(()=>{
    });
   }
   $('guidedLaunch')?.addEventListener('click',open);
-  $('guidedLaunchTop')?.addEventListener('click',open);
+  $('guidedLaunchTop')?.addEventListener('click',toggleTopView);
+  syncTopMode();
   // A previously saved recipe is intentionally not applied to chip automatically.
  }
  function appliedPlanForConfig(){
