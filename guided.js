@@ -22,7 +22,7 @@ const ELMOS_GUIDED=(()=>{
  let latestCapture=null,lastCaptureRenderKey=null,nextSensorBusy=false,nextSensorPending=null,seriesPointFields=null;
  const subscriptions=[];
  const subscribe=(el,type,handler)=>{el.addEventListener(type,handler);subscriptions.push({el,type,handler})};
- const defaults={pCount:2,tCount:1,temps:[25],pmin:0,pmax:10,samples:12,outputLimit:25000,orderS:1,orderT:0};
+ const defaults={pCount:2,tCount:1,temps:[25],pmin:0,pmax:100,unit:'%',samples:12,outputLimit:25000,orderS:1,orderT:0};
  const state=()=>window.ELMOS_GUIDED_API?.state?.()||{chip:false,points:[],mode:'offline'};
  const VIEW_PREFERENCE_KEY='elmos-ui-last-view-v1';
  const rememberedView=()=>{
@@ -215,6 +215,18 @@ const ELMOS_GUIDED=(()=>{
  }
  function preset(name){
   const p=ELMOS_GUIDED_PLAN.presets[name];if(!p)return;
+  // Presets use normalized percent of the pressure span. Ask before losing
+  // real measured calibration points when switching from a physical unit.
+  const rangeChanged=String($('pmin').value)!==String(p.pmin)||
+   String($('pmax').value)!==String(p.pmax)||$('calUnit').value!==p.unit;
+  if(rangeChanged&&(state().points||[]).length){
+   if(!window.confirm('Das Preset stellt den Druckbereich auf 0–100 % um. Bereits erfasste Messpunkte werden verworfen. Fortfahren?'))return;
+  }
+  if(rangeChanged){
+   fieldValue('calUnit',p.unit);
+   fieldValue('pmin',p.pmin);
+   fieldValue('pmax',p.pmax);
+  }
   $('gwPressureCount').value=String(p.pCount);$('gwTemperatureCount').value=String(p.tCount);
   $('gwComplexity').value=p.complex?'advanced':'simple';
   $('gwSOrder').value=String(Math.min(3,p.pCount-1));
@@ -827,16 +839,24 @@ const ELMOS_GUIDED=(()=>{
  function init(){
   $('guidedLaunch')?.addEventListener('click',open);
   $('guidedLaunchTop')?.addEventListener('click',toggleTopView);
+  const restorePreferredView=()=>{
+   // No saved choice: use the guided start screen. An explicit classic choice
+   // always wins, including after a reload and reconnect.
+   if(rememberedView()==='classic'){
+    if(!mode)syncTopMode();
+    return;
+   }
+   if(!mode)open();
+  };
   try{
-   // Reloads must restore the last explicitly selected UI, not the previous
-   // calibration/USB session. Default to classic for new visitors.
-   if(rememberedView()==='guided')open();
-   else syncTopMode();
+   restorePreferredView();
+   // A second chance after all page scripts finish loading if a DOM dependency
+   // prevented the guide from mounting at DOMContentLoaded. No automatic chip
+   // command or calibration workflow is started.
+   window.addEventListener('load',restorePreferredView,{once:true});
   }finally{
-   // The early HTML boot flag hides the classic page until the saved view is ready.
    document.documentElement.classList.remove('guided-restore-pending');
   }
-  // A previously saved recipe is intentionally not applied to chip automatically.
  }
  function appliedPlanForConfig(){
   // Only report a matrix that was actually applied, never an editable draft.
