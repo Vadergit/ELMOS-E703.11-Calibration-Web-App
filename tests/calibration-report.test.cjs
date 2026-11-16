@@ -99,6 +99,6 @@ test('Archive buttons, print styles and versioned scripts are integrated',()=>{
  assert.match(archive,/function exportCalibrationPdf\(record\)/);
  assert.match(archive,/ELMOS_CALIBRATION_REPORT\.print\(record\)/);
  assert.match(html,/calibration-report\.js\?v=0\.7\.84/);
- assert.match(html,/archive\.js\?v=0\.7\.85/);
- assert.match(html,/data-app-version="0\.7\.85"/);
+ assert.match(html,/archive\.js\?v=0\.7\.86/);
+ assert.match(html,/data-app-version="0\.7\.86"/);
 });
