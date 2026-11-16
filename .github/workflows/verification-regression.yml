@@ -12,9 +12,10 @@ jobs:
           node-version: '22'
       - name: Syntax
         run: |
+          node --check guided.js
           node --check archive.js
           node --check verification-report.js
           node --check verification-graph.js
           node --check archive-readable-csv.js
       - name: Unit and regression tests
-        run: node --test tests/verification-reference.test.cjs
+        run: node --test tests/verification-reference.test.cjs tests/view-persistence.test.cjs
