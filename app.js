@@ -523,6 +523,25 @@ if(typeof document!=='undefined') (function UI(){
   function pressureUnit(){const opt=$('calUnit').value;return opt==='custom'?($('calUnitOther').value.trim()||'Einheit'):opt}
  function pointName(which){return ($((which==='lo'?'pointLoName':'pointHiName')).value.trim()||('Messpunkt '+(which==='lo'?'1':'2')))}
  function calibrationPointCount(){const count=Number($('calPointCount').value);return Number.isInteger(count)&&count>=2&&count<=10?count:Infinity}
+ function calibrationReadinessReason(){
+  const count=calibrationPointCount();
+  if(!Number.isFinite(count))return 'Anzahl Kalibrierpunkte ist ungültig.';
+  if(st.calpoints.length<count)return 'Noch '+(count-st.calpoints.length)+' von '+count+' Kalibrierpunkten aufnehmen.';
+  if(st.calpoints.length>count)return 'Mehr Messpunkte gespeichert als im Plan vorgesehen. Messplan kontrollieren.';
+  const lo=st.points.lo,hi=st.points.hi;
+  if(!lo||!hi||!Number.isFinite(lo.v)||!Number.isFinite(hi.v))
+   return 'Unterer oder oberer Druckreferenzpunkt fehlt bzw. liefert keinen gültigen ADC_S-Wert.';
+  const span=Math.abs(lo.v-hi.v);
+  if(span<10)return 'Alle '+count+' Messpunkte vorhanden, aber der Druckhub zwischen unterem und oberem Druckpunkt ist nur '+
+   span.toLocaleString('de-CH',{maximumFractionDigits:1})+
+   ' Digits. Druckbeaufschlagung prüfen und die Druckreferenzpunkte neu aufnehmen.';
+  const gains=JSON.stringify(st.staged);
+  if(st.calpoints.some(x=>JSON.stringify(x.gains)!==gains))
+   return 'Messpunkte wurden mit unterschiedlichen AFE-Gains aufgenommen. PGA1/PGA2/Offset prüfen und betroffene Punkte erneut aufnehmen.';
+  if(st.calpoints.some(x=>x.temperatureSource!==selectedTemperatureSource()))
+   return 'Messpunkte wurden mit unterschiedlicher Temperaturmessquelle aufgenommen. Quelle kontrollieren und Messpunkte neu erfassen.';
+  return 'Messreihe ist noch nicht vollständig gültig. Referenzbereich und eindeutige Punktzuordnung prüfen.';
+ }
  function calEndpointsReady(){
   const count=calibrationPointCount(),lo=st.points.lo,hi=st.points.hi;
   if(!Number.isFinite(count)||!lo||!hi||!Number.isFinite(lo.v)||!Number.isFinite(hi.v)||Math.abs(lo.v-hi.v)<10)return false;
@@ -2532,7 +2551,7 @@ if(typeof document!=='undefined') (function UI(){
   if(!a||!b)return show('calMsg','Unteren und oberen Referenzpunkt aufnehmen. Weitere Punkte dazwischen ebenfalls erfassen.');
   const span=Math.abs(b.v-a.v),mid=(a.v+b.v)/2,max=Math.max(Math.abs(a.v),Math.abs(b.v));
   $('hub').textContent=fmt(span);$('middle').textContent=fmt(mid);$('usage').textContent=(max/25000*100).toFixed(1)+' %';
-  if(!calEndpointsReady())show('calMsg',st.calpoints.length+' von '+calibrationPointCount()+' Punkten erfasst. Noch fehlende Punkte aufnehmen; alle müssen mit den gleichen AFE-Gains gemessen werden.','warn');
+  if(!calEndpointsReady())show('calMsg',calibrationReadinessReason(),'warn');
   else show('calMsg','Alle '+calibrationPointCount()+' Kalibrierpunkte aufgenommen. Berechnung ist freigegeben.','success');
   const advise=max>25000?'Übersteuerung möglich: Gain reduzieren und alle Punkte erneut aufnehmen.':span<18000?'Signalhub klein: PGA1/PGA2 optimieren und alle Punkte erneut aufnehmen.':Math.abs(mid)>7000?'Signalmitte verschoben: Offset prüfen und Messpunkte erneut aufnehmen.':'AFE-Hub grundsätzlich geeignet. Nach vollständiger Messung Koeffizienten berechnen.';
   show('recommendation',advise,'success')
@@ -2600,7 +2619,7 @@ if(typeof document!=='undefined') (function UI(){
   let fitRequest=null;
   try{
    if(st.calTask||st.writing||st.nvmWorking)throw Error('Es läuft ein anderer Vorgang');
-   if(!calEndpointsReady())throw Error('Zuerst alle '+calibrationPointCount()+' gewählten Kalibrierpunkte mit gleicher AFE-Einstellung aufnehmen');
+   if(!calEndpointsReady())throw Error(calibrationReadinessReason());
    const pmin=Number($('pmin').value),pmax=Number($('pmax').value);
    if(st.calpoints.some(p=>JSON.stringify(p.gains)!==JSON.stringify(st.staged)))throw Error('Gain wurde nach der Aufnahme geändert. Messpunkte erneut erfassen');
    if(selectedTemperatureSource()!=='internal'||st.calpoints.some(p=>p.temperatureSource!=='internal'))throw Error('Temperaturquelle der Kalibriermessungen muss mit internem Chipmodus übereinstimmen. Brücken-/EOC-Verfahren sind noch nicht implementiert.');
