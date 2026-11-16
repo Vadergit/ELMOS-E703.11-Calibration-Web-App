@@ -1,3 +1,12 @@
+## v0.7.87 – Kompakter Archivordner-Bereich in App-Einstellungen
+
+- Der Speicherort wird jetzt **in einer kompakten Zeile** mit Ordnername, Berechtigungsstatus und **«Ändern»** angezeigt.
+- Die zusätzliche Pfadeingabe ist standardmässig unter **«Pfad hinterlegen»** eingeklappt. Sie belegt keinen Platz, solange sie nicht gebraucht wird.
+- Wurde bereits ein vollständiger Pfad manuell hinterlegt, erscheint er **direkt unter dem ausgewählten Ordnernamen**, auch wenn die Eingabe zugeklappt ist. Beim Speichern klappt sich der Editor automatisch zu.
+- Da die File System Access API weiterhin nur den Ordnernamen freigibt, ist der **vollständige Betriebssystempfad nicht automatisch abrufbar**; eine Pfadangabe wird nur als manuelle, lokal gespeicherte Beschriftung angezeigt und beeinflusst die tatsächliche Archivablage nicht.
+- Der bestehende Schreibzugriff, die IndexedDB-Vormerkung, die Sperre während laufenden Messungen und der Archivordner selbst bleiben unverändert.
+- Zusätzliche Regressionstests für die zusammengeklappte Ansicht, die sichtbare gespeicherte Pfadbeschriftung, Ordnerwechsel und weiterhin sichere Ordnerfreigaben.
+
 ## v0.7.86 – Dekorativen Esc-Hinweis entfernen und Archivpfad optional anzeigen
 
 - Der kleine Hinweis **«Esc»** rechts oben im Einstellungsfenster war ein nicht interaktives Text-Element, das wie ein Button aussah. Er wurde entfernt. Die echte **Escape-Taste** kann das Fenster weiterhin schliessen; ebenso bleibt das automatische Schliessen beim Klick ausserhalb erhalten.
