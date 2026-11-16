@@ -1,3 +1,11 @@
+## v0.7.98 – Hilfetext der Temperaturmessquelle korrigiert
+
+- Ursache der überlappenden schwarzen Felder behoben: Das neue Hilfezeichen verwendete gleichzeitig einen nativen Browser-Hilfetext und die interne Tooltip-Komponente ohne zugeordneten Inhalt.
+- Temperaturmessquelle nutzt jetzt denselben internen Hilfetext wie die übrigen Fragezeichen; leere Tooltips werden grundsätzlich nicht mehr geöffnet.
+- Tooltip wird oberhalb der Eingabe positioniert, damit er die Dropdown-Auswahl nicht überdeckt (bei zu wenig Platz darunter).
+- Beschriftungen der Kalibrierpunkte und Samples gekürzt; vollständige Feldnamen bleiben für Hilfstechnologien erhalten.
+- Reine Darstellungsänderung; Messpunktaufnahme, Kalibrierberechnung, DSP und NVM bleiben unverändert.
+
 ## v0.7.97 – Einheitliche Versionsanzeige, AFE-DSP-Anzeige entfernen, Exporte nur für Experten
 
 - Der sichtbare Versionshinweis im Kopf wurde mit der Version im Seitenfuss und der internen App-Version synchronisiert (v0.7.97).
