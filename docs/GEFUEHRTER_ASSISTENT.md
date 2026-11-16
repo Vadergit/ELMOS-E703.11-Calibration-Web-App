@@ -1,3 +1,5 @@
+> **Standard ab v0.7.82:** Die geführte Ansicht ist beim ersten Öffnen und nach einem Reload ohne gespeicherte Moduswahl standardmässig aktiv. Beim bewussten Wechsel zu «Klassisch» merkt sich der Browser diese Auswahl. Der Druckbereich ist in der Kalibrierung mit **0–100 %** vorbelegt; alle geführten Presets setzen diesen Bereich, lassen aber andere Einheiten weiterhin zu. In der Nachmessung wird der tatsächliche kalibrierte Druckbereich weiterhin in der physischen Einheit dokumentiert.
+
 # Geführter Kalibrierassistent
 
 **Aktueller Projektstand: v0.7.75.** Der nachfolgende Leitfaden entstand ursprünglich für v0.6.0; ältere Schrittbezeichnungen sind als Entwicklungsverlauf zu verstehen.

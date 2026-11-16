@@ -22,7 +22,7 @@ const ELMOS_GUIDED=(()=>{
  let latestCapture=null,lastCaptureRenderKey=null,nextSensorBusy=false,nextSensorPending=null,seriesPointFields=null;
  const subscriptions=[];
  const subscribe=(el,type,handler)=>{el.addEventListener(type,handler);subscriptions.push({el,type,handler})};
- const defaults={pCount:2,tCount:1,temps:[25],pmin:0,pmax:10,samples:12,outputLimit:25000,orderS:1,orderT:0};
+ const defaults={pCount:2,tCount:1,temps:[25],pmin:0,pmax:100,unit:'%',samples:12,outputLimit:25000,orderS:1,orderT:0};
  const state=()=>window.ELMOS_GUIDED_API?.state?.()||{chip:false,points:[],mode:'offline'};
  const VIEW_PREFERENCE_KEY='elmos-ui-last-view-v1';
  const rememberedView=()=>{
@@ -62,9 +62,9 @@ const ELMOS_GUIDED=(()=>{
     '<button class="gw-choice" data-gw-task="archive"><span class="gw-choice-icon">▥</span><strong>Archiv</strong><small>Frühere Abgleiche und Tests suchen, Ergebnisse prüfen und vergleichen.</small></button></div>'+
     '<div class="gw-alert">Der Chip muss zuerst über USB erkannt werden. Der geführte Modus verändert keine Register, bevor du eine entsprechende Aktion bestätigst.</div></div>'+
    '<div id="gwPage1" class="gw-page" hidden><div class="gw-preset-grid">'+
-    '<button class="gw-preset" data-gw-preset="quick"><strong>Schnell</strong><small>2 Druckpunkte, ohne Temperaturkorrektur.</small></button>'+
-    '<button class="gw-preset" data-gw-preset="temperature"><strong>Mit Temperatur</strong><small>2 Druckpunkte × 3 Temperaturstufen.</small></button>'+
-    '<button class="gw-preset" data-gw-preset="custom"><strong>Individuell</strong><small>3 Druckpunkte × 2 Temperaturstufen; anpassbar.</small></button></div>'+
+    '<button class="gw-preset" data-gw-preset="quick"><strong>Schnell</strong><small>0–100 % · 2 Druckpunkte, ohne Temperaturkorrektur.</small></button>'+
+    '<button class="gw-preset" data-gw-preset="temperature"><strong>Mit Temperatur</strong><small>0–100 % · 2 Druckpunkte × 3 Temperaturstufen.</small></button>'+
+    '<button class="gw-preset" data-gw-preset="custom"><strong>Individuell</strong><small>0–100 % · 3 Druckpunkte × 2 Temperaturstufen; anpassbar.</small></button></div>'+
     '<div class="gw-tile is-soft"><h3>Deinen Messablauf festlegen</h3><div class="gw-fields gw-3">'+
      '<label>Druckpunkte<select id="gwPressureCount"><option>2</option><option>3</option><option>4</option><option>5</option></select></label>'+
      '<label>Temperaturbedingungen<select id="gwTemperatureCount"><option value="1">1 · keine Temperaturkorrektur</option><option value="2">2 · lineare Temperaturkorrektur</option><option value="3">3 · quadratische Temperaturkorrektur</option></select></label>'+
@@ -75,7 +75,7 @@ const ELMOS_GUIDED=(()=>{
    `<div id="gwPage2" class="gw-page gw-setup-page" hidden>
     <div class="gw-columns gw-setup-grid">
      <section class="gw-tile gw-setup-tile">
-      <div class="gw-section-head"><div><h3>Druckbereich und Messung</h3><p>Referenzwerte und Anzahl der Samples</p></div></div>
+      <div class="gw-section-head"><div><h3>Druckbereich und Messung</h3><p>Standardpreset 0–100 % · anpassbar</p></div></div>
       <div class="gw-fields gw-setup-pressure" id="gwSensorFields"></div>
      </section>
      <section class="gw-tile gw-setup-tile">
@@ -215,6 +215,18 @@ const ELMOS_GUIDED=(()=>{
  }
  function preset(name){
   const p=ELMOS_GUIDED_PLAN.presets[name];if(!p)return;
+  // Presets use normalized percent of the pressure span. Ask before losing
+  // real measured calibration points when switching from a physical unit.
+  const rangeChanged=String($('pmin').value)!==String(p.pmin)||
+   String($('pmax').value)!==String(p.pmax)||$('calUnit').value!==p.unit;
+  if(rangeChanged&&(state().points||[]).length){
+   if(!window.confirm('Das Preset stellt den Druckbereich auf 0–100 % um. Bereits erfasste Messpunkte werden verworfen. Fortfahren?'))return;
+  }
+  if(rangeChanged){
+   fieldValue('calUnit',p.unit);
+   fieldValue('pmin',p.pmin);
+   fieldValue('pmax',p.pmax);
+  }
   $('gwPressureCount').value=String(p.pCount);$('gwTemperatureCount').value=String(p.tCount);
   $('gwComplexity').value=p.complex?'advanced':'simple';
   $('gwSOrder').value=String(Math.min(3,p.pCount-1));
@@ -827,16 +839,24 @@ const ELMOS_GUIDED=(()=>{
  function init(){
   $('guidedLaunch')?.addEventListener('click',open);
   $('guidedLaunchTop')?.addEventListener('click',toggleTopView);
+  const restorePreferredView=()=>{
+   // No saved choice: use the guided start screen. An explicit classic choice
+   // always wins, including after a reload and reconnect.
+   if(rememberedView()==='classic'){
+    if(!mode)syncTopMode();
+    return;
+   }
+   if(!mode)open();
+  };
   try{
-   // Reloads must restore the last explicitly selected UI, not the previous
-   // calibration/USB session. Default to classic for new visitors.
-   if(rememberedView()==='guided')open();
-   else syncTopMode();
+   restorePreferredView();
+   // A second chance after all page scripts finish loading if a DOM dependency
+   // prevented the guide from mounting at DOMContentLoaded. No automatic chip
+   // command or calibration workflow is started.
+   window.addEventListener('load',restorePreferredView,{once:true});
   }finally{
-   // The early HTML boot flag hides the classic page until the saved view is ready.
    document.documentElement.classList.remove('guided-restore-pending');
   }
-  // A previously saved recipe is intentionally not applied to chip automatically.
  }
  function appliedPlanForConfig(){
   // Only report a matrix that was actually applied, never an editable draft.

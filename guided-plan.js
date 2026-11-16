@@ -6,12 +6,12 @@ const ELMOS_GUIDED_PLAN=(()=>{
  const number=(value,label)=>{const n=Number(value);if(!Number.isFinite(n))throw Error(label+' muss eine gültige Zahl sein');return n};
  const rounded=x=>Number(x.toFixed(6));
  const presets=Object.freeze({
-  quick:{label:'Schnellabgleich',pCount:2,tCount:1,complex:false,tempComp:false},
-  temperature:{label:'Mit Temperatur',pCount:2,tCount:3,complex:false,tempComp:true},
-  custom:{label:'Individuell',pCount:3,tCount:2,complex:true,tempComp:true}
+  quick:{label:'Schnellabgleich',pCount:2,tCount:1,pmin:0,pmax:100,unit:'%',complex:false,tempComp:false},
+  temperature:{label:'Mit Temperatur',pCount:2,tCount:3,pmin:0,pmax:100,unit:'%',complex:false,tempComp:true},
+  custom:{label:'Individuell',pCount:3,tCount:2,pmin:0,pmax:100,unit:'%',complex:true,tempComp:true}
  });
  function create(spec={}){
-  const pCount=Number(spec.pCount??2),tCount=Number(spec.tCount??1),pmin=number(spec.pmin??0,'Unterer Druck'),pmax=number(spec.pmax??10,'Oberer Druck');
+  const pCount=Number(spec.pCount??2),tCount=Number(spec.tCount??1),pmin=number(spec.pmin??0,'Unterer Druck'),pmax=number(spec.pmax??100,'Oberer Druck');
   if(!Number.isInteger(pCount)||pCount<2||pCount>5)throw Error('2 bis 5 Druckpunkte wählen');
   if(!Number.isInteger(tCount)||tCount<1||tCount>3)throw Error('1 bis 3 Temperaturstufen wählen');
   if(pCount*tCount>10)throw Error('Diese Kombination ergibt '+pCount*tCount+' Messpunkte. Der bestehende Assistent unterstützt höchstens 10. Druck-/Temperaturstufen reduzieren.');
@@ -39,7 +39,7 @@ const ELMOS_GUIDED_PLAN=(()=>{
   if(!Number.isInteger(n)||n<1||n>100)throw Error('Pro Messpunkt 1 bis 100 Samples zulässig');
   const outputLimit=Number(spec.outputLimit??25000);
   if(!Number.isInteger(outputLimit)||outputLimit<1000||outputLimit>32000)throw Error('DSP-Zielbereich zwischen ±1’000 und ±32’000 Digits wählen');
-  const unit=String(spec.unit??'bar');
+  const unit=String(spec.unit??'%');
   if(!['bar','mbar','kPa','psi','%','custom'].includes(unit))throw Error('Ungültige Druckeinheit');
   return Object.freeze({pCount,tCount,total:points.length,pmin,pmax,unit,
    tempComp:requestedT>0,temperatures,pressureValues,orderS:requestedS,orderT:requestedT,

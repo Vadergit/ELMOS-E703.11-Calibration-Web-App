@@ -33,24 +33,52 @@ test('View preference helpers persist guided/classic selection and survive unava
  assert.equal(blocked.rememberedView(),null);
  assert.doesNotThrow(()=>blocked.saveView('guided'));
 });
-test('Initialisation restores guided UI only when that mode was stored',()=>{
+test('Guided is default; an explicit classic choice survives reload and load callback',()=>{
  const src=section(' function init(){',' function appliedPlanForConfig(){');
  for(const preference of ['guided','classic',null]){
-  const calls=[],node={addEventListener:(type)=>calls.push('listen:'+type)};
+  const calls=[],node={addEventListener:type=>calls.push('listen:'+type)};
+  let loadCallback=null;
   const context={
+   mode:false,
    $:()=>node,
    rememberedView:()=>preference,
-   open:()=>calls.push('open'),
+   open:()=>{calls.push('open');context.mode=true},
    toggleTopView:()=>calls.push('toggle'),
    syncTopMode:()=>calls.push('sync'),
+   window:{addEventListener:(event,cb)=>{assert.equal(event,'load');loadCallback=cb}},
    document:{documentElement:{classList:{remove:key=>calls.push('remove:'+key)}}}
   };
   vm.runInNewContext(src+'\ninit()',context);
-  assert.equal(calls.includes('open'),preference==='guided');
-  assert.equal(calls.includes('sync'),preference!=='guided');
+  assert.equal(calls.includes('open'),preference!=='classic');
+  assert.equal(calls.includes('sync'),preference==='classic');
   assert.ok(calls.includes('remove:guided-restore-pending'));
   assert.equal(calls.filter(x=>x==='listen:click').length,2);
+  assert.equal(typeof loadCallback,'function');
+  loadCallback();
+  assert.equal(calls.filter(x=>x==='open').length,preference==='classic'?0:1);
  }
+});
+test('Late script load retries a failed guided mounting, but never overrides chosen classic',()=>{
+ const src=section(' function init(){',' function appliedPlanForConfig(){');
+ let preference='guided',loadCallback,tries=0;
+ const el={addEventListener(){}};
+ const context={
+  mode:false,$:()=>el,rememberedView:()=>preference,
+  toggleTopView(){},syncTopMode(){},
+  open(){tries++;if(tries===2)context.mode=true},
+  window:{addEventListener:(_,fn)=>loadCallback=fn},
+  document:{documentElement:{classList:{remove(){}}}}
+ };
+ vm.runInNewContext(src+'\ninit()',context);
+ assert.equal(tries,1);
+ assert.equal(context.mode,false);
+ loadCallback();
+ assert.equal(tries,2);
+ assert.equal(context.mode,true);
+ context.mode=false;
+ preference='classic';
+ loadCallback();
+ assert.equal(tries,2);
 });
 test('A successful guided opening and explicit classic switch update the saved view',()=>{
  const src=section(' function open(){',' function onSensorReset(){');
@@ -96,6 +124,6 @@ test('HTML suppresses first-paint classic flash and uses the same persisted key'
  const html=read('index.html');
  assert.match(html,/localStorage\.getItem\('elmos-ui-last-view-v1'\)/);
  assert.match(html,/guided-restore-pending \.content\{visibility:hidden\}/);
- assert.match(html,/guided\.js\?v=0\.7\.81/);
- assert.match(html,/data-app-version="0\.7\.81"/);
+ assert.match(html,/guided\.js\?v=0\.7\.82/);
+ assert.match(html,/data-app-version="0\.7\.82"/);
 });
