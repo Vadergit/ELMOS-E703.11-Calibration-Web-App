@@ -125,5 +125,5 @@ test('HTML suppresses first-paint classic flash and uses the same persisted key'
  assert.match(html,/localStorage\.getItem\('elmos-ui-last-view-v1'\)/);
  assert.match(html,/guided-restore-pending \.content\{visibility:hidden\}/);
  assert.match(html,/guided\.js\?v=0\.7\.82/);
- assert.match(html,/data-app-version="0\.7\.83"/);
+ assert.match(html,/data-app-version="0\.7\.84"/);
 });
