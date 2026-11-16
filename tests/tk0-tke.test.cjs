@@ -200,3 +200,56 @@ test('Temperature source selection is present but cannot silently activate unver
  assert.ok(app.includes('RAM-Schreiben gesperrt'));
  assert.ok(!app.includes('maintWrite(0x1E'));
 });
+
+
+test('Guided labels use acquisition indices instead of classic extra-slot numbers',()=>{
+ const gui=read('guided.js'),html=read('index.html');
+ assert.ok(gui.includes("setCaptureLabel(row.querySelector('.between h3'),'Messpunkt '+(index+1)"));
+ assert.ok(gui.includes("setCaptureLabel(button,'Messpunkt '+(index+1)+' aufnehmen')"));
+ assert.ok(gui.includes('originalCaptureLabels.clear()'));
+ assert.ok(html.includes('guided.css?v=0.7.91'));
+});
+test('Capture history separates pressure hub from temperature shift',()=>{
+ const plan=PLAN.create({pCount:2,tCount:2,temperatures:[25,75],fitMode:'tk0',pmin:0,pmax:100,orderS:1,orderT:1});
+ const values=[
+  {at:'2026-11-16T12:00:00Z',adc_s:-1500,adc_t:2000,spread:30,sampleCount:12},
+  {at:'2026-11-16T12:01:00Z',adc_s:-15400,adc_t:2002,spread:33,sampleCount:12},
+  {at:'2026-11-16T12:02:00Z',adc_s:-1480,adc_t:1400,spread:28,sampleCount:12}
+ ];
+ const samples=plan.points.map((point,index)=>({point,index,record:values[index]}));
+ assert.equal(PLAN.captureDelta(samples,0),null);
+ const pressure=PLAN.captureDelta(samples,1),temp=PLAN.captureDelta(samples,2);
+ assert.equal(pressure.kind,'pressure');
+ assert.equal(pressure.digits,-13900);
+ assert.equal(pressure.fromTemperature,25);
+ assert.equal(temp.kind,'temperature');
+ assert.equal(temp.digits,20);
+ assert.equal(temp.adcTDelta,-600);
+ assert.equal(temp.fromPressure,0);
+ const guide=read('guided.js'),app=read('app.js');
+ for(const needle of ['gw-point-nav-data','gw-point-nav-delta','gw-point-nav-meta','captureTime(record)','ELMOS_GUIDED_PLAN.captureDelta(points,index)'])
+  assert.ok(guide.includes(needle),needle);
+ assert.ok(app.includes('spread:x.spread,sampleCount:x.sampleCount'));
+});
+test('Internal SSC Celsius converts calibrated DSP_T only, with source and freshness guards',()=>{
+ assert.equal(CAL.dspTemperatureCelsius(Math.round(387.88*25-16485)).toFixed(2),'25.00');
+ assert.equal(CAL.dspTemperatureCelsius(Math.round(387.88*75-16485)).toFixed(2),'75.00');
+ assert.equal(CAL.dspTemperatureCelsius(null),null);
+ assert.equal(CAL.dspTemperatureCelsius(40000),null);
+ const app=read('app.js'),html=read('index.html');
+ assert.ok(html.includes('id="liveTempC"'));
+ assert.ok(html.includes('°C · DSP_T, ungeprüft'));
+ assert.ok(app.includes("CAL.temperatureSourceFromAfe2(st.regs[0x1E])==='internal'"));
+ assert.ok(app.includes('readReg(0x2E,1100)'));
+ assert.ok(app.includes('const channel=liveSecondaryIndex++%5'));
+ assert.ok(app.includes("if(name==='DSP_T')"));
+ assert.ok(app.includes('Date.now()-st.dspT.time<10000'));
+ assert.ok(!app.includes('maintWrite(0x2E'));
+});
+test('Too-small real pressure span is diagnosed separately from AFE and missing references',()=>{
+ const app=read('app.js');
+ assert.ok(app.includes("function calibrationReadinessReason()"));
+ assert.ok(app.includes("Druckhub zwischen unterem und oberem Druckpunkt"));
+ assert.ok(app.includes("const span=Math.abs(lo.v-hi.v)"));
+ assert.ok(app.includes("if(!calEndpointsReady())throw Error(calibrationReadinessReason())"));
+});
