@@ -667,6 +667,7 @@ if(typeof document!=='undefined') (function UI(){
   }
  }
  function calibrationDisplayReferences(count){
+  if(!Number.isInteger(count)||count<2||count>10)return [];
   const specs=[
    {key:'lo',row:$('capLo').closest('.cal-point-row'),pressure:Number($('pmin').value),temperature:Number($('calLoTemp').value),originalIndex:0},
    ...Array.from({length:Math.max(0,count-2)},(_,index)=>{
@@ -681,7 +682,6 @@ if(typeof document!=='undefined') (function UI(){
   const count=calibrationPointCount();
   if(!Number.isFinite(count))return show('calPointPlanMsg','Anzahl muss zwischen 2 und 10 liegen.','error');
   const ordered=calibrationDisplayReferences(count);
-  const numberByKey=new Map(ordered.map((x,index)=>[x.key,index+1]));
   // Classic view: only change visual order and captions. The original
   // lo/hi/extra slot keys, captured values and calibration math stay intact.
   const classicMode=$('calPointRows').contains($('capLo'));
@@ -4171,7 +4171,7 @@ if(typeof document!=='undefined') (function UI(){
    }
    if(!st.chip)throw Error($('connMsg').textContent);
   },
-  refresh:()=>{renderFlowState();renderStatus()},
+  refresh:()=>{renderCalPoints();renderFlowState();renderStatus()},
   telemetry:()=>guidedTelemetry(),
   afeStats:since=>guidedAfeStats(since),
   redraw:()=>draw(),
