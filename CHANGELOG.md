@@ -1,3 +1,10 @@
+## v0.7.78 – Nachmessung: klare Eingabefehler und korrekter Referenzdruck
+
+- Beim Start der Nachmessung werden ungültige Druck- und Temperaturreihen sowie Bereichs-, Zyklus- und Toleranzeingaben am jeweiligen Feld rot hervorgehoben. Die Ansicht springt zum ersten fehlerhaften Feld; Eingabekorrekturen entfernen die Markierung.
+- Der tatsächlich beim Messpunkt eingegebene Kalibrator-Referenzdruck bleibt änderbar und ist entscheidend für die gespeicherte Druckabweichung. Die Abschlussübersicht, die Diagramm-Details und das PDF zeigen diesen Referenzdruck statt stillschweigend den ursprünglichen Prüfdruck. Abweichende Sollwerte bleiben explizit dokumentiert.
+- Bei unterschiedlichen Relativ-/Absolutdruckbezügen zeigt das PDF zusätzlich den für die Sensorabweichung umgerechneten Druck. CSV-Protokolle unterscheiden bei Bedarf ebenfalls zwischen eingegebenem Kalibratorreferenzdruck und korrigiertem Sensorbezug.
+- Prüfablauf, Sensorkommunikation und NVM-Programmierung unverändert. Software-Regressionstests für ungültige Listen sowie abweichende Referenzen in Graph und PDF ergänzt. Die Bedienung am realen Prüfstand muss weiterhin verifiziert werden.
+
 ## v0.7.77 – App-Einstellungen kompakter und übersichtlicher
 
 - Einstellungsfenster neu in **Darstellung**, **Messung**, **Erweiterte Optionen** und **Hilfen & Tools** gegliedert. Kompaktere Abstände, zusammengehörige Felder in zwei Spalten und klare Beschriftungen.
