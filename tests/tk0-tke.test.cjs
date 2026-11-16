@@ -76,7 +76,7 @@ test('Three-point calibration mode survives portable profile export and import',
 test('TK0 mode reuses existing hardware write gates and is visible in both UIs',()=>{
  const app=read('app.js'),guided=read('guided.js'),html=read('index.html');
  assert.ok(app.includes("CAL.fit(st.calpoints,{pmin,pmax,orderS,orderT,fitMode,outputLimit})"));
- assert.ok(app.includes("const required=fitMode==='tk0'?3:(orderS+1)*(orderT+1)"));
+ assert.ok(app.includes("const required=fitMode==='tk0'?(orderT===0?2:3):(orderS+1)*(orderT+1)"));
  assert.ok(app.includes("st.calfit.fitMode||'full'"));
  assert.ok(app.includes("if(!calEndpointsReady())throw Error"));
  assert.ok(guided.includes("moveLabel('calFitMode','gwFitFields')"));
