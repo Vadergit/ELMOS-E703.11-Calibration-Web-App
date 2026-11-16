@@ -1,6 +1,6 @@
 # DIY-Programmer für den ELMOS E703.11 – unterstützte Boards
 
-**Aktueller Stand: v0.7.75 · 15. November 2026**
+**Aktueller Stand: v0.7.76 · 15. November 2026**
 
 Für die DIY-Programmieradapter werden in diesem Projekt **ausschliesslich zwei Boards** geführt und dokumentiert:
 
