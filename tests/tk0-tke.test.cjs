@@ -179,3 +179,24 @@ test('Temperature fallback UI remains guarded and is present in classic and guid
  assert.ok(app.includes("$('calTOrder').value='0'"));
  assert.ok(guided.includes("'calTempFallback'"));
 });
+
+test('Temperature source is decoded from CFG_AFE2 bits 1:0',()=>{
+ assert.equal(CAL.temperatureSourceFromAfe2(0x0000),'internal');
+ assert.equal(CAL.temperatureSourceFromAfe2(0x0401),'reserved');
+ assert.equal(CAL.temperatureSourceFromAfe2(0x0032),'bridge');
+ assert.equal(CAL.temperatureSourceFromAfe2(0x0F03),'external');
+ assert.throws(()=>CAL.temperatureSourceFromAfe2(-1),/CFG_AFE2/);
+});
+test('Temperature source selection is present but cannot silently activate unverified bridge compensation',()=>{
+ const app=read('app.js'),guided=read('guided.js'),html=read('index.html');
+ assert.ok(html.includes('id="calTempSource"'));
+ assert.ok(html.includes('value="internal" selected'));
+ assert.ok(html.includes('value="bridge" disabled'));
+ assert.ok(html.includes('value="external" disabled'));
+ assert.ok(guided.includes("moveLabel('calTempSource','gwDspFields')"));
+ assert.ok(app.includes('async function checkCalibrationTemperatureSource()'));
+ assert.ok(app.includes('const afe2=await readReg(0x1E)'));
+ assert.ok(app.includes('temperatureSource:sourceInfo.temperatureSource'));
+ assert.ok(app.includes('RAM-Schreiben gesperrt'));
+ assert.ok(!app.includes('maintWrite(0x1E'));
+});
