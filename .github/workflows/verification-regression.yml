@@ -18,4 +18,4 @@ jobs:
           node --check verification-graph.js
           node --check archive-readable-csv.js
       - name: Unit and regression tests
-        run: node --test tests/verification-reference.test.cjs tests/view-persistence.test.cjs
+        run: node --test tests/verification-reference.test.cjs tests/view-persistence.test.cjs tests/pressure-preset.test.cjs
