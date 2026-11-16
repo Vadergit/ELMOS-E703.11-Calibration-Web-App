@@ -254,6 +254,12 @@ const ELMOS_ARCHIVE=(()=>{
  async function finalise(status='incomplete',{snapshot}={}){
   if(!S.record)return;
   if(S.measuring)throw Error('Messung läuft');
+  // Discard empty sessions before unnecessary hardware reads or disk access.
+  if(['calibration','verification'].includes(S.record.type)&&!C.hasMeaningfulData(S.record)){
+   S.record=null;S.filename=null;S.step=0;
+   renderActive();await refresh();
+   return null;
+  }
   if(snapshot!==undefined)S.record.final=snapshot;
   else if(bridge()?.final)try{S.record.final=await bridge().final()}catch(e){
    S.record.events.push({at:iso(),kind:'error',data:{stage:'final_snapshot',message:e.message}});
@@ -266,11 +272,6 @@ const ELMOS_ARCHIVE=(()=>{
    S.record.final.nvm.words.length!==64))status='incomplete';
   if(status==='completed'&&S.record.type==='verification')
    status=C.verificationCompletion(S.record);
-  if(['calibration','verification'].includes(S.record.type)&&!C.hasMeaningfulData(S.record)){
-   S.record=null;S.filename=null;S.step=0;
-   renderActive();await refresh();
-   return null;
-  }
   S.record.status=status;S.record.endedAt=iso();
   S.record.events.push({at:iso(),kind:'finished',data:{status}});
   if(S.record.type==='testlog'&&S.debugLines.length)
