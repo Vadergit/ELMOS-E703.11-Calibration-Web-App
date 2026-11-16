@@ -271,7 +271,7 @@ test('Header separates Elmos example temperature from AN0203 fit and checks abso
  assert.ok(app.includes("CAL.isFactoryTemperatureProfile(st.regs)"));
  assert.ok(app.includes("CAL.factoryInternalTemperatureCelsius(st.adc.t,st.regs)"));
  assert.ok(app.includes("st.calStaged&&st.calfit?.orderT>0"));
- assert.ok(app.includes("const required=[0x1E,0x04,...CAL.factoryTemperatureAddresses]"));
+ assert.ok(app.includes("const required=[0x1E,0x04,...CAL.factoryTemperatureAddresses,...CAL.programmedTemperatureAddresses]"));
  assert.ok(app.includes("tempMode==='factory'"));
  assert.ok(html.includes('id="liveTempUnit"'));
  assert.ok(style.includes('grid-template-columns:repeat(5,minmax(0,1fr))'));
@@ -299,7 +299,7 @@ test('One DSP verification point is sufficient at TK0/TKE; temperature coverage 
  assert.ok(guided.includes('Bereits ein bestandener Prüfpunkt genügt'));
  assert.ok(html.includes('id="calVerifyCount" min="1" max="10" step="1" value="1"'));
  assert.ok(html.includes('guided.js?v=0.7.93'));
- assert.ok(html.includes('app.js?v=0.7.94'));
+ assert.ok(html.includes('app.js?v=0.7.95'));
 });
 
 test('Classic and guided calibration point ordering agree at each reference temperature',()=>{
@@ -337,4 +337,43 @@ test('Classic point sorting changes visual order but never overwrites sensor cap
  assert.ok(app.includes('refresh:()=>{renderCalPoints();renderFlowState();renderStatus()}'));
  assert.ok(guide.includes("const pointRows=[...document.querySelectorAll('.panel[data-panel=\"2\"] .cal-point-row')]"));
  assert.ok(html.includes('guided-plan.js?v=0.7.94'));
+});
+
+test('Saved E703.11 NVM profile is recovered by UID and read-back temperature words',()=>{
+ const words='BBE7 011D 0AE2 E100 00FC 0501 4028 150D 7FE0 7C1F 0000 D411 2900 0EC3 029E 7300 13D6 6C00 C000 083F 100F 0001 0880 0000 59A3 319A 01F4 0C80 1C53 1154 0001 0641 5AF0 1399 4F6E FDEF 0270 0000 0000 81BD 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0B5A D36D 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 5CE8'.split(' ').map(x=>Number.parseInt(x,16));
+ assert.equal(words.length,64);
+ assert.equal(CAL.crc16(words),0x5CE8);
+ assert.equal(CAL.crc8(words),0x73);
+ const uid='0020011DBBE7';
+ const regs=Object.fromEntries([[31,0x6C],[32,0x6E],[51,0x94],[52,0x96],[53,0x98],[54,0x9A]]
+  .map(([word,address])=>[address,words[word]]));
+ const legacy={id:uid,words,ts:'2026-11-16T12:00:00.000Z',restore:false};
+ assert.equal(CAL.programmedTemperatureProfileMatches(legacy,uid,regs),true);
+ assert.equal(CAL.programmedTemperatureProfileMatches({...legacy,temperatureBasis:'an0203-celsius-v1'},uid,regs),true);
+ assert.equal(CAL.programmedTemperatureProfileMatches({...legacy,temperatureBasis:null},uid,regs),false);
+ assert.equal(CAL.programmedTemperatureProfileMatches({...legacy,restore:true},uid,regs),false);
+ assert.equal(CAL.programmedTemperatureProfileMatches(legacy,uid,{
+  0x6C:0x0000,0x6E:0x1000,0x94:0x0F4D,0x96:0xBC8E,0x98:0xFC54,0x9A:0x0000
+ }),false,'Factory example must never be interpreted as AN0203');
+ assert.equal(CAL.programmedTemperatureProfileMatches(legacy,'0020011DBBE8',regs),false);
+ assert.equal(CAL.programmedTemperatureProfileMatches(legacy,uid,{...regs,0x96:0}),false);
+ assert.equal(CAL.programmedTemperatureProfileMatches(legacy,uid,{...regs,0x9A:undefined}),false);
+ assert.equal(CAL.programmedTemperatureProfileMatches({...legacy,words:words.map((v,i)=>i===31?v+1:v)},uid,regs),false);
+ assert.equal(CAL.programmedTemperatureProfileMatches({...legacy,words:words.map((v,i)=>i===63?0:v)},uid,regs),false);
+ assert.equal(CAL.temperatureSourceFromAfe2(words[29]),'internal');
+ assert.ok(words[16]&0x1000);
+ const norm=(CAL.fromQ(words[32],12)*2653+CAL.fromQ(words[31],12)*32768)/32768;
+ const dspT=Math.round(words[51]+CAL.signed(words[52])*norm);
+ const temp=CAL.dspTemperatureCelsius(dspT);
+ assert.ok(Math.abs(temp-24.96)<0.02);
+});
+test('Temperature display survives restart without any current wizard state',()=>{
+ const app=read('app.js'),html=read('index.html');
+ assert.ok(app.includes('CAL.programmedTemperatureProfileMatches(storedProgrammedNvm(),st.uid.hex,st.regs)'));
+ assert.ok(app.includes('((st.calStaged&&st.calfit?.orderT>0)||nvmProfile)'));
+ assert.ok(app.includes("'°C · NVM-Abgleich'"));
+ assert.ok(app.includes('const temperatureBasis=!restoring&&!outputOnly&&st.calfit?.orderT>0'));
+ assert.ok(app.includes('st.regs[pending]=await readReg(pending,1100)'));
+ assert.ok(html.includes('calibration.js?v=0.7.95'));
+ assert.ok(html.includes('app.js?v=0.7.95'));
 });

@@ -55,6 +55,28 @@ const ELMOS_CAL = (() => {
  // Not production-trimmed or accuracy-guaranteed by Elmos.
  const factoryTemperatureRegisters=Object.freeze({0x6C:0x0000,0x6E:0x1000,0x94:0x0F4D,0x96:0xBC8E,0x98:0xFC54,0x9A:0x0000});
  const factoryTemperatureAddresses=Object.keys(factoryTemperatureRegisters).map(Number);
+ // NVM word indices map to the *working RAM register addresses*, not NVM
+ // byte addresses. Only the temperature calibration fingerprint is compared.
+ const programmedTemperatureWordMap=Object.freeze([
+  [31,0x6C],[32,0x6E],[51,0x94],[52,0x96],[53,0x98],[54,0x9A]
+ ]);
+ const programmedTemperatureAddresses=programmedTemperatureWordMap.map(pair=>pair[1]);
+ const programmedTemperatureProfileMatches=(snapshot,uid,registers)=>{
+  if(!snapshot||typeof uid!=='string'||!(/^[0-9A-Fa-f]{12}$/).test(uid)||String(snapshot.id||'').toUpperCase()!==uid.toUpperCase())return false;
+  if(snapshot.restore===true||!Array.isArray(snapshot.words)||snapshot.words.length!==64)return false;
+  if(!snapshot.words.every(word=>Number.isInteger(word)&&word>=0&&word<=0xFFFF))return false;
+  if(snapshot.temperatureBasis!==undefined&&snapshot.temperatureBasis!=='an0203-celsius-v1')return false;
+  if(snapshot.words[63]!==crc16(snapshot.words))return false;
+  const serial=uid.toUpperCase();
+  if(snapshot.words[0].toString(16).toUpperCase().padStart(4,'0')!==serial.slice(8))return false;
+  if(snapshot.words[1].toString(16).toUpperCase().padStart(4,'0')!==serial.slice(4,8))return false;
+  if(!(snapshot.words[16]&0x1000)||(snapshot.words[29]&3)!==0)return false;
+  // Never call an empty/constant factory profile an AN0203 calibration.
+  if(![52,53,54].some(index=>snapshot.words[index]!==0))return false;
+  if(isFactoryTemperatureProfile(registers))return false;
+  return programmedTemperatureWordMap.every(([word,address])=>
+   Number.isInteger(registers?.[address])&&registers[address]===snapshot.words[word]);
+ };
  const isFactoryTemperatureProfile=registers=>!!registers&&factoryTemperatureAddresses.every(address=>
   Number.isInteger(registers[address])&&registers[address]===factoryTemperatureRegisters[address]);
  const factoryInternalTemperatureCelsius=(adcT,registers)=>{
@@ -337,6 +359,6 @@ const ELMOS_CAL = (() => {
   Number.isInteger(required)&&required>=1&&required<=10&&Array.isArray(records)&&
   Array.from({length:required},(_,slot)=>records.some(point=>
    point?.slot===slot&&Number.isFinite(point.errorBar))).every(Boolean);
- return {SVDD_INDEX,SVDD_MASK,fit,suggestDspLimit,solveFit,crc16,crc8,configFrom,prepareOutputConfig,protectStartupCommunication,oneWireStartupStatus,oneWireOnlyStatus,analogScaling,fromQ,q,signed,independentVerificationPoint,verificationPointsSufficient,temperatureSourceFromAfe2,dspTemperatureCelsius,isFactoryTemperatureProfile,factoryInternalTemperatureCelsius,factoryTemperatureAddresses};
+ return {SVDD_INDEX,SVDD_MASK,fit,suggestDspLimit,solveFit,crc16,crc8,configFrom,prepareOutputConfig,protectStartupCommunication,oneWireStartupStatus,oneWireOnlyStatus,analogScaling,fromQ,q,signed,independentVerificationPoint,verificationPointsSufficient,temperatureSourceFromAfe2,dspTemperatureCelsius,isFactoryTemperatureProfile,factoryInternalTemperatureCelsius,factoryTemperatureAddresses,programmedTemperatureAddresses,programmedTemperatureProfileMatches};
 })();
 if(typeof module!=='undefined'&&module.exports)module.exports=ELMOS_CAL;
