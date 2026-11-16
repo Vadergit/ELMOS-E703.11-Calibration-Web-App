@@ -1,3 +1,12 @@
+## v0.7.83 – Kalibrierungen jetzt mit Soll-/Ist- und Abweichungsdiagrammen im Archiv
+
+- Im lokalen Kalibrierarchiv erscheinen beim Öffnen von **«Ergebnisse prüfen»** für Kalibrierungen zwei neue, an die bestehende Nachmessung angelehnte Diagramme: **Druckabweichung in % FS** mit der jeweils gespeicherten Toleranz und **Soll-/Ist-Druck** mit den aufgezeichneten Toleranzgrenzen.
+- Prüfpunkte werden mit **grün** (laut gespeichertem Ergebnis innerhalb Toleranz), **rot** (ausserhalb Toleranz) oder **orange** (ohne Bewertung) markiert. Es werden alle real gespeicherten Verifikationsversuche angezeigt, auch fehlgeschlagene und wiederholte Versuche.
+- Messquelle sind ausschliesslich die archivierten `verification_attempt`-Ereignisse (`pressure`, `pressureDeviation`, `tolerance`, `pass` usw.). Die vollständige Messspanne wird aus den archivierten Kalibrierpunkten abgeleitet. Fehlt sie, bleibt die Darstellung in der gespeicherten Kalibriereinheit statt eine %FS-Angabe zu erfinden.
+- Für alte Kalibrierarchive **ohne unabhängige DSP-Verifikation**, aber mit aufgenommenen Kalibrierpunkten, wird als Fallback der **ADC_S-Verlauf über die Referenz** gezeigt – mit klarem Hinweis, dass dafür **kein Toleranzband** vorliegt.
+- Die neuen Graphen sind reine Anzeigen: Es werden weder Archivdateien verändert noch Sensoren angesprochen, und es erfolgt keine zusätzliche Messung oder NVM-Aktion.
+- Node-Regressionstests decken die Auswertung von ±Abweichungen, wechselnden Einheiten, wiederholten Versuchen, fehlenden Referenzen, Toleranzgrenzen und die unveränderte Wiedergabe alter Archivdaten ab.
+
 ## v0.7.82 – Standarddruck 0–100 % und robuster Start der geführten Ansicht
 
 - **Kalibrierung:** In der klassischen und der geführten Oberfläche ist die Druckeinheit neu standardmässig **%**, mit unterem Referenzwert **0** und oberem Referenzwert **100**. Damit starten neue Kalibrierungen auf **0–100 %**. Sämtliche drei geführten Vorlagen (Schnell, Mit Temperatur, Individuell) verwenden ebenfalls 0–100 % als Druck-Preset und zeigen die Werte an.
