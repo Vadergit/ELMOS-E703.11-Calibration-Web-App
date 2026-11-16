@@ -1,3 +1,12 @@
+## v0.7.92 – Kompakter Kopfbereich und korrekte Temperaturprofil-Erkennung
+
+- Alle fünf Live-Werte (ADC_S, ADC_T, SSC-Temperatur, DSP_S und Sensorwert) stehen auf Desktop wieder kompakt nebeneinander. Die zuvor durch ein CSS-Override falsch auf vier Spalten begrenzte Anzeige wurde korrigiert; responsives Layout optimiert.
+- Der geführte Kalibrierassistent benötigt weniger Höhe und reduziert Abstände/Kartengrössen ohne das Verbergen von Messdaten oder Prüfungen.
+- Die °C-Anzeige verwendet nicht mehr unbesehen die AN0203-Skalierung für beliebige DSP_T-Daten. Die Software prüft CFG_EN.t_abs_en und liest das dokumentierte Elmos-Temperatur-Koeffizientenprofil als read-only Register.
+- Bei exakt erkanntem Elmos-Werksbeispielprofil wird eine **ungeprüfte Näherung** aus dem internen ADC_T unter Verwendung der dokumentierten Werksbeispiel-Kennlinie angezeigt, die auf Temperaturänderungen reagiert. Nach einem im aktuellen RAM durchgeführten Temperaturabgleich wird DSP_T nach der AN0203-Konvention interpretiert, sofern die absolute Temperaturkorrektur aktiviert ist.
+- Bei unbekannter Temperaturkennlinie wird statt einer möglicherweise falschen Temperatur «—» angezeigt; Tooltip zeigt Rohwert DSP_T, ADC_T und den Status der Temperaturfunktion. Keine Hardware- oder NVM-Konfiguration wird verändert.
+- Regressionstests für Werksbeispiel-Kennlinie, dynamische Änderung, unbekanntes Profil und kompaktes Layout.
+
 ## v0.7.91 – Verständliche Messpunkthistorie und interne SSC-Temperaturanzeige
 
 - Der geführte Abgleich benennt Messpunkte konsistent nach der sichtbaren Reihenfolge (inkl. richtigem Titel und Aufnahmebutton für den dritten TK0-Punkt).

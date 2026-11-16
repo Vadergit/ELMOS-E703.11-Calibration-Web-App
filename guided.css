@@ -317,3 +317,31 @@ html.guided-active #guidedWorkspace [hidden]{display:none!important}
 .gw-preset-dialog-heading{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:16px}
 .gw-preset-dialog-heading h3{margin:0}
 @media(max-width:600px){.gw-heading-row{flex-wrap:wrap;margin-bottom:14px}}
+
+
+/* v0.7.92: compact wizard without hiding any essential fields. */
+#guidedWorkspace{margin:7px auto 0;min-height:calc(100vh - 90px)}
+#guidedWorkspace .gw-shell{min-height:530px}
+#guidedWorkspace .gw-sidebar{padding:15px 10px;gap:7px}
+#guidedWorkspace .gw-backlogo{margin:0 6px 5px}
+#guidedWorkspace .gw-sideitems{gap:2px}
+#guidedWorkspace .gw-sideitem{padding:7px 8px;gap:7px}
+#guidedWorkspace .gw-sidebar-footer{padding:8px 8px;font-size:10px;line-height:1.4}
+#guidedWorkspace .gw-main{padding:17px 22px 12px}
+#guidedWorkspace .gw-progressbar{margin:8px 0 13px}
+#guidedWorkspace .gw-title{font-size:24px;margin-bottom:5px}
+#guidedWorkspace .gw-desc{font-size:12px;line-height:1.4;margin-bottom:11px}
+#guidedWorkspace .gw-page{min-height:180px}
+#guidedWorkspace .gw-columns{gap:9px}
+#guidedWorkspace .gw-columns.gw-six{gap:9px}
+#guidedWorkspace .gw-columns.gw-six .gw-choice{min-height:93px;padding:10px 12px;gap:5px;border-radius:11px}
+#guidedWorkspace .gw-choice .gw-choice-icon{width:24px;height:24px;font-size:14px}
+#guidedWorkspace .gw-choice strong{font-size:13px}
+#guidedWorkspace .gw-choice small{font-size:11px;line-height:1.35}
+#guidedWorkspace .gw-footer{padding-top:10px;margin-top:12px}
+#guidedWorkspace .gw-footer button{min-height:34px;padding:7px 13px}
+@media(max-width:790px){
+ #guidedWorkspace .gw-sidebar{padding:10px}
+ #guidedWorkspace .gw-main{padding:16px 13px 12px}
+ #guidedWorkspace .gw-columns.gw-six .gw-choice{min-height:88px}
+}

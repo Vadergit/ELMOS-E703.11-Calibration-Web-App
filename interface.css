@@ -203,3 +203,31 @@ html.guided-active body { background: var(--bg); }
   margin: 0.25rem 0; padding: 0.5rem 0.7rem; border-radius: 6px;
   background: var(--blue-soft); white-space: pre-wrap; overflow-wrap: anywhere;
 }
+
+
+/* v0.7.92: keep all five live metrics on one compact line on desktop.
+   The previous four-column override wrapped the fifth value and doubled
+   the height of the sticky header after adding SSC temperature. */
+.top{column-gap:10px;row-gap:5px;padding:5px 0 8px}
+.top .brand{min-width:178px}
+.top .live-overview{width:100%;min-width:0;grid-template-columns:repeat(5,minmax(0,1fr));gap:0}
+.top .live-kpi{padding:4px 7px;min-height:46px}
+.top .live-kpi-label{font-size:9px}
+.top .live-kpi-reading{font-size:17px;line-height:1.12}
+.top .live-kpi-primary .live-kpi-reading{font-size:19px}
+.top .live-kpi-unit{font-size:9px;line-height:1.14}
+.top .live-connection{min-width:0}
+.top .connection-actions{gap:5px}
+.top .live-meta{font-size:9px}
+@media(max-width:1320px){
+ .top .live-overview{grid-column:1/-1;grid-row:2;grid-template-columns:repeat(5,minmax(0,1fr))}
+ .top .live-connection{grid-column:2;grid-row:1}
+}
+@media(max-width:620px){
+ .top .live-overview{grid-column:1;grid-row:2;grid-template-columns:repeat(3,minmax(0,1fr))}
+ .top .live-connection{grid-column:1;grid-row:3;align-items:flex-start}
+ .top .live-kpi{min-height:41px;padding:4px 6px}
+ .top .live-kpi-reading{font-size:15px}
+ .top .live-kpi-primary .live-kpi-reading{font-size:17px}
+}
+@media(max-width:370px){.top .live-overview{grid-template-columns:repeat(2,minmax(0,1fr))}}

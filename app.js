@@ -436,13 +436,32 @@ if(typeof document!=='undefined') (function UI(){
   $('liveAdcS').textContent=activeADC?fmt(st.adc.s):'—';
   $('liveAdcT').textContent=activeADC&&Number.isFinite(st.adc.t)?fmt(st.adc.t):'—';
   const internalSource=connected&&Number.isInteger(st.regs[0x1E])&&CAL.temperatureSourceFromAfe2(st.regs[0x1E])==='internal';
-  const liveT=internalSource&&st.dspT&&!st.dspTError&&Date.now()-st.dspT.time<10000?
-   CAL.dspTemperatureCelsius(st.dspT.raw):null;
-  const hasTemp=Number.isFinite(liveT)&&liveT>=-40&&liveT<=125;
-  $('liveTempC').textContent=hasTemp?'≈'+dspNumber(liveT):'—';
-  $('liveTempC').parentElement.title=internalSource?
-   'Aus DSP_T (0x2E) und den im Chip hinterlegten Temperaturkoeffizienten. Näherungsanzeige, nicht unabhängig verifiziert; kein Ersatz für einen Referenztemperaturfühler.':
-   'Interne Temperaturquelle nicht bestätigt (CFG_AFE2.t_adc_src) oder noch kein gültiger DSP_T-Wert. ADC_T-Rohwerte sind keine °C.';
+  const absoluteEnabled=Number.isInteger(st.regs[0x04])&&!!(st.regs[0x04]&0x1000);
+  const factoryProfile=internalSource&&CAL.isFactoryTemperatureProfile(st.regs);
+  const ownCalibration=internalSource&&absoluteEnabled&&st.calStaged&&st.calfit?.orderT>0;
+  const validDsp=!!st.dspT&&!st.dspTError&&Date.now()-st.dspT.time<10000;
+  // Two manufacturers' mappings exist: the AN0203 software-fit target differs
+  // from the factory example coefficients. Never apply the AN0203 formula to an
+  // unknown or factory DSP_T register.
+  const ownTemp=ownCalibration&&validDsp?CAL.dspTemperatureCelsius(st.dspT.raw):null;
+  // Even if CFG_EN.t_abs_en is off, the internal diode still measures ADC_T.
+  // Estimate ONLY when the actual registers match the documented factory profile.
+  const exampleTemp=factoryProfile&&activeADC&&Number.isInteger(st.adc.t)?
+   CAL.factoryInternalTemperatureCelsius(st.adc.t,st.regs):null;
+  const measuredTemp=Number.isFinite(ownTemp)?ownTemp:exampleTemp;
+  const hasTemp=Number.isFinite(measuredTemp)&&measuredTemp>=-40&&measuredTemp<=125;
+  const tempMode=Number.isFinite(ownTemp)?'an0203':Number.isFinite(exampleTemp)?'factory':'unavailable';
+  $('liveTempC').textContent=hasTemp?'≈'+dspNumber(measuredTemp):'—';
+  $('liveTempUnit').textContent=tempMode==='an0203'?'°C · Eigener Abgleich':tempMode==='factory'?
+   '°C · Werksbeispiel (ungeprüft)':'°C · nicht kalibriert';
+  $('liveTempC').parentElement.title=
+   'Interner Temperaturpfad: '+(internalSource?'aktiv':'nicht bestätigt')+
+   ' · CFG_EN.t_abs_en: '+(absoluteEnabled?'aktiv':'inaktiv / unbekannt')+
+   ' · ADC_T: '+(activeADC?fmt(st.adc.t):'—')+
+   ' · DSP_T: '+(validDsp?fmt(st.dspT.raw):'—')+
+   (tempMode==='factory'?' · Näherung aus ADC_T mit verifizierten Elmos-Beispielregistern (100 DSP_T-Digits/°C), keine Produktionskalibrierung.':
+    tempMode==='an0203'?' · Aktueller RAM-Temperaturfit nach AN0203; vor Verwendung unabhängig prüfen.':
+    ' · Keine zuverlässige °C-Skalierung verfügbar; aus einem einzelnen DSP_T-Wert allein lässt sich die Temperatur nicht bestimmen.');
   $('liveDspS').textContent=activeDSP?fmt(st.dsp.raw):'—';
   $('livePressure').textContent=Number.isFinite(converted)?dspNumber(converted):'—';
   $('livePressureUnit').textContent=range?.unit||'—';
@@ -2355,14 +2374,19 @@ if(typeof document!=='undefined') (function UI(){
     // DSP_T already includes the chip temperature calibration coefficients.
     st.dspT={raw:P.sign16(await readReg(0x2E,1100)),time:Date.now()};
     st.dspTError=null;renderStatus();
-   }else if(channel===4&&!Number.isInteger(st.regs[0x1E])){
-    // Read the temperature source once per chip session, never write it.
-    st.regs[0x1E]=await readReg(0x1E,1100);
-    renderStatus();
+   }else if(channel===4){
+    // Probe read-only temperature settings, one register per idle secondary
+    // slot; never write or reconfigure the chip during live monitoring.
+    const required=[0x1E,0x04,...CAL.factoryTemperatureAddresses];
+    const pending=required.find(address=>!Number.isInteger(st.regs[address]));
+    if(pending!==undefined){
+     st.regs[pending]=await readReg(pending,1100);
+     renderStatus();
+    }
    }
    // Channel 4 is otherwise ADC_S-only, preserving a short polling cycle.
   }catch(e){
-   const name=channel===0?'ADC_T':channel===1?'ADC_TC':channel===2?'DSP_S':channel===3?'DSP_T':'CFG_AFE2';
+   const name=channel===0?'ADC_T':channel===1?'ADC_TC':channel===2?'DSP_S':channel===3?'DSP_T':'Temperatur-Konfig';
    if(name==='DSP_S'){st.dsp=null;st.dspError=e.message;renderDSPLive()}
    if(name==='DSP_T'){st.dspT=null;st.dspTError=e.message;renderStatus()}
    if(!st.lastSecondaryError||Date.now()-st.lastSecondaryError>12000){
