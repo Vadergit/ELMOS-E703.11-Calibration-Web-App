@@ -101,6 +101,31 @@ const ELMOS_ARCHIVE_CORE=(()=>{
   return {pairs,maxPressure:pairs.filter(x=>x.axis==='pressure').reduce((m,p)=>Math.max(m,p.absolute),0),
    maxTemperature:pairs.filter(x=>x.axis==='temperature').reduce((m,p)=>Math.max(m,p.absolute),0)};
  }
+ // Completion describes the measurement workflow, not a tolerance verdict.
+ // With tolerance disabled a captured point is complete even though pass is null.
+ function verificationCompletion(record){
+  const steps=record?.plan?.steps;
+  if(record?.type!=='verification'||!Array.isArray(steps)||steps.length===0)return 'incomplete';
+  const latest=steps.map(step=>lastAttempt(record,step.index));
+  if(latest.some(item=>item?.pass===false))return 'failed';
+  if(latest.some(item=>!item?.sample||typeof item.sample!=='object'||
+   !Object.keys(item.sample).length))return 'incomplete';
+  const toleranceOff=record.verificationConfig?.toleranceEnabled===false;
+  if(latest.some(item=>item.pass!==true&&item.toleranceApplied!==false&&!toleranceOff))
+   return 'incomplete';
+  return 'completed';
+ }
+ // Old read-only records were marked incomplete just because an optional
+ // tolerance check was switched off. Correct their presentation without
+ // silently rewriting the signed-off local JSON archive.
+ function displayStatus(record){
+  const stored=record?.status||'running';
+  if(stored!=='incomplete'||record?.type!=='verification'||!record.endedAt||
+   record.verificationConfig?.toleranceEnabled!==false)return stored;
+  const finished=(record.events||[]).some(e=>e.kind==='finished'&&
+   (e.data?.status||e.status)==='incomplete');
+  return finished&&verificationCompletion(record)==='completed'?'completed':stored;
+ }
  function outcomes(record){
   const all=(record.events||[]).filter(e=>e.kind==='measurement');
   const failed=all.filter(e=>eventPayload(e)?.pass===false), errors=(record.events||[]).filter(e=>e.kind==='error');
@@ -109,7 +134,7 @@ const ELMOS_ARCHIVE_CORE=(()=>{
    measured:latest.filter(Boolean).length,planned:latest.length,
    status:record.status||'running'};
  }
- return {FORMAT,VERSION,points,direction,makePlan,valid,filename,lastAttempt,hysteresis,outcomes};
+ return {FORMAT,VERSION,points,direction,makePlan,valid,filename,lastAttempt,hysteresis,verificationCompletion,displayStatus,outcomes};
 })();
 if(typeof module!=='undefined'&&module.exports)module.exports=ELMOS_ARCHIVE_CORE;
 if(typeof window!=='undefined')window.ELMOS_ARCHIVE_CORE=ELMOS_ARCHIVE_CORE;

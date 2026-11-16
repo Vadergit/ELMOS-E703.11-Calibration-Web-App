@@ -69,6 +69,8 @@ const ELMOS_VERIFICATION_REPORT=(()=>{
   const application=tool.application||'ELMOS E703.11 Calibration Assistant';
   const version=tool.applicationVersion||record.software?.version||null;
   const adapter=tool.communicationAdapter||record.equipment?.adapter||null;
+  const archiveStatus=window.ELMOS_ARCHIVE_CORE?.displayStatus?.(record)||record.status;
+  const correctedLegacyStatus=archiveStatus!==record.status;
   const summ=window.ELMOS_VERIFICATION_GRAPH?.summary?.(record)||{total:0,passed:0,failed:0,unknown:0,pending:0,data:[]};
   const series=summ.data.length?summ.data:(record.events||[]).filter(x=>x.kind==='measurement').map((raw,index)=>{
    const item=raw.data||raw;
@@ -160,8 +162,11 @@ const ELMOS_VERIFICATION_REPORT=(()=>{
    '<main class="sheet"><header><div><div class="muted">ELMOS E703.11 · '+esc(application+(version?' v'+version:''))+'</div>'+
    '<h1>'+esc(tr('Nachmessung – Prüfprotokoll','Verification test report'))+'</h1>'+
    '<div class="muted">'+esc(dt(record.startedAt))+' – '+esc(dt(record.endedAt))+'</div></div>'+
-   '<b>'+esc(status(record.status))+'</b></header>'+
+   '<b>'+esc(status(archiveStatus))+'</b></header>'+
    '<p class="muted">'+esc(progress)+'</p>'+
+   (correctedLegacyStatus?'<p class="muted">'+esc(tr(
+    'Statushinweis: In diesem älteren Archiv wurde «Unvollständig» gespeichert, obwohl alle Prüfpunkte erfasst wurden. Die Anzeige wurde korrigiert; die ursprüngliche Archivdatei bleibt unverändert.',
+    'Status note: This older archive stored Incomplete even though every point was recorded. The display was corrected; the original archive file was not changed.'))+'</p>':'')+
    '<h2>'+esc(tr('Kalibrierwerkzeug, Adapter und Sensor','Calibration tool, adapter and sensor'))+'</h2><div class="grid">'+info+'</div>'+
    (extras?'<h2>'+esc(tr('Weitere Protokollangaben','Additional report details'))+'</h2><div class="grid">'+extras+'</div>':'')+
    '<h2>'+esc(tr('Prüfbedingungen','Test conditions'))+'</h2><div class="grid">'+settings+'</div>'+

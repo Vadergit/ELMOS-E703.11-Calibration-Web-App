@@ -7,7 +7,7 @@ const vm=require('node:vm');
 const CORE=require('../archive-core.js');
 
 function modules(){
- const context=vm.createContext({document:{documentElement:{lang:'de-CH'}},window:{}});
+ const context=vm.createContext({document:{documentElement:{lang:'de-CH'}},window:{ELMOS_ARCHIVE_CORE:CORE}});
  for(const name of ['verification-graph.js','verification-report.js']){
   const code=fs.readFileSync(path.join(__dirname,'..',name),'utf8');
   vm.runInContext(code,context,{filename:name});
@@ -48,4 +48,46 @@ test('PDF distinguishes entered calibrator reference from corrected sensor press
  const html=report.makeReport(example({entered:8,evaluated:9.01325}));
  assert.match(html,/8 bar \(Soll 10 bar\)/);
  assert.match(html,/Sensorbezug: 9.0133 bar/);
+});
+
+function ungradedFinished(){
+ const record=example();
+ record.status='incomplete';
+ record.verificationConfig.toleranceEnabled=false;
+ record.events[0].data.pass=null;
+ record.events[0].data.toleranceApplied=false;
+ record.events.push({kind:'finished',data:{status:'incomplete'}});
+ return record;
+}
+test('Completed capture without optional tolerance is not an incomplete verification',()=>{
+ const record=ungradedFinished();
+ assert.equal(CORE.verificationCompletion(record),'completed');
+ assert.equal(CORE.displayStatus(record),'completed');
+ assert.equal(record.status,'incomplete'); // do not rewrite old JSON archive
+ const html=modules().ELMOS_VERIFICATION_REPORT.makeReport(record);
+ assert.match(html,/<b>Abgeschlossen<\/b>/);
+ assert.match(html,/ursprüngliche Archivdatei bleibt unverändert/);
+});
+test('Tolerance enabled with unconfirmed result remains incomplete',()=>{
+ const record=ungradedFinished();
+ record.verificationConfig.toleranceEnabled=true;
+ record.events[0].data.toleranceApplied=true;
+ assert.equal(CORE.verificationCompletion(record),'incomplete');
+ assert.equal(CORE.displayStatus(record),'incomplete');
+});
+test('Missing last point remains incomplete even if tolerance disabled',()=>{
+ const record=ungradedFinished();
+ record.plan.steps.push({index:1,pressure:0,temperature:null});
+ assert.equal(CORE.verificationCompletion(record),'incomplete');
+ assert.equal(CORE.displayStatus(record),'incomplete');
+});
+test('Failed measured tolerance or a still-open empty record keep their true status',()=>{
+ const bad=ungradedFinished();
+ bad.verificationConfig.toleranceEnabled=true;
+ bad.events[0].data.pass=false;
+ bad.events[0].data.toleranceApplied=true;
+ assert.equal(CORE.verificationCompletion(bad),'failed');
+ assert.equal(CORE.displayStatus(bad),'incomplete'); // correction only for completed records
+ const open={...ungradedFinished(),status:'running',endedAt:null};
+ assert.equal(CORE.displayStatus(open),'running');
 });

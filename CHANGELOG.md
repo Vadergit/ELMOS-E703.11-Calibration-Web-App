@@ -1,3 +1,11 @@
+## v0.7.79 – Abschlussstatus von Nachmessungen korrigiert
+
+- **«Abgeschlossen» ist ein Ablaufstatus, kein Toleranzurteil.** Eine Nachmessung gilt nach erfolgreichem Speichern als abgeschlossen, sobald alle vorgesehenen Prüfpunkte tatsächlich aufgenommen wurden. Bei deaktivierter optionaler Toleranzbewertung ist dazu kein «Bestanden» notwendig.
+- Bei eingeschalteter Toleranzbewertung bleibt eine nicht bewertbare Prüfung «Unvollständig»; bestätigte Toleranzüberschreitungen werden weiterhin als «Fehlerhaft» gekennzeichnet. Fehlende Messpunkte bleiben unvollständig.
+- Alte, bereits beendete Archivdatensätze, die einzig wegen deaktivierter Toleranzbewertung fälschlich «Unvollständig» waren, werden in der Archivliste und in **neu exportierten PDFs** als «Abgeschlossen» dargestellt. Das gespeicherte JSON wird nicht automatisch verändert; das PDF enthält bei einem korrigierten Altstatus einen transparenten Hinweis.
+- Wirklich noch laufende Protokolle mit «Offen» und abgebrochene oder unvollständige Kalibrierungen bleiben unverändert.
+- Regressionstests für Erfassung ohne Toleranz, aktive Toleranz ohne Bewertung, fehlende Messpunkte, Toleranzfehler und offene Altprotokolle ergänzt.
+
 ## v0.7.78 – Nachmessung: klare Eingabefehler und korrekter Referenzdruck
 
 - Beim Start der Nachmessung werden ungültige Druck- und Temperaturreihen sowie Bereichs-, Zyklus- und Toleranzeingaben am jeweiligen Feld rot hervorgehoben. Die Ansicht springt zum ersten fehlerhaften Feld; Eingabekorrekturen entfernen die Markierung.
