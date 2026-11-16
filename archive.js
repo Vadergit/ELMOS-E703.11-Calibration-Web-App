@@ -10,7 +10,7 @@ const ELMOS_ARCHIVE=(()=>{
  const note=(value,bad=false)=>{S.lastError=bad?String(value):'';text('archiveStatus',value);if($('archiveStatus'))$('archiveStatus').style.color=bad?'var(--red)':'var(--muted)'};
  const el=(tag,content,css)=>{const e=document.createElement(tag);if(content!=null)e.textContent=String(content);if(css)e.className=css;return e};
  const bridge=()=>window.ELMOS_ARCHIVE_BRIDGE;
- const statusWords={running:'Offen / eventuell unterbrochen',completed:'Abgeschlossen',failed:'Fehlerhaft',
+ const statusWords={running:'Unvollständig',completed:'Abgeschlossen',failed:'Fehlerhaft',
   interrupted:'Unterbrochen',aborted:'Abgebrochen',incomplete:'Unvollständig'};
  const typeWords={calibration:'Kalibrierung',verification:'Nachmessung',output:'Ausgang',testlog:'Test / Logging'};
  const clone=x=>JSON.parse(JSON.stringify(x));
@@ -65,6 +65,8 @@ const ELMOS_ARCHIVE=(()=>{
  }
  async function flush(){
   if(!S.record)return;
+  // Empty calibration/verification sessions stay in memory until meaningful data.
+  if(['calibration','verification'].includes(S.record.type)&&!C.hasMeaningfulData(S.record))return;
   const snapshot=clone(S.record),name=S.filename;
   S.writeQueue=S.writeQueue.catch(()=>{}).then(async()=>{
    if(!await permitted(false))throw Error('Archivordner ist nicht beschreibbar. Bitte erneut freigeben.');
@@ -124,7 +126,7 @@ const ELMOS_ARCHIVE=(()=>{
   }
   S.step=0;S.finishedReview=null;S.debugLines=[];S.debugDropped=0;S.lastStreamMetaFlush=0;
   try{
-   await flush(); // The record exists before any sensor operations.
+   await flush(); // Actual measurements or hardware changes trigger persistence.
    if(bridge()?.initial){
     try{
      S.record.initial=await bridge().initial();
@@ -264,6 +266,11 @@ const ELMOS_ARCHIVE=(()=>{
    S.record.final.nvm.words.length!==64))status='incomplete';
   if(status==='completed'&&S.record.type==='verification')
    status=C.verificationCompletion(S.record);
+  if(['calibration','verification'].includes(S.record.type)&&!C.hasMeaningfulData(S.record)){
+   S.record=null;S.filename=null;S.step=0;
+   renderActive();await refresh();
+   return null;
+  }
   S.record.status=status;S.record.endedAt=iso();
   S.record.events.push({at:iso(),kind:'finished',data:{status}});
   if(S.record.type==='testlog'&&S.debugLines.length)
@@ -308,14 +315,18 @@ const ELMOS_ARCHIVE=(()=>{
   try{
    if(!await permitted(false)){note('Archivordner erneut freigeben, um Dateien einzulesen.',true);return}
    const all=[];
-   let corrupt=0;
+   let corrupt=0,hiddenEmpty=0;
    for await(const [name,handle] of S.dir.entries()){
     if(handle.kind!=='file'||!name.toLowerCase().endsWith('.json'))continue;
     try{
      const file=await handle.getFile();
      if(file.size>12*1024*1024)continue;
      const parsed=JSON.parse(await file.text());
-     if(C.valid(parsed)){parsed._archiveName=name;all.push(parsed)}
+     if(C.valid(parsed)){
+      // Preserve existing disk files; only hide empty old sessions.
+      if(!C.hasMeaningfulData(parsed)){hiddenEmpty++;continue}
+      parsed._archiveName=name;all.push(parsed);
+     }
      else if(/^ELMOS_\d{8}_\d{6}_[A-Z0-9]+_[a-f0-9-]{8,}\.json$/i.test(name))corrupt++;
     }catch(_){if(/^ELMOS_\d{8}_\d{6}_[A-Z0-9]+_[a-f0-9-]{8,}\.json$/i.test(name))corrupt++}
    }
@@ -325,6 +336,7 @@ const ELMOS_ARCHIVE=(()=>{
    renderList();
    note(all.length+' '+(all.length===1?ui('gültiges Prüfprotokoll','valid test report'):ui('gültige Prüfprotokolle','valid test reports'))+
     ' '+ui('geladen','loaded')+
+    (hiddenEmpty?' · '+hiddenEmpty+' '+ui('leere Altprotokolle ausgeblendet (Dateien unverändert)','empty legacy records hidden (files unchanged)'):'')+
     (corrupt?' · '+corrupt+' '+ui('ungültige ELMOS-Dateien prüfen','invalid ELMOS files to review'):'')+'.');
   }catch(e){note('Archiv nicht lesbar: '+e.message,true)}
  }
@@ -1419,7 +1431,12 @@ const ELMOS_ARCHIVE=(()=>{
   note(ui('Prüfung wird gespeichert …','Saving verification …'));
   try{
    const saved=await finalise('completed');
-   if(!saved||!saved.id)throw Error(ui('Das Protokoll konnte nicht bestätigt werden.','The saved report could not be confirmed.'));
+   if(!saved){
+    S.finishedReview=null;renderActive();
+    note(ui('Keine Messdaten erfasst – kein Prüfprotokoll gespeichert.','No measurement data recorded – no report saved.'));
+    return;
+   }
+   if(!saved.id)throw Error(ui('Das Protokoll konnte nicht bestätigt werden.','The saved report could not be confirmed.'));
    S.finishedReview=saved;
    S.photoPanels?.finished.refresh();
    renderActive();
@@ -1439,7 +1456,7 @@ const ELMOS_ARCHIVE=(()=>{
   '<div class="ar-results" id="arResults"><div class="ar-overview" id="archiveOverview"></div><div class="ar-files-panel"><div class="ar-files-head"><h3>Messdateien</h3><small id="archiveCount"></small></div><div class="ar-grid">'+
   '<input id="archiveSearch" placeholder="UID, Datum, Board oder Softwareversion suchen">'+
   '<select id="archiveFilterType"><option value="all">Alle Protokolltypen</option><option value="testlog">Test / Logging</option><option value="calibration">Kalibrierung</option><option value="verification">Nachmessung</option><option value="output">Ausgang</option></select>'+
-  '<select id="archiveFilterStatus"><option value="all">Alle Ergebnisse</option><option value="running">Offen / eventuell unterbrochen</option><option value="completed">Abgeschlossen</option><option value="failed">Fehlerhaft</option><option value="incomplete">Unvollständig</option><option value="interrupted">Unterbrochen</option><option value="aborted">Abgebrochen</option></select></div>'+
+  '<select id="archiveFilterStatus"><option value="all">Alle Ergebnisse</option><option value="completed">Abgeschlossen</option><option value="failed">Fehlerhaft</option><option value="incomplete">Unvollständig</option><option value="interrupted">Unterbrochen</option><option value="aborted">Abgebrochen</option></select></div>'+
   '<p class="ar-file-hint">Zwei Messdateien mit den Auswahlfeldern markieren und direkt vergleichen.</p><div class="ar-buttons"><button id="archiveCompare" disabled>0 von 2 Dateien markiert</button></div>'+
   '<div id="archiveRows" class="ar-rows"></div></div><div id="archiveDetails" class="ar-details"><div class="ar-details-placeholder"><h3>Messdatei auswählen</h3><p>Rechts erscheinen Messresultate, Gerätedaten, Signalverlauf und wichtige Ereignisse. Für den Direktvergleich links zwei Dateien markieren.</p></div></div></div>';
  }
@@ -1500,9 +1517,13 @@ const ELMOS_ARCHIVE=(()=>{
   $('arEndVerification').addEventListener('click',()=>endVerification().catch(e=>note(e.message,true)));
   $('arEndCalibration').addEventListener('click',()=>{
    const m=bridge()?.meta?.(),complete=!!(m?.nvmDone&&(S.record?.type==='output'||m?.calVerified));
-   finalise(complete?'completed':'incomplete').then(()=>note('Kalibrierprotokoll archiviert: '+(complete?'NVM geschrieben':'unvollständig')+'.')).catch(e=>note(e.message,true));
+   finalise(complete?'completed':'incomplete').then(saved=>note(saved?
+    'Kalibrierprotokoll archiviert: '+(complete?'NVM geschrieben':'unvollständig')+'.':
+    'Keine Messdaten vorhanden – kein Kalibrierprotokoll gespeichert.')).catch(e=>note(e.message,true));
   });
-  $('arAbort').addEventListener('click',()=>finalise('aborted').catch(e=>note(e.message,true)));
+  $('arAbort').addEventListener('click',()=>finalise('aborted').then(saved=>
+   note(saved?'Vorgang abgebrochen und archiviert.':'Leerer Vorgang verworfen – kein Protokoll gespeichert.')
+  ).catch(e=>note(e.message,true)));
   $('arSaveCurrent').addEventListener('click',()=>flush().then(()=>note('Zwischenstand gespeichert.')).catch(e=>note(e.message,true)));
   $('arMode').addEventListener('change',()=>{modeUI();preview()});
   for(const id of ['arSensorType','arReferenceKind'])
