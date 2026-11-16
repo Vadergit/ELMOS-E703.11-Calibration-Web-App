@@ -299,5 +299,42 @@ test('One DSP verification point is sufficient at TK0/TKE; temperature coverage 
  assert.ok(guided.includes('Bereits ein bestandener Prüfpunkt genügt'));
  assert.ok(html.includes('id="calVerifyCount" min="1" max="10" step="1" value="1"'));
  assert.ok(html.includes('guided.js?v=0.7.93'));
- assert.ok(html.includes('app.js?v=0.7.93'));
+ assert.ok(html.includes('app.js?v=0.7.94'));
+});
+
+test('Classic and guided calibration point ordering agree at each reference temperature',()=>{
+ const three=PLAN.sortReferences([
+  {key:'lo',pressure:0,temperature:25,originalIndex:0},
+  {key:'extra1',pressure:0,temperature:75,originalIndex:1},
+  {key:'hi',pressure:100,temperature:25,originalIndex:2}
+ ]);
+ assert.deepEqual(three.map(p=>p.key),['lo','hi','extra1']);
+ assert.deepEqual(three.map(p=>[p.pressure,p.temperature]),[[0,25],[100,25],[0,75]]);
+ const four=PLAN.sortReferences([
+  {key:'lo',pressure:0,temperature:25,originalIndex:0},
+  {key:'extra1',pressure:100,temperature:25,originalIndex:1},
+  {key:'extra2',pressure:0,temperature:75,originalIndex:2},
+  {key:'hi',pressure:100,temperature:75,originalIndex:3}
+ ]);
+ assert.deepEqual(four.map(p=>p.key),['lo','extra1','extra2','hi']);
+ const two=PLAN.sortReferences([
+  {key:'hi',pressure:100,temperature:25,originalIndex:1},
+  {key:'lo',pressure:0,temperature:25,originalIndex:0}
+ ]);
+ assert.deepEqual(two.map(p=>p.key),['lo','hi']);
+ assert.notEqual(three[1].key,'extra1','TK0 temperature point must not interrupt the pressure sweep');
+});
+test('Classic point sorting changes visual order but never overwrites sensor capture slots',()=>{
+ const app=read('app.js'),html=read('index.html'),guide=read('guided.js');
+ assert.ok(html.includes('<div id="calPointRows" class="cal-point-rows">'));
+ assert.ok(html.includes('#calPointRows{display:flex;flex-direction:column}'));
+ assert.ok(app.includes("const classicMode=$('calPointRows').contains($('capLo'))"));
+ assert.ok(app.includes('ELMOS_GUIDED_PLAN.sortReferences(specs)'));
+ assert.ok(app.includes('x.row.style.order=String(index)'));
+ assert.ok(app.includes("x.row.querySelector('.between h3').textContent='Messpunkt '+number+' · '+role"));
+ assert.ok(app.includes("action.textContent='Messpunkt '+number+' aufnehmen'"));
+ assert.ok(app.includes("const displayOrder=calibrationDisplayReferences(count)"));
+ assert.ok(app.includes('refresh:()=>{renderCalPoints();renderFlowState();renderStatus()}'));
+ assert.ok(guide.includes("const pointRows=[...document.querySelectorAll('.panel[data-panel=\"2\"] .cal-point-row')]"));
+ assert.ok(html.includes('guided-plan.js?v=0.7.94'));
 });
