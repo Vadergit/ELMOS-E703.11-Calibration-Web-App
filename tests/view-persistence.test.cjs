@@ -41,6 +41,7 @@ test('Initialisation restores guided UI only when that mode was stored',()=>{
    $:()=>node,
    rememberedView:()=>preference,
    open:()=>calls.push('open'),
+   toggleTopView:()=>calls.push('toggle'),
    syncTopMode:()=>calls.push('sync'),
    document:{documentElement:{classList:{remove:key=>calls.push('remove:'+key)}}}
   };
