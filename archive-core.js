@@ -106,8 +106,9 @@ const ELMOS_ARCHIVE_CORE=(()=>{
  function hasMeaningfulData(record){
   if(!record||!Array.isArray(record.events))return false;
   if(record.type==='testlog'&&
-   ((Number(record.telemetry?.groups)||0)>0||(Number(record.telemetry?.individualSamples)||0)>0))
-   return true;
+   ((Number(record.telemetry?.groups)||0)>0||(Number(record.telemetry?.individualSamples)||0)>0||
+    (Array.isArray(record.telemetryFiles)&&record.telemetryFiles.length>0)))
+   return true; // A referenced JSONL part may contain samples after a crash.
   const meaningful=new Set(['calibration_point','verification_attempt','measurement',
    'afe_ram_changed','bridge_ram_changed','calibration_ram_written','coefficient_fit',
    'nvm_before','nvm_after','post_boot_verified']);
