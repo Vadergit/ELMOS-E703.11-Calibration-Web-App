@@ -277,3 +277,27 @@ test('Header separates Elmos example temperature from AN0203 fit and checks abso
  assert.ok(style.includes('grid-template-columns:repeat(5,minmax(0,1fr))'));
  assert.ok(style.includes('.top .live-kpi{padding:4px 7px;min-height:46px}'));
 });
+
+test('One DSP verification point is sufficient at TK0/TKE; temperature coverage is optional',()=>{
+ const valid=[{slot:0,errorBar:0.4703,pressure:0,temperature:25}];
+ assert.equal(CAL.verificationPointsSufficient(valid,1),true);
+ assert.equal(CAL.verificationPointsSufficient(valid,2),false);
+ assert.equal(CAL.verificationPointsSufficient([{slot:1,errorBar:0.01}],1),false);
+ assert.equal(CAL.verificationPointsSufficient([{slot:0,errorBar:Number.NaN}],1),false);
+ assert.equal(CAL.verificationPointsSufficient([],1),false);
+ assert.equal(CAL.verificationPointsSufficient(valid,0),false);
+ assert.equal(CAL.verificationPointsSufficient(valid,11),false);
+ assert.equal(CAL.verificationPointsSufficient([
+  {slot:0,errorBar:0.2,temperature:25},{slot:1,errorBar:0.3,temperature:25}
+ ],2),true);
+ const app=read('app.js'),html=read('index.html'),guided=read('guided.js');
+ assert.ok(app.includes('st.calVerified=CAL.verificationPointsSufficient(st.calValidation,required)'));
+ assert.ok(app.includes('CAL.verificationPointsSufficient(st.calValidation,count)'));
+ assert.ok(!app.includes('const temperatureValidation='));
+ assert.ok(app.includes('let measuredTemp=null;'));
+ assert.ok(html.includes('Ein Prüfpunkt genügt auch bei TK0/TKE'));
+ assert.ok(guided.includes('Bereits ein bestandener Prüfpunkt genügt'));
+ assert.ok(html.includes('id="calVerifyCount" min="1" max="10" step="1" value="1"'));
+ assert.ok(html.includes('guided.js?v=0.7.93'));
+ assert.ok(html.includes('app.js?v=0.7.93'));
+});
