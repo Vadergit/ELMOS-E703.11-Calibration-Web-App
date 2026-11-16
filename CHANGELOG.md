@@ -1,3 +1,11 @@
+## v0.7.94 – Kalibrier-Messpunkte in beiden Ansichten in derselben Reihenfolge
+
+- In der klassischen Ansicht werden die Messkarten nach Temperaturstufe und innerhalb einer Temperatur nach Druck aufsteigend angeordnet: zuerst die Druckpunkte bei der ersten Temperatur, danach die nächsten Temperaturstufen.
+- 3-Punkte-TK0: 0 % / 25 °C → 100 % / 25 °C → 0 % / 75 °C. 4-Punkte-TK0+TKE analog mit beiden Druckpunkten pro Temperatur.
+- Nummerierung, Titel, Aufnahmebuttons, automatische Messpunktnamen und Detailhistorie folgen der sichtbaren Reihenfolge. Eigene manuell vergebene Namen bleiben unverändert.
+- Die Messpunktkarten behalten ihre originalen Identifikatoren und Referenzwerte; es werden keine Rohdaten ausgetauscht und keine Koeffizienten- oder NVM-Routinen verändert. Beim Wechsel vom geführten zum klassischen Modus wird die Liste synchronisiert.
+- Für neue Temperatur- und Druckwerte wird die Darstellung unmittelbar aktualisiert. Responsive, kompakte Messkarten bleiben erhalten.
+
 ## v0.7.93 – Ein erfolgreicher DSP-Prüfpunkt genügt auch bei TK0/TKE
 
 - Die unabhängige DSP-Nachprüfung akzeptiert einen einzigen erfolgreich geprüften Betriebspunkt auch bei aktiver Temperaturkompensation. Kein verpflichtender zweiter Temperaturprüfpunkt und keine pauschale 10-°C-Freigabesperre.
