@@ -2013,3 +2013,11 @@ window.ELMOS_TRANSLATIONS_EN=Object.assign(window.ELMOS_TRANSLATIONS_EN||{}, {
  "Der Browser hat das PDF-Fenster blockiert. Bitte Pop-ups für diese Webseite erlauben.": "The browser blocked the PDF report window. Please allow pop-ups for this site.",
  "PDF-Export fehlgeschlagen: ": "PDF export failed: "
 });
+
+/* v0.7.86 – archive directory path is a user-entered display label only. */
+window.ELMOS_TRANSLATIONS_EN=Object.assign(window.ELMOS_TRANSLATIONS_EN||{}, {
+ "Vollständiger Pfad (optional, nur zur Anzeige)": "Full path (optional, display only)",
+ "Pfad merken": "Save displayed path",
+ "Der Browser kennt nur den Ordnernamen. Den vollständigen Pfad kannst du zur Anzeige selbst hinterlegen.": "The browser only exposes the folder name. You may manually enter the full path for display.",
+ "Der ausgewählte Ordner ist der tatsächliche Speicherort. Ein manuell eingetragener Pfad ist nur eine Beschriftung und ändert den Speicherort nicht. Die Auswahl bleibt im Browser vorgemerkt; es werden keine Daten in die Cloud übertragen.": "The selected folder is the actual storage location. A manually entered path is only a label and does not change where files are saved. The selection remains remembered locally; no data is uploaded to the cloud."
+});
