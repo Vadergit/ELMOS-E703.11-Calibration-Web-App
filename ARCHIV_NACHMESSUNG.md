@@ -1,6 +1,6 @@
 # ELMOS E703.11 – Lokales Kalibrierarchiv und Nachmessungen
 
-**Softwarestand v0.7.85 · Funktions- und Benutzeranleitung · Laborprototyp**
+**Softwarestand v0.7.86 · Funktions- und Benutzeranleitung · Laborprototyp**
 
 **Archivexport ab v0.7.72:** Für jeden Archivdatensatz gibt es genau **einen übersichtlichen CSV-Export** sowie einen JSON-Export für die vollständigen technischen Originaldaten. Nachmessung und Test/Logging bieten zusätzlich einen PDF-Bericht; bis zu zwei optionale Fotos werden darin angezeigt. Die frühere separate VDD-Istspannungs-Eingabe der Anschlussansicht ist entfernt.
 
@@ -25,6 +25,12 @@ Das Archiv arbeitet ausschliesslich lokal. Die Webseite lädt weder Kalibrierdat
 Der Browser merkt sich den Ordner über IndexedDB, sofern die Berechtigungsspeicherung unterstützt wird. Eine erneute Freigabe kann nötig sein. Ein Netzwerkordner funktioniert dann, wenn Windows/macOS und Chrome den Zugriff zulassen. Die Anwendung selbst verwaltet keine Cloud und keine Benutzernamen.
 
 Dateien nach dem Muster `ELMOS_YYYYMMDD_HHMMSS_UID_ID.json` enthalten je einen vollständigen Vorgang. Fremde Dateien und ungültige JSON-Formate werden nicht als Kalibrierungen angezeigt. Erkannte, aber defekte Archivdateien werden nur dann als Warnung gezählt, wenn sie eindeutig wie ein vom Archiv erzeugter Dateiname aussehen. **Die App verändert keine fremden Dateien.**
+
+## Vollständigen Archivpfad anzeigen (ab v0.7.86)
+
+Die Web-App zeigt den **tatsächlich ausgewählten Ordnernamen** (beispielsweise «Zeichungen») an. Wegen der Browser-Sicherheitsregeln kann sie den vollständigen lokalen Windows-/macOS-Pfad **nicht automatisch auslesen**. Optional kann unter **«Vollständiger Pfad (nur zur Anzeige)»** die eigene Pfadbezeichnung eingetragen und mit **«Pfad merken»** lokal gespeichert werden. Die App kennzeichnet sie als **manuell und nicht überprüfbar**. Sie wird beim Neuladen wieder angezeigt und beim Wechsel des freigegebenen Archivordners gelöscht. **Wichtig:** Der eingetippte Pfad ist ausschliesslich eine Beschriftung und steuert niemals die Dateispeicherung.
+
+Der rein dekorative «Esc»-Hinweis in der Kopfzeile der Einstellungen wurde entfernt. Die Escape-Taste und das Schliessen per Klick ausserhalb bleiben erhalten.
 
 ## Archivordner in den App-Einstellungen wählen (ab v0.7.85)
 
