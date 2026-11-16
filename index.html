@@ -1154,13 +1154,14 @@ html.compact-mode .foot{display:none}
 <label>Temperaturkompensation <span class="help" data-help="torder">?</span><select id="calTOrder"><option value="0">0 · Keine (Standard)</option><option value="1">1 · Linear</option><option value="2">2 · Quadratisch</option><option value="3">3 · Kubisch</option></select></label>
 <label>Temperaturmodell<select id="calFitMode"><option value="full">Vollständig · TK0 + TKE (4 Punkte bei linear)</option><option value="tk0">Nur TK0 · 3 Punkte (Druck und Temperatur linear)</option></select></label>
 </div>
-<p class="muted small">TK0 (3 Messpunkte) korrigiert die Nullpunktverschiebung über die Temperatur. TKE (4 Messpunkte) korrigiert zusätzlich die temperaturabhängige Empfindlichkeit. Beim TK0-Modus wird der gemischte DSP-Koeffizient nicht kalibriert.</p>
+<p class="muted small">TK0 (3 Messpunkte) korrigiert die Nullpunktverschiebung über die Temperatur. TKE (4 Messpunkte) korrigiert zusätzlich die temperaturabhängige Empfindlichkeit. Mit Temperaturordnung 0 ist ausdrücklich nur ein Druckabgleich bei einer Referenztemperatur möglich; eine gemessene TK0/TKE-Abhängigkeit wird dann nicht korrigiert.</p>
 <div class="fieldrow" style="margin-top:15px">
 <label>DSP-Endwert für die neue Kalibrierung (± Digits) <span class="help" data-help="dsp_limit">?</span><input id="calDspLimit" type="number" min="1000" max="32000" step="100" value="32000"></label>
 <div class="kpiNote" id="calDspLimitHint">Standard ±32’000 Digits. Beispiel ±30’000 lässt zusätzliche Reserve zur 16-Bit-Grenze. Der gewählte Wert wird für die Koeffizienten und später für die Prüfung verwendet.</div>
 </div>
 <div class="flex" style="margin-top:16px"><button class="primary" id="calCalculate">1. Koeffizienten berechnen</button></div>
 <div id="calFitMsg" class="callout">Zuerst beide Messpunkte aufnehmen, dann die Berechnung starten.</div>
+<div id="calTempFallback" class="callout warn" style="margin-top:10px" hidden><span id="calTempFallbackText"></span><div class="flex" style="margin-top:10px"><button type="button" id="calTempFallbackApply">Nur Druck ohne TK-Kompensation berechnen</button></div></div>
 <div id="calDspProposal" class="callout warn" style="margin-top:10px" hidden><span id="calDspProposalText"></span><div class="flex" style="margin-top:10px"><button type="button" id="calDspProposalApply">Vorgeschlagenen DSP-Endwert übernehmen und neu berechnen</button></div></div>
 <details><summary>Berechnete Koeffizienten und Quantisierung</summary><pre id="calCoeffList" class="monoarea">Noch nicht berechnet.</pre></details>
 <div class="mutedline"></div>
