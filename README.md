@@ -2,9 +2,9 @@
 
 **Ein geführter Kalibrierassistent für den ELMOS E703.11 und das SSP3-Eval-Board.** Ziel ist ein verständlicher Abgleich, der auch ohne tiefere Vorkenntnisse Schritt für Schritt funktioniert. Wer mehr benötigt, kann zusätzliche Messpunkte, DSP-Parameter und einen geschützten Expertenmodus verwenden.
 
-**Version: v0.7.76 · Adaptive 250-ms-Live-Abfrage als Standard** · [Änderungsverlauf](CHANGELOG.md) · **[Geplante Funktionen](ROADMAP.md)**
+**Version: v0.7.77 · Kompakte, neu strukturierte Einstellungen** · [Änderungsverlauf](CHANGELOG.md) · **[Geplante Funktionen](ROADMAP.md)**
 
-Über **Einstellungen → Demo-Modus** lässt sich der gesamte Kalibrierablauf mit simulierten Messwerten und NVM ausprobieren.
+Der **Demo-Modus** wird in den Einstellungen erst nach Aktivierung von **Expertenparameter** angezeigt. Er simuliert Sensorwerte und Schreibvorgänge; die echte Hardware wird dabei nicht programmiert.
 
 **[Web-App öffnen](https://vadergit.github.io/ELMOS-E703.11-Calibration-Web-App/)** · **[Archiv & Nachmessung](ARCHIV_NACHMESSUNG.md)** · **[Test / Logging](TEST_LOGGING.md)** · **[Bedienungsanleitung](ANLEITUNG.md)** · **[Config-Dateien & EEPROM Viewer](CONFIG_DATEIEN.md)** · **[Ausgang & 1-Wire erklärt](AUSGANG_1WIRE.md)** · **[Testbericht und Grenzen](TESTBERICHT.md)**
 
@@ -14,7 +14,7 @@
 >
 > [Geführter Abgleich](docs/GEFUEHRTER_ASSISTENT.md) · [DIY-Programmer (ESP32-C3 / Pro Micro)](docs/USB_BRIDGE_GUIDE.md) · [Pinbelegung der zwei Boards](docs/ESP_BOARD_OPTIONS.md) · [DIY-Firmware-Installer](firmware-update.html)
 
-## Funktionsumfang – aktueller Stand v0.7.76
+## Funktionsumfang – aktueller Stand v0.7.77
 
 Die Software enthält die folgenden Bereiche; die verlinkten Anleitungen beschreiben die **aktuelle Bedienung**, während die nachfolgenden älteren Versionsabschnitte die Entwicklungshistorie dokumentieren:
 
