@@ -1,3 +1,12 @@
+## v0.7.84 – Kalibrierprotokoll inklusive Diagrammen als PDF speichern
+
+- **Kalibrierung → Ergebnisse prüfen** bietet jetzt wie Nachmessung/Test-Logging den PDF-Export. Der **PDF-Button** ist ebenfalls direkt bei jedem Kalibrierarchiv in der Dateiliste vorhanden.
+- Das druckfertige A4-Kalibrierprotokoll enthält Sensor-UID, Adapter und Firmware, Softwareversion, Start/Ende, archivierte Kalibrierpunkte inklusive Referenzwerten, Temperaturen, ADC_S/ADC_T und Sample-Zahlen, verfügbare DSP-Fit-Informationen, NVM-Status sowie **alle unabhängigen DSP-Prüfversuche** mit Referenzdruck, berechnetem Ist-Druck, Druckabweichung, Abweichung in % FS, Toleranz und gespeichertem Bestanden-/Fehlerstatus.
+- Die **Diagramme werden unverändert aus dem neuen Archivdiagramm-Modul erzeugt** und als druckbare Inline-SVGs eingebettet: Abweichung mit Toleranzintervallen sowie Soll-/Ist-Druck mit Toleranz. Bei älteren Kalibrierungen ohne DSP-Verifikation erscheint der ADC_S-Rohpunktgraph ohne erfundenes Toleranzband.
+- Der Export läuft vollständig lokal. Im vom Browser geöffneten Druckfenster **«Als PDF speichern / Drucken»** wählen und im Systemdruckdialog **«Als PDF speichern»** verwenden. Es werden keine Kalibrierwerte, NVM-Inhalte oder Archivdateien verändert.
+- Fehlermeldungen werden im Protokoll dokumentiert. Ein abgeschlossener Archivstatus allein wird nicht als Nachweis einer erfolgreichen unabhängigen DSP- oder NVM-Verifikation dargestellt.
+- Zusätzliche automatisierte Tests prüfen PDF-Aufbau, beide SVG-Diagramme, Archiv-Datentreue, alte Datensätze, Eingabesicherheit und die Integration der Download-Buttons.
+
 ## v0.7.83 – Kalibrierungen jetzt mit Soll-/Ist- und Abweichungsdiagrammen im Archiv
 
 - Im lokalen Kalibrierarchiv erscheinen beim Öffnen von **«Ergebnisse prüfen»** für Kalibrierungen zwei neue, an die bestehende Nachmessung angelehnte Diagramme: **Druckabweichung in % FS** mit der jeweils gespeicherten Toleranz und **Soll-/Ist-Druck** mit den aufgezeichneten Toleranzgrenzen.
