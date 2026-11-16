@@ -1,3 +1,12 @@
+## v0.7.91 – Verständliche Messpunkthistorie und interne SSC-Temperaturanzeige
+
+- Der geführte Abgleich benennt Messpunkte konsistent nach der sichtbaren Reihenfolge (inkl. richtigem Titel und Aufnahmebutton für den dritten TK0-Punkt).
+- Die linke Messpunkthistorie zeigt Zeitpunkt, ADC_S, ADC_T, Streuung, Samples und passende Unterschiede: Druckhub nur bei gleicher Temperatur, Temperaturänderung nur bei gleichem Druck.
+- Die frühere pauschale Meldung «Noch fehlende Punkte» unterscheidet nun auch einen zu kleinen Druckhub von fehlenden Kalibrierpunkten oder abweichenden AFE-Gains.
+- Oben wird die interne SSC-Temperatur als Näherungswert aus dem korrigierten DSP_T-Register 0x2E angezeigt, sofern CFG_AFE2 die interne Temperaturquelle bestätigt. Der ADC_T-Rohwert wird nicht direkt in °C umgerechnet.
+- Die °C-Anzeige hängt von der vorhandenen Temperaturkalibrierung des Chips ab und ist ausdrücklich **ungeprüft**. Sie ersetzt keine tatsächliche Referenztemperatur.
+- Live-ADC_S bleibt prioritär; die zusätzlichen Temperaturregister werden zeitlich verteilt gelesen. Die RAM-/NVM-Sicherheitslogik wurde nicht geöffnet.
+
 ## v0.7.90 – Temperaturquelle und flexible TK-Kalibrierung
 
 - Feste 500-Digit-Mindestspanne von ADC_T entfernt; die Berechnung prüft numerische Stabilität und die darstellbaren Q3.12-/Q0.15-Koeffizienten.

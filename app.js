@@ -106,7 +106,7 @@ if(typeof document!=='undefined') (function UI(){
   ['Bessel · 10 Hz · 2 kS/s · 15 Bit', [0x78D4,0x1452,0x029D]],
  ];
  const REG_NAMES={4:'CFG_EN',6:'CFG_SPI_I2C',8:'CFG_PADS0',10:'CFG_PADS1',12:'CFG_PADS2',16:'CFG_AODO',0x14:'CFG_ADC',0x16:'CFG_LP0',0x18:'CFG_LP1',0x1A:'CFG_AFE0',0x1C:'CFG_AFE1',0x1E:'CFG_AFE2',0x26:'ADC_TC',0x28:'ADC_T',0x2A:'ADC_S'};
- const st={chipDiag:null,diagRunning:false,lastPlcReply:null,mode:'offline',port:null,closing:false,reader:null,readerPromise:null,readerAlive:false,adapterNoReply:false,sessionStartedAt:null,sessionIndex:0,cmdQueue:Promise.resolve(),replyBuffer:'',responseWait:null,iface:'plc',adapterKind:'ssp3',sensorPowerEnabled:false,startupRunning:false,startupAbort:false,startupAttempts:0,magicRunning:false,magicResult:null,powerCycleRunning:false,powerCycleResult:null,startupTrials:[],powerHelp:null,plcHostFormat:'legacy',plcAddress:0x6C,plcAddressVerified:false,plcAddressSource:'',plcAddressProbes:[],firmware:'',chip:false,readOnlySensor:null,sensorLost:false,reinitRunning:false,boot:null,afe:null,afe0:null,bridgeWriteAllowed:false,bridgeReadBusy:false,staged:{pga1:0,pga2:0,offset:0},adc:null,dsp:null,dspError:null,liveReadPromise:null,trend:[],history:[],log:[],regs:{},points:{lo:null,hi:null},verify:null,live:false,manualLivePause:false,timeout:null,consecutiveErrors:0,liveReadAttempts:0,liveReadSuccesses:0,liveLastError:null,liveLastAttemptAt:null,measurementPeriod:null,measurementStatus:null,measurementError:null,measurementStarts:0,measurementFreshCount:0,measurementLastChangedAt:null,writing:false,pressure:5,calpoints:[],calfit:null,calImage:null,nvmBackup:null,nvmBackupVerified:false,calStaged:false,calVerified:false,calValidation:[],calTask:false,testLogging:false,nvmWorking:false,nvmDone:false,afeWriteActive:false,ramWriteScope:null,uid:null,expertOutputPlan:null,restorePlan:null,outputOnlyPlan:null,uidShownForInput:null,profilePendingAFE:null};
+ const st={chipDiag:null,diagRunning:false,lastPlcReply:null,mode:'offline',port:null,closing:false,reader:null,readerPromise:null,readerAlive:false,adapterNoReply:false,sessionStartedAt:null,sessionIndex:0,cmdQueue:Promise.resolve(),replyBuffer:'',responseWait:null,iface:'plc',adapterKind:'ssp3',sensorPowerEnabled:false,startupRunning:false,startupAbort:false,startupAttempts:0,magicRunning:false,magicResult:null,powerCycleRunning:false,powerCycleResult:null,startupTrials:[],powerHelp:null,plcHostFormat:'legacy',plcAddress:0x6C,plcAddressVerified:false,plcAddressSource:'',plcAddressProbes:[],firmware:'',chip:false,readOnlySensor:null,sensorLost:false,reinitRunning:false,boot:null,afe:null,afe0:null,bridgeWriteAllowed:false,bridgeReadBusy:false,staged:{pga1:0,pga2:0,offset:0},adc:null,dsp:null,dspError:null,dspT:null,dspTError:null,liveReadPromise:null,trend:[],history:[],log:[],regs:{},points:{lo:null,hi:null},verify:null,live:false,manualLivePause:false,timeout:null,consecutiveErrors:0,liveReadAttempts:0,liveReadSuccesses:0,liveLastError:null,liveLastAttemptAt:null,measurementPeriod:null,measurementStatus:null,measurementError:null,measurementStarts:0,measurementFreshCount:0,measurementLastChangedAt:null,writing:false,pressure:5,calpoints:[],calfit:null,calImage:null,nvmBackup:null,nvmBackupVerified:false,calStaged:false,calVerified:false,calValidation:[],calTask:false,testLogging:false,nvmWorking:false,nvmDone:false,afeWriteActive:false,ramWriteScope:null,uid:null,expertOutputPlan:null,restorePlan:null,outputOnlyPlan:null,uidShownForInput:null,profilePendingAFE:null};
  let currentStep=0,pendingGain=null,writeTimer=null;let tipEnabled=true,liveIntervalMs=250;
  // Optional faster live mode: serial requests only, with automatic pacing backoff.
  const livePacing=typeof ELMOS_LIVE_POLLING!=='undefined'?ELMOS_LIVE_POLLING.create():null;
@@ -435,6 +435,14 @@ if(typeof document!=='undefined') (function UI(){
   const converted=activeDSP&&range?range.min+(st.dsp.raw+range.limit)/(2*range.limit)*(range.max-range.min):NaN;
   $('liveAdcS').textContent=activeADC?fmt(st.adc.s):'—';
   $('liveAdcT').textContent=activeADC&&Number.isFinite(st.adc.t)?fmt(st.adc.t):'—';
+  const internalSource=connected&&Number.isInteger(st.regs[0x1E])&&CAL.temperatureSourceFromAfe2(st.regs[0x1E])==='internal';
+  const liveT=internalSource&&st.dspT&&!st.dspTError&&Date.now()-st.dspT.time<10000?
+   CAL.dspTemperatureCelsius(st.dspT.raw):null;
+  const hasTemp=Number.isFinite(liveT)&&liveT>=-40&&liveT<=125;
+  $('liveTempC').textContent=hasTemp?'≈'+dspNumber(liveT):'—';
+  $('liveTempC').parentElement.title=internalSource?
+   'Aus DSP_T (0x2E) und den im Chip hinterlegten Temperaturkoeffizienten. Näherungsanzeige, nicht unabhängig verifiziert; kein Ersatz für einen Referenztemperaturfühler.':
+   'Interne Temperaturquelle nicht bestätigt (CFG_AFE2.t_adc_src) oder noch kein gültiger DSP_T-Wert. ADC_T-Rohwerte sind keine °C.';
   $('liveDspS').textContent=activeDSP?fmt(st.dsp.raw):'—';
   $('livePressure').textContent=Number.isFinite(converted)?dspNumber(converted):'—';
   $('livePressureUnit').textContent=range?.unit||'—';
@@ -515,6 +523,25 @@ if(typeof document!=='undefined') (function UI(){
   function pressureUnit(){const opt=$('calUnit').value;return opt==='custom'?($('calUnitOther').value.trim()||'Einheit'):opt}
  function pointName(which){return ($((which==='lo'?'pointLoName':'pointHiName')).value.trim()||('Messpunkt '+(which==='lo'?'1':'2')))}
  function calibrationPointCount(){const count=Number($('calPointCount').value);return Number.isInteger(count)&&count>=2&&count<=10?count:Infinity}
+ function calibrationReadinessReason(){
+  const count=calibrationPointCount();
+  if(!Number.isFinite(count))return 'Anzahl Kalibrierpunkte ist ungültig.';
+  if(st.calpoints.length<count)return 'Noch '+(count-st.calpoints.length)+' von '+count+' Kalibrierpunkten aufnehmen.';
+  if(st.calpoints.length>count)return 'Mehr Messpunkte gespeichert als im Plan vorgesehen. Messplan kontrollieren.';
+  const lo=st.points.lo,hi=st.points.hi;
+  if(!lo||!hi||!Number.isFinite(lo.v)||!Number.isFinite(hi.v))
+   return 'Unterer oder oberer Druckreferenzpunkt fehlt bzw. liefert keinen gültigen ADC_S-Wert.';
+  const span=Math.abs(lo.v-hi.v);
+  if(span<10)return 'Alle '+count+' Messpunkte vorhanden, aber der Druckhub zwischen unterem und oberem Druckpunkt ist nur '+
+   span.toLocaleString('de-CH',{maximumFractionDigits:1})+
+   ' Digits. Druckbeaufschlagung prüfen und die Druckreferenzpunkte neu aufnehmen.';
+  const gains=JSON.stringify(st.staged);
+  if(st.calpoints.some(x=>JSON.stringify(x.gains)!==gains))
+   return 'Messpunkte wurden mit unterschiedlichen AFE-Gains aufgenommen. PGA1/PGA2/Offset prüfen und betroffene Punkte erneut aufnehmen.';
+  if(st.calpoints.some(x=>x.temperatureSource!==selectedTemperatureSource()))
+   return 'Messpunkte wurden mit unterschiedlicher Temperaturmessquelle aufgenommen. Quelle kontrollieren und Messpunkte neu erfassen.';
+  return 'Messreihe ist noch nicht vollständig gültig. Referenzbereich und eindeutige Punktzuordnung prüfen.';
+ }
  function calEndpointsReady(){
   const count=calibrationPointCount(),lo=st.points.lo,hi=st.points.hi;
   if(!Number.isFinite(count)||!lo||!hi||!Number.isFinite(lo.v)||!Number.isFinite(hi.v)||Math.abs(lo.v-hi.v)<10)return false;
@@ -1989,7 +2016,7 @@ if(typeof document!=='undefined') (function UI(){
   st.sensorLost=true;st.chip=false;st.plcAddressVerified=false;
   archiveStopTelemetry();st.mode='usb';st.afe0=null;
   stopLive();
-  st.adc=null;st.dsp=null;st.dspError=null;st.afe=null;st.afe0=null;st.boot=null;st.regs={};
+  st.adc=null;st.dsp=null;st.dspError=null;st.dspT=null;st.dspTError=null;st.afe=null;st.afe0=null;st.boot=null;st.regs={};
   st.uid=null;st.uidShownForInput=null;
   st.powerCycleResult=null;st.measurementPeriod=null;st.measurementStatus=null;
   st.calStaged=false;st.calVerified=false;st.calImage=null;st.calfit=null;st.nvmDone=false;
@@ -2017,7 +2044,7 @@ if(typeof document!=='undefined') (function UI(){
   st.startupTrials=[];
   st.chip=false;st.readOnlySensor=null;st.plcAddressVerified=false;st.plcAddressProbes=[];stopLive();
   if(st.liveReadPromise)await st.liveReadPromise.catch(()=>{});
-  st.adc=null;st.dsp=null;st.dspError=null;st.afe=null;st.afe0=null;st.boot=null;st.regs={};
+  st.adc=null;st.dsp=null;st.dspError=null;st.dspT=null;st.dspTError=null;st.afe=null;st.afe0=null;st.boot=null;st.regs={};
   st.uid=null;st.uidShownForInput=null;st.powerCycleResult=null;
   st.measurementPeriod=null;st.measurementStatus=null;
   st.calStaged=false;st.calVerified=false;st.nvmDone=false;
@@ -2306,8 +2333,8 @@ if(typeof document!=='undefined') (function UI(){
    st.measurementFreshCount++;
    st.measurementLastChangedAt=Date.now();
   }
-  const channel=liveSecondaryIndex++%4;
-  if(channel===3&&st.coldStartAfeRestored&&st.adapterKind==='ssp3'&&st.iface==='plc'){
+  const channel=liveSecondaryIndex++%5;
+  if(channel===4&&st.coldStartAfeRestored&&st.adapterKind==='ssp3'&&st.iface==='plc'){
    if(await readReg(R_AFE,1350)===0){
     const error=Error('Sensorneustart erkannt: CFG_AFE1 ist wieder 0x0000');
     error.code='RAM_PROFILE_LOST';
@@ -2324,11 +2351,20 @@ if(typeof document!=='undefined') (function UI(){
     if(st.adc){st.adc.tc=tc;renderStatus()}
    }else if(channel===2){
     updateDSP(P.sign16(await readReg(0x30,1100)),'usb');
+   }else if(channel===3){
+    // DSP_T already includes the chip temperature calibration coefficients.
+    st.dspT={raw:P.sign16(await readReg(0x2E,1100)),time:Date.now()};
+    st.dspTError=null;renderStatus();
+   }else if(channel===4&&!Number.isInteger(st.regs[0x1E])){
+    // Read the temperature source once per chip session, never write it.
+    st.regs[0x1E]=await readReg(0x1E,1100);
+    renderStatus();
    }
-   // channel 3: ADC_S only, to guarantee a short polling cycle.
+   // Channel 4 is otherwise ADC_S-only, preserving a short polling cycle.
   }catch(e){
-   const name=channel===0?'ADC_T':channel===1?'ADC_TC':'DSP_S';
+   const name=channel===0?'ADC_T':channel===1?'ADC_TC':channel===2?'DSP_S':channel===3?'DSP_T':'CFG_AFE2';
    if(name==='DSP_S'){st.dsp=null;st.dspError=e.message;renderDSPLive()}
+   if(name==='DSP_T'){st.dspT=null;st.dspTError=e.message;renderStatus()}
    if(!st.lastSecondaryError||Date.now()-st.lastSecondaryError>12000){
     logging('Live '+name+' separat nicht lesbar: '+e.message+'; ADC_S wird weiterhin aktualisiert.');
     st.lastSecondaryError=Date.now();
@@ -2340,7 +2376,7 @@ if(typeof document!=='undefined') (function UI(){
   if(st.live||st.calTask||!st.chip||st.powerCycleRunning||st.closing||!st.port)return;
   st.live=true;st.consecutiveErrors=0;
   livePacing?.reset();
-  logging('Live-Messung gestartet: ADC_S zyklisch, ADC_T/ADC_TC/DSP_S verteilt; kein NVM-Schreiben.');
+  logging('Live-Messung gestartet: ADC_S zyklisch, ADC_T/ADC_TC/DSP_S/DSP_T verteilt; kein NVM-Schreiben.');
   renderStatus();
   (async function loop(){
    if(!st.live)return;
@@ -2515,7 +2551,7 @@ if(typeof document!=='undefined') (function UI(){
   if(!a||!b)return show('calMsg','Unteren und oberen Referenzpunkt aufnehmen. Weitere Punkte dazwischen ebenfalls erfassen.');
   const span=Math.abs(b.v-a.v),mid=(a.v+b.v)/2,max=Math.max(Math.abs(a.v),Math.abs(b.v));
   $('hub').textContent=fmt(span);$('middle').textContent=fmt(mid);$('usage').textContent=(max/25000*100).toFixed(1)+' %';
-  if(!calEndpointsReady())show('calMsg',st.calpoints.length+' von '+calibrationPointCount()+' Punkten erfasst. Noch fehlende Punkte aufnehmen; alle müssen mit den gleichen AFE-Gains gemessen werden.','warn');
+  if(!calEndpointsReady())show('calMsg',calibrationReadinessReason(),'warn');
   else show('calMsg','Alle '+calibrationPointCount()+' Kalibrierpunkte aufgenommen. Berechnung ist freigegeben.','success');
   const advise=max>25000?'Übersteuerung möglich: Gain reduzieren und alle Punkte erneut aufnehmen.':span<18000?'Signalhub klein: PGA1/PGA2 optimieren und alle Punkte erneut aufnehmen.':Math.abs(mid)>7000?'Signalmitte verschoben: Offset prüfen und Messpunkte erneut aufnehmen.':'AFE-Hub grundsätzlich geeignet. Nach vollständiger Messung Koeffizienten berechnen.';
   show('recommendation',advise,'success')
@@ -2583,7 +2619,7 @@ if(typeof document!=='undefined') (function UI(){
   let fitRequest=null;
   try{
    if(st.calTask||st.writing||st.nvmWorking)throw Error('Es läuft ein anderer Vorgang');
-   if(!calEndpointsReady())throw Error('Zuerst alle '+calibrationPointCount()+' gewählten Kalibrierpunkte mit gleicher AFE-Einstellung aufnehmen');
+   if(!calEndpointsReady())throw Error(calibrationReadinessReason());
    const pmin=Number($('pmin').value),pmax=Number($('pmax').value);
    if(st.calpoints.some(p=>JSON.stringify(p.gains)!==JSON.stringify(st.staged)))throw Error('Gain wurde nach der Aufnahme geändert. Messpunkte erneut erfassen');
    if(selectedTemperatureSource()!=='internal'||st.calpoints.some(p=>p.temperatureSource!=='internal'))throw Error('Temperaturquelle der Kalibriermessungen muss mit internem Chipmodus übereinstimmen. Brücken-/EOC-Verfahren sind noch nicht implementiert.');
@@ -4031,7 +4067,7 @@ if(typeof document!=='undefined') (function UI(){
    chip:!!st.chip,usbReady:!!(st.port&&st.readerAlive),demo:demoEnabled,mode:st.mode,adapter:st.adapterKind,uid:st.uid?.hex||null,
    // Read-only summary for the guided completion cards; measurements remain owned by the classic workflow.
    points:st.calpoints.map(x=>({kind:x.kind,slot:x.slot,at:x.at,pressure:x.pressure,temperature:x.temperature,
-    adc_s:x.adc_s,adc_t:x.adc_t,adc_tc:x.adc_tc,sampleCount:x.sampleCount})),
+    adc_s:x.adc_s,adc_t:x.adc_t,adc_tc:x.adc_tc,spread:x.spread,sampleCount:x.sampleCount,temperatureSource:x.temperatureSource})),
    calStaged:!!st.calStaged,calVerified:verificationComplete(),nvmDone:!!st.nvmDone,
    nvmBackupVerified:!!st.nvmBackupVerified,outputReady:expert.outputReady()
   }),

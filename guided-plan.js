@@ -56,6 +56,31 @@ const ELMOS_GUIDED_PLAN=(()=>{
    tempComp:requestedT>0,fitMode,temperatures,pressureValues,orderS:requestedS,orderT:requestedT,
    samples:n,outputLimit,points:Object.freeze(points)});
  }
- return {create,presets};
+ /** Compare two actually recorded references. Never confuse a temperature
+  * drift at fixed pressure with the pressure span at fixed temperature. */
+ function captureDelta(entries,index){
+  const entry=entries[index],value=Number(entry?.record?.adc_s);
+  if(!entry?.record||!Number.isFinite(value))return null;
+  const sameTemperature=(a,b)=>Math.abs(Number(a.temperature)-Number(b.temperature))<=0.5;
+  const samePressure=(a,b)=>Math.abs(Number(a.pressure)-Number(b.pressure))<=1e-6;
+  for(const kind of ['pressure','temperature']){
+   for(let j=index-1;j>=0;j--){
+    const previous=entries[j];
+    if(!previous?.record||!Number.isFinite(previous.record.adc_s))continue;
+    const valid=kind==='pressure'?
+     sameTemperature(entry.point,previous.point)&&!samePressure(entry.point,previous.point):
+     samePressure(entry.point,previous.point)&&!sameTemperature(entry.point,previous.point);
+    if(!valid)continue;
+    return {kind,fromIndex:j,toIndex:index,
+     digits:value-previous.record.adc_s,
+     adcTDelta:Number.isFinite(entry.record.adc_t)&&Number.isFinite(previous.record.adc_t)?
+      entry.record.adc_t-previous.record.adc_t:null,
+     fromPressure:previous.point.pressure,toPressure:entry.point.pressure,
+     fromTemperature:previous.point.temperature,toTemperature:entry.point.temperature};
+   }
+  }
+  return null;
+ }
+ return {create,presets,captureDelta};
 })();
 if(typeof module!=='undefined'&&module.exports)module.exports=ELMOS_GUIDED_PLAN;

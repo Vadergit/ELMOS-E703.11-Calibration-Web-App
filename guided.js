@@ -20,6 +20,7 @@ const ELMOS_GUIDED=(()=>{
  let stage=0,task='calibration',root=null,original=[],mode=false,plan=null,signature=null,taskOpening=false;
  let selectedPoint=0,visited=new Set([0]),poll=null,pendingCapture=null,afeStatsStart=0,afeGainSignature='';
  let latestCapture=null,lastCaptureRenderKey=null,nextSensorBusy=false,nextSensorPending=null,seriesPointFields=null;
+ const originalCaptureLabels=new Map();
  const subscriptions=[];
  const subscribe=(el,type,handler)=>{el.addEventListener(type,handler);subscriptions.push({el,type,handler})};
  const defaults={pCount:2,tCount:1,temps:[25],pmin:0,pmax:100,unit:'%',samples:12,outputLimit:25000,orderS:1,orderT:0};
@@ -47,6 +48,8 @@ const ELMOS_GUIDED=(()=>{
  const moveId=(id,dest)=>move($(id),dest);
  const moveLabel=(id,dest)=>move(labelNode(id),dest);
  function restore(){
+  for(const [node,text] of originalCaptureLabels)node.textContent=text;
+  originalCaptureLabels.clear();
   for(const x of original)if(x.marker.parentNode)x.marker.parentNode.replaceChild(x.node,x.marker);
   original=[];document.querySelectorAll('.gw-point-active').forEach(el=>el.classList.remove('gw-point-active'));
  }
@@ -399,12 +402,29 @@ const ELMOS_GUIDED=(()=>{
   const analog=['keep','1','2','3'].includes($('expertOutputMode').value);
   $('gwOutputVoltage').hidden=!analog;
  }
+ function captureNumber(value){
+  return Number.isFinite(value)?Number(value).toLocaleString('de-CH',{maximumFractionDigits:1}):'—';
+ }
+ function setCaptureLabel(node,text){
+  if(!node)return;
+  if(!originalCaptureLabels.has(node))originalCaptureLabels.set(node,node.textContent);
+  node.textContent=text;
+ }
+ function captureRole(point){
+  if(point.slot==='lo')return 'Unterer Druckpunkt';
+  if(point.slot==='hi')return 'Oberer Druckpunkt';
+  return point.temperatureIndex>0&&point.pressureIndex===0?'TK0-Temperaturpunkt':'Zusätzlicher Kalibrierpunkt';
+ }
+ function captureTime(record){
+  const at=new Date(record.at);
+  return Number.isNaN(at.getTime())?'Zeit unbekannt':at.toLocaleTimeString('de-CH',{hour:'2-digit',minute:'2-digit',second:'2-digit'});
+ }
  function renderCapture(){
   if(!plan)return;
   const points=plan.points.map((point,index)=>({point,index,record:pointRecord(point)}));
   const key=JSON.stringify({
    plan:signature,selectedPoint,
-   captured:points.map(({record})=>record?.at||null),
+   captured:points.map(({record})=>record?[record.at,record.adc_s,record.adc_t,record.spread,record.sampleCount]:null),
    latest:latestCapture
   });
   // The live refresh loop runs frequently; do not rebuild cards on every poll.
@@ -419,12 +439,35 @@ const ELMOS_GUIDED=(()=>{
    const label=document.createElement('span');label.className='gw-point-nav-label';
    label.textContent=(record?'✓  ':'')+(index+1)+'. '+point.pressure+' '+plan.unit+' · '+point.temperature+' °C';
    const status=document.createElement('span');status.className='gw-point-nav-state';
-   status.textContent=record?'Aufgenommen':index===selectedPoint?'Jetzt messen':'Noch offen';
+   status.textContent=record?'Aufgenommen · '+captureTime(record):index===selectedPoint?'Jetzt messen':'Noch offen';
    btn.append(label,status);
+   if(record){
+    const values=document.createElement('span');values.className='gw-point-nav-data';
+    values.textContent='ADC_S '+captureNumber(record.adc_s)+' · ADC_T '+captureNumber(record.adc_t);
+    btn.appendChild(values);
+    const delta=ELMOS_GUIDED_PLAN.captureDelta(points,index);
+    if(delta){
+     const diff=document.createElement('span');diff.className='gw-point-nav-delta';
+     const sign=delta.digits>=0?'+':'−';
+     const label=delta.kind==='pressure'?'Druckhub ΔADC_S':'Temperatur-ΔADC_S';
+     diff.textContent=label+' '+sign+captureNumber(Math.abs(delta.digits))+' Digits'+
+      (delta.kind==='temperature'&&Number.isFinite(delta.adcTDelta)?' · ΔADC_T '+(delta.adcTDelta>=0?'+':'−')+captureNumber(Math.abs(delta.adcTDelta)):'');
+     btn.appendChild(diff);
+    }
+    const stats=document.createElement('span');stats.className='gw-point-nav-meta';
+    stats.textContent=(Number.isFinite(record.spread)?'Streuung '+captureNumber(record.spread)+' Digits · ':'')+
+     (record.sampleCount||'—')+' Samples';
+    btn.appendChild(stats);
+   }
    btn.addEventListener('click',()=>{selectedPoint=index;latestCapture=null;renderCapture()});
    nav.appendChild(btn);
    const row=pointRow(point);
-   if(row)row.classList.toggle('gw-point-active',index===selectedPoint);
+   if(row){
+    row.classList.toggle('gw-point-active',index===selectedPoint);
+    setCaptureLabel(row.querySelector('.between h3'),'Messpunkt '+(index+1)+' · '+captureRole(point));
+    const button=point.slot==='lo'?$('capLo'):point.slot==='hi'?$('capHi'):$('calExtra'+(point.extraSlot??point.index)+'Capture');
+    setCaptureLabel(button,'Messpunkt '+(index+1)+' aufnehmen');
+   }
   }
   const captured=points.filter(({record})=>!!record);
   const allDone=captured.length===plan.total;
@@ -449,12 +492,13 @@ const ELMOS_GUIDED=(()=>{
    'Stelle '+currentPoint.pressure+' '+plan.unit+' und '+currentPoint.temperature+
     ' °C ein, warte auf stabile Bedingungen und klicke dann auf «aufnehmen».';
   if(allDone){
-   const first=points[0]?.record?.adc_s,second=points[1]?.record?.adc_s;
-   if(Number.isFinite(first)&&Number.isFinite(second)){
-    const hub=Math.abs(second-first).toLocaleString('de-CH',{maximumFractionDigits:2});
+   // A pressure span is meaningful only when pressure differs while the
+   // recorded temperature is the same. Temperature drift is a separate delta.
+   const delta=points.map((_,index)=>ELMOS_GUIDED_PLAN.captureDelta(points,index)).find(d=>d?.kind==='pressure');
+   if(delta){
     const difference=document.createElement('span');
     difference.className='gw-point-hub';
-    difference.textContent='P1–P2 · '+hub+' Digits ADC_S';
+    difference.textContent='Druckhub: '+captureNumber(Math.abs(delta.digits))+' Digits ADC_S (Punkt '+(delta.fromIndex+1)+' → '+(delta.toIndex+1)+')';
     heading.append(difference);
    }
   }

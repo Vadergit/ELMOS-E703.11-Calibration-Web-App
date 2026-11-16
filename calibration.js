@@ -44,6 +44,12 @@ const ELMOS_CAL = (() => {
   return x;
  }
  // E703.11 datasheet: CFG_AFE2 (0x1E), bits [1:0] select temperature source.
+ // AN0203: DSP_T target = 387.88 * temperature(°C) - 16485.
+ // Raw ADC_T alone is not an absolute Celsius reading.
+ const dspTemperatureCelsius=raw=>{
+  if(!Number.isInteger(raw)||raw< -32768||raw>32767)return null;
+  return (raw+16485)/387.88;
+ };
  const temperatureSourceFromAfe2=word=>{
   if(!Number.isInteger(word)||word<0||word>0xFFFF)throw Error('CFG_AFE2 ist kein gültiges 16-Bit-Register');
   return ['internal','reserved','bridge','external'][word&3];
@@ -308,6 +314,6 @@ const ELMOS_CAL = (() => {
    Math.abs(point.temperature-candidate.temperature)>=10
   );
  }
- return {SVDD_INDEX,SVDD_MASK,fit,suggestDspLimit,solveFit,crc16,crc8,configFrom,prepareOutputConfig,protectStartupCommunication,oneWireStartupStatus,oneWireOnlyStatus,analogScaling,fromQ,q,signed,independentVerificationPoint,temperatureSourceFromAfe2};
+ return {SVDD_INDEX,SVDD_MASK,fit,suggestDspLimit,solveFit,crc16,crc8,configFrom,prepareOutputConfig,protectStartupCommunication,oneWireStartupStatus,oneWireOnlyStatus,analogScaling,fromQ,q,signed,independentVerificationPoint,temperatureSourceFromAfe2,dspTemperatureCelsius};
 })();
 if(typeof module!=='undefined'&&module.exports)module.exports=ELMOS_CAL;
