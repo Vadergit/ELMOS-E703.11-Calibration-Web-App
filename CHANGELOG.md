@@ -1,3 +1,12 @@
+## v0.7.95 – Interne Chiptemperatur nach NVM-Programmierung und Neustart anzeigen
+
+- Behebt das Verschwinden der SSC-Temperatur nach einem abgeschlossenen Kalibriervorgang, Browser-Neustart oder erneuten Verbinden. Die Anzeige hängt nicht mehr ausschliesslich von flüchtigen RAM-Kalibriermarkern ab.
+- Ein bereits von der Web-App erfolgreich programmiertes NVM-Abbild wird unter der originalen Chip-UID lokal gefunden. Anhand CRC16, UID, aktivem internem Temperatursensor und vollständigem Vergleich der sechs Temperaturparameter im Chip-RAM wird die AN0203-Temperaturskalierung wiedererkannt, ohne Register zu verändern.
+- Ältere lokal gespeicherte elmos8-last-program-Abbilder werden übernommen, sofern sie denselben strengen Vergleich erfüllen und kein Restore darstellen. Neue erfolgreiche AN0203-Kalibrierungen erhalten zusätzlich eine explizite Profilkennung; reine Ausgangsänderungen übernehmen das Profil nur bei passenden Temperaturkoeffizienten.
+- Die obere Anzeige unterscheidet «NVM-Abgleich», «RAM-Abgleich», das werkseitige Beispielprofil und unbekannte Kennlinien. Der reale Temperaturwert ist weiterhin unabhängig zu prüfen. Ohne passendes NVM-Abbild, ohne aktive Temperaturfunktion oder bei fremder Chip-UID bleibt die Anzeige bewusst leer.
+- Alle Schritte sind ausschliesslich lesend; keine zusätzliche Sensorprogrammierung, kein Lock-Bypass.
+- Regressionstest enthält das konkrete 64-Wort-EEPROM-Abbild mit CRC16 0x5CE8 und den Test bei ADC_T 2653 Digits.
+
 ## v0.7.94 – Kalibrier-Messpunkte in beiden Ansichten in derselben Reihenfolge
 
 - In der klassischen Ansicht werden die Messkarten nach Temperaturstufe und innerhalb einer Temperatur nach Druck aufsteigend angeordnet: zuerst die Druckpunkte bei der ersten Temperatur, danach die nächsten Temperaturstufen.
