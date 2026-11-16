@@ -1,3 +1,12 @@
+## v0.7.88 – TK0-Abgleich mit 3 Punkten und TK0 + TKE mit 4 Punkten
+
+- Neuer geführter Modus «TK0 · 3 Punkte»: 0/6 bar bei 25 °C, 0 bar bei 75 °C (Referenzen individuell einstellbar). Drei unabhängige Koeffizienten ohne Druck-Temperatur-Kreuzterm.
+- «TK0 + TKE · 4 Punkte» verwendet zusätzlich 6 bar bei 75 °C und bestimmt den gemischten Druck-/Temperaturkoeffizienten.
+- Neue Auswahl des Temperaturmodells in klassischer und geführter Ansicht; korrekte Punktzuordnung zu originalen Endpunkt- und Zwischenpunkt-Controls.
+- Anzahl und Eignung der Messpunkte werden vor der Berechnung geprüft. Bestehende RAM-Rücklesung, DSP-Verifikation und geschützte NVM-Programmierung bleiben verpflichtend.
+- Config-v2-Profile und Kalibrier-PDF dokumentieren den gewählten Temperaturmodus; ältere Profile bleiben kompatibel.
+- Neue Software-Regressionstests für Messmatrix, Berechnung, unvollständige TKE-Matrix und Config-Profile. Reale Hardware-Verifikation steht aus.
+
 ## v0.7.87 – Kompakter Archivordner-Bereich in App-Einstellungen
 
 - Der Speicherort wird jetzt **in einer kompakten Zeile** mit Ordnername, Berechtigungsstatus und **«Ändern»** angezeigt.
