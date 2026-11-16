@@ -4,7 +4,7 @@ const ELMOS_ARCHIVE=(()=>{
  const C=ELMOS_ARCHIVE_CORE,ANALYSIS=ELMOS_ARCHIVE_ANALYSIS;
  const $=id=>document.getElementById(id);
  const S={dir:null,record:null,records:[],filename:null,writeQueue:Promise.resolve(),selection:[],step:0,
-  measuring:false,finishing:false,finishedReview:null,showDetails:null,lastError:'',folderName:'',draft:null,view:'archive',detailsToken:0,resultsCache:new Map(),debugLines:[],debugDropped:0,lastStreamMetaFlush:0,pressureEntryBefore:'percent',pressureUnitBefore:'bar',autoRangeUid:null,pendingPhotos:[],photoPanels:null};
+  measuring:false,finishing:false,finishedReview:null,showDetails:null,lastError:'',folderName:'',draft:null,view:'archive',detailsToken:0,resultsCache:new Map(),debugLines:[],debugDropped:0,lastStreamMetaFlush:0,pressureEntryBefore:'percent',pressureUnitBefore:'bar',autoRangeUid:null,pendingPhotos:[],photoPanels:null,pathLabel:''};
  let folderSelectionRevision=0;
  const iso=()=>new Date().toISOString();
  const text=(id,value)=>{if($(id))$(id).textContent=String(value)};
@@ -26,12 +26,12 @@ const ELMOS_ARCHIVE=(()=>{
    req.onsuccess=()=>resolve(req.result);
   });
  }
- async function remembered(action,value){
+ async function remembered(action,value,key='folder'){
   const d=await db();
   return new Promise((resolve,reject)=>{
    const t=d.transaction('settings',action==='read'?'readonly':'readwrite');
    const store=t.objectStore('settings');
-   const r=action==='read'?store.get('folder'):store.put(value,'folder');
+   const r=action==='read'?store.get(key):store.put(value,key);
    r.onsuccess=()=>resolve(r.result);
    r.onerror=()=>reject(r.error);
    t.oncomplete=()=>d.close();
@@ -47,7 +47,47 @@ const ELMOS_ARCHIVE=(()=>{
   return false;
  }
  const folderBusy=()=>!!S.record||!!window.ELMOS_TEST_LOGGER?.isBusy?.();
+ // Browsers expose a FileSystemDirectoryHandle.name, not its absolute OS path.
+ // This user-entered label never controls file writes or permission grants.
+ function syncFolderPathLabel(){
+  const input=$('settingsArchivePathInput'),button=$('settingsArchivePathSave'),
+   hint=$('settingsArchivePathStatus'),selected=!!S.dir;
+  if(input){
+   input.disabled=!selected;
+   if(!input.matches?.(':focus'))input.value=S.pathLabel||'';
+  }
+  if(button)button.disabled=!selected;
+  if(hint){
+   hint.dataset.saved=S.pathLabel?'true':'false';
+   hint.textContent=S.pathLabel?
+    ui('Manuell hinterlegter Pfad (nicht vom Browser überprüfbar): ','Manually entered path (not verified by browser): ')+S.pathLabel:
+    ui('Vollständiger Systempfad nicht automatisch verfügbar. Bei Bedarf oben selbst eintragen.','The browser cannot read the full system path. Enter it above if you wish.');
+  }
+ }
+ async function saveFolderPathLabel(){
+  if(!S.dir)throw Error(ui('Bitte zuerst einen Archivordner auswählen.','Please select an archive folder first.'));
+  const input=$('settingsArchivePathInput');
+  const path=String(input?.value||'').trim().slice(0,500);
+  const dir=S.dir,revision=folderSelectionRevision;
+  // Persist the annotation separately from the selected directory handle.
+  await remembered('write',{folderName:dir.name,path},'folder-display-path');
+  if(dir!==S.dir||revision!==folderSelectionRevision)return false;
+  S.pathLabel=path;
+  syncFolderPathLabel();
+  text('settingsMsg',path?
+   ui('Pfadbezeichnung lokal gespeichert. Der tatsächliche Speicherordner bleibt unverändert.','Display path saved locally. The actual storage folder remains unchanged.'):
+   ui('Manuelle Pfadangabe entfernt. Der tatsächliche Speicherordner bleibt unverändert.','Manual path label cleared. The actual storage folder remains unchanged.'));
+  return true;
+ }
+ async function loadFolderPathLabel(dir,revision){
+  let entry=null;
+  try{entry=await remembered('read',undefined,'folder-display-path')}catch(_){}
+  if(S.dir!==dir||revision!==folderSelectionRevision)return;
+  S.pathLabel=entry?.folderName===dir.name&&typeof entry.path==='string'?entry.path.slice(0,500):'';
+  syncFolderPathLabel();
+ }
  async function refreshFolderSettings(){
+  syncFolderPathLabel();
   const label=$('settingsArchiveFolder'),accessLabel=$('settingsArchiveAccess');
   const choose=$('settingsArchiveChoose'),grant=$('settingsArchiveGrant');
   if(!label||!accessLabel)return;
@@ -87,11 +127,15 @@ const ELMOS_ARCHIVE=(()=>{
   if(folderBusy())throw Error(ui('Während der Ordnerwahl wurde eine Messung gestartet. Der Speicherort bleibt unverändert.','Recording started during folder selection. The storage folder remains unchanged.'));
   ++folderSelectionRevision;
   S.dir=dir;S.folderName=dir.name;
+  S.pathLabel=''; // A different directory must never inherit a stale path label.
   S.records=[];S.selection=[];S.showDetails=null;S.resultsCache.clear();
   renderList();
   text('archiveFolder',dir.name+' · '+ui('lokaler Ordner','local folder'));
   void refreshFolderSettings();
-  try{await remembered('write',dir)}catch(_){/* Persistence is optional. */}
+  try{
+   await remembered('write',dir);
+   await remembered('write',{folderName:dir.name,path:''},'folder-display-path');
+  }catch(_){/* Persistence is optional; path label remains empty. */}
   note(ui('Archivordner ausgewählt. Andere Dateien bleiben unverändert.','Archive folder selected. Other files remain unchanged.'));
   text('settingsMsg',ui('Speicherort: ','Storage folder: ')+dir.name);
   await refresh();
@@ -1583,6 +1627,12 @@ const ELMOS_ARCHIVE=(()=>{
   $('archiveChoose').addEventListener('click',()=>chooseFolder().catch(folderError));
   $('settingsArchiveChoose')?.addEventListener('click',()=>chooseFolder().catch(folderError));
   $('settingsArchiveGrant')?.addEventListener('click',()=>grantFolderAccess().catch(folderError));
+  $('settingsArchivePathSave')?.addEventListener('click',()=>saveFolderPathLabel().catch(folderError));
+  $('settingsArchivePathInput')?.addEventListener('keydown',event=>{
+   if(event.key!=='Enter')return;
+   event.preventDefault();
+   void saveFolderPathLabel().catch(folderError);
+  });
   $('archiveRefresh').addEventListener('click',()=>refresh());
   $('archiveStartCalibration').addEventListener('click',()=>ensureCalibration().then(()=>note('Kalibrierprotokoll gestartet. Jetzt wie gewohnt abgleichen.')).catch(e=>note(e.message,true)));
   $('arStart').addEventListener('click',()=>startVerification().catch(e=>note(e.message,true)));
@@ -1639,6 +1689,8 @@ const ELMOS_ARCHIVE=(()=>{
    if(!dir||initialRevision!==folderSelectionRevision)return;
    S.dir=dir;S.folderName=dir.name;
    text('archiveFolder',dir.name+' · '+ui('Ordner vorgemerkt','folder remembered'));
+   await loadFolderPathLabel(dir,initialRevision);
+   if(initialRevision!==folderSelectionRevision)return;
    await refreshFolderSettings();
    if(initialRevision!==folderSelectionRevision)return;
    if(await permitted(false))await refresh();
@@ -1667,7 +1719,7 @@ const ELMOS_ARCHIVE=(()=>{
   S.finishedReview=null;
  }
  return {init,open,openVerification:()=>open('verification'),close,begin,ensureCalibration,event,trace,appendTelemetry,streamRows,download,exportLoggingPdf,setPhotos,flush,finalise,interrupted,
-  chooseFolder,grantFolderAccess,refreshFolderSettings,
+  chooseFolder,grantFolderAccess,refreshFolderSettings,saveFolderPathLabel,loadFolderPathLabel,
   get active(){return !!S.record},get current(){return S.record},get view(){return S.view},refresh};
 })();
 if(typeof window!=='undefined'){
