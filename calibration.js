@@ -330,6 +330,13 @@ const ELMOS_CAL = (() => {
    Math.abs(point.temperature-candidate.temperature)>=10
   );
  }
- return {SVDD_INDEX,SVDD_MASK,fit,suggestDspLimit,solveFit,crc16,crc8,configFrom,prepareOutputConfig,protectStartupCommunication,oneWireStartupStatus,oneWireOnlyStatus,analogScaling,fromQ,q,signed,independentVerificationPoint,temperatureSourceFromAfe2,dspTemperatureCelsius,isFactoryTemperatureProfile,factoryInternalTemperatureCelsius,factoryTemperatureAddresses};
+ // Independent DSP verification requires only the user-selected number of
+ // confirmed, unique slots. No second temperature is a prerequisite for
+ // testing one DSP operating point; TK coverage is a separate quality claim.
+ const verificationPointsSufficient=(records,required)=>
+  Number.isInteger(required)&&required>=1&&required<=10&&Array.isArray(records)&&
+  Array.from({length:required},(_,slot)=>records.some(point=>
+   point?.slot===slot&&Number.isFinite(point.errorBar))).every(Boolean);
+ return {SVDD_INDEX,SVDD_MASK,fit,suggestDspLimit,solveFit,crc16,crc8,configFrom,prepareOutputConfig,protectStartupCommunication,oneWireStartupStatus,oneWireOnlyStatus,analogScaling,fromQ,q,signed,independentVerificationPoint,verificationPointsSufficient,temperatureSourceFromAfe2,dspTemperatureCelsius,isFactoryTemperatureProfile,factoryInternalTemperatureCelsius,factoryTemperatureAddresses};
 })();
 if(typeof module!=='undefined'&&module.exports)module.exports=ELMOS_CAL;
