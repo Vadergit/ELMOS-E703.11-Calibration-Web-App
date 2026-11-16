@@ -29,6 +29,7 @@ const ELMOS_VERIFICATION_GRAPH=(()=>{
    // pressure scaling is confirmed. Do not mistake preview for a verified error.
    const sample=item?.sample||{};
    const referencePressure=finite(item?.referencePressure)?item.referencePressure:step.pressure;
+   const referencePressureInput=finite(item?.referencePressureInput)?item.referencePressureInput:referencePressure;
    const sourceUnit=String(sample.sensorUnit||sample.pressureUnit||'');
    const outputUnit=String(item?.pressureUnit||record?.verificationConfig?.pressureUnit||'');
    const referenceMin=finite(record?.verificationConfig?.calibrationMin)?
@@ -57,7 +58,7 @@ const ELMOS_VERIFICATION_GRAPH=(()=>{
      finite(item?.pressureTolerance)&&itemSpan>0?100*item.pressureTolerance/itemSpan:
      Number.isFinite(record?.verificationConfig?.pressureTolerancePercent)?record.verificationConfig.pressureTolerancePercent:0.2);
    return {index:i,step,item,tries:tries.length,value,tolerance,pressurePct,tempError,
-    plotValue,valueSource,measuredPercent,referencePercent,previewPercent,
+    plotValue,valueSource,measuredPercent,referencePercent,referencePressure,referencePressureInput,previewPercent,
     status:!item?'pending':toleranceDisabled?'recorded':item.pass===true?'pass':item.pass===false?'fail':'unknown'};
   });
   return {data,span,mode,passed:data.filter(x=>x.status==='pass').length,failed:data.filter(x=>x.status==='fail').length,
@@ -167,7 +168,9 @@ const ELMOS_VERIFICATION_GRAPH=(()=>{
    const marker=svg('circle',{cx:xx,cy:y(p.plotValue),r:data.length>60?5:7.2,
     class:'vg-marker '+p.status+(preview?' provisional':'')+(p.index===active?' selected':''),
     tabindex:0,role:'button','aria-label':local('Prüfpunkt ','Verification point ')+(p.index+1)});
-   const tt=local('Punkt ','Point ')+(p.index+1)+' · '+local('Soll','Target')+': '+decimal(p.step.pressure,3)+(p.step.temperature==null?'':' / '+decimal(p.step.temperature,2)+' °C')+' · '+
+   const actualReference=p.item&&finite(p.referencePressureInput)?
+    ' · '+local('Referenz','Reference')+': '+decimal(p.referencePressureInput,4)+' '+(record?.verificationConfig?.pressureUnit||''):'';
+   const tt=local('Punkt ','Point ')+(p.index+1)+' · '+local('Soll','Target')+': '+decimal(p.step.pressure,3)+(p.step.temperature==null?'':' / '+decimal(p.step.temperature,2)+' °C')+actualReference+' · '+
     local('Abweichung','Deviation')+': '+decimal(p.plotValue,4)+' '+axisUnits+' · '+
     (p.status==='pass'?local('Bestanden','Passed'):p.status==='fail'?local('Ausser Toleranz','Out of tolerance'):p.status==='recorded'?local('Erfasst, keine Bewertung','Recorded, not assessed'):local('Nicht bewertet','Not evaluated'));
    marker.append(svg('title',{},tt));
@@ -201,8 +204,9 @@ const ELMOS_VERIFICATION_GRAPH=(()=>{
   resultCard.append(node('strong',local('Punkt ','Point ')+(current.index+1)+' · '+label));
   if(current.item){
    const observed=current.item.sample;
-   const parts=[local('Soll','Target')+' '+decimal(current.item.referencePressure,3)+
+   const parts=[local('Referenz','Reference')+' '+decimal(current.referencePressureInput,3)+' '+(record?.verificationConfig?.pressureUnit||'')+
      (current.item.referenceTemperature==null?'':' · '+decimal(current.item.referenceTemperature,2)+' °C'),
+    local('Soll','Target')+' '+decimal(current.step.pressure,3)+' '+(record?.verificationConfig?.pressureUnit||''),
     finite(observed?.sensorPressure)?local('Sensoranzeige','Sensor display')+' '+decimal(observed.sensorPressure,5)+' '+(observed.pressureUnit||''):
      'DSP_S '+String(observed?.dspS??'–'),
     finite(current.pressurePct)?local('Abweichung','Deviation')+' '+
@@ -211,6 +215,9 @@ const ELMOS_VERIFICATION_GRAPH=(()=>{
         (current.previewPercent>0?'+':'')+decimal(current.previewPercent,4)+' % FS':
         local('Druck nicht bewertet','Pressure not assessed')
    ];
+   if(finite(current.referencePressure)&&finite(current.referencePressureInput)&&
+     Math.abs(current.referencePressure-current.referencePressureInput)>1e-9)
+    parts.push(local('Sensorbezug','Sensor reference')+' '+decimal(current.referencePressure,4)+' '+(record?.verificationConfig?.pressureUnit||''));
    if(mode!=='pressure')parts.push(finite(current.tempError)?local('Temperaturfehler','Temperature error')+
        ' '+decimal(current.tempError,3)+' °C':local('Temperatur nicht bewertet','Temperature not assessed'));
    resultCard.append(node('p',parts.join(' · ')));
