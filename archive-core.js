@@ -101,6 +101,25 @@ const ELMOS_ARCHIVE_CORE=(()=>{
   return {pairs,maxPressure:pairs.filter(x=>x.axis==='pressure').reduce((m,p)=>Math.max(m,p.absolute),0),
    maxTemperature:pairs.filter(x=>x.axis==='temperature').reduce((m,p)=>Math.max(m,p.absolute),0)};
  }
+ // A started record, automatic chip snapshot or transport log alone is not a
+ // measurement. Keep actual calibration/verification data and hardware changes.
+ function hasMeaningfulData(record){
+  if(!record||!Array.isArray(record.events))return false;
+  if(record.type==='testlog'&&
+   ((Number(record.telemetry?.groups)||0)>0||(Number(record.telemetry?.individualSamples)||0)>0))
+   return true;
+  const meaningful=new Set(['calibration_point','verification_attempt','measurement',
+   'afe_ram_changed','bridge_ram_changed','calibration_ram_written','coefficient_fit',
+   'nvm_before','nvm_after','post_boot_verified']);
+  for(const event of record.events){
+   const kind=event?.kind,data=eventPayload(event);
+   if(meaningful.has(kind))return true;
+   // A failed measurement with partial real samples must also be retained.
+   if(kind==='error'&&((Array.isArray(data?.rawSamples)&&data.rawSamples.length>0)||
+      (Array.isArray(data?.samples)&&data.samples.length>0)))return true;
+  }
+  return false;
+ }
  // Completion describes the measurement workflow, not a tolerance verdict.
  // With tolerance disabled a captured point is complete even though pass is null.
  function verificationCompletion(record){
@@ -120,6 +139,9 @@ const ELMOS_ARCHIVE_CORE=(()=>{
  // silently rewriting the signed-off local JSON archive.
  function displayStatus(record){
   const stored=record?.status||'running';
+  // A process without a finished event might have been interrupted by a reload.
+  // If there are actual readings, report it as incomplete rather than "Open".
+  if(stored==='running')return 'incomplete';
   if(stored!=='incomplete'||record?.type!=='verification'||!record.endedAt||
    record.verificationConfig?.toleranceEnabled!==false)return stored;
   const finished=(record.events||[]).some(e=>e.kind==='finished'&&
@@ -134,7 +156,7 @@ const ELMOS_ARCHIVE_CORE=(()=>{
    measured:latest.filter(Boolean).length,planned:latest.length,
    status:record.status||'running'};
  }
- return {FORMAT,VERSION,points,direction,makePlan,valid,filename,lastAttempt,hysteresis,verificationCompletion,displayStatus,outcomes};
+ return {FORMAT,VERSION,points,direction,makePlan,valid,filename,lastAttempt,hysteresis,hasMeaningfulData,verificationCompletion,displayStatus,outcomes};
 })();
 if(typeof module!=='undefined'&&module.exports)module.exports=ELMOS_ARCHIVE_CORE;
 if(typeof window!=='undefined')window.ELMOS_ARCHIVE_CORE=ELMOS_ARCHIVE_CORE;
