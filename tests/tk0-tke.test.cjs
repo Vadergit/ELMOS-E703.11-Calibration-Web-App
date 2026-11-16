@@ -238,7 +238,7 @@ test('Internal SSC Celsius converts calibrated DSP_T only, with source and fresh
  assert.equal(CAL.dspTemperatureCelsius(40000),null);
  const app=read('app.js'),html=read('index.html');
  assert.ok(html.includes('id="liveTempC"'));
- assert.ok(html.includes('°C · DSP_T, ungeprüft'));
+ assert.ok(html.includes('id="liveTempUnit"'));
  assert.ok(app.includes("CAL.temperatureSourceFromAfe2(st.regs[0x1E])==='internal'"));
  assert.ok(app.includes('readReg(0x2E,1100)'));
  assert.ok(app.includes('const channel=liveSecondaryIndex++%5'));
@@ -252,4 +252,28 @@ test('Too-small real pressure span is diagnosed separately from AFE and missing 
  assert.ok(app.includes("Druckhub zwischen unterem und oberem Druckpunkt"));
  assert.ok(app.includes("const span=Math.abs(lo.v-hi.v)"));
  assert.ok(app.includes("if(!calEndpointsReady())throw Error(calibrationReadinessReason())"));
+});
+
+test('Factory example Celsius varies with actual internal ADC_T and rejects unknown coefficients',()=>{
+ const factory={0x6C:0,0x6E:0x1000,0x94:0x0F4D,0x96:0xBC8E,0x98:0xFC54,0x9A:0};
+ assert.ok(CAL.isFactoryTemperatureProfile(factory));
+ const room=CAL.factoryInternalTemperatureCelsius(2741,factory);
+ const warm=CAL.factoryInternalTemperatureCelsius(2000,factory);
+ assert.ok(room>24&&room<26,'room temperature plausible');
+ assert.ok(warm>room+3,'rising temperature as diode ADC_T falls');
+ assert.equal(CAL.factoryInternalTemperatureCelsius(2741,{...factory,0x94:0x1234}),null);
+ assert.equal(CAL.factoryInternalTemperatureCelsius(2741,{}),null);
+ assert.equal(CAL.factoryInternalTemperatureCelsius(35000,factory),null);
+});
+test('Header separates Elmos example temperature from AN0203 fit and checks absolute temperature enable',()=>{
+ const app=read('app.js'),html=read('index.html'),style=read('interface.css');
+ assert.ok(app.includes("const absoluteEnabled=Number.isInteger(st.regs[0x04])&&!!(st.regs[0x04]&0x1000)"));
+ assert.ok(app.includes("CAL.isFactoryTemperatureProfile(st.regs)"));
+ assert.ok(app.includes("CAL.factoryInternalTemperatureCelsius(st.adc.t,st.regs)"));
+ assert.ok(app.includes("st.calStaged&&st.calfit?.orderT>0"));
+ assert.ok(app.includes("const required=[0x1E,0x04,...CAL.factoryTemperatureAddresses]"));
+ assert.ok(app.includes("tempMode==='factory'"));
+ assert.ok(html.includes('id="liveTempUnit"'));
+ assert.ok(style.includes('grid-template-columns:repeat(5,minmax(0,1fr))'));
+ assert.ok(style.includes('.top .live-kpi{padding:4px 7px;min-height:46px}'));
 });
