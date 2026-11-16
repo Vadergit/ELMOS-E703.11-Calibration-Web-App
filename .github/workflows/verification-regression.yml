@@ -12,6 +12,7 @@ jobs:
           node-version: '22'
       - name: Syntax
         run: |
+          node --check calibration-report.js
           node --check calibration-graph.js
           node --check guided.js
           node --check archive.js
@@ -19,4 +20,4 @@ jobs:
           node --check verification-graph.js
           node --check archive-readable-csv.js
       - name: Unit and regression tests
-        run: node --test tests/verification-reference.test.cjs tests/view-persistence.test.cjs tests/pressure-preset.test.cjs tests/calibration-graph.test.cjs
+        run: node --test tests/verification-reference.test.cjs tests/view-persistence.test.cjs tests/pressure-preset.test.cjs tests/calibration-graph.test.cjs tests/calibration-report.test.cjs
