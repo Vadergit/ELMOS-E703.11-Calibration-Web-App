@@ -50,6 +50,22 @@ const ELMOS_CAL = (() => {
   if(!Number.isInteger(raw)||raw< -32768||raw>32767)return null;
   return (raw+16485)/387.88;
  };
+ // Factory E703.11 example profile, datasheet 25DS0170E.04 (Nov 2023),
+ // NVM example T0..T3; DSP_T is then expressed in units of 0.01 °C.
+ // Not production-trimmed or accuracy-guaranteed by Elmos.
+ const factoryTemperatureRegisters=Object.freeze({0x6C:0x0000,0x6E:0x1000,0x94:0x0F4D,0x96:0xBC8E,0x98:0xFC54,0x9A:0x0000});
+ const factoryTemperatureAddresses=Object.keys(factoryTemperatureRegisters).map(Number);
+ const isFactoryTemperatureProfile=registers=>!!registers&&factoryTemperatureAddresses.every(address=>
+  Number.isInteger(registers[address])&&registers[address]===factoryTemperatureRegisters[address]);
+ const factoryInternalTemperatureCelsius=(adcT,registers)=>{
+  if(!Number.isInteger(adcT)||adcT< -32768||adcT>32767||!isFactoryTemperatureProfile(registers))return null;
+  const x=adcT/32768;
+  const raw=fromQ(registers[0x94],15)*32768+
+   fromQ(registers[0x96],15)*32768*x+
+   fromQ(registers[0x98],15)*32768*x*x+
+   fromQ(registers[0x9A],15)*32768*x*x*x;
+  return raw/100;
+ };
  const temperatureSourceFromAfe2=word=>{
   if(!Number.isInteger(word)||word<0||word>0xFFFF)throw Error('CFG_AFE2 ist kein gültiges 16-Bit-Register');
   return ['internal','reserved','bridge','external'][word&3];
@@ -314,6 +330,6 @@ const ELMOS_CAL = (() => {
    Math.abs(point.temperature-candidate.temperature)>=10
   );
  }
- return {SVDD_INDEX,SVDD_MASK,fit,suggestDspLimit,solveFit,crc16,crc8,configFrom,prepareOutputConfig,protectStartupCommunication,oneWireStartupStatus,oneWireOnlyStatus,analogScaling,fromQ,q,signed,independentVerificationPoint,temperatureSourceFromAfe2,dspTemperatureCelsius};
+ return {SVDD_INDEX,SVDD_MASK,fit,suggestDspLimit,solveFit,crc16,crc8,configFrom,prepareOutputConfig,protectStartupCommunication,oneWireStartupStatus,oneWireOnlyStatus,analogScaling,fromQ,q,signed,independentVerificationPoint,temperatureSourceFromAfe2,dspTemperatureCelsius,isFactoryTemperatureProfile,factoryInternalTemperatureCelsius,factoryTemperatureAddresses};
 })();
 if(typeof module!=='undefined'&&module.exports)module.exports=ELMOS_CAL;
