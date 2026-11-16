@@ -16,6 +16,7 @@ jobs:
           node --check calibration-graph.js
           node --check guided.js
           node --check archive.js
+          node --check app.js
           node --check verification-report.js
           node --check verification-graph.js
           node --check archive-readable-csv.js
