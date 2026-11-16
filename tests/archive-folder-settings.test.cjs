@@ -27,7 +27,7 @@ function harness(options={}){
   showDirectoryPicker:async args=>{calls.push('picker:'+args.id);if(currentPick instanceof Error)throw currentPick;return currentPick}
  };
  const context={
-  S:state,window,$:id=>nodes[id],ui:de=>de,
+  S:state,window,folderSelectionRevision:0,$:id=>nodes[id],ui:de=>de,
   text:(id,message)=>{if(nodes[id])nodes[id].textContent=message},
   note:message=>calls.push('note:'+message),
   renderList:()=>calls.push('list'),
