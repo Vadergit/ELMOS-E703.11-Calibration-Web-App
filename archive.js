@@ -459,6 +459,10 @@ const ELMOS_ARCHIVE=(()=>{
     const pdf=el('button','PDF','ar-small');
     pdf.addEventListener('click',()=>exportVerificationPdf(record));
     actions.append(pdf);
+   }else if(record.type==='calibration'){
+    const pdf=el('button','PDF','ar-small');
+    pdf.addEventListener('click',()=>exportCalibrationPdf(record));
+    actions.append(pdf);
    }
    card.append(title,detail,quick,actions);root.append(card);
   }
@@ -553,10 +557,14 @@ const ELMOS_ARCHIVE=(()=>{
   heading.append(el('p',info.description||info.chipUID||'–','ar-muted'));
   top.append(heading,el('span',info.statusLabel,'ar-pill'+
    (info.status==='completed'?' ar-good':info.status==='failed'?' ar-bad':'')));
-  if(r.type==='verification'||r.type==='testlog'){
+  if(['calibration','verification','testlog'].includes(r.type)){
    const pdfBtn=el('button',ui('Prüfprotokoll als PDF speichern','Save report as PDF'),'ar-pdf-export');
    pdfBtn.type='button';
-   pdfBtn.addEventListener('click',()=>r.type==='testlog'?exportLoggingPdf(r):exportVerificationPdf(r));
+   pdfBtn.addEventListener('click',()=>{
+    if(r.type==='calibration')exportCalibrationPdf(r);
+    else if(r.type==='testlog')exportLoggingPdf(r);
+    else exportVerificationPdf(r);
+   });
    top.append(pdfBtn);
   }
   root.append(top,outcome(info),section('Geräte- und Aufzeichnungsdaten'),facts(info));
@@ -1066,6 +1074,27 @@ const ELMOS_ARCHIVE=(()=>{
    return ok;
   }catch(error){
    note(ui('Logging-PDF fehlgeschlagen: ','Logging PDF failed: ')+error.message,true);
+   return false;
+  }
+ }
+ function exportCalibrationPdf(record){
+  if(!record||record.type!=='calibration'){
+   note(ui('Kein gespeichertes Kalibrierprotokoll für den PDF-Export ausgewählt.',
+    'No saved calibration report selected for PDF export.'),true);
+   return false;
+  }
+  if(!window.ELMOS_CALIBRATION_REPORT?.print){
+   note(ui('Kalibrier-PDF-Modul nicht geladen. Bitte Seite neu laden.',
+    'Calibration PDF module not loaded. Please refresh the page.'),true);
+   return false;
+  }
+  try{
+   const ok=window.ELMOS_CALIBRATION_REPORT.print(record);
+   if(!ok)note(ui('Der Browser hat das PDF-Fenster blockiert. Bitte Pop-ups für diese Webseite erlauben.',
+    'The browser blocked the PDF report window. Please allow pop-ups.'),true);
+   return ok;
+  }catch(error){
+   note(ui('Kalibrier-PDF fehlgeschlagen: ','Calibration PDF failed: ')+error.message,true);
    return false;
   }
  }
