@@ -47,5 +47,5 @@ test('PDF distinguishes entered calibrator reference from corrected sensor press
  const {ELMOS_VERIFICATION_REPORT:report}=modules();
  const html=report.makeReport(example({entered:8,evaluated:9.01325}));
  assert.match(html,/8 bar \(Soll 10 bar\)/);
- assert.match(html,/Sensorbezug: 9,0133 bar/);
+ assert.match(html,/Sensorbezug: 9.0133 bar/);
 });
