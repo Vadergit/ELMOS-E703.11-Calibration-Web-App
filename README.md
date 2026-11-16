@@ -2,7 +2,7 @@
 
 **Ein geführter Kalibrierassistent für den ELMOS E703.11 und das SSP3-Eval-Board.** Ziel ist ein verständlicher Abgleich, der auch ohne tiefere Vorkenntnisse Schritt für Schritt funktioniert. Wer mehr benötigt, kann zusätzliche Messpunkte, DSP-Parameter und einen geschützten Expertenmodus verwenden.
 
-**Version: v0.7.85 · Archivordner direkt in den Einstellungen auswählen** · [Änderungsverlauf](CHANGELOG.md) · **[Geplante Funktionen](ROADMAP.md)**
+**Version: v0.7.86 · Archivpfad zur Anzeige hinterlegen, Esc-Hinweis entfernen** · [Änderungsverlauf](CHANGELOG.md) · **[Geplante Funktionen](ROADMAP.md)**
 
 Der **Demo-Modus** wird in den Einstellungen erst nach Aktivierung von **Expertenparameter** angezeigt. Er simuliert Sensorwerte und Schreibvorgänge; die echte Hardware wird dabei nicht programmiert.
 
@@ -105,7 +105,7 @@ Auf der ersten Seite des geführten Assistenten gibt es die vierte Auswahl **«T
 
 ## Neu in v0.7.0 – Lokales Kalibrierarchiv und Nachmessung
 
-Ab **v0.7.85** wird der **gemeinsame lokale Speicherordner für Kalibrierungen, Nachmessungen und Test/Logging direkt in «App-Einstellungen → Speicherort»** ausgewählt oder geändert. Der Ordner bleibt im Browser über IndexedDB vorgemerkt. Falls Chrome/Edge die Dateiberechtigung nach einem Neustart zurücksetzt, kann der Schreibzugriff dort erneut freigegeben werden. Während einer laufenden Aufzeichnung ist ein Wechsel gesperrt, damit zusammengehörige Protokolle nicht auf verschiedene Ordner verteilt werden. Der Browser gibt den absoluten Dateipfad nicht preis.
+Ab **v0.7.85** wird der **gemeinsame lokale Speicherordner für Kalibrierungen, Nachmessungen und Test/Logging direkt in «App-Einstellungen → Speicherort»** ausgewählt oder geändert. Der Ordner bleibt im Browser über IndexedDB vorgemerkt. Falls Chrome/Edge die Dateiberechtigung nach einem Neustart zurücksetzt, kann der Schreibzugriff dort erneut freigegeben werden. Während einer laufenden Aufzeichnung ist ein Wechsel gesperrt, damit zusammengehörige Protokolle nicht auf verschiedene Ordner verteilt werden. Der Browser gibt den absoluten Dateipfad nicht preis. Ab **v0.7.86** kann unter den Einstellungen zusätzlich ein **vollständiger Pfad als reine Anzeigebeschriftung** manuell eingetragen werden (z. B. `C:\\Projekte\\Messungen`). Die Beschriftung wird lokal gespeichert und bleibt beim Neuladen sichtbar, ist aber **nicht technisch überprüfbar** und verändert niemals den tatsächlichen freigegebenen Ordner. Beim Ordnerwechsel wird die Beschriftung bewusst zurückgesetzt. Der dekorative «Esc»-Hinweis im Einstellungsfenster wurde entfernt; die Escape-Taste funktioniert weiter.
 
 Der neue Bereich **«Archiv & Nachmessung»** (oben in der Web-App) liest und speichert `elmos-e70311-record`-JSON-Dateien direkt in einem vom Benutzer freigegebenen Ordner. Fremde Dateien werden ignoriert. Es gibt keine Cloudspeicherung. Chrome kann eine erneute Berechtigung verlangen; empfohlen ist HTTPS oder `localhost`.
 
