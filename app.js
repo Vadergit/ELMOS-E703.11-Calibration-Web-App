@@ -54,6 +54,18 @@ if(typeof document!=='undefined') (function UI(){
  const demoEnabled=new URLSearchParams(location.search).get('demo')==='1';
  const lsGet=k=>{try{return demoEnabled?sessionStorage.getItem('demo-'+k):localStorage.getItem(k)}catch{return null}};
  const lsSet=(k,v)=>{try{if(demoEnabled)sessionStorage.setItem('demo-'+k,v);else localStorage.setItem(k,v)}catch{}};
+ // Legacy versions already persisted the last CRC-tested 64-word NVM image.
+ // Cache parsing, but always compare the chip UID and six live temperature
+ // registers before applying the AN0203 degrees-Celsius interpretation.
+ let lastProgramCacheRaw=null,lastProgramCache=null;
+ function storedProgrammedNvm(){
+  const raw=lsGet('elmos8-last-program');
+  if(raw===lastProgramCacheRaw)return lastProgramCache;
+  lastProgramCacheRaw=raw;
+  try{lastProgramCache=raw?JSON.parse(raw):null}
+  catch{lastProgramCache=null}
+  return lastProgramCache;
+ }
  const GAINS1=[3.5,6,8.5,11],GAINS2=[2,2.22,2.5,2.86,3.33,4,5,6.67,10];
  const LOCKED=[4,6,8,10,12,16],R_AFE=0x1C,R_BRIDGE=0x1A;
  const BRIDGE_VOLTAGES=[2.4,1.6,2.0];
@@ -438,7 +450,10 @@ if(typeof document!=='undefined') (function UI(){
   const internalSource=connected&&Number.isInteger(st.regs[0x1E])&&CAL.temperatureSourceFromAfe2(st.regs[0x1E])==='internal';
   const absoluteEnabled=Number.isInteger(st.regs[0x04])&&!!(st.regs[0x04]&0x1000);
   const factoryProfile=internalSource&&CAL.isFactoryTemperatureProfile(st.regs);
-  const ownCalibration=internalSource&&absoluteEnabled&&st.calStaged&&st.calfit?.orderT>0;
+  const nvmProfile=internalSource&&absoluteEnabled&&st.uid?.hex&&
+   CAL.programmedTemperatureProfileMatches(storedProgrammedNvm(),st.uid.hex,st.regs);
+  const ownCalibration=internalSource&&absoluteEnabled&&
+   ((st.calStaged&&st.calfit?.orderT>0)||nvmProfile);
   const validDsp=!!st.dspT&&!st.dspTError&&Date.now()-st.dspT.time<10000;
   // Two manufacturers' mappings exist: the AN0203 software-fit target differs
   // from the factory example coefficients. Never apply the AN0203 formula to an
@@ -452,16 +467,18 @@ if(typeof document!=='undefined') (function UI(){
   const hasTemp=Number.isFinite(measuredTemp)&&measuredTemp>=-40&&measuredTemp<=125;
   const tempMode=Number.isFinite(ownTemp)?'an0203':Number.isFinite(exampleTemp)?'factory':'unavailable';
   $('liveTempC').textContent=hasTemp?'≈'+dspNumber(measuredTemp):'—';
-  $('liveTempUnit').textContent=tempMode==='an0203'?'°C · Eigener Abgleich':tempMode==='factory'?
-   '°C · Werksbeispiel (ungeprüft)':'°C · nicht kalibriert';
+  $('liveTempUnit').textContent=tempMode==='an0203'?(nvmProfile?'°C · NVM-Abgleich':'°C · RAM-Abgleich'):tempMode==='factory'?
+   '°C · Werksbeispiel (ungeprüft)':'°C · Profil nicht erkannt';
   $('liveTempC').parentElement.title=
    'Interner Temperaturpfad: '+(internalSource?'aktiv':'nicht bestätigt')+
    ' · CFG_EN.t_abs_en: '+(absoluteEnabled?'aktiv':'inaktiv / unbekannt')+
    ' · ADC_T: '+(activeADC?fmt(st.adc.t):'—')+
    ' · DSP_T: '+(validDsp?fmt(st.dspT.raw):'—')+
    (tempMode==='factory'?' · Näherung aus ADC_T mit verifizierten Elmos-Beispielregistern (100 DSP_T-Digits/°C), keine Produktionskalibrierung.':
-    tempMode==='an0203'?' · Aktueller RAM-Temperaturfit nach AN0203; vor Verwendung unabhängig prüfen.':
-    ' · Keine zuverlässige °C-Skalierung verfügbar; aus einem einzelnen DSP_T-Wert allein lässt sich die Temperatur nicht bestimmen.');
+    tempMode==='an0203'?(nvmProfile?
+     ' · NVM-Abgleich AN0203 anhand Chip-UID, CRC16 und sechs Temperaturregistern wiedererkannt. Angezeigte °C nicht unabhängig verifiziert.':
+     ' · Aktueller RAM-Temperaturfit nach AN0203; vor Verwendung unabhängig prüfen.'):
+    ' · Keine zuverlässige °C-Skalierung bestätigt. Nach einem früheren AN0203-Abgleich müssen die sechs Chipregister zur gespeicherten NVM-Programmierung mit derselben UID passen.');
   $('liveDspS').textContent=activeDSP?fmt(st.dsp.raw):'—';
   $('livePressure').textContent=Number.isFinite(converted)?dspNumber(converted):'—';
   $('livePressureUnit').textContent=range?.unit||'—';
@@ -2411,7 +2428,7 @@ if(typeof document!=='undefined') (function UI(){
    }else if(channel===4){
     // Probe read-only temperature settings, one register per idle secondary
     // slot; never write or reconfigure the chip during live monitoring.
-    const required=[0x1E,0x04,...CAL.factoryTemperatureAddresses];
+    const required=[0x1E,0x04,...CAL.factoryTemperatureAddresses,...CAL.programmedTemperatureAddresses];
     const pending=required.find(address=>!Number.isInteger(st.regs[address]));
     if(pending!==undefined){
      st.regs[pending]=await readReg(pending,1100);
@@ -3046,7 +3063,15 @@ if(typeof document!=='undefined') (function UI(){
     configuredUserId:'0x'+h(after[30],2),supply:archiveVoltages()
    }};
    try{await window.ELMOS_ARCHIVE?.event('nvm_after',{uid:id,words:after,crc16:after[63],verified:true})}
-   catch(archiveError){logging('KRITISCH: NVM erfolgreich geschrieben, Archiv-Export fehlgeschlagen: '+archiveError.message);ca('backupMsg','NVM erfolgreich verifiziert, aber der Archivordner ist nicht beschreibbar! Bitte unmittelbar NVM-Backup exportieren.','error')}st.calImage=null;st.restorePlan=null;st.outputOnlyPlan=null;if(saveOldNvm)expert.afterNvmScan();lsSet('elmos8-last-program',JSON.stringify({id,words:after,ts:new Date().toISOString(),restore:restoring}));
+   catch(archiveError){logging('KRITISCH: NVM erfolgreich geschrieben, Archiv-Export fehlgeschlagen: '+archiveError.message);ca('backupMsg','NVM erfolgreich verifiziert, aber der Archivordner ist nicht beschreibbar! Bitte unmittelbar NVM-Backup exportieren.','error')}st.calImage=null;st.restorePlan=null;st.outputOnlyPlan=null;if(saveOldNvm)expert.afterNvmScan();const previousProgram=storedProgrammedNvm();
+   const carryTemperatureBasis=!restoring&&CAL.programmedTemperatureProfileMatches(
+    previousProgram,id,Object.fromEntries([[31,0x6C],[32,0x6E],[51,0x94],[52,0x96],[53,0x98],[54,0x9A]]
+     .map(([word,address])=>[address,after[word]])));
+   const temperatureBasis=!restoring&&!outputOnly&&st.calfit?.orderT>0?
+    'an0203-celsius-v1':carryTemperatureBasis?'an0203-celsius-v1':null;
+   lsSet('elmos8-last-program',JSON.stringify({
+    id,words:after,ts:new Date().toISOString(),restore:restoring,temperatureBasis
+   }));
    ca('nvmMsg',restoring?'Backup-Wiederherstellung abgeschlossen, NVM rückgelesen und CRC16 bestätigt. Sensor neu starten und erneut prüfen.':outputOnly?'AODO-Ausgangseinstellungen dauerhaft gespeichert, NVM rückgelesen und CRC16 bestätigt. Sensor neu starten und Ausgabefunktion prüfen.':'NVM-Programmierung und vollständiges Rücklesen/CRC16 erfolgreich. Sensor neu starten und Schnittstelle erneut prüfen.','success');
   }catch(e){try{await window.ELMOS_ARCHIVE?.event('error',{stage:'nvm_program',programmingStarted:chipProgrammingStarted,message:e.message})}catch(_){}ca('nvmMsg',`NVM-Vorgang fehlgeschlagen: ${e.message}.${chipProgrammingStarted?' NVM-Schreibversuch wurde bereits begonnen: Chip nicht unkontrolliert neu starten, Backup und Diagnose sichern!':' Es wurden keine NVM-Schreibbefehle gestartet.'}`,'error');logging('NVM FEHLER: '+e.message)}
   finally{
