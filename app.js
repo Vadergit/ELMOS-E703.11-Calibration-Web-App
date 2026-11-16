@@ -821,6 +821,7 @@ if(typeof document!=='undefined') (function UI(){
   if(!st.manualLivePause&&st.chip&&!window.ELMOS_TEST_LOGGER?.isBusy())startLive()
  }
  function invalidateCalculation(reason){
+  if($('calDspProposal'))$('calDspProposal').hidden=true;
   st.calfit=null;st.calImage=null;st.calStaged=false;st.calVerified=false;st.calValidation=[];
   $('calCoeffList').textContent='Noch nicht berechnet.';
   $('calVerifyList').textContent='Noch keine unabhängigen Prüfpunkte.';
@@ -2562,6 +2563,8 @@ if(typeof document!=='undefined') (function UI(){
  }
  
  function calcCoefficients(){
+  $('calDspProposal').hidden=true;
+  let fitRequest=null;
   try{
    if(st.calTask||st.writing||st.nvmWorking)throw Error('Es läuft ein anderer Vorgang');
    if(!calEndpointsReady())throw Error('Zuerst alle '+calibrationPointCount()+' gewählten Kalibrierpunkte mit gleicher AFE-Einstellung aufnehmen');
@@ -2570,6 +2573,7 @@ if(typeof document!=='undefined') (function UI(){
    const orderS=Number($('calSOrder').value),orderT=Number($('calTOrder').value),outputLimit=Number($('calDspLimit').value);
    if(!Number.isInteger(outputLimit)||outputLimit<1000||outputLimit>32000)throw Error('DSP-Endwert muss zwischen 1’000 und 32’000 Digits liegen');
    const fitMode=$('calFitMode').value;
+   fitRequest={pmin,pmax,orderS,orderT,fitMode,outputLimit};
     if(fitMode==='tk0'&&(orderS!==1||orderT!==1))throw Error('3-Punkte-TK0 benötigt lineare Druck- und Temperaturordnung.');
     const required=fitMode==='tk0'?3:(orderS+1)*(orderT+1);
     if(st.calpoints.length<required)throw Error('Für diese Polynom- und Temperaturordnung sind mindestens '+required+' unabhängige Messpunkte nötig. Anzahl in Schritt 3 erhöhen.');
@@ -2582,7 +2586,21 @@ if(typeof document!=='undefined') (function UI(){
    show('calFitMsg','Berechnung erfolgreich ('+st.calpoints.length+' Punkte). '+note+' Jetzt RAM-Schreibfreigabe aktivieren, Original-NVM prüfen und dann die berechneten Koeffizienten ins RAM übertragen. Die JavaScript-Berechnung ist noch nicht als identisch mit der Hersteller-DLL bestätigt.',solution.stats.maxDigits>100?'warn':'success');
    show('calRamStageMsg','Koeffizienten berechnet, aber noch nicht ins Chip-RAM übertragen.','warn');
    renderFlowState()
-  }catch(e){invalidateCalculation('Berechnung fehlgeschlagen: '+e.message);show('calFitMsg','Berechnung fehlgeschlagen: '+e.message,'error')}
+  }catch(e){
+   invalidateCalculation('Berechnung fehlgeschlagen: '+e.message);
+   show('calFitMsg','Berechnung fehlgeschlagen: '+e.message,'error');
+   if(e.code==='COEFFICIENT_OUT_OF_RANGE'&&/^S\d+$/.test(e.coefficient?.name||'')&&fitRequest){
+    const proposal=CAL.suggestDspLimit(st.calpoints,fitRequest);
+    if(proposal){
+     $('calDspProposal').dataset.suggestedLimit=String(proposal.outputLimit);
+     $('calDspProposalText').textContent='Der DSP-Koeffizient '+e.coefficient.name+' benötigt '+e.coefficient.value.toFixed(8)+
+      ', zulässig sind maximal '+e.coefficient.max.toFixed(8)+'. Eine Neuberechnung mit ±'+fmt(proposal.outputLimit)+
+      ' Digits ist numerisch möglich (mit Koeffizientenreserve). Die aufgenommenen Messpunkte bleiben erhalten. Anschliessend RAM und DSP prüfen.';
+     $('calDspProposalApply').textContent='±'+fmt(proposal.outputLimit)+' Digits übernehmen und neu berechnen';
+     $('calDspProposal').hidden=false;
+    }
+   }
+  }
  }
 
  async function maintWrite(addr,word){
@@ -3043,10 +3061,20 @@ if(typeof document!=='undefined') (function UI(){
    'DSP-Endwert ungültig. Ganze Zahl zwischen 1’000 und 32’000 Digits eingeben.';
  }
  $('calDspLimit').addEventListener('change',()=>{
+  $('calDspProposal').hidden=true;
   if(st.calfit)invalidateCalculation('DSP-Endwert geändert. Koeffizienten neu berechnen und erneut ins RAM übertragen.');
   updateDSPOutputLimit();renderDSPLive()
  });
- $('calDspLimit').addEventListener('input',()=>{$('calDspLimit').dataset.userEdited='1';updateDSPOutputLimit();});
+ $('calDspLimit').addEventListener('input',()=>{$('calDspProposal').hidden=true;$('calDspLimit').dataset.userEdited='1';updateDSPOutputLimit();});
+ $('calDspProposalApply').addEventListener('click',()=>{
+  const suggested=Number($('calDspProposal').dataset.suggestedLimit);
+  if(!Number.isInteger(suggested)||suggested<1000||suggested>32000)return;
+  $('calDspLimit').value=String(suggested);
+  $('calDspLimit').dataset.userEdited='1';
+  updateDSPOutputLimit();
+  renderDSPLive();
+  calcCoefficients();
+ });
  updateDSPOutputLimit();
  fillIntermediateReferences();refreshUnitLabels();
  // Anzeigeeinstellungen sind rein lokal und schreiben keine Sensorregister.
