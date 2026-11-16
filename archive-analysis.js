@@ -46,10 +46,12 @@ const ELMOS_ARCHIVE_ANALYSIS=(()=>{
   const chipRegister=record.initial?.ram?.words?.['0x38']??record.final?.ram?.words?.['0x38'];
   const chipVersionRegister=Number.isInteger(chipRegister)&&chipRegister>=0&&chipRegister<=65535?
    '0x'+chipRegister.toString(16).padStart(4,'0').toUpperCase():null;
+  const archiveStatus=typeof window!=='undefined'&&window.ELMOS_ARCHIVE_CORE?.displayStatus?
+   window.ELMOS_ARCHIVE_CORE.displayStatus(record):record.status||'running';
   const summary={
    id:record.id,type:record.type,title:isLog?(record.testConfiguration?.name||'Unbenannter Sensortest'):
     (descriptors[record.type]||record.type),
-   status:record.status||'running',startedAt:record.startedAt,endedAt:record.endedAt,
+   status:archiveStatus,startedAt:record.startedAt,endedAt:record.endedAt,
    chipUID:record.chipUID||null,userID:record.customUID||record.initial?.configuredUserId||null,
    board:record.equipment?.adapter||null,
    // Legacy equipment.firmware is the SSP3/USB bridge firmware from the adapter .VERSION handshake.
@@ -68,7 +70,7 @@ const ELMOS_ARCHIVE_ANALYSIS=(()=>{
    groupSize:record.testConfiguration?.samplesPerPoint??null,
    aggregation:record.testConfiguration?.aggregation??null,
    targetDurationMs:record.testConfiguration?.durationMs??null,
-   statusLabel:statuses[record.status]||record.status||'Offen',
+   statusLabel:statuses[archiveStatus]||archiveStatus||'Offen',
    typeLabel:descriptors[record.type]||record.type
   };
   if(isLog&&Array.isArray(rows)){
