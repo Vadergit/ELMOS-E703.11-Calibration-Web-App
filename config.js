@@ -104,8 +104,8 @@ const ELMOS_CONFIG=(()=>{
    out.dsp={sOrder:integer(d.sOrder,1,3,'Druck-Polynomgrad'),
     tOrder:integer(d.tOrder,0,3,'Temperatur-Polynomgrad'),dspLimit:integer(d.dspLimit,1000,32000,'DSP-Endwert'),fitMode:options(d.fitMode??'full',['full','tk0'],'Temperaturmodell')};
   }
-  if(out.dsp?.fitMode==='tk0'&&(out.dsp.sOrder!==1||out.dsp.tOrder!==1))
-    throw Error('TK0 mit 3 Punkten benötigt linearen Druck und lineare Temperatur');
+  if(out.dsp?.fitMode==='tk0'&&(out.dsp.sOrder!==1||![0,1].includes(out.dsp.tOrder)))
+    throw Error('3-Punkte-Modell benötigt linearen Druck; Temperaturordnung 0 (nur Druck) oder 1 (TK0)');
    if(out.measurement&&out.dsp&&out.dsp.fitMode==='tk0'&&out.measurement.pointCount!==3)
     throw Error('TK0 mit 3 Punkten erfordert genau 3 Messpunkte');
    if(out.measurement?.matrix&&out.dsp&&out.measurement.matrix.fitMode!==out.dsp.fitMode)
