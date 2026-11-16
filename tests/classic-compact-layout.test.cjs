@@ -18,7 +18,9 @@ test('classic expandable technical details require expert checkbox',()=>{
  assert.match(html,/<details><summary>Geschützte Register & Diagnose<\/summary>/);
  assert.match(html,/<details><summary>Aufgenommene Messwerte im Detail<\/summary>/);
  assert.match(html,/<details><summary>Optionale lineare Rohwert-Vorprüfung \(kein DSP-Test\)<\/summary>/);
- assert.match(html,/<details id="nvmDiffDetails"/); // mandatory safety review remains accessible
+ assert.match(html,/<details id="nvmDiffDetails"/); // details exist for expert review
+ assert.doesNotMatch(css,/details:not\(#nvmDiffDetails\)/);
+ assert.match(css,/body:not\(:has\(#expertMode:checked\)\) \.panel details:not\(#settingsArchivePathDetails\)/);
  assert.match(app,/document\.querySelectorAll\('\[data-expert-area\]'\)/);
 });
 test('temperature source has inline help and follows the compact measurement grid',()=>{
