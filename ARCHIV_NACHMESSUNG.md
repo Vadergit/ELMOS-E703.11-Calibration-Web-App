@@ -1,6 +1,6 @@
 # ELMOS E703.11 – Lokales Kalibrierarchiv und Nachmessungen
 
-**Softwarestand v0.7.83 · Funktions- und Benutzeranleitung · Laborprototyp**
+**Softwarestand v0.7.84 · Funktions- und Benutzeranleitung · Laborprototyp**
 
 **Archivexport ab v0.7.72:** Für jeden Archivdatensatz gibt es genau **einen übersichtlichen CSV-Export** sowie einen JSON-Export für die vollständigen technischen Originaldaten. Nachmessung und Test/Logging bieten zusätzlich einen PDF-Bericht; bis zu zwei optionale Fotos werden darin angezeigt. Die frühere separate VDD-Istspannungs-Eingabe der Anschlussansicht ist entfernt.
 
@@ -25,6 +25,12 @@ Das Archiv arbeitet ausschliesslich lokal. Die Webseite lädt weder Kalibrierdat
 Der Browser merkt sich den Ordner über IndexedDB, sofern die Berechtigungsspeicherung unterstützt wird. Eine erneute Freigabe kann nötig sein. Ein Netzwerkordner funktioniert dann, wenn Windows/macOS und Chrome den Zugriff zulassen. Die Anwendung selbst verwaltet keine Cloud und keine Benutzernamen.
 
 Dateien nach dem Muster `ELMOS_YYYYMMDD_HHMMSS_UID_ID.json` enthalten je einen vollständigen Vorgang. Fremde Dateien und ungültige JSON-Formate werden nicht als Kalibrierungen angezeigt. Erkannte, aber defekte Archivdateien werden nur dann als Warnung gezählt, wenn sie eindeutig wie ein vom Archiv erzeugter Dateiname aussehen. **Die App verändert keine fremden Dateien.**
+
+## Kalibrierprotokoll als PDF (ab v0.7.84)
+
+Im Archiv auf **Kalibrierung → Ergebnisse prüfen → Prüfprotokoll als PDF speichern** klicken oder direkt den **PDF-Button** des gewünschten Kalibrierungsdatensatzes verwenden. Im neuen Fenster über **«Als PDF speichern / Drucken»** den Systemdruckdialog öffnen und **«Als PDF speichern»** auswählen. Der Bericht enthält Sensor-/Gerätedaten, Kalibrierpunkte, die gespeicherten DSP-Prüfversuche, Toleranzgrenzen, Fehlermeldungen und **beide SVG-Diagramme** mit farbiger Soll-/Ist-/Abweichungsdarstellung. Die Quellmessungen bleiben im vollständigen JSON-/CSV-Export und werden beim PDF-Erstellen nicht verändert.
+
+Fehlen bei einem historischen Kalibrierungsdatensatz unabhängige Prüfpunkte, zeigt der Bericht nur den vorhandenen ADC_S-Kalibrierpunktgraphen, ohne eine nicht durchgeführte Toleranzprüfung vorzutäuschen.
 
 ## Grafische Kalibrierauswertung im Archiv (ab v0.7.83)
 
