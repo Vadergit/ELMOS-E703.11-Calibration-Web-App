@@ -1,6 +1,6 @@
 # E703.11 DIY-Programmer – ESP32-C3 SuperMini und Arduino Pro Micro
 
-**Stand v0.7.76 · zwei unterstützte DIY-Boards**
+**Stand v0.7.77 · zwei unterstützte DIY-Boards**
 
 Der originale **ELMOS SSP3** bleibt der Standard-Programmieradapter. Alternativ bietet die Web-App die DIY-Programmer-USB-Bridge. Diese unterstützt in diesem Projekt **ausschliesslich**:
 
