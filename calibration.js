@@ -73,6 +73,7 @@ const ELMOS_CAL = (() => {
   if(!(snapshot.words[16]&0x1000)||(snapshot.words[29]&3)!==0)return false;
   // Never call an empty/constant factory profile an AN0203 calibration.
   if(![52,53,54].some(index=>snapshot.words[index]!==0))return false;
+  if(isFactoryTemperatureProfile(registers))return false;
   return programmedTemperatureWordMap.every(([word,address])=>
    Number.isInteger(registers?.[address])&&registers[address]===snapshot.words[word]);
  };
