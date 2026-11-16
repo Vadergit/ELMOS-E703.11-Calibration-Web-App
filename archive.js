@@ -1118,8 +1118,20 @@ const ELMOS_ARCHIVE=(()=>{
    row.dataset.point=String(data.index);
    const step=data.step,attempt=data.item;
    const refParts=[];
-   if(mode!=='temperature')refParts.push(shownNumber(step.pressure,5)+' '+unit);
-   if(mode!=='pressure'&&step.temperature!==null)refParts.push(shownNumber(step.temperature,2)+' °C');
+   if(mode!=='temperature'){
+    const reference=Number.isFinite(attempt?.referencePressureInput)?attempt.referencePressureInput:
+     Number.isFinite(attempt?.referencePressure)?attempt.referencePressure:step.pressure;
+    const changed=attempt&&Number.isFinite(step.pressure)&&Number.isFinite(reference)&&
+     Math.abs(reference-step.pressure)>1e-9;
+    refParts.push(shownNumber(reference,5)+' '+unit+
+     (changed?' ('+ui('Soll','Target')+' '+shownNumber(step.pressure,5)+' '+unit+')':''));
+   }
+   if(mode!=='pressure'&&step.temperature!==null){
+    const referenceTemp=Number.isFinite(attempt?.referenceTemperature)?attempt.referenceTemperature:step.temperature;
+    refParts.push(shownNumber(referenceTemp,2)+' °C'+
+     (attempt&&Number.isFinite(referenceTemp)&&Math.abs(referenceTemp-step.temperature)>1e-9?
+      ' ('+ui('Soll','Target')+' '+shownNumber(step.temperature,2)+' °C)':''));
+   }
    const actual=capturedValue(attempt,mode);
    let deviation=ui('Nicht bewertet','Not assessed');
    if(mode==='temperature'&&Number.isFinite(data.tempError))
