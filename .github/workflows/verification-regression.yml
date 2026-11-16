@@ -1,0 +1,20 @@
+name: Verification regression
+on:
+  pull_request:
+    branches: [main]
+jobs:
+  node-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Syntax
+        run: |
+          node --check archive.js
+          node --check verification-report.js
+          node --check verification-graph.js
+          node --check archive-readable-csv.js
+      - name: Unit and regression tests
+        run: node --test tests/safety.test.cjs tests/verification-reference.test.cjs
