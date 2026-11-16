@@ -88,22 +88,29 @@ const ELMOS_CONFIG=(()=>{
   }
   if(out.measurement&&obj.measurement.matrix!==undefined){
    const matrix=obj.measurement.matrix;
-   exact(matrix,['p','temp','temperatures'],'Messmatrix');
+   exact(matrix,['p','temp','temperatures','fitMode'],'Messmatrix');
    const p=integer(matrix.p,2,5,'Druckpunkte');
    const temp=integer(matrix.temp,1,3,'Temperaturstufen');
-   if(p*temp!==out.measurement.pointCount||!Array.isArray(matrix.temperatures)||matrix.temperatures.length!==temp)
+   const fitMode=options(matrix.fitMode??'full',['full','tk0'],'Temperaturmodell');
+    if((fitMode==='tk0'?(p!==2||temp!==2||out.measurement.pointCount!==3):p*temp!==out.measurement.pointCount)||!Array.isArray(matrix.temperatures)||matrix.temperatures.length!==temp)
     throw Error('Messmatrix passt nicht zur Anzahl Messpunkte');
    const temperatures=matrix.temperatures.map(value=>number(value,-40,125,'Temperaturstufe'));
    if(temperatures.some((value,index)=>index>0&&value<=temperatures[index-1]))
     throw Error('Temperaturstufen müssen aufsteigend sein');
-   out.measurement.matrix={p,temp,temperatures};
+   out.measurement.matrix={p,temp,temperatures,fitMode};
   }
   if(obj.include.includes('dsp')){
-   const d=obj.dsp;exact(d,['sOrder','tOrder','dspLimit'],'DSP-Einstellungen');
+   const d=obj.dsp;exact(d,['sOrder','tOrder','dspLimit','fitMode'],'DSP-Einstellungen');
    out.dsp={sOrder:integer(d.sOrder,1,3,'Druck-Polynomgrad'),
-    tOrder:integer(d.tOrder,0,3,'Temperatur-Polynomgrad'),dspLimit:integer(d.dspLimit,1000,32000,'DSP-Endwert')};
+    tOrder:integer(d.tOrder,0,3,'Temperatur-Polynomgrad'),dspLimit:integer(d.dspLimit,1000,32000,'DSP-Endwert'),fitMode:options(d.fitMode??'full',['full','tk0'],'Temperaturmodell')};
   }
-  if(out.measurement&&out.dsp&&out.measurement.pointCount<=out.dsp.sOrder)
+  if(out.dsp?.fitMode==='tk0'&&(out.dsp.sOrder!==1||out.dsp.tOrder!==1))
+    throw Error('TK0 mit 3 Punkten benötigt linearen Druck und lineare Temperatur');
+   if(out.measurement&&out.dsp&&out.dsp.fitMode==='tk0'&&out.measurement.pointCount!==3)
+    throw Error('TK0 mit 3 Punkten erfordert genau 3 Messpunkte');
+   if(out.measurement?.matrix&&out.dsp&&out.measurement.matrix.fitMode!==out.dsp.fitMode)
+    throw Error('Messmatrix und DSP-Temperaturmodell stimmen nicht überein');
+   if(out.measurement&&out.dsp&&out.measurement.pointCount<=out.dsp.sOrder)
    throw Error('Für die Polynomordnung fehlen Messpunkte');
   if(out.measurement?.matrix&&out.dsp&&(out.dsp.sOrder>=out.measurement.matrix.p||out.dsp.tOrder>=out.measurement.matrix.temp))
    throw Error('Polynomordnung passt nicht zur Messmatrix');
@@ -148,7 +155,7 @@ const ELMOS_CONFIG=(()=>{
   if(include.includes('afe'))input.afe=fields.afe;
   if(include.includes('reference'))input.reference=c.reference;
   if(include.includes('measurement'))input.measurement={pointCount:c.pointCount,samples:c.samples,...(c.matrix?{matrix:c.matrix}:{})};
-  if(include.includes('dsp'))input.dsp={sOrder:c.sOrder,tOrder:c.tOrder,dspLimit:c.dspLimit};
+  if(include.includes('dsp'))input.dsp={sOrder:c.sOrder,tOrder:c.tOrder,dspLimit:c.dspLimit,fitMode:c.fitMode||'full'};
   if(include.includes('output'))input.output=fields.output;
   return validateSelective(input,cal);
  }
@@ -179,11 +186,11 @@ const ELMOS_CONFIG=(()=>{
    const plan=appliedPlan&&typeof appliedPlan==='object'?appliedPlan:null;
    const exactPlan=plan&&Number.isInteger(plan.pCount)&&Number.isInteger(plan.tCount)&&
     plan.pCount>=2&&plan.pCount<=5&&plan.tCount>=1&&plan.tCount<=3&&
-    plan.pCount*plan.tCount===m.pointCount&&
+    ((plan.fitMode==='tk0'&&plan.pCount===2&&plan.tCount===2&&m.pointCount===3)||plan.pCount*plan.tCount===m.pointCount)&&
     (!has('dsp')||(dsp.sOrder<plan.pCount&&dsp.tOrder<plan.tCount));
-   if(exactPlan)prefix.push(plan.pCount+'P_Druck',plan.tCount+'T_Temp');
+   if(exactPlan)prefix.push(plan.fitMode==='tk0'?'3P_TK0':plan.pCount+'P_Druck',plan.fitMode==='tk0'?'2T_Temp':plan.tCount+'T_Temp');
    else if(has('dsp')&&dsp.tOrder===0&&m.pointCount===2)prefix.push('2P_Druck');
-   else prefix.push(m.pointCount+'Messpunkte');
+   else prefix.push((dsp?.fitMode==='tk0'?'TK0_':'')+m.pointCount+'Messpunkte');
   }
   if(has('reference')){
    const r=source.reference,unit=r.unit==='custom'?r.customUnit:r.unit;
