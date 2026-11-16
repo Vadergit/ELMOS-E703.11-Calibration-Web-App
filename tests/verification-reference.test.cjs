@@ -89,7 +89,7 @@ test('Failed measured tolerance or a still-open empty record keep their true sta
  assert.equal(CORE.verificationCompletion(bad),'failed');
  assert.equal(CORE.displayStatus(bad),'incomplete'); // correction only for completed records
  const open={...ungradedFinished(),status:'running',endedAt:null};
- assert.equal(CORE.displayStatus(open),'running');
+ assert.equal(CORE.displayStatus(open),'incomplete'); // legacy running records never appear as Open
 });
 
 test('Empty calibration starts and snapshots do not count as measured data',()=>{
