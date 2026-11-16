@@ -588,6 +588,17 @@ const ELMOS_ARCHIVE=(()=>{
     onChange:next=>setPhotos(r,next)
    });
   }
+  // Calibration records store independent DSP verification attempts with
+  // pressure deviation, reference and tolerance; render these read-only.
+  if(r.type==='calibration'){
+   const historicalChart=el('div',null,'ar-archive-calibration-graph');
+   root.append(historicalChart);
+   if(window.ELMOS_CALIBRATION_GRAPH?.renderArchive){
+    window.ELMOS_CALIBRATION_GRAPH.renderArchive(historicalChart,r);
+   }else{
+    historicalChart.append(el('p','Das Kalibrierdiagramm konnte nicht geladen werden. Bitte die Seite neu laden.','ar-warning'));
+   }
+  }
   // Reuse the live verification plot for stored results; this is read-only.
   // Keep it above hysteresis and event logs so results are visible at a glance.
   if(r.type==='verification'){
