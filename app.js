@@ -708,7 +708,7 @@ if(typeof document!=='undefined') (function UI(){
  }
  function verificationComplete(){
   const count=verificationRequiredCount();
-  return !!st.calVerified&&coefficientSettingsCurrent()&&!!st.calStaged&&calEndpointsReady()&&Number.isFinite(count)&&st.calValidation.length>=count
+  return !!st.calVerified&&coefficientSettingsCurrent()&&!!st.calStaged&&calEndpointsReady()&&CAL.verificationPointsSufficient(st.calValidation,count)
  }
  function verificationRows(){return Array.from($('calVerifyRows').children)}
  function renderVerificationRows(required){
@@ -731,8 +731,8 @@ if(typeof document!=='undefined') (function UI(){
   }
   $('calVerifyProgress').textContent=done+' von '+required+' Prüfpunkten erfolgreich.';
   $('calVerifyCoverage').textContent=required===1?
-   'Ein Prüfpunkt (Standard): Die DSP-Kalibrierung wird nur an einer Stelle geprüft. Das ist keine Verifikation des gesamten Druckbereichs. Bei Temperaturkompensation sind zusätzliche Temperaturprüfungen nötig.':
-   required+' Prüfpunkte: Jeder Prüfwert muss innerhalb der Toleranz liegen. Gleicher Druck ist bei mindestens 10 °C Temperaturabstand zulässig; sonst sind mehr als 10 % Druckspanne Abstand nötig. Bei Temperaturkompensation müssen verschiedene Temperaturen geprüft werden.'
+   'Ein Prüfpunkt genügt für diesen DSP-Nachprüfschritt und gibt ihn bei bestandener Toleranz frei – auch bei TK0/TKE. Damit sind die übrige Druckkennlinie und die Temperaturkompensation nicht vollständig geprüft. Weitere Prüfpunkte sind optional.':
+   required+' Prüfpunkte gewählt: Alle müssen innerhalb der Toleranz liegen. Prüfpunkte am selben Druck brauchen mindestens 10 °C Temperaturabstand; bei gleicher Temperatur sind mehr als 10 % Druckspanne Abstand nötig. Zusätzliche Temperaturprüfungen sind optional.'
  }
  function workflowGate(n){
   if(n===8)return ''; // Test / Logging is independent of calibration, even without chip connection.
@@ -2829,26 +2829,29 @@ if(typeof document!=='undefined') (function UI(){
     $('calVerifyList').textContent='Prüfung fehlgeschlagen. Bisherige Prüfpunkte verworfen; alle erneut prüfen.';
     throw Error(`DSP_S ${got}: Abweichung ${errorBar.toFixed(4)} ${pressureUnit()} über Toleranz ${tol} ${pressureUnit()}`)
    }
-   const measuredTemp=P.sign16(await readReg(0x2E));
+   // DSP_T is optional diagnostic data. A failing or uncalibrated
+   // temperature read must not invalidate a successful DSP_S check.
+   let measuredTemp=null;
+   try{measuredTemp=P.sign16(await readReg(0x2E))}
+   catch(e){logging('Optionale DSP_T-Diagnose nicht lesbar: '+e.message)}
    if(required!==verificationRequiredCount()||tol!==Number($('calVerifyTolerance').value))
     throw Error('Prüfeinstellungen wurden während der Messung geändert');
    st.calValidation=st.calValidation.filter(point=>point.slot!==slot);
    st.calValidation.push({slot,pressure:p,actual:got,expected:target,errorBar,temperature:temp,measuredTemp});
    st.calValidation.sort((a,b)=>a.slot-b.slot);
-   const pointsReady=st.calValidation.length>=required;
-   const temperatureValidation=st.calfit.orderT===0||(
-    st.calValidation.length>=2
-    &&(Math.max(...st.calValidation.map(x=>x.temperature))-Math.min(...st.calValidation.map(x=>x.temperature)))>=10
-    &&st.calValidation.every(x=>Number.isFinite(x.temperature)&&Math.abs(x.measuredTemp-(387.88*x.temperature-16485))<=Math.max(100,tol*2*outputLimit/(pmax-pmin)))
-   );
-   st.calVerified=pointsReady&&temperatureValidation;
+   // Single-point verification is a valid scope selected by the user, even
+   // when TK0/TKE is calibrated. Do NOT require a second temperature.
+   // Additional pressure/temperature points are independent optional checks.
+   st.calVerified=CAL.verificationPointsSufficient(st.calValidation,required);
    st.calImage=null; // Nach jeder neuen Prüfung muss der NVM-Plan neu erstellt werden.
    $('calVerifyList').textContent=st.calValidation.map(v=>(v.slot+1)+'. '+v.pressure+' '+pressureUnit()+' · DSP_S '+v.actual+' · Abweichung '+v.errorBar.toFixed(5)+' '+pressureUnit()).join('\n');
    const remaining=Math.max(0,required-st.calValidation.length);
+   const scopeNote=st.calfit.orderT>0?
+    ' Die Temperaturkompensation ist durch diese DSP-Nachprüfung nicht vollständig verifiziert.':' Der weitere Druckbereich wurde nicht vollständig verifiziert.';
    const info=st.calVerified?
-    (required===1?'Ein Prüfpunkt bestanden. NVM-Schritt freigegeben; der übrige Druckbereich wurde nicht verifiziert.':'Alle '+required+' Prüfpunkte bestanden. NVM-Schritt freigegeben.'):
-    (remaining>0?'Noch '+remaining+' unabhängige Prüfpunkte erforderlich.':'Die Prüfpunkte sind erfasst, aber die Temperaturverifikation ist noch nicht vollständig.');
-   ca('calRamMsg',`DSP_S ${got} · Soll ${target.toFixed(1)} Digits · Fehler ${errorBar.toFixed(5)} ${pressureUnit()} · ${st.calValidation.length}/${required} Prüfpunkte. ${info}`,st.calVerified&&required>1?'success':'warn');
+    'Alle '+required+' gewählten Prüfpunkte bestanden. NVM-Schritt freigegeben.'+scopeNote:
+    (remaining>0?'Noch '+remaining+' gewählte Prüfpunkte erforderlich.':'Prüfergebnisse kontrollieren.');
+   ca('calRamMsg',`DSP_S ${got} · Soll ${target.toFixed(1)} Digits · Fehler ${errorBar.toFixed(5)} ${pressureUnit()} · ${st.calValidation.length}/${required} Prüfpunkte. ${info}`,st.calVerified?'success':'warn');
   }catch(e){st.calVerified=false;st.calImage=null;try{await window.ELMOS_ARCHIVE?.event('error',{stage:'dsp_verification',slot,message:e.message})}catch(_){}ca('calRamMsg','DSP-Verifikation: '+e.message,'error')}
   finally{if(isChecking)st.calTask=false;renderFlowState()}
  }
