@@ -1,3 +1,12 @@
+## v0.7.80 – Archiv ohne leere Kalibrierungen und ohne «Offen»
+
+- **Keine leeren Kalibrier- oder Nachmessungsdateien mehr beim Start:** Solange nur ein Start-Ereignis, automatische RAM-/NVM-Snapshots, Verbindungsprotokolle oder Fehlermeldungen ohne reale Samples vorhanden sind, bleiben die Vorgänge im Arbeitsspeicher. Eine Datei wird erst beim ersten Kalibrier-/Prüfmesspunkt oder einer sicherheitsrelevanten Hardwareänderung geschrieben.
+- **Teilweise Messungen bleiben erhalten.** Erfasste Kalibrierpunkte, DSP-Prüfungen, AFE-/RAM-Änderungen, NVM-Vorgänge und echte Teilsamples bei fehlgeschlagenen Messungen lösen die Archivierung aus. Leere Vorgänge werden beim Abschluss/Abbrechen ohne Datei verworfen.
+- **Altprotokolle:** Schon vorhandene vollständig leere Archivdateien werden ausgeblendet, aber bewusst nicht automatisch gelöscht. Der Archivhinweis nennt deren Anzahl. Messhaltige Einträge mit altem Status `running`/«Offen» werden als **«Unvollständig»** angezeigt. Alle Dateien mit relevanten Daten bleiben erhalten.
+- Die Statusauswahl enthält kein «Offen» mehr. Wirklich unterbrochene oder abgebrochene Vorgänge behalten ihre ausdrücklichen Statusangaben; die bestehende Nachmessungs-Toleranzlogik bleibt unverändert.
+- Tests für leere Starts, teilweise Kalibrierungen, relevanten RAM-Änderungen, alte offene Protokolle sowie mögliche Telemetrie-Recoverydaten ergänzt.
+- **Hinweis:** Das Archiv entfernt keine vorhandenen Dateien automatisch. Sensorkommunikation und NVM-Schreibschutz bleiben unverändert.
+
 ## v0.7.79 – Abschlussstatus von Nachmessungen korrigiert
 
 - **«Abgeschlossen» ist ein Ablaufstatus, kein Toleranzurteil.** Eine Nachmessung gilt nach erfolgreichem Speichern als abgeschlossen, sobald alle vorgesehenen Prüfpunkte tatsächlich aufgenommen wurden. Bei deaktivierter optionaler Toleranzbewertung ist dazu kein «Bestanden» notwendig.
