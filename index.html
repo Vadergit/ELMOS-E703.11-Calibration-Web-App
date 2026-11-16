@@ -675,8 +675,8 @@ html.compact-mode .foot{display:none}
 .operation-progress-dialog .operation-progress{position:static;max-width:100%;pointer-events:auto}
 .cal-point-recorded > .fieldrow{display:none!important}
 .operation-progress progress{display:block;width:100%;accent-color:var(--focus,#075874)}
-</style><link rel="stylesheet" href="guided.css?v=0.7.27"><link rel="stylesheet" href="interface.css?v=0.7.39"><link rel="stylesheet" href="theme.css?v=0.7.9"><link rel="stylesheet" href="verification-guide.css?v=0.7.65"><link rel="stylesheet" href="archive-photos.css?v=0.7.73"></head><body data-app-version="0.7.76"><div class="wrap"><header class="top">
-<div class="brand"><div class="logo" aria-hidden="true">E</div><div><div class="eyebrow">E703.11 · PSSC · v0.7.76</div><h1><button type="button" id="homeButton" aria-label="Kalibrierassistent – zur Hauptseite">Kalibrierassistent</button></h1></div></div>
+</style><link rel="stylesheet" href="guided.css?v=0.7.27"><link rel="stylesheet" href="interface.css?v=0.7.39"><link rel="stylesheet" href="theme.css?v=0.7.9"><link rel="stylesheet" href="verification-guide.css?v=0.7.65"><link rel="stylesheet" href="archive-photos.css?v=0.7.73"><link rel="stylesheet" href="settings-refresh.css?v=0.7.77"></head><body data-app-version="0.7.77"><div class="wrap"><header class="top">
+<div class="brand"><div class="logo" aria-hidden="true">E</div><div><div class="eyebrow">E703.11 · PSSC · v0.7.77</div><h1><button type="button" id="homeButton" aria-label="Kalibrierassistent – zur Hauptseite">Kalibrierassistent</button></h1></div></div>
 <div class="live-overview" role="group" aria-label="Sensorwerte · laufende Anzeige">
   <div class="live-kpi" title="Unkompensierter Druck-ADC. Warnung bei Beträgen über 25’000 Digits."><span class="live-kpi-label">ADC_S <span id="liveAdcAlert" class="live-alert" hidden>!</span></span><span class="live-kpi-reading" id="liveAdcS">—</span><span class="live-kpi-unit">Digits</span></div>
   <div class="live-kpi" title="ADC_T · Temperatur-Rohwert, keine direkte Temperatur in °C."><span class="live-kpi-label">ADC_T</span><span class="live-kpi-reading" id="liveAdcT">—</span><span class="live-kpi-unit">Digits</span></div>
@@ -703,41 +703,71 @@ html.compact-mode .foot{display:none}
 </div>
 <div id="demoNotice" class="demo-notice" hidden><span><strong>Demo-Modus</strong> · Simulierte Messwerte und Schreibvorgänge</span><button type="button" id="demoExit">Demo beenden</button></div>
 <section class="settings-panel" id="settingsPanel" hidden aria-label="App-Einstellungen">
-<div class="settings-panel-head"><strong>App-Einstellungen</strong><button type="button" id="settingsClose" aria-label="Einstellungen schliessen">Schliessen ×</button></div>
-<div class="settings-body">
-<label>Darstellung / Farbmodus
-<select id="settingsTheme" aria-describedby="settingsThemeHint">
-<option value="light">Hell · hoher Kontrast</option>
-<option value="dark">Dunkel · Darkmode</option>
-</select></label>
-<p id="settingsThemeHint" class="muted small">Gilt für alle Ansichten und wird auf diesem Gerät im Browser gespeichert.</p>
-<div class="settings-demo">
-  <label class="toggle"><input id="demoMode" type="checkbox" aria-describedby="demoModeHint"> <strong>Demo-Modus</strong></label>
-  <p id="demoModeHint" class="muted small">Kalibrierung mit simulierten Messwerten ausprobieren.</p>
-</div>
-<label>Arbeitsansicht nach dem Verbinden<select id="workflowMode"><option value="guided">Geführter Assistent · empfohlen</option><option value="classic">Klassische Ansicht</option></select></label>
-<p class="muted small">Beim Verbinden kann der neue Assistent automatisch starten. Die bisherige Oberfläche bleibt über «Klassische Ansicht» vollständig verfügbar.</p>
-<label class="toggle"><input id="compactMode" type="checkbox"> <strong>Kompaktmodus · One-Pager</strong></label>
-<p class="muted small" style="margin:2px 0 9px">Alle Hauptfunktionen zum Kalibrieren und Programmieren dicht nebeneinander. Die normale Ansicht bleibt unverändert. Für kleine Bildschirme werden einzelne Karten bei Bedarf intern scrollbar.</p>
-<label class="toggle"><input id="expertMode" type="checkbox"> <strong>Expertenparameter freischalten</strong></label>
-<!-- Compatibility with previously cached app.js versions. Never shown to users. -->
-<input type="checkbox" id="settingsVerificationEnabled" hidden aria-hidden="true" tabindex="-1">
-<label>Sprache / Language<select id="uiLanguage"><option value="de">Deutsch</option><option value="en">English</option></select></label>
-<div id="expertPanel" class="settings-expert-hint" hidden><strong>Expertenmodus aktiv</strong><p>Erweiterte Einstellungen erscheinen direkt im passenden Reiter: AFE, Ausgang und EEPROM Viewer. Es wird kein eigenes Fenster geöffnet und kein Register beschrieben.</p></div>
-<label class="toggle"><input id="tooltips" type="checkbox" checked> Hover-Erklärungen aktivieren</label>
-<div class="settings-fields">
-<label>Standard-Samples pro Messpunkt<input id="settingsSampleCount" type="number" min="1" max="100" value="12" step="1"></label>
-<label>Live-Abfrageintervall<select id="settingsLiveInterval"><option value="250" selected>250 ms · Standard (adaptiv)</option><option value="400">400 ms · Fix</option><option value="650">650 ms · Fix</option><option value="1000">1’000 ms</option><option value="1500">1’500 ms</option><option value="2000">2’000 ms</option></select></label>
-</div>
-<p class="muted small">Die Intervallangabe ist die Pause <strong>nach</strong> einer abgeschlossenen Sensorabfrage. 250 ms ist der neue adaptive Standard. Bei langsamen Antworten wird automatisch auf 400–650 ms erhöht. Bereits bewusst gespeicherte Intervalle bleiben erhalten.</p>
-<p><a href="firmware-update.html" target="_blank" rel="noopener noreferrer">DIY-Programmer-Firmware aktualisieren</a></p>
-<p><a href="feedback.html" id="feedbackLink" target="_blank" rel="noopener noreferrer">Feedback melden</a></p>
-<div class="settings-offline-help"><strong>Web-App offline verwenden</strong>
-<p>Web-App auf dem PC speichern und ohne GitHub-Vorkenntnisse lokal starten.</p>
-<a href="offline-anleitung.html" target="_blank" rel="noopener noreferrer">Anleitung für Einsteiger öffnen</a></div>
-<div id="settingsMsg" class="settings-note">Einstellungen werden lokal im Browser gespeichert. Der Expertenmodus verändert allein noch keine Sensorwerte.</div>
-<details><summary>Technischer Status & Quellen</summary><div class="inner small muted">ELMOS E703.11, SSP3, Web Serial. Unterstützt: ADC/DSP-Livewerte, AFE-Abgleich, RAM-Prüfung, NVM-Diagnose, CRC und kontrollierte Schreibvorgänge. Factory- und Kommunikationsregister bleiben geschützt. Referenzen: AN 0204, AN 0203, E703.11 Datenblatt 25DS0170E.04. Kein Hardwarefreigabetest für permanente NVM-Programmierung.</div></details>
-</div></section>
+ <div class="settings-panel-head">
+  <div><strong>App-Einstellungen</strong><span>Darstellung und Messverhalten</span></div>
+  <span class="settings-panel-shortcut" aria-hidden="true">Esc</span>
+ </div>
+ <div class="settings-body">
+  <section class="settings-group" aria-label="Darstellung">
+   <h3>Darstellung</h3>
+   <div class="settings-fields settings-view-fields">
+    <label>Farbmodus
+     <select id="settingsTheme" aria-describedby="settingsThemeHint">
+      <option value="light">Hell</option><option value="dark">Dunkel</option>
+     </select>
+    </label>
+    <label>Sprache / Language
+     <select id="uiLanguage"><option value="de">Deutsch</option><option value="en">English</option></select>
+    </label>
+   </div>
+   <p id="settingsThemeHint" class="settings-caption">Wird lokal im Browser gespeichert.</p>
+   <div class="settings-switch-row">
+    <label class="toggle"><input id="compactMode" type="checkbox"><span><strong>Kompaktmodus</strong><small>One-Pager mit allen Hauptfunktionen</small></span></label>
+   </div>
+   <div class="settings-switch-row">
+    <label class="toggle"><input id="tooltips" type="checkbox" checked><span><strong>Hover-Erklärungen</strong><small>Kurze Hilfetexte beim Darüberfahren</small></span></label>
+   </div>
+  </section>
+  <section class="settings-group" aria-label="Messung">
+   <h3>Messung</h3>
+   <div class="settings-fields">
+    <label>Samples pro Messpunkt
+     <input id="settingsSampleCount" type="number" min="1" max="100" value="12" step="1">
+    </label>
+    <label>Live-Abfragepause
+     <select id="settingsLiveInterval">
+      <option value="250" selected>250 ms · Adaptiv</option><option value="400">400 ms</option>
+      <option value="650">650 ms</option><option value="1000">1’000 ms</option>
+      <option value="1500">1’500 ms</option><option value="2000">2’000 ms</option>
+     </select>
+    </label>
+   </div>
+   <p class="settings-caption">250 ms ist der adaptive Standard. Die Pause beginnt erst nach der abgeschlossenen Sensorabfrage und wird bei langsamen Antworten automatisch verlängert.</p>
+  </section>
+  <section class="settings-group" aria-label="Expertenoptionen">
+   <h3>Erweiterte Optionen</h3>
+   <div class="settings-switch-row">
+    <label class="toggle"><input id="expertMode" type="checkbox"><span><strong>Expertenparameter</strong><small>Zusätzliche Einstellungen in AFE, Ausgang und EEPROM</small></span></label>
+   </div>
+   <!-- Compatibility with previously cached app.js versions. -->
+   <input type="checkbox" id="settingsVerificationEnabled" hidden aria-hidden="true" tabindex="-1">
+   <div id="expertPanel" class="settings-expert-hint" hidden>Expertenparameter aktiv. Zusätzliche Optionen erscheinen in den jeweiligen Arbeitsbereichen.</div>
+   <div id="settingsDemoSection" class="settings-expert-options" hidden>
+    <label class="toggle"><input id="demoMode" type="checkbox" aria-describedby="demoModeHint"><span><strong>Demo-Modus</strong><small id="demoModeHint">Sensorwerte und Schreibvorgänge simulieren</small></span></label>
+   </div>
+  </section>
+  <section class="settings-group settings-resources" aria-label="Hilfen und Links">
+   <h3>Hilfen &amp; Tools</h3>
+   <div class="settings-resource-grid">
+    <a href="firmware-update.html" target="_blank" rel="noopener noreferrer" class="settings-resource-link"><span>DIY-Programmer-Firmware</span><span aria-hidden="true">↗</span></a>
+    <a href="feedback.html" id="feedbackLink" target="_blank" rel="noopener noreferrer" class="settings-resource-link"><span>Feedback melden</span><span aria-hidden="true">↗</span></a>
+    <a href="offline-anleitung.html" target="_blank" rel="noopener noreferrer" class="settings-resource-link"><span>Web-App offline nutzen</span><span aria-hidden="true">↗</span></a>
+   </div>
+   <details class="settings-technical"><summary>Technischer Status &amp; Quellen</summary><div class="inner small muted">ELMOS E703.11, SSP3, Web Serial. ADC/DSP-Livewerte, AFE-Abgleich, RAM-Prüfung, NVM-Diagnose, CRC und kontrollierte Schreibvorgänge. Factory- und Kommunikationsregister bleiben geschützt. Referenzen: AN 0204, AN 0203, E703.11 Datenblatt 25DS0170E.04. Kein Hardwarefreigabetest für permanente NVM-Programmierung.</div></details>
+  </section>
+  <div id="settingsMsg" class="settings-note" role="status" aria-live="polite">Änderungen werden lokal im Browser gespeichert.</div>
+ </div>
+</section>
 <section id="guidedWorkspace" hidden aria-label="Geführter Sensor-Kalibrierassistent"></section>
 <div id="compactWorkspace" hidden aria-label="Kompakter Kalibrierarbeitsplatz"></div>
 <section id="archiveWorkspace" hidden aria-label="Lokales Kalibrierarchiv und Nachmessung"></section><div class="content"><aside class="side"><button class="stepBtn active" data-step="0"><span class="num">1</span><span>USB & Chip</span></button><button class="stepBtn" data-step="1"><span class="num">2</span><span>AFE optimieren</span></button><button class="stepBtn" data-step="2"><span class="num">3</span><span>Messpunkte</span></button><button class="stepBtn" data-step="3"><span class="num">4</span><span>Berechnen & RAM</span></button><button class="stepBtn" data-step="4"><span class="num">5</span><span>DSP prüfen</span></button><button class="stepBtn" data-step="5"><span class="num">6</span><span>Ausgang konfigurieren</span></button><button class="stepBtn" data-step="6"><span class="num">7</span><span>NVM programmieren</span></button><div class="side-separator"></div><button class="stepBtn viewer-nav" data-step="7"><span class="num">▤</span><span>EEPROM Viewer</span></button><button class="stepBtn viewer-nav" data-step="8"><span class="num">◷</span><span>Test / Logging</span></button><button type="button" class="stepBtn viewer-nav" id="classicArchiveOpen"><span class="num">▤</span><span>Archiv</span></button><button type="button" class="stepBtn viewer-nav" id="classicVerificationOpen"><span class="num">↕</span><span>Nachmessung</span></button></aside>
@@ -1321,5 +1351,5 @@ html.compact-mode .foot{display:none}
 </div>
 <div class="nav"><button data-next="0">Zur Verbindung</button><button data-next="6">Zum NVM-Schritt</button></div>
 </section>
-<div class="foot"><b>Version v0.7.76</b> · <a href="CHANGELOG.md" target="_blank" rel="noopener noreferrer">Änderungsverlauf</a> · ELMOS E703.11 · unabhängiger Kalibrierprototyp · Sicherheitsprinzip: Factory- und Kommunikations-Bootregister gesperrt; dokumentierte AODO-Ausgangsoptionen nur nach Prüfung im NVM-Plan; Wiederherstellung nur mit passender Chip-UID.</div>
-<section class="card panel" data-panel="8" hidden><div class="eyebrow">Werkzeuge · Sensorprotokoll</div><h2>Test / Logging</h2><p class="muted small">Messdaten, Rohwerte und Notizen jederzeit in einem lokalen Archiv protokollieren. Ohne NVM-Schreibvorgang.</p><div id="classicLoggerHost"></div></section></main></div></div><div id="tip" class="tooltip"></div><script src="calibration.js?v=0.7.29"></script><script src="eeprom-help.js?v=0.6.30"></script><script src="expert.js?v=0.7.45"></script><script src="config.js?v=0.7.17"></script><script src="guided-plan.js?v=0.6.30"></script><script src="demo.js?v=0.6.49"></script><script src="archive-core.js?v=0.7.64"></script><script src="test-logger-core.js?v=0.7.39"></script><script src="archive-analysis.js?v=0.7.4"></script><script src="verification-graph.js?v=0.7.70"></script><script src="archive-photos.js?v=0.7.73"></script><script src="verification-report.js?v=0.7.73"></script><script src="archive-readable-csv.js?v=0.7.72"></script><script src="logging-report.js?v=0.7.73"></script><script src="archive.js?v=0.7.73"></script><script src="live-polling.js?v=0.7.74"></script><script src="app.js?v=0.7.76&amp;nav=2&amp;verify=6&amp;feedback=1"></script><script src="compact.js?v=0.7.18"></script><script src="test-logger.js?v=0.7.73"></script><script src="guided.js?v=0.7.67&amp;nav=6&amp;verify=3"></script><script src="language-pack.js?v=0.7.63&amp;verify=6&amp;feedback=1"></script><script src="language.js?v=0.7.57"></script></body></html>
+<div class="foot"><b>Version v0.7.77</b> · <a href="CHANGELOG.md" target="_blank" rel="noopener noreferrer">Änderungsverlauf</a> · ELMOS E703.11 · unabhängiger Kalibrierprototyp · Sicherheitsprinzip: Factory- und Kommunikations-Bootregister gesperrt; dokumentierte AODO-Ausgangsoptionen nur nach Prüfung im NVM-Plan; Wiederherstellung nur mit passender Chip-UID.</div>
+<section class="card panel" data-panel="8" hidden><div class="eyebrow">Werkzeuge · Sensorprotokoll</div><h2>Test / Logging</h2><p class="muted small">Messdaten, Rohwerte und Notizen jederzeit in einem lokalen Archiv protokollieren. Ohne NVM-Schreibvorgang.</p><div id="classicLoggerHost"></div></section></main></div></div><div id="tip" class="tooltip"></div><script src="calibration.js?v=0.7.29"></script><script src="eeprom-help.js?v=0.6.30"></script><script src="expert.js?v=0.7.45"></script><script src="config.js?v=0.7.17"></script><script src="guided-plan.js?v=0.6.30"></script><script src="demo.js?v=0.6.49"></script><script src="archive-core.js?v=0.7.64"></script><script src="test-logger-core.js?v=0.7.39"></script><script src="archive-analysis.js?v=0.7.4"></script><script src="verification-graph.js?v=0.7.70"></script><script src="archive-photos.js?v=0.7.73"></script><script src="verification-report.js?v=0.7.73"></script><script src="archive-readable-csv.js?v=0.7.72"></script><script src="logging-report.js?v=0.7.73"></script><script src="archive.js?v=0.7.73"></script><script src="live-polling.js?v=0.7.74"></script><script src="app.js?v=0.7.77&amp;nav=2&amp;verify=6&amp;feedback=1"></script><script src="compact.js?v=0.7.18"></script><script src="test-logger.js?v=0.7.73"></script><script src="guided.js?v=0.7.77&amp;nav=6&amp;verify=3"></script><script src="language-pack.js?v=0.7.63&amp;verify=6&amp;feedback=1"></script><script src="language.js?v=0.7.57"></script></body></html>
