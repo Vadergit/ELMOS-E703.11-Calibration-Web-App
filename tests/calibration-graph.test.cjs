@@ -118,6 +118,6 @@ test('Archive and site load the new graph and versioned assets',()=>{
  assert.match(archive,/ELMOS_CALIBRATION_GRAPH\.renderArchive\(historicalChart,r\)/);
  assert.match(html,/calibration-graph\.js\?v=0\.7\.83/);
  assert.match(html,/calibration-graph\.css\?v=0\.7\.83/);
- assert.match(html,/data-app-version="0\.7\.97"/);
+ assert.match(html,/data-app-version="0\.7\.98"/);
  assert.match(css,/\.cg-marker\.fail/);
 });
