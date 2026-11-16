@@ -80,3 +80,33 @@ test('TK0 mode reuses existing hardware write gates and is visible in both UIs',
  assert.ok(html.includes('id="calFitMode"'));
  assert.ok(html.includes('id="calFitMode"')&&guided.includes('data-gw-preset="tk0"'));
 });
+
+test('Real three-point TK0 data identify S4 overflow and propose a safe DSP limit',()=>{
+ const measured=[
+  {pressure:0,temperature:24,adc_s:-10188,adc_t:2112},
+  {pressure:0,temperature:74,adc_s:-10574,adc_t:-6158},
+  {pressure:6,temperature:24,adc_s:17667.5,adc_t:2155}
+ ];
+ const settings={pmin:0,pmax:6,orderS:1,orderT:1,fitMode:'tk0',outputLimit:32000};
+ assert.throws(()=>CAL.fit(measured,settings),error=>
+  error.code==='COEFFICIENT_OUT_OF_RANGE'&&error.coefficient.name==='S4'&&
+  Math.abs(error.coefficient.value-1.0001626507916577)<1e-10);
+ const copy=structuredClone(measured);
+ const suggestion=CAL.suggestDspLimit(measured,settings);
+ assert.equal(suggestion.outputLimit,31000);
+ assert.ok(suggestion.maxCoefficient<=0.98);
+ assert.deepEqual(measured,copy,'Proposals must not mutate captured measurement points');
+ const result=CAL.fit(measured,{...settings,outputLimit:suggestion.outputLimit});
+ assert.equal(result.outputLimit,31000);
+ assert.equal(result.registers.coeffs[5],0,'TK0 must leave TKE zero');
+ assert.ok(result.stats.maxDigits<10);
+});
+
+test('Only fixable DSP coefficient overflow offers a reduced target',()=>{
+ assert.equal(CAL.suggestDspLimit(reference.slice(0,3),{...opts,fitMode:'tk0'}),null);
+ assert.equal(CAL.suggestDspLimit(reference.slice(0,3),{...opts,fitMode:'tk0',outputLimit:1000}),null);
+ const app=read('app.js'),html=read('index.html');
+ assert.ok(app.includes("CAL.suggestDspLimit(st.calpoints,fitRequest)"));
+ assert.ok(app.includes("calcCoefficients();"));
+ assert.ok(html.includes('id="calDspProposalApply"'));
+});
