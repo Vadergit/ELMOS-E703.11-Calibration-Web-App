@@ -153,7 +153,7 @@ const ELMOS_GUIDED=(()=>{
   moveId('calMsg','gwPointMessages');
   moveLabel('calSOrder','gwFitFields');moveLabel('calTOrder','gwFitFields');moveLabel('calFitMode','gwFitFields');
   for(const id of ['calCalculate','calApplyRam'])moveId(id,'gwFitActions');
-  for(const id of ['calFitMsg','calRamPrereq','calRamStageMsg'])moveId(id,'gwFitStatuses');
+  for(const id of ['calFitMsg','calTempFallback','calDspProposal','calRamPrereq','calRamStageMsg'])moveId(id,'gwFitStatuses');
   move($('calCoeffList').closest('details'),'gwFitDetails');
   for(const id of ['calVerifyCount','calVerifyTolerance'])moveLabel(id,'gwVerifyFields');
   moveId('calVerifyRows','gwVerifyActions');
