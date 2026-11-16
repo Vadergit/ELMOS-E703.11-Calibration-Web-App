@@ -3570,7 +3570,12 @@ if(typeof document!=='undefined') (function UI(){
   const panel=$('settingsPanel'),gear=$('settingsOpen');
   panel.hidden=!open;
   gear.setAttribute('aria-expanded',String(open));
-  if(open)$('settingsSampleCount').value=$('calSampleCount').value;
+  if(open){
+   $('settingsSampleCount').value=$('calSampleCount').value;
+   // Archive owns the actual File System Access handle and its IndexedDB
+   // persistence. Settings only displays that same shared folder.
+   void window.ELMOS_ARCHIVE?.refreshFolderSettings?.();
+  }
  }
  $('settingsOpen').addEventListener('click',()=>toggleSettings($('settingsPanel').hidden));
  // Dismiss settings on any outside click. Preserve the underlying navigation click.
