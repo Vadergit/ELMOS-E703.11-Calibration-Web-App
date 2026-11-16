@@ -62,9 +62,9 @@ const ELMOS_GUIDED=(()=>{
     '<button class="gw-choice" data-gw-task="archive"><span class="gw-choice-icon">▥</span><strong>Archiv</strong><small>Frühere Abgleiche und Tests suchen, Ergebnisse prüfen und vergleichen.</small></button></div>'+
     '<div class="gw-alert">Der Chip muss zuerst über USB erkannt werden. Der geführte Modus verändert keine Register, bevor du eine entsprechende Aktion bestätigst.</div></div>'+
    '<div id="gwPage1" class="gw-page" hidden><div class="gw-preset-grid">'+
-    '<button class="gw-preset" data-gw-preset="quick"><strong>Schnell</strong><small>2 Druckpunkte, ohne Temperaturkorrektur.</small></button>'+
-    '<button class="gw-preset" data-gw-preset="temperature"><strong>Mit Temperatur</strong><small>2 Druckpunkte × 3 Temperaturstufen.</small></button>'+
-    '<button class="gw-preset" data-gw-preset="custom"><strong>Individuell</strong><small>3 Druckpunkte × 2 Temperaturstufen; anpassbar.</small></button></div>'+
+    '<button class="gw-preset" data-gw-preset="quick"><strong>Schnell</strong><small>0–100 % · 2 Druckpunkte, ohne Temperaturkorrektur.</small></button>'+
+    '<button class="gw-preset" data-gw-preset="temperature"><strong>Mit Temperatur</strong><small>0–100 % · 2 Druckpunkte × 3 Temperaturstufen.</small></button>'+
+    '<button class="gw-preset" data-gw-preset="custom"><strong>Individuell</strong><small>0–100 % · 3 Druckpunkte × 2 Temperaturstufen; anpassbar.</small></button></div>'+
     '<div class="gw-tile is-soft"><h3>Deinen Messablauf festlegen</h3><div class="gw-fields gw-3">'+
      '<label>Druckpunkte<select id="gwPressureCount"><option>2</option><option>3</option><option>4</option><option>5</option></select></label>'+
      '<label>Temperaturbedingungen<select id="gwTemperatureCount"><option value="1">1 · keine Temperaturkorrektur</option><option value="2">2 · lineare Temperaturkorrektur</option><option value="3">3 · quadratische Temperaturkorrektur</option></select></label>'+
@@ -75,7 +75,7 @@ const ELMOS_GUIDED=(()=>{
    `<div id="gwPage2" class="gw-page gw-setup-page" hidden>
     <div class="gw-columns gw-setup-grid">
      <section class="gw-tile gw-setup-tile">
-      <div class="gw-section-head"><div><h3>Druckbereich und Messung</h3><p>Referenzwerte und Anzahl der Samples</p></div></div>
+      <div class="gw-section-head"><div><h3>Druckbereich und Messung</h3><p>Standardpreset 0–100 % · anpassbar</p></div></div>
       <div class="gw-fields gw-setup-pressure" id="gwSensorFields"></div>
      </section>
      <section class="gw-tile gw-setup-tile">
