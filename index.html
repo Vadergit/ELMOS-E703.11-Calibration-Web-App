@@ -210,6 +210,13 @@ button.danger{background:#9e3e34;border-color:#9e3e34;color:#fff}button.danger:h
 .settings-panel .settings-archive-box{border:1px solid #d2e0eb;border-radius:9px;background:#f7fafc;padding:11px 12px;display:grid;gap:8px;min-width:0}
 .settings-panel .settings-archive-box strong{font-size:13px;color:var(--ink,#214763);overflow-wrap:anywhere}
 .settings-panel .settings-archive-box small{font-size:11px;color:var(--muted,#607990);line-height:1.45}
+.settings-panel .settings-archive-path-label{font-size:11px;font-weight:700;color:#395775}
+.settings-panel .settings-archive-path-edit{display:flex;gap:6px;align-items:stretch;min-width:0}
+.settings-panel .settings-archive-path-edit input{flex:1;min-width:0;font:12px/1.5 inherit;padding:7px 9px;border-radius:6px;border:1px solid #a7bed1;background:var(--paper,#fff);color:var(--ink,#25384b)}
+.settings-panel .settings-archive-path-edit button{white-space:nowrap;padding:6px 9px;font-size:11px}
+.settings-panel #settingsArchivePathStatus{display:block;white-space:pre-wrap;overflow-wrap:anywhere}
+.settings-panel #settingsArchivePathStatus[data-saved="true"]{color:var(--ink,#244c67);font-weight:650}
+@media(max-width:390px){.settings-panel .settings-archive-path-edit{flex-wrap:wrap}.settings-panel .settings-archive-path-edit input{flex-basis:100%}}
 .settings-panel .settings-archive-actions{display:flex;flex-wrap:wrap;gap:7px}
 .settings-panel .settings-archive-actions button{font-size:12px;padding:8px 10px;min-height:33px}
 .settings-panel .settings-archive-actions button.primary{background:#126386;color:#fff;border-color:#126386}
@@ -694,8 +701,8 @@ html.compact-mode .foot{display:none}
 .operation-progress-dialog .operation-progress{position:static;max-width:100%;pointer-events:auto}
 .cal-point-recorded > .fieldrow{display:none!important}
 .operation-progress progress{display:block;width:100%;accent-color:var(--focus,#075874)}
-</style><link rel="stylesheet" href="guided.css?v=0.7.27"><link rel="stylesheet" href="interface.css?v=0.7.39"><link rel="stylesheet" href="theme.css?v=0.7.9"><link rel="stylesheet" href="verification-guide.css?v=0.7.78"><link rel="stylesheet" href="calibration-graph.css?v=0.7.83"><link rel="stylesheet" href="archive-photos.css?v=0.7.73"><link rel="stylesheet" href="settings-refresh.css?v=0.7.77"></head><body data-app-version="0.7.85"><div class="wrap"><header class="top">
-<div class="brand"><div class="logo" aria-hidden="true">E</div><div><div class="eyebrow">E703.11 · PSSC · v0.7.85</div><h1><button type="button" id="homeButton" aria-label="Kalibrierassistent – zur Hauptseite">Kalibrierassistent</button></h1></div></div>
+</style><link rel="stylesheet" href="guided.css?v=0.7.27"><link rel="stylesheet" href="interface.css?v=0.7.39"><link rel="stylesheet" href="theme.css?v=0.7.9"><link rel="stylesheet" href="verification-guide.css?v=0.7.78"><link rel="stylesheet" href="calibration-graph.css?v=0.7.83"><link rel="stylesheet" href="archive-photos.css?v=0.7.73"><link rel="stylesheet" href="settings-refresh.css?v=0.7.77"></head><body data-app-version="0.7.86"><div class="wrap"><header class="top">
+<div class="brand"><div class="logo" aria-hidden="true">E</div><div><div class="eyebrow">E703.11 · PSSC · v0.7.86</div><h1><button type="button" id="homeButton" aria-label="Kalibrierassistent – zur Hauptseite">Kalibrierassistent</button></h1></div></div>
 <div class="live-overview" role="group" aria-label="Sensorwerte · laufende Anzeige">
   <div class="live-kpi" title="Unkompensierter Druck-ADC. Warnung bei Beträgen über 25’000 Digits."><span class="live-kpi-label">ADC_S <span id="liveAdcAlert" class="live-alert" hidden>!</span></span><span class="live-kpi-reading" id="liveAdcS">—</span><span class="live-kpi-unit">Digits</span></div>
   <div class="live-kpi" title="ADC_T · Temperatur-Rohwert, keine direkte Temperatur in °C."><span class="live-kpi-label">ADC_T</span><span class="live-kpi-reading" id="liveAdcT">—</span><span class="live-kpi-unit">Digits</span></div>
@@ -724,7 +731,6 @@ html.compact-mode .foot{display:none}
 <section class="settings-panel" id="settingsPanel" hidden aria-label="App-Einstellungen">
  <div class="settings-panel-head">
   <div><strong>App-Einstellungen</strong><span>Darstellung und Messverhalten</span></div>
-  <span class="settings-panel-shortcut" aria-hidden="true">Esc</span>
  </div>
  <div class="settings-body">
   <section class="settings-group" aria-label="Darstellung">
@@ -768,12 +774,18 @@ html.compact-mode .foot{display:none}
    <div class="settings-archive-box">
     <strong id="settingsArchiveFolder" role="status" aria-live="polite">Kein Archivordner gewählt</strong>
     <small id="settingsArchiveAccess" role="status" aria-live="polite">Bitte einen lokalen Ordner auswählen.</small>
+    <label for="settingsArchivePathInput" class="settings-archive-path-label">Vollständiger Pfad (optional, nur zur Anzeige)</label>
+    <div class="settings-archive-path-edit">
+     <input id="settingsArchivePathInput" type="text" maxlength="500" autocomplete="off" spellcheck="false" placeholder="z. B. C:\\Messungen\\Kalibrierungen" disabled>
+     <button type="button" id="settingsArchivePathSave" disabled>Pfad merken</button>
+    </div>
+    <small id="settingsArchivePathStatus" data-saved="false" role="status" aria-live="polite">Der Browser kennt nur den Ordnernamen. Den vollständigen Pfad kannst du zur Anzeige selbst hinterlegen.</small>
     <div class="settings-archive-actions">
      <button type="button" id="settingsArchiveChoose" class="primary">Ordner auswählen / ändern</button>
      <button type="button" id="settingsArchiveGrant" hidden>Zugriff freigeben</button>
     </div>
    </div>
-   <p class="settings-caption">Gemeinsamer lokaler Archivordner für Kalibrierungen, Nachmessungen und Test/Logging. Der Browser merkt sich die Auswahl, kann nach einem Neustart aber erneut eine Freigabe verlangen. Es werden keine Daten in die Cloud übertragen.</p>
+   <p class="settings-caption">Der ausgewählte Ordner ist der tatsächliche Speicherort. Ein manuell eingetragener Pfad ist nur eine Beschriftung und ändert den Speicherort nicht. Die Auswahl bleibt im Browser vorgemerkt; es werden keine Daten in die Cloud übertragen.</p>
   </section>
   <section class="settings-group" aria-label="Expertenoptionen">
    <h3>Erweiterte Optionen</h3>
@@ -1382,5 +1394,5 @@ html.compact-mode .foot{display:none}
 </div>
 <div class="nav"><button data-next="0">Zur Verbindung</button><button data-next="6">Zum NVM-Schritt</button></div>
 </section>
-<div class="foot"><b>Version v0.7.85</b> · <a href="CHANGELOG.md" target="_blank" rel="noopener noreferrer">Änderungsverlauf</a> · ELMOS E703.11 · unabhängiger Kalibrierprototyp · Sicherheitsprinzip: Factory- und Kommunikations-Bootregister gesperrt; dokumentierte AODO-Ausgangsoptionen nur nach Prüfung im NVM-Plan; Wiederherstellung nur mit passender Chip-UID.</div>
-<section class="card panel" data-panel="8" hidden><div class="eyebrow">Werkzeuge · Sensorprotokoll</div><h2>Test / Logging</h2><p class="muted small">Messdaten, Rohwerte und Notizen jederzeit in einem lokalen Archiv protokollieren. Ohne NVM-Schreibvorgang.</p><div id="classicLoggerHost"></div></section></main></div></div><div id="tip" class="tooltip"></div><script src="calibration.js?v=0.7.29"></script><script src="eeprom-help.js?v=0.6.30"></script><script src="expert.js?v=0.7.45"></script><script src="config.js?v=0.7.17"></script><script src="guided-plan.js?v=0.7.82"></script><script src="demo.js?v=0.6.49"></script><script src="archive-core.js?v=0.7.80"></script><script src="test-logger-core.js?v=0.7.39"></script><script src="archive-analysis.js?v=0.7.79"></script><script src="verification-graph.js?v=0.7.78"></script><script src="calibration-graph.js?v=0.7.83"></script><script src="archive-photos.js?v=0.7.73"></script><script src="verification-report.js?v=0.7.79"></script><script src="calibration-report.js?v=0.7.84"></script><script src="archive-readable-csv.js?v=0.7.78"></script><script src="logging-report.js?v=0.7.73"></script><script src="archive.js?v=0.7.85"></script><script src="live-polling.js?v=0.7.74"></script><script src="app.js?v=0.7.85&amp;nav=3&amp;verify=6&amp;feedback=1"></script><script src="compact.js?v=0.7.18"></script><script src="test-logger.js?v=0.7.73"></script><script src="guided.js?v=0.7.82&amp;nav=8&amp;verify=5"></script><script src="language-pack.js?v=0.7.63&amp;verify=6&amp;feedback=1"></script><script src="language.js?v=0.7.57"></script></body></html>
+<div class="foot"><b>Version v0.7.86</b> · <a href="CHANGELOG.md" target="_blank" rel="noopener noreferrer">Änderungsverlauf</a> · ELMOS E703.11 · unabhängiger Kalibrierprototyp · Sicherheitsprinzip: Factory- und Kommunikations-Bootregister gesperrt; dokumentierte AODO-Ausgangsoptionen nur nach Prüfung im NVM-Plan; Wiederherstellung nur mit passender Chip-UID.</div>
+<section class="card panel" data-panel="8" hidden><div class="eyebrow">Werkzeuge · Sensorprotokoll</div><h2>Test / Logging</h2><p class="muted small">Messdaten, Rohwerte und Notizen jederzeit in einem lokalen Archiv protokollieren. Ohne NVM-Schreibvorgang.</p><div id="classicLoggerHost"></div></section></main></div></div><div id="tip" class="tooltip"></div><script src="calibration.js?v=0.7.29"></script><script src="eeprom-help.js?v=0.6.30"></script><script src="expert.js?v=0.7.45"></script><script src="config.js?v=0.7.17"></script><script src="guided-plan.js?v=0.7.82"></script><script src="demo.js?v=0.6.49"></script><script src="archive-core.js?v=0.7.80"></script><script src="test-logger-core.js?v=0.7.39"></script><script src="archive-analysis.js?v=0.7.79"></script><script src="verification-graph.js?v=0.7.78"></script><script src="calibration-graph.js?v=0.7.83"></script><script src="archive-photos.js?v=0.7.73"></script><script src="verification-report.js?v=0.7.79"></script><script src="calibration-report.js?v=0.7.84"></script><script src="archive-readable-csv.js?v=0.7.78"></script><script src="logging-report.js?v=0.7.73"></script><script src="archive.js?v=0.7.86"></script><script src="live-polling.js?v=0.7.74"></script><script src="app.js?v=0.7.85&amp;nav=3&amp;verify=6&amp;feedback=1"></script><script src="compact.js?v=0.7.18"></script><script src="test-logger.js?v=0.7.73"></script><script src="guided.js?v=0.7.82&amp;nav=8&amp;verify=5"></script><script src="language-pack.js?v=0.7.63&amp;verify=6&amp;feedback=1"></script><script src="language.js?v=0.7.57"></script></body></html>
