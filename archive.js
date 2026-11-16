@@ -5,6 +5,7 @@ const ELMOS_ARCHIVE=(()=>{
  const $=id=>document.getElementById(id);
  const S={dir:null,record:null,records:[],filename:null,writeQueue:Promise.resolve(),selection:[],step:0,
   measuring:false,finishing:false,finishedReview:null,showDetails:null,lastError:'',folderName:'',draft:null,view:'archive',detailsToken:0,resultsCache:new Map(),debugLines:[],debugDropped:0,lastStreamMetaFlush:0,pressureEntryBefore:'percent',pressureUnitBefore:'bar',autoRangeUid:null,pendingPhotos:[],photoPanels:null};
+ let folderSelectionRevision=0;
  const iso=()=>new Date().toISOString();
  const text=(id,value)=>{if($(id))$(id).textContent=String(value)};
  const note=(value,bad=false)=>{S.lastError=bad?String(value):'';text('archiveStatus',value);if($('archiveStatus'))$('archiveStatus').style.color=bad?'var(--red)':'var(--muted)'};
@@ -45,19 +46,69 @@ const ELMOS_ARCHIVE=(()=>{
   }catch(_){}
   return false;
  }
- async function chooseFolder(){
-  if(!window.isSecureContext||typeof window.showDirectoryPicker!=='function'){
-   note('Ordnerzugriff benötigt Chrome auf HTTPS oder localhost. Bei direktem file://-Start bitte die lokale Startanleitung verwenden.',true);
-   throw Error('File System Access nicht verfügbar');
+ const folderBusy=()=>!!S.record||!!window.ELMOS_TEST_LOGGER?.isBusy?.();
+ async function refreshFolderSettings(){
+  const label=$('settingsArchiveFolder'),accessLabel=$('settingsArchiveAccess');
+  const choose=$('settingsArchiveChoose'),grant=$('settingsArchiveGrant');
+  if(!label||!accessLabel)return;
+  const dir=S.dir,busy=folderBusy();
+  if(choose)choose.disabled=busy;
+  if(!dir){
+   label.textContent=ui('Kein Archivordner gewählt','No archive folder selected');
+   accessLabel.textContent=ui('Bitte einen lokalen Ordner auswählen.','Please select a local folder.');
+   accessLabel.dataset.state='none';
+   if(grant)grant.hidden=true;
+   return;
   }
+  label.textContent=dir.name;
+  accessLabel.textContent=ui('Berechtigung wird geprüft …','Checking permission …');
+  let access='prompt';
+  try{access=await dir.queryPermission({mode:'readwrite'})}catch(_){}
+  if(S.dir!==dir)return; // Ignore stale permission checks after a directory change.
+  accessLabel.dataset.state=access;
+  accessLabel.textContent=busy?
+   ui('Aufzeichnung aktiv – Speicherort kann derzeit nicht geändert werden.','Recording active – storage folder cannot be changed.'):
+   access==='granted'?ui('Schreibzugriff aktiv · lokale Speicherung','Write permission granted · local storage'):
+   access==='denied'?ui('Zugriff gesperrt – bitte erneut freigeben','Access denied – please grant access again'):
+   ui('Ordner vorgemerkt – Schreibzugriff erneut freigeben','Folder remembered – please grant write permission again');
+  if(grant){grant.hidden=access==='granted';grant.disabled=busy}
+ }
+ function folderError(error){
+  if(error?.name==='AbortError')return; // Picker was cancelled; keep the old folder.
+  const message=String(error?.message||error);
+  note(message,true);text('settingsMsg',message);
+ }
+ async function chooseFolder(){
+  if(folderBusy())throw Error(ui('Eine Aufzeichnung läuft. Bitte zuerst abschliessen, bevor du den Speicherort änderst.','Finish the active recording before changing the storage folder.'));
+  if(!window.isSecureContext||typeof window.showDirectoryPicker!=='function')
+   throw Error(ui('Ordnerzugriff benötigt Chrome oder Edge über HTTPS bzw. localhost.','Folder access requires Chrome or Edge over HTTPS or localhost.'));
+  // Open the native folder picker immediately in the click gesture.
   const dir=await window.showDirectoryPicker({id:'elmos-archive',mode:'readwrite'});
+  if(folderBusy())throw Error(ui('Während der Ordnerwahl wurde eine Messung gestartet. Der Speicherort bleibt unverändert.','Recording started during folder selection. The storage folder remains unchanged.'));
+  ++folderSelectionRevision;
   S.dir=dir;S.folderName=dir.name;
-  try{await remembered('write',dir)}catch(_){/* Only persistence of permission is optional. */}
+  S.records=[];S.selection=[];S.showDetails=null;S.resultsCache.clear();
+  renderList();
   text('archiveFolder',dir.name+' · '+ui('lokaler Ordner','local folder'));
-
-  note('Archivordner ausgewählt. Andere Dateien im Ordner bleiben unverändert.');
+  void refreshFolderSettings();
+  try{await remembered('write',dir)}catch(_){/* Persistence is optional. */}
+  note(ui('Archivordner ausgewählt. Andere Dateien bleiben unverändert.','Archive folder selected. Other files remain unchanged.'));
+  text('settingsMsg',ui('Speicherort: ','Storage folder: ')+dir.name);
   await refresh();
+  void refreshFolderSettings();
   return dir;
+ }
+ async function grantFolderAccess(){
+  if(!S.dir)throw Error(ui('Zuerst einen Archivordner auswählen.','Select an archive folder first.'));
+  if(folderBusy())throw Error(ui('Eine Aufzeichnung läuft. Bitte zuerst abschliessen.','Finish the active recording first.'));
+  const dir=S.dir;
+  const state=await dir.requestPermission({mode:'readwrite'});
+  if(S.dir!==dir)return false;
+  await refreshFolderSettings();
+  if(state!=='granted')throw Error(ui('Schreibzugriff für den Archivordner nicht erteilt.','Write access to the archive folder was not granted.'));
+  text('settingsMsg',ui('Schreibzugriff erteilt: ','Write access granted: ')+dir.name);
+  await refresh();
+  return true;
  }
  async function ensureFolder(){
   if(!S.dir)await chooseFolder();
@@ -1529,7 +1580,9 @@ const ELMOS_ARCHIVE=(()=>{
   $('classicArchiveOpen')?.addEventListener('click',()=>open('archive'));
   $('classicVerificationOpen')?.addEventListener('click',()=>open('verification'));
   $('archiveClose').addEventListener('click',close);
-  $('archiveChoose').addEventListener('click',()=>chooseFolder().catch(e=>note(e.message,true)));
+  $('archiveChoose').addEventListener('click',()=>chooseFolder().catch(folderError));
+  $('settingsArchiveChoose')?.addEventListener('click',()=>chooseFolder().catch(folderError));
+  $('settingsArchiveGrant')?.addEventListener('click',()=>grantFolderAccess().catch(folderError));
   $('archiveRefresh').addEventListener('click',()=>refresh());
   $('archiveStartCalibration').addEventListener('click',()=>ensureCalibration().then(()=>note('Kalibrierprotokoll gestartet. Jetzt wie gewohnt abgleichen.')).catch(e=>note(e.message,true)));
   $('arStart').addEventListener('click',()=>startVerification().catch(e=>note(e.message,true)));
@@ -1580,12 +1633,17 @@ const ELMOS_ARCHIVE=(()=>{
   for(const id of ['archiveFilterType','archiveFilterStatus'])$(id).addEventListener('change',renderList);
   $('archiveCompare').addEventListener('click',compare);
   modeUI();preview();renderActive();renderList();refreshDetectedCalibrationTool();
+  void refreshFolderSettings();
+  const initialRevision=folderSelectionRevision;
   remembered('read').then(async dir=>{
-   if(!dir)return;S.dir=dir;S.folderName=dir.name;
+   if(!dir||initialRevision!==folderSelectionRevision)return;
+   S.dir=dir;S.folderName=dir.name;
    text('archiveFolder',dir.name+' · '+ui('Ordner vorgemerkt','folder remembered'));
+   await refreshFolderSettings();
+   if(initialRevision!==folderSelectionRevision)return;
    if(await permitted(false))await refresh();
-   else note('Archivordner bekannt. Falls nötig erneut auf «Archivordner auswählen» klicken, um den Zugriff freizugeben.');
-  }).catch(()=>{});
+   else note(ui('Archivordner vorgemerkt. Schreibzugriff in den Einstellungen erneut freigeben.','Archive folder remembered. Please re-authorize write access in Settings.'));
+  }).catch(()=>{void refreshFolderSettings()});
  }
  function open(view='archive'){
   if(window.ELMOS_TEST_LOGGER?.isBusy()){
@@ -1609,6 +1667,7 @@ const ELMOS_ARCHIVE=(()=>{
   S.finishedReview=null;
  }
  return {init,open,openVerification:()=>open('verification'),close,begin,ensureCalibration,event,trace,appendTelemetry,streamRows,download,exportLoggingPdf,setPhotos,flush,finalise,interrupted,
+  chooseFolder,grantFolderAccess,refreshFolderSettings,
   get active(){return !!S.record},get current(){return S.record},get view(){return S.view},refresh};
 })();
 if(typeof window!=='undefined'){
