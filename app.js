@@ -3080,7 +3080,7 @@ if(typeof document!=='undefined') (function UI(){
    calibration:{
     sOrder:matrix?.orderS??Number($('calSOrder').value),tOrder:matrix?.orderT??Number($('calTOrder').value),fitMode:matrix?.fitMode??$('calFitMode').value,
     dspLimit:Number($('calDspLimit').value),pointCount:matrix?.total??Number($('calPointCount').value),
-    ...(matrix?{matrix:{p:matrix.pCount,temp:matrix.tCount,temperatures:matrix.temperatures}}:{}),
+    ...(matrix?{matrix:{p:matrix.pCount,temp:matrix.tCount,temperatures:matrix.temperatures,fitMode:matrix.fitMode||'full'}}:{}),
     samples:Number($('calSampleCount').value),
     reference:{min:Number($('pmin').value),max:Number($('pmax').value),
      unit:$('calUnit').value,customUnit:$('calUnitOther').value.trim()}
