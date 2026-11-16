@@ -2,7 +2,7 @@
 
 **Ein geführter Kalibrierassistent für den ELMOS E703.11 und das SSP3-Eval-Board.** Ziel ist ein verständlicher Abgleich, der auch ohne tiefere Vorkenntnisse Schritt für Schritt funktioniert. Wer mehr benötigt, kann zusätzliche Messpunkte, DSP-Parameter und einen geschützten Expertenmodus verwenden.
 
-**Version: v0.7.75 · Zwei unterstützte DIY-Programmer** · [Änderungsverlauf](CHANGELOG.md) · **[Geplante Funktionen](ROADMAP.md)**
+**Version: v0.7.76 · Adaptive 250-ms-Live-Abfrage als Standard** · [Änderungsverlauf](CHANGELOG.md) · **[Geplante Funktionen](ROADMAP.md)**
 
 Über **Einstellungen → Demo-Modus** lässt sich der gesamte Kalibrierablauf mit simulierten Messwerten und NVM ausprobieren.
 
@@ -14,7 +14,7 @@
 >
 > [Geführter Abgleich](docs/GEFUEHRTER_ASSISTENT.md) · [DIY-Programmer (ESP32-C3 / Pro Micro)](docs/USB_BRIDGE_GUIDE.md) · [Pinbelegung der zwei Boards](docs/ESP_BOARD_OPTIONS.md) · [DIY-Firmware-Installer](firmware-update.html)
 
-## Funktionsumfang – aktueller Stand v0.7.75
+## Funktionsumfang – aktueller Stand v0.7.76
 
 Die Software enthält die folgenden Bereiche; die verlinkten Anleitungen beschreiben die **aktuelle Bedienung**, während die nachfolgenden älteren Versionsabschnitte die Entwicklungshistorie dokumentieren:
 
@@ -31,7 +31,7 @@ Die Software enthält die folgenden Bereiche; die verlinkten Anleitungen beschre
 
 ## Neu in v0.7.74 – Optional schnellerer Live-Modus
 
-Unter **Einstellungen → Live-Abfrageintervall** ist zusätzlich **«250 ms · Adaptiv (schneller)»** auswählbar. Die bisherigen Einstellungen und die bisherige 650-ms-Standardpause bleiben unverändert. Die angegebene Zahl beschreibt die Pause **nach** dem vollständig abgeschlossenen ADC-/DSP-Lesezyklus; die tatsächliche Live-Aktualisierung kann durch USB, SSP3, Chipmodus und Sensor-Konversionszeit länger dauern.
+Unter **Einstellungen → Live-Abfrageintervall** ist zusätzlich **«250 ms · Adaptiv (schneller)»** auswählbar. **250 ms adaptiv ist nun der Standard bei neuen Installationen.** Bisher bewusst gespeicherte Intervalle bleiben erhalten. Die früheren 400/650/1000/1500/2000-ms-Auswahlmöglichkeiten stehen weiterhin zur Verfügung. Die angegebene Zahl beschreibt die Pause **nach** dem vollständig abgeschlossenen ADC-/DSP-Lesezyklus; die tatsächliche Live-Aktualisierung kann durch USB, SSP3, Chipmodus und Sensor-Konversionszeit länger dauern.
 
 Im adaptiven Modus erhöht die App bei langsamen Antwortzeiten die Pause vorübergehend auf 400 oder 650 ms und reduziert sie nach stabilen erfolgreichen Abfragen wieder. Bei Lesefehlern gelten weiterhin die vorhandene 2-Sekunden-Retry-Pause und die bisherigen Verbindungs-Schutzmechanismen. Es gibt **keine parallelen seriellen Sensorbefehle** und keine Änderungen an Registern oder NVM. Vor einem produktiven Einsatz bitte mit deinem Sensor und Adapter auf Stabilität prüfen.
 
