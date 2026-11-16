@@ -666,20 +666,54 @@ if(typeof document!=='undefined') (function UI(){
    else renderStatus()
   }
  }
+ function calibrationDisplayReferences(count){
+  const specs=[
+   {key:'lo',row:$('capLo').closest('.cal-point-row'),pressure:Number($('pmin').value),temperature:Number($('calLoTemp').value),originalIndex:0},
+   ...Array.from({length:Math.max(0,count-2)},(_,index)=>{
+    const k=index+1;
+    return {key:'extra'+k,row:$('calExtra'+k+'Row'),pressure:Number($('calExtra'+k+'Pressure').value),temperature:Number($('calExtra'+k+'Temp').value),originalIndex:k};
+   }),
+   {key:'hi',row:$('capHi').closest('.cal-point-row'),pressure:Number($('pmax').value),temperature:Number($('calHiTemp').value),originalIndex:count-1}
+  ];
+  return ELMOS_GUIDED_PLAN.sortReferences(specs);
+ }
  function renderCalibrationPlan(){
   const count=calibrationPointCount();
   if(!Number.isFinite(count))return show('calPointPlanMsg','Anzahl muss zwischen 2 und 10 liegen.','error');
-  $('pointHiHeading').textContent='Messpunkt '+count+' · Oberer Endpunkt';
-  if(!$('pointHiName').dataset.userEdited)$('pointHiName').value='Messpunkt '+count;
+  const ordered=calibrationDisplayReferences(count);
+  const numberByKey=new Map(ordered.map((x,index)=>[x.key,index+1]));
+  // Classic view: only change visual order and captions. The original
+  // lo/hi/extra slot keys, captured values and calibration math stay intact.
+  const classicMode=$('calPointRows').contains($('capLo'));
+  if(classicMode){
+   for(const [index,x] of ordered.entries()){
+    x.row.style.order=String(index);
+    const number=index+1;
+    const isHotZero=x.key.startsWith('extra')&&Math.abs(x.pressure-Number($('pmin').value))<1e-6&&
+     Math.abs(x.temperature-Number($('calLoTemp').value))>0.5;
+    const role=x.key==='lo'?'Unterer Endpunkt':x.key==='hi'?'Oberer Endpunkt':isHotZero?'TK0-Temperaturpunkt':'Zwischenpunkt';
+    x.row.querySelector('.between h3').textContent='Messpunkt '+number+' · '+role;
+    const action=x.row.querySelector('.cal-card-action button');
+    if(action)action.textContent='Messpunkt '+number+' aufnehmen';
+    const name=x.row.querySelector('input[maxlength="45"]');
+    if(name&&!name.dataset.userEdited)name.value='Messpunkt '+number;
+   }
+  }
   $('capLo').hidden=st.calpoints.some(x=>x.kind==='lo');
   $('capHi').hidden=st.calpoints.some(x=>x.kind==='hi');
   renderCapturedPoint('lowVal','calLoResult',st.calpoints.find(x=>x.kind==='lo'));
   renderCapturedPoint('highVal','calHiResult',st.calpoints.find(x=>x.kind==='hi'));
   for(let k=1;k<=8;k++){
    $('calExtra'+k+'Row').hidden=k>count-2;
-   $('calExtra'+k+'Heading').textContent='Messpunkt '+(k+1)+' · Zwischenpunkt';
-   $('calExtra'+k+'Capture').textContent='Messpunkt '+(k+1)+' aufnehmen';
-   if(!$('calExtra'+k+'Name').dataset.userEdited)$('calExtra'+k+'Name').value='Messpunkt '+(k+1);
+   // Hidden slots stay available for other calibration plans. The visible
+   // captions were already numbered using temperature-first display order.
+   if(!classicMode&&k>count-2)$('calExtra'+k+'Row').style.order='';
+   if(classicMode&&k>count-2){
+    $('calExtra'+k+'Row').style.order=String(count+k);
+    $('calExtra'+k+'Heading').textContent='Messpunkt '+(k+1)+' · Zwischenpunkt';
+    $('calExtra'+k+'Capture').textContent='Messpunkt '+(k+1)+' aufnehmen';
+    if(!$('calExtra'+k+'Name').dataset.userEdited)$('calExtra'+k+'Name').value='Messpunkt '+(k+1);
+   }
    const record=st.calpoints.find(x=>x.kind==='extra'&&x.slot===k);
    $('calExtra'+k+'Capture').hidden=!!record;
    renderCapturedPoint('calExtra'+k+'State','calExtra'+k+'Value',record);
@@ -2604,9 +2638,11 @@ if(typeof document!=='undefined') (function UI(){
  function renderCalPoints(){
   const out=$('calPointsList');if(!out)return;
   const count=calibrationPointCount();
-  const slot=x=>x.kind==='lo'?0:x.kind==='hi'?count-1:x.slot;
-  out.textContent=st.calpoints.length?st.calpoints.slice().sort((a,b)=>slot(a)-slot(b)).map(x=>
-   'Messpunkt '+(slot(x)+1)+' · '+x.name+' · '+Number(x.pressure).toFixed(3)+' '+pressureUnit()+' · '+Number(x.temperature).toFixed(1)+' °C · ADC_S '+fmt(x.adc_s)+' · ADC_T '+fmt(x.adc_t)
+  const displayOrder=calibrationDisplayReferences(count);
+  const numberByKey=new Map(displayOrder.map((x,index)=>[x.key,index+1]));
+  const number=x=>numberByKey.get(x.kind==='extra'?'extra'+x.slot:x.kind)??0;
+  out.textContent=st.calpoints.length?st.calpoints.slice().sort((a,b)=>number(a)-number(b)).map(x=>
+   'Messpunkt '+number(x)+' · '+x.name+' · '+Number(x.pressure).toFixed(3)+' '+pressureUnit()+' · '+Number(x.temperature).toFixed(1)+' °C · ADC_S '+fmt(x.adc_s)+' · ADC_T '+fmt(x.adc_t)
   ).join('\n'):'Noch keine Messpunkte.';
   renderCalibrationPlan()
  }
@@ -3587,16 +3623,16 @@ if(typeof document!=='undefined') (function UI(){
    $('calExtra'+k+'Pressure').dataset.userEdited='1';
    if(st.calpoints.some(x=>x.kind==='extra'&&x.slot===k)){
     st.calpoints=st.calpoints.filter(x=>!(x.kind==='extra'&&x.slot===k));
-    invalidateCalculation('Referenzwert geändert. Messpunkt '+(k+1)+' neu aufnehmen.');
+    invalidateCalculation('Referenzwert geändert. Messpunkt neu aufnehmen.');
     refreshPoints()
-   }
+   }else renderCalPoints();
   });
   $('calExtra'+k+'Temp').addEventListener('change',()=>{
    if(st.calpoints.some(x=>x.kind==='extra'&&x.slot===k)){
     st.calpoints=st.calpoints.filter(x=>!(x.kind==='extra'&&x.slot===k));
-    invalidateCalculation('Temperatur geändert. Messpunkt '+(k+1)+' neu aufnehmen.');
+    invalidateCalculation('Temperatur geändert. Messpunkt neu aufnehmen.');
     refreshPoints()
-   }
+   }else renderCalPoints();
   });
   $('calExtra'+k+'Name').addEventListener('change',()=>{
    $('calExtra'+k+'Name').dataset.userEdited='1';
