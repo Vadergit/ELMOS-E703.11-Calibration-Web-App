@@ -1,6 +1,6 @@
 # Bedienungsanleitung – ELMOS E703.11
 
-**Aktueller Dokumentationsstand v0.7.76** · Kalibrierassistent · Die anschliessenden älteren Versionsabschnitte bleiben als Funktionshistorie erhalten.
+**Aktueller Dokumentationsstand v0.7.77** · Kalibrierassistent · Die anschliessenden älteren Versionsabschnitte bleiben als Funktionshistorie erhalten.
 
 **[Web-App öffnen](https://vadergit.github.io/ELMOS-E703.11-Calibration-Web-App/)** · **[Projektübersicht](README.md)** · **[Test / Logging](TEST_LOGGING.md)** · **[Archiv](ARCHIV_NACHMESSUNG.md)** · **[Config-Dateien & EEPROM Viewer](CONFIG_DATEIEN.md)** · **[Testbericht](TESTBERICHT.md)**
 
@@ -8,7 +8,18 @@ Diese Anleitung beschreibt die derzeitige Benutzeroberfläche der browserbasiert
 
 > **Laborprototyp, keine Produktionsfreigabe.** Der vollständige Kalibrier- und NVM-Schreibablauf wurde noch nicht am realen E703.11 als Gesamtsystem validiert. Permanente Änderungen zunächst nur an einem entbehrlichen Testchip erproben.
 
-## Aktuelle Bedienung – v0.7.76
+## Aktuelle Bedienung – v0.7.77
+
+### Kompakte Einstellungen (v0.7.77)
+
+Über **⚙ Einstellungen** öffnet sich ein kleines, in **Darstellung**, **Messung**, **Erweiterte Optionen** und **Hilfen & Tools** gegliedertes Fenster. Hier kannst du Farbmodus, Sprache, Kompaktmodus, Hover-Erklärungen, Samples pro Messpunkt und Live-Abfragepause einstellen.
+
+- **Expertenparameter** blendet zusätzliche Detailoptionen in den Arbeitsbereichen ein. Erst bei aktiviertem Expertenmodus wird auch der **Demo-Modus** in den Einstellungen angeboten.
+- Die bisherige Einstellung für den automatischen geführten Assistenten ist entfernt. Die geführte Ansicht bleibt über **«Geführt»** zugänglich.
+- Firmware-Installer, Feedback und Offline-Anleitung sind als deutlich erkennbare Links in einer eigenen Gruppe angeordnet.
+- Du brauchst keinen Schliessen-Button: **Ein Klick ausserhalb**, beispielsweise auf eine Hauptseiten-Kachel, oder die Taste **Esc** schliesst das Einstellungsfenster automatisch. Die Navigation wird dabei nicht blockiert.
+- Bereits gespeicherte Mess- und Darstellungswerte bleiben bei der Umgestaltung erhalten. Das Umschalten der Oberfläche selbst verändert keine Chipregister.
+
 
 Die aktuelle Web-App bietet **geführten und klassischen Abgleich**, **Ausgang konfigurieren**, **EEPROM Viewer**, **Archiv**, **Nachmessung** sowie **Test / Logging**. Nach dem Verbinden des Sensors stehen die Live-Werte ADC_S, ADC_T, DSP_S und der digital angezeigte Sensorwert zur Verfügung. Zwischen One-Wire (AODO) und I²C wird in der technischen Protokollanzeige passend zur aktiven Schnittstelle unterschieden.
 
@@ -96,7 +107,7 @@ Für den Export: oben auf **Einstellungen** gehen, **Expertenparameter freischal
 
 Nach der bisherigen USB-/SSP3-Verbindung startet auf Wunsch ein neuer Assistent mit einer übersichtlichen Schrittnavigation. Du definierst erst die Abgleichart (z. B. 2 Druckpunkte ohne Temperaturkorrektur oder 3 Druckpunkte bei 2 Temperaturstufen). Danach folgen Referenzbereich, Temperatur-Sollwerte, Ausgangsspannung, optionale Config-Datei, AFE, tatsächliche Messung, Berechnung/RAM, DSP-Prüfung, Ausgang und die sichere NVM-Programmierung.
 
-Unter **Einstellungen → Arbeitsansicht nach dem Verbinden** zwischen «Geführter Assistent» und «Klassische Ansicht» wählen. Im geführten Modus bleibt «Klassische Ansicht» jederzeit erreichbar. Alle Hardware-/NVM-Schreibvorgänge verwenden weiterhin die bestehenden, geschützten Buttons und die Original-Kalibrierlogik.
+Die geführte Ansicht bleibt über die Schaltfläche **«Geführt»** in der Hauptnavigation erreichbar. Die frühere Einstellung **«Arbeitsansicht nach dem Verbinden»** wurde aus den Einstellungen entfernt; nach dem Anschluss wird die geführte Ansicht nicht mehr automatisch aufgrund einer gespeicherten Auswahl geöffnet. Alle Hardware-/NVM-Schreibvorgänge verwenden weiterhin die geschützten Funktionen der Kalibrierlogik.
 
 **Für den geführten Abgleich ist ein über SSP3 erkannter E703.11 erforderlich.** Die Oberfläche verwendet dieselben abgesicherten RAM-/NVM-Funktionen wie die klassische Ansicht.
 
