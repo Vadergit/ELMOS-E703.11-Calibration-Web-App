@@ -162,6 +162,16 @@ test('Pressure-only fallback retains observations and excludes differing tempera
   {pressure:100,temperature:75,adc_s:-15310.5,adc_t:1722}
  ],{pmin:0,pmax:100,orderS:1,orderT:0,fitMode:'full',outputLimit:3200}),/Referenztemperatur/);
 });
+test('Portable settings accept explicit pressure-only selection in a three-point matrix',()=>{
+ const profile={
+  format:'ELMOS-E70311-CONFIG',version:2,label:'Nur Druck',createdAt:'2026-11-16T00:00:00Z',
+  include:['measurement','dsp','reference'],
+  measurement:{pointCount:3,samples:12,matrix:{p:2,temp:2,temperatures:[25,75],fitMode:'tk0'}},
+  dsp:{sOrder:1,tOrder:0,dspLimit:3200,fitMode:'tk0'},
+  reference:{min:0,max:100,unit:'%',customUnit:''}
+ };
+ assert.deepEqual(CONFIG.validate(profile,CAL).dsp,profile.dsp);
+});
 test('Temperature fallback UI remains guarded and is present in classic and guided views',()=>{
  const app=read('app.js'),html=read('index.html'),guided=read('guided.js');
  assert.ok(html.includes('id="calTempFallback"'));
