@@ -520,11 +520,25 @@ if(typeof document!=='undefined') (function UI(){
   if(!Number.isFinite(count)||!lo||!hi||!Number.isFinite(lo.v)||!Number.isFinite(hi.v)||Math.abs(lo.v-hi.v)<10)return false;
   const gains=JSON.stringify(st.staged);
   if(JSON.stringify(lo.gains)!==gains||JSON.stringify(hi.gains)!==gains)return false;
-  if(st.calpoints.length!==count||st.calpoints.some(x=>JSON.stringify(x.gains)!==gains||!Number.isFinite(x.adc_s)))return false;
+  if(st.calpoints.length!==count||st.calpoints.some(x=>JSON.stringify(x.gains)!==gains||!Number.isFinite(x.adc_s)||x.temperatureSource!==selectedTemperatureSource()))return false;
   const pmin=Number($('pmin').value),pmax=Number($('pmax').value);
   if(!(pmax>pmin)||lo.pressure!==pmin||hi.pressure!==pmax)return false;
   if(st.calpoints.filter(x=>x.kind==='lo').length!==1||st.calpoints.filter(x=>x.kind==='hi').length!==1)return false;
   return Array.from({length:count-2},(_,i)=>i+1).every(slot=>st.calpoints.filter(x=>x.kind==='extra'&&x.slot===slot).length===1)
+ }
+ function selectedTemperatureSource(){return $('calTempSource').value}
+ const temperatureSourceLabels={internal:'Interne Chipdiode (ADC_T)',bridge:'Brückenwiderstand (ADC_T und ADC_TC)',external:'Externer EOC-Sensor (ADC_T)',reserved:'Reservierter Modus (ungültig)'};
+ async function checkCalibrationTemperatureSource(){
+  const selected=selectedTemperatureSource();
+  if(selected!=='internal')throw Error('Temperaturmessquelle '+(temperatureSourceLabels[selected]||selected)+' ist noch nicht für die Kalibrierung implementiert. Keine Messung oder Registeränderung.');
+  if(demoEnabled)return {temperatureSource:'internal',afe2:null};
+  const afe2=await readReg(0x1E);
+  st.regs[0x1E]=afe2;
+  const actual=CAL.temperatureSourceFromAfe2(afe2);
+  if(actual!==selected)throw Error('Temperaturmessquelle stimmt nicht überein: Chip verwendet '+(temperatureSourceLabels[actual]||actual)+
+   ' (CFG_AFE2.t_adc_src='+String(afe2&3)+'), ausgewählt ist '+temperatureSourceLabels[selected]+
+   '. Chipkonfiguration prüfen; die Web-App verändert CFG_AFE2 nicht automatisch.');
+  return {temperatureSource:actual,afe2};
  }
  function chosenCalibrationSamples(){
   const n=Number($('calSampleCount').value);
@@ -561,7 +575,7 @@ if(typeof document!=='undefined') (function UI(){
   box.appendChild(grid);
   const note=document.createElement('div');note.className='cal-measure-note';
   note.textContent='Referenz: '+record.pressure+' '+(record.unit||pressureUnit())+
-   ' · Temperatur: '+record.temperature+' °C'+
+   ' · Temperatur: '+record.temperature+' °C'+(record.temperatureSource?' · Quelle: '+(temperatureSourceLabels[record.temperatureSource]||record.temperatureSource):'')+
    (measuredCount===1?' · Achtung: Nur ein Sample – keine Stabilitätskontrolle möglich.':' · Median aller aufgenommenen Samples');
   box.appendChild(note)
  }
@@ -576,6 +590,7 @@ if(typeof document!=='undefined') (function UI(){
   renderFlowState();
   try{
    if(st.liveReadPromise)await st.liveReadPromise.catch(()=>{});
+   const sourceInfo=await checkCalibrationTemperatureSource();
    const values=[];
    for(let i=0;i<required;i++){
     const value={at:new Date().toISOString(),s:null,t:null,tc:null};
@@ -598,7 +613,7 @@ if(typeof document!=='undefined') (function UI(){
     const e=Error('ADC_S streut zu stark ('+spread+' Digits). Druck stabilisieren und erneut messen');
     e.rawSamples=values.slice();e.spread=spread;throw e;
    }
-   return {adc_s:median(pressure),adc_t:median(temperature),adc_tc:median(compensated),spread,sampleCount:required,rawSamples:values}
+   return {adc_s:median(pressure),adc_t:median(temperature),adc_tc:median(compensated),temperatureSource:sourceInfo.temperatureSource,temperatureAfe2:sourceInfo.afe2,spread,sampleCount:required,rawSamples:values}
   }finally{
    operation.finish();progress.hidden=true;st.calTask=false;
    if(resumeLive&&st.chip)startLive();
@@ -2571,6 +2586,7 @@ if(typeof document!=='undefined') (function UI(){
    if(!calEndpointsReady())throw Error('Zuerst alle '+calibrationPointCount()+' gewählten Kalibrierpunkte mit gleicher AFE-Einstellung aufnehmen');
    const pmin=Number($('pmin').value),pmax=Number($('pmax').value);
    if(st.calpoints.some(p=>JSON.stringify(p.gains)!==JSON.stringify(st.staged)))throw Error('Gain wurde nach der Aufnahme geändert. Messpunkte erneut erfassen');
+   if(selectedTemperatureSource()!=='internal'||st.calpoints.some(p=>p.temperatureSource!=='internal'))throw Error('Temperaturquelle der Kalibriermessungen muss mit internem Chipmodus übereinstimmen. Brücken-/EOC-Verfahren sind noch nicht implementiert.');
    const orderS=Number($('calSOrder').value),orderT=Number($('calTOrder').value),outputLimit=Number($('calDspLimit').value);
    if(!Number.isInteger(outputLimit)||outputLimit<1000||outputLimit>32000)throw Error('DSP-Endwert muss zwischen 1’000 und 32’000 Digits liegen');
    const fitMode=$('calFitMode').value;
@@ -2700,6 +2716,8 @@ if(typeof document!=='undefined') (function UI(){
    if(st.writing||st.calTask||st.nvmWorking)throw Error('Ein anderer Vorgang läuft');
    st.calTask=true;st.writing=true;st.ramWriteScope='calibration';stopLive();
    ca('calRamStageMsg','Berechnete DSP-Koeffizienten werden ins RAM übertragen und rückgelesen …','warn');
+   const activeTemp=await checkCalibrationTemperatureSource();
+   if(st.calpoints.some(p=>p.temperatureSource!==activeTemp.temperatureSource))throw Error('Temperaturquelle hat sich seit der Messpunktaufnahme geändert. RAM-Schreiben gesperrt.');
    const before=await bootSnapshot();await ramGrant();
    const r=st.calfit.registers;
    const changes=[[0x70,r.so],[0x72,r.sf],...r.coeffs.map((v,i)=>[0x74+2*i,v])];
@@ -3064,6 +3082,10 @@ if(typeof document!=='undefined') (function UI(){
 
  for(const id of ['pmin','pmax'])$(id).addEventListener('change',handleReferenceChange);
  for(const id of ['pointLoName','pointHiName'])$(id).addEventListener('change',()=>{$(id).dataset.userEdited='1';syncPointNames()});
+ $('calTempSource').addEventListener('change',()=>{
+  invalidateCalculation('Temperaturmessquelle geändert. Bitte Chipquelle kontrollieren und alle Messpunkte mit derselben Quelle neu erfassen.');
+  renderCalibrationPlan();
+ });
  for(const id of ['calSOrder','calTOrder','calFitMode'])$(id).addEventListener('change',()=>{
   $('calTempFallback').hidden=true;
   invalidateCalculation('Polynomordnung verändert. Neu berechnen und anschliessend neu ins RAM übertragen.');
