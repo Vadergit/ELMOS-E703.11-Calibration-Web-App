@@ -1,3 +1,10 @@
+## v0.7.97 – Einheitliche Versionsanzeige, AFE-DSP-Anzeige entfernen, Exporte nur für Experten
+
+- Der sichtbare Versionshinweis im Kopf wurde mit der Version im Seitenfuss und der internen App-Version synchronisiert (v0.7.97).
+- Der noch nicht als kalibriert bestätigte DSP_S-Livewert wird im AFE-Schritt nicht mehr angezeigt. Seine bestehenden Anzeigeelemente bleiben verborgen im DOM, damit laufende Auswertungen unverändert funktionieren; die DSP-Prüfung in Schritt 5 bleibt erhalten.
+- Unter „Messpunkte“ erscheinen die Exportfunktionen „Protokoll JSON“ und „Messwerte CSV“ nur mit aktivierten Expertenparametern. „Alle Messpunkte löschen“ bleibt im Standardmodus verfügbar.
+- Versionsabhängige Regressionstests und die Prüfung der Experten-Sichtbarkeit wurden aktualisiert.
+
 ## v0.7.96 – Klassische Oberfläche kompakter und Expertenbereiche klar getrennt
 
 - AFE: Die drei redundanten ADC-Kacheln werden nicht mehr dargestellt. Die zugehörigen DOM-Werte bleiben für das laufende Sensor-Monitoring erhalten; die globale Live-Anzeige zeigt ADC_S, ADC_T und ADC_TC bereits an.
