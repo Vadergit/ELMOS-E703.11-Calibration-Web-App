@@ -299,7 +299,7 @@ test('One DSP verification point is sufficient at TK0/TKE; temperature coverage 
  assert.ok(guided.includes('Bereits ein bestandener Prüfpunkt genügt'));
  assert.ok(html.includes('id="calVerifyCount" min="1" max="10" step="1" value="1"'));
  assert.ok(html.includes('guided.js?v=0.7.93'));
- assert.ok(html.includes('app.js?v=0.7.96'));
+ assert.ok(html.includes('app.js?v=0.7.97'));
 });
 
 test('Classic and guided calibration point ordering agree at each reference temperature',()=>{
@@ -375,5 +375,5 @@ test('Temperature display survives restart without any current wizard state',()=
  assert.ok(app.includes('const temperatureBasis=!restoring&&!outputOnly&&st.calfit?.orderT>0'));
  assert.ok(app.includes('st.regs[pending]=await readReg(pending,1100)'));
  assert.ok(html.includes('calibration.js?v=0.7.95'));
- assert.ok(html.includes('app.js?v=0.7.96'));
+ assert.ok(html.includes('app.js?v=0.7.97'));
 });
