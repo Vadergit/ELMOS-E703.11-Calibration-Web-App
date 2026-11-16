@@ -1,6 +1,6 @@
 # ELMOS E703.11 – Lokales Kalibrierarchiv und Nachmessungen
 
-**Softwarestand v0.7.86 · Funktions- und Benutzeranleitung · Laborprototyp**
+**Softwarestand v0.7.87 · Funktions- und Benutzeranleitung · Laborprototyp**
 
 **Archivexport ab v0.7.72:** Für jeden Archivdatensatz gibt es genau **einen übersichtlichen CSV-Export** sowie einen JSON-Export für die vollständigen technischen Originaldaten. Nachmessung und Test/Logging bieten zusätzlich einen PDF-Bericht; bis zu zwei optionale Fotos werden darin angezeigt. Die frühere separate VDD-Istspannungs-Eingabe der Anschlussansicht ist entfernt.
 
@@ -27,6 +27,8 @@ Der Browser merkt sich den Ordner über IndexedDB, sofern die Berechtigungsspeic
 Dateien nach dem Muster `ELMOS_YYYYMMDD_HHMMSS_UID_ID.json` enthalten je einen vollständigen Vorgang. Fremde Dateien und ungültige JSON-Formate werden nicht als Kalibrierungen angezeigt. Erkannte, aber defekte Archivdateien werden nur dann als Warnung gezählt, wenn sie eindeutig wie ein vom Archiv erzeugter Dateiname aussehen. **Die App verändert keine fremden Dateien.**
 
 ## Vollständigen Archivpfad anzeigen (ab v0.7.86)
+
+**Ab v0.7.87:** Der Bereich in den Einstellungen ist auf Ordnername, Zugriffsstatus und «Ändern» verkleinert. Nur wenn der vollständige Pfad ergänzt werden soll, **«Pfad hinterlegen»** aufklappen, eintragen und mit **«Merken»** bestätigen. Ein manuell gespeicherter Pfad erscheint daraufhin direkt unter dem Ordnernamen, auch bei zugeklappter Eingabe. 
 
 Die Web-App zeigt den **tatsächlich ausgewählten Ordnernamen** (beispielsweise «Zeichungen») an. Wegen der Browser-Sicherheitsregeln kann sie den vollständigen lokalen Windows-/macOS-Pfad **nicht automatisch auslesen**. Optional kann unter **«Vollständiger Pfad (nur zur Anzeige)»** die eigene Pfadbezeichnung eingetragen und mit **«Pfad merken»** lokal gespeichert werden. Die App kennzeichnet sie als **manuell und nicht überprüfbar**. Sie wird beim Neuladen wieder angezeigt und beim Wechsel des freigegebenen Archivordners gelöscht. **Wichtig:** Der eingetippte Pfad ist ausschliesslich eine Beschriftung und steuert niemals die Dateispeicherung.
 

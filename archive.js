@@ -51,17 +51,23 @@ const ELMOS_ARCHIVE=(()=>{
  // This user-entered label never controls file writes or permission grants.
  function syncFolderPathLabel(){
   const input=$('settingsArchivePathInput'),button=$('settingsArchivePathSave'),
-   hint=$('settingsArchivePathStatus'),selected=!!S.dir;
+   hint=$('settingsArchivePathStatus'),details=$('settingsArchivePathDetails'),
+   summary=$('settingsArchivePathSummary'),choose=$('settingsArchiveChoose'),
+   selected=!!S.dir,hasPath=!!S.pathLabel;
   if(input){
    input.disabled=!selected;
    if(!input.matches?.(':focus'))input.value=S.pathLabel||'';
   }
   if(button)button.disabled=!selected;
+  if(choose)choose.textContent=selected?ui('Ändern','Change'):ui('Auswählen','Select');
+  if(details){details.hidden=!selected;if(!selected)details.open=false}
+  if(summary)summary.textContent=hasPath?ui('Pfad bearbeiten','Edit path'):ui('Pfad hinterlegen','Add full path');
   if(hint){
-   hint.dataset.saved=S.pathLabel?'true':'false';
-   hint.textContent=S.pathLabel?
-    ui('Manuell hinterlegter Pfad (nicht vom Browser überprüfbar): ','Manually entered path (not verified by browser): ')+S.pathLabel:
-    ui('Vollständiger Systempfad nicht automatisch verfügbar. Bei Bedarf oben selbst eintragen.','The browser cannot read the full system path. Enter it above if you wish.');
+   hint.dataset.saved=hasPath?'true':'false';
+   hint.hidden=!hasPath;
+   hint.textContent=hasPath?
+    ui('Pfad (manuell): ','Path (manual): ')+S.pathLabel:'';
+   hint.title=hasPath?S.pathLabel:'';
   }
  }
  async function saveFolderPathLabel(){
@@ -74,6 +80,8 @@ const ELMOS_ARCHIVE=(()=>{
   if(dir!==S.dir||revision!==folderSelectionRevision)return false;
   S.pathLabel=path;
   syncFolderPathLabel();
+  const details=$('settingsArchivePathDetails');
+  if(details)details.open=false; // Saved value stays visible without the editor.
   text('settingsMsg',path?
    ui('Pfadbezeichnung lokal gespeichert. Der tatsächliche Speicherordner bleibt unverändert.','Display path saved locally. The actual storage folder remains unchanged.'):
    ui('Manuelle Pfadangabe entfernt. Der tatsächliche Speicherordner bleibt unverändert.','Manual path label cleared. The actual storage folder remains unchanged.'));

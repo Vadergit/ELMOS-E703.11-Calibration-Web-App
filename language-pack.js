@@ -2021,3 +2021,13 @@ window.ELMOS_TRANSLATIONS_EN=Object.assign(window.ELMOS_TRANSLATIONS_EN||{}, {
  "Der Browser kennt nur den Ordnernamen. Den vollständigen Pfad kannst du zur Anzeige selbst hinterlegen.": "The browser only exposes the folder name. You may manually enter the full path for display.",
  "Der ausgewählte Ordner ist der tatsächliche Speicherort. Ein manuell eingetragener Pfad ist nur eine Beschriftung und ändert den Speicherort nicht. Die Auswahl bleibt im Browser vorgemerkt; es werden keine Daten in die Cloud übertragen.": "The selected folder is the actual storage location. A manually entered path is only a label and does not change where files are saved. The selection remains remembered locally; no data is uploaded to the cloud."
 });
+
+// v0.7.87 – compact archive folder settings.
+window.ELMOS_TRANSLATIONS_EN=Object.assign(window.ELMOS_TRANSLATIONS_EN||{}, {
+ "Pfad hinterlegen": "Add full path",
+ "Pfad bearbeiten": "Edit path",
+ "Ändern": "Change",
+ "Auswählen": "Select",
+ "Merken": "Save",
+ "Der Browser zeigt nur den Ordnernamen. Ein hier eingetragener Pfad dient ausschliesslich der Anzeige und ändert den tatsächlichen Speicherort nicht.": "The browser only reveals the folder name. A manually entered path is for display only and does not change the actual storage folder."
+});

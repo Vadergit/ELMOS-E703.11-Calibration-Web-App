@@ -13,7 +13,8 @@ const script=source.slice(start,end)+'\n({folderBusy,refreshFolderSettings,choos
 function harness(options={}){
  const nodes=Object.fromEntries(['settingsArchiveFolder','settingsArchiveAccess',
   'settingsArchiveChoose','settingsArchiveGrant','archiveFolder','settingsMsg',
-  'settingsArchivePathInput','settingsArchivePathSave','settingsArchivePathStatus'].map(id=>[
+  'settingsArchivePathInput','settingsArchivePathSave','settingsArchivePathStatus',
+  'settingsArchivePathDetails','settingsArchivePathSummary'].map(id=>[
    id,{textContent:'',value:'',hidden:id==='settingsArchiveGrant',disabled:false,dataset:{}}
  ]));
  const calls=[],storage={...(options.storage||{})},state={
@@ -60,8 +61,8 @@ test('Application settings contain the shared archive picker, permission and pri
  assert.doesNotMatch(html,/settings-panel-shortcut"[^>]*>Esc</);
  assert.match(read('app.js'),/event\.key==='Escape'/);
  assert.match(html,/Speicherort für Messungen &amp; Kalibrierungen/);
- assert.match(html,/data-app-version="0\.7\.86"/);
- assert.match(html,/archive\.js\?v=0\.7\.86/);
+ assert.match(html,/data-app-version="0\.7\.87"/);
+ assert.match(html,/archive\.js\?v=0\.7\.87/);
  assert.match(html,/app\.js\?v=0\.7\.85/);
  assert.match(app,/ELMOS_ARCHIVE\?\.refreshFolderSettings\?\.\(\)/);
  assert.match(archive,/settingsArchiveChoose'\)\?\.addEventListener\('click'/);
@@ -133,7 +134,11 @@ test('Browser names are displayed without inventing an absolute path',async()=>{
  const a=harness({dir:folder('Zeichungen')});
  await a.api.refreshFolderSettings();
  assert.equal(a.nodes.settingsArchiveFolder.textContent,'Zeichungen');
- assert.match(a.nodes.settingsArchivePathStatus.textContent,/Vollständiger Systempfad nicht automatisch verfügbar/);
+ assert.equal(a.nodes.settingsArchivePathStatus.textContent,'');
+ assert.equal(a.nodes.settingsArchivePathStatus.hidden,true);
+ assert.equal(a.nodes.settingsArchivePathSummary.textContent,'Pfad hinterlegen');
+ assert.equal(a.nodes.settingsArchivePathDetails.hidden,false);
+ assert.equal(a.nodes.settingsArchiveChoose.textContent,'Ändern');
  assert.equal(a.nodes.settingsArchivePathStatus.dataset.saved,'false');
  assert.equal(a.nodes.settingsArchivePathInput.disabled,false);
 });
@@ -147,7 +152,10 @@ test('Manual full-path annotation is stored and shown, but cannot change the act
  assert.deepEqual(JSON.parse(JSON.stringify(a.storage['folder-display-path'])),
   {folderName:'Zeichungen',path:label});
  assert.equal(a.state.pathLabel,label);
- assert.match(a.nodes.settingsArchivePathStatus.textContent,/Manuell hinterlegter Pfad/);
+ assert.match(a.nodes.settingsArchivePathStatus.textContent,/Pfad \(manuell\):/);
+ assert.equal(a.nodes.settingsArchivePathStatus.hidden,false);
+ assert.equal(a.nodes.settingsArchivePathSummary.textContent,'Pfad bearbeiten');
+ assert.equal(a.nodes.settingsArchivePathDetails.open,false);
  assert.ok(a.nodes.settingsArchivePathStatus.textContent.includes(label));
  assert.equal(a.nodes.settingsArchivePathStatus.dataset.saved,'true');
 });
@@ -184,4 +192,22 @@ test('Saving a display path without a selected folder is prevented',async()=>{
  await assert.rejects(()=>a.api.saveFolderPathLabel(),/Archivordner auswählen/);
  assert.equal(a.state.pathLabel,'');
  assert.equal(a.storage['folder-display-path'],undefined);
+});
+
+test('Compact directory settings hide the manual path editor until requested and show a saved full path outside it',async()=>{
+ const html=read('index.html');
+ assert.match(html,/<details id="settingsArchivePathDetails"/);
+ assert.match(html,/<summary id="settingsArchivePathSummary">Pfad hinterlegen<\/summary>/);
+ assert.match(html,/<small id="settingsArchivePathStatus"[^>]*hidden>/);
+ assert.doesNotMatch(html,/Vollständiger Pfad \(optional, nur zur Anzeige\)<\/label>/);
+ assert.doesNotMatch(html,/Der ausgewählte Ordner ist der tatsächliche Speicherort\. Ein manuell eingetragener Pfad/);
+ const saved='C:\\Messungen\\Zeichungen';
+ const a=harness({dir:folder('Zeichungen'),pathLabel:saved});
+ await a.api.refreshFolderSettings();
+ assert.equal(a.nodes.settingsArchiveFolder.textContent,'Zeichungen');
+ assert.equal(a.nodes.settingsArchivePathStatus.hidden,false);
+ assert.equal(a.nodes.settingsArchivePathStatus.title,saved);
+ assert.equal(a.nodes.settingsArchivePathDetails.open,undefined);
+ assert.equal(a.nodes.settingsArchiveChoose.textContent,'Ändern');
+ assert.match(a.nodes.settingsArchivePathStatus.textContent,/Pfad \(manuell\):/);
 });
