@@ -42,7 +42,20 @@ test('calibration exports require expert mode while deleting points remains acce
  assert.match(app,/document\.querySelectorAll\('\[data-expert-area\]'\)/);
 });
 test('header and footer reflect the new deployed version',()=>{
- assert.match(html,/E703\.11 · PSSC · v0\.7\.97/);
- assert.match(html,/data-app-version="0\.7\.97"/);
- assert.match(html,/Version v0\.7\.97/);
+ assert.match(html,/E703\.11 · PSSC · v0\.7\.98/);
+ assert.match(html,/data-app-version="0\.7\.98"/);
+ assert.match(html,/Version v0\.7\.98/);
+});
+
+test('temperature help has one source and never produces an empty tooltip',()=>{
+ const label=html.match(/<label class="cal-temp-source">[\s\S]*?<\/label>/)?.[0]||'';
+ assert.match(label,/<span class="help" data-help="tempsource"/);
+ assert.doesNotMatch(label,/\btitle=/);
+ assert.match(app,/tempsource:'Die aktive Chipquelle CFG_AFE2\.t_adc_src/);
+ assert.match(app,/const message=HELP\[el\.dataset\.help\];if\(!message\)\{tip\.classList\.remove\('visible'\);return\}/);
+ assert.match(app,/rect\.top-height-9/);
+});
+test('calibration setup uses short labels that do not wrap on desktop',()=>{
+ assert.match(html,/<label>Kalibrierpunkte\s*<select id="calPointCount" aria-label="Anzahl Kalibrier-Messpunkte">/);
+ assert.match(html,/<label>Samples \/ Punkt\s*<input type="number" id="calSampleCount" aria-label="Samples pro Messpunkt"/);
 });
