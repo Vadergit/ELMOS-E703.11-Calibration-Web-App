@@ -352,6 +352,9 @@ test('Saved E703.11 NVM profile is recovered by UID and read-back temperature wo
  assert.equal(CAL.programmedTemperatureProfileMatches({...legacy,temperatureBasis:'an0203-celsius-v1'},uid,regs),true);
  assert.equal(CAL.programmedTemperatureProfileMatches({...legacy,temperatureBasis:null},uid,regs),false);
  assert.equal(CAL.programmedTemperatureProfileMatches({...legacy,restore:true},uid,regs),false);
+ assert.equal(CAL.programmedTemperatureProfileMatches(legacy,uid,{
+  0x6C:0x0000,0x6E:0x1000,0x94:0x0F4D,0x96:0xBC8E,0x98:0xFC54,0x9A:0x0000
+ }),false,'Factory example must never be interpreted as AN0203');
  assert.equal(CAL.programmedTemperatureProfileMatches(legacy,'0020011DBBE8',regs),false);
  assert.equal(CAL.programmedTemperatureProfileMatches(legacy,uid,{...regs,0x96:0}),false);
  assert.equal(CAL.programmedTemperatureProfileMatches(legacy,uid,{...regs,0x9A:undefined}),false);
