@@ -50,15 +50,26 @@ const ELMOS_CAL = (() => {
    // The complete linear 2x2 model also compensates TKE.
    const fitMode=opts.fitMode??'full';
    if(!['full','tk0'].includes(fitMode))throw Error('Unbekanntes Temperaturmodell');
-   if(fitMode==='tk0'&&(orderS!==1||orderT!==1))
-    throw Error('TK0 mit 3 Punkten benötigt linearen Druck und lineare Temperatur');
+   if(fitMode==='tk0'&&(orderS!==1||![0,1].includes(orderT)))
+    throw Error('TK0 benötigt linearen Druck und Temperaturordnung 0 oder 1');
   const pmin=Number(opts.pmin),pmax=Number(opts.pmax),outputLimit=Number(opts.outputLimit??32000);
   if(!Number.isFinite(pmin)||!Number.isFinite(pmax)||pmax<=pmin)throw Error('Druckbereich ungültig');
   if(!Number.isInteger(outputLimit)||outputLimit<1000||outputLimit>32000)throw Error('DSP-Endwert muss zwischen 1’000 und 32’000 Digits liegen');
   if(!Number.isInteger(orderS)||orderS<1||orderS>3||!Number.isInteger(orderT)||orderT<0||orderT>3)throw Error('Polynomordnung ungültig');
-  const ps=points.map(r=>({...r,s:Number(r.adc_s),t:Number(r.adc_t),p:Number(r.pressure),temp:Number(r.temperature)}));
-  for(const p of ps){if(!Number.isFinite(p.s)||Math.abs(p.s)>32767||!Number.isFinite(p.p)||p.p<pmin-1e-8||p.p>pmax+1e-8)throw Error('Ungültiger Messpunkt');if(orderT>0&&(!Number.isFinite(p.t)||!Number.isFinite(p.temp)||p.temp< -40||p.temp>125))throw Error('Temperaturwerte fehlen oder sind ausserhalb -40..125 °C')}
-  const keys=fitMode==='tk0'?[0,1,4]:
+  const allPoints=points.map(r=>({...r,s:Number(r.adc_s),t:Number(r.adc_t),p:Number(r.pressure),temp:Number(r.temperature)}));
+  for(const p of allPoints){if(!Number.isFinite(p.s)||Math.abs(p.s)>32767||!Number.isFinite(p.p)||p.p<pmin-1e-8||p.p>pmax+1e-8)throw Error('Ungültiger Messpunkt');if(orderT>0&&(!Number.isFinite(p.t)||!Number.isFinite(p.temp)||p.temp< -40||p.temp>125))throw Error('Temperaturwerte fehlen oder sind ausserhalb -40..125 °C')}
+  // A pressure-only fit must not silently use hot/cold pressure readings together.
+  // Keep all measured references, but fit only a full pressure series at one temperature.
+  let ps=allPoints;
+  if(orderT===0&&allPoints.every(p=>Number.isFinite(p.temp))&&allPoints.some(p=>Math.abs(p.temp-allPoints[0].temp)>0.5)){
+   const levels=[...new Set(allPoints.map(p=>p.temp))];
+   const candidate=levels.map(temp=>allPoints.filter(p=>Math.abs(p.temp-temp)<=0.5))
+    .find(group=>new Set(group.map(p=>p.p.toFixed(6))).size>=orderS+1&&
+     group.some(p=>Math.abs(p.p-pmin)<1e-6)&&group.some(p=>Math.abs(p.p-pmax)<1e-6));
+   if(!candidate)throw Error('Ohne Temperaturkompensation wird eine vollständige Druckmessreihe bei einer Referenztemperatur benötigt (unterer und oberer Druckpunkt).');
+   ps=candidate;
+  }
+  const keys=fitMode==='tk0'&&orderT>0?[0,1,4]:
     Array.from({length:(orderS+1)*(orderT+1)},(_,index)=>
      Math.floor(index/(orderT+1))*4+index%(orderT+1));
    if(ps.length<keys.length)throw Error(`Mindestens ${keys.length} unabhängige Messpunkte nötig.`);
@@ -73,8 +84,10 @@ const ELMOS_CAL = (() => {
   let tf=null,to=null;
   if(orderT>0){
    const lo=Math.min(...ps.map(p=>p.t)),hi=Math.max(...ps.map(p=>p.t));
-   if(hi-lo<500)throw Error('ADC_T-Signalhub zu klein für Temperaturkompensation.');
-   tf=q(1.70*32768/(hi-lo),12,'T_F');
+   if(!(hi>lo))throw Error('ADC_T ist bei den Temperaturreferenzen nicht unterscheidbar. Temperaturkompensation nicht zuverlässig berechenbar.');
+   // Avoid an arbitrary 500-digit gate: constrain the actual Q3.12 gain and
+   // let the coefficient quantization and numerical rank checks determine validity.
+   tf=q(Math.min(1.70*32768/(hi-lo),32767/4096),12,'T_F');
    to=q(-fromQ(tf,12)*(hi+lo)/(2*32768),12,'T_O');
   }
   // When no temperature order is requested the existing chip T_O/T_F, T0..T3 are preserved.
@@ -95,7 +108,7 @@ const ELMOS_CAL = (() => {
    const fittedT=solveFit(trows,ty);tRegs=Array(4).fill(0);fittedT.forEach((v,i)=>tRegs[i]=q(v,15,'T'+i));
    tErrors=ps.map((p,i)=>32768*(tRegs.reduce((s,v,k)=>s+fromQ(v,15)*normT(p.t)**k,0)-ty[i]));
   }
-  return {method:'browser-independent-polynomial-fit',points:ps.length,orderS,orderT,fitMode,outputLimit,registers:{so,sf,coeffs:regs,to,tf,tcoeffs:tRegs},stats:{maxDigits:max,rmsDigits:rms,maxTemperatureDigits:tErrors.length?Math.max(...tErrors.map(Math.abs)):null,rangeDigits:smax-smin,maxNormalized:Math.max(...ps.map(p=>Math.abs(normS(p.s)))),maxOutput},errors,coefficients:decoded,note:'Q3.12/Q0.15 nach Datenblatt; numerischer JavaScript-Fit, nicht identisch mit der Elmos-Kalibrier-DLL. Vor Programmierung RAM/DSP-Verifikation notwendig.'};
+  return {method:'browser-independent-polynomial-fit',points:ps.length,recordedPoints:allPoints.length,ignoredTemperaturePoints:allPoints.length-ps.length,pressureOnly:orderT===0,referenceTemperature:orderT===0?ps[0]?.temp:null,orderS,orderT,fitMode,outputLimit,registers:{so,sf,coeffs:regs,to,tf,tcoeffs:tRegs},stats:{maxDigits:max,rmsDigits:rms,maxTemperatureDigits:tErrors.length?Math.max(...tErrors.map(Math.abs)):null,rangeDigits:smax-smin,maxNormalized:Math.max(...ps.map(p=>Math.abs(normS(p.s)))),maxOutput},errors,coefficients:decoded,note:'Q3.12/Q0.15 nach Datenblatt; numerischer JavaScript-Fit, nicht identisch mit der Elmos-Kalibrier-DLL. '+(orderT===0?'Ohne TK-Kompensation: nur Druckmessungen einer Referenztemperatur werden verwendet; bestehende Temperaturregister bleiben unverändert. ':'')+'Vor Programmierung RAM/DSP-Verifikation notwendig.'};
  }
  /** Propose a conservative, verified DSP target without changing the caller's settings or writing the chip.
   * A lower DSP target can fix a saturated DSP S-coefficient, but not an AFE or temperature-path fault.
