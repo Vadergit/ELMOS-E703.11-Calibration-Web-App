@@ -33,7 +33,7 @@ test('Classic calibration starts at 0–100 %, including default verification re
  assert.match(html,/id="ptest" type="number" step="any" value="50"/);
  assert.match(html,/id="calVerifyPressure" step="any" value="50"/);
  assert.match(html,/id="calVerifyTolerance" step="any" min="0.000001" value="0.2"/);
- assert.match(html,/data-app-version="0.7.87"/);
+ assert.match(html,/data-app-version="0.7.88"/);
 });
 test('Explicit 0–10 bar calibration still remains possible',()=>{
  const plan=PLAN.create({pmin:0,pmax:10,unit:'bar'});
@@ -47,7 +47,7 @@ test('Selecting a guided preset resets changed range to 0–100 percent',()=>{
  assert.ok(start!==-1&&end>start);
  const src=guided.slice(start,end);
  const fields=Object.fromEntries(['pmin','pmax','calUnit','gwPressureCount','gwTemperatureCount',
-  'gwComplexity','gwSOrder','gwTOrder'].map(key=>[key,{value:''}]));
+  'gwComplexity','gwSOrder','gwTOrder','gwThermalFit'].map(key=>[key,{value:''}]));
  Object.assign(fields,{pmin:{value:'0'},pmax:{value:'10'},calUnit:{value:'bar'}});
  let planRenders=0,confirms=0;
  const context={

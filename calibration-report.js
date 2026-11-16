@@ -87,6 +87,7 @@ const ELMOS_CALIBRATION_REPORT=(()=>{
    [tr('DSP-Zielgrenze','DSP target limit'),fit&&Number.isFinite(fit.outputLimit)?'±'+n(fit.outputLimit,0)+' Digits':null],
    [tr('Druckpolynom / Temperaturpolynom','Pressure / temperature polynomial'),fit?
     String(fit.orderS??'–')+' / '+String(fit.orderT??'–'):null],
+    [tr('Temperaturmodell','Temperature model'),fit?(fit.fitMode==='tk0'?tr('TK0 · 3 Messpunkte (ohne TKE)','TK0 · 3 points (without TKE)'):tr('TK0 + TKE · vollständiges Modell','TK0 + TKE · full model')):null],
    [tr('NVM-Status','NVM status'),nvmText],
    [tr('NVM-Prüfung','NVM verification'),finalNvm.verified===true?tr('Bestätigt','Confirmed'):null]
   ];

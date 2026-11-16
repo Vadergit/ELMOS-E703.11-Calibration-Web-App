@@ -63,14 +63,16 @@ const ELMOS_GUIDED=(()=>{
     '<div class="gw-alert">Der Chip muss zuerst über USB erkannt werden. Der geführte Modus verändert keine Register, bevor du eine entsprechende Aktion bestätigst.</div></div>'+
    '<div id="gwPage1" class="gw-page" hidden><div class="gw-preset-grid">'+
     '<button class="gw-preset" data-gw-preset="quick"><strong>Schnell</strong><small>0–100 % · 2 Druckpunkte, ohne Temperaturkorrektur.</small></button>'+
-    '<button class="gw-preset" data-gw-preset="temperature"><strong>Mit Temperatur</strong><small>0–100 % · 2 Druckpunkte × 3 Temperaturstufen.</small></button>'+
+    '<button class="gw-preset" data-gw-preset="tk0"><strong>TK0 · 3 Punkte</strong><small>Nullpunkt-Temperaturgang und Druckspanne · ohne TKE.</small></button>'+
+     '<button class="gw-preset" data-gw-preset="tke"><strong>TK0 + TKE · 4 Punkte</strong><small>Nullpunkt und Empfindlichkeit temperaturabhängig kalibrieren.</small></button>'+
+     '<button class="gw-preset" data-gw-preset="temperature"><strong>Mit Temperatur</strong><small>0–100 % · 2 Druckpunkte × 3 Temperaturstufen.</small></button>'+
     '<button class="gw-preset" data-gw-preset="custom"><strong>Individuell</strong><small>0–100 % · 3 Druckpunkte × 2 Temperaturstufen; anpassbar.</small></button></div>'+
     '<div class="gw-tile is-soft"><h3>Deinen Messablauf festlegen</h3><div class="gw-fields gw-3">'+
      '<label>Druckpunkte<select id="gwPressureCount"><option>2</option><option>3</option><option>4</option><option>5</option></select></label>'+
      '<label>Temperaturbedingungen<select id="gwTemperatureCount"><option value="1">1 · keine Temperaturkorrektur</option><option value="2">2 · lineare Temperaturkorrektur</option><option value="3">3 · quadratische Temperaturkorrektur</option></select></label>'+
      '<label>Abgleichart<select id="gwComplexity"><option value="simple">Automatisch · empfohlen</option><option value="advanced">Experte · Polynomordnung selber wählen</option></select></label>'+
-    '</div><div class="gw-fields gw-3 gw-advanced" id="gwOrderFields" hidden><label>Druckpolynomordnung<select id="gwSOrder"><option value="1">1 · Linear</option><option value="2">2 · Quadratisch</option><option value="3">3 · Kubisch</option></select></label><label>Temperaturordnung<select id="gwTOrder"><option value="0">0 · Keine</option><option value="1">1 · Linear</option><option value="2">2 · Quadratisch</option></select></label></div>'+
-    '<div class="gw-fieldnote">Jede Kombination wird an allen gewählten Temperaturbedingungen gemessen. Maximal 10 Kalibrierpunkte unterstützt die bestehende Engine.</div></div>'+
+    '</div><div class="gw-fields gw-3" id="gwThermalFitRow" hidden><label>Temperaturmodell<select id="gwThermalFit"><option value="full">TK0 + TKE · 4 Messpunkte</option><option value="tk0">Nur TK0 · 3 Messpunkte</option></select></label></div><div class="gw-fields gw-3 gw-advanced" id="gwOrderFields" hidden><label>Druckpolynomordnung<select id="gwSOrder"><option value="1">1 · Linear</option><option value="2">2 · Quadratisch</option><option value="3">3 · Kubisch</option></select></label><label>Temperaturordnung<select id="gwTOrder"><option value="0">0 · Keine</option><option value="1">1 · Linear</option><option value="2">2 · Quadratisch</option></select></label></div>'+
+    '<div class="gw-fieldnote">Standard: vollständige Druck-Temperatur-Matrix. Bei 2 Druckpunkten und 2 Temperaturstufen kann TK0 allein mit 3 Messungen abgeglichen werden (ohne TKE).</div></div>'+
     '<div id="gwPlanPreview" class="gw-summary"></div></div>'+
    `<div id="gwPage2" class="gw-page gw-setup-page" hidden>
     <div class="gw-columns gw-setup-grid">
@@ -149,7 +151,7 @@ const ELMOS_GUIDED=(()=>{
   pointRows.forEach(el=>move(el,'gwPointHost'));
   moveId('calSampleProgress','gwSampleStatus');
   moveId('calMsg','gwPointMessages');
-  moveLabel('calSOrder','gwFitFields');moveLabel('calTOrder','gwFitFields');
+  moveLabel('calSOrder','gwFitFields');moveLabel('calTOrder','gwFitFields');moveLabel('calFitMode','gwFitFields');
   for(const id of ['calCalculate','calApplyRam'])moveId(id,'gwFitActions');
   for(const id of ['calFitMsg','calRamPrereq','calRamStageMsg'])moveId(id,'gwFitStatuses');
   move($('calCoeffList').closest('details'),'gwFitDetails');
@@ -184,7 +186,7 @@ const ELMOS_GUIDED=(()=>{
   $('gwPresetLaunch').addEventListener('click',()=>$('gwPresetDialog').showModal());
   $('gwPresetClose').addEventListener('click',()=>$('gwPresetDialog').close());
   document.querySelectorAll('[data-gw-preset]').forEach(button=>button.addEventListener('click',()=>preset(button.dataset.gwPreset)));
-  for(const id of ['gwPressureCount','gwTemperatureCount','gwSOrder','gwTOrder'])$(id).addEventListener('change',renderPlan);
+  for(const id of ['gwPressureCount','gwTemperatureCount','gwSOrder','gwTOrder','gwThermalFit'])$(id).addEventListener('change',renderPlan);
   $('gwComplexity').addEventListener('change',()=>{
    if($('gwComplexity').value==='advanced'){
     $('gwSOrder').value=String(Math.min(3,Number($('gwPressureCount').value)-1));
@@ -210,7 +212,7 @@ const ELMOS_GUIDED=(()=>{
   for(const id of ['capLo','capHi',...Array.from({length:8},(_,k)=>'calExtra'+(k+1)+'Capture')]){
    subscribe($(id),'click',()=>observeCapture());
   }
-  $('gwPressureCount').value='2';$('gwTemperatureCount').value='1';$('gwComplexity').value='simple';
+  $('gwPressureCount').value='2';$('gwTemperatureCount').value='1';$('gwThermalFit').value='full';$('gwComplexity').value='simple';
   renderPlan();
  }
  function preset(name){
@@ -231,7 +233,8 @@ const ELMOS_GUIDED=(()=>{
   $('gwComplexity').value=p.complex?'advanced':'simple';
   $('gwSOrder').value=String(Math.min(3,p.pCount-1));
   $('gwTOrder').value=String(p.tCount-1);
-  setTemperatureInputs(p.tCount);
+  $('gwThermalFit').value=p.fitMode||'full';
+  setTemperatureInputs(p.tCount,p.temperatures);
   renderPlan();
  }
  function defaultTemperatures(n){return n===1?[25]:n===2?[10,60]:[-10,25,65]}
@@ -257,7 +260,8 @@ const ELMOS_GUIDED=(()=>{
   return ELMOS_GUIDED_PLAN.create({
    pCount,tCount,pmin:$('pmin').value,pmax:$('pmax').value,unit:$('calUnit').value,
    temperatures:tempValues(tCount),samples:$('calSampleCount').value,outputLimit:$('calDspLimit').value,
-   orderS:complex?$('gwSOrder').value:undefined,orderT:complex?$('gwTOrder').value:undefined
+   orderS:complex?$('gwSOrder').value:undefined,orderT:complex?$('gwTOrder').value:undefined,
+    fitMode:pCount===2&&tCount===2?$('gwThermalFit').value:'full'
   });
  }
  function renderPlan(){
@@ -269,10 +273,13 @@ const ELMOS_GUIDED=(()=>{
   for(const opt of $('gwTOrder').options)opt.disabled=Number(opt.value)>=tCount;
   if(Number($('gwSOrder').value)>maxOrder)$('gwSOrder').value=String(maxOrder);
   if(Number($('gwTOrder').value)>=tCount)$('gwTOrder').value=String(tCount-1);
+   const thermalEligible=pCount===2&&tCount===2&&(!advanced||Number($('gwTOrder').value)===1);
+   $('gwThermalFitRow').hidden=!thermalEligible;
+   if(!thermalEligible)$('gwThermalFit').value='full';
   try{
    const candidate=makePlan();plan=candidate;
    const tags=candidate.points.map(p=>'<span><b>'+p.label+'</b>'+p.pressure+' '+candidate.unit+' · '+p.temperature+' °C</span>').join('');
-   $('gwPlanPreview').innerHTML='<strong>'+candidate.pCount+' Druckpunkte × '+candidate.tCount+' Temperaturstufen = '+candidate.total+' echte Messungen</strong><p>Druckpolynom '+candidate.orderS+'. Ordnung · Temperaturpolynom '+candidate.orderT+'. Ordnung · '+candidate.samples+' Samples je Messung</p><div class="gw-matrix">'+tags+'</div>';
+   $('gwPlanPreview').innerHTML='<strong>'+candidate.pCount+' Druckpunkte / '+candidate.tCount+' Temperaturstufen = '+candidate.total+' echte Messungen</strong><p>'+(candidate.fitMode==='tk0'?'TK0 ohne TKE · 3 Koeffizienten':'Druckpolynom '+candidate.orderS+'. Ordnung · Temperaturpolynom '+candidate.orderT+'. Ordnung')+' · '+candidate.samples+' Samples je Messung</p><div class="gw-matrix">'+tags+'</div>';
    $('gwPlanPreview').className='gw-summary';
    const setup=$('gwSetupPreview');
    if(setup)setup.textContent='Geplant: '+candidate.total+' Messungen · '+candidate.pmin+'–'+candidate.pmax+' '+candidate.unit+' · Temperatur '+candidate.temperatures.join(' / ')+' °C';
@@ -282,7 +289,7 @@ const ELMOS_GUIDED=(()=>{
   }
   document.querySelectorAll('[data-gw-preset]').forEach(btn=>{
    const p=ELMOS_GUIDED_PLAN.presets[btn.dataset.gwPreset];
-   btn.setAttribute('aria-pressed',String(p.pCount===pCount&&p.tCount===tCount&&p.complex===advanced));
+   btn.setAttribute('aria-pressed',String(p.pCount===pCount&&p.tCount===tCount&&p.complex===advanced&&(p.fitMode||'full')===(plan?.fitMode||'full')));
   });
  }
  function fieldValue(id,value,event='change'){
@@ -293,7 +300,7 @@ const ELMOS_GUIDED=(()=>{
  function pointSettingIds(point){
   if(point.slot==='lo')return ['pointLoName','calLoTemp'];
   if(point.slot==='hi')return ['pointHiName','calHiTemp'];
-  return ['calExtra'+point.index+'Name','calExtra'+point.index+'Pressure','calExtra'+point.index+'Temp'];
+  const k=point.extraSlot??point.index;return ['calExtra'+k+'Name','calExtra'+k+'Pressure','calExtra'+k+'Temp'];
  }
  function readPointSettings(matrix){
   const fields=matrix.points.flatMap(pointSettingIds).map(id=>[id,$(id).value]);
@@ -315,6 +322,7 @@ const ELMOS_GUIDED=(()=>{
   fieldValue('calSampleCount',p.samples);
   fieldValue('calSOrder',p.orderS);
   fieldValue('calTOrder',p.orderT);
+   fieldValue('calFitMode',p.fitMode);
   fieldValue('calDspLimit',p.outputLimit);
   for(const point of p.points){
    const name=point.label+' · '+point.pressure+' '+p.unit;
@@ -325,7 +333,7 @@ const ELMOS_GUIDED=(()=>{
     $('pointHiName').value=name;$('pointHiName').dataset.userEdited='1';
     fieldValue('calHiTemp',point.temperature);
    }else{
-    const k=point.index;
+    const k=point.extraSlot??point.index;
     const nameEl=$('calExtra'+k+'Name');nameEl.value=name;nameEl.dataset.userEdited='1';
     const pressure=$('calExtra'+k+'Pressure');pressure.dataset.userEdited='1';
     fieldValue('calExtra'+k+'Pressure',point.pressure);
@@ -353,7 +361,7 @@ const ELMOS_GUIDED=(()=>{
    const matrix=event.detail.matrix;
    const candidates=[];
    for(let p=2;p<=5;p++)for(let temp=1;temp<=3;temp++){
-    if(p*temp===total&&p>s&&temp>t)candidates.push({p,temp});
+    if((p*temp===total||(p===2&&temp===2&&total===3&&$('calFitMode').value==='tk0'))&&p>s&&temp>t)candidates.push({p,temp,fitMode:$('calFitMode').value});
    }
    if(!candidates.length&&!matrix){
     msg('Die importierten DSP- und Messparameter können nicht automatisch als Wizard-Matrix dargestellt werden. Bitte Druck-/Temperaturpunkte im Plan kontrollieren.','warn');
@@ -369,6 +377,7 @@ const ELMOS_GUIDED=(()=>{
    // Even for measurement-only files, never silently overwrite an unchanged DSP order.
    $('gwComplexity').value='advanced';
    $('gwSOrder').value=String(s);$('gwTOrder').value=String(t);
+    $('gwThermalFit').value=selected.fitMode||$('calFitMode').value||'full';
    setTemperatureInputs(selected.temp, matrix?.temperatures);
   }
   signature=null;renderPlan();
@@ -376,12 +385,12 @@ const ELMOS_GUIDED=(()=>{
  }
  function pointRecord(point){
   const values=state().points||[];
-  return values.find(p=>point.slot==='lo'?p.kind==='lo':point.slot==='hi'?p.kind==='hi':p.kind==='extra'&&p.slot===point.index);
+  return values.find(p=>point.slot==='lo'?p.kind==='lo':point.slot==='hi'?p.kind==='hi':p.kind==='extra'&&p.slot===(point.extraSlot??point.index));
  }
  function pointRow(point){
   if(point.slot==='lo')return $('gwPointHost').querySelector('.cal-point-row:not([data-cal-extra])');
   if(point.slot==='hi')return [...$('gwPointHost').querySelectorAll('.cal-point-row:not([data-cal-extra])')].at(-1);
-  return $('calExtra'+point.index+'Row');
+  return $('calExtra'+(point.extraSlot??point.index)+'Row');
  }
  function renderOutputOptions(){
   if(!mode)return;
@@ -864,11 +873,12 @@ const ELMOS_GUIDED=(()=>{
   if(Number($('calPointCount').value)!==plan.total||
      Number($('calSOrder').value)!==plan.orderS||
      Number($('calTOrder').value)!==plan.orderT||
+      $('calFitMode').value!==plan.fitMode||
      Number($('calSampleCount').value)!==plan.samples||
      Number($('pmin').value)!==plan.pmin||
      Number($('pmax').value)!==plan.pmax||
      $('calUnit').value!==plan.unit)return null;
-  return {pCount:plan.pCount,tCount:plan.tCount};
+  return {pCount:plan.pCount,tCount:plan.tCount,fitMode:plan.fitMode};
  }
  return {init,open,close,goToStart:()=>{if(mode&&!nextSensorPending)goto(0)},onConnected,onSensorReset,makePlan,planForPreset:()=>mode&&stage>=1&&stage<=2?makePlan():plan,isOpen:()=>mode,appliedPlanForConfig};
 })();

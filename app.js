@@ -642,7 +642,8 @@ if(typeof document!=='undefined') (function UI(){
  }
  function coefficientSettingsCurrent(){
   return !!st.calfit&&Number($('calDspLimit').value)===st.calfit.outputLimit&&
-   Number($('calSOrder').value)===st.calfit.orderS&&Number($('calTOrder').value)===st.calfit.orderT
+   Number($('calSOrder').value)===st.calfit.orderS&&Number($('calTOrder').value)===st.calfit.orderT&&
+    $('calFitMode').value===(st.calfit.fitMode||'full')
  }
  function verificationComplete(){
   const count=verificationRequiredCount();
@@ -2568,8 +2569,11 @@ if(typeof document!=='undefined') (function UI(){
    if(st.calpoints.some(p=>JSON.stringify(p.gains)!==JSON.stringify(st.staged)))throw Error('Gain wurde nach der Aufnahme geändert. Messpunkte erneut erfassen');
    const orderS=Number($('calSOrder').value),orderT=Number($('calTOrder').value),outputLimit=Number($('calDspLimit').value);
    if(!Number.isInteger(outputLimit)||outputLimit<1000||outputLimit>32000)throw Error('DSP-Endwert muss zwischen 1’000 und 32’000 Digits liegen');
-   if(st.calpoints.length<(orderS+1)*(orderT+1))throw Error('Für diese Polynom- und Temperaturordnung sind mindestens '+((orderS+1)*(orderT+1))+' unabhängige Messpunkte nötig. Anzahl in Schritt 3 erhöhen.');
-   const solution=CAL.fit(st.calpoints,{pmin,pmax,orderS,orderT,outputLimit});
+   const fitMode=$('calFitMode').value;
+    if(fitMode==='tk0'&&(orderS!==1||orderT!==1))throw Error('3-Punkte-TK0 benötigt lineare Druck- und Temperaturordnung.');
+    const required=fitMode==='tk0'?3:(orderS+1)*(orderT+1);
+    if(st.calpoints.length<required)throw Error('Für diese Polynom- und Temperaturordnung sind mindestens '+required+' unabhängige Messpunkte nötig. Anzahl in Schritt 3 erhöhen.');
+   const solution=CAL.fit(st.calpoints,{pmin,pmax,orderS,orderT,fitMode,outputLimit});
     st.calfit=solution;st.calImage=null;st.calStaged=false;st.calVerified=false;st.calValidation=[];renderDSPLive();
     if(window.ELMOS_ARCHIVE?.active)void window.ELMOS_ARCHIVE.event('coefficient_fit',{solution,AFE:{...st.staged}}).catch(e=>show('calFitMsg','Archivfehler: '+e.message,'error'));
    const r=solution.registers;
@@ -3031,7 +3035,7 @@ if(typeof document!=='undefined') (function UI(){
 
  for(const id of ['pmin','pmax'])$(id).addEventListener('change',handleReferenceChange);
  for(const id of ['pointLoName','pointHiName'])$(id).addEventListener('change',()=>{$(id).dataset.userEdited='1';syncPointNames()});
- for(const id of ['calSOrder','calTOrder'])$(id).addEventListener('change',()=>invalidateCalculation('Polynomordnung verändert. Neu berechnen und anschliessend neu ins RAM übertragen.'));
+ for(const id of ['calSOrder','calTOrder','calFitMode'])$(id).addEventListener('change',()=>invalidateCalculation('Polynomordnung verändert. Neu berechnen und anschliessend neu ins RAM übertragen.'));
  function updateDSPOutputLimit(){
   const limit=Number($('calDspLimit').value);
   $('calDspLimitHint').textContent=Number.isInteger(limit)&&limit>=1000&&limit<=32000?
@@ -3074,9 +3078,9 @@ if(typeof document!=='undefined') (function UI(){
     ...(Number.isInteger(st.afe0)&&bridgeSupplyCode(st.afe0)<3?
       {bridgeSupply:bridgeSupplyCode(st.afe0)}:{})},
    calibration:{
-    sOrder:matrix?.orderS??Number($('calSOrder').value),tOrder:matrix?.orderT??Number($('calTOrder').value),
+    sOrder:matrix?.orderS??Number($('calSOrder').value),tOrder:matrix?.orderT??Number($('calTOrder').value),fitMode:matrix?.fitMode??$('calFitMode').value,
     dspLimit:Number($('calDspLimit').value),pointCount:matrix?.total??Number($('calPointCount').value),
-    ...(matrix?{matrix:{p:matrix.pCount,temp:matrix.tCount,temperatures:matrix.temperatures}}:{}),
+    ...(matrix?{matrix:{p:matrix.pCount,temp:matrix.tCount,temperatures:matrix.temperatures,fitMode:matrix.fitMode||'full'}}:{}),
     samples:Number($('calSampleCount').value),
     reference:{min:Number($('pmin').value),max:Number($('pmax').value),
      unit:$('calUnit').value,customUnit:$('calUnitOther').value.trim()}
@@ -3295,7 +3299,7 @@ if(typeof document!=='undefined') (function UI(){
     $('pmin').value=String(values.reference.min);$('pmax').value=String(values.reference.max);
    }
    if(has('dsp')){
-    $('calSOrder').value=String(values.dsp.sOrder);$('calTOrder').value=String(values.dsp.tOrder);
+    $('calSOrder').value=String(values.dsp.sOrder);$('calTOrder').value=String(values.dsp.tOrder);$('calFitMode').value=values.dsp.fitMode||'full';
     $('calDspLimit').value=String(values.dsp.dspLimit);$('calDspLimit').dataset.userEdited='1';
    }
    if(has('measurement')||has('reference')||has('dsp')){

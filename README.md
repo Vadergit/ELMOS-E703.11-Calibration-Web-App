@@ -2,7 +2,7 @@
 
 **Ein geführter Kalibrierassistent für den ELMOS E703.11 und das SSP3-Eval-Board.** Ziel ist ein verständlicher Abgleich, der auch ohne tiefere Vorkenntnisse Schritt für Schritt funktioniert. Wer mehr benötigt, kann zusätzliche Messpunkte, DSP-Parameter und einen geschützten Expertenmodus verwenden.
 
-**Version: v0.7.87 · Kompakter Speicherort mit direkt sichtbarer Pfadbeschriftung** · [Änderungsverlauf](CHANGELOG.md) · **[Geplante Funktionen](ROADMAP.md)**
+**Version: v0.7.88 · TK0 mit 3 Punkten und TK0 + TKE mit 4 Punkten** · [Änderungsverlauf](CHANGELOG.md) · **[Geplante Funktionen](ROADMAP.md)**
 
 Der **Demo-Modus** wird in den Einstellungen erst nach Aktivierung von **Expertenparameter** angezeigt. Er simuliert Sensorwerte und Schreibvorgänge; die echte Hardware wird dabei nicht programmiert.
 
@@ -13,6 +13,23 @@ Der **Demo-Modus** wird in den Einstellungen erst nach Aktivierung von **Experte
 > **Geführter Assistent:** Nach der bestätigten SSP3-Verbindung stehen die neue Schritt-für-Schritt-Führung, die klassische Ansicht und der optionale Kompaktmodus zur Verfügung. Ein E703.11-Chip muss für den Abgleich verbunden sein. Als DIY-Programmer sind ausschliesslich ESP32-C3 SuperMini (v0.10) und Arduino Pro Micro (v0.27) vorgesehen. Die originalen ELMOS SSP3-Adapter bleiben separat unterstützt. Der vollständige Hardwaretest der DIY-Programmer ist noch offen.
 >
 > [Geführter Abgleich](docs/GEFUEHRTER_ASSISTENT.md) · [DIY-Programmer (ESP32-C3 / Pro Micro)](docs/USB_BRIDGE_GUIDE.md) · [Pinbelegung der zwei Boards](docs/ESP_BOARD_OPTIONS.md) · [DIY-Firmware-Installer](firmware-update.html)
+
+## Neu – TK0 mit 3 Punkten und TK0 + TKE mit 4 Punkten
+
+Unter **Sensor neu abgleichen → Abgleich planen** stehen zwei neue Presets zur Verfügung:
+
+| Abgleich | Druck bei 25 °C | Druck bei 75 °C | Korrektur |
+| --- | --- | --- | --- |
+| **TK0 · 3 Punkte** | 0 bar und 6 bar | 0 bar | Nullpunkt-Temperaturgang + lineare Druckspanne, **keine TKE-Korrektur** |
+| **TK0 + TKE · 4 Punkte** | 0 bar und 6 bar | 0 bar und 6 bar | Nullpunkt- und Empfindlichkeits-Temperaturgang |
+
+Die Temperaturen und der Druckbereich sind frei einstellbar. Bei 2 Druckpunkten und 2 Temperaturbedingungen lässt sich der Modus auch über «Temperaturmodell» wählen. Im klassischen Bereich «Koeffizienten berechnen» steht dieselbe Auswahl.
+
+**Rechenmodell:** Die 3-Punkte-Variante verwendet nur S0, S1 und T1 (Basis, Druck, Temperatur), ohne den gemischten S1×T1-Koeffizienten. Die 4-Punkte-Variante verwendet auch diesen Koeffizienten. In beiden Fällen wird die numerische Unabhängigkeit geprüft. Ein vollständiges lineares Druck-/Temperaturmodell lässt sich weiterhin nicht mit nur drei Messpunkten berechnen.
+
+Die Koeffizienten werden weiterhin **zuerst nur ins RAM geschrieben**, rückgelesen und in einer unabhängigen DSP-Prüfung kontrolliert. Beim TK0-Abgleich wird die temperaturabhängige Empfindlichkeit nicht neu kompensiert: Der fehlende Messpunkt am oberen Druck bei höherer Temperatur ist deshalb eine sinnvolle **zusätzliche, unabhängige Nachmessung**, besonders bei anspruchsvollen Toleranzen. Das Temperaturmodell wird in archivierten Fitdaten, Kalibrier-PDF und Config-v2-Profilen ausgewiesen. Ältere Profile bleiben kompatibel.
+
+**Hardwarestatus:** Die Berechnung wurde mit synthetischen Messpunkten getestet. Ein vollständiger realer E703.11-Test samt Temperaturmessung, RAM-/NVM-Rücklesung und Kaltstart ist vor der Freigabe weiterhin notwendig.
 
 ## Funktionsumfang – aktueller Stand v0.7.77
 
