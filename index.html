@@ -65,6 +65,8 @@ button.danger{background:#9e3e34;border-color:#9e3e34;color:#fff}button.danger:h
 .nvm-advanced summary{font-size:12px}
 @media(max-width:750px){.nvm-compact .fieldrow{grid-template-columns:1fr}.nvm-compact-row{align-items:flex-start;flex-direction:column}}
 
+/* Messpunkte: Temperaturstufen bündeln; Karten behalten ihre echten Slot-IDs. */
+#calPointRows{display:flex;flex-direction:column}
 /* Messpunkte: kompakte Desktop-Ansicht ohne Änderung an Mess- oder Kalibrierlogik. */
 .panel[data-panel="2"]{padding:18px 20px}
 .panel[data-panel="2"] .cal-intro{font-size:12px;line-height:1.45;margin:3px 0 12px}
@@ -706,8 +708,8 @@ html.compact-mode .foot{display:none}
 .operation-progress-dialog .operation-progress{position:static;max-width:100%;pointer-events:auto}
 .cal-point-recorded > .fieldrow{display:none!important}
 .operation-progress progress{display:block;width:100%;accent-color:var(--focus,#075874)}
-</style><link rel="stylesheet" href="guided.css?v=0.7.92"><link rel="stylesheet" href="interface.css?v=0.7.92"><link rel="stylesheet" href="theme.css?v=0.7.9"><link rel="stylesheet" href="verification-guide.css?v=0.7.78"><link rel="stylesheet" href="calibration-graph.css?v=0.7.83"><link rel="stylesheet" href="archive-photos.css?v=0.7.73"><link rel="stylesheet" href="settings-refresh.css?v=0.7.77"></head><body data-app-version="0.7.93"><div class="wrap"><header class="top">
-<div class="brand"><div class="logo" aria-hidden="true">E</div><div><div class="eyebrow">E703.11 · PSSC · v0.7.93</div><h1><button type="button" id="homeButton" aria-label="Kalibrierassistent – zur Hauptseite">Kalibrierassistent</button></h1></div></div>
+</style><link rel="stylesheet" href="guided.css?v=0.7.92"><link rel="stylesheet" href="interface.css?v=0.7.92"><link rel="stylesheet" href="theme.css?v=0.7.9"><link rel="stylesheet" href="verification-guide.css?v=0.7.78"><link rel="stylesheet" href="calibration-graph.css?v=0.7.83"><link rel="stylesheet" href="archive-photos.css?v=0.7.73"><link rel="stylesheet" href="settings-refresh.css?v=0.7.77"></head><body data-app-version="0.7.94"><div class="wrap"><header class="top">
+<div class="brand"><div class="logo" aria-hidden="true">E</div><div><div class="eyebrow">E703.11 · PSSC · v0.7.94</div><h1><button type="button" id="homeButton" aria-label="Kalibrierassistent – zur Hauptseite">Kalibrierassistent</button></h1></div></div>
 <div class="live-overview" role="group" aria-label="Sensorwerte · laufende Anzeige">
   <div class="live-kpi" title="Unkompensierter Druck-ADC. Warnung bei Beträgen über 25’000 Digits."><span class="live-kpi-label">ADC_S <span id="liveAdcAlert" class="live-alert" hidden>!</span></span><span class="live-kpi-reading" id="liveAdcS">—</span><span class="live-kpi-unit">Digits</span></div>
   <div class="live-kpi" title="ADC_T · Temperatur-Rohwert, keine direkte Temperatur in °C."><span class="live-kpi-label">ADC_T</span><span class="live-kpi-reading" id="liveAdcT">—</span><span class="live-kpi-unit">Digits</span></div>
@@ -1029,6 +1031,7 @@ html.compact-mode .foot{display:none}
 </div>
 <div id="calSampleProgress" class="cal-sampling-progress" role="status" aria-live="polite" hidden>Bereit für die Messung.</div>
 <div id="calPointPlanMsg" class="callout">2 Messpunkte gewählt. Beide Endpunkte messen und anschliessend Koeffizienten berechnen.</div>
+<div id="calPointRows" class="cal-point-rows">
 <div class="cal-point-row">
 <div class="between"><h3>Messpunkt 1 · Unterer Endpunkt</h3><span class="cal-point-status" id="lowVal">Noch nicht aufgenommen</span></div>
 <div class="fieldrow">
@@ -1138,6 +1141,7 @@ html.compact-mode .foot{display:none}
 </div>
 
 <div id="calHiResult" class="cal-measure-result" hidden></div>
+</div>
 </div>
 <div id="calMsg" class="callout">Beide Endpunkte aufnehmen. Für zusätzliche Punkte stehen die Zwischenpunkte direkt darüber bereit.</div>
 <div class="triple"><div class="stat"><small>ADC-Hub</small><strong id="hub">—</strong></div><div class="stat"><small>Signalmitte</small><strong id="middle">—</strong></div><div class="stat"><small>Aussteuerung</small><strong id="usage">—</strong></div></div>
@@ -1418,5 +1422,5 @@ html.compact-mode .foot{display:none}
 </div>
 <div class="nav"><button data-next="0">Zur Verbindung</button><button data-next="6">Zum NVM-Schritt</button></div>
 </section>
-<div class="foot"><b>Version v0.7.93</b> · <a href="CHANGELOG.md" target="_blank" rel="noopener noreferrer">Änderungsverlauf</a> · ELMOS E703.11 · unabhängiger Kalibrierprototyp · Sicherheitsprinzip: Factory- und Kommunikations-Bootregister gesperrt; dokumentierte AODO-Ausgangsoptionen nur nach Prüfung im NVM-Plan; Wiederherstellung nur mit passender Chip-UID.</div>
-<section class="card panel" data-panel="8" hidden><div class="eyebrow">Werkzeuge · Sensorprotokoll</div><h2>Test / Logging</h2><p class="muted small">Messdaten, Rohwerte und Notizen jederzeit in einem lokalen Archiv protokollieren. Ohne NVM-Schreibvorgang.</p><div id="classicLoggerHost"></div></section></main></div></div><div id="tip" class="tooltip"></div><script src="calibration.js?v=0.7.93"></script><script src="eeprom-help.js?v=0.6.30"></script><script src="expert.js?v=0.7.45"></script><script src="config.js?v=0.7.90"></script><script src="guided-plan.js?v=0.7.91"></script><script src="demo.js?v=0.6.49"></script><script src="archive-core.js?v=0.7.80"></script><script src="test-logger-core.js?v=0.7.39"></script><script src="archive-analysis.js?v=0.7.79"></script><script src="verification-graph.js?v=0.7.78"></script><script src="calibration-graph.js?v=0.7.83"></script><script src="archive-photos.js?v=0.7.73"></script><script src="verification-report.js?v=0.7.79"></script><script src="calibration-report.js?v=0.7.88"></script><script src="archive-readable-csv.js?v=0.7.78"></script><script src="logging-report.js?v=0.7.73"></script><script src="archive.js?v=0.7.87"></script><script src="live-polling.js?v=0.7.74"></script><script src="app.js?v=0.7.93&amp;nav=3&amp;verify=6&amp;feedback=1"></script><script src="compact.js?v=0.7.18"></script><script src="test-logger.js?v=0.7.73"></script><script src="guided.js?v=0.7.93&amp;nav=8&amp;verify=5"></script><script src="language-pack.js?v=0.7.87&amp;verify=6&amp;feedback=1"></script><script src="language.js?v=0.7.57"></script></body></html>
+<div class="foot"><b>Version v0.7.94</b> · <a href="CHANGELOG.md" target="_blank" rel="noopener noreferrer">Änderungsverlauf</a> · ELMOS E703.11 · unabhängiger Kalibrierprototyp · Sicherheitsprinzip: Factory- und Kommunikations-Bootregister gesperrt; dokumentierte AODO-Ausgangsoptionen nur nach Prüfung im NVM-Plan; Wiederherstellung nur mit passender Chip-UID.</div>
+<section class="card panel" data-panel="8" hidden><div class="eyebrow">Werkzeuge · Sensorprotokoll</div><h2>Test / Logging</h2><p class="muted small">Messdaten, Rohwerte und Notizen jederzeit in einem lokalen Archiv protokollieren. Ohne NVM-Schreibvorgang.</p><div id="classicLoggerHost"></div></section></main></div></div><div id="tip" class="tooltip"></div><script src="calibration.js?v=0.7.93"></script><script src="eeprom-help.js?v=0.6.30"></script><script src="expert.js?v=0.7.45"></script><script src="config.js?v=0.7.90"></script><script src="guided-plan.js?v=0.7.94"></script><script src="demo.js?v=0.6.49"></script><script src="archive-core.js?v=0.7.80"></script><script src="test-logger-core.js?v=0.7.39"></script><script src="archive-analysis.js?v=0.7.79"></script><script src="verification-graph.js?v=0.7.78"></script><script src="calibration-graph.js?v=0.7.83"></script><script src="archive-photos.js?v=0.7.73"></script><script src="verification-report.js?v=0.7.79"></script><script src="calibration-report.js?v=0.7.88"></script><script src="archive-readable-csv.js?v=0.7.78"></script><script src="logging-report.js?v=0.7.73"></script><script src="archive.js?v=0.7.87"></script><script src="live-polling.js?v=0.7.74"></script><script src="app.js?v=0.7.94&amp;nav=3&amp;verify=6&amp;feedback=1"></script><script src="compact.js?v=0.7.18"></script><script src="test-logger.js?v=0.7.73"></script><script src="guided.js?v=0.7.93&amp;nav=8&amp;verify=5"></script><script src="language-pack.js?v=0.7.87&amp;verify=6&amp;feedback=1"></script><script src="language.js?v=0.7.57"></script></body></html>

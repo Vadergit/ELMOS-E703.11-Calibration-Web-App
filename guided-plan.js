@@ -56,6 +56,18 @@ const ELMOS_GUIDED_PLAN=(()=>{
    tempComp:requestedT>0,fitMode,temperatures,pressureValues,orderS:requestedS,orderT:requestedT,
    samples:n,outputLimit,points:Object.freeze(points)});
  }
+ /** Classic cards and guided measurements use the same physical capture order:
+  * all pressure points at one temperature, then the next temperature level.
+  * Keep slot identity unchanged; this function only sorts display references. */
+ function sortReferences(items){
+  if(!Array.isArray(items))throw Error('Messpunktliste fehlt');
+  const cmp=(a,b)=>{
+   const av=Number.isFinite(Number(a))?Number(a):Infinity;
+   const bv=Number.isFinite(Number(b))?Number(b):Infinity;
+   return av===bv?0:av<bv?-1:1;
+  };
+  return items.slice().sort((a,b)=>cmp(a.temperature,b.temperature)||cmp(a.pressure,b.pressure)||(a.originalIndex??0)-(b.originalIndex??0));
+ }
  /** Compare two actually recorded references. Never confuse a temperature
   * drift at fixed pressure with the pressure span at fixed temperature. */
  function captureDelta(entries,index){
@@ -81,6 +93,6 @@ const ELMOS_GUIDED_PLAN=(()=>{
   }
   return null;
  }
- return {create,presets,captureDelta};
+ return {create,presets,captureDelta,sortReferences};
 })();
 if(typeof module!=='undefined'&&module.exports)module.exports=ELMOS_GUIDED_PLAN;
