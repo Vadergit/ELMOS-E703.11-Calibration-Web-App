@@ -1,6 +1,6 @@
 # ELMOS E703.11 – Lokales Kalibrierarchiv und Nachmessungen
 
-**Softwarestand v0.7.75 · Funktions- und Benutzeranleitung · Laborprototyp**
+**Softwarestand v0.7.76 · Funktions- und Benutzeranleitung · Laborprototyp**
 
 **Archivexport ab v0.7.72:** Für jeden Archivdatensatz gibt es genau **einen übersichtlichen CSV-Export** sowie einen JSON-Export für die vollständigen technischen Originaldaten. Nachmessung und Test/Logging bieten zusätzlich einen PDF-Bericht; bis zu zwei optionale Fotos werden darin angezeigt. Die frühere separate VDD-Istspannungs-Eingabe der Anschlussansicht ist entfernt.
 
@@ -90,7 +90,7 @@ Die verkleinerten Bilder werden als eingebettete Bilddaten **direkt im lokalen J
 
 ### Live-Abfrageintervall (ab v0.7.74)
 
-Unter **Einstellungen → Live-Abfrageintervall** ist zusätzlich zu den bisherigen 400, 650, 1000, 1500 und 2000 ms die Option **«250 ms · Adaptiv (schneller)»** verfügbar. Die gewählte Zeit ist die Pause **nach** einem vollständig abgeschlossenen Sensorlesezyklus. Der neue Modus erhöht bei langsamen Sensorantworten die Pause auf 400 oder 650 ms und hält bei Kommunikationsfehlern die bestehende 2-Sekunden-Retry-Pause ein. Andere Abfrageintervalle sind unverändert; die App startet keine parallelen One-Wire-/I²C-Befehle und führt durch diese Änderung keine Register- oder NVM-Schreibvorgänge aus. **Die tatsächliche Live-Rate muss am Prüfstand geprüft werden.**
+Unter **Einstellungen → Live-Abfrageintervall** ist **«250 ms · Standard (adaptiv)»** bei neuen Installationen vorausgewählt. Die festen Pausen 400, 650, 1000, 1500 und 2000 ms bleiben auswählbar; zuvor gespeicherte manuelle Einstellungen werden nicht überschrieben. Die gewählte Zeit ist die Pause **nach** einem vollständig abgeschlossenen Sensorlesezyklus. Der neue Modus erhöht bei langsamen Sensorantworten die Pause auf 400 oder 650 ms und hält bei Kommunikationsfehlern die bestehende 2-Sekunden-Retry-Pause ein. Andere Abfrageintervalle sind unverändert; die App startet keine parallelen One-Wire-/I²C-Befehle und führt durch diese Änderung keine Register- oder NVM-Schreibvorgänge aus. **Die tatsächliche Live-Rate muss am Prüfstand geprüft werden.**
 
 ### PDF und CSV exportieren (ab v0.7.72)
 
