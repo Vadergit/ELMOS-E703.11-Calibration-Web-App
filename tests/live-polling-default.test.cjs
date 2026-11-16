@@ -18,7 +18,7 @@ test('saved user-selected values override default; missing and invalid values do
  const end=app.indexOf("$('settingsLiveInterval').addEventListener('change'",begin);
  assert.ok(begin>0&&end>begin);
  const read=new Function('stored','pacing','initial',
-  "let liveIntervalMs=initial;const lsGet=()=>stored;const $=()=>({set value(v){}});"+
+  "let liveIntervalMs=initial;const livePacing=pacing;const lsGet=()=>stored;const $=()=>({set value(v){}});"+
   app.slice(begin,end)+'return liveIntervalMs;');
  assert.equal(read(null,{},250),250);
  assert.equal(read('',{},250),250);
