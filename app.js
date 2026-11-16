@@ -3567,12 +3567,25 @@ if(typeof document!=='undefined') (function UI(){
  const feedbackLink=$('feedbackLink');
  if(feedbackLink)feedbackLink.href='feedback.html?version='+encodeURIComponent(document.body.dataset.appVersion||'');
  function toggleSettings(open){
-  $('settingsPanel').hidden=!open;
-  $('settingsOpen').setAttribute('aria-expanded',String(open));
+  const panel=$('settingsPanel'),gear=$('settingsOpen');
+  panel.hidden=!open;
+  gear.setAttribute('aria-expanded',String(open));
   if(open)$('settingsSampleCount').value=$('calSampleCount').value;
  }
  $('settingsOpen').addEventListener('click',()=>toggleSettings($('settingsPanel').hidden));
- $('settingsClose').addEventListener('click',()=>toggleSettings(false));
+ // Dismiss settings on any outside click. Preserve the underlying navigation click.
+ document.addEventListener('click',event=>{
+  if($('settingsPanel').hidden)return;
+  if($('settingsPanel').contains(event.target)||$('settingsOpen').contains(event.target))return;
+  toggleSettings(false);
+ },true);
+ document.addEventListener('keydown',event=>{
+  if(event.key==='Escape'&&!$('settingsPanel').hidden){
+   toggleSettings(false);
+   $('settingsOpen').focus();
+   event.preventDefault();
+  }
+ });
  $('homeButton').addEventListener('click',()=>{
   toggleSettings(false);
   window.ELMOS_ARCHIVE?.close();
@@ -3589,6 +3602,9 @@ if(typeof document!=='undefined') (function UI(){
  });
  const demoMode=$('demoMode');
  demoMode.checked=demoEnabled;
+ const syncDemoExpertVisibility=()=>{$('settingsDemoSection').hidden=!$('expertMode').checked};
+ $('expertMode').addEventListener('change',syncDemoExpertVisibility);
+ syncDemoExpertVisibility();
  async function changeDemoMode(enabled){
   demoMode.disabled=true;
   try{
