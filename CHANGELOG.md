@@ -1,3 +1,12 @@
+## v0.7.90 – Temperaturquelle und flexible TK-Kalibrierung
+
+- Feste 500-Digit-Mindestspanne von ADC_T entfernt; die Berechnung prüft numerische Stabilität und die darstellbaren Q3.12-/Q0.15-Koeffizienten.
+- Bei nicht darstellbarer TK-Kompensation kann ausdrücklich ein Druckabgleich ohne TK gewählt werden. Dafür werden nur Druckpunkte derselben Referenztemperatur verwendet; bestehende T-Register bleiben unverändert. TK0/TKE werden dabei nicht als kompensiert ausgegeben.
+- Neue Temperaturquellen-Auswahl: interner Chip-Temperatursensor als Standard, Brückenwiderstand und externer EOC-Sensor als noch gesperrte Optionen. Vor der Messpunktaufnahme und der RAM-Übertragung wird CFG_AFE2.t_adc_src kontrolliert.
+- Messpunkte speichern die Temperaturquelle; bestehende Messdaten, RAM-/DSP-Verifikation, NVM- und One-Wire-Schutz bleiben erhalten.
+- Browser-Dateien mit Version 0.7.90 gegen zwischengespeicherte Altversionen abgesichert; Regressionstests entsprechend angepasst.
+- **Labor-Testversion:** Temperaturkompensation ist weiterhin eine eigenständige JavaScript-Berechnung und nicht mit der Hersteller-DLL numerisch verifiziert. Brücken-/EOC-Temperaturabgleich noch nicht freigegeben. Vor NVM-Programmierung Sensor im RAM unabhängig prüfen.
+
 ## v0.7.89 – DSP-Prüfpunkte für TK0/TKE bei gleichem Druck zulassen
 
 - DSP-RAM-Verifikation prüft den Mindestabstand nun in beiden Referenzdimensionen: mehr als 10 % der Druckmessspanne **oder** mindestens 10 °C Temperaturdifferenz zu jedem bereits bestätigten Prüfpunkt.

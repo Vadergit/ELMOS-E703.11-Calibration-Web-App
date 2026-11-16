@@ -520,11 +520,25 @@ if(typeof document!=='undefined') (function UI(){
   if(!Number.isFinite(count)||!lo||!hi||!Number.isFinite(lo.v)||!Number.isFinite(hi.v)||Math.abs(lo.v-hi.v)<10)return false;
   const gains=JSON.stringify(st.staged);
   if(JSON.stringify(lo.gains)!==gains||JSON.stringify(hi.gains)!==gains)return false;
-  if(st.calpoints.length!==count||st.calpoints.some(x=>JSON.stringify(x.gains)!==gains||!Number.isFinite(x.adc_s)))return false;
+  if(st.calpoints.length!==count||st.calpoints.some(x=>JSON.stringify(x.gains)!==gains||!Number.isFinite(x.adc_s)||x.temperatureSource!==selectedTemperatureSource()))return false;
   const pmin=Number($('pmin').value),pmax=Number($('pmax').value);
   if(!(pmax>pmin)||lo.pressure!==pmin||hi.pressure!==pmax)return false;
   if(st.calpoints.filter(x=>x.kind==='lo').length!==1||st.calpoints.filter(x=>x.kind==='hi').length!==1)return false;
   return Array.from({length:count-2},(_,i)=>i+1).every(slot=>st.calpoints.filter(x=>x.kind==='extra'&&x.slot===slot).length===1)
+ }
+ function selectedTemperatureSource(){return $('calTempSource').value}
+ const temperatureSourceLabels={internal:'Interne Chipdiode (ADC_T)',bridge:'Brückenwiderstand (ADC_T und ADC_TC)',external:'Externer EOC-Sensor (ADC_T)',reserved:'Reservierter Modus (ungültig)'};
+ async function checkCalibrationTemperatureSource(){
+  const selected=selectedTemperatureSource();
+  if(selected!=='internal')throw Error('Temperaturmessquelle '+(temperatureSourceLabels[selected]||selected)+' ist noch nicht für die Kalibrierung implementiert. Keine Messung oder Registeränderung.');
+  if(demoEnabled)return {temperatureSource:'internal',afe2:null};
+  const afe2=await readReg(0x1E);
+  st.regs[0x1E]=afe2;
+  const actual=CAL.temperatureSourceFromAfe2(afe2);
+  if(actual!==selected)throw Error('Temperaturmessquelle stimmt nicht überein: Chip verwendet '+(temperatureSourceLabels[actual]||actual)+
+   ' (CFG_AFE2.t_adc_src='+String(afe2&3)+'), ausgewählt ist '+temperatureSourceLabels[selected]+
+   '. Chipkonfiguration prüfen; die Web-App verändert CFG_AFE2 nicht automatisch.');
+  return {temperatureSource:actual,afe2};
  }
  function chosenCalibrationSamples(){
   const n=Number($('calSampleCount').value);
@@ -561,7 +575,7 @@ if(typeof document!=='undefined') (function UI(){
   box.appendChild(grid);
   const note=document.createElement('div');note.className='cal-measure-note';
   note.textContent='Referenz: '+record.pressure+' '+(record.unit||pressureUnit())+
-   ' · Temperatur: '+record.temperature+' °C'+
+   ' · Temperatur: '+record.temperature+' °C'+(record.temperatureSource?' · Quelle: '+(temperatureSourceLabels[record.temperatureSource]||record.temperatureSource):'')+
    (measuredCount===1?' · Achtung: Nur ein Sample – keine Stabilitätskontrolle möglich.':' · Median aller aufgenommenen Samples');
   box.appendChild(note)
  }
@@ -576,6 +590,7 @@ if(typeof document!=='undefined') (function UI(){
   renderFlowState();
   try{
    if(st.liveReadPromise)await st.liveReadPromise.catch(()=>{});
+   const sourceInfo=await checkCalibrationTemperatureSource();
    const values=[];
    for(let i=0;i<required;i++){
     const value={at:new Date().toISOString(),s:null,t:null,tc:null};
@@ -598,7 +613,7 @@ if(typeof document!=='undefined') (function UI(){
     const e=Error('ADC_S streut zu stark ('+spread+' Digits). Druck stabilisieren und erneut messen');
     e.rawSamples=values.slice();e.spread=spread;throw e;
    }
-   return {adc_s:median(pressure),adc_t:median(temperature),adc_tc:median(compensated),spread,sampleCount:required,rawSamples:values}
+   return {adc_s:median(pressure),adc_t:median(temperature),adc_tc:median(compensated),temperatureSource:sourceInfo.temperatureSource,temperatureAfe2:sourceInfo.afe2,spread,sampleCount:required,rawSamples:values}
   }finally{
    operation.finish();progress.hidden=true;st.calTask=false;
    if(resumeLive&&st.chip)startLive();
@@ -2564,18 +2579,20 @@ if(typeof document!=='undefined') (function UI(){
  
  function calcCoefficients(){
   $('calDspProposal').hidden=true;
+  $('calTempFallback').hidden=true;
   let fitRequest=null;
   try{
    if(st.calTask||st.writing||st.nvmWorking)throw Error('Es läuft ein anderer Vorgang');
    if(!calEndpointsReady())throw Error('Zuerst alle '+calibrationPointCount()+' gewählten Kalibrierpunkte mit gleicher AFE-Einstellung aufnehmen');
    const pmin=Number($('pmin').value),pmax=Number($('pmax').value);
    if(st.calpoints.some(p=>JSON.stringify(p.gains)!==JSON.stringify(st.staged)))throw Error('Gain wurde nach der Aufnahme geändert. Messpunkte erneut erfassen');
+   if(selectedTemperatureSource()!=='internal'||st.calpoints.some(p=>p.temperatureSource!=='internal'))throw Error('Temperaturquelle der Kalibriermessungen muss mit internem Chipmodus übereinstimmen. Brücken-/EOC-Verfahren sind noch nicht implementiert.');
    const orderS=Number($('calSOrder').value),orderT=Number($('calTOrder').value),outputLimit=Number($('calDspLimit').value);
    if(!Number.isInteger(outputLimit)||outputLimit<1000||outputLimit>32000)throw Error('DSP-Endwert muss zwischen 1’000 und 32’000 Digits liegen');
    const fitMode=$('calFitMode').value;
    fitRequest={pmin,pmax,orderS,orderT,fitMode,outputLimit};
-    if(fitMode==='tk0'&&(orderS!==1||orderT!==1))throw Error('3-Punkte-TK0 benötigt lineare Druck- und Temperaturordnung.');
-    const required=fitMode==='tk0'?3:(orderS+1)*(orderT+1);
+    if(fitMode==='tk0'&&(orderS!==1||![0,1].includes(orderT)))throw Error('3-Punkte-TK0 benötigt linearen Druck; Temperaturordnung 0 (nur Druck) oder 1 (TK0).');
+    const required=fitMode==='tk0'?(orderT===0?2:3):(orderS+1)*(orderT+1);
     if(st.calpoints.length<required)throw Error('Für diese Polynom- und Temperaturordnung sind mindestens '+required+' unabhängige Messpunkte nötig. Anzahl in Schritt 3 erhöhen.');
    const solution=CAL.fit(st.calpoints,{pmin,pmax,orderS,orderT,fitMode,outputLimit});
     st.calfit=solution;st.calImage=null;st.calStaged=false;st.calVerified=false;st.calValidation=[];renderDSPLive();
@@ -2583,12 +2600,22 @@ if(typeof document!=='undefined') (function UI(){
    const r=solution.registers;
    $('calCoeffList').textContent='S_O 0x'+h(r.so,2)+' (Q3.12)  S_F 0x'+h(r.sf,2)+' (Q3.12)\n'+r.coeffs.map((x,i)=>'S'+String(i).padEnd(2)+' 0x'+h(x,2)+'    '+CAL.fromQ(x,15).toFixed(7)).join('\n')+(r.tcoeffs?'\nT_O '+h(r.to,2)+' T_F '+h(r.tf,2)+'\n'+r.tcoeffs.map((x,i)=>'T'+i+': 0x'+h(x,2)).join('\n'):'\nTemperaturpfad bleibt unverändert.');
    const note='DSP-Ziel ±'+fmt(solution.outputLimit)+' Digits (Reserve bis +32’767: '+fmt(32767-solution.outputLimit)+' Digits). Max. Fitfehler '+solution.stats.maxDigits.toFixed(2)+' Digits · RMS '+solution.stats.rmsDigits.toFixed(2)+' Digits.';
-   show('calFitMsg','Berechnung erfolgreich ('+st.calpoints.length+' Punkte). '+note+' Jetzt RAM-Schreibfreigabe aktivieren, Original-NVM prüfen und dann die berechneten Koeffizienten ins RAM übertragen. Die JavaScript-Berechnung ist noch nicht als identisch mit der Hersteller-DLL bestätigt.',solution.stats.maxDigits>100?'warn':'success');
+   const noTk=solution.pressureOnly&&solution.ignoredTemperaturePoints>0;
+   const scope=noTk?' OHNE TK-Kompensation: Nur '+solution.points+' von '+solution.recordedPoints+' Messpunkten bei '+solution.referenceTemperature+' °C wurden für den Druckfit verwendet. Der Temperatureinfluss ist NICHT kompensiert oder als null nachgewiesen; bisherige T-Register bleiben unverändert.':'';
+   show('calFitMsg','Berechnung erfolgreich ('+solution.points+' verwendete von '+st.calpoints.length+' erfassten Punkten). '+note+scope+' Jetzt RAM-Schreibfreigabe aktivieren, Original-NVM prüfen und dann die berechneten Koeffizienten ins RAM übertragen. Die JavaScript-Berechnung ist noch nicht als identisch mit der Hersteller-DLL bestätigt.',noTk||solution.stats.maxDigits>100?'warn':'success');
    show('calRamStageMsg','Koeffizienten berechnet, aber noch nicht ins Chip-RAM übertragen.','warn');
    renderFlowState()
   }catch(e){
    invalidateCalculation('Berechnung fehlgeschlagen: '+e.message);
    show('calFitMsg','Berechnung fehlgeschlagen: '+e.message,'error');
+   const name=e.coefficient?.name||'';
+   const tempCoefficient=/^T(?:_F|_O|[0-3])$/.test(name)||(/^S\d+$/.test(name)&&Number(name.slice(1))%4!==0);
+   if(fitRequest?.orderT>0&&(tempCoefficient||/ADC_T|Temperatur|T-Normalisierung/i.test(e.message))){
+    const vals=st.calpoints.map(p=>Number(p.adc_t)).filter(Number.isFinite);
+    const span=vals.length?Math.max(...vals)-Math.min(...vals):null;
+    $('calTempFallbackText').textContent='Die angeforderte Temperaturkompensation ist mit diesen Messdaten nicht darstellbar oder nicht stabil ('+e.message+'). '+(span===null?'':'ADC_T-Hub: '+fmt(span)+' Digits. ')+'Du kannst ausdrücklich auf einen Druckabgleich bei einer Referenztemperatur wechseln. TK0/TKE sind dann NICHT kompensiert; bisherige T-Register bleiben unverändert. Die aufgenommenen Messpunkte bleiben erhalten und RAM/DSP-Verifikation bleibt Pflicht.';
+    $('calTempFallback').hidden=false;
+   }
    if(e.code==='COEFFICIENT_OUT_OF_RANGE'&&/^S\d+$/.test(e.coefficient?.name||'')&&fitRequest){
     const proposal=CAL.suggestDspLimit(st.calpoints,fitRequest);
     if(proposal){
@@ -2689,6 +2716,8 @@ if(typeof document!=='undefined') (function UI(){
    if(st.writing||st.calTask||st.nvmWorking)throw Error('Ein anderer Vorgang läuft');
    st.calTask=true;st.writing=true;st.ramWriteScope='calibration';stopLive();
    ca('calRamStageMsg','Berechnete DSP-Koeffizienten werden ins RAM übertragen und rückgelesen …','warn');
+   const activeTemp=await checkCalibrationTemperatureSource();
+   if(st.calpoints.some(p=>p.temperatureSource!==activeTemp.temperatureSource))throw Error('Temperaturquelle hat sich seit der Messpunktaufnahme geändert. RAM-Schreiben gesperrt.');
    const before=await bootSnapshot();await ramGrant();
    const r=st.calfit.registers;
    const changes=[[0x70,r.so],[0x72,r.sf],...r.coeffs.map((v,i)=>[0x74+2*i,v])];
@@ -3053,7 +3082,19 @@ if(typeof document!=='undefined') (function UI(){
 
  for(const id of ['pmin','pmax'])$(id).addEventListener('change',handleReferenceChange);
  for(const id of ['pointLoName','pointHiName'])$(id).addEventListener('change',()=>{$(id).dataset.userEdited='1';syncPointNames()});
- for(const id of ['calSOrder','calTOrder','calFitMode'])$(id).addEventListener('change',()=>invalidateCalculation('Polynomordnung verändert. Neu berechnen und anschliessend neu ins RAM übertragen.'));
+ $('calTempSource').addEventListener('change',()=>{
+  invalidateCalculation('Temperaturmessquelle geändert. Bitte Chipquelle kontrollieren und alle Messpunkte mit derselben Quelle neu erfassen.');
+  renderCalibrationPlan();
+ });
+ for(const id of ['calSOrder','calTOrder','calFitMode'])$(id).addEventListener('change',()=>{
+  $('calTempFallback').hidden=true;
+  invalidateCalculation('Polynomordnung verändert. Neu berechnen und anschliessend neu ins RAM übertragen.');
+ });
+ $('calTempFallbackApply').addEventListener('click',()=>{
+  $('calTOrder').value='0';
+  invalidateCalculation('Temperaturkompensation bewusst deaktiviert; Druckfit neu berechnen.');
+  calcCoefficients();
+ });
  function updateDSPOutputLimit(){
   const limit=Number($('calDspLimit').value);
   $('calDspLimitHint').textContent=Number.isInteger(limit)&&limit>=1000&&limit<=32000?

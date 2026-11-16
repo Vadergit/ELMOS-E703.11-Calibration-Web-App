@@ -136,6 +136,7 @@ const ELMOS_GUIDED=(()=>{
   window.ELMOS_TEST_LOGGER?.mount($('gwLogPage'));
   for(const id of ['pmin','pmax','calUnit','calSampleCount','calUnitOther'])moveLabel(id,'gwSensorFields');
   moveLabel('calDspLimit','gwDspFields');
+  moveLabel('calTempSource','gwDspFields');
   for(const id of ['configLabel','configPreset','configFile'])moveLabel(id,'gwConfigFields');
   moveId('configPresetSource','gwConfigSource');
   moveId('configGroups','gwConfigGroups');moveId('configImportEffect','gwConfigEffect');
@@ -153,7 +154,7 @@ const ELMOS_GUIDED=(()=>{
   moveId('calMsg','gwPointMessages');
   moveLabel('calSOrder','gwFitFields');moveLabel('calTOrder','gwFitFields');moveLabel('calFitMode','gwFitFields');
   for(const id of ['calCalculate','calApplyRam'])moveId(id,'gwFitActions');
-  for(const id of ['calFitMsg','calRamPrereq','calRamStageMsg'])moveId(id,'gwFitStatuses');
+  for(const id of ['calFitMsg','calTempFallback','calDspProposal','calRamPrereq','calRamStageMsg'])moveId(id,'gwFitStatuses');
   move($('calCoeffList').closest('details'),'gwFitDetails');
   for(const id of ['calVerifyCount','calVerifyTolerance'])moveLabel(id,'gwVerifyFields');
   moveId('calVerifyRows','gwVerifyActions');
