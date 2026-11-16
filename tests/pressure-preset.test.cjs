@@ -47,7 +47,7 @@ test('Selecting a guided preset resets changed range to 0–100 percent',()=>{
  assert.ok(start!==-1&&end>start);
  const src=guided.slice(start,end);
  const fields=Object.fromEntries(['pmin','pmax','calUnit','gwPressureCount','gwTemperatureCount',
-  'gwComplexity','gwSOrder','gwTOrder'].map(key=>[key,{value:''}]));
+  'gwComplexity','gwSOrder','gwTOrder','gwThermalFit'].map(key=>[key,{value:''}]));
  Object.assign(fields,{pmin:{value:'0'},pmax:{value:'10'},calUnit:{value:'bar'}});
  let planRenders=0,confirms=0;
  const context={
