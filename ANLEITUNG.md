@@ -1,6 +1,6 @@
 # Bedienungsanleitung – ELMOS E703.11
 
-**Aktueller Dokumentationsstand v0.7.75** · Kalibrierassistent · Die anschliessenden älteren Versionsabschnitte bleiben als Funktionshistorie erhalten.
+**Aktueller Dokumentationsstand v0.7.76** · Kalibrierassistent · Die anschliessenden älteren Versionsabschnitte bleiben als Funktionshistorie erhalten.
 
 **[Web-App öffnen](https://vadergit.github.io/ELMOS-E703.11-Calibration-Web-App/)** · **[Projektübersicht](README.md)** · **[Test / Logging](TEST_LOGGING.md)** · **[Archiv](ARCHIV_NACHMESSUNG.md)** · **[Config-Dateien & EEPROM Viewer](CONFIG_DATEIEN.md)** · **[Testbericht](TESTBERICHT.md)**
 
@@ -8,13 +8,13 @@ Diese Anleitung beschreibt die derzeitige Benutzeroberfläche der browserbasiert
 
 > **Laborprototyp, keine Produktionsfreigabe.** Der vollständige Kalibrier- und NVM-Schreibablauf wurde noch nicht am realen E703.11 als Gesamtsystem validiert. Permanente Änderungen zunächst nur an einem entbehrlichen Testchip erproben.
 
-## Aktuelle Bedienung – v0.7.75
+## Aktuelle Bedienung – v0.7.76
 
 Die aktuelle Web-App bietet **geführten und klassischen Abgleich**, **Ausgang konfigurieren**, **EEPROM Viewer**, **Archiv**, **Nachmessung** sowie **Test / Logging**. Nach dem Verbinden des Sensors stehen die Live-Werte ADC_S, ADC_T, DSP_S und der digital angezeigte Sensorwert zur Verfügung. Zwischen One-Wire (AODO) und I²C wird in der technischen Protokollanzeige passend zur aktiven Schnittstelle unterschieden.
 
 **DIY-Programmer (v0.7.75):** Neben dem originalen **ELMOS SSP3** werden für den alternativen USB-Programmieradapter nur **ESP32-C3 SuperMini** mit Firmware **v0.10** und **Arduino Pro Micro** mit Firmware **v0.27** angeboten. Andere Boardvarianten stehen nicht mehr in der DIY-Liste und unbekannte Firmwarekennungen werden nicht als unterstützter Programmer für den Chipzugriff akzeptiert. [Pinbelegung](docs/ESP_BOARD_OPTIONS.md) · [Firmware-Installer](firmware-update.html).
 
-**Schnellere Live-Anzeige (v0.7.74):** Öffne **⚙ Einstellungen → Live-Abfrageintervall**. Neu gibt es die optionale Einstellung **«250 ms · Adaptiv (schneller)»**; weiterhin verfügbar sind 400, 650 (Standard), 1000, 1500 und 2000 ms. Die Zeit ist die Pause *nach* der vollständigen seriellen Abfrage, nicht die garantierte Messfrequenz. Im adaptiven Modus wird bei langsamen Antworten automatisch auf 400 oder 650 ms verlängert, bei Fehlern gilt die bisherige 2-Sekunden-Pause. Es werden keine parallelen Sensorlesungen oder zusätzlichen RAM-/NVM-Schreibvorgänge ausgelöst. Die reale Geschwindigkeit und Stabilität sind am E703.11 zu prüfen.
+**Schnellere Live-Anzeige (v0.7.74):** Öffne **⚙ Einstellungen → Live-Abfrageintervall**. **Seit v0.7.76 ist «250 ms · Standard (adaptiv)» die Vorauswahl.** Weiterhin verfügbar sind die festen Pausen 400, 650, 1000, 1500 und 2000 ms. Bereits gespeicherte manuelle Einstellungen bleiben erhalten. Die Zeit ist die Pause *nach* der vollständigen seriellen Abfrage, nicht die garantierte Messfrequenz. Im adaptiven Modus wird bei langsamen Antworten automatisch auf 400 oder 650 ms verlängert, bei Fehlern gilt die bisherige 2-Sekunden-Pause. Es werden keine parallelen Sensorlesungen oder zusätzlichen RAM-/NVM-Schreibvorgänge ausgelöst. Die reale Geschwindigkeit und Stabilität sind am E703.11 zu prüfen.
 
 **Nachmessung (ab v0.7.64–v0.7.69):** In **Nachmessung** kalibrierten Druckbereich und Einheit wählen und Prüfpunkte in **% der Spanne** oder direkt in Druckeinheiten eingeben. Die Messung nutzt den digital angezeigten Sensorwert und zeigt Referenzdruck mit seiner Einheit, Abweichung in Druckeinheit sowie in % FS. Zusätzliche Protokollfelder bleiben sichtbar. **Toleranzbewertung ist standardmässig deaktiviert** – ohne aktivierte Toleranz werden Werte dokumentiert, aber nicht als bestanden oder fehlerhaft klassiert. Die Ergebnisse erscheinen in Diagrammen und im lokalen Archiv. Nach Abschluss und beim späteren Archivaufruf ist ein PDF-Bericht möglich. Siehe [Archiv & Nachmessung](ARCHIV_NACHMESSUNG.md).
 
