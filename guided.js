@@ -24,6 +24,15 @@ const ELMOS_GUIDED=(()=>{
  const subscribe=(el,type,handler)=>{el.addEventListener(type,handler);subscriptions.push({el,type,handler})};
  const defaults={pCount:2,tCount:1,temps:[25],pmin:0,pmax:10,samples:12,outputLimit:25000,orderS:1,orderT:0};
  const state=()=>window.ELMOS_GUIDED_API?.state?.()||{chip:false,points:[],mode:'offline'};
+ const VIEW_PREFERENCE_KEY='elmos-ui-last-view-v1';
+ const rememberedView=()=>{
+  try{return localStorage.getItem(VIEW_PREFERENCE_KEY)}catch(_){return null}
+ };
+ const saveView=view=>{
+  // Only the interface choice persists. Never restore a running measurement,
+  // a calibration step or hardware write after a browser reload.
+  try{localStorage.setItem(VIEW_PREFERENCE_KEY,view)}catch(_){}
+ };
  const msg=(text,kind='')=>{const x=$('gwMessage');if(!x)return;x.hidden=!text;x.className='gw-alert'+(kind?' '+kind:'');x.textContent=text||''};
  const setText=(id,text)=>{if($(id))$(id).textContent=String(text)};
  const labelNode=id=>{const el=$(id),node=el?.closest('label');if(!node)throw Error('Originales Eingabefeld nicht gefunden: '+id);return node};
@@ -782,6 +791,7 @@ const ELMOS_GUIDED=(()=>{
   root.hidden=false;render();
   syncTopMode();
   poll=window.setInterval(updateUI,750);
+  saveView('guided');
   window.scrollTo({top:0,behavior:'auto'});
  }
  function close(){
@@ -797,6 +807,7 @@ const ELMOS_GUIDED=(()=>{
   subscriptions.length=0;
   restore();root.hidden=true;root.replaceChildren();document.documentElement.classList.remove('guided-active');
   syncTopMode();
+  saveView('classic');
   window.ELMOS_GUIDED_API?.refresh?.();
  }
  function onSensorReset(){
@@ -816,7 +827,15 @@ const ELMOS_GUIDED=(()=>{
  function init(){
   $('guidedLaunch')?.addEventListener('click',open);
   $('guidedLaunchTop')?.addEventListener('click',toggleTopView);
-  syncTopMode();
+  try{
+   // Reloads must restore the last explicitly selected UI, not the previous
+   // calibration/USB session. Default to classic for new visitors.
+   if(rememberedView()==='guided')open();
+   else syncTopMode();
+  }finally{
+   // The early HTML boot flag hides the classic page until the saved view is ready.
+   document.documentElement.classList.remove('guided-restore-pending');
+  }
   // A previously saved recipe is intentionally not applied to chip automatically.
  }
  function appliedPlanForConfig(){

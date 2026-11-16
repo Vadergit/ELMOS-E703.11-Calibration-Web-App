@@ -1,3 +1,11 @@
+## v0.7.81 – Geführte oder klassische Ansicht bleibt nach dem Neuladen erhalten
+
+- Der Schalter **«Geführt» / «Klassisch»** speichert die erfolgreich gewählte Ansicht im Browser. **F5**, **Ctrl + R** und das erneute Öffnen der Webseite stellen die zuletzt ausgewählte Oberfläche wieder her.
+- Die geführte Oberfläche kann weiterhin **ohne bereits angeschlossenen Sensor** geöffnet werden. Nur die Ansicht wird restauriert, niemals automatisch ein Kalibrier-, Mess-, RAM- oder NVM-Vorgang wiederaufgenommen.
+- Die vorher nicht gespeicherte Auswahl fiel nach dem Reload stets auf «Klassisch» zurück. Eine frühe Lade-Markierung verhindert zusätzlich das kurze Aufblitzen der klassischen Arbeitsfläche, wenn «Geführt» gespeichert ist.
+- Schlägt die Speicherung z. B. wegen blockiertem Browser-Speicher fehl, bleibt der manuelle Moduswechsel funktionsfähig; eine Lade-Schutzmarkierung wird in jedem Fall entfernt.
+- Automatisierte Regressionstests für gespeicherte Ansichten, beide Reload-Zweige, blockierte Speicherung und erfolgreiche bzw. gesperrte Moduswechsel ergänzt.
+
 ## v0.7.80 – Archiv ohne leere Kalibrierungen und ohne «Offen»
 
 - **Keine leeren Kalibrier- oder Nachmessungsdateien mehr beim Start:** Solange nur ein Start-Ereignis, automatische RAM-/NVM-Snapshots, Verbindungsprotokolle oder Fehlermeldungen ohne reale Samples vorhanden sind, bleiben die Vorgänge im Arbeitsspeicher. Eine Datei wird erst beim ersten Kalibrier-/Prüfmesspunkt oder einer sicherheitsrelevanten Hardwareänderung geschrieben.
