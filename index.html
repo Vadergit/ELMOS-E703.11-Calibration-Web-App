@@ -9,7 +9,7 @@ try {
 }
 /* Hide the classic workspace during the first paint when guided was selected. */
 try {
- if (localStorage.getItem('elmos-ui-last-view-v1') === 'guided')
+ if (localStorage.getItem('elmos-ui-last-view-v1') !== 'classic')
   document.documentElement.classList.add('guided-restore-pending');
 } catch (_) {}
 /* Safety fallback if the guided module itself fails to load. */
@@ -685,8 +685,8 @@ html.compact-mode .foot{display:none}
 .operation-progress-dialog .operation-progress{position:static;max-width:100%;pointer-events:auto}
 .cal-point-recorded > .fieldrow{display:none!important}
 .operation-progress progress{display:block;width:100%;accent-color:var(--focus,#075874)}
-</style><link rel="stylesheet" href="guided.css?v=0.7.27"><link rel="stylesheet" href="interface.css?v=0.7.39"><link rel="stylesheet" href="theme.css?v=0.7.9"><link rel="stylesheet" href="verification-guide.css?v=0.7.78"><link rel="stylesheet" href="archive-photos.css?v=0.7.73"><link rel="stylesheet" href="settings-refresh.css?v=0.7.77"></head><body data-app-version="0.7.81"><div class="wrap"><header class="top">
-<div class="brand"><div class="logo" aria-hidden="true">E</div><div><div class="eyebrow">E703.11 · PSSC · v0.7.81</div><h1><button type="button" id="homeButton" aria-label="Kalibrierassistent – zur Hauptseite">Kalibrierassistent</button></h1></div></div>
+</style><link rel="stylesheet" href="guided.css?v=0.7.27"><link rel="stylesheet" href="interface.css?v=0.7.39"><link rel="stylesheet" href="theme.css?v=0.7.9"><link rel="stylesheet" href="verification-guide.css?v=0.7.78"><link rel="stylesheet" href="archive-photos.css?v=0.7.73"><link rel="stylesheet" href="settings-refresh.css?v=0.7.77"></head><body data-app-version="0.7.82"><div class="wrap"><header class="top">
+<div class="brand"><div class="logo" aria-hidden="true">E</div><div><div class="eyebrow">E703.11 · PSSC · v0.7.82</div><h1><button type="button" id="homeButton" aria-label="Kalibrierassistent – zur Hauptseite">Kalibrierassistent</button></h1></div></div>
 <div class="live-overview" role="group" aria-label="Sensorwerte · laufende Anzeige">
   <div class="live-kpi" title="Unkompensierter Druck-ADC. Warnung bei Beträgen über 25’000 Digits."><span class="live-kpi-label">ADC_S <span id="liveAdcAlert" class="live-alert" hidden>!</span></span><span class="live-kpi-reading" id="liveAdcS">—</span><span class="live-kpi-unit">Digits</span></div>
   <div class="live-kpi" title="ADC_T · Temperatur-Rohwert, keine direkte Temperatur in °C."><span class="live-kpi-label">ADC_T</span><span class="live-kpi-reading" id="liveAdcT">—</span><span class="live-kpi-unit">Digits</span></div>
@@ -968,11 +968,11 @@ html.compact-mode .foot{display:none}
 <input type="number" id="calSampleCount" min="1" max="100" step="1" value="12">
 </label>
 <label>Einheit <span class="help" data-help="pressureunit">?</span>
-<select id="calUnit"><option value="bar">bar</option><option value="%">%</option><option value="mbar">mbar</option><option value="kPa">kPa</option><option value="psi">psi</option><option value="custom">Andere Einheit</option></select>
+<select id="calUnit"><option value="bar">bar</option><option value="%" selected>%</option><option value="mbar">mbar</option><option value="kPa">kPa</option><option value="psi">psi</option><option value="custom">Andere Einheit</option></select>
 </label>
 <label id="customUnitLabel" hidden>Eigene Einheit<input id="calUnitOther" type="text" maxlength="14" placeholder="z. B. mmH₂O"></label>
-<label>Unterer Referenzwert (<span data-cal-unit>bar</span>)<input type="number" step="any" id="pmin" value="0"></label>
-<label>Oberer Referenzwert (<span data-cal-unit>bar</span>)<input type="number" step="any" id="pmax" value="10"></label>
+<label>Unterer Referenzwert (<span data-cal-unit>%</span>)<input type="number" step="any" id="pmin" value="0"></label>
+<label>Oberer Referenzwert (<span data-cal-unit>%</span>)<input type="number" step="any" id="pmax" value="100"></label>
 </div>
 <div id="calSampleProgress" class="cal-sampling-progress" role="status" aria-live="polite" hidden>Bereit für die Messung.</div>
 <div id="calPointPlanMsg" class="callout">2 Messpunkte gewählt. Beide Endpunkte messen und anschliessend Koeffizienten berechnen.</div>
@@ -980,7 +980,7 @@ html.compact-mode .foot{display:none}
 <div class="between"><h3>Messpunkt 1 · Unterer Endpunkt</h3><span class="cal-point-status" id="lowVal">Noch nicht aufgenommen</span></div>
 <div class="fieldrow">
 <label>Bezeichnung<input type="text" id="pointLoName" maxlength="45" value="Messpunkt 1"></label>
-<label>Referenzwert (<span data-cal-unit>bar</span>)<strong class="reference-value" id="pointLoDisplay">0 bar</strong></label>
+<label>Referenzwert (<span data-cal-unit>%</span>)<strong class="reference-value" id="pointLoDisplay">0 %</strong></label>
 <label>Temperatur (°C)<input id="calLoTemp" type="number" step="any" min="-40" max="125" value="25"></label>
 <div class="cal-card-action"><button id="capLo" class="primary">Messpunkt 1 aufnehmen</button></div>
 </div>
@@ -991,7 +991,7 @@ html.compact-mode .foot{display:none}
 <div class="between"><h3 id="calExtra1Heading">Messpunkt 2 · Zwischenpunkt</h3><span class="cal-point-status" id="calExtra1State">Noch nicht aufgenommen</span></div>
 <div class="fieldrow">
 <label>Bezeichnung<input type="text" id="calExtra1Name" maxlength="45" value="Messpunkt 2"></label>
-<label>Referenzwert (<span data-cal-unit>bar</span>)<input type="number" id="calExtra1Pressure" step="any" value="5"></label>
+<label>Referenzwert (<span data-cal-unit>%</span>)<input type="number" id="calExtra1Pressure" step="any" value="5"></label>
 <label>Temperatur (°C)<input type="number" id="calExtra1Temp" step="any" min="-40" max="125" value="25"></label>
 <div class="cal-card-action"><button id="calExtra1Capture" class="primary">Messpunkt 2 aufnehmen</button></div>
 </div>
@@ -1002,7 +1002,7 @@ html.compact-mode .foot{display:none}
 <div class="between"><h3 id="calExtra2Heading">Messpunkt 3 · Zwischenpunkt</h3><span class="cal-point-status" id="calExtra2State">Noch nicht aufgenommen</span></div>
 <div class="fieldrow">
 <label>Bezeichnung<input type="text" id="calExtra2Name" maxlength="45" value="Messpunkt 3"></label>
-<label>Referenzwert (<span data-cal-unit>bar</span>)<input type="number" id="calExtra2Pressure" step="any" value="5"></label>
+<label>Referenzwert (<span data-cal-unit>%</span>)<input type="number" id="calExtra2Pressure" step="any" value="5"></label>
 <label>Temperatur (°C)<input type="number" id="calExtra2Temp" step="any" min="-40" max="125" value="25"></label>
 <div class="cal-card-action"><button id="calExtra2Capture" class="primary">Messpunkt 3 aufnehmen</button></div>
 </div>
@@ -1013,7 +1013,7 @@ html.compact-mode .foot{display:none}
 <div class="between"><h3 id="calExtra3Heading">Messpunkt 4 · Zwischenpunkt</h3><span class="cal-point-status" id="calExtra3State">Noch nicht aufgenommen</span></div>
 <div class="fieldrow">
 <label>Bezeichnung<input type="text" id="calExtra3Name" maxlength="45" value="Messpunkt 4"></label>
-<label>Referenzwert (<span data-cal-unit>bar</span>)<input type="number" id="calExtra3Pressure" step="any" value="5"></label>
+<label>Referenzwert (<span data-cal-unit>%</span>)<input type="number" id="calExtra3Pressure" step="any" value="5"></label>
 <label>Temperatur (°C)<input type="number" id="calExtra3Temp" step="any" min="-40" max="125" value="25"></label>
 <div class="cal-card-action"><button id="calExtra3Capture" class="primary">Messpunkt 4 aufnehmen</button></div>
 </div>
@@ -1024,7 +1024,7 @@ html.compact-mode .foot{display:none}
 <div class="between"><h3 id="calExtra4Heading">Messpunkt 5 · Zwischenpunkt</h3><span class="cal-point-status" id="calExtra4State">Noch nicht aufgenommen</span></div>
 <div class="fieldrow">
 <label>Bezeichnung<input type="text" id="calExtra4Name" maxlength="45" value="Messpunkt 5"></label>
-<label>Referenzwert (<span data-cal-unit>bar</span>)<input type="number" id="calExtra4Pressure" step="any" value="5"></label>
+<label>Referenzwert (<span data-cal-unit>%</span>)<input type="number" id="calExtra4Pressure" step="any" value="5"></label>
 <label>Temperatur (°C)<input type="number" id="calExtra4Temp" step="any" min="-40" max="125" value="25"></label>
 <div class="cal-card-action"><button id="calExtra4Capture" class="primary">Messpunkt 5 aufnehmen</button></div>
 </div>
@@ -1035,7 +1035,7 @@ html.compact-mode .foot{display:none}
 <div class="between"><h3 id="calExtra5Heading">Messpunkt 6 · Zwischenpunkt</h3><span class="cal-point-status" id="calExtra5State">Noch nicht aufgenommen</span></div>
 <div class="fieldrow">
 <label>Bezeichnung<input type="text" id="calExtra5Name" maxlength="45" value="Messpunkt 6"></label>
-<label>Referenzwert (<span data-cal-unit>bar</span>)<input type="number" id="calExtra5Pressure" step="any" value="5"></label>
+<label>Referenzwert (<span data-cal-unit>%</span>)<input type="number" id="calExtra5Pressure" step="any" value="5"></label>
 <label>Temperatur (°C)<input type="number" id="calExtra5Temp" step="any" min="-40" max="125" value="25"></label>
 <div class="cal-card-action"><button id="calExtra5Capture" class="primary">Messpunkt 6 aufnehmen</button></div>
 </div>
@@ -1046,7 +1046,7 @@ html.compact-mode .foot{display:none}
 <div class="between"><h3 id="calExtra6Heading">Messpunkt 7 · Zwischenpunkt</h3><span class="cal-point-status" id="calExtra6State">Noch nicht aufgenommen</span></div>
 <div class="fieldrow">
 <label>Bezeichnung<input type="text" id="calExtra6Name" maxlength="45" value="Messpunkt 7"></label>
-<label>Referenzwert (<span data-cal-unit>bar</span>)<input type="number" id="calExtra6Pressure" step="any" value="5"></label>
+<label>Referenzwert (<span data-cal-unit>%</span>)<input type="number" id="calExtra6Pressure" step="any" value="5"></label>
 <label>Temperatur (°C)<input type="number" id="calExtra6Temp" step="any" min="-40" max="125" value="25"></label>
 <div class="cal-card-action"><button id="calExtra6Capture" class="primary">Messpunkt 7 aufnehmen</button></div>
 </div>
@@ -1057,7 +1057,7 @@ html.compact-mode .foot{display:none}
 <div class="between"><h3 id="calExtra7Heading">Messpunkt 8 · Zwischenpunkt</h3><span class="cal-point-status" id="calExtra7State">Noch nicht aufgenommen</span></div>
 <div class="fieldrow">
 <label>Bezeichnung<input type="text" id="calExtra7Name" maxlength="45" value="Messpunkt 8"></label>
-<label>Referenzwert (<span data-cal-unit>bar</span>)<input type="number" id="calExtra7Pressure" step="any" value="5"></label>
+<label>Referenzwert (<span data-cal-unit>%</span>)<input type="number" id="calExtra7Pressure" step="any" value="5"></label>
 <label>Temperatur (°C)<input type="number" id="calExtra7Temp" step="any" min="-40" max="125" value="25"></label>
 <div class="cal-card-action"><button id="calExtra7Capture" class="primary">Messpunkt 8 aufnehmen</button></div>
 </div>
@@ -1068,7 +1068,7 @@ html.compact-mode .foot{display:none}
 <div class="between"><h3 id="calExtra8Heading">Messpunkt 9 · Zwischenpunkt</h3><span class="cal-point-status" id="calExtra8State">Noch nicht aufgenommen</span></div>
 <div class="fieldrow">
 <label>Bezeichnung<input type="text" id="calExtra8Name" maxlength="45" value="Messpunkt 9"></label>
-<label>Referenzwert (<span data-cal-unit>bar</span>)<input type="number" id="calExtra8Pressure" step="any" value="5"></label>
+<label>Referenzwert (<span data-cal-unit>%</span>)<input type="number" id="calExtra8Pressure" step="any" value="5"></label>
 <label>Temperatur (°C)<input type="number" id="calExtra8Temp" step="any" min="-40" max="125" value="25"></label>
 <div class="cal-card-action"><button id="calExtra8Capture" class="primary">Messpunkt 9 aufnehmen</button></div>
 </div>
@@ -1079,7 +1079,7 @@ html.compact-mode .foot{display:none}
 <div class="between"><h3 id="pointHiHeading">Messpunkt 2 · Oberer Endpunkt</h3><span class="cal-point-status" id="highVal">Noch nicht aufgenommen</span></div>
 <div class="fieldrow">
 <label>Bezeichnung<input type="text" id="pointHiName" maxlength="45" value="Messpunkt 2"></label>
-<label>Referenzwert (<span data-cal-unit>bar</span>)<strong class="reference-value" id="pointHiDisplay">10 bar</strong></label>
+<label>Referenzwert (<span data-cal-unit>%</span>)<strong class="reference-value" id="pointHiDisplay">100 %</strong></label>
 <label>Temperatur (°C)<input id="calHiTemp" type="number" step="any" min="-40" max="125" value="25"></label>
 <div class="cal-card-action"><button id="capHi" class="primary">Oberen Endpunkt aufnehmen</button></div>
 </div>
@@ -1093,7 +1093,7 @@ html.compact-mode .foot{display:none}
 <details><summary>Aufgenommene Messwerte im Detail</summary><div class="inner"><pre id="calPointsList" class="monoarea">Noch keine Messpunkte.</pre><div id="calPointsMsg" class="callout"></div></div></details>
 <details><summary>Optionale lineare Rohwert-Vorprüfung (kein DSP-Test)</summary><div class="inner">
 <p class="muted small">Diese Vorprüfung rechnet nur direkt aus ADC_S. Sie ist freiwillig und ersetzt nicht die spätere Prüfung der berechneten Koeffizienten im Chip-RAM.</p>
-<div class="fieldrow"><label>Prüfreferenz (<span data-cal-unit>bar</span>)<input id="ptest" type="number" step="any" value="5"></label><label>Toleranz (<span data-cal-unit>bar</span>)<input id="tol" type="number" step="any" min="0" value="0.02"></label></div>
+<div class="fieldrow"><label>Prüfreferenz (<span data-cal-unit>%</span>)<input id="ptest" type="number" step="any" value="50"></label><label>Toleranz (<span data-cal-unit>%</span>)<input id="tol" type="number" step="any" min="0" value="0.2"></label></div>
 <div class="flex" style="margin:12px 0"><button id="verify">Rohwert optional prüfen</button></div>
 <div id="verifyMsg" class="callout">Noch keine optionale Rohwert-Prüfung.</div>
 </div></details>
@@ -1141,11 +1141,11 @@ html.compact-mode .foot{display:none}
 <div id="calVerifyCoverage" class="callout warn">Ein Prüfpunkt ist standardmässig vorgesehen. Damit wird die DSP-Kalibrierung nur an einer Stelle geprüft, nicht über den gesamten Druckbereich. Für eine umfassendere Kontrolle mehrere Prüfpunkte einstellen.</div>
 <p class="muted small" id="calVerifyProgress">0 von 1 Prüfpunkten erfolgreich.</p>
 <div class="fieldrow" id="calVerifyOptions">
-<label>Maximale Abweichung (<span data-cal-unit>bar</span>)<input type="number" id="calVerifyTolerance" step="any" min="0.000001" value="0.05"></label>
+<label>Maximale Abweichung (<span data-cal-unit>%</span>)<input type="number" id="calVerifyTolerance" step="any" min="0.000001" value="0.2"></label>
 </div>
 <div id="calVerifyRows">
 <div class="verify-point fieldrow">
-<label>Prüfpunkt 1 (<span data-cal-unit>bar</span>)<input type="number" id="calVerifyPressure" step="any" value="5"></label>
+<label>Prüfpunkt 1 (<span data-cal-unit>%</span>)<input type="number" id="calVerifyPressure" step="any" value="50"></label>
 <label>Prüftemperatur (°C)<input id="calVerifyTemperature" type="number" min="-40" max="125" value="25"></label>
 <div><button type="button" class="primary" id="calVerifyRam">Punkt 1 prüfen</button><small class="verify-point-status" aria-live="polite"></small></div>
 </div>
@@ -1361,5 +1361,5 @@ html.compact-mode .foot{display:none}
 </div>
 <div class="nav"><button data-next="0">Zur Verbindung</button><button data-next="6">Zum NVM-Schritt</button></div>
 </section>
-<div class="foot"><b>Version v0.7.81</b> · <a href="CHANGELOG.md" target="_blank" rel="noopener noreferrer">Änderungsverlauf</a> · ELMOS E703.11 · unabhängiger Kalibrierprototyp · Sicherheitsprinzip: Factory- und Kommunikations-Bootregister gesperrt; dokumentierte AODO-Ausgangsoptionen nur nach Prüfung im NVM-Plan; Wiederherstellung nur mit passender Chip-UID.</div>
-<section class="card panel" data-panel="8" hidden><div class="eyebrow">Werkzeuge · Sensorprotokoll</div><h2>Test / Logging</h2><p class="muted small">Messdaten, Rohwerte und Notizen jederzeit in einem lokalen Archiv protokollieren. Ohne NVM-Schreibvorgang.</p><div id="classicLoggerHost"></div></section></main></div></div><div id="tip" class="tooltip"></div><script src="calibration.js?v=0.7.29"></script><script src="eeprom-help.js?v=0.6.30"></script><script src="expert.js?v=0.7.45"></script><script src="config.js?v=0.7.17"></script><script src="guided-plan.js?v=0.6.30"></script><script src="demo.js?v=0.6.49"></script><script src="archive-core.js?v=0.7.80"></script><script src="test-logger-core.js?v=0.7.39"></script><script src="archive-analysis.js?v=0.7.79"></script><script src="verification-graph.js?v=0.7.78"></script><script src="archive-photos.js?v=0.7.73"></script><script src="verification-report.js?v=0.7.79"></script><script src="archive-readable-csv.js?v=0.7.78"></script><script src="logging-report.js?v=0.7.73"></script><script src="archive.js?v=0.7.80"></script><script src="live-polling.js?v=0.7.74"></script><script src="app.js?v=0.7.77&amp;nav=2&amp;verify=6&amp;feedback=1"></script><script src="compact.js?v=0.7.18"></script><script src="test-logger.js?v=0.7.73"></script><script src="guided.js?v=0.7.81&amp;nav=7&amp;verify=4"></script><script src="language-pack.js?v=0.7.63&amp;verify=6&amp;feedback=1"></script><script src="language.js?v=0.7.57"></script></body></html>
+<div class="foot"><b>Version v0.7.82</b> · <a href="CHANGELOG.md" target="_blank" rel="noopener noreferrer">Änderungsverlauf</a> · ELMOS E703.11 · unabhängiger Kalibrierprototyp · Sicherheitsprinzip: Factory- und Kommunikations-Bootregister gesperrt; dokumentierte AODO-Ausgangsoptionen nur nach Prüfung im NVM-Plan; Wiederherstellung nur mit passender Chip-UID.</div>
+<section class="card panel" data-panel="8" hidden><div class="eyebrow">Werkzeuge · Sensorprotokoll</div><h2>Test / Logging</h2><p class="muted small">Messdaten, Rohwerte und Notizen jederzeit in einem lokalen Archiv protokollieren. Ohne NVM-Schreibvorgang.</p><div id="classicLoggerHost"></div></section></main></div></div><div id="tip" class="tooltip"></div><script src="calibration.js?v=0.7.29"></script><script src="eeprom-help.js?v=0.6.30"></script><script src="expert.js?v=0.7.45"></script><script src="config.js?v=0.7.17"></script><script src="guided-plan.js?v=0.7.82"></script><script src="demo.js?v=0.6.49"></script><script src="archive-core.js?v=0.7.80"></script><script src="test-logger-core.js?v=0.7.39"></script><script src="archive-analysis.js?v=0.7.79"></script><script src="verification-graph.js?v=0.7.78"></script><script src="archive-photos.js?v=0.7.73"></script><script src="verification-report.js?v=0.7.79"></script><script src="archive-readable-csv.js?v=0.7.78"></script><script src="logging-report.js?v=0.7.73"></script><script src="archive.js?v=0.7.80"></script><script src="live-polling.js?v=0.7.74"></script><script src="app.js?v=0.7.77&amp;nav=2&amp;verify=6&amp;feedback=1"></script><script src="compact.js?v=0.7.18"></script><script src="test-logger.js?v=0.7.73"></script><script src="guided.js?v=0.7.82&amp;nav=8&amp;verify=5"></script><script src="language-pack.js?v=0.7.63&amp;verify=6&amp;feedback=1"></script><script src="language.js?v=0.7.57"></script></body></html>
