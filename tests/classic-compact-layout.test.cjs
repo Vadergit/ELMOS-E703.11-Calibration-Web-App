@@ -28,3 +28,21 @@ test('temperature source has inline help and follows the compact measurement gri
  assert.match(css,/@media \(min-width: 1121px\)/);
  assert.match(css,/grid-template-columns: minmax\(145px,1\.35fr\)/);
 });
+
+test('AFE DSP summary is not displayed before calibration, without breaking live updates',()=>{
+ const afe=html.match(/<section class="card panel" data-panel="1"[\s\S]*?<section class="card panel" data-panel="2"/)?.[0]||'';
+ assert.match(afe,/<div class="dsp-live" hidden aria-hidden="true">/);
+ for(const id of ['afeDspMode','afeDspValue','afeDspUnit','afeDspRaw','afeDspSeen']){
+  assert.match(afe,new RegExp('id="'+id+'"'));
+ }
+ assert.match(html,/<div class="dsp-live" aria-live="off">/); // later DSP check remains visible
+});
+test('calibration exports require expert mode while deleting points remains accessible',()=>{
+ assert.match(html,/<div class="flex cal-tools"><button id="calPointClear">Alle Messpunkte löschen<\/button><div class="flex" data-expert-area hidden><button id="exportJSON">Protokoll JSON<\/button><button id="exportCSV">Messwerte CSV<\/button><\/div><\/div>/);
+ assert.match(app,/document\.querySelectorAll\('\[data-expert-area\]'\)/);
+});
+test('header and footer reflect the new deployed version',()=>{
+ assert.match(html,/E703\.11 · PSSC · v0\.7\.97/);
+ assert.match(html,/data-app-version="0\.7\.97"/);
+ assert.match(html,/Version v0\.7\.97/);
+});
