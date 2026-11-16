@@ -1,3 +1,11 @@
+## v0.7.76 – Adaptive Live-Abfrage mit 250 ms als Standard
+
+- **250 ms · Standard (adaptiv)** ist neu für Erstbenutzung und ohne gespeicherte persönliche Einstellung vorausgewählt. Der bisherige Standard von 650 ms wird dadurch ersetzt.
+- Bestehende, ausdrücklich gespeicherte Einstellungen (250, 400, 650, 1000, 1500 oder 2000 ms) bleiben erhalten und werden beim Aktualisieren nicht überschrieben.
+- Die adaptive Rückregelung auf 400/650 ms bei langsamen Sensorantworten, die 2-Sekunden-Pause bei Kommunikationsfehlern sowie der sequenzielle Ablauf der Sensorabfragen bleiben unverändert.
+- Die Zeit gibt weiterhin die **Pause nach der abgeschlossenen Messrunde** an, nicht den tatsächlichen Abstand zwischen Sensorwerten. Die reale Stabilität muss mit SSP3/One-Wire beziehungsweise I²C am Hardware-Prüfplatz geprüft werden.
+- Einstellungen, Beschriftungen, Hilfetext und aktuelle Anleitungen auf die neue Standardauswahl abgeglichen.
+
 ## v0.7.75 – DIY-Programmer auf zwei unterstützte Boards begrenzt
 
 - Die auswählbare **DIY-Programmer-USB-Bridge** bezieht sich nur noch auf **ESP32-C3 SuperMini (Firmware v0.10)** und **Arduino Pro Micro (Firmware v0.27)**. Der originale **ELMOS SSP3** bleibt als separate Herstellerlösung verfügbar.
