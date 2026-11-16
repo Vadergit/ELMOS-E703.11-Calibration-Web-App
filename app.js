@@ -2589,7 +2589,7 @@ if(typeof document!=='undefined') (function UI(){
   }catch(e){
    invalidateCalculation('Berechnung fehlgeschlagen: '+e.message);
    show('calFitMsg','Berechnung fehlgeschlagen: '+e.message,'error');
-   if(e.code==='COEFFICIENT_OUT_OF_RANGE'&&/^S\\d+$/.test(e.coefficient?.name||'')&&fitRequest){
+   if(e.code==='COEFFICIENT_OUT_OF_RANGE'&&/^S\d+$/.test(e.coefficient?.name||'')&&fitRequest){
     const proposal=CAL.suggestDspLimit(st.calpoints,fitRequest);
     if(proposal){
      $('calDspProposal').dataset.suggestedLimit=String(proposal.outputLimit);
