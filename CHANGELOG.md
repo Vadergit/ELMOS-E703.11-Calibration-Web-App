@@ -1,3 +1,12 @@
+## v0.7.77 – App-Einstellungen kompakter und übersichtlicher
+
+- Einstellungsfenster neu in **Darstellung**, **Messung**, **Erweiterte Optionen** und **Hilfen & Tools** gegliedert. Kompaktere Abstände, zusammengehörige Felder in zwei Spalten und klare Beschriftungen.
+- **Arbeitsansicht nach dem Verbinden** als Einstellungsoption entfernt. Die **geführte Ansicht** ist weiterhin über die direkte Navigation «Geführt» erreichbar; ein Sensoranschluss startet sie nicht mehr automatisch aufgrund einer alten Preference.
+- **Demo-Modus** erscheint in den Einstellungen ausschliesslich, wenn **Expertenparameter** aktiviert sind. Ein bereits aktiver Demo-Modus bleibt aus Sicherheitsgründen im Hauptbereich eindeutig als Simulation gekennzeichnet und kann dort beendet werden.
+- Links zu **DIY-Programmer-Firmware**, **Feedback** und **Offline-Anleitung** deutlich sichtbarer als kompakte, kontrastreiche Aktionsflächen dargestellt; auch mit Darkmode und Tastatur-Fokus.
+- **Kein Schliessen-Button:** Das Einstellungsfenster verschwindet beim Klick auf eine andere Stelle der Web-App, insbesondere bei einer Hauptnavigation, und mit **Escape**. Der ursprüngliche Klick auf der Hauptseite wird weiter ausgeführt.
+- Alle vorhandenen IDs und Speicherregeln für Farbe, Sprache, Kompaktmodus, Hover-Erklärungen, Samples und Live-Intervall bleiben erhalten. Das Layout ändert weder die Sensor-Kommunikation noch den Abgleich oder NVM-Schutz.
+
 ## v0.7.76 – Adaptive Live-Abfrage mit 250 ms als Standard
 
 - **250 ms · Standard (adaptiv)** ist neu für Erstbenutzung und ohne gespeicherte persönliche Einstellung vorausgewählt. Der bisherige Standard von 650 ms wird dadurch ersetzt.
