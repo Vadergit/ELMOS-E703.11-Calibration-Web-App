@@ -753,14 +753,6 @@ const ELMOS_GUIDED=(()=>{
   button.classList.toggle('is-guided-mode',guided);
   document.documentElement.classList.toggle('top-guided-active',guided);
  }
- function saveViewPreference(value){
-  const select=$('workflowMode');
-  if(select)select.value=value;
-  try{
-   const store=new URLSearchParams(location.search).get('demo')==='1'?sessionStorage:localStorage;
-   store.setItem('elmos-workflow-mode-v1',value);
-  }catch(_){}
- }
  function toggleTopView(){
   // Top navigation switches views, even if the archive/verification overlay is open.
   window.ELMOS_ARCHIVE?.close?.();
@@ -788,7 +780,7 @@ const ELMOS_GUIDED=(()=>{
   }
   document.documentElement.classList.add('guided-active');
   root.hidden=false;render();
-  saveViewPreference('guided');syncTopMode();
+  syncTopMode();
   poll=window.setInterval(updateUI,750);
   window.scrollTo({top:0,behavior:'auto'});
  }
@@ -804,7 +796,7 @@ const ELMOS_GUIDED=(()=>{
   for(const {el,type,handler} of subscriptions)el.removeEventListener(type,handler);
   subscriptions.length=0;
   restore();root.hidden=true;root.replaceChildren();document.documentElement.classList.remove('guided-active');
-  saveViewPreference('classic');syncTopMode();
+  syncTopMode();
   window.ELMOS_GUIDED_API?.refresh?.();
  }
  function onSensorReset(){
@@ -818,21 +810,10 @@ const ELMOS_GUIDED=(()=>{
   msg('Die Sensorverbindung wurde unterbrochen. Die bisherigen Kalibrierpunkte sind nicht mehr freigegeben. Nach der Neuinitialisierung einen neuen Abgleich starten.','warn');
  }
  function onConnected(){
-  if(nextSensorPending)return;
-  const preference=$('workflowMode')?.value||'guided';
-  if(preference==='guided')window.setTimeout(()=>{if(state().chip)open()},0);
+  // The guided workflow remains available through its navigation button.
+  // It no longer opens automatically based on a removed settings preference.
  }
  function init(){
-  const select=$('workflowMode');
-  if(select){
-   const storage=()=>new URLSearchParams(location.search).get('demo')==='1'?sessionStorage:localStorage;
-   try{select.value=storage().getItem('elmos-workflow-mode-v1')||'guided'}catch(_){select.value='guided'}
-   select.addEventListener('change',()=>{
-    try{storage().setItem('elmos-workflow-mode-v1',select.value)}catch(_){}
-    if(select.value==='guided'&&state().chip)open();
-    else if(mode)close();
-   });
-  }
   $('guidedLaunch')?.addEventListener('click',open);
   $('guidedLaunchTop')?.addEventListener('click',toggleTopView);
   syncTopMode();
