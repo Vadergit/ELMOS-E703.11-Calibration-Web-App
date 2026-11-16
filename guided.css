@@ -293,6 +293,13 @@ html.guided-active #guidedWorkspace [hidden]{display:none!important}
 #guidedWorkspace .gw-point-nav button.gw-done::before{content:none}
 #guidedWorkspace .gw-point-nav-label{font-size:12px;font-weight:750;color:inherit}
 #guidedWorkspace .gw-point-nav-state{font-size:11px;font-weight:650;color:inherit;opacity:.9}
+#guidedWorkspace .gw-point-nav-data{font-size:11px;color:var(--ink,#28465f);font-variant-numeric:tabular-nums}
+#guidedWorkspace .gw-point-nav-delta{font-size:11px;font-weight:750;color:#206d9f;line-height:1.45;font-variant-numeric:tabular-nums}
+#guidedWorkspace .gw-point-nav-meta{font-size:10px;color:#688097}
+#guidedWorkspace .gw-point-nav button.gw-done .gw-point-nav-delta{color:#136346}
+#guidedWorkspace .gw-point-nav{max-height:640px}
+#guidedWorkspace .gw-point-nav button{min-width:0}
+
 #guidedWorkspace .gw-point-nav button.gw-pending:not(.gw-selected) .gw-point-nav-state{color:#62798f}
 @media(max-width:600px){
  #guidedWorkspace .gw-point-confirmation{padding:5px 8px}
