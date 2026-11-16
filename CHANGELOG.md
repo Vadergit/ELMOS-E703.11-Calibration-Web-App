@@ -1,3 +1,12 @@
+## v0.7.86 – Dekorativen Esc-Hinweis entfernen und Archivpfad optional anzeigen
+
+- Der kleine Hinweis **«Esc»** rechts oben im Einstellungsfenster war ein nicht interaktives Text-Element, das wie ein Button aussah. Er wurde entfernt. Die echte **Escape-Taste** kann das Fenster weiterhin schliessen; ebenso bleibt das automatische Schliessen beim Klick ausserhalb erhalten.
+- Unter **Einstellungen → Speicherort für Messungen & Kalibrierungen** wird weiterhin der echte, vom Browser freigegebene Ordnername angezeigt. Zusätzlich gibt es **«Vollständiger Pfad (optional, nur zur Anzeige)»** mit einem Eingabefeld und **«Pfad merken»**.
+- Aus Sicherheitsgründen liefert Chrome/Edge über die File System Access API **keinen absoluten Windows-/macOS-Dateipfad** zurück. Ein vollständiger Pfad kann deshalb nur **manuell als unverifizierte Beschriftung** hinterlegt werden. Das UI kennzeichnet ihn ausdrücklich entsprechend.
+- Die Zusatzbeschriftung wird lokal in derselben IndexedDB wie die Verzeichnisfreigabe gespeichert und nach einem Reload wieder angezeigt. Sie wird nur für den passenden Ordnernamen wiederhergestellt und bei jeder neuen Ordnerauswahl zurückgesetzt, damit kein veralteter Pfad für einen anderen Ordner angezeigt wird.
+- **Kein Einfluss auf die Datenablage:** Messungen, Kalibrierungen, Nachmessungen, JSONL-Rohdaten und PDFs nutzen unverändert den berechtigten DirectoryHandle, niemals die manuelle Beschriftung.
+- Zusätzliche Regressionstests decken manuelle Pfade, Wiederherstellung, Zurücksetzen beim Ordnerwechsel, Abbruch und Schutz ohne ausgewählten Ordner ab.
+
 ## v0.7.85 – Archivordner für Kalibrierungen, Nachmessungen und Logging in den Einstellungen
 
 - Unter **App-Einstellungen → Speicherort für Messungen & Kalibrierungen** wird der aktuelle lokale Archivordner mit dem Berechtigungsstatus angezeigt. Mit **«Ordner auswählen / ändern»** lässt sich der Ordner direkt über den sicheren Browser-Dateidialog festlegen.
