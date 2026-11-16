@@ -1,3 +1,12 @@
+## v0.7.82 – Standarddruck 0–100 % und robuster Start der geführten Ansicht
+
+- **Kalibrierung:** In der klassischen und der geführten Oberfläche ist die Druckeinheit neu standardmässig **%**, mit unterem Referenzwert **0** und oberem Referenzwert **100**. Damit starten neue Kalibrierungen auf **0–100 %**. Sämtliche drei geführten Vorlagen (Schnell, Mit Temperatur, Individuell) verwenden ebenfalls 0–100 % als Druck-Preset und zeigen die Werte an.
+- **Frei editierbar:** Physikalische Einheiten wie bar, mbar, kPa und psi bleiben jederzeit manuell wählbar. Ein bereits erfasster Messpunkt wird beim Wechsel auf ein neues Preset nicht stillschweigend verworfen: Vor einer Änderung des Druckbereichs mit vorhandenen Messpunkten erfolgt eine Rückfrage. Vorhandene Archivprotokolle und gespeicherte Sensor-Konfigurationen werden nicht umgerechnet oder überschrieben.
+- **Prüfreferenz in der Kalibrierung:** Die voreingestellten Prüfpunkte liegen in der Mitte (50 %) und die dazugehörigen Beispiel-Toleranzen bei 0,2 % der Messspanne; bei einer bewusst anderen Kalibrierungseinheit bleiben die Werte anpassbar.
+- **Nachmessung:** Das Eingabeformat **% der Messspanne** bleibt voreingestellt, der reale kalibrierte Druckbereich wird aber weiterhin in der tatsächlichen physikalischen Einheit (z. B. bar) geführt. Es findet keine fiktive Gleichsetzung von 100 % mit 100 bar statt.
+- **Ansicht beim Neuladen:** Ein Video vom Fehler zeigte noch Version v0.7.80. Neu startet die Web-App bei fehlender gespeicherter Auswahl direkt in **Geführt**; ein bewusst gewähltes **Klassisch** wird dauerhaft berücksichtigt. Ein zusätzlicher Wiederherstellungsversuch nach dem vollständigen Seitenladen kann die geführte Oberfläche nach einem zeitweiligen Startproblem erneut aufbauen. Nie werden dadurch Kalibrierpunkte, RAM-/NVM-Aktionen oder USB-Kommunikationsbefehle automatisch ausgeführt.
+- Regressionstests für Moduswahl, Reload, Startwiederholung, das 0–100-%-Preset und bewusst eingestellte physikalische Einheiten ergänzt.
+
 ## v0.7.81 – Geführte oder klassische Ansicht bleibt nach dem Neuladen erhalten
 
 - Der Schalter **«Geführt» / «Klassisch»** speichert die erfolgreich gewählte Ansicht im Browser. **F5**, **Ctrl + R** und das erneute Öffnen der Webseite stellen die zuletzt ausgewählte Oberfläche wieder her.
