@@ -52,7 +52,11 @@ test('TKE fits S*T independently with fourth physical reference',()=>{
 
 test('An incomplete four-point TKE calibration cannot calculate coefficients',()=>{
  assert.throws(()=>CAL.fit(reference.slice(0,3),{...opts,fitMode:'full'}),/4 unabhängige Messpunkte/);
- assert.throws(()=>CAL.fit(reference.slice(0,3),{...opts,fitMode:'tk0',orderT:0}),/linearen Druck/);
+ const pressureOnly=CAL.fit(reference.slice(0,3),{...opts,fitMode:'tk0',orderT:0});
+ assert.equal(pressureOnly.orderT,0);
+ assert.equal(pressureOnly.registers.tcoeffs,null);
+ assert.equal(pressureOnly.points,2);
+ assert.equal(pressureOnly.ignoredTemperaturePoints,1);
  assert.throws(()=>PLAN.create({pCount:3,tCount:2,temperatures:[25,75],fitMode:'tk0'}),/2 Drücke/);
 });
 
@@ -126,4 +130,42 @@ test('DSP verification accepts equal pressure at sufficiently different temperat
  const app=read('app.js');
  assert.ok(app.includes('CAL.independentVerificationPoint(st.calValidation.filter('));
  assert.ok(!app.includes('Prüfdruck muss mehr als 10 % der Messspanne von bestätigten Prüfpunkten entfernt sein'));
+});
+
+test('ADC_T spans below 500 digits are judged by actual coefficient limits',()=>{
+ const small=[
+  {pressure:0,temperature:25,adc_s:-1546,adc_t:2196},
+  {pressure:100,temperature:25,adc_s:-15310.5,adc_t:2207},
+  {pressure:0,temperature:26,adc_s:-1520.5,adc_t:1722}
+ ];
+ const result=CAL.fit(small,{pmin:0,pmax:100,orderS:1,orderT:1,fitMode:'tk0',outputLimit:3200});
+ assert.equal(result.orderT,1);
+ assert.ok(result.registers.tcoeffs);
+});
+test('Pressure-only fallback retains observations and excludes differing temperatures',()=>{
+ const points=[
+  {pressure:0,temperature:25,adc_s:-1546,adc_t:2196},
+  {pressure:0,temperature:75,adc_s:-1520.5,adc_t:1722},
+  {pressure:100,temperature:25,adc_s:-15310.5,adc_t:2207}
+ ];
+ assert.throws(()=>CAL.fit(points,{pmin:0,pmax:100,orderS:1,orderT:1,fitMode:'tk0',outputLimit:3200}),/T1/);
+ const fit=CAL.fit(points,{pmin:0,pmax:100,orderS:1,orderT:0,fitMode:'tk0',outputLimit:3200});
+ assert.equal(fit.points,2);
+ assert.equal(fit.recordedPoints,3);
+ assert.equal(fit.ignoredTemperaturePoints,1);
+ assert.equal(fit.referenceTemperature,25);
+ assert.equal(fit.registers.tcoeffs,null);
+ assert.equal(fit.registers.coeffs[1],0);
+ assert.ok(fit.stats.maxDigits<10);
+ assert.throws(()=>CAL.fit([
+  {pressure:0,temperature:25,adc_s:-1546,adc_t:2196},
+  {pressure:100,temperature:75,adc_s:-15310.5,adc_t:1722}
+ ],{pmin:0,pmax:100,orderS:1,orderT:0,fitMode:'full',outputLimit:3200}),/Referenztemperatur/);
+});
+test('Temperature fallback UI remains guarded and is present in classic and guided views',()=>{
+ const app=read('app.js'),html=read('index.html'),guided=read('guided.js');
+ assert.ok(html.includes('id="calTempFallback"'));
+ assert.ok(html.includes('id="calTempFallbackApply"'));
+ assert.ok(app.includes("$('calTOrder').value='0'"));
+ assert.ok(guided.includes("'calTempFallback'"));
 });
