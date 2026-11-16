@@ -1011,6 +1011,14 @@ html.compact-mode .foot{display:none}
 <label>Samples pro Messpunkt
 <input type="number" id="calSampleCount" min="1" max="100" step="1" value="12">
 </label>
+<label>Temperaturmessquelle
+<select id="calTempSource">
+<option value="internal" selected>Interner Temperatursensor · ADC_T</option>
+<option value="bridge" disabled>Brückenwiderstand · ADC_T/ADC_TC (in Vorbereitung)</option>
+<option value="external" disabled>Externer Sensor am EOC-Pin (in Vorbereitung)</option>
+</select>
+<small>Die aktive Chipquelle CFG_AFE2.t_adc_src wird vor der Aufnahme geprüft. Die Auswahl ändert keine Register. Für den Brückenmodus sind zusätzliche Herstellerkoeffizienten erforderlich.</small>
+</label>
 <label>Einheit <span class="help" data-help="pressureunit">?</span>
 <select id="calUnit"><option value="bar">bar</option><option value="%" selected>%</option><option value="mbar">mbar</option><option value="kPa">kPa</option><option value="psi">psi</option><option value="custom">Andere Einheit</option></select>
 </label>
