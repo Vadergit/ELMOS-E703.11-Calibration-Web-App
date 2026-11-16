@@ -262,12 +262,8 @@ const ELMOS_ARCHIVE=(()=>{
   if(status==='completed'&&['calibration','output'].includes(S.record.type)&&(!Array.isArray(S.record.initial?.nvm?.words)||
    S.record.initial.nvm.words.length!==64||!Array.isArray(S.record.final?.nvm?.words)||
    S.record.final.nvm.words.length!==64))status='incomplete';
-  if(status==='completed'&&S.record.type==='verification'){
-   const summary=C.outcomes(S.record);
-   const results=S.record.plan.steps.map(s=>C.lastAttempt(S.record,s.index));
-   if(results.some(x=>x?.pass===false))status='failed';
-   else if(summary.measured!==summary.planned||results.some(x=>x?.pass!==true))status='incomplete';
-  }
+  if(status==='completed'&&S.record.type==='verification')
+   status=C.verificationCompletion(S.record);
   S.record.status=status;S.record.endedAt=iso();
   S.record.events.push({at:iso(),kind:'finished',data:{status}});
   if(S.record.type==='testlog'&&S.debugLines.length)
@@ -336,7 +332,7 @@ const ELMOS_ARCHIVE=(()=>{
   return [r.verificationMetadata?.operator,r.verificationMetadata?.project,
    r.verificationMetadata?.location,r.verificationMetadata?.externalInstruments,
    r.calibrationTool?.communicationAdapter,r.chipUID,r.customUID,r.initial?.configuredUserId,r.final?.configuredUserId,
-   r.type,r.status,r.startedAt,r.equipment?.adapter,r.equipment?.adapterFirmware,
+   r.type,C.displayStatus(r),r.startedAt,r.equipment?.adapter,r.equipment?.adapterFirmware,
    r.equipment?.firmware,
    r.software?.version,r.testConfiguration?.name,r.testConfiguration?.dutName,
    r.testConfiguration?.description,
@@ -388,7 +384,7 @@ const ELMOS_ARCHIVE=(()=>{
   const type=$('archiveFilterType')?.value||'all';
   const status=$('archiveFilterStatus')?.value||'all';
   return S.records.filter(r=>(type==='all'||r.type===type)&&
-   (status==='all'||r.status===status)&&readable(r).includes(term));
+   (status==='all'||C.displayStatus(r)===status)&&readable(r).includes(term));
  }
  function renderList(){
   const root=$('archiveRows');if(!root)return;
@@ -404,7 +400,7 @@ const ELMOS_ARCHIVE=(()=>{
     kpi('Messungen',num(S.records.filter(r=>['testlog','verification'].includes(r.type)).length,0),'Tests / Nachmessungen'),
     kpi('Auffälligkeiten',num(S.records.filter(r=>{
      const x=ANALYSIS.overview(r);return x.errors||x.failedAttempts||
-      ['failed','interrupted','incomplete'].includes(r.status);
+      ['failed','interrupted','incomplete'].includes(C.displayStatus(r));
     }).length,0),'Fehler oder unvollständig')
    );
   }
@@ -1073,7 +1069,7 @@ const ELMOS_ARCHIVE=(()=>{
   const summary=chartSummary(record);
   const mode=record.plan.mode;
   const unit=record.verificationConfig?.pressureUnit||'';
-  const status=record.status;
+  const status=C.displayStatus(record);
   text('arFinishedTitle',ui('Nachmessung gespeichert','Verification saved'));
   text('arFinishedSubtitle',ui('Prüfung am ','Test for ')+(record.chipUID||'–')+
    ' · '+ui('Archivstatus: ','Archive status: ')+(statusWords[status]||status)+
