@@ -4,7 +4,18 @@
  */
 'use strict';
 const ELMOS_CAL = (() => {
- const q = (x,f)=> { if(!Number.isFinite(x))throw Error('Ungültiger Koeffizient');const n=Math.round(x*2**f);if(n<-32768||n>32767)throw Error(`Koeffizient ausserhalb Q${15-f}.${f}: ${x}`);return n&65535;};
+ const q = (x,f,name='Koeffizient')=> {
+  if(!Number.isFinite(x))throw Error('Ungültiger Koeffizient: '+name);
+  const n=Math.round(x*2**f);
+  if(n<-32768||n>32767){
+   const min=-32768/2**f,max=32767/2**f,format='Q'+(15-f)+'.'+f;
+   const error=Error(name+' ausserhalb '+format+': '+x+' (zulässig '+min+' bis '+max+')');
+   error.code='COEFFICIENT_OUT_OF_RANGE';
+   error.coefficient={name,value:x,format,min,max};
+   throw error;
+  }
+  return n&65535;
+ };
  const signed = w => (w&32768)?w-65536:w;
  const fromQ=(w,f)=>signed(w)/2**f;
  function nvmCrc(words,bits=63*16,width=16,init=0xFFFF,poly=0x8005){
@@ -55,23 +66,23 @@ const ELMOS_CAL = (() => {
   if(smax-smin<4000)throw Error('ADC-Signalhub zu klein für eine numerisch stabile Kalibrierung. AFE anpassen.');
   // AN0203 and 25DS0170E.04 §6.3: ADC_S and DSP_S are Q0.15; S_F / S_O are Q3.12.
   // S pre-scaling uses ±0.99 at the observed end points (beware of limited headroom).
-  const sf=q(1.98*32768/(smax-smin),12);
-  const so=q(-fromQ(sf,12)*((smax+smin)/2)/32768,12);
+  const sf=q(1.98*32768/(smax-smin),12,'S_F');
+  const so=q(-fromQ(sf,12)*((smax+smin)/2)/32768,12,'S_O');
   const normS=raw=>fromQ(sf,12)*raw/32768+fromQ(so,12);
   if(ps.some(p=>Math.abs(normS(p.s))>0.999))throw Error('S-Normalisierung nach Quantisierung übersteuert.');
   let tf=null,to=null;
   if(orderT>0){
    const lo=Math.min(...ps.map(p=>p.t)),hi=Math.max(...ps.map(p=>p.t));
    if(hi-lo<500)throw Error('ADC_T-Signalhub zu klein für Temperaturkompensation.');
-   tf=q(1.70*32768/(hi-lo),12);
-   to=q(-fromQ(tf,12)*(hi+lo)/(2*32768),12);
+   tf=q(1.70*32768/(hi-lo),12,'T_F');
+   to=q(-fromQ(tf,12)*(hi+lo)/(2*32768),12,'T_O');
   }
   // When no temperature order is requested the existing chip T_O/T_F, T0..T3 are preserved.
   const normT=raw=>orderT>0?fromQ(tf,12)*raw/32768+fromQ(to,12):0;
   
   const rows=ps.map(p=>keys.map(k=>normS(p.s)**Math.floor(k/4)*normT(p.t)**(k%4)));
   const y=ps.map(p=>(2*outputLimit*(p.p-pmin)/(pmax-pmin)-outputLimit)/32768);
-  const fitted=solveFit(rows,y);const regs=Array(16).fill(0);fitted.forEach((v,i)=>regs[keys[i]]=q(v,15));
+  const fitted=solveFit(rows,y);const regs=Array(16).fill(0);fitted.forEach((v,i)=>regs[keys[i]]=q(v,15,'S'+keys[i]));
   const decoded=regs.map(v=>fromQ(v,15));
   const errors=ps.map((p,i)=>(poly(decoded,normS(p.s),normT(p.t))*32768-y[i]*32768));
   const rms=Math.hypot(...errors)/Math.sqrt(errors.length),max=Math.max(...errors.map(Math.abs));
@@ -81,10 +92,30 @@ const ELMOS_CAL = (() => {
   if(orderT>0){
    const trows=ps.map(p=>Array.from({length:orderT+1},(_,i)=>normT(p.t)**i));
    const ty=ps.map(p=>(387.88*p.temp-16485)/32768);
-   const fittedT=solveFit(trows,ty);tRegs=Array(4).fill(0);fittedT.forEach((v,i)=>tRegs[i]=q(v,15));
+   const fittedT=solveFit(trows,ty);tRegs=Array(4).fill(0);fittedT.forEach((v,i)=>tRegs[i]=q(v,15,'T'+i));
    tErrors=ps.map((p,i)=>32768*(tRegs.reduce((s,v,k)=>s+fromQ(v,15)*normT(p.t)**k,0)-ty[i]));
   }
   return {method:'browser-independent-polynomial-fit',points:ps.length,orderS,orderT,fitMode,outputLimit,registers:{so,sf,coeffs:regs,to,tf,tcoeffs:tRegs},stats:{maxDigits:max,rmsDigits:rms,maxTemperatureDigits:tErrors.length?Math.max(...tErrors.map(Math.abs)):null,rangeDigits:smax-smin,maxNormalized:Math.max(...ps.map(p=>Math.abs(normS(p.s)))),maxOutput},errors,coefficients:decoded,note:'Q3.12/Q0.15 nach Datenblatt; numerischer JavaScript-Fit, nicht identisch mit der Elmos-Kalibrier-DLL. Vor Programmierung RAM/DSP-Verifikation notwendig.'};
+ }
+ /** Propose a conservative, verified DSP target without changing the caller's settings or writing the chip.
+  * A lower DSP target can fix a saturated DSP S-coefficient, but not an AFE or temperature-path fault.
+  * Try 500-digit steps and require 2% coefficient headroom; every candidate runs the full fit gates.
+  */
+ function suggestDspLimit(points,opts={}){
+  const initial=Number(opts.outputLimit??32000);
+  if(!Number.isInteger(initial)||initial<1000||initial>32000)return null;
+  try{fit(points,opts);return null}
+  catch(error){
+   if(error.code!=='COEFFICIENT_OUT_OF_RANGE'||!/^S\\d+$/.test(error.coefficient?.name||''))return null;
+  }
+  for(let target=Math.floor((initial-1)/500)*500;target>=1000;target-=500){
+   try{
+    const proposed=fit(points,{...opts,outputLimit:target});
+    const maxCoefficient=Math.max(...proposed.coefficients.map(Math.abs));
+    if(maxCoefficient<=0.98)return {outputLimit:target,maxCoefficient,originalLimit:initial};
+   }catch(_){/* Keep the full numerical and fixed-point checks for every candidate. */}
+  }
+  return null;
  }
  /** Verifies documented 1-Wire boot prerequisites (Elmos DS 25DS0170E.04, 6.4.5.7).
   * A software check never replaces a physical power-cycle check.
@@ -247,6 +278,6 @@ const ELMOS_CAL = (() => {
   protectStartupCommunication(original,cfg,{allowSvdd:opts.bridgeSupply!==undefined});
   return {before:original.slice(),after:cfg,changes:cfg.map((v,i)=>v!==original[i]?{index:i,address:i*2,from:original[i],to:v}:null).filter(Boolean)};
  }
- return {SVDD_INDEX,SVDD_MASK,fit,solveFit,crc16,crc8,configFrom,prepareOutputConfig,protectStartupCommunication,oneWireStartupStatus,oneWireOnlyStatus,analogScaling,fromQ,q,signed};
+ return {SVDD_INDEX,SVDD_MASK,fit,suggestDspLimit,solveFit,crc16,crc8,configFrom,prepareOutputConfig,protectStartupCommunication,oneWireStartupStatus,oneWireOnlyStatus,analogScaling,fromQ,q,signed};
 })();
 if(typeof module!=='undefined'&&module.exports)module.exports=ELMOS_CAL;
