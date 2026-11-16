@@ -224,7 +224,8 @@ html.guided-active body { background: var(--bg); }
  .top .live-connection{grid-column:2;grid-row:1}
 }
 @media(max-width:620px){
- .top .live-overview{grid-template-columns:repeat(3,minmax(0,1fr))}
+ .top .live-overview{grid-column:1;grid-row:2;grid-template-columns:repeat(3,minmax(0,1fr))}
+ .top .live-connection{grid-column:1;grid-row:3;align-items:flex-start}
  .top .live-kpi{min-height:41px;padding:4px 6px}
  .top .live-kpi-reading{font-size:15px}
  .top .live-kpi-primary .live-kpi-reading{font-size:17px}
