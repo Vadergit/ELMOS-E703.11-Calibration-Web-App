@@ -1,6 +1,6 @@
 # ELMOS E703.11 – Lokales Kalibrierarchiv und Nachmessungen
 
-**Softwarestand v0.7.84 · Funktions- und Benutzeranleitung · Laborprototyp**
+**Softwarestand v0.7.85 · Funktions- und Benutzeranleitung · Laborprototyp**
 
 **Archivexport ab v0.7.72:** Für jeden Archivdatensatz gibt es genau **einen übersichtlichen CSV-Export** sowie einen JSON-Export für die vollständigen technischen Originaldaten. Nachmessung und Test/Logging bieten zusätzlich einen PDF-Bericht; bis zu zwei optionale Fotos werden darin angezeigt. Die frühere separate VDD-Istspannungs-Eingabe der Anschlussansicht ist entfernt.
 
@@ -25,6 +25,12 @@ Das Archiv arbeitet ausschliesslich lokal. Die Webseite lädt weder Kalibrierdat
 Der Browser merkt sich den Ordner über IndexedDB, sofern die Berechtigungsspeicherung unterstützt wird. Eine erneute Freigabe kann nötig sein. Ein Netzwerkordner funktioniert dann, wenn Windows/macOS und Chrome den Zugriff zulassen. Die Anwendung selbst verwaltet keine Cloud und keine Benutzernamen.
 
 Dateien nach dem Muster `ELMOS_YYYYMMDD_HHMMSS_UID_ID.json` enthalten je einen vollständigen Vorgang. Fremde Dateien und ungültige JSON-Formate werden nicht als Kalibrierungen angezeigt. Erkannte, aber defekte Archivdateien werden nur dann als Warnung gezählt, wenn sie eindeutig wie ein vom Archiv erzeugter Dateiname aussehen. **Die App verändert keine fremden Dateien.**
+
+## Archivordner in den App-Einstellungen wählen (ab v0.7.85)
+
+Unter **⚙ Einstellungen → Speicherort für Messungen & Kalibrierungen** zeigt die Anwendung den aktuell vorgemerkten Archivordner und seine Schreibberechtigung. Mit **«Ordner auswählen / ändern»** kann der Ordner direkt ausgewählt werden. Der Browser merkt sich die Auswahl für spätere Besuche; falls danach erneut eine Sicherheitsfreigabe erforderlich ist, auf **«Zugriff freigeben»** klicken. Die alte Archivansicht verwendet denselben Ordner.
+
+**Wichtig:** Der Speicherort gilt gemeinsam für Kalibrierungen, Nachmessungen sowie Test- und Logging-Messungen inklusive JSONL-Rohdaten. Während einer laufenden Aufzeichnung kann der Ordner nicht gewechselt werden. Ein Ordnerwechsel verschiebt oder löscht keine bestehenden Dateien. Aufgrund der Browser-Sicherheitsregeln muss der Ordner über den Dateidialog ausgewählt werden; ein absoluter Pfad darf nicht direkt in die Webseite eingegeben werden. Die Daten bleiben lokal.
 
 ## Kalibrierprotokoll als PDF (ab v0.7.84)
 

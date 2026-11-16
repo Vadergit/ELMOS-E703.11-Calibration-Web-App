@@ -1,3 +1,12 @@
+## v0.7.85 – Archivordner für Kalibrierungen, Nachmessungen und Logging in den Einstellungen
+
+- Unter **App-Einstellungen → Speicherort für Messungen & Kalibrierungen** wird der aktuelle lokale Archivordner mit dem Berechtigungsstatus angezeigt. Mit **«Ordner auswählen / ändern»** lässt sich der Ordner direkt über den sicheren Browser-Dateidialog festlegen.
+- Für alle Archivarten wird derselbe Ordner verwendet: **Kalibrierungen, Nachmessungen und Test/Logging (inkl. zugehörigen JSONL-Rohdaten)**. Es entsteht keine zweite Speicherverwaltung neben dem bestehenden Kalibrierarchiv.
+- Der Ordner wird wie bisher im lokalen IndexedDB des Browsers vorgemerkt und beim nächsten Öffnen angezeigt. Wenn die Browserberechtigung nach einem Neustart nicht mehr gültig ist, erscheint **«Zugriff freigeben»**. Die App fordert ohne expliziten Klick keine versteckte Schreibfreigabe an.
+- Während einer **laufenden Kalibrierung, Nachmessung oder Logger-Aufzeichnung** wird der Ordnerwechsel gesperrt, damit ein Messprotokoll und seine Rohdaten nicht auf mehrere Verzeichnisse verteilt werden. Ein abgebrochener Dateidialog lässt den bisherigen Ordner unverändert.
+- Nach erfolgreichem Wechsel wird die Archivliste aus dem neuen Ordner eingelesen. Bestehende Dateien im vorherigen Ordner werden weder automatisch verschoben noch gelöscht. Kein Upload in die Cloud, kein direkter Zugriff auf einen frei eingetippten absoluten Dateipfad.
+- Regressionstests für Auswahl, IndexedDB-Vormerkung, Zugriffsfreigabe, aktive Aufzeichnungen, Abbruch und fehlende Browserunterstützung ergänzt.
+
 ## v0.7.84 – Kalibrierprotokoll inklusive Diagrammen als PDF speichern
 
 - **Kalibrierung → Ergebnisse prüfen** bietet jetzt wie Nachmessung/Test-Logging den PDF-Export. Der **PDF-Button** ist ebenfalls direkt bei jedem Kalibrierarchiv in der Dateiliste vorhanden.

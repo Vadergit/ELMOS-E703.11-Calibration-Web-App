@@ -16,8 +16,9 @@ jobs:
           node --check calibration-graph.js
           node --check guided.js
           node --check archive.js
+          node --check app.js
           node --check verification-report.js
           node --check verification-graph.js
           node --check archive-readable-csv.js
       - name: Unit and regression tests
-        run: node --test tests/verification-reference.test.cjs tests/view-persistence.test.cjs tests/pressure-preset.test.cjs tests/calibration-graph.test.cjs tests/calibration-report.test.cjs
+        run: node --test tests/verification-reference.test.cjs tests/view-persistence.test.cjs tests/pressure-preset.test.cjs tests/calibration-graph.test.cjs tests/calibration-report.test.cjs tests/archive-folder-settings.test.cjs
