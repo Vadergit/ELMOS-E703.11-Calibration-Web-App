@@ -1,3 +1,10 @@
+## v0.7.99 – NVM-Änderungsliste nur im Expertenmodus
+
+- Die aufklappbare «Änderungsliste (inkl. CRC16) anzeigen» im klassischen NVM-Schritt wird wie die übrigen technischen Details nur bei aktivierten Expertenparametern angezeigt.
+- Die bisherige CSS-Ausnahme für `#nvmDiffDetails` wurde entfernt. Die reguläre Archivpfad-Einstellung bleibt zugänglich.
+- NVM-Lesen, UID- und CRC-Prüfungen, Programmierfreigaben und der vorhandene technische Inhalt der Änderungsliste bleiben unverändert.
+- Regressionstest zur Experten-Sichtbarkeit und Versionsprüfungen aktualisiert.
+
 ## v0.7.98 – Hilfetext der Temperaturmessquelle korrigiert
 
 - Ursache der überlappenden schwarzen Felder behoben: Das neue Hilfezeichen verwendete gleichzeitig einen nativen Browser-Hilfetext und die interne Tooltip-Komponente ohne zugeordneten Inhalt.

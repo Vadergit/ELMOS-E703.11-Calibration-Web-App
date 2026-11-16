@@ -1,7 +1,7 @@
-/* Classic layout: keep diagnostics available to experts without wasting workspace height.
-   NVM change review and the archive directory selector remain available for safety/usability. */
-body:not(:has(#expertMode:checked)) .panel details:not(#nvmDiffDetails):not(#settingsArchivePathDetails),
-body:not(:has(#expertMode:checked)) .settings-panel details:not(#nvmDiffDetails):not(#settingsArchivePathDetails) {
+/* Classic layout: expandable technical details are visible only in expert mode.
+   The archive directory selector remains available in standard settings. */
+body:not(:has(#expertMode:checked)) .panel details:not(#settingsArchivePathDetails),
+body:not(:has(#expertMode:checked)) .settings-panel details:not(#settingsArchivePathDetails) {
   display: none !important;
 }
 /* ADC_S/ADC_T/ADC_TC are already displayed in the persistent live overview.
