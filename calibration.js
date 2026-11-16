@@ -106,7 +106,7 @@ const ELMOS_CAL = (() => {
   if(!Number.isInteger(initial)||initial<1000||initial>32000)return null;
   try{fit(points,opts);return null}
   catch(error){
-   if(error.code!=='COEFFICIENT_OUT_OF_RANGE'||!/^S\\d+$/.test(error.coefficient?.name||''))return null;
+   if(error.code!=='COEFFICIENT_OUT_OF_RANGE'||!/^S\d+$/.test(error.coefficient?.name||''))return null;
   }
   for(let target=Math.floor((initial-1)/500)*500;target>=1000;target-=500){
    try{
