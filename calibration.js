@@ -43,6 +43,11 @@ const ELMOS_CAL = (() => {
   for(let i=k-1;i>=0;i--){let v=b[i];for(let j=i+1;j<k;j++)v-=r[i][j]*x[j];x[i]=v/r[i][i]}
   return x;
  }
+ // E703.11 datasheet: CFG_AFE2 (0x1E), bits [1:0] select temperature source.
+ const temperatureSourceFromAfe2=word=>{
+  if(!Number.isInteger(word)||word<0||word>0xFFFF)throw Error('CFG_AFE2 ist kein gültiges 16-Bit-Register');
+  return ['internal','reserved','bridge','external'][word&3];
+ };
  const poly=(coeffs,s,t)=>coeffs.reduce((sum,c,i)=>sum+c*(s**Math.floor(i/4))*(t**(i%4)),0);
  function fit(points, opts={}){
   const orderS=Number(opts.orderS??1),orderT=Number(opts.orderT??0);
@@ -303,6 +308,6 @@ const ELMOS_CAL = (() => {
    Math.abs(point.temperature-candidate.temperature)>=10
   );
  }
- return {SVDD_INDEX,SVDD_MASK,fit,suggestDspLimit,solveFit,crc16,crc8,configFrom,prepareOutputConfig,protectStartupCommunication,oneWireStartupStatus,oneWireOnlyStatus,analogScaling,fromQ,q,signed,independentVerificationPoint};
+ return {SVDD_INDEX,SVDD_MASK,fit,suggestDspLimit,solveFit,crc16,crc8,configFrom,prepareOutputConfig,protectStartupCommunication,oneWireStartupStatus,oneWireOnlyStatus,analogScaling,fromQ,q,signed,independentVerificationPoint,temperatureSourceFromAfe2};
 })();
 if(typeof module!=='undefined'&&module.exports)module.exports=ELMOS_CAL;
