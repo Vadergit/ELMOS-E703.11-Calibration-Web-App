@@ -1,6 +1,6 @@
 # Roadmap für den E703.11-Kalibrierassistenten
 
-Stand v0.7.76 · Softwarestand im öffentlichen `main`-Branch. Abgehakte Punkte sind im Code umgesetzt; sie bedeuten **keine** automatische Hardware- oder Produktionsfreigabe. Veröffentlichungstermine für noch offene Punkte sind nicht festgelegt.
+Stand v0.7.77 · Softwarestand im öffentlichen `main`-Branch. Abgehakte Punkte sind im Code umgesetzt; sie bedeuten **keine** automatische Hardware- oder Produktionsfreigabe. Veröffentlichungstermine für noch offene Punkte sind nicht festgelegt.
 
 ## Neu umgesetzt seit v0.7.9 (v0.7.63–v0.7.74)
 
@@ -14,6 +14,7 @@ Stand v0.7.76 · Softwarestand im öffentlichen `main`-Branch. Abgehakte Punkte 
 - [x] Schnittstellenanzeige **One-Wire (AODO)** oder **I²C** entsprechend dem tatsächlich verwendeten Verbindungsweg.
 - [x] DIY-Programmer-Auswahl und Firmware-Unterlagen auf **ESP32-C3 SuperMini** und **Arduino Pro Micro** beschränkt; unbekannte Bridge-Firmware nicht freigegeben.
 - [x] **250-ms-Live-Abfrage als adaptiver Standard seit v0.7.76**, mit automatischer Rücknahme auf 400/650 ms bei langen Antworten, ohne parallele Registerabfragen. Bewusst gespeicherte Einstellungen bleiben gültig.
+- [x] **Kompakte, gruppierte App-Einstellungen** seit v0.7.77, Experten-Demo, sichtbare Hilfelinks und automatisches Schliessen bei Klick ausserhalb oder Escape.
 - [ ] Echt-Hardwaretest mit SSP3/E703.11 zur minimalen stabilen Live-Abfragepause und zur erreichbaren Aktualisierungsrate.
 - [ ] Vollständigen Nachmessungs- und Logging-Ablauf inklusive Bildspeicherung und PDF-/CSV-Export im Browser an einem realen Sensor prüfen.
 
