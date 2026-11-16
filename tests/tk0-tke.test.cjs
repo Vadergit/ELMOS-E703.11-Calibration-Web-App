@@ -110,3 +110,20 @@ test('Only fixable DSP coefficient overflow offers a reduced target',()=>{
  assert.ok(app.includes("calcCoefficients();"));
  assert.ok(html.includes('id="calDspProposalApply"'));
 });
+
+test('DSP verification accepts equal pressure at sufficiently different temperature, not repeated conditions',()=>{
+ const confirmed=[{pressure:0,temperature:25},{pressure:6,temperature:25}];
+ const check=(pressure,temperature,reference=confirmed)=>CAL.independentVerificationPoint(reference,{pressure,temperature},6);
+ assert.equal(check(0,75),true,'Third TK0 point at 0 bar / 75 C is independent');
+ assert.equal(check(0,35),true,'10 C difference satisfies the minimum');
+ assert.equal(check(0,34.9),false,'Temperature separation below 10 C is not enough');
+ assert.equal(check(0,25),false,'Same pressure and temperature are duplicates');
+ assert.equal(check(0.5,25),false,'Pressure separation below 10% of span at same temperature is too small');
+ assert.equal(check(3,25),true,'Distant pressure is independent');
+ assert.equal(check(6,75,[...confirmed,{pressure:0,temperature:75}]),true,
+  'Fourth TKE point is independent of three confirmed references');
+ assert.throws(()=>CAL.independentVerificationPoint(confirmed,{pressure:0,temperature:75},0),/Ungültige/);
+ const app=read('app.js');
+ assert.ok(app.includes('CAL.independentVerificationPoint(st.calValidation.filter('));
+ assert.ok(!app.includes('Prüfdruck muss mehr als 10 % der Messspanne von bestätigten Prüfpunkten entfernt sein'));
+});

@@ -278,6 +278,18 @@ const ELMOS_CAL = (() => {
   protectStartupCommunication(original,cfg,{allowSvdd:opts.bridgeSupply!==undefined});
   return {before:original.slice(),after:cfg,changes:cfg.map((v,i)=>v!==original[i]?{index:i,address:i*2,from:original[i],to:v}:null).filter(Boolean)};
  }
- return {SVDD_INDEX,SVDD_MASK,fit,suggestDspLimit,solveFit,crc16,crc8,configFrom,prepareOutputConfig,protectStartupCommunication,oneWireStartupStatus,oneWireOnlyStatus,analogScaling,fromQ,q,signed};
+ // A temperature-compensated verification may repeat a reference pressure at a
+ // different temperature. Only reject duplicates in BOTH dimensions. Preserve
+ // the 10%-of-span pressure rule and require >=10 C separation at equal pressure.
+ function independentVerificationPoint(confirmed,candidate,span){
+  if(!Array.isArray(confirmed)||!Number.isFinite(span)||span<=0||
+     !Number.isFinite(candidate?.pressure)||!Number.isFinite(candidate?.temperature))
+   throw Error('Ungültige DSP-Prüfpunktreferenz');
+  return confirmed.every(point=>
+   Math.abs(point.pressure-candidate.pressure)>span*0.10||
+   Math.abs(point.temperature-candidate.temperature)>=10
+  );
+ }
+ return {SVDD_INDEX,SVDD_MASK,fit,suggestDspLimit,solveFit,crc16,crc8,configFrom,prepareOutputConfig,protectStartupCommunication,oneWireStartupStatus,oneWireOnlyStatus,analogScaling,fromQ,q,signed,independentVerificationPoint};
 })();
 if(typeof module!=='undefined'&&module.exports)module.exports=ELMOS_CAL;

@@ -671,7 +671,7 @@ if(typeof document!=='undefined') (function UI(){
   $('calVerifyProgress').textContent=done+' von '+required+' Prüfpunkten erfolgreich.';
   $('calVerifyCoverage').textContent=required===1?
    'Ein Prüfpunkt (Standard): Die DSP-Kalibrierung wird nur an einer Stelle geprüft. Das ist keine Verifikation des gesamten Druckbereichs. Bei Temperaturkompensation sind zusätzliche Temperaturprüfungen nötig.':
-   required+' Prüfpunkte: Jeder Prüfwert muss innerhalb der Toleranz liegen und ausreichend Abstand zu den anderen Punkten haben. Bei Temperaturkompensation müssen zusätzlich verschiedene Temperaturen geprüft werden.'
+   required+' Prüfpunkte: Jeder Prüfwert muss innerhalb der Toleranz liegen. Gleicher Druck ist bei mindestens 10 °C Temperaturabstand zulässig; sonst sind mehr als 10 % Druckspanne Abstand nötig. Bei Temperaturkompensation müssen verschiedene Temperaturen geprüft werden.'
  }
  function workflowGate(n){
   if(n===8)return ''; // Test / Logging is independent of calibration, even without chip connection.
@@ -2722,8 +2722,8 @@ if(typeof document!=='undefined') (function UI(){
     throw Error('Prüfdruck im Kalibrierbereich eingeben. Beide Endpunkte sind erlaubt.');
    if(!Number.isFinite(tol)||tol<=0)throw Error('Positive Toleranz eingeben');
    if(!Number.isFinite(temp)||temp< -40||temp>125)throw Error('Prüftemperatur zwischen −40 und 125 °C eingeben');
-   if(st.calValidation.some(point=>point.slot!==slot&&Math.abs(point.pressure-p)<=(pmax-pmin)*0.10))
-    throw Error('Prüfdruck muss mehr als 10 % der Messspanne von bestätigten Prüfpunkten entfernt sein');
+   if(!CAL.independentVerificationPoint(st.calValidation.filter(point=>point.slot!==slot),{pressure:p,temperature:temp},pmax-pmin))
+    throw Error('Prüfpunkt zu nahe an einer bestätigten Referenz: mindestens 10 % Messspanne Druckabstand oder 10 °C Temperaturabstand erforderlich');
    st.calTask=true;isChecking=true;
    renderVerificationRows(required);
    if(st.liveReadPromise)await st.liveReadPromise.catch(()=>{});

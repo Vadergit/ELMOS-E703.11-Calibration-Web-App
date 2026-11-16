@@ -1,3 +1,11 @@
+## v0.7.89 – DSP-Prüfpunkte für TK0/TKE bei gleichem Druck zulassen
+
+- DSP-RAM-Verifikation prüft den Mindestabstand nun in beiden Referenzdimensionen: mehr als 10 % der Druckmessspanne **oder** mindestens 10 °C Temperaturdifferenz zu jedem bereits bestätigten Prüfpunkt.
+- Die TK0-Referenzen 0 bar / 25 °C, 6 bar / 25 °C und 0 bar / 75 °C werden nicht mehr fälschlich als doppelte Prüfpunkte abgelehnt.
+- Toleranzprüfung, Temperaturprüfung, vollständige DSP-Freigabe und geschützter NVM-Ablauf bleiben unverändert zwingend.
+- Software-Regressionstests für gleiche Druckwerte mit verschiedener Temperatur; reale Sensorprüfung steht noch aus.
+- Hinweis: Ein Browser-Neuladen stellt die vorigen RAM-Messpunkte und Berechnungsdaten noch nicht automatisch als aktive Kalibrierungssitzung wieder her. Der Sensor darf keinesfalls allein aufgrund des NVM-Auslesens als neu programmiert gelten.
+
 ## v0.7.88 – TK0-Abgleich mit 3 Punkten und TK0 + TKE mit 4 Punkten
 
 - Neuer geführter Modus «TK0 · 3 Punkte»: 0/6 bar bei 25 °C, 0 bar bei 75 °C (Referenzen individuell einstellbar). Drei unabhängige Koeffizienten ohne Druck-Temperatur-Kreuzterm.
