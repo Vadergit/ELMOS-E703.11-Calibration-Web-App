@@ -122,7 +122,7 @@ button.danger{background:#9e3e34;border-color:#9e3e34;color:#fff}button.danger:h
 .brand:has(#homeButton){position:relative}
 #homeButton::after{content:"";position:absolute;inset:0}
 #homeButton:hover{text-decoration:underline;text-underline-offset:.2em}
-.live-overview{min-width:0;display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:6px;align-items:stretch}
+.live-overview{min-width:0;display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:6px;align-items:stretch}
 .live-kpi{display:flex;flex-direction:column;justify-content:center;min-width:0;padding:6px 10px;border:1px solid var(--line);background:#fff;border-radius:8px}
 .live-kpi-primary{border-color:#b9d3ea;background:#f1f7fd}
 .live-kpi-label{font-size:10px;line-height:1.15;letter-spacing:.025em;font-weight:750;color:#536b81}
@@ -139,7 +139,7 @@ button.danger{background:#9e3e34;border-color:#9e3e34;color:#fff}button.danger:h
 .live-meta-dot.is-live{background:#258665}
 .live-meta-dot.is-working{background:#d29a41}
 
-@media(max-width:1120px){
+@media(max-width:1320px){
  .top{grid-template-columns:minmax(0,1fr) auto;gap:8px 12px}
  .live-overview{grid-column:1/-1;grid-row:2}
  .live-connection{grid-column:2;grid-row:1}
@@ -151,7 +151,7 @@ button.danger{background:#9e3e34;border-color:#9e3e34;color:#fff}button.danger:h
  .live-connection{min-width:0}
  .live-connection .chip{font-size:10px;padding:4px 6px}
  .live-meta{font-size:9px}
- .live-overview{gap:4px}
+ .live-overview{gap:4px;grid-template-columns:repeat(3,minmax(0,1fr))}
  .live-kpi{padding:5px 6px}
  .live-kpi-reading{font-size:14px}
  .live-kpi-label,.live-kpi-unit{font-size:9px}
@@ -711,6 +711,7 @@ html.compact-mode .foot{display:none}
 <div class="live-overview" role="group" aria-label="Sensorwerte · laufende Anzeige">
   <div class="live-kpi" title="Unkompensierter Druck-ADC. Warnung bei Beträgen über 25’000 Digits."><span class="live-kpi-label">ADC_S <span id="liveAdcAlert" class="live-alert" hidden>!</span></span><span class="live-kpi-reading" id="liveAdcS">—</span><span class="live-kpi-unit">Digits</span></div>
   <div class="live-kpi" title="ADC_T · Temperatur-Rohwert, keine direkte Temperatur in °C."><span class="live-kpi-label">ADC_T</span><span class="live-kpi-reading" id="liveAdcT">—</span><span class="live-kpi-unit">Digits</span></div>
+  <div class="live-kpi" title="Interne Chiptemperatur aus DSP_T. Der Wert ist nur so genau wie die gespeicherte Temperaturkalibrierung."><span class="live-kpi-label">SSC-Temperatur</span><span class="live-kpi-reading" id="liveTempC">—</span><span class="live-kpi-unit">°C · DSP_T, ungeprüft</span></div>
   <div class="live-kpi" title="DSP_S · kalibrierter digitaler Ausgang in Digits."><span class="live-kpi-label">DSP_S</span><span class="live-kpi-reading" id="liveDspS">—</span><span class="live-kpi-unit">Digits</span></div>
   <div class="live-kpi live-kpi-primary" title="DSP_S auf den eingestellten Druck- oder Prozentbereich umgerechnet. Der Wert ersetzt keine DSP-Verifikation."><span class="live-kpi-label">Sensorwert</span><span class="live-kpi-reading" id="livePressure">—</span><span class="live-kpi-unit" id="livePressureUnit">%</span></div>
 </div>
