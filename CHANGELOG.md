@@ -1,3 +1,11 @@
+## v0.7.93 – Ein erfolgreicher DSP-Prüfpunkt genügt auch bei TK0/TKE
+
+- Die unabhängige DSP-Nachprüfung akzeptiert einen einzigen erfolgreich geprüften Betriebspunkt auch bei aktiver Temperaturkompensation. Kein verpflichtender zweiter Temperaturprüfpunkt und keine pauschale 10-°C-Freigabesperre.
+- Anzahl Prüfstellen bleibt frei wählbar (1–10); wurden mehrere ausgewählt, müssen alle ausgewählten Stellen innerhalb der Toleranz liegen. Die 10-°C-Regel gilt weiterhin nur als Abstand zwischen mehreren Prüfpunkten bei gleichem Druck.
+- Stetige Statusanzeige: Ein erfolgreicher Prüfpunkt erlaubt den nächsten NVM-Arbeitsschritt, **belegt aber weder den vollständigen Druckbereich noch die gesamte TK0-/TKE-Kennlinie**.
+- Optionale DSP_T-Diagnose darf einen bereits erfolgreichen DSP_S-Druckprüfpunkt nicht blockieren. DSP_S-Toleranz, DSP-Sättigung, RAM-Rücklesen, NVM-Backup und One-Wire-/Bootregister-Schutz bleiben erhalten.
+- Geführter und klassischer Verifikationsschritt zeigen die gleichen Regeln und Hinweise. Regressionstests ergänzt.
+
 ## v0.7.92 – Kompakter Kopfbereich und korrekte Temperaturprofil-Erkennung
 
 - Alle fünf Live-Werte (ADC_S, ADC_T, SSC-Temperatur, DSP_S und Sensorwert) stehen auf Desktop wieder kompakt nebeneinander. Die zuvor durch ein CSS-Override falsch auf vier Spalten begrenzte Anzeige wurde korrigiert; responsives Layout optimiert.
