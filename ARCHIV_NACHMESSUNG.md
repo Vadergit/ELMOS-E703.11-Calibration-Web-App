@@ -1,6 +1,6 @@
 # ELMOS E703.11 – Lokales Kalibrierarchiv und Nachmessungen
 
-**Softwarestand v0.7.77 · Funktions- und Benutzeranleitung · Laborprototyp**
+**Softwarestand v0.7.83 · Funktions- und Benutzeranleitung · Laborprototyp**
 
 **Archivexport ab v0.7.72:** Für jeden Archivdatensatz gibt es genau **einen übersichtlichen CSV-Export** sowie einen JSON-Export für die vollständigen technischen Originaldaten. Nachmessung und Test/Logging bieten zusätzlich einen PDF-Bericht; bis zu zwei optionale Fotos werden darin angezeigt. Die frühere separate VDD-Istspannungs-Eingabe der Anschlussansicht ist entfernt.
 
@@ -25,6 +25,12 @@ Das Archiv arbeitet ausschliesslich lokal. Die Webseite lädt weder Kalibrierdat
 Der Browser merkt sich den Ordner über IndexedDB, sofern die Berechtigungsspeicherung unterstützt wird. Eine erneute Freigabe kann nötig sein. Ein Netzwerkordner funktioniert dann, wenn Windows/macOS und Chrome den Zugriff zulassen. Die Anwendung selbst verwaltet keine Cloud und keine Benutzernamen.
 
 Dateien nach dem Muster `ELMOS_YYYYMMDD_HHMMSS_UID_ID.json` enthalten je einen vollständigen Vorgang. Fremde Dateien und ungültige JSON-Formate werden nicht als Kalibrierungen angezeigt. Erkannte, aber defekte Archivdateien werden nur dann als Warnung gezählt, wenn sie eindeutig wie ein vom Archiv erzeugter Dateiname aussehen. **Die App verändert keine fremden Dateien.**
+
+## Grafische Kalibrierauswertung im Archiv (ab v0.7.83)
+
+Bei **Kalibrierung → Ergebnisse prüfen** zeigt die Archivansicht die tatsächlichen, unabhängig aufgenommenen DSP-Verifikationspunkte mit ihrer Druckabweichung und den pro Versuch gespeicherten Toleranzen. Die Darstellung entspricht dem Prinzip der Nachmessungsdiagramme: **Abweichung in % FS**, sofern der kalibrierte Referenzbereich aus den Messpunkten rekonstruierbar ist; daneben eine **Soll-/Ist-Darstellung**. Grün zeigt gespeichertes «Bestanden», rot «Ausser Toleranz», orange «Nicht bewertet». Auch Wiederholungen sind einzeln sichtbar.
+
+Die Ist-Druck-Kurve wird nur aus **Referenzdruck + gespeicherter DSP-Druckabweichung** gebildet. Unterschiedliche historische Toleranzen gelten ausschliesslich für den jeweiligen Prüfversuch; die Grafik behauptet kein einheitliches Toleranzband, wenn tatsächlich unterschiedliche Grenzen gespeichert wurden. Fehlt der vollständige Kalibrierbereich, verwendet die Abweichungsanzeige die verfügbare Druckeinheit statt einer ungesicherten %FS-Angabe. Liegen ausschliesslich Kalibrier-Rohpunkte vor, erscheint ein einfacher ADC_S-Graph ohne Toleranzentscheid. Die Archivdatei bleibt unverändert.
 
 ## 2. Kalibrieren und automatisch dokumentieren
 
