@@ -1,3 +1,12 @@
+## v0.7.96 – Klassische Oberfläche kompakter und Expertenbereiche klar getrennt
+
+- AFE: Die drei redundanten ADC-Kacheln werden nicht mehr dargestellt. Die zugehörigen DOM-Werte bleiben für das laufende Sensor-Monitoring erhalten; die globale Live-Anzeige zeigt ADC_S, ADC_T und ADC_TC bereits an.
+- AFE: Weniger vertikale Abstände in der normalen Oberfläche. Geschützte Register, Diagnose und USB-Rohprotokoll erscheinen ausschliesslich mit aktivierten Expertenparametern.
+- Messpunkte: Sechs Einstellfelder inklusive Temperaturmessquelle sind in einem responsiven, gleichmässigen Raster angeordnet. Der lange Hinweis zur Temperaturmessquelle ist über ein Hilfezeichen abrufbar und belegt keinen eigenen Absatz mehr.
+- Alle aufklappbaren technischen Detailbereiche der klassischen Arbeitsschritte und Einstellungen werden in der Standardansicht ausgeblendet. Im Expertenmodus erscheinen sie mit den ursprünglichen Funktionen und Werten.
+- Ausnahme: Die sicherheitsrelevante NVM-Änderungsliste bleibt vor dem dauerhaften Schreiben erreichbar, ebenso die reguläre Archivverzeichnis-Einstellung.
+- Die Umschaltung der bestehenden Expertenbereiche ist an dieselbe Checkbox gekoppelt und setzt keine Mess- oder Konfigurationswerte zurück. Ein Layout-Regressionstest ist in die CI-Prüfung integriert.
+
 ## v0.7.95 – Interne Chiptemperatur nach NVM-Programmierung und Neustart anzeigen
 
 - Behebt das Verschwinden der SSC-Temperatur nach einem abgeschlossenen Kalibriervorgang, Browser-Neustart oder erneuten Verbinden. Die Anzeige hängt nicht mehr ausschliesslich von flüchtigen RAM-Kalibriermarkern ab.

@@ -22,4 +22,4 @@ jobs:
           node --check verification-graph.js
           node --check archive-readable-csv.js
       - name: Unit and regression tests
-        run: node --test tests/verification-reference.test.cjs tests/view-persistence.test.cjs tests/pressure-preset.test.cjs tests/calibration-graph.test.cjs tests/calibration-report.test.cjs tests/archive-folder-settings.test.cjs tests/tk0-tke.test.cjs
+        run: node --test tests/verification-reference.test.cjs tests/view-persistence.test.cjs tests/pressure-preset.test.cjs tests/calibration-graph.test.cjs tests/calibration-report.test.cjs tests/archive-folder-settings.test.cjs tests/tk0-tke.test.cjs tests/classic-compact-layout.test.cjs

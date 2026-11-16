@@ -194,6 +194,11 @@ if(typeof document!=='undefined') (function UI(){
   'USB-Verbindung benötigt Web Serial. Öffne die App in Chrome oder Edge auf dem Computer.':
   'Öffne die App über HTTPS oder localhost in Chrome oder Edge, um ein USB-Gerät zu verbinden.';
  function renderStatus(){let connected=!!st.port;
+   // Synchronize expert-only controls without resetting their values or open state.
+   const showExpert=$('expertMode').checked;
+   document.querySelectorAll('[data-expert-area]').forEach(area=>{
+    if(area.hidden===showExpert)area.hidden=!showExpert;
+   });
   const addrRow=$('plcAddressRow');
   if(addrRow)addrRow.hidden=st.iface!=='plc'||!$('expertMode').checked;
   if($('plcAddressLabel'))$('plcAddressLabel').textContent=(st.chip||st.readOnlySensor)&&st.plcAddressVerified?
