@@ -95,8 +95,12 @@ const ELMOS_READABLE_CSV=(()=>{
   const entries=all.flatMap(({step,index,events:group})=>group.length?
    group.map((event,attempt)=>({step,index,event,attempt:attempt+1})):
    [{step,index,event:null,attempt:null}]);
-  const pressureTarget=x=>finite(x.event?.data?.referencePressure)?x.event.data.referencePressure:
+  const pressureTarget=x=>finite(x.event?.data?.referencePressureInput)?x.event.data.referencePressureInput:
+   finite(x.event?.data?.referencePressure)?x.event.data.referencePressure:
    finite(x.step?.pressure)?x.step.pressure:null;
+  const hasPressureCorrection=pMode&&entries.some(x=>finite(x.event?.data?.referencePressureInput)&&
+   finite(x.event?.data?.referencePressure)&&
+   Math.abs(x.event.data.referencePressureInput-x.event.data.referencePressure)>1e-9);
   const hasDifferentTargets=pMode&&entries.some(x=>finite(x.step?.pressure)&&
    finite(x.event?.data?.referencePressure)&&
    Math.abs(x.step.pressure-x.event.data.referencePressure)>1e-9);
@@ -116,6 +120,7 @@ const ELMOS_READABLE_CSV=(()=>{
   if(pMode){
    headers.push(hasDifferentTargets?'Soll ['+unit+']':'Referenz ['+unit+']');
    if(hasDifferentTargets)headers.push('Referenz ['+unit+']');
+   if(hasPressureCorrection)headers.push('Sensorbezug ['+unit+']');
    headers.push('Sensor ['+unit+']','Abw. ['+unit+']','Abw. [% FS]');
   }
   if(tMode)headers.push('Ref. Temp. [°C]','Sensor Temp. [°C]','Abw. Temp. [°C]');
@@ -139,6 +144,7 @@ const ELMOS_READABLE_CSV=(()=>{
    if(pMode){
     row.push(number(hasDifferentTargets&&finite(x.step?.pressure)?x.step.pressure:ref));
     if(hasDifferentTargets)row.push(number(ref));
+    if(hasPressureCorrection)row.push(number(finite(d.referencePressure)?d.referencePressure:ref));
     row.push(number(observed),number(diff),number(fs,5));
    }
    const temp=finite(d.referenceTemperature)?d.referenceTemperature:x.step?.temperature;

@@ -115,9 +115,26 @@ const ELMOS_VERIFICATION_REPORT=(()=>{
    graphics.push('<div class="plot"><div class="plot-label">'+esc(tr('Prüfpunkte','Points'))+' '+(i+1)+'-'+(i+slice.length)+'</div>'+chartSegment(slice,mode)+'</div>');
   }
   const tableRows=series.map(x=>{
-   const reference=[];
-   if(mode!=='temperature')reference.push(n(x.step.pressure,4)+' '+(config.pressureUnit||''));
-   if(mode!=='pressure'&&x.step.temperature!=null)reference.push(n(x.step.temperature,2)+' °C');
+   const reference=[],unit=config.pressureUnit||'';
+   if(mode!=='temperature'){
+    // The setpoint is the plan; the entered calibrator pressure is the measured reference.
+    const entered=Number.isFinite(x.item?.referencePressureInput)?x.item.referencePressureInput:
+     Number.isFinite(x.item?.referencePressure)?x.item.referencePressure:x.step.pressure;
+    const changed=x.item&&Number.isFinite(entered)&&Number.isFinite(x.step.pressure)&&
+     Math.abs(entered-x.step.pressure)>1e-9;
+    reference.push(n(entered,4)+' '+unit+
+     (changed?' ('+tr('Soll','Target')+' '+n(x.step.pressure,4)+' '+unit+')':
+      !x.item?' ('+tr('geplant','planned')+')':''));
+    if(x.item&&config.correctionApplied&&Number.isFinite(x.item.referencePressure)&&
+      Number.isFinite(entered)&&Math.abs(x.item.referencePressure-entered)>1e-9)
+     reference.push(tr('Sensorbezug','Sensor reference')+': '+n(x.item.referencePressure,4)+' '+unit);
+   }
+   if(mode!=='pressure'&&x.step.temperature!=null){
+    const enteredTemp=Number.isFinite(x.item?.referenceTemperature)?x.item.referenceTemperature:x.step.temperature;
+    const changed=x.item&&Number.isFinite(enteredTemp)&&Math.abs(enteredTemp-x.step.temperature)>1e-9;
+    reference.push(n(enteredTemp,2)+' °C'+
+     (changed?' ('+tr('Soll','Target')+' '+n(x.step.temperature,2)+' °C)':''));
+   }
    return '<tr><td>'+esc(x.index+1)+'</td><td>'+esc(reference.join(' / ')||'–')+'</td><td>'+
     esc(measured(x.item,mode))+'</td><td>'+esc(diff(x,mode))+'</td><td>'+badge(x.status)+'</td><td>'+
     esc(x.item?.attempt??'–')+'</td></tr>';
@@ -151,7 +168,7 @@ const ELMOS_VERIFICATION_REPORT=(()=>{
    '<h2>'+esc(tr('Grafische Auswertung','Graphical evaluation'))+'</h2>'+
    (graphics.join('')||'<p>'+esc(tr('Keine auswertbaren Daten gespeichert.','No evaluable data stored.'))+'</p>')+
    '<h2>'+esc(tr('Alle Prüfpunkte und Ergebnisse','All verification points and results'))+'</h2>'+
-   '<table><thead><tr><th>#</th><th>'+esc(tr('Soll','Target'))+'</th><th>'+esc(tr('Ist','Measured'))+'</th><th>'+
+   '<table><thead><tr><th>#</th><th>'+esc(tr('Referenz (tatsächlich)','Reference (actual)'))+'</th><th>'+esc(tr('Ist','Measured'))+'</th><th>'+
    esc(tr('Abweichung','Deviation'))+'</th><th>'+esc(tr('Ergebnis','Result'))+'</th><th>'+
    esc(tr('Versuch','Attempt'))+'</th></tr></thead><tbody>'+tableRows+'</tbody></table>'+
    photosHtml+'<div class="warning">'+esc(reportNotice)+'</div>'+ 

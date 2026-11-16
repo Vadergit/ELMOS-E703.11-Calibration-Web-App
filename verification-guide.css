@@ -209,3 +209,31 @@ html[data-theme="dark"] #archiveWorkspace .ar-archive-verification-graph{border-
 #archiveWorkspace .ar-finished-meta-item strong{display:block;font-size:12px;color:#264a63;white-space:pre-wrap;overflow-wrap:anywhere}
 @media(max-width:720px){#archiveWorkspace .ar-finished-metadata{grid-template-columns:1fr 1fr}}
 @media(max-width:470px){#archiveWorkspace .ar-finished-metadata{grid-template-columns:1fr}}
+
+/* Verification input feedback: never make an invalid field hard to find. */
+#archiveWorkspace .ar-invalid-input,
+#archiveWorkspace .ar-invalid-input:focus{
+ border:2px solid #bb3343 !important;
+ outline:2px solid rgba(187,51,67,.23);
+ outline-offset:1px;
+ background:var(--paper,#fff);
+}
+#archiveWorkspace .ar-field-error{
+ display:block;
+ margin-top:5px;
+ font-size:12px;
+ font-weight:700;
+ line-height:1.4;
+ color:var(--red,#a72a38);
+}
+#archiveWorkspace .ar-start-validation-status{
+ padding:10px 12px;
+ margin:8px 0 12px;
+ border-left:3px solid #bb3343;
+ border-radius:5px;
+ background:rgba(187,51,67,.07);
+ color:var(--red,#a72a38);
+ font-size:13px;
+ font-weight:700;
+}
+#archiveWorkspace .ar-start-validation-status[hidden]{display:none}
