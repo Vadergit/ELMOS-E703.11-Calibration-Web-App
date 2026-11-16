@@ -89,5 +89,54 @@ test('Failed measured tolerance or a still-open empty record keep their true sta
  assert.equal(CORE.verificationCompletion(bad),'failed');
  assert.equal(CORE.displayStatus(bad),'incomplete'); // correction only for completed records
  const open={...ungradedFinished(),status:'running',endedAt:null};
- assert.equal(CORE.displayStatus(open),'running');
+ assert.equal(CORE.displayStatus(open),'incomplete'); // legacy running records never appear as Open
+});
+
+test('Empty calibration starts and snapshots do not count as measured data',()=>{
+ const empty={type:'calibration',status:'running',endedAt:null,events:[
+  {kind:'started',data:{type:'calibration'}},
+  {kind:'initial_snapshot',data:{ramWords:30,nvmWords:64}},
+  {kind:'transport',data:{line:'PLC read'}},
+  {kind:'error',data:{stage:'initial_snapshot',message:'No chip response'}}
+ ]};
+ assert.equal(CORE.hasMeaningfulData(empty),false);
+ const partial=structuredClone(empty);
+ partial.events.push({kind:'calibration_point',data:{point:{adc_s:120,rawSamples:[119,120]}}});
+ assert.equal(CORE.hasMeaningfulData(partial),true);
+ assert.equal(CORE.displayStatus(partial),'incomplete');
+ assert.equal(CORE.displayStatus(empty),'incomplete'); // unseen empty records are filtered
+});
+test('Meaningful partial archives and hardware changes survive; empty verification does not',()=>{
+ const calibration={type:'calibration',status:'running',events:[
+  {kind:'started',data:{}},
+  {kind:'afe_ram_changed',data:{before:10,after:11}}
+ ]};
+ const aborted={type:'calibration',status:'incomplete',events:[
+  {kind:'error',data:{rawSamples:[1,2,3]}}
+ ]};
+ const failed={type:'calibration',status:'running',events:[
+  {kind:'error',data:{message:'no sensor reply'}}
+ ]};
+ const verification={type:'verification',status:'running',plan:{steps:[{index:0}]},
+  events:[{kind:'started',data:{}},{kind:'point_skipped',data:{stepIndex:0}}]};
+ const measured={...verification,events:[...verification.events,
+  {kind:'measurement',data:{stepIndex:0,sample:{sensorValue:1}}}]};
+ assert.equal(CORE.hasMeaningfulData(calibration),true);
+ assert.equal(CORE.hasMeaningfulData(aborted),true);
+ assert.equal(CORE.hasMeaningfulData(failed),false);
+ assert.equal(CORE.hasMeaningfulData(verification),false);
+ assert.equal(CORE.hasMeaningfulData(measured),true);
+ assert.equal(CORE.displayStatus(measured),'incomplete');
+});
+test('Crash-interrupted testlog references are not silently hidden',()=>{
+ const interrupted={type:'testlog',status:'running',telemetry:{groups:0},
+  telemetryFiles:['samples.part-0001.samples.jsonl'],events:[{kind:'started',data:{}}]};
+ assert.equal(CORE.hasMeaningfulData(interrupted),true);
+ assert.equal(CORE.displayStatus(interrupted),'incomplete');
+});
+test('Archive UI prevents empty files and hides existing empty archive records',()=>{
+ const archive=fs.readFileSync(path.join(__dirname,'..','archive.js'),'utf8');
+ assert.match(archive,/if\(\['calibration','verification'\]\.includes\(S\.record\.type\)&&!C\.hasMeaningfulData\(S\.record\)\)return;/);
+ assert.match(archive,/if\(!C\.hasMeaningfulData\(parsed\)\)\{hiddenEmpty\+\+;continue\}/);
+ assert.doesNotMatch(archive,/<option value="running">/);
 });
