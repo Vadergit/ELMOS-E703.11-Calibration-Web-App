@@ -65,6 +65,8 @@ button.danger{background:#9e3e34;border-color:#9e3e34;color:#fff}button.danger:h
 .nvm-advanced summary{font-size:12px}
 @media(max-width:750px){.nvm-compact .fieldrow{grid-template-columns:1fr}.nvm-compact-row{align-items:flex-start;flex-direction:column}}
 
+/* Messpunkte: Temperaturstufen bündeln; Karten behalten ihre echten Slot-IDs. */
+#calPointRows{display:flex;flex-direction:column}
 /* Messpunkte: kompakte Desktop-Ansicht ohne Änderung an Mess- oder Kalibrierlogik. */
 .panel[data-panel="2"]{padding:18px 20px}
 .panel[data-panel="2"] .cal-intro{font-size:12px;line-height:1.45;margin:3px 0 12px}
@@ -1029,6 +1031,7 @@ html.compact-mode .foot{display:none}
 </div>
 <div id="calSampleProgress" class="cal-sampling-progress" role="status" aria-live="polite" hidden>Bereit für die Messung.</div>
 <div id="calPointPlanMsg" class="callout">2 Messpunkte gewählt. Beide Endpunkte messen und anschliessend Koeffizienten berechnen.</div>
+<div id="calPointRows" class="cal-point-rows">
 <div class="cal-point-row">
 <div class="between"><h3>Messpunkt 1 · Unterer Endpunkt</h3><span class="cal-point-status" id="lowVal">Noch nicht aufgenommen</span></div>
 <div class="fieldrow">
@@ -1138,6 +1141,7 @@ html.compact-mode .foot{display:none}
 </div>
 
 <div id="calHiResult" class="cal-measure-result" hidden></div>
+</div>
 </div>
 <div id="calMsg" class="callout">Beide Endpunkte aufnehmen. Für zusätzliche Punkte stehen die Zwischenpunkte direkt darüber bereit.</div>
 <div class="triple"><div class="stat"><small>ADC-Hub</small><strong id="hub">—</strong></div><div class="stat"><small>Signalmitte</small><strong id="middle">—</strong></div><div class="stat"><small>Aussteuerung</small><strong id="usage">—</strong></div></div>
