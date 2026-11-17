@@ -1408,14 +1408,14 @@ html[data-theme="dark"] #nvmWriteStatus[data-state="success"]{background:#15392c
 <p class="muted">Alle 64 EEPROM-Wörter mit Bedeutung und Registerdetails anzeigen. Über die Adresse lassen sich zusätzliche Erklärungen öffnen. Der Viewer ist <b>nur lesend</b> und unabhängig vom Kalibrierablauf.</p>
 <div class="flex"><button class="primary" id="eepromRead" type="button">EEPROM lesen (64 Wörter)</button><button id="eepromExport" type="button" disabled>EEPROM-Backup exportieren (mit Chip-ID)</button></div>
 <div id="eepromStatus" class="callout">Noch kein EEPROM aus dem Sensor gelesen. Das Lesen benötigt eine echte Sensorverbindung und prüft die CRC.</div>
-<section class="eeprom-overview" aria-labelledby="eepromOverviewHeading">
+<div class="eeprom-overview" aria-labelledby="eepromOverviewHeading">
 <div class="eeprom-overview-head">
  <div><h3 id="eepromOverviewHeading">Sensoreinstellungen im Überblick</h3><p class="muted">Gespeicherte Einstellungen und tatsächliche Registerwerte getrennt betrachten.</p></div>
  <button id="eepromReadRam" type="button" disabled>Aktuelle RAM-Werte vergleichen</button>
 </div>
 <div id="eepromOverviewStatus" class="eeprom-overview-note muted" role="status">Bitte zuerst EEPROM lesen.</div>
 <div id="eepromOverviewRows">Noch keine verifizierten EEPROM-Daten.</div>
-</section>
+</div>
 <details id="eepromRawDetails" class="eeprom-raw-details"><summary>Technische Registertabelle · 64 EEPROM-Wörter</summary>
 <div class="fieldrow" style="margin:13px 0 8px">
 <label>In EEPROM-Wörtern und Beschreibungen suchen<input id="eepromSearch" type="search" placeholder="z. B. Offset, Temperatur, 1-Wire oder AODO_F"></label>
