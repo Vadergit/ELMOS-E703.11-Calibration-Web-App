@@ -175,3 +175,50 @@ test('Manual ADC_T at each temperature allows advanced reconstruction if DSP_T i
  assert.equal(manual.rows[1].adcT,7000/32768);
  assert.equal(recon.calculate(w,{...advancedOpts,adcT1:'bad'}).ok,false);
 });
+
+
+test('Missing-data summary explains fixed temperature NVM without suggesting pressure fit is missing',()=>{
+ const w=image();w[52]=0;w[51]=0xE9B0;
+ const result=recon.calculate(w,{pmin:0,pmax:6,ta:25,tb:75});
+ assert.equal(result.hasPhysical,true);
+ const summary=recon.missingExplanations(result);
+ const names=summary.map(v=>v.name);
+ assert.deepEqual(names,['Temperatur-Rohwerte (ADC_T)','Temperaturgang (TK0 / TKR)','Ursprünglicher Druckbereich / Prüfpunkte']);
+ assert.match(summary[0].reason,/gemessene ADC_T-Werte/);
+ assert.match(summary[1].reason,/zwei Temperaturen/);
+ assert.match(summary[2].reason,/Kalibrierprotokoll/);
+});
+test('Complex NVM with TK0 and TKE does not show missing values when calculable',()=>{
+ const w=image();w[36]=0x0400;w[40]=0x0600;
+ const result=recon.calculate(w,{pmin:0,pmax:6,ta:25,tb:75,limit:24000});
+ assert.ok(result.hasPhysical&&Number.isFinite(result.tk0)&&Number.isFinite(result.tkr));
+ const names=recon.missingExplanations(result).map(v=>v.name);
+ assert.deepEqual(names,['Ursprünglicher Druckbereich / Prüfpunkte']);
+});
+test('Missing pressure fit is explained without claiming ADC_S could be calculated',()=>{
+ const w=image();w[34]=0;
+ const result=recon.calculate(w,{limit:24000});
+ assert.ok(!result.hasPhysical);
+ const names=recon.missingExplanations(result).map(v=>v.name);
+ assert.ok(names.includes('Druck-Rohwerte (ADC_S)'));
+ assert.ok(names.includes('Temperaturgang (TK0 / TKR)'));
+ assert.equal(recon.missingExplanations({ok:false,error:'Invalid'}).length,0);
+});
+test('Optional measured ADC_T removes corresponding missing value from explanation',()=>{
+ const w=image();w[51]=0xE9B0;w[52]=0;
+ const result=recon.calculate(w,{limit:24000,adcT1:-5000,adcT2:5000});
+ const names=recon.missingExplanations(result).map(v=>v.name);
+ assert.equal(names.includes('Temperatur-Rohwerte (ADC_T)'),false);
+ assert.equal(names.includes('Temperaturgang (TK0 / TKR)'),true);
+});
+test('Missing-data summary is always shown below explanation, not in a hidden diagnostics section',()=>{
+ const fs=require('node:fs'),path=require('node:path');
+ const source=fs.readFileSync(path.join(__dirname,'..','nvm-reconstruction.js'),'utf8');
+ const style=fs.readFileSync(path.join(__dirname,'..','nvm-reconstruction.css'),'utf8');
+ const html=fs.readFileSync(path.join(__dirname,'..','index.html'),'utf8');
+ assert.match(source,/root\.append\(setup,status,result,explain,missing\)/);
+ assert.match(source,/Nicht berechenbare Werte/);
+ assert.match(source,/missing\.hidden=false/);
+ assert.match(style,/#nvmReconstruction \.nvmrecon-missing/);
+ assert.match(html,/nvm-reconstruction\.js\?v=0\.2\.3/);
+});
