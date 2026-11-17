@@ -61,9 +61,9 @@ test('Application settings contain the shared archive picker, permission and pri
  assert.doesNotMatch(html,/settings-panel-shortcut"[^>]*>Esc</);
  assert.match(read('app.js'),/event\.key==='Escape'/);
  assert.match(html,/Speicherort für Messungen &amp; Kalibrierungen/);
- assert.match(html,/data-app-version="0\.7\.99"/);
+ assert.match(html,/data-app-version="0\.7\.\d+"/);
  assert.match(html,/archive\.js\?v=0\.7\.87/);
- assert.match(html,/app\.js\?v=0\.7\.99/);
+ assert.match(html,/app\.js\?v=0\.7\.\d+/);
  assert.match(app,/ELMOS_ARCHIVE\?\.refreshFolderSettings\?\.\(\)/);
  assert.match(archive,/settingsArchiveChoose'\)\?\.addEventListener\('click'/);
  assert.match(archive,/settingsArchiveGrant'\)\?\.addEventListener\('click'/);

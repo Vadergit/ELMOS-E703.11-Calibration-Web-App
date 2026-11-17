@@ -60,7 +60,7 @@ const ELMOS_EXPERT=(()=>{
     }
     refreshOutputReadOnly();
     renderOutputMode();
-    show('expertOutputMsg','Chip-Ausgangsregister gelesen, gewünschte S0/S1-Zielspannungen unverändert. Neue Einstellungen erst mit «Ausgangskonfiguration prüfen und vormerken» übernehmen.','success');
+    show('expertOutputMsg','Chip-Ausgangsregister gelesen, S0/S1-Ziele unverändert. Bei einer neuen Kalibrierung wird die analoge Skalierung im NVM-Prüfschritt automatisch mitgeplant und mit S0/S1 verglichen; reine Ausgangsänderungen weiterhin separat vormerken.','success');
    }catch(e){show('expertOutputMsg','Chip-UID erkannt. Ausgangsregister konnten noch nicht vollständig gelesen werden: '+e.message,'warn')}
    return st.uid
   }

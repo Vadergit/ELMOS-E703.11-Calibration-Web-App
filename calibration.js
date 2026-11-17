@@ -93,6 +93,21 @@ const ELMOS_CAL = (() => {
   return ['internal','reserved','bridge','external'][word&3];
  };
  const poly=(coeffs,s,t)=>coeffs.reduce((sum,c,i)=>sum+c*(s**Math.floor(i/4))*(t**(i%4)),0);
+ // AN0203 §2.2: d_DSP_S = 640*P[%] - 32000.
+ // Preserve an explicitly chosen smaller DSP range, but never conflate DSP_S
+ // limits with the ADC_S headroom. P is always normalized to full-scale %.
+ function elmosDspTarget(pressure,pmin=0,pmax=100,limit=32000){
+  if(![pressure,pmin,pmax,limit].every(Number.isFinite)||pmax<=pmin||
+     !Number.isInteger(limit)||limit<1000||limit>32000||
+     pressure<pmin-1e-9||pressure>pmax+1e-9)
+   throw Error('AN0203: Ungültiger Referenzdruck oder DSP-Endwert');
+  return 2*limit*(pressure-pmin)/(pmax-pmin)-limit;
+ }
+ const elmosTemperatureTarget=degreesC=>{
+  if(!Number.isFinite(degreesC)||degreesC< -40||degreesC>125)
+   throw Error('AN0203: Temperaturreferenz ausserhalb -40..125 °C');
+  return 387.88*degreesC-16485;
+ };
  function fit(points, opts={}){
   const orderS=Number(opts.orderS??1),orderT=Number(opts.orderT??0);
    // Three-point TK0 uses no pressure-temperature interaction (S*T).
@@ -143,7 +158,7 @@ const ELMOS_CAL = (() => {
   const normT=raw=>orderT>0?fromQ(tf,12)*raw/32768+fromQ(to,12):0;
   
   const rows=ps.map(p=>keys.map(k=>normS(p.s)**Math.floor(k/4)*normT(p.t)**(k%4)));
-  const y=ps.map(p=>(2*outputLimit*(p.p-pmin)/(pmax-pmin)-outputLimit)/32768);
+  const y=ps.map(p=>elmosDspTarget(p.p,pmin,pmax,outputLimit)/32768);
   const fitted=solveFit(rows,y);const regs=Array(16).fill(0);fitted.forEach((v,i)=>regs[keys[i]]=q(v,15,'S'+keys[i]));
   const decoded=regs.map(v=>fromQ(v,15));
   const errors=ps.map((p,i)=>(poly(decoded,normS(p.s),normT(p.t))*32768-y[i]*32768));
@@ -153,7 +168,7 @@ const ELMOS_CAL = (() => {
   let tRegs=null,tErrors=[];
   if(orderT>0){
    const trows=ps.map(p=>Array.from({length:orderT+1},(_,i)=>normT(p.t)**i));
-   const ty=ps.map(p=>(387.88*p.temp-16485)/32768);
+   const ty=ps.map(p=>elmosTemperatureTarget(p.temp)/32768);
    const fittedT=solveFit(trows,ty);tRegs=Array(4).fill(0);fittedT.forEach((v,i)=>tRegs[i]=q(v,15,'T'+i));
    tErrors=ps.map((p,i)=>32768*(tRegs.reduce((s,v,k)=>s+fromQ(v,15)*normT(p.t)**k,0)-ty[i]));
   }
@@ -260,6 +275,51 @@ const ELMOS_CAL = (() => {
   return {gain,offset,scaleEnabled:true,requested:[v0,v1],actualVolts:[(actual0/32768+1)*vdd/2,(actual1/32768+1)*vdd/2],
    outputDigits:[actual0,actual1],vdd,limit};
  }
+ // E703.11 DS §6.3.2.6 and §6.4.1.1: DSP_AODO = AODO_F*DSP_S+AODO_O,
+ // with Q3.12 AODO coefficients and nominal VDD/2*(1 + DSP_AODO/32768).
+ // Check the COMPLETE post-NVM image, not just the on-screen calculation.
+ // This independent check prevents a valid DSP fit being saved together with
+ // stale AODO settings. Actual physical voltage still requires a DMM check.
+ function analogOutputStatus(words,s0,s1,vdd=5,outputLimit=32000,toleranceV=0.025){
+  if(!Array.isArray(words)||words.length!==64||
+     words.some(w=>!Number.isInteger(w)||w<0||w>65535))
+   throw Error('AODO-Prüfung: vollständiges 64-Wort-NVM-Abbild erforderlich');
+  if(![s0,s1,vdd,toleranceV].every(Number.isFinite)||vdd<2.7||vdd>5.5||
+     toleranceV<=0||toleranceV>0.1||!Number.isInteger(outputLimit)||
+     outputLimit<1000||outputLimit>32000)
+   throw Error('AODO-Prüfung: ungültige Sollwerte/VDD/DSP-Spanne');
+  if(!(s1>s0&&s0>=vdd*0.1-1e-9&&s1<=vdd*0.9+1e-9))
+   throw Error('AODO-Prüfung: S0/S1 müssen zwischen 10 und 90 % VDD liegen');
+  const mode=(words[16]>>9)&7,scaled=!!(words[16]&(1<<6)),limited=!!(words[16]&(1<<7));
+  if(mode<1||mode>3)return {checked:false,ok:true,mode,reason:'Kein ratiometrischer Analogausgang'};
+  if(!scaled)return {checked:true,ok:false,mode,reason:'CFG_EN.scale_en ist aus: S0/S1 können nach Neustart nicht stimmen'};
+  const gain=fromQ(words[58],12),offset=fromQ(words[57],12);
+  const raw=[-outputLimit,outputLimit].map(dsp=>gain*dsp+offset*32768);
+  if(!Number.isFinite(gain)||gain<=0||raw.some(v=>Math.abs(v)>32767))
+   return {checked:true,ok:false,mode,reason:'AODO_F ungültig oder DSP_AODO ausserhalb 16-Bit-Bereich'};
+  if(limited){
+   if((words[59]&3)||(words[60]&3))
+    return {checked:true,ok:false,mode,reason:'AODO-Limit-Hysterese nicht null; manuelle Prüfung erforderlich'};
+   const lo=(signed(words[59])>>2)*4,hi=(signed(words[60])>>2)*4;
+   if(lo>=hi)return {checked:true,ok:false,mode,reason:'AODO-Limiting-Untergrenze >= Obergrenze'};
+   raw[0]=Math.max(lo,Math.min(hi,raw[0]));
+   raw[1]=Math.max(lo,Math.min(hi,raw[1]));
+  }
+  const actual=raw.map(dsp=>vdd/2*(1+dsp/32768));
+  const unClippedVolts=[-outputLimit,outputLimit]
+   .map(dsp=>vdd/2*(1+(gain*dsp+offset*32768)/32768));
+  const errors=[actual[0]-s0,actual[1]-s1];
+  const unClippedErrors=[unClippedVolts[0]-s0,unClippedVolts[1]-s1];
+  // Limiting does NOT replace scaling. A 0.25..4.75 V gain must fail,
+  // even if clipped to 0.5..4.5 V at the end.
+  const ok=errors.every(e=>Math.abs(e)<=toleranceV)&&
+   unClippedErrors.every(e=>Math.abs(e)<=toleranceV);
+  return {checked:true,ok,mode,scaled,limited,actualVolts:actual,
+   unClippedVolts,requestedVolts:[s0,s1],errorsVolts:errors,gain,offset,outputLimit,
+   reason:ok?'AODO-NVM-Skalierung entspricht dem Spannungsziel':
+    'AODO-NVM-Rohskalierung ergibt '+unClippedVolts.map(v=>v.toFixed(4)+' V').join(' / ')+
+    ' statt '+s0.toFixed(4)+' / '+s1.toFixed(4)+' V (Clipping ersetzt keine Skalierung)'};
+ }
  function prepareOutputConfig(original,settings,outputLimit=32000){
   if(!Array.isArray(original)||original.length!==64)throw Error('Vollständiges NVM-Abbild erforderlich');
   const out=original.slice();
@@ -363,6 +423,6 @@ const ELMOS_CAL = (() => {
   Number.isInteger(required)&&required>=1&&required<=10&&Array.isArray(records)&&
   Array.from({length:required},(_,slot)=>records.some(point=>
    point?.slot===slot&&Number.isFinite(point.errorBar))).every(Boolean);
- return {SVDD_INDEX,SVDD_MASK,fit,suggestDspLimit,solveFit,crc16,crc8,configFrom,prepareOutputConfig,protectStartupCommunication,oneWireStartupStatus,oneWireOnlyStatus,analogScaling,fromQ,q,signed,independentVerificationPoint,verificationPointsSufficient,temperatureSourceFromAfe2,dspTemperatureCelsius,isFactoryTemperatureProfile,factoryInternalTemperatureCelsius,factoryTemperatureAddresses,programmedTemperatureAddresses,programmedTemperatureProfileMatches};
+ return {SVDD_INDEX,SVDD_MASK,fit,suggestDspLimit,solveFit,crc16,crc8,configFrom,prepareOutputConfig,protectStartupCommunication,oneWireStartupStatus,oneWireOnlyStatus,analogScaling,analogOutputStatus,elmosDspTarget,elmosTemperatureTarget,fromQ,q,signed,independentVerificationPoint,verificationPointsSufficient,temperatureSourceFromAfe2,dspTemperatureCelsius,isFactoryTemperatureProfile,factoryInternalTemperatureCelsius,factoryTemperatureAddresses,programmedTemperatureAddresses,programmedTemperatureProfileMatches};
 })();
 if(typeof module!=='undefined'&&module.exports)module.exports=ELMOS_CAL;
