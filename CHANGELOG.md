@@ -1,3 +1,11 @@
+## v0.7.102 – Referenztemperaturänderung nur für betroffenen Messpunkt
+
+- Das Ändern von `calLoTemp` oder `calHiTemp` löscht nicht mehr pauschal alle aufgenommenen Kalibrierpunkte. Ist der geänderte Endpunkt noch nicht gemessen, bleiben alle Messungen bestehen.
+- Ist der betreffende Endpunkt bereits aufgenommen und ändert sich sein Temperatur-Sollwert tatsächlich, wird ausschliesslich dieser Punkt zur erneuten Aufnahme freigegeben. Die anderen Messwerte bleiben erhalten. Unveränderte Eingaben führen zu keiner Löschung.
+- Die bisherige AFE-Hub-Anzeige wird nicht mit veralteten Werten weiter angezeigt, wenn ein Endpunkt fehlt.
+- Die DSP-Kalibrierung wird nur freigegeben, wenn die gespeicherten Referenzen sämtlicher Messpunkte mit den aktuellen Druck-, Temperatur- und Einheiteneingaben übereinstimmen.
+- Bei Änderungen am globalen Druckbereich, an der Einheit oder AFE bleiben die bestehenden Sicherheitsregeln bestehen.
+
 ## v0.7.101 – Live-Werte logisch nach Temperatur und Druck sortiert
 
 - Die permanente Live-Anzeige zeigt neu zuerst **ADC_T** und **SSC-Temperatur**, rechts davon **ADC_S**, **DSP_S** und **Sensorwert**.
