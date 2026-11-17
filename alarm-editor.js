@@ -18,6 +18,34 @@ const ELMOS_ALARM_EDITOR=(()=>{
   for(let i=1;i<=15;i++){const o=document.createElement('option');o.value=String(i);o.textContent=(2**(i-1))+' Digits';
    $('alarmHysteresis').appendChild(o)}
   let key='',dirty=false,loading=false;
+  function updateRules(){
+   const valid=proven(),busy=st.writing||st.calTask||st.nvmWorking;
+   const check=valid?A.checkDependencies(st.nvmBackup,selection()):
+    {ok:false,errors:['Original-SSP3 verbinden und EEPROM des aktuellen Chips auslesen.'],warnings:[],facts:[]};
+   const list=$('alarmRuleList');
+   list.replaceChildren();
+   const append=(label,message,kind)=>{
+    const el=document.createElement('div');
+    el.className='callout '+kind;el.style.margin='6px 0';
+    const strong=document.createElement('b');strong.textContent=label;
+    el.append(strong,document.createTextNode(' '+message));
+    list.appendChild(el);
+   };
+   check.errors.forEach(t=>append('Nicht zulässig:',t,'warn'));
+   check.warnings.forEach(t=>append('Hinweis:',t,''));
+   check.facts.forEach(t=>append('Aktueller Sensor:',t,''));
+   const confirmed=$('alarmDspConfirm').checked;
+   $('alarmRuleSummary').textContent=!valid?'Zuerst den aktuellen Sensor und sein EEPROM verifizieren.':
+    !check.ok?check.errors.length+' Konflikt(e): Die Änderungen sind gesperrt.':
+    !confirmed?'Einstellungen grundsätzlich zulässig. Bitte DSP-Endbereich ausdrücklich bestätigen.':
+    check.warnings.length?'Zulässig, mit '+check.warnings.length+' Hinweis(en). Vor RAM-Schreiben überprüfen.':
+    'Keine unzulässigen Kombinationen erkannt. RAM-Prüfung kann vorbereitet werden.';
+   $('alarmRuleSummary').className='callout '+(!check.ok?'warn':confirmed?'success':'');
+   $('alarmEditorPreview').disabled=!valid||busy||!check.ok||!confirmed;
+   $('alarmEditorRam').disabled=!valid||busy||!check.ok||!confirmed||!st.alarmOnlyPlan;
+   if($('alarmGoNvm'))$('alarmGoNvm').disabled=!ready();
+   return check;
+  }
   const status=(s,type='warn')=>show('alarmEditorMessage',s,type);
   function clearPlan(){
    if(st.alarmOnlyPlan&&st.calImage===st.alarmOnlyPlan)st.calImage=null;
@@ -60,8 +88,7 @@ const ELMOS_ALARM_EDITOR=(()=>{
      status('Alarmwerte aus dem aktuellen EEPROM gelesen. DSP-Skala prüfen und bestätigen.');
     }
    }
-   $('alarmEditorPreview').disabled=!valid||busy||postScaling;
-   $('alarmEditorRam').disabled=!valid||busy||postScaling||!st.alarmOnlyPlan||!$('alarmDspConfirm').checked;
+   updateRules();
    $('alarmEditorStatus').textContent=!valid?
     'Vorbereitung: Original-SSP3 über One-Wire verbinden und vollständig geprüftes EEPROM lesen. DIY-Bridge bleibt nur lesend.':
     postScaling?'DSP-Post-Scaling ist aktiv und belegt die Alarmregister. Alarmänderung gesperrt.':
@@ -79,6 +106,8 @@ const ELMOS_ALARM_EDITOR=(()=>{
     if(st.calStaged&&!st.nvmDone)throw Error('Laufenden DSP-Abgleich zuerst abschliessen.');
     if(st.calImage&&!st.alarmOnlyPlan)throw Error('Anderer NVM-Plan vorhanden. Erst abschliessen.');
     if(!$('alarmDspConfirm').checked)throw Error('DSP-Endbereich ausdrücklich bestätigen.');
+    const rules=A.checkDependencies(st.nvmBackup,selection());
+    if(!rules.ok)throw Error(rules.errors.join(' '));
     const img=A.prepare(st.nvmBackup,selection(),CAL.crc16);
     CAL.protectStartupCommunication(img.before,img.after,{allowAlarmMask:true});
     if(!img.changes.length)throw Error('Keine Änderungen notwendig.');
@@ -109,6 +138,15 @@ const ELMOS_ALARM_EDITOR=(()=>{
   for(const event of ['input','change'])$('alarmEditorFields').addEventListener(event,()=>{
    if(loading)return;dirty=true;
    if(st.alarmOnlyPlan){clearPlan();status('Einstellungen verändert: Vorschau und RAM-Prüfung erneut durchführen. Frühere RAM-Werte bleiben bis zum Neustart aktiv.');renderFlowState()}
+   updateRules();
+  });
+  $('alarmReadEeprom').addEventListener('click',()=>{
+   const btn=$('eepromRead');if(!btn||btn.disabled){status('Erst einen echten Sensor über SSP3 verbinden.','warn');return}
+   btn.click();
+  });
+  $('alarmGoNvm').addEventListener('click',()=>{
+   if(!ready())return;
+   const btn=document.querySelector('.stepBtn[data-step="6"]');if(btn)btn.click();
   });
   $('alarmEditorPreview').addEventListener('click',preview);
   $('alarmEditorRam').addEventListener('click',testRam);
