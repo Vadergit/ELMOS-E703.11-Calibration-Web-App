@@ -1,0 +1,255 @@
+'use strict';
+/* E703.11 NVM-Rueckrechnung: ausschliesslich lesend.
+   Sources: 25DS0170E.04 §§6.2.1, 6.3, 6.4.1.1, 6.5 and AN0203 §2.2.
+   Physikalische Brueckensignale sind NOMINALE AFE-Rueckrechnungen, keine
+   rekonstruierten Originalmessungen. Kein NVM/RAM-Zugriff und kein Schreiben. */
+const ELMOS_NVM_RECON = (() => {
+ const validWords = a => Array.isArray(a) && a.length === 64 &&
+   a.every(v => Number.isInteger(v) && v >= 0 && v <= 65535);
+ const i16 = v => v & 0x8000 ? v - 65536 : v;
+ const q12 = v => i16(v) / 4096;
+ const q15 = v => i16(v) / 32768;
+ const finite = v => typeof v === 'number' && Number.isFinite(v);
+ const fmt = (v, digits = 4) => finite(v)
+   ? v.toLocaleString('de-CH', {maximumFractionDigits:digits, minimumFractionDigits:Math.min(2,digits)})
+   : '—';
+ const pg1 = [3.5, 6, 8.5, 11];
+ const pg2 = [2, 2.22, 2.5, 2.86, 3.33, 4, 5, 6.67, 10];
+ function roots(f, target) {
+  const out=[], min=-0.999969482421875,max=0.999969482421875,n=800;
+  let a=min,fa=f(a)-target;
+  for(let k=1;k<=n;k++){
+   let b=min+(max-min)*k/n,fb=f(b)-target;
+   if(Number.isFinite(fa)&&Number.isFinite(fb)){
+    if(Math.abs(fa)<1e-10 && !out.some(x=>Math.abs(x-a)<1e-5))out.push(a);
+    if(fa*fb<0 || Math.abs(fb)<1e-10){
+     let lo=a,hi=b,fl=fa;
+     for(let j=0;j<52;j++){
+      const mid=(lo+hi)/2,fm=f(mid)-target;
+      if(fl*fm<=0)hi=mid;else{lo=mid;fl=fm}
+     }
+     const r=(lo+hi)/2;
+     if(!out.some(x=>Math.abs(x-r)<1e-5))out.push(r);
+    }
+   }
+   a=b;fa=fb;
+  }
+  return out;
+ }
+ const unique = (f, target, label, warnings) => {
+  const r=roots(f,target);
+  if(r.length!==1){warnings.push(label+': '+(r.length?'mehrdeutige Polynomumkehr ('+r.length+' Lösungen)':'kein Umkehrwert im gültigen DSP-Bereich')+'.');return null}
+  return r[0];
+ };
+ function calculate(words, opts={}) {
+  if(!validWords(words))return {ok:false, error:'Es werden 64 vollständige NVM-Wörter benötigt.'};
+  const pmin=Number(opts.pmin??0),pmax=Number(opts.pmax??6),
+   ta=Number(opts.ta??25),tb=Number(opts.tb??75),
+   vdd=Number(opts.vdd??5),limit=Number(opts.limit??32000);
+  if(![pmin,pmax,ta,tb,vdd,limit].every(Number.isFinite)||!(pmin<pmax)||
+     !(ta<tb)||ta< -40||tb>125||vdd<2.7||vdd>5.5||
+     !Number.isInteger(limit)||limit<1000||limit>32000)
+   return {ok:false,error:'Bereich prüfen: Druck max > min, Temperatur −40…125 °C mit T2 > T1, VDD 2,7…5,5 V und DSP-Endwert 1’000…32’000.'};
+  const w=words, warnings=[], cfg=w[16], afe=w[28],
+   pga1=pg1[afe&3],pga2=pg2[Math.min((afe>>>7)&15,8)],
+   supply=[2.4,1.6,2.0,null][w[27]&3],
+   offsetCode=(afe>>>2)&31,
+   offsetSteps=offsetCode&16 ? -Math.min(offsetCode-16,8) : Math.min(offsetCode,8),
+   offsetStage=offsetSteps*50,
+   sign1=(afe&0x1000)?-1:1,
+   sign2=(afe&0x4000)?-1:1,
+   signAdc=(afe&0x8000)?-1:1,
+   sF=q12(w[34]),sO=q12(w[33]),
+   tF=q12(w[32]),tO=q12(w[31]),
+   scoeff=w.slice(35,51).map(q15),tcoeff=w.slice(51,55).map(q15);
+  const scaledTemp=at=>tcoeff[0]+at*(tcoeff[1]+at*(tcoeff[2]+at*tcoeff[3]));
+  const pressure=(s,t)=>{
+   let r=0,pow=1;
+   for(let i=0;i<4;i++){
+    const j=i*4;
+    r+=pow*(scoeff[j]+t*(scoeff[j+1]+t*(scoeff[j+2]+t*scoeff[j+3])));
+    pow*=s;
+   }
+   return r;
+  };
+  const post=!!(cfg&0x4000),postFine=!!(cfg&0x20),
+   postGain=post?(postFine?1+q15(w[56]):q12(w[56])):1,
+   postOffset=post?(postFine?q15(w[55]):q12(w[55])):0;
+  const physical=adc=>{
+   if(!supply)return null;
+   const stage=(adc*700/(pga2*supply))*(sign2*signAdc);
+   return (stage-offsetStage)/(pga1*sign1);
+  };
+  const rows=[];
+  if(!(cfg&0x1000))warnings.push('Absolute Temperaturkorrektur (t_abs_en) ist nicht eingeschaltet. Die Temperaturrückrechnung beruht nur auf gespeicherten Koeffizienten.');
+  if((cfg&3)===0)warnings.push('Druckkorrektur ist in CFG_EN nicht aktiv; die abgelegten Koeffizienten beschreiben möglicherweise nicht den aktiven Ausgang.');
+  if(!supply)warnings.push('Reservierter Code für Brückenspeisung: mV/V nicht berechenbar.');
+  if(Math.abs(sF)<1e-12)warnings.push('S_F ist null: ADC_S kann nicht rückgerechnet werden.');
+  if(Math.abs(tF)<1e-12)warnings.push('T_F ist null: ADC_T kann nicht rückgerechnet werden.');
+  if(Math.abs(postGain)<1e-12)warnings.push('DSP-Nachskalierung mit Nullverstärkung verhindert die eindeutige Umkehr.');
+  if(!(cfg&0x1000)&&tcoeff.slice(1).every(x=>Math.abs(x)<1e-12))warnings.push('Keine verwertbare Temperaturkennlinie: TK0/TKR sind aus diesem NVM nicht bestimmbar.');
+  for(const tempC of [ta,tb]){
+   const dspTemp=(387.88*tempC-16485)/32768;
+   const tempNorm=unique(scaledTemp,dspTemp,'Temperatur '+fmt(tempC,1)+' °C',warnings);
+   const adcT=tempNorm===null||!tF?null:(tempNorm-tO)/tF;
+   const row={tempC,tempNorm,adcT, endpoints:[]};
+   for(const [name,dsp] of [['Nullpunkt',-limit/32768],['Endpunkt',limit/32768]]){
+    const beforePost=postGain?(dsp-postOffset)/postGain:null;
+    const sNorm=tempNorm!==null&&beforePost!==null?
+      unique(s=>pressure(s,tempNorm),beforePost,name+' bei '+fmt(tempC,1)+' °C',warnings):null;
+    const adcS=sNorm===null||!sF?null:(sNorm-sO)/sF;
+    const bridge=adcS===null?null:physical(adcS);
+    if(adcS!==null&&Math.abs(adcS)>1)warnings.push('Berechneter ADC_S ausserhalb ±32768 bei '+name+', '+fmt(tempC,1)+' °C.');
+    row.endpoints.push({name,dsp,sNorm,adcS,adcDigits:adcS===null?null:adcS*32768,bridge});
+   }
+   row.zero=row.endpoints[0].bridge;
+   row.full=row.endpoints[1].bridge;
+   row.span=finite(row.zero)&&finite(row.full)?row.full-row.zero:null;
+   rows.push(row);
+   if(adcT!==null&&Math.abs(adcT)>1)warnings.push('Berechneter ADC_T ausserhalb ±32768 bei '+fmt(tempC,1)+' °C.');
+  }
+  const a=rows[0],b=rows[1],dt=tb-ta,spanBar=pmax-pmin;
+  const hasPhysical=[a.zero,a.span,b.zero,b.span].every(finite)&&Math.abs(a.span)>1e-12;
+  const tk0=hasPhysical?(b.zero-a.zero)/dt:null;
+  const tk0Bar=hasPhysical?(tk0/a.span*spanBar):null;
+  const tkr=hasPhysical?(b.span/a.span-1)/dt:null;
+  const adc0=a.endpoints[0].adcDigits,adc1=a.endpoints[1].adcDigits;
+  const adcSpan=finite(adc0)&&finite(adc1)?adc1-adc0:null;
+  const ain=!!((cfg>>>9)&7&&((cfg>>>9)&7)<=3), scaleEnabled=!!(cfg&0x40);
+  const aoF=q12(w[58]),aoO=q12(w[57]);
+  const out=(target)=>{
+   const q=scaleEnabled?target*aoF+aoO:target;
+   return {digital:q*32768, volts:vdd*(q+1)/2, percent:(q+1)*50};
+  };
+  const analog=ain ? {low:out(-limit/32768),high:out(limit/32768),mode:(cfg>>>9)&7,scaleEnabled,aoF,aoO}:null;
+  if(post)warnings.push('DSP-Post-Scaling aktiv: ALARM_LO/HI werden vor der inversen Druckrechnung berücksichtigt.');
+  if(ain&&((analog.low.percent<10||analog.high.percent>90)))warnings.push('Analogausgang teilweise ausserhalb des spezifizierten linearen 10–90-%-VDD-Bereichs (ohne Clippingbetrachtung).');
+  if(cfg&0x80)warnings.push('AODO-Limitierung aktiv: berechnete Ausgangsspannungen zeigen den idealen Wert vor der Limitierung.');
+  if(cfg&0x100)warnings.push('AODO-Fehlerersatz aktiv: Fehlerzustände können einen anderen Ausgangswert erzwingen.');
+  if(scoeff.slice(8).some(v=>v!==0))warnings.push('Druck-Nichtlinearitätsanteile 2./3. Ordnung vorhanden: Angaben gelten für die eingestellten Endpunkte.');
+  if(tcoeff.slice(1).every(x=>x===0))warnings.push('DSP_T ohne Temperaturabhängigkeit: TK0/TKR nicht bestimmbar.');
+  return {ok:true,settings:{pmin,pmax,ta,tb,vdd,limit,pga1,pga2,supply,offsetSteps,offsetStage,
+    sign1,sign2,signAdc,sF,sO,tF,tO,post,postGain,postOffset,
+    temperatureActive:!!(cfg&0x1000),scoeff,tcoeff},
+   rows,hasPhysical,tk0,tk0Bar,tkr,adcSpan,analog,warnings:[...new Set(warnings)]};
+ }
+ function dom(tag,text,cls) {
+  const n=document.createElement(tag);
+  if(cls)n.className=cls;
+  if(text!==undefined)n.textContent=text;
+  return n;
+ }
+ const css = [
+ '.nvmrecon-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(112px,1fr));gap:9px;margin:12px 0}',
+ '.nvmrecon-grid label{display:flex;flex-direction:column;gap:3px;font-size:12px}',
+ '.nvmrecon-grid input{width:100%;min-width:0;padding:8px;box-sizing:border-box}',
+ '.nvmrecon-metrics{display:grid;grid-template-columns:repeat(auto-fit,minmax(155px,1fr));gap:9px;margin:10px 0}',
+ '.nvmrecon-metric{border:1px solid var(--border,#cbd5e1);border-radius:9px;padding:10px;background:rgba(125,125,125,.045)}',
+ '.nvmrecon-metric small{display:block;color:var(--muted,#666);margin:2px 0 5px}',
+ '.nvmrecon-metric strong{font-size:18px;overflow-wrap:anywhere}',
+ '.nvmrecon-table{width:100%;border-collapse:collapse;font-size:12px}',
+ '.nvmrecon-table td,.nvmrecon-table th{padding:7px 9px;border-bottom:1px solid var(--border,#ccd);text-align:left}',
+ '.nvmrecon-table th{font-weight:600}',
+ '.nvmrecon-warnings{font-size:12px;line-height:1.55;margin:8px 0}',
+ '.nvmrecon-muted{font-size:12px;opacity:.8;line-height:1.5}',
+ '.nvmrecon-actions{display:flex;gap:8px;flex-wrap:wrap;align-items:center}',
+ '.nvmrecon-actions input[type=file]{max-width:230px;font-size:12px}'
+ ].join('\n');
+ let styleAdded=false;
+ function render(root,verifiedWords){
+  if(!root)return;
+  if(!styleAdded){const style=dom('style');style.textContent=css;document.head.appendChild(style);styleAdded=true}
+  if(!root._nvmInit){
+   root._nvmInit=true;
+   root._nvmState={live:null,offline:null,opts:{pmin:0,pmax:6,ta:25,tb:75,vdd:5,limit:32000},last:null};
+   const heading=dom('h3','Sensor-Rückrechnung aus dem NVM');
+   const detail=dom('p','Druckbereich und Temperaturreferenzen ergänzen. Das Berechnungsmodell folgt AN0203 und dem E703.11-DSP. Alle Auswertungen sind lesend; Brückensignale in mV/V sind Näherungen aus nominalen AFE-Daten.','nvmrecon-muted');
+   const actions=dom('div',undefined,'nvmrecon-actions');
+   const file=dom('input');file.type='file';file.accept='.json,application/json';
+   file.setAttribute('aria-label','NVM-Backup JSON lokal öffnen');
+   const clear=dom('button','Offline-Datei entfernen');clear.type='button';
+   clear.addEventListener('click',()=>{root._nvmState.offline=null;file.value='';draw(root)});
+   actions.append(dom('span','Optional: NVM-Backup importieren','nvmrecon-muted'),file,clear);
+   file.addEventListener('change',async()=>{
+    const f=file.files?.[0];if(!f)return;
+    try{
+     if(f.size>512000)throw Error('Datei zu gross');
+     const data=JSON.parse(await f.text());
+     const words=Array.isArray(data)?data:data.words;
+     if(!validWords(words))throw Error('Kein gültiges 64-Wort-Backup');
+     root._nvmState.offline=words.slice();draw(root);
+    }catch(e){root._nvmState.offline=null;root._nvmState.fileError=String(e.message);draw(root)}
+   });
+   const grid=dom('div',undefined,'nvmrecon-grid');
+   const fields=[['pmin','Druck min. [bar]','0'],['pmax','Druck max. [bar]','6'],
+    ['ta','Temperatur 1 [°C]','25'],['tb','Temperatur 2 [°C]','75'],
+    ['vdd','VDD [V]','5'],['limit','DSP-Endwert','32000']];
+   for(const [key,title,value] of fields){
+    const label=dom('label',title),input=dom('input');input.type='number';input.step=key==='limit'?'1':'any';
+    input.value=value;input.dataset.key=key;
+    input.addEventListener('input',()=>{root._nvmState.opts[key]=Number(input.value);draw(root)});
+    label.appendChild(input);grid.appendChild(label);
+   }
+   const status=dom('p','Bitte zuerst EEPROM lesen oder ein Backup laden.','nvmrecon-muted');
+   status.setAttribute('role','status');status.className='nvmrecon-status nvmrecon-muted';
+   const result=dom('div');result.className='nvmrecon-result';
+   const explain=dom('p','Wichtig: Der Original-Druckbereich in bar, die ursprünglichen Prüfpunkte und die echten, unkalibrierten Messwerte werden durch das NVM allein nicht eindeutig gespeichert. TK0/TKR sind deshalb modellbasierte Rückrechnungen, keine unabhängige Sensormessung.','nvmrecon-muted');
+   root.append(heading,detail,actions,grid,status,result,explain);
+  }
+  root._nvmState.live=validWords(verifiedWords)?verifiedWords.slice():null;
+  draw(root);
+ }
+ function draw(root){
+  const state=root._nvmState,status=root.querySelector('.nvmrecon-status'),
+   box=root.querySelector('.nvmrecon-result');
+  box.replaceChildren();
+  const words=state.live||state.offline;
+  if(!words){
+   status.textContent=state.fileError||'Bitte zuerst «EEPROM lesen» drücken oder ein NVM-Backup (JSON) öffnen.';
+   state.last=null;return;
+  }
+  status.textContent=state.live?'Datenquelle: EEPROM, vollständige Lesung mit UID/CRC-Prüfung durch die Web-App.':
+   'Datenquelle: lokale JSON-Datei (64 Wörter). Integrität / Chip-UID dieser Datei nicht unabhängig verifiziert.';
+  const r=calculate(words,state.opts);state.last=r;
+  if(!r.ok){box.appendChild(dom('p',r.error,'nvmrecon-warnings'));return}
+  const metrics=dom('div',undefined,'nvmrecon-metrics');
+  for(const [name,value,unit,sub] of [
+   ['Nullpunkt bei '+fmt(r.settings.ta,1)+' °C',r.rows[0].zero,'mV/V','Nominales Brückensignal'],
+   ['Spanne bei '+fmt(r.settings.ta,1)+' °C',r.rows[0].span,'mV/V','Zwischen Druck min/max'],
+   ['TK0',finite(r.tk0)?r.tk0*100:null,'mV/V / 100 K','Nullpunktänderung'],
+   ['TK0, druckbezogen',finite(r.tk0Bar)?r.tk0Bar*100:null,'bar / 100 K','Äquivalenter Druckoffset'],
+   ['TKR',finite(r.tkr)?r.tkr*10000:null,'% / 100 K','Relative Spannenänderung'],
+   ['ADC-Spanne',r.adcSpan,'Digits','Bei Temperatur 1']
+  ]){
+   const card=dom('div',undefined,'nvmrecon-metric');
+   card.append(dom('small',name),dom('strong',fmt(value,4)+' '+unit),dom('small',sub));metrics.appendChild(card);
+  }
+  box.appendChild(metrics);
+  const table=dom('table',undefined,'nvmrecon-table');
+  const head=dom('tr');['Temperatur','ADC_T [Digits]','ADC_S Null','ADC_S End','Null [mV/V]','Spanne [mV/V]'].forEach(s=>head.appendChild(dom('th',s)));
+  const thead=dom('thead');thead.appendChild(head);table.appendChild(thead);
+  const body=dom('tbody');
+  for(const r0 of r.rows){
+   const row=dom('tr');
+   [fmt(r0.tempC,1)+' °C',fmt(finite(r0.adcT)?r0.adcT*32768:null,0),
+    fmt(r0.endpoints[0].adcDigits,0),fmt(r0.endpoints[1].adcDigits,0),fmt(r0.zero,5),fmt(r0.span,5)]
+     .forEach(s=>row.appendChild(dom('td',s)));
+   body.appendChild(row);
+  }
+  table.appendChild(body);const wrap=dom('div');wrap.style.overflowX='auto';wrap.appendChild(table);box.appendChild(wrap);
+  const e=dom('p','AFE: SVDD '+fmt(r.settings.supply,2)+' V · PGA1 '+fmt(r.settings.pga1,2)+'× · PGA2 '+fmt(r.settings.pga2,2)+'× · Offset-DAC '+r.settings.offsetSteps+' Stufen · S_F '+fmt(r.settings.sF,5)+' · S_O '+fmt(r.settings.sO,5),'nvmrecon-muted');
+  box.appendChild(e);
+  if(r.analog){
+   const ao=r.analog, p=dom('p','Idealer ratiometrischer Ausgang bei '+fmt(r.settings.vdd,2)+' V: '+fmt(ao.low.volts,4)+' V (Druck min) bis '+fmt(ao.high.volts,4)+' V (Druck max). '+(ao.scaleEnabled?'AODO_F '+fmt(ao.aoF,5)+' / AODO_O '+fmt(ao.aoO,5):'Ausgangsskalierung nicht aktiv')+'. Ohne DAC-Temperaturabgleich, Clipping und Lastfehler.','nvmrecon-muted');
+   box.appendChild(p);
+  }
+  const warnings=dom('details',undefined,'nvmrecon-warnings');warnings.open=r.warnings.length>0;
+  warnings.appendChild(dom('summary',r.warnings.length+' Hinweise / Gültigkeitsgrenzen'));
+  const ul=dom('ul');
+  for(const message of r.warnings)ul.appendChild(dom('li',message));
+  ul.appendChild(dom('li','Nominale AFE-Verstärkungen, ADC-Fullscale ±700 mV und Offset-DAC-Stufe 50 mV/V verwendet. Fabriktrim, reale Brückenspannung und Temperaturdrift der Elektronik sind nicht rückgerechnet.'));
+  warnings.appendChild(ul);box.appendChild(warnings);
+ }
+ return {calculate,render,validWords};
+})();
+if(typeof module!=='undefined'&&module.exports)module.exports=ELMOS_NVM_RECON;
