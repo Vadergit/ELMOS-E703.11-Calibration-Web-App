@@ -99,8 +99,8 @@ const ELMOS_CAL = (() => {
    // The complete linear 2x2 model also compensates TKE.
    const fitMode=opts.fitMode??'full';
    if(!['full','tk0'].includes(fitMode))throw Error('Unbekanntes Temperaturmodell');
-   if(fitMode==='tk0'&&(orderS!==1||![0,1].includes(orderT)))
-    throw Error('TK0 benötigt linearen Druck und Temperaturordnung 0 oder 1');
+   if(fitMode==='tk0'&&(orderS!==1||orderT!==1))
+    throw Error('TK0 benötigt Druckordnung 1 und Temperaturordnung 1 (linear). Ohne Temperaturkorrektur darf kein TK0-Abgleich berechnet werden.');
   const pmin=Number(opts.pmin),pmax=Number(opts.pmax),outputLimit=Number(opts.outputLimit??32000);
   if(!Number.isFinite(pmin)||!Number.isFinite(pmax)||pmax<=pmin)throw Error('Druckbereich ungültig');
   if(!Number.isInteger(outputLimit)||outputLimit<1000||outputLimit>32000)throw Error('DSP-Endwert muss zwischen 1’000 und 32’000 Digits liegen');
@@ -118,7 +118,7 @@ const ELMOS_CAL = (() => {
    if(!candidate)throw Error('Ohne Temperaturkompensation wird eine vollständige Druckmessreihe bei einer Referenztemperatur benötigt (unterer und oberer Druckpunkt).');
    ps=candidate;
   }
-  const keys=fitMode==='tk0'&&orderT>0?[0,1,4]:
+  const keys=fitMode==='tk0'?[0,1,4]:
     Array.from({length:(orderS+1)*(orderT+1)},(_,index)=>
      Math.floor(index/(orderT+1))*4+index%(orderT+1));
    if(ps.length<keys.length)throw Error(`Mindestens ${keys.length} unabhängige Messpunkte nötig.`);
@@ -319,6 +319,10 @@ const ELMOS_CAL = (() => {
   return out;
  }
   function configFrom(original,solution,afeWord,opts={}){
+  // Second line of defence: never persist an old/incomplete TK0 pressure-only fit.
+  if(solution?.fitMode==='tk0'&&(solution.orderS!==1||solution.orderT!==1||solution.pressureOnly||
+     solution.points<3||solution.ignoredTemperaturePoints!==0||!Array.isArray(solution.registers?.tcoeffs)))
+   throw Error('NVM gesperrt: TK0 wurde nicht vollständig aus allen Temperaturmesspunkten berechnet. TK0 mit Temperaturordnung 1 neu berechnen.');
   if(!Array.isArray(original)||original.length!==64||original.some(v=>!Number.isInteger(v)||v<0||v>65535))throw Error('NVM-Abbild muss exakt 64 gültige 16-Bit-Wörter enthalten');
   const cfg=prepareOutputConfig(original,opts.output,solution.outputLimit??32000),r=solution.registers;
   if(opts.bridgeSupply!==undefined){
