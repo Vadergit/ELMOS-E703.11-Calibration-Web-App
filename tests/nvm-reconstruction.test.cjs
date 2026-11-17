@@ -120,3 +120,58 @@ test('Negative pressure slope and fixed DSP_T keep pressure inverse usable, but 
  assert.ok(r.warnings.some(s=>s.includes('AODO_F=0x0000')));
  assert.ok(r.warnings.every(s=>!s.includes('800 Lösungen')));
 });
+
+
+const q15=value=>Math.round(value*32768)&0xFFFF;
+function complexSample(){
+ const words=Array(64).fill(0);
+ words[16]=0x125D; // temperature correction active, analogue, scaled
+ words[27]=0;words[28]=0x0800;
+ words[31]=0;words[32]=4096;words[33]=0;words[34]=4096;
+ words[39]=q15(0.8);words[52]=q15(0.7);words[58]=4096;
+ return words;
+}
+const advancedOpts={pmin:0,pmax:6,ta:25,tb:75,vdd:5,limit:24000};
+test('3-point TK0 inverse obtains offset drift, zero TKE when no S*T term exists',()=>{
+ const w=complexSample();w[36]=q15(0.025);
+ const r=recon.calculate(w,advancedOpts);
+ assert.ok(r.ok&&r.hasPhysical);
+ assert.ok(Number.isFinite(r.tk0)&&Math.abs(r.tk0)>0.01);
+ assert.ok(Math.abs(r.tkr)<1e-8);
+ assert.ok(r.rows.every(a=>a.endpoints.every(x=>Number.isFinite(x.adcDigits))));
+});
+test('4-point TK0+TKE inverse reconstructs offset and sensitivity temperature drift',()=>{
+ const w=complexSample();w[36]=q15(0.02);w[40]=q15(0.06);
+ const r=recon.calculate(w,advancedOpts);
+ assert.ok(r.ok&&r.hasPhysical);
+ assert.ok(Math.abs(r.tk0)>1e-5);
+ assert.ok(Math.abs(r.tkr)>1e-5);
+ assert.ok(r.rows.every(row=>Number.isFinite(row.tempNorm)));
+});
+test('Higher-order pressure 3 and temperature 3 are solved numerically',()=>{
+ const w=complexSample();w[36]=q15(0.02);w[40]=q15(0.06);
+ w[43]=q15(0.03);w[44]=q15(0.004);w[47]=q15(0.007);
+ w[53]=q15(0.012);w[54]=q15(0.003);
+ const r=recon.calculate(w,advancedOpts);
+ assert.ok(r.ok&&r.hasPhysical);
+ assert.ok(Number.isFinite(r.tk0)&&Number.isFinite(r.tkr));
+ assert.ok(r.rows.every(a=>a.endpoints.every(x=>Number.isFinite(x.sNorm))));
+});
+test('Non-monotonic curves with multiple mathematical inverses do not invent values',()=>{
+ const w=complexSample();w[39]=0;w[43]=q15(0.85);
+ const r=recon.calculate(w,advancedOpts);
+ assert.ok(r.ok&&!r.hasPhysical);
+ assert.equal(r.rows[0].zero,null);
+ assert.ok(r.warnings.some(x=>x.includes('mehrdeutige Polynomumkehr')));
+});
+test('Manual ADC_T at each temperature allows advanced reconstruction if DSP_T is fixed',()=>{
+ const w=complexSample();w[36]=q15(0.025);w[52]=0;w[51]=q15(-0.2);
+ const missing=recon.calculate(w,advancedOpts);
+ assert.equal(missing.hasPhysical,false);
+ const manual=recon.calculate(w,{...advancedOpts,adcT1:-7000,adcT2:7000});
+ assert.ok(manual.ok&&manual.hasPhysical);
+ assert.ok(Number.isFinite(manual.tk0));
+ assert.equal(manual.rows[0].adcT,-7000/32768);
+ assert.equal(manual.rows[1].adcT,7000/32768);
+ assert.equal(recon.calculate(w,{...advancedOpts,adcT1:'bad'}).ok,false);
+});
