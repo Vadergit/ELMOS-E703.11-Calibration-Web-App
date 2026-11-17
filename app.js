@@ -3229,6 +3229,7 @@ if(typeof document!=='undefined') (function UI(){
    if(CAL.crc16(after)!==after[63])throw Error('Abschliessende NVM-CRC16-Prüfung fehlgeschlagen');
    const cm=await readReg(0x46);if(cm&(1<<6))throw Error('Chip meldet CM CRC Fehler');
    if(!sameBoot(beforeBoot,await bootSnapshot()))throw Error('Bootregister nach Programmierung abweichend');
+   const verifiedOutputLimit=outputOnly?st.outputOnlyPlan?.limit:st.calfit?.outputLimit;
    st.nvmDone=true;st.nvmBackup=after;st.nvmBackupVerified=true;
    st.programmedSnapshot={session:st.sessionIndex, data:{
     at:new Date().toISOString(),uid:id,
@@ -3242,9 +3243,9 @@ if(typeof document!=='undefined') (function UI(){
      .map(([word,address])=>[address,after[word]])));
    const temperatureBasis=!restoring&&!outputOnly&&st.calfit?.orderT>0?
     'an0203-celsius-v1':carryTemperatureBasis?'an0203-celsius-v1':null;
-   const outputTarget=!restoring&&!outputOnly&&((after[16]>>9)&7)>=1&&((after[16]>>9)&7)<=3?
+   const outputTarget=!restoring&&Number.isInteger(verifiedOutputLimit)&&((after[16]>>9)&7)>=1&&((after[16]>>9)&7)<=3?
     {s0:Number($('psscS0').value),s1:Number($('psscS1').value),
-     vdd:Number($('psscVdd').value),limit:st.calfit.outputLimit}:null;
+     vdd:Number($('psscVdd').value),limit:verifiedOutputLimit}:null;
    lsSet('elmos8-last-program',JSON.stringify({
     id,words:after,ts:new Date().toISOString(),restore:restoring,temperatureBasis,outputTarget
    }));
