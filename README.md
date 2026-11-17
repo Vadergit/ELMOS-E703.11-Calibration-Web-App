@@ -14,6 +14,14 @@ Der **Demo-Modus** wird in den Einstellungen erst nach Aktivierung von **Experte
 >
 > [Geführter Abgleich](docs/GEFUEHRTER_ASSISTENT.md) · [DIY-Programmer (ESP32-C3 / Pro Micro)](docs/USB_BRIDGE_GUIDE.md) · [Pinbelegung der zwei Boards](docs/ESP_BOARD_OPTIONS.md) · [DIY-Firmware-Installer](firmware-update.html)
 
+## Labor-Update 17.11.2026 – Elmos-konforme DSP/AODO-NVM-Konsistenz
+
+Die neu ergänzte Abschlussprüfung berechnet die Analogsollwerte aus den **tatsächlich geplanten NVM-Registern** und verhindert, dass ein korrekt abgeglichener DSP mit falscher alter Analogskalierung programmiert wird. Die analoge Vorgabe aus S0/S1 wird bei neuem Abgleich automatisch in die NVM-Änderungsliste aufgenommen, wenn der gewählte Ausgangsmodus analog ist. Bei temporärem One-Wire-Zugriff bleiben die PLC-/Bootregister geschützt; eine nicht speicherbare Analogänderung wird blockiert. Clipping ersetzt nicht die Ausgangsskalierung.
+
+**Für den nächsten Labortest:** [Kaltstart- und DMM-Testprotokoll](docs/ELMOS_KALTSTART_TEST.md) · [Offline-Regressionstests](tests/elmos-calibration.test.cjs).
+
+Wichtige Grenze: Dies ist **keine nachgewiesene 1:1-Portierung der proprietären Elmos-DLL**. Deren automatische Koeffizientenauswahl und Analogkorrektur mit gemessenen DAC-Spannungen sind noch nicht gegen Original-DLL-Testvektoren verglichen. Der reale Analogausgang muss nach einem echten Versorgungsaus/ein mit einem Voltmeter geprüft werden.
+
 ## Neu – TK0 mit 3 Punkten und TK0 + TKE mit 4 Punkten
 
 Unter **Sensor neu abgleichen → Abgleich planen** stehen zwei neue Presets zur Verfügung:
