@@ -1,3 +1,14 @@
+## v0.7.118 – Alarme in Kalibrierablauf und Config einbinden
+
+- Klassische Navigation und geführter Ablauf: «Alarme & Fehler» optional nach Ausgang und vor NVM.
+- «Ohne Alarmänderung zur NVM-Programmierung» in beiden Ansichten; vorhandene Alarmwerte werden dabei unverändert erhalten.
+- Explizite Möglichkeit zum Deaktivieren von Alarm/ERR/EOC-Aktionen (nicht identisch mit Überspringen).
+- Ein gemeinsames NVM-Abbild aus DSP-/AFE-/AODO- und bestätigten Alarmwerten, inklusive CRC16, Bootschutz, Register-Whitelist, Backup und 64-Wort-Rücklesen.
+- Nachträglicher Alarm-Edit bleibt separat möglich, ohne erneuten Druckabgleich.
+- Selective Config v2 und Presets um Alarmgruppe erweitert; Standard «skip», Validierung vor Import, kein automatischer Hardware-Schreibvorgang.
+- Neue Regressionstests für Config-Roundtrip, kombinierte Kalibrierung und Navigation.
+- **Laborstatus:** Reale NVM-/Alarmsignaltests stehen weiterhin aus; nur Original-SSP3 für neue Alarm-Schreibfunktionen freigegeben.
+
 ## v0.7.117 – Eigener Alarmtab und verifizierbare Einstellabhängigkeiten
 
 - Neue eigenständige Navigation **«Alarme & Fehler»**, getrennt von den 64 EEPROM-Rohdaten.
