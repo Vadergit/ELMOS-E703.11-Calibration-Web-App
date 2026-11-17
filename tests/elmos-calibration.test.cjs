@@ -85,9 +85,8 @@ test('clipping cannot hide a wrong AODO gain',()=>{
  assert.equal(C.analogOutputStatus(correct,0.5,4.5,5,32000).ok,true);
  const bad=correct.slice();
  bad[58]=C.q(cfg.gain*1.125,12);
- // In this case hard limiting may produce the correct endpoints. Clipping is
- // independent of scaling: require checking the un-clipped gain separately.
- assert.ok(C.fromQ(bad[58],12)>C.fromQ(correct[58],12));
+ assert.equal(C.analogOutputStatus(bad,0.5,4.5,5,32000).ok,false,
+  'A bad AODO gain must never pass due to clipping');
 });
 test('non-analogue mode is not assigned analogue voltage targets',()=>{
  const w=originalNvm();
