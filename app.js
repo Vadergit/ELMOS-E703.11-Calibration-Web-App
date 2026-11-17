@@ -3257,7 +3257,8 @@ if(typeof document!=='undefined') (function UI(){
     ELMOS_ALARM_CONFIG.validateDiff(initial,modified,CAL.crc16);
     if(initial[18]!==modified[18]&&((initial[18]^modified[18])&0xF000))
      throw Error('Alarm-Statusmaske darf Startfenster nicht verändern.');
-   }else if(outputOnly||st.calImage.changes.some(c=>[16,22,57,58,59,60].includes(c.index))){
+   }else if(outputOnly||[22,57,58,59,60].some(i=>initial[i]!==modified[i])||
+      ((initial[16]^modified[16])&((7<<9)|(1<<6)|(1<<7)))!==0){
     if(!st.expertOutputPlan)throw Error('AODO-NVM-Änderung ohne geprüften Expertenvorschlag');
     const expected=CAL.prepareOutputConfig(initial,st.expertOutputPlan,outputOnly?st.outputOnlyPlan.limit:st.calfit.outputLimit);
     for(const i of [16,22,57,58,59,60]){
