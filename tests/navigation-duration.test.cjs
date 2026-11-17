@@ -41,7 +41,7 @@ test('classic logger accessible after EEPROM Viewer and never blocked by calibra
  assert.match(html,/data-panel="8" hidden/);
  assert.match(html,/id="classicLoggerHost"/);
  assert.match(app,/if\(n===8\)return ''/);
- assert.match(app,/Math\.min\(8,Number\(n\)\)/);
+ assert.match(app,/Math\.min\(10,Number\(n\)\)/);
  assert.match(app,/window\.ELMOS_TEST_LOGGER\?\.isBusy\(\)/);
  assert.match(guided,/stage=loggingActive\?10:0/);
 });
