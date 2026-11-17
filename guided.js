@@ -14,6 +14,7 @@ const ELMOS_GUIDED=(()=>{
   ['Koeffizienten','Kalibrierung berechnen','Die Messwerte ergeben die DSP-Kennlinie. Zuerst berechnen, dann ins Chip-RAM übertragen.'],
   ['DSP verifizieren','Ergebnis unabhängig prüfen','Prüfe echte Druck- und Temperaturbedingungen. Erst erfolgreiche Prüfungen geben NVM frei.'],
   ['Ausgang','Ausgang und Skalierung','Kontrolliere AODO-Ausgangsart, Versorgungsspannung und Zielspannungen.'],
+  ['Alarme','Alarme & Fehler (optional)','Ohne Änderungen weitergehen oder Alarme für diesen Sensor konfigurieren, anschliessend im RAM bestätigen.'],
   ['NVM','Sicher im Sensor speichern','Prüfe die Änderungsliste. Die App gleicht die Chip-UID vor dem Schreiben automatisch ab.'],
   ['Fertig','Sensor abgeschlossen','Der Schreibvorgang wurde bestätigt. Für die Freigabe unbedingt einen echten Kaltstarttest durchführen.']
  ];
@@ -124,8 +125,14 @@ const ELMOS_GUIDED=(()=>{
      </section>
     </div>
    </div>`+
-   '<div id="gwPage8" class="gw-page" hidden><div class="gw-columns"><div class="gw-tile gw-control"><h3>Änderungen prüfen und bestätigen</h3><div id="gwNvmBackup"></div><div class="gw-panel-actions" id="gwNvmPrepare"></div><div id="gwNvmMessages"></div><div class="gw-panel-actions" id="gwNvmWrite"></div><div id="gwNvmDetails"></div></div><div class="gw-tile is-warning"><h3>Wichtig vor dem NVM-Schreiben</h3><p>Ein Stromunterbruch während der Programmierung kann den Sensor unbrauchbar machen.</p><p>Prüfe Chip-UID und die Änderungsübersicht. Zuerst an einem entbehrlichen Testchip validieren.</p><p>Der Button ist nur freigegeben, wenn die bestehende Sicherheitslogik alle Voraussetzungen bestätigt.</p></div></div></div>'+
-   '<div id="gwPage9" class="gw-page gw-finish-page" hidden><section class="gw-finish-signal"><div class="gw-finish-top"><div><span class="gw-kicker">Live-Sensorsignal</span><h3>Aktueller Sensorausgang</h3></div><span id="gwFinishStatus" class="gw-live-badge">Warte auf Chipwerte</span></div><div class="gw-finish-number" aria-live="off"><strong id="gwFinishSignalValue">—</strong><span id="gwFinishSignalUnit">—</span></div><div id="gwFinishSource" class="gw-finish-caption">DSP_S wird vom Chip gelesen und auf den eingestellten Anzeigebereich bezogen.</div><div class="gw-finish-bar"><span id="gwFinishBar"></span></div><div class="gw-finish-limits"><span id="gwFinishRangeMin">—</span><span id="gwFinishRangeMax">—</span></div><div class="gw-finish-kpis"><div><span>DSP_S</span><strong id="gwFinishDsp">—</strong><small>Digits</small></div><div><span>ADC_S</span><strong id="gwFinishAdc">—</strong><small>Digits</small></div><div><span>ADC_T</span><strong id="gwFinishTemp">—</strong><small>Digits</small></div><div><span>Letzte Messung</span><strong id="gwFinishTime">—</strong></div></div></section>'+
+   '<div id="gwPage8" class="gw-page" hidden><div class="gw-tile gw-control">'+
+    '<h3>Alarme &amp; Fehler (optional)</h3><p>Standardmässig keine Alarmänderung. Bei Bedarf gezielt ändern; nach erfolgreicher RAM-Prüfung werden Alarme zusammen mit den DSP-/Ausgangseinstellungen im NVM gespeichert.</p>'+
+    '<label><input id="gwUseAlarms" type="checkbox"> Alarme für diesen Sensor einstellen</label>'+
+    '<div id="gwAlarmConfigArea" hidden><div class="gw-panel-actions" id="gwAlarmRead"></div><div id="gwAlarmDiagnostic"></div><div id="gwAlarmHost"></div></div>'+
+    '<div class="gw-panel-actions"><button id="gwSkipAlarm" type="button">Ohne Alarmänderung zur NVM-Programmierung</button></div>'+
+    '<p class="muted small">Beim Überspringen bleiben bereits vorhandene Alarmregister unverändert. Alarme deaktivieren erfordert eine ausdrücklich vorgemerkte Einstellung.</p></div></div>'+
+   '<div id="gwPage9" class="gw-page" hidden><div class="gw-columns"><div class="gw-tile gw-control"><h3>Änderungen prüfen und bestätigen</h3><div id="gwNvmBackup"></div><div class="gw-panel-actions" id="gwNvmPrepare"></div><div id="gwNvmMessages"></div><div class="gw-panel-actions" id="gwNvmWrite"></div><div id="gwNvmDetails"></div></div><div class="gw-tile is-warning"><h3>Wichtig vor dem NVM-Schreiben</h3><p>Ein Stromunterbruch während der Programmierung kann den Sensor unbrauchbar machen.</p><p>Prüfe Chip-UID und die Änderungsübersicht. Zuerst an einem entbehrlichen Testchip validieren.</p><p>Der Button ist nur freigegeben, wenn die bestehende Sicherheitslogik alle Voraussetzungen bestätigt.</p></div></div></div>'+
+   '<div id="gwPage10" class="gw-page gw-finish-page" hidden><section class="gw-finish-signal"><div class="gw-finish-top"><div><span class="gw-kicker">Live-Sensorsignal</span><h3>Aktueller Sensorausgang</h3></div><span id="gwFinishStatus" class="gw-live-badge">Warte auf Chipwerte</span></div><div class="gw-finish-number" aria-live="off"><strong id="gwFinishSignalValue">—</strong><span id="gwFinishSignalUnit">—</span></div><div id="gwFinishSource" class="gw-finish-caption">DSP_S wird vom Chip gelesen und auf den eingestellten Anzeigebereich bezogen.</div><div class="gw-finish-bar"><span id="gwFinishBar"></span></div><div class="gw-finish-limits"><span id="gwFinishRangeMin">—</span><span id="gwFinishRangeMax">—</span></div><div class="gw-finish-kpis"><div><span>DSP_S</span><strong id="gwFinishDsp">—</strong><small>Digits</small></div><div><span>ADC_S</span><strong id="gwFinishAdc">—</strong><small>Digits</small></div><div><span>ADC_T</span><strong id="gwFinishTemp">—</strong><small>Digits</small></div><div><span>Letzte Messung</span><strong id="gwFinishTime">—</strong></div></div></section>'+
     '<div class="gw-columns gw-finish-bottom"><section class="gw-tile"><div class="gw-section-head"><div><h3>Signalverlauf</h3><p>ADC_S im Zeitverlauf · letzte 60 Sekunden</p></div></div><div id="gwFinishChartHost" class="gw-finish-chart"></div></section><section class="gw-tile gw-finish-checklist"><h3>Abgleich und Freigabe</h3><div id="gwFinishCompletion" class="gw-alert">NVM-Status prüfen.</div><p id="gwFinishConfig">Gewünschte Ausgangseinstellungen werden hier als Sollwerte dargestellt.</p><p class="gw-finish-warning">Vor der Freigabe den Sensor stromlos machen und den Ausgang nach dem Neustart mit einem Messgerät prüfen. Die Anzeige ersetzt keinen Hardwaretest.</p><div class="gw-panel-actions" id="gwPostBoot"></div><button class="gw-secondary-link" id="gwBackClassic" type="button">Zur vollständigen Expertenansicht wechseln</button></section></div></div>'+
    '<section id="gwSwapPage" class="gw-tile" hidden><ol><li>Stecke den fertig abgeglichenen Sensor ab.</li><li>Schliesse den nächsten Sensor am Programmieradapter an.</li><li>Klicke auf «Neuen Sensor verbinden».</li></ol><p>Der Assistent übernimmt den Messplan und die Ausgangsvorgaben. Er schreibt die Frontend-Einstellungen ins RAM des neuen Sensors. Für ihn nimmst du danach neue Messwerte auf.</p><div class="gw-panel-actions"><button id="gwSwapConnect" class="primary" type="button">Neuen Sensor verbinden</button><button id="gwSwapChoose" type="button" hidden>USB-Port auswählen</button><button id="gwSwapCancel" type="button">Serie abbrechen</button></div></section>'+
    '<div id="gwLogPage" class="gw-page gw-logger-page" hidden></div>'+
@@ -173,6 +180,9 @@ const ELMOS_GUIDED=(()=>{
   moveId('outputClippingFields','gwOutputClipping');
   for(const id of ['outputModeHint','psscScalingPreview','expertOutputMsg','outputOneWireStatus','psscOneWireOnlyStatus'])moveId(id,'gwOutputStatuses');
   moveId('psscCurrentOutputStatus','gwOutputRegisters');
+  moveId('alarmEditorSection','gwAlarmHost');
+  move($('alarmSummaryHeading').closest('section'),'gwAlarmDiagnostic');
+  moveId('alarmReadEeprom','gwAlarmRead');
   moveLabel('nvmAutoBackup','gwNvmBackup');
   moveId('nvmPrepare','gwNvmPrepare');moveId('nvmProgress','gwNvmPrepare');
   for(const id of ['nvmMsg','nvmUidHint','nvmWritePrereq'])moveId(id,'gwNvmMessages');
@@ -199,7 +209,7 @@ const ELMOS_GUIDED=(()=>{
    }
    renderPlan();
   });
-  $('gwNext').addEventListener('click',()=>stage===9?prepareNextSensor():next());$('gwPrevious').addEventListener('click',previous);
+  $('gwNext').addEventListener('click',()=>stage===10?prepareNextSensor():next());$('gwPrevious').addEventListener('click',previous);
   $('gwSwapConnect').addEventListener('click',()=>connectNextSensor(false));
   $('gwSwapChoose').addEventListener('click',()=>connectNextSensor(true));
   $('gwSwapCancel').addEventListener('click',returnToTasks);
@@ -209,6 +219,15 @@ const ELMOS_GUIDED=(()=>{
    updateUI();
   });
   $('gwBackClassic').addEventListener('click',close);
+  $('gwUseAlarms').addEventListener('change',()=>{
+   $('gwAlarmConfigArea').hidden=!$('gwUseAlarms').checked;
+   if(!$('gwUseAlarms').checked)window.ELMOS_GUIDED_API?.skipAlarms?.();
+   updateUI();
+  });
+  $('gwSkipAlarm').addEventListener('click',()=>{
+   $('gwUseAlarms').checked=false;$('gwAlarmConfigArea').hidden=true;
+   window.ELMOS_GUIDED_API?.skipAlarms?.();goto(9);
+  });
   document.querySelectorAll('[data-gw-side]').forEach(button=>button.addEventListener('click',()=>{const index=Number(button.dataset.gwSide);if(visited.has(index)){stage=index;render()}}));
   subscribe(document,'elmos-config-applied',syncImportedConfig);
   subscribe($('expertMode'),'change',renderOutputOptions);
@@ -611,16 +630,16 @@ const ELMOS_GUIDED=(()=>{
   $('gwChipStatus').classList.toggle('is-offline',!s.chip);
   const completed=s.points?.length||0;
   if(stage===4&&plan){renderCapture();if(completed===plan.total)$('gwNext').disabled=false}
-  if(stage===5||stage===6||stage===8){
+  if(stage===5||stage===6||stage===9){
    // Reflect the same guarded source-of-truth as the classic buttons.
    const text=stage===5?s.calStaged?'Koeffizienten im RAM bestätigt':'Noch keine bestätigte RAM-Übernahme':stage===6?s.calVerified?'DSP-Prüfung abgeschlossen':'DSP-Prüfung ausstehend':s.nvmDone?'NVM-Schreiben bestätigt':'NVM-Schreiben noch nicht bestätigt';
    setText('gwFooterHint',text);
   }
-  const ready=stage===4?!!plan&&plan.points.every(p=>pointRecord(p)):stage===5?!!s.calStaged:stage===6?!!s.calVerified:stage===8?!!s.nvmDone:true;
-  $('gwNext').disabled=stage===9?nextSensorBusy||!s.chip||!s.nvmDone:!ready;
+  const ready=stage===4?!!plan&&plan.points.every(p=>pointRecord(p)):stage===5?!!s.calStaged:stage===6?!!s.calVerified:stage===9?!!s.nvmDone:true;
+  $('gwNext').disabled=stage===10?nextSensorBusy||!s.chip||!s.nvmDone:!ready;
   if(stage===3)updateAfeTelemetry();
-  if(stage===9)updateFinishTelemetry();
-  if(stage===3||stage===9)apiRedraw();
+  if(stage===10)updateFinishTelemetry();
+  if(stage===3||stage===10)apiRedraw();
  }
  function apiRedraw(){
   window.ELMOS_GUIDED_API?.redraw?.();
@@ -628,7 +647,7 @@ const ELMOS_GUIDED=(()=>{
  function render(){
   if(!mode)return;
   const swapping=!!nextSensorPending;
-  const loggerPage=stage===10&&!swapping;
+  const loggerPage=stage===11&&!swapping;
   $('gwSwapPage').hidden=!swapping;
   $('gwPresetLaunch').hidden=swapping||stage!==1;
   if($('gwPresetLaunch').hidden&&$('gwPresetDialog').open)$('gwPresetDialog').close();
@@ -650,9 +669,9 @@ const ELMOS_GUIDED=(()=>{
    steps[stage][2];
   $('gwProgress').style.width=(loggerPage?100:(stage+1)/steps.length*100).toFixed(1)+'%';
   $('gwPrevious').disabled=stage===0;
-  $('gwTasks').hidden=stage!==9;
-  $('gwNext').hidden=loggerPage||stage===0||(stage===9&&state().demo); // A card click now enters the chosen task immediately.
-  $('gwNext').textContent=stage===8?'Abschluss prüfen':stage===9?'Nächsten Sensor abgleichen':'Weiter';
+  $('gwTasks').hidden=stage!==10;
+  $('gwNext').hidden=loggerPage||stage===0||(stage===10&&state().demo); // A card click now enters the chosen task immediately.
+  $('gwNext').textContent=stage===8?'Weiter zum NVM':stage===9?'Abschluss prüfen':stage===10?'Nächsten Sensor abgleichen':'Weiter';
   if(swapping){
    $('gwChipStatus').textContent='Sensorwechsel';
    $('gwChipStatus').classList.add('is-offline');
@@ -666,17 +685,22 @@ const ELMOS_GUIDED=(()=>{
   if(stage===1)renderPlan();
   if(stage===2)renderPlan()
   if(stage===3){$('gwAfeChartHost').appendChild($('chart'));startAfeWindow()}
-  if(stage===9){$('gwFinishChartHost').appendChild($('chart'))}
+  if(stage===10){$('gwFinishChartHost').appendChild($('chart'))}
   if(stage===4)renderCapture();
-  if(stage===7)renderOutputOptions()
+  if(stage===7)renderOutputOptions();
+  if(stage===8){
+   const imported=window.ELMOS_GUIDED_API?.alarmProfile?.();
+   $('gwUseAlarms').checked=imported?.mode==='edit'||!!window.ELMOS_GUIDED_API?.alarmPending?.();
+   $('gwAlarmConfigArea').hidden=!$('gwUseAlarms').checked;
+  }
   msg('');
   updateUI();
  }
  function goto(n){
-  if(stage===10&&window.ELMOS_TEST_LOGGER?.isBusy()){
+  if(stage===11&&window.ELMOS_TEST_LOGGER?.isBusy()){
    msg('Bitte zuerst die laufende Testaufzeichnung beenden.','warn');return;
   }
-  stage=Math.max(0,Math.min(10,n));visited.add(stage);render();
+  stage=Math.max(0,Math.min(11,n));visited.add(stage);render();
   root.scrollIntoView({behavior:'smooth',block:'start'});
  }
  async function next(seriesSettings=null){
@@ -696,7 +720,7 @@ const ELMOS_GUIDED=(()=>{
   if(!s.chip){msg('Zuerst den E703.11 über USB verbinden. Eine reine USB-CDC-Verbindung ohne Chipzugriff genügt nicht.','warn');return}
   if(stage===0){
    if(task==='inspect'){close();window.ELMOS_GUIDED_API?.navigate?.(7);return}
-   if(task==='testlog'){goto(10);return}
+   if(task==='testlog'){goto(11);return}
    if(task==='calibration'&&!seriesSettings){
     try{await window.ELMOS_GUIDED_API?.offerSeriesPreset?.()}
     catch(e){msg('Vorlage konnte nicht übernommen werden. '+e.message,'error');return}
@@ -733,7 +757,14 @@ const ELMOS_GUIDED=(()=>{
   if(stage===5){if(!s.calStaged){msg('Bitte die Koeffizienten zuerst berechnen und ins RAM übertragen.','warn');return}goto(6);return}
   if(stage===6){if(!s.calVerified){msg('Die unabhängige DSP-Prüfung muss erfolgreich abgeschlossen sein.','warn');return}goto(7);return}
   if(stage===7){goto(8);return}
-  if(stage===8){if(!s.nvmDone){msg('Noch kein erfolgreicher NVM-Schreibvorgang bestätigt.','warn');return}goto(9);return}
+  if(stage===8){
+   if(!$('gwUseAlarms').checked){window.ELMOS_GUIDED_API?.skipAlarms?.();goto(9);return}
+   if(!window.ELMOS_GUIDED_API?.alarmPending?.()){
+    msg('Alarmkonfiguration zuerst im RAM rücklesen oder den optionalen Schritt überspringen.','warn');return;
+   }
+   goto(9);return;
+  }
+  if(stage===9){if(!s.nvmDone){msg('Noch kein erfolgreicher NVM-Schreibvorgang bestätigt.','warn');return}goto(10);return}
  }
  async function returnToTasks(){
   if(nextSensorBusy)return;
@@ -752,7 +783,7 @@ const ELMOS_GUIDED=(()=>{
  }
  async function prepareNextSensor(){
   const s=state(),api=window.ELMOS_GUIDED_API;
-  if(stage!==9||nextSensorBusy||!s.chip||!s.nvmDone||s.demo||!api?.prepareNextSensor)return;
+  if(stage!==10||nextSensorBusy||!s.chip||!s.nvmDone||s.demo||!api?.prepareNextSensor)return;
   nextSensorBusy=true;updateUI();
   try{
    const matrix=task==='calibration'?plan:null;
@@ -814,7 +845,7 @@ const ELMOS_GUIDED=(()=>{
  }
  function previous(){
   if(stage===0)return;
-  if(stage===10){goto(0);return}
+  if(stage===11){goto(0);return}
   if(task==='output'&&stage===7){goto(0);return}
   goto(stage-1);
  }
