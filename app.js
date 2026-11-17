@@ -3605,6 +3605,7 @@ if(typeof document!=='undefined') (function UI(){
     reference:{min:Number($('pmin').value),max:Number($('pmax').value),
      unit:$('calUnit').value,customUnit:$('calUnitOther').value.trim()}
    },
+   alarm:ELMOS_ALARM_EDITOR.profileFromUi(),
    output:{mode:$('expertOutputMode').value,scaleEnabled:$('expertScaleEnable').checked,
     vdd:Number($('psscVdd').value),s0:Number($('psscS0').value),s1:Number($('psscS1').value),
     gain:Number($('expertScaleGain').value),offset:Number($('expertScaleOffset').value),
@@ -3616,18 +3617,18 @@ if(typeof document!=='undefined') (function UI(){
  }
  const CONFIG_GROUP_CONTROLS={
   afe:'configIncludeAfe',reference:'configIncludeReference',
-  measurement:'configIncludeMeasurement',dsp:'configIncludeDsp',output:'configIncludeOutput'
+  measurement:'configIncludeMeasurement',dsp:'configIncludeDsp',output:'configIncludeOutput',alarm:'configIncludeAlarm'
  };
  function configSelectedGroups(){
   return Object.entries(CONFIG_GROUP_CONTROLS).filter(([,id])=>$(id).checked).map(([group])=>group);
  }
  function configIncluded(profile){
-  return profile.version===2?profile.include.slice():ELMOS_CONFIG.GROUPS.slice();
+  return profile.version===2?profile.include.slice():ELMOS_CONFIG.GROUPS.filter(x=>x!=='alarm');
  }
  function configGroupValues(profile){
   if(profile.version===2)return profile;
   const c=profile.calibration;
-  return {...profile,include:ELMOS_CONFIG.GROUPS.slice(),
+  return {...profile,include:ELMOS_CONFIG.GROUPS.filter(x=>x!=='alarm'),
    reference:c.reference,measurement:{pointCount:c.pointCount,samples:c.samples},
    dsp:{sOrder:c.sOrder,tOrder:c.tOrder,dspLimit:c.dspLimit}};
  }
@@ -3826,6 +3827,7 @@ if(typeof document!=='undefined') (function UI(){
     fillIntermediateReferences();refreshUnitLabels();updateDSPOutputLimit();renderDSPLive();
    }
    if(has('output'))expert.applyOutputProfile(values.output);
+   if(has('alarm'))ELMOS_ALARM_EDITOR.applyProfile(values.alarm);
    if(!target){st.profilePendingAFE=null;profileSummary()}
    $('configLabel').value=profile.label;
    renderFlowState();
@@ -3833,7 +3835,8 @@ if(typeof document!=='undefined') (function UI(){
     (target?'AFE: Im Chip-RAM geschrieben und rückgelesen – Werte aktiv. ':'Keine AFE-Änderung am Chip. ')+
     'Keine EEPROM-Programmierung. '+(affectsCalibration?
      'Messpunkte und DSP-Koeffizienten für diesen Sensor neu aufnehmen.':
-     'Bestehende Messpunkte und DSP-Koeffizienten wurden durch diesen reinen Ausgangsimport nicht verändert.'),'success');
+     'Bestehende Messpunkte und DSP-Koeffizienten wurden durch diesen reinen Vorlagenimport nicht verändert.')+
+     (has('alarm')?' Alarmprofil nur im Browser vorgemerkt; vor NVM bitte RAM-Test durchführen.':''),'success');
    if(rememberForSeries)lsSet('elmos-series-preset-v1',JSON.stringify({profile,groups:included}));
    if(st.chip&&st.uid?.hex)seriesOfferKey=st.sessionIndex+':'+st.uid.hex;
    await window.ELMOS_ARCHIVE?.event('configuration_imported',{label:profile.label,include:included,version:profile.version,AFE:{...st.staged},supply:archiveVoltages()});
