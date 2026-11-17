@@ -27,6 +27,7 @@ test('two Alarm thresholds use Q0.13 signed register encoding correctly',()=>{
  assert.equal(p.after[63],C.crc16(p.after));
 });
 test('EOC mask accepts all 12 documented routable STATUS bits and never boot bits',()=>{
+ assert.equal(A.statusBits.length,12);
  const w=words(),p=A.prepare(w,settings(),C.crc16);
  assert.equal(p.after[18]&0xF000,w[18]&0xF000);
  assert.equal((p.after[18]>>10)&3,3);
