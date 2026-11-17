@@ -83,11 +83,12 @@ const ELMOS_NVM_RECON = (() => {
    factoryTemp=(w[31]===0&&w[32]===0x1000&&w[51]===0x0F4D&&w[52]===0xBC8E&&w[53]===0xFC54&&w[54]===0),
    requestedModel=opts.tempModel??'auto',
    tempModel=requestedModel==='auto'?(factoryTemp?'factory':'an0203'):requestedModel,
-   pga1=pg1[afe&3],pga2=pg2[Math.min((afe>>>7)&15,8)],
+   pga1=pg1[afe&3],pga2=pg2[(afe>>>7)&15]??null,
    supply=[2.4,1.6,2.0,null][w[27]&3],
    offsetCode=(afe>>>2)&31,
-   offsetSteps=offsetCode&16 ? -Math.min(offsetCode-16,8) : Math.min(offsetCode,8),
-   offsetStage=offsetSteps*50,
+   offsetSteps=offsetCode===0?0:offsetCode>=1&&offsetCode<=8?offsetCode:
+    offsetCode>=17&&offsetCode<=24?16-offsetCode:null,
+   offsetStage=offsetSteps===null?null:offsetSteps*50,
    sign1=(afe&0x1000)?-1:1,
    sign2=(afe&0x4000)?-1:1,
    signAdc=(afe&0x8000)?-1:1,
@@ -114,7 +115,7 @@ const ELMOS_NVM_RECON = (() => {
    postGain=post?(postFine?1+q15(w[56]):q12(w[56])):1,
    postOffset=post?(postFine?q15(w[55]):q12(w[55])):0;
   const physical=adc=>{
-   if(!supply)return null;
+   if(!supply||pga2===null||offsetStage===null)return null;
    const stage=(adc*700/(pga2*supply))*(sign2*signAdc);
    return (stage-offsetStage)/(pga1*sign1);
   };
@@ -128,6 +129,8 @@ const ELMOS_NVM_RECON = (() => {
   if(requestedModel!=='auto')warnings.push('Temperaturmodell manuell gewählt: prüfen, ob dieses zum Abgleich gehört.');
   if((cfg&3)===0)warnings.push('Druckkorrektur ist in CFG_EN nicht aktiv; die abgelegten Koeffizienten beschreiben möglicherweise nicht den aktiven Ausgang.');
   if(!supply)warnings.push('Reservierter Code für Brückenspeisung: mV/V nicht berechenbar.');
+  if(pga2===null)warnings.push('CFG_AFE1 enthält einen reservierten PGA2-Code: keine mV/V-Rückrechnung.');
+  if(offsetStage===null)warnings.push('CFG_AFE1 enthält einen nicht dokumentierten Offset-DAC-Code: keine mV/V-Rückrechnung.');
   if(Math.abs(sF)<1e-12)warnings.push('S_F ist null: ADC_S kann nicht rückgerechnet werden.');
   if(Math.abs(tF)<1e-12)warnings.push('T_F ist null: ADC_T kann nicht rückgerechnet werden.');
   if(Math.abs(postGain)<1e-12)warnings.push('DSP-Nachskalierung mit Nullverstärkung verhindert die eindeutige Umkehr.');
@@ -305,7 +308,8 @@ const ELMOS_NVM_RECON = (() => {
   if(!r.settings.sF)unavailable.push('S_F ist 0x0000. Ohne gültigen Druck-Normierungsfaktor lassen sich ADC_S, Nullpunkt, Spanne, TK0 und TKR nicht rekonstruieren.');
   if(r.settings.scoeff.every(c=>c===0))unavailable.push('Alle S0–S15 stehen auf 0x0000. Die Druck-Kennlinie fehlt im ausgewählten Datensatz.');
   if(!r.settings.tF&&!r.settings.pressureTempIndependent)unavailable.push('T_F ist 0x0000. ADC_T ist nicht eindeutig rekonstruierbar.');
-  if(r.settings.tcoeff.every(c=>c===0))unavailable.push('Alle T0–T3 stehen auf 0x0000. Die Temperaturkennlinie fehlt.');
+  if(r.settings.tcoeff.every(c=>c===0)&&!r.settings.manualBoth&&!r.settings.pressureTempIndependent)
+   unavailable.push('Alle T0–T3 stehen auf 0x0000. Für temperaturabhängige Druckkoeffizienten werden zwei gemessene ADC_T-Werte benötigt.');
   if(!unavailable.length && !r.hasPhysical)unavailable.push('Die Polynomumkehr ist mit diesen Koeffizienten und Bezugspunkten nicht eindeutig möglich. Siehe Diagnosehinweise.');
   if(r.settings.tempCorrectionConstant && r.hasPhysical && !r.settings.manualBoth){
    const tempInfo=finite(r.settings.fixedTemperatureC)?' Der fest programmierte DSP_T entspricht nominell '+fmt(r.settings.fixedTemperatureC,2)+' °C; das ist keine aktuelle Temperaturmessung.':'';
