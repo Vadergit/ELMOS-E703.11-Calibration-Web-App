@@ -118,7 +118,7 @@ if(typeof document!=='undefined') (function UI(){
   ['Bessel · 10 Hz · 2 kS/s · 15 Bit', [0x78D4,0x1452,0x029D]],
  ];
  const REG_NAMES={4:'CFG_EN',6:'CFG_SPI_I2C',8:'CFG_PADS0',10:'CFG_PADS1',12:'CFG_PADS2',16:'CFG_AODO',0x14:'CFG_ADC',0x16:'CFG_LP0',0x18:'CFG_LP1',0x1A:'CFG_AFE0',0x1C:'CFG_AFE1',0x1E:'CFG_AFE2',0x26:'ADC_TC',0x28:'ADC_T',0x2A:'ADC_S'};
- const st={chipDiag:null,diagRunning:false,lastPlcReply:null,mode:'offline',port:null,closing:false,reader:null,readerPromise:null,readerAlive:false,adapterNoReply:false,sessionStartedAt:null,sessionIndex:0,cmdQueue:Promise.resolve(),replyBuffer:'',responseWait:null,iface:'plc',adapterKind:'ssp3',sensorPowerEnabled:false,startupRunning:false,startupAbort:false,startupAttempts:0,magicRunning:false,magicResult:null,powerCycleRunning:false,powerCycleResult:null,startupTrials:[],powerHelp:null,plcHostFormat:'legacy',plcAddress:0x6C,plcAddressVerified:false,plcAddressSource:'',plcAddressProbes:[],firmware:'',chip:false,readOnlySensor:null,sensorLost:false,reinitRunning:false,boot:null,afe:null,afe0:null,bridgeWriteAllowed:false,bridgeReadBusy:false,staged:{pga1:0,pga2:0,offset:0},adc:null,dsp:null,dspError:null,dspT:null,dspTError:null,liveReadPromise:null,trend:[],history:[],log:[],regs:{},points:{lo:null,hi:null},verify:null,live:false,manualLivePause:false,timeout:null,consecutiveErrors:0,liveReadAttempts:0,liveReadSuccesses:0,liveLastError:null,liveLastAttemptAt:null,measurementPeriod:null,measurementStatus:null,measurementError:null,measurementStarts:0,measurementFreshCount:0,measurementLastChangedAt:null,writing:false,pressure:5,calpoints:[],calfit:null,calImage:null,nvmBackup:null,nvmBackupVerified:false,calStaged:false,calVerified:false,calValidation:[],calTask:false,testLogging:false,nvmWorking:false,nvmDone:false,afeWriteActive:false,ramWriteScope:null,uid:null,expertOutputPlan:null,restorePlan:null,outputOnlyPlan:null,uidShownForInput:null,profilePendingAFE:null};
+ const st={chipDiag:null,diagRunning:false,lastPlcReply:null,mode:'offline',port:null,closing:false,reader:null,readerPromise:null,readerAlive:false,adapterNoReply:false,sessionStartedAt:null,sessionIndex:0,cmdQueue:Promise.resolve(),replyBuffer:'',responseWait:null,iface:'plc',adapterKind:'ssp3',sensorPowerEnabled:false,startupRunning:false,startupAbort:false,startupAttempts:0,magicRunning:false,magicResult:null,powerCycleRunning:false,powerCycleResult:null,startupTrials:[],powerHelp:null,plcHostFormat:'legacy',plcAddress:0x6C,plcAddressVerified:false,plcAddressSource:'',plcAddressProbes:[],firmware:'',chip:false,readOnlySensor:null,sensorLost:false,reinitRunning:false,boot:null,afe:null,afe0:null,bridgeWriteAllowed:false,bridgeReadBusy:false,staged:{pga1:0,pga2:0,offset:0},adc:null,dsp:null,dspError:null,dspT:null,dspTError:null,liveReadPromise:null,trend:[],history:[],log:[],regs:{},points:{lo:null,hi:null},verify:null,live:false,manualLivePause:false,timeout:null,consecutiveErrors:0,liveReadAttempts:0,liveReadSuccesses:0,liveLastError:null,liveLastAttemptAt:null,measurementPeriod:null,measurementStatus:null,measurementError:null,measurementStarts:0,measurementFreshCount:0,measurementLastChangedAt:null,writing:false,pressure:5,calpoints:[],calfit:null,calImage:null,nvmBackup:null,nvmBackupVerified:false,calStaged:false,calVerified:false,calValidation:[],calTask:false,testLogging:false,nvmWorking:false,nvmAttempting:false,nvmDone:false,afeWriteActive:false,ramWriteScope:null,uid:null,expertOutputPlan:null,restorePlan:null,outputOnlyPlan:null,uidShownForInput:null,profilePendingAFE:null};
  let currentStep=0,pendingGain=null,writeTimer=null;let tipEnabled=true,liveIntervalMs=250;
  // Optional faster live mode: serial requests only, with automatic pacing backoff.
  const livePacing=typeof ELMOS_LIVE_POLLING!=='undefined'?ELMOS_LIVE_POLLING.create():null;
@@ -944,7 +944,7 @@ if(typeof document!=='undefined') (function UI(){
   const approvalGranted=nvmReason==='';
   const experimentalRecoveryOutput=outputOnly&&
    (st.psscRamRecovery||(st.regs[0x06]===0x6C04&&st.nvmBackup?.[17]!==0x6C04));
-  $('nvmProgram').disabled=!approvalGranted;
+  $('nvmProgram').disabled=!approvalGranted||!!st.nvmAttempting||st.nvmWorking||st.writing||st.calTask;
   const bootCheckBusy=st.closing||st.nvmWorking||st.writing||st.calTask;
   $('nvmRestart').hidden=!st.nvmDone||!(st.sensorPowerEnabled||demoEnabled);
   $('nvmRestart').disabled=bootCheckBusy||!st.chip||!st.port;
@@ -3041,8 +3041,32 @@ if(typeof document!=='undefined') (function UI(){
    ca('nvmMsg','Vorbereitung fehlgeschlagen: '+e.message,'error');
   }finally{renderFlowState()}
  }
+ function nvmWriteFeedback(message,state='progress',done=null,total=null){
+  const panel=$('nvmWriteStatus'),label=$('nvmWriteStatusText'),bar=$('nvmWriteBar');
+  if(!panel||!label||!bar)return;
+  panel.hidden=false;
+  panel.dataset.state=state;
+  label.textContent=message;
+  bar.hidden=state!=='progress';
+  if(state==='progress'&&Number.isInteger(done)&&Number.isInteger(total)&&total>0){
+   bar.max=total;bar.value=done;
+  }else bar.removeAttribute('value');
+ }
  async function nvmProgram(){
-  return withProgress('NVM wird programmiert',progress=>nvmProgramOperation(progress),true);
+  if(st.nvmAttempting||st.nvmWorking||st.writing)return;
+  st.nvmAttempting=true;
+  const button=$('nvmProgram');
+  button.disabled=true;
+  nvmWriteFeedback('Speicherauftrag erhalten. Voraussetzungen werden geprüft …');
+  ca('nvmMsg','NVM-Speicherauftrag gestartet: Erst Archiv, Chip-UID und Schreibfreigabe prüfen. Noch keine NVM-Wörter geschrieben.','warn');
+  try{return await withProgress('NVM-Schreibvorgang wird vorbereitet',progress=>nvmProgramOperation(progress),true);}
+  catch(error){
+   nvmWriteFeedback('Vorgang abgebrochen: '+error.message,'error');
+   ca('nvmMsg','NVM-Speichervorgang fehlgeschlagen: '+error.message,'error');
+  }finally{
+   st.nvmAttempting=false;
+   renderFlowState();
+  }
  }
  async function nvmProgramOperation(progress){
   if(st.nvmWorking||st.writing)return;
@@ -3076,9 +3100,27 @@ if(typeof document!=='undefined') (function UI(){
     const expected=CAL.prepareOutputConfig(initial,st.expertOutputPlan,outputOnly?st.outputOnlyPlan.limit:st.calfit.outputLimit);
     for(const i of [16,22,57,58,59,60])if(modified[i]!==expected[i])throw Error('Ausgangsregister entspricht nicht dem geprüften Vorschlag');
    }
-   if(!window.ELMOS_ARCHIVE?.active||!['calibration','output'].includes(window.ELMOS_ARCHIVE.current?.type))
-    throw Error('Für das NVM-Schreiben zuerst ein Kalibrier- oder Ausgangsprotokoll im Archiv starten. Danach die NVM-Änderungsliste erneut vorbereiten.');
-   await window.ELMOS_ARCHIVE?.event('nvm_before',{uid:id,words:initial,plannedWords:modified,changes:st.calImage.changes,supply:archiveVoltages()});
+   // A standalone output edit must create its own archive record; it cannot
+   // assume a guided calibration already started one. This is a prerequisite
+   // and NEVER a reason to skip NVM/UID/CRC checks.
+   nvmWriteFeedback('Archivprotokoll wird geprüft bzw. gestartet …');
+   progress.update('Archiv und Backup werden vorbereitet');
+   const archive=window.ELMOS_ARCHIVE;
+   if(!archive?.begin||!archive?.event)throw Error('Archivmodul nicht geladen. Kein NVM-Schreibvorgang möglich.');
+   if(!archive.active){
+    try{await archive.begin(outputOnly?'output':'calibration');}
+    catch(error){
+     throw Error('Archivprotokoll konnte nicht gestartet werden: '+error.message+
+      '. Bitte Archivordner und Schreibberechtigung in den Einstellungen kontrollieren.');
+    }
+   }
+   if(!['calibration','output'].includes(archive.current?.type)||
+      archive.current?.type!==(outputOnly?'output':'calibration')||
+      archive.current?.chipUID!==id)
+    throw Error('Das aktive Archivprotokoll gehört nicht zu diesem Sensor oder Vorgang. Bitte das falsche Protokoll zuerst abschliessen.');
+   if(!await archive.event('nvm_before',{uid:id,words:initial,plannedWords:modified,changes:st.calImage.changes,supply:archiveVoltages()}))
+    throw Error('Archivprotokoll konnte nicht geschrieben werden. NVM bleibt unverändert.');
+   nvmWriteFeedback('Archivprotokoll bereit. Chip und NVM werden vor dem Schreiben erneut geprüft …');
    const saveOldNvm=$('nvmAutoBackup').checked;
    // Backup and export belong to this final explicitly confirmed action, not to the preview.
    // Without backup selection the original NVM remains in RAM only for readback/CRC safety.
@@ -3093,7 +3135,8 @@ if(typeof document!=='undefined') (function UI(){
    $('nvmRestartStatus').hidden=true;
    $('nvmRebootConfirm').checked=false;
    st.nvmWorking=true;st.calTask=true;st.writing=true;st.ramWriteScope='nvm';stopLive();
-   ca('nvmMsg','NVM wird programmiert. USB-Verbindung nicht trennen, Versorgung stabil halten.','warn');
+   ca('nvmMsg','Sicherheitsprüfung läuft. USB-Verbindung nicht trennen, Versorgung stabil halten.','warn');
+   nvmWriteFeedback('Chip-UID und bestehendes NVM werden vor dem Schreiben geprüft …');
    // Never start NVM commands while a previous ADC/DSP live read is still in flight.
    if(st.liveReadPromise)await st.liveReadPromise.catch(()=>{});
    const version=await readReg(0x38),ser0=await readReg(0x50),ser1=await readReg(0x52);
@@ -3114,22 +3157,31 @@ if(typeof document!=='undefined') (function UI(){
    CAL.protectStartupCommunication(initial,modified,{allowSvdd});
    for(let i=0;i<28;i++)if(modified[i]!==initial[i]&&(restoring||![16,22,...(allowSvdd?[CAL.SVDD_INDEX]:[])].includes(i)))throw Error('Boot-/Werksbereich verändert');
    // Only USER region access is authorized; NEVER unlock factory calibration area.
+   nvmWriteFeedback('Chip bestätigt, NVM-Schreibfreigabe wird angefordert …');
    if(st.adapterKind==='bridge'&&st.bridgeCalibrationNvm)
     await exchange(outputOnly?'NVM ARM OUTPUT':'NVM ARM CALIBRATION');
    for(const x of [0x98BD,0x25BF,0x36D8])await maintWrite(0x4E,x);
    const status=await readReg(0x46);if(!(status&8))throw Error('NVM User-Bereich nicht freigegeben (CM_STATUS.ep_en=0)');
    const changes=st.calImage.changes.slice().sort((a,b)=>a.index===63?1:b.index===63?-1:a.index-b.index);
+   nvmWriteFeedback('NVM-Programmierung beginnt: '+changes.length+' geänderte Wörter …','progress',0,changes.length);
    let done=0;for(const c of changes){
     if(c.index<16||c.index>63)throw Error('Werksbereich gesperrt');
     await maintWrite(0x4A,c.to);chipProgrammingStarted=true;await maintWrite(0x4E,0xA300|c.address);
     const flags=await nvmWaitIdle(18000);if(flags&(1<<6))throw Error('CM_STATUS.crc_error während NVM-Programmierung');
     const chk=await nvmReadWord(c.address);if(chk!==c.to)throw Error(`NVM-Verify 0x${h(c.address)}: Ist 0x${h(chk,2)} Soll 0x${h(c.to,2)}`);
-    done++;progress.update('NVM wird geschrieben und geprüft',done,changes.length);$('nvmProgress').textContent=`Geschrieben und verifiziert ${done}/${changes.length}`;
+    done++;progress.update('NVM wird geschrieben und geprüft',done,changes.length);
+    nvmWriteFeedback('Geschrieben und verifiziert: '+done+'/'+changes.length+' Wörter','progress',done,changes.length);
+    $('nvmProgress').textContent=`Geschrieben und verifiziert ${done}/${changes.length}`;
    }
    await maintWrite(0x4E,0x0000);
    await maintWrite(0x4E,0x8800);await nvmWaitIdle(15000);
    const after=[];
-   for(let i=0;i<64;i++){after.push(await nvmReadWord(i*2));progress.update('NVM wird rückgelesen',i+1,64);}
+   nvmWriteFeedback('Alle 64 NVM-Wörter werden zurückgelesen und geprüft …','progress',0,64);
+   for(let i=0;i<64;i++){
+    after.push(await nvmReadWord(i*2));
+    progress.update('NVM wird rückgelesen',i+1,64);
+    nvmWriteFeedback('NVM-Rücklesung und Kontrolle: '+(i+1)+'/64','progress',i+1,64);
+   }
    if(after.some((x,i)=>x!==modified[i]))throw Error('Abschliessender 64-Wort-NVM-Vergleich fehlgeschlagen');
    if(CAL.crc16(after)!==after[63])throw Error('Abschliessende NVM-CRC16-Prüfung fehlgeschlagen');
    const cm=await readReg(0x46);if(cm&(1<<6))throw Error('Chip meldet CM CRC Fehler');
@@ -3151,7 +3203,16 @@ if(typeof document!=='undefined') (function UI(){
     id,words:after,ts:new Date().toISOString(),restore:restoring,temperatureBasis
    }));
    ca('nvmMsg',restoring?'Backup-Wiederherstellung abgeschlossen, NVM rückgelesen und CRC16 bestätigt. Sensor neu starten und erneut prüfen.':outputOnly?'AODO-Ausgangseinstellungen dauerhaft gespeichert, NVM rückgelesen und CRC16 bestätigt. Sensor neu starten und Ausgabefunktion prüfen.':'NVM-Programmierung und vollständiges Rücklesen/CRC16 erfolgreich. Sensor neu starten und Schnittstelle erneut prüfen.','success');
-  }catch(e){try{await window.ELMOS_ARCHIVE?.event('error',{stage:'nvm_program',programmingStarted:chipProgrammingStarted,message:e.message})}catch(_){}ca('nvmMsg',`NVM-Vorgang fehlgeschlagen: ${e.message}.${chipProgrammingStarted?' NVM-Schreibversuch wurde bereits begonnen: Chip nicht unkontrolliert neu starten, Backup und Diagnose sichern!':' Es wurden keine NVM-Schreibbefehle gestartet.'}`,'error');logging('NVM FEHLER: '+e.message)}
+   nvmWriteFeedback('NVM erfolgreich programmiert, 64/64 Wörter geprüft. Sensor neu starten und Ausgang messen.','success');
+  }catch(e){
+   try{await window.ELMOS_ARCHIVE?.event('error',{stage:'nvm_program',programmingStarted:chipProgrammingStarted,message:e.message})}catch(_){}
+   const suffix=chipProgrammingStarted?
+    ' Schreibversuch bereits begonnen: Chip nicht unkontrolliert neu starten! Backup und Diagnose sichern.':
+    ' Es wurden keine NVM-Schreibbefehle gestartet.';
+   ca('nvmMsg','NVM-Vorgang fehlgeschlagen: '+e.message+'.'+suffix,'error');
+   nvmWriteFeedback('NVM nicht erfolgreich gespeichert: '+e.message+'.'+suffix,'error');
+   logging('NVM FEHLER: '+e.message);
+  }
   finally{
    // A failed RAM-lock command must not leave the UI permanently in "busy" state.
    try{
