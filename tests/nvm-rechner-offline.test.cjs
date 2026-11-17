@@ -50,7 +50,7 @@ test('NVM calculator visual polish is scoped, responsive and keeps all inputs wo
  assert.match(source,/file\.addEventListener\('change'/);
  assert.match(source,/root\._nvmState\.opts\[key\]=Number\(input\.value\)/);
  assert.match(source,/root\._nvmState\.opts\.tempModel=modelSelect\.value/);
- assert.match(source,/root\.append\(setup,status,result,explain\)/);
+ assert.match(source,/root\.append\(setup,status,result,explain,missing\)/);
  assert.match(source,/nvmrecon-analog-alert/);
  assert.match(source,/nvmrecon-source-hint/);
  assert.match(source,/nvmrecon-metric-unit/);
