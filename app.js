@@ -390,6 +390,45 @@ if(typeof document!=='undefined') (function UI(){
  }
  
 
+ // The chip EEPROM contains raw DSP parameters, not a physical pressure unit.
+ // Bind a local display profile to BOTH chip UID and the verified NVM CRC.
+ // Profiles are never written to sensor NVM and are never shared across chips.
+ const displayProfileKey=uid=>'elmos-dsp-display-by-uid-v1-'+uid;
+ function calibrationDisplayProfile(words=st.nvmBackup,uid=st.uid?.hex){
+  if(!uid||!CAL.crc16||!Array.isArray(words)||words.length!==64||CAL.crc16(words)!==words[63])return null;
+  const min=Number($('pmin').value),max=Number($('pmax').value);
+  const selected=$('calUnit').value,unit=pressureUnit();
+  const limit=st.calfit?.outputLimit??Number($('dspDisplayLimit').value);
+  if(!Number.isFinite(min)||!Number.isFinite(max)||max<=min||
+     !['%','bar','mbar','kPa','psi','custom'].includes(selected)||
+     !Number.isInteger(limit)||limit<1000||limit>32000)return null;
+  return {uid,crc:words[63],min,max,unit,selected,limit,
+   customUnit:selected==='custom'?$('calUnitOther').value.trim():'',savedAt:new Date().toISOString()};
+ }
+ function saveCalibrationDisplayProfile(words=st.nvmBackup,uid=st.uid?.hex){
+  const profile=calibrationDisplayProfile(words,uid);
+  if(!profile)return false;
+  lsSet(displayProfileKey(uid),JSON.stringify(profile));return true;
+ }
+ function restoreCalibrationDisplayProfile(){
+  if(!st.nvmBackupVerified||!st.uid?.hex||st.calStaged||st.calpoints?.length)return false;
+  const raw=lsGet(displayProfileKey(st.uid.hex));if(!raw)return false;
+  let p;try{p=JSON.parse(raw)}catch{return false}
+  if(p.uid!==st.uid.hex||p.crc!==st.nvmBackup[63]||
+     !Number.isFinite(p.min)||!Number.isFinite(p.max)||p.max<=p.min||
+     !Number.isInteger(p.limit)||p.limit<1000||p.limit>32000||
+     !['%','bar','mbar','kPa','psi','custom'].includes(p.selected))return false;
+  $('calUnit').value=p.selected;
+  if(p.selected==='custom')$('calUnitOther').value=String(p.customUnit||'').slice(0,14);
+  $('pmin').value=String(p.min);$('pmax').value=String(p.max);
+  const displayUnit=p.selected==='custom'?'%':p.selected;
+  $('dspDisplayUnit').value=displayUnit;
+  $('dspDisplayMin').value=String(p.selected==='custom'?0:p.min);
+  $('dspDisplayMax').value=String(p.selected==='custom'?100:p.max);
+  $('dspDisplayLimit').value=String(p.limit);
+  refreshUnitLabels();renderDSPLive();
+  return true;
+ }
  function getManualDSPRange(){
   const min=Number($('dspDisplayMin').value),max=Number($('dspDisplayMax').value),limit=Number($('dspDisplayLimit').value);
   const unit=$('dspDisplayUnit').value;
@@ -2835,7 +2874,10 @@ if(typeof document!=='undefined') (function UI(){
    if(factoryCRC!==factoryHigh)throw Error(`Werks-CRC8 stimmt nicht: 0x${h(factoryCRC)} statt 0x${h(factoryHigh)}. Programmierung gesperrt.`);
    for(const index of [0,1,15,16,17,18,19,20,22,CAL.SVDD_INDEX,28,63])if(await nvmReadWord(index*2)!==words[index])throw Error('NVM bei Wiederholungslesung unstabil (Wort '+index+')');
    const after=await bootSnapshot();if(!sameBoot(before,after))throw Error('Bootregister haben sich beim NVM-Lesen verändert');
-   st.nvmBackup=words;st.nvmBackupVerified=true;st.nvmBackupProof={session,uid,words};st.calImage=null;expert.refreshOutputReadOnly();expert.refreshEEPROMViewer();
+   st.nvmBackup=words;st.nvmBackupVerified=true;st.nvmBackupProof={session,uid,words};st.calImage=null;
+   if((postBoot||expertRead)&&restoreCalibrationDisplayProfile())
+    logging('Anzeigebereich aus UID-/NVM-gebundenem Profil wiederhergestellt.');
+   expert.refreshOutputReadOnly();expert.refreshEEPROMViewer();
    const shouldArchive=expertRead||(!preview&&$('nvmAutoBackup').checked);
    if(shouldArchive)expert.afterNvmScan();
    ca('backupMsg','NVM vollständig gelesen: 64 Wörter, CRC8 und CRC16 geprüft.'+
@@ -3190,6 +3232,8 @@ if(typeof document!=='undefined') (function UI(){
    if(!sameBoot(beforeBoot,await bootSnapshot()))throw Error('Bootregister nach Programmierung abweichend');
    const verifiedOutputLimit=outputOnly?st.outputOnlyPlan?.limit:st.calfit?.outputLimit;
    st.nvmDone=true;st.nvmBackup=after;st.nvmBackupVerified=true;
+   if(!restoring&&!outputOnly&&st.calfit&&saveCalibrationDisplayProfile(after,id))
+    logging('Druckeinheit und Messbereich lokal mit Chip-UID/NVM-CRC gespeichert (nicht im Sensor).');
    st.programmedSnapshot={session:st.sessionIndex, data:{
     at:new Date().toISOString(),uid:id,
     nvm:{words:after.slice(),crc8Validated:CAL.crc8(after)===(after[15]>>>8),crc16Validated:true},
