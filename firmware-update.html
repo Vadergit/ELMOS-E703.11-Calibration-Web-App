@@ -103,6 +103,7 @@
   <section class="board" aria-labelledby="esp32">
     <h2 id="esp32">ESP32-C3 SuperMini <span class="version">v0.10</span></h2>
     <p>One-Wire und I²C. Wähle im USB-Dialog den ESP32-C3 SuperMini.</p>
+    <p class="note"><strong>Ausgang separat ins NVM:</strong> Der Installer installiert weiterhin die bisherige v0.10 ohne diese Funktion. Ein neuer, noch nicht hardwarevalidierter <a href="docs/ESP32_C3_PLC_TEST.md">v0.11-dev-Testquellcode mit Anleitung</a> ist separat verfügbar und muss derzeit mit der Arduino IDE kompiliert werden. Vor einem Firmwareupdate zuerst ungesicherte Kalibrierwerte sichern.</p>
     <div class="actions">
     <esp-web-install-button manifest="firmware/releases/esp32-c3/v0.10/manifest.json">
       <button type="button" slot="activate" disabled>ESP32 installieren</button>
