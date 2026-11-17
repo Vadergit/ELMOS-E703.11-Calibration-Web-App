@@ -1,8 +1,17 @@
-name: Build ESP32-C3 v0.11 test firmware
+name: Compile and publish universal DIY bridges
 on:
-  push:
+  pull_request:
     paths:
       - "firmware/esp32c3_supermini/**"
+      - "firmware/pro_micro/**"
+      - "firmware/libraries/**"
+      - ".github/workflows/esp32-c3-release.yml"
+  push:
+    branches: [main]
+    paths:
+      - "firmware/esp32c3_supermini/**"
+      - "firmware/pro_micro/**"
+      - "firmware/libraries/**"
       - ".github/workflows/esp32-c3-release.yml"
   workflow_dispatch:
 permissions:
@@ -10,37 +19,56 @@ permissions:
 jobs:
   compile-and-release:
     runs-on: ubuntu-latest
+    timeout-minutes: 35
     steps:
       - uses: actions/checkout@v4
       - uses: arduino/setup-arduino-cli@v2
-      - name: Install ESP32 core
-        run: |
-          arduino-cli core update-index --additional-urls https://espressif.github.io/arduino-esp32/package_esp32_index.json
-          arduino-cli core install esp32:esp32@3.3.7 --additional-urls https://espressif.github.io/arduino-esp32/package_esp32_index.json
-      - name: Compile USB CDC ESP32-C3 SuperMini
-        run: |
-          mkdir -p build
-          arduino-cli compile --fqbn esp32:esp32:esp32c3:CDCOnBoot=cdc --libraries firmware/libraries --output-dir build firmware/esp32c3_supermini
-      - name: Package new release
+      - name: Install ESP32 and SparkFun AVR board cores
         run: |
           set -euo pipefail
-          dest="firmware/releases/esp32-c3/v0.11"
-          mkdir -p "$dest"
-          ls -lah build
-          app=$(find build -maxdepth 1 -name '*.ino.bin' -print -quit)
-          boot=$(find build -maxdepth 1 -name '*.bootloader.bin' -print -quit)
-          part=$(find build -maxdepth 1 -name '*.partitions.bin' -print -quit)
-          test -n "$app" && test -s "$app"
-          test -n "$boot" && test -s "$boot"
-          test -n "$part" && test -s "$part"
-          cp "$app" "$dest/application.bin"
-          cp "$boot" "$dest/bootloader.bin"
-          cp "$part" "$dest/partitions.bin"
-          cp firmware/releases/esp32-c3/v0.10/boot_app0.bin "$dest/boot_app0.bin"
-          cat > "$dest/manifest.json" <<'MANIFEST'
+          arduino-cli core update-index --additional-urls https://espressif.github.io/arduino-esp32/package_esp32_index.json
+          arduino-cli core install esp32:esp32@3.3.7 --additional-urls https://espressif.github.io/arduino-esp32/package_esp32_index.json
+          arduino-cli core install arduino:avr@1.8.6
+          arduino-cli core update-index --additional-urls https://raw.githubusercontent.com/sparkfun/Arduino_Boards/main/IDE_Board_Manager/package_sparkfun_index.json
+          arduino-cli core install SparkFun:avr --additional-urls https://raw.githubusercontent.com/sparkfun/Arduino_Boards/main/IDE_Board_Manager/package_sparkfun_index.json
+      - name: Compile ESP32-C3 SuperMini CDC firmware
+        run: |
+          set -euo pipefail
+          mkdir -p build/esp
+          arduino-cli compile --fqbn esp32:esp32:esp32c3:CDCOnBoot=cdc --libraries firmware/libraries --output-dir build/esp firmware/esp32c3_supermini
+      - name: Compile Pro Micro firmware for 5 V / 16 MHz
+        run: |
+          set -euo pipefail
+          mkdir -p build/pro-16
+          arduino-cli compile --fqbn SparkFun:avr:promicro:cpu=16MHzatmega32U4 --libraries firmware/libraries --build-property compiler.cpp.extra_flags=-std=gnu++17 --output-dir build/pro-16 firmware/pro_micro
+      - name: Compile Pro Micro firmware for 3.3 V / 8 MHz
+        run: |
+          set -euo pipefail
+          mkdir -p build/pro-8
+          arduino-cli compile --fqbn SparkFun:avr:promicro:cpu=8MHzatmega32U4 --libraries firmware/libraries --build-property compiler.cpp.extra_flags=-std=gnu++17 --output-dir build/pro-8 firmware/pro_micro
+      - name: Publish verified built binaries on main only
+        if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+        run: |
+          set -euo pipefail
+          esp="firmware/releases/esp32-c3/v0.12"
+          pro="firmware/releases/pro-micro/v0.28"
+          mkdir -p "$esp" "$pro"
+          app=$(find build/esp -maxdepth 1 -name '*.ino.bin' -print -quit)
+          boot=$(find build/esp -maxdepth 1 -name '*.bootloader.bin' -print -quit)
+          part=$(find build/esp -maxdepth 1 -name '*.partitions.bin' -print -quit)
+          pro16=$(find build/pro-16 -maxdepth 1 -name '*.ino.hex' -print -quit)
+          pro8=$(find build/pro-8 -maxdepth 1 -name '*.ino.hex' -print -quit)
+          for name in "$app" "$boot" "$part" "$pro16" "$pro8"; do test -n "$name" && test -s "$name"; done
+          cp "$app" "$esp/application.bin"
+          cp "$boot" "$esp/bootloader.bin"
+          cp "$part" "$esp/partitions.bin"
+          cp firmware/releases/esp32-c3/v0.10/boot_app0.bin "$esp/boot_app0.bin"
+          cp "$pro16" "$pro/pro-micro-16mhz.hex"
+          cp "$pro8" "$pro/pro-micro-8mhz.hex"
+          cat > "$esp/manifest.json" <<'MANIFEST'
           {
-            "name": "Elmos E703.11 USB-Bridge (Ausgangs-NVM Testversion)",
-            "version": "0.11",
+            "name": "ELMOS E703.11 Universal DIY Bridge (Laborversion)",
+            "version": "0.12",
             "new_install_prompt_erase": false,
             "builds": [{
               "chipFamily": "ESP32-C3",
@@ -57,17 +85,33 @@ jobs:
           from pathlib import Path
           p=Path('firmware-update.html')
           x=p.read_text()
-          x=x.replace('ESP32-C3 SuperMini <span class="version">v0.10</span>', 'ESP32-C3 SuperMini <span class="version">v0.11 (Test)</span>')
-          x=x.replace('manifest="firmware/releases/esp32-c3/v0.10/manifest.json"','manifest="firmware/releases/esp32-c3/v0.11/manifest.json"')
-          x=x.replace('Der Installer installiert weiterhin die bisherige v0.10 ohne diese Funktion. Ein neuer, noch nicht hardwarevalidierter', 'Der Installer installiert die neue v0.11-Testfirmware. Ihr NVM-Schreibpfad ist noch nicht an echter Hardware validiert. Ein neuer')
+          x=x.replace('ESP32-C3 SuperMini <span class="version">v0.11 (Test)</span>',
+                      'ESP32-C3 SuperMini <span class="version">v0.12 (Labor)</span>')
+          x=x.replace('manifest="firmware/releases/esp32-c3/v0.11/manifest.json"',
+                      'manifest="firmware/releases/esp32-c3/v0.12/manifest.json"')
+          x=x.replace('Pro Micro <span class="version">v0.27</span>',
+                      'Pro Micro <span class="version">v0.28 (Labor)</span>')
+          x=x.replace('firmware/releases/pro-micro/v0.27/',
+                      'firmware/releases/pro-micro/v0.28/')
+          x=x.replace('Neu in v0.11 (Test):', 'Neu in v0.12 (Labor):')
+          x=x.replace('Separate NVM-Freigabe für Ausgangsskalierung und Clipping auf dem ESP32-C3.',
+                      'Gemeinsame, zeitlich begrenzte Freigabe für User-NVM und universelle RAM-Registerzugriffe.')
           p.write_text(x)
           PYTHON
-          test -s "$dest/application.bin"
-          grep -q 'manifest="firmware/releases/esp32-c3/v0.11/manifest.json"' firmware-update.html
-      - name: Commit compiled release
+          grep -q 'manifest="firmware/releases/esp32-c3/v0.12/manifest.json"' firmware-update.html
+          grep -q 'firmware/releases/pro-micro/v0.28/pro-micro-8mhz.hex' firmware-update.html
+          grep -q 'BRIDGE_USER_NVM_V1' firmware/esp32c3_supermini/esp32c3_supermini.ino
+          grep -q 'BRIDGE_USER_NVM_V1' firmware/pro_micro/pro_micro.ino
+          test -s "$esp/application.bin"
+          test -s "$pro/pro-micro-16mhz.hex"
+          test -s "$pro/pro-micro-8mhz.hex"
+      - name: Commit compiled firmware and installer
+        if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add firmware/releases/esp32-c3/v0.11 firmware-update.html
-          git commit -m "release: compiled ESP32-C3 v0.11 test firmware and installer" || exit 0
-          git push
+          git add firmware/releases/esp32-c3/v0.12 firmware/releases/pro-micro/v0.28 firmware-update.html
+          if ! git diff --cached --quiet; then
+            git commit -m "release: ESP32-C3 v0.12 and Pro Micro v0.28 universal bridges"
+            git push
+          fi

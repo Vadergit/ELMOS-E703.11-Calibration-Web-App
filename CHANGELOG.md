@@ -1,3 +1,13 @@
+## v0.7.119 – Funktionsoffene USB-Bridge für beide DIY-Programmer
+
+- ESP32-C3 SuperMini und Arduino Pro Micro: Generische 16-Bit-RAM-Registerzugriffe über One-Wire/PLC und I²C statt Funktionstabellen im Mikrocontroller.
+- Beide melden `BRIDGE_GENERIC_RAM_V1` und `BRIDGE_USER_NVM_V1`, bieten `NVM ARM HOST` und dürfen alle User-NVM-Wörter 16–63 nach bestätigtem Kaltstart programmieren.
+- 20-s-Leerlauf- und 180-s-Maximalzeit der NVM-Freigabe; Factory-Region und NVM-Controller-Kommandos bleiben gesichert.
+- Browser führt dieselben Alarm-, AFE-, DSP-, Ausgangs- und NVM-Prüfregeln wie beim SSP3 durch. Legacy-Firmware bleibt weiterhin auf bisher bekannte Funktionen eingeschränkt.
+- Compilerworkflow erstellt ESP32-C3 v0.12 und Pro Micro v0.28 (8/16 MHz), veröffentlicht installierbare Images nur bei grünem `main`-Build.
+- Software- und Bridge-Protokolltests; tatsächliche elektrische Validierung, I²C-User-NVM, SPI und DMM-Verifikation stehen noch aus.
+- [Architektur und Sicherheitsgrenzen](docs/UNIVERSAL_BRIDGE.md).
+
 ## v0.7.118 – Alarme in Kalibrierablauf und Config einbinden
 
 - Klassische Navigation und geführter Ablauf: «Alarme & Fehler» optional nach Ausgang und vor NVM.

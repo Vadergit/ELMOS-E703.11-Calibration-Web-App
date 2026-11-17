@@ -1,3 +1,5 @@
+> **Neuer Laborstand v0.12:** Die bisherigen Beschränkungen der Ausgangs-Testfirmware v0.11 gelten für die neue Universal-Bridge v0.12 nicht mehr. Sie unterstützt `NVM ARM HOST` und generische RAM-/User-NVM-Wörter 16–63, sofern das Board die neuen Capabilities meldet. Bestehende alte Firmware bleibt unverändert; Details und Sicherheitsbedingungen: [Universelle Bridge](UNIVERSAL_BRIDGE.md). Noch keine reale NVM-Hardwarefreigabe.
+
 # ESP32-C3 SuperMini mit E703.11 testen
 
 Firmware v0.11 (Test) unterstützt den PLC-Zugriff über AODO und stellt der lokalen Web-App die bestehenden Abläufe für Registerlesen, AFE/DSP im RAM und User-NVM bereit. Das PLC-Timing und die elektrische Schaltung müssen am Sensor geprüft werden. Den ersten Test auf Chip-Erkennung, Live-Werte und das Lesen des Original-NVM beschränken. RAM-Schreiben anschliessend an einem Testchip prüfen. Vor permanentem Schreiben das Original-NVM exportieren.

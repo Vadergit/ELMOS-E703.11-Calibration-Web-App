@@ -507,7 +507,7 @@ const ELMOS_EXPERT=(()=>{
      const plan={uid:st.uid.hex,outputOnly:true,limit,before:before.slice(),after,changes};
      st.outputOnlyPlan=plan;st.restorePlan=null;st.calImage=plan;
      st.expertOutputPlan=values;
-     const bridgeRecovered=st.adapterKind==='bridge'&&
+     const bridgeRecovered=st.adapterKind==='bridge'&&!st.bridgeUserNvm&&
       (st.psscRamRecovery||(st.regs[0x06]===0x6C04&&before[17]!==0x6C04));
      show('expertOutputMsg',bridgeRecovered?
       'Ausgangsänderung rechnerisch vorbereitet ('+changes.length+' NVM-Wörter), aber derzeit NICHT schreibbar: '+

@@ -826,6 +826,21 @@ if(typeof document!=='undefined') (function UI(){
     trial.powerRestored&&trial.readVerified&&trial.verifiedUid===st.uid.hex);
  }
  function psscNvmBlock(initial,modified,restoring=false,outputOnly=false,alarmOnly=false){
+  // Unified low-level bridge: no firmware feature-specific NVM address list.
+  // Same sensor/boot/UID/CRC checks as SSP3 are performed later in the UI.
+  if(st.adapterKind==='bridge'&&st.bridgeUserNvm){
+   if(st.bridgeReadOnly||st.iface!=='plc')
+    return 'Generischer User-NVM-Zugriff nur über bestätigte 1-Wire-Kommunikation.';
+   if(!bridgeColdStartVerified())
+    return 'DIY-Programmer: erst einen echten Sensor-Kaltstart mit UID-Prüfung durchführen.';
+   if(initial&&modified){
+    if(!hasCurrentNvmBackup())
+     return 'Generischer NVM-Zugriff benötigt ein vollständiges, geprüftes 64-Wort-EEPROM der aktuellen Chip-UID.';
+    if(!$('nvmAutoBackup').checked)
+     return 'Vor jedem DIY-NVM-Schreibvorgang das Original-NVM automatisch sichern.';
+   }
+   return '';
+  }
   if(st.adapterKind==='bridge'&&st.bridgeCalibrationNvm&&!bridgeColdStartVerified())return 'Sensorversorgung aktivieren und den Sensor vor dem Abgleich neu verbinden.';
   if(st.adapterKind==='bridge'&&st.bridgeReadOnly)return 'Diese Arduino-Testbridge unterstützt Live-Messungen. NVM-Schreiben ist gesperrt.';
   const recovered=st.psscRamRecovery||(st.regs[0x06]===0x6C04&&initial?.[17]!==0x6C04);
@@ -1187,9 +1202,14 @@ if(typeof document!=='undefined') (function UI(){
    throw Error('DIY-Programmer nicht unterstützt. Nur ESP32-C3 SuperMini (v0.10) und Arduino Pro Micro (v0.27) auswählen.');
   st.bridgeBoard=isProMicro?'Arduino Pro Micro':'ESP32-C3 SuperMini';
   st.bridgeCalibrationNvm=caps.includes('PRO_MICRO_NVM')||caps.includes('BRIDGE_CAL_NVM');
+  // V1 unified bridge capabilities: firmware moves CRC-checked frames,
+  // browser owns all chip-specific calibration and NVM register policy.
+  st.bridgeGenericRam=caps.includes('BRIDGE_GENERIC_RAM_V1');
+  st.bridgeUserNvm=st.bridgeGenericRam&&caps.includes('BRIDGE_USER_NVM_V1');
   // Only the explicitly upgraded ESP32-C3 test firmware may program AODO
   // words in a recovered One-Wire session. Never infer this from NVM support.
-  st.bridgeOutputNvm=isEsp32C3&&caps.includes('BRIDGE_AODO_OUTPUT_NVM_TEST');
+  st.bridgeOutputNvm=st.bridgeUserNvm||(isEsp32C3&&caps.includes('BRIDGE_AODO_OUTPUT_NVM_TEST'));
+  if(st.bridgeUserNvm)st.bridgeCalibrationNvm=true;
   st.bridgeAfeFilter=caps.includes('AFE_FILTER');
   st.bridgeI2c=caps.includes('I2C_CRC');
   st.bridgePlcIo=caps.includes('PLC_D4_IO')?'D4':caps.includes('PLC_GPIO4_IO')?'GPIO4':null;
@@ -2852,8 +2872,8 @@ if(typeof document!=='undefined') (function UI(){
   if(!plan||!plan.alarmOnly||plan!==st.alarmOnlyPlan||!hasCurrentNvmBackup()||
      st.uid?.hex!==plan.uid||st.sessionIndex!==plan.session)
    throw Error('Alarm: Chip/EEPROM-Änderungsplan nicht mehr gültig.');
-  if(st.adapterKind!=='ssp3'||st.iface!=='plc'||st.mode!=='usb')
-   throw Error('Alarm-RAM-Test derzeit nur mit Original-SSP3 über One-Wire.');
+  if(!(st.adapterKind==='ssp3'||(st.adapterKind==='bridge'&&st.bridgeGenericRam))||st.iface!=='plc'||st.mode!=='usb')
+   throw Error('Alarm-RAM-Test benötigt SSP3 oder eine DIY-Bridge mit BRIDGE_GENERIC_RAM_V1 über 1-Wire.');
   if(st.calTask||st.writing||st.nvmWorking||st.reinitRunning||st.powerCycleRunning)
    throw Error('Alarm-RAM-Test: Ein anderer Chipvorgang läuft.');
   ELMOS_ALARM_CONFIG.validateDiff(st.nvmBackup,plan.after,CAL.crc16);
@@ -3117,8 +3137,8 @@ if(typeof document!=='undefined') (function UI(){
    if(includeAlarms){
     if(recovery)throw Error('Alarmregister dürfen nach temporärer 1-Wire-RAM-Freigabe nicht in den gemeinsamen NVM-Abgleich übernommen werden.');
     const alarmPlan=st.alarmOnlyPlan;
-    if(st.adapterKind!=='ssp3'||!alarmPlan.ramVerified)
-     throw Error('Gemeinsamer Alarm-NVM-Plan nur nach bestätigtem SSP3-RAM-Test.');
+    if(!(st.adapterKind==='ssp3'||st.bridgeUserNvm)||!alarmPlan.ramVerified)
+     throw Error('Gemeinsamer Alarm-NVM-Plan nur nach bestätigtem RAM-Test und generischer NVM-Freigabe.');
     if(!$('nvmAutoBackup').checked)
      throw Error('Bei Alarmänderungen ist das automatische Original-NVM-Backup Pflicht.');
     const normalized=ELMOS_ALARM_CONFIG.prepare(image.after,alarmPlan.settings,CAL.crc16);
@@ -3141,7 +3161,7 @@ if(typeof document!=='undefined') (function UI(){
       ' Bitte Ausgang konfigurieren und NVM-Änderungsliste erneut vorbereiten.'));
    }
    if(autoStageAnalog&&!recovery)st.expertOutputPlan=outputPlan;
-   if(st.adapterKind==='bridge'&&image.changes.some(c=>c.index===CAL.SVDD_INDEX))
+   if(st.adapterKind==='bridge'&&!st.bridgeUserNvm&&image.changes.some(c=>c.index===CAL.SVDD_INDEX))
     throw Error('Brückenspannung dauerhaft speichern wird derzeit nur mit SSP3 unterstützt.');
    const recoveryBlock=psscNvmBlock(image.before,image.after,false,false,false);
    if(recoveryBlock)throw Error(recoveryBlock);
@@ -3206,7 +3226,7 @@ if(typeof document!=='undefined') (function UI(){
    if(!id||st.uid.ser0!==st.nvmBackup[0]||st.uid.ser1!==st.nvmBackup[1])throw Error('48-Bit-Chip-UID muss vor dem Schreiben verifiziert werden');
    const initial=st.calImage.before,modified=st.calImage.after;
    if(alarmOnly){
-    if(st.adapterKind!=='ssp3'||st.sessionIndex!==st.alarmOnlyPlan.session||
+    if(!(st.adapterKind==='ssp3'||st.bridgeUserNvm)||st.sessionIndex!==st.alarmOnlyPlan.session||
        st.alarmOnlyPlan.uid!==id||!st.alarmOnlyPlan.ramVerified)
      throw Error('Alarm-NVM nur nach verifiziertem RAM-Test am selben Chip über Original-SSP3.');
     if(!$('nvmAutoBackup').checked)throw Error('Alarm-NVM: Original-EEPROM-Sicherung ist Pflicht.');
@@ -3219,7 +3239,7 @@ if(typeof document!=='undefined') (function UI(){
    if(recoveryBlock)throw Error(recoveryBlock);
    const alarmIntegrated=!restoring&&!alarmOnly&&!outputOnly&&st.calImage?.alarmIntegrated===true;
    const allowSvdd=!restoring&&!outputOnly&&!alarmOnly;
-   if(st.adapterKind==='bridge'&&modified[CAL.SVDD_INDEX]!==initial[CAL.SVDD_INDEX])
+   if(st.adapterKind==='bridge'&&!st.bridgeUserNvm&&modified[CAL.SVDD_INDEX]!==initial[CAL.SVDD_INDEX])
     throw Error('Brückenspannung dauerhaft speichern wird derzeit nur mit SSP3 unterstützt.');
    CAL.protectStartupCommunication(initial,modified,{allowSvdd,allowAlarmMask:alarmOnly||alarmIntegrated});
    const startup=CAL.oneWireStartupStatus(initial);
@@ -3242,7 +3262,7 @@ if(typeof document!=='undefined') (function UI(){
    const allowedNormal=new Set([16,22,CAL.SVDD_INDEX,28,30,31,32,33,34,...Array.from({length:16},(_,i)=>35+i),51,52,53,54,57,58,59,60,63,...(alarmIntegrated?[18,55,56,61,62]:[])]);
    if(st.calImage.changes.some(c=>restoring?(c.index<28||c.index>63):alarmOnly?![16,18,55,56,61,62,63].includes(c.index):outputOnly?![16,22,57,58,59,60,63].includes(c.index):!allowedNormal.has(c.index)))throw Error('Unzulässige NVM-Änderung');
    if(alarmIntegrated){
-    if(st.adapterKind!=='ssp3'||!ELMOS_ALARM_EDITOR.pendingForCalibration()||!$('nvmAutoBackup').checked)
+    if(!(st.adapterKind==='ssp3'||st.bridgeUserNvm)||!ELMOS_ALARM_EDITOR.pendingForCalibration()||!$('nvmAutoBackup').checked)
      throw Error('Gemeinsamer Alarm-NVM-Plan nicht mehr bestätigt. Alarm-RAM erneut prüfen und Original sichern.');
     const alarm=st.alarmOnlyPlan;
     if(JSON.stringify(st.calImage.alarmSettings)!==JSON.stringify(alarm.settings))
@@ -3313,7 +3333,7 @@ if(typeof document!=='undefined') (function UI(){
    const beforeBoot=await bootSnapshot();
    if(allowSvdd)await readNvmBridgeSupply(modified[CAL.SVDD_INDEX]);
    await ramGrant();
-   const verifyWords=(st.psscRamRecovery||alarmOnly)?Array.from({length:64},(_,i)=>i):[0,1,16,17,18,19,20,21,22,23,CAL.SVDD_INDEX,28,63];
+   const verifyWords=(st.psscRamRecovery||alarmOnly||st.bridgeUserNvm)?Array.from({length:64},(_,i)=>i):[0,1,16,17,18,19,20,21,22,23,CAL.SVDD_INDEX,28,63];
    for(const i of verifyWords){
     const check=await nvmReadWord(i*2);
     if(check!==initial[i]){
@@ -3327,8 +3347,13 @@ if(typeof document!=='undefined') (function UI(){
    for(let i=0;i<28;i++)if(modified[i]!==initial[i]&&(restoring||![16,...((alarmOnly||alarmIntegrated)?[18,22]:[22]),...(allowSvdd?[CAL.SVDD_INDEX]:[])].includes(i)))throw Error('Boot-/Werksbereich verändert');
    // Only USER region access is authorized; NEVER unlock factory calibration area.
    nvmWriteFeedback('Chip bestätigt, NVM-Schreibfreigabe wird angefordert …');
-   if(st.adapterKind==='bridge'&&st.bridgeCalibrationNvm)
-    await exchange(outputOnly?'NVM ARM OUTPUT':'NVM ARM CALIBRATION');
+   if(st.adapterKind==='bridge'&&st.bridgeCalibrationNvm){
+    const armCommand=st.bridgeUserNvm?'NVM ARM HOST':
+     (outputOnly?'NVM ARM OUTPUT':'NVM ARM CALIBRATION');
+    const armReply=await exchange(armCommand);
+    if(!armReply.includes('# NVM ')||!armReply.includes('ARMED'))
+     throw Error('NVM-Freigabe durch die USB-Bridge nicht bestätigt: '+armReply.slice(0,140));
+   }
    for(const x of [0x98BD,0x25BF,0x36D8])await maintWrite(0x4E,x);
    const status=await readReg(0x46);if(!(status&8))throw Error('NVM User-Bereich nicht freigegeben (CM_STATUS.ep_en=0)');
    const changes=st.calImage.changes.slice().sort((a,b)=>a.index===63?1:b.index===63?-1:a.index-b.index);

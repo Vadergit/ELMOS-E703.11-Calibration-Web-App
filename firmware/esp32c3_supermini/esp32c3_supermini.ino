@@ -35,6 +35,10 @@ static bool recoveryUsed = false;
 static bool coldStartVerified = false;
 static bool nvmArmed = false;
 static bool nvmOutputMode = false;
+static bool nvmHostMode = false;
+static bool nvmDataPending = false;
+static uint32_t nvmArmedAt = 0;
+static uint32_t nvmLastCommandAt = 0;
 static bool outputDataPending = false;
 static uint16_t outputPendingWord = 0;
 static uint16_t originalOutputCfgEn = 0;
@@ -43,7 +47,9 @@ static bool i2cMode = false;
 static void disarmNvm() {
   nvmArmed = false;
   nvmOutputMode = false;
+  nvmHostMode = false;
   outputDataPending = false;
+  nvmDataPending = false;
 }
 
 // Read the original (not temporary RAM) CFG_EN word from chip user NVM.
@@ -93,21 +99,32 @@ static int hexDigit(char ch) {
   return -1;
 }
 
-static bool allowedWrite(uint8_t address, uint16_t word) {
-  if (address == 0x14 || address == 0x16 || address == 0x18) return true;
-  if (address == 0x1A || address == 0x1C) return true;
-  if (address == 0x22) return word == 0x8B93;
-  if (address >= 0x6C && address <= 0x9A) return true;
-  if (address == 0x4A) return nvmArmed;
-  if (address != 0x4E) return false;
-  if ((word & 0xFF81) == 0x4C00) return true;
+// Transport, not a second copy of the calibration logic. The Web-App
+// validates chip registers. The bridge keeps an explicit user-NVM session.
+static bool nvmSessionActive() {
   if (!nvmArmed) return false;
-  if (word == 0x98BD || word == 0x25BF || word == 0x36D8 || word == 0 || word == 0x8800) return true;
-  const unsigned index = (word & 0xFF) >> 1;
+  const uint32_t now = millis();
+  if (now - nvmLastCommandAt > 20000u || now - nvmArmedAt > 180000u) {
+    disarmNvm();
+    return false;
+  }
+  nvmLastCommandAt = now;
+  return true;
+}
+static void armNvmSession() {
+  nvmArmed = true;
+  nvmArmedAt = nvmLastCommandAt = millis();
+}
+static bool allowedWrite(uint8_t address, uint16_t word) {
+  if (address == 0x4A) return nvmSessionActive();
+  if (address != 0x4E) return true; // Any other aligned 16-bit RAM register
+  if ((word & 0xFF81) == 0x4C00 || word == 0x0000) return true;
+  if (!nvmSessionActive()) return false;
+  if (word == 0x98BD || word == 0x25BF || word == 0x36D8 || word == 0x8800) return true;
   if ((word & 0xFF81) != 0xA300) return false;
+  const unsigned index = (word & 0xFF) >> 1;
+  if (nvmHostMode) return nvmDataPending && index >= 16 && index <= 63;
   if (nvmOutputMode) {
-    // Restricted output-only programming, never general NVM access.
-    // Stage each data word immediately before its matching program command.
     if (!outputDataPending) return false;
     if (index == 16)
       return ((outputPendingWord ^ originalOutputCfgEn) & ~uint16_t(0x00C0)) == 0;
@@ -163,6 +180,8 @@ static void plcFrame(const char *hex) {
     return;
   }
   plc::writeWord(address, word, plcBaud, false, false, slave);
+  if (nvmHostMode && address == 0x4A) nvmDataPending = true;
+  if (nvmHostMode && address == 0x4E && (word & 0xFF81) == 0xA300) nvmDataPending = false;
   if (nvmOutputMode) {
     if (address == 0x4A) {
       outputPendingWord = word;
@@ -396,11 +415,12 @@ static void onCommand(const char *command) {
                         strncmp(command, "PLC IO ", 7) != 0 &&
                         strncmp(command, "PLC_BAUD ", 9) != 0) ||
                         strcmp(command, "NVM ARM CALIBRATION") == 0 ||
-                        strcmp(command, "NVM ARM OUTPUT") == 0)) {
+                        strcmp(command, "NVM ARM OUTPUT") == 0 ||
+                        strcmp(command, "NVM ARM HOST") == 0)) {
     answer("!BRIDGE I2C_MODE_ACTIVE");
   } else if (strcmp(command, "NVM ARM CALIBRATION") == 0) {
     disarmNvm();
-    nvmArmed = coldStartVerified && !probe(activeSlave);
+    if (coldStartVerified && !probe(activeSlave)) armNvmSession();
     answer(nvmArmed ? "# NVM CALIBRATION ARMED" : "!BRIDGE NVM_COLD_START_REQUIRED");
   } else if (strcmp(command, "NVM ARM OUTPUT") == 0) {
     disarmNvm();
@@ -417,18 +437,27 @@ static void onCommand(const char *command) {
       } else {
         originalOutputCfgEn = cfg;
         nvmOutputMode = true;
-        nvmArmed = true;
+        armNvmSession();
         answer("# NVM OUTPUT ARMED");
       }
+    }
+  } else if (strcmp(command, "NVM ARM HOST") == 0) {
+    disarmNvm();
+    if (!coldStartVerified || probe(activeSlave)) {
+      answer("!BRIDGE NVM_COLD_START_REQUIRED");
+    } else {
+      nvmHostMode = true;
+      armNvmSession();
+      answer("# NVM HOST ARMED");
     }
   } else if (strcmp(command, "NVM DISARM") == 0) {
     disarmNvm();
     answer("# NVM DISARMED");
   } else if (strcmp(command, "BRIDGE_INFO") == 0) {
     disarmNvm();
-    answer("# E70311-BRIDGE V1 CAPS=PLC_UID,PLC_READ,PLC_WRITE,NVM,POWER_GPIO_10,PSSC_RAM,AFE_FILTER,BRIDGE_CAL_NVM,BRIDGE_AODO_OUTPUT_NVM_TEST,PLC_RX_DIAG,PLC_GPIO4_IO,I2C_CRC");
+    answer("# E70311-BRIDGE V1 CAPS=PLC_UID,PLC_READ,PLC_WRITE,NVM,POWER_GPIO_10,PSSC_RAM,AFE_FILTER,BRIDGE_CAL_NVM,BRIDGE_AODO_OUTPUT_NVM_TEST,BRIDGE_GENERIC_RAM_V1,BRIDGE_USER_NVM_V1,PLC_RX_DIAG,PLC_GPIO4_IO,I2C_CRC");
   } else if (strcmp(command, ".VERSION") == 0) {
-    answer("# ESP32-C3 SuperMini ELMOS PLC/I2C bridge v0.11-dev");
+    answer("# ESP32-C3 SuperMini ELMOS PLC/I2C bridge v0.12-dev");
   } else if (strcmp(command, "BRIDGE_PING") == 0) {
     answer("# PONG ESP32-C3 SUPERMini PLC_UID");
   } else if (strcmp(command, "BRIDGE_STATS") == 0) {

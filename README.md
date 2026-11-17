@@ -2,7 +2,7 @@
 
 **Ein geführter Kalibrierassistent für den ELMOS E703.11 und das SSP3-Eval-Board.** Ziel ist ein verständlicher Abgleich, der auch ohne tiefere Vorkenntnisse Schritt für Schritt funktioniert. Wer mehr benötigt, kann zusätzliche Messpunkte, DSP-Parameter und einen geschützten Expertenmodus verwenden.
 
-**Version: v0.7.118 · TK0 mit 3 Punkten und TK0 + TKE mit 4 Punkten** · [Änderungsverlauf](CHANGELOG.md) · **[Geplante Funktionen](ROADMAP.md)**
+**Version: v0.7.119 · TK0 mit 3 Punkten und TK0 + TKE mit 4 Punkten** · [Änderungsverlauf](CHANGELOG.md) · **[Geplante Funktionen](ROADMAP.md)**
 
 Der **Demo-Modus** wird in den Einstellungen erst nach Aktivierung von **Expertenparameter** angezeigt. Er simuliert Sensorwerte und Schreibvorgänge; die echte Hardware wird dabei nicht programmiert.
 
@@ -10,15 +10,23 @@ Der **Demo-Modus** wird in den Einstellungen erst nach Aktivierung von **Experte
 
 > **Entwicklungsstand: Laborprototyp.** Die vollständige Kalibrierung einschliesslich dauerhafter NVM-Programmierung ist **noch nicht mit einem echten E703.11 als Gesamtablauf freigegeben**. Hardwareverhalten, AODO-Ausgangsmodi und NVM-Wiederherstellung müssen am Testchip geprüft werden. Nicht für die Serienproduktion oder unersetzliche Sensoren einsetzen.
 
-> **Geführter Assistent:** Nach der bestätigten SSP3-Verbindung stehen die neue Schritt-für-Schritt-Führung, die klassische Ansicht und der optionale Kompaktmodus zur Verfügung. Ein E703.11-Chip muss für den Abgleich verbunden sein. Als DIY-Programmer sind ausschliesslich ESP32-C3 SuperMini (v0.11 Test) und Arduino Pro Micro (v0.27) vorgesehen. Die originalen ELMOS SSP3-Adapter bleiben separat unterstützt. Der vollständige Hardwaretest der DIY-Programmer ist noch offen.
+> **Geführter Assistent:** Nach der bestätigten SSP3-Verbindung stehen die neue Schritt-für-Schritt-Führung, die klassische Ansicht und der optionale Kompaktmodus zur Verfügung. Ein E703.11-Chip muss für den Abgleich verbunden sein. Als DIY-Programmer sind ausschliesslich ESP32-C3 SuperMini (v0.12 Labor-Quellcode) und Arduino Pro Micro (v0.28 Labor-Quellcode) vorgesehen. Die originalen ELMOS SSP3-Adapter bleiben separat unterstützt. Der vollständige Hardwaretest der DIY-Programmer ist noch offen.
 >
 > [Geführter Abgleich](docs/GEFUEHRTER_ASSISTENT.md) · [DIY-Programmer (ESP32-C3 / Pro Micro)](docs/USB_BRIDGE_GUIDE.md) · [Pinbelegung der zwei Boards](docs/ESP_BOARD_OPTIONS.md) · [DIY-Firmware-Installer](firmware-update.html)
+
+## v0.7.119 – Universelle USB-Bridge für ESP32-C3 und Pro Micro
+
+ESP32-C3 SuperMini und Arduino Pro Micro (5 V / 16 MHz oder 3,3 V / 8 MHz) besitzen jetzt im **Firmware-Quellcode** dieselben generischen RAM-Register- und User-NVM-Befehle: `BRIDGE_GENERIC_RAM_V1`, `BRIDGE_USER_NVM_V1` und `NVM ARM HOST`. Die Web-App verwendet ihre **eigenen** Kalibrier-, Alarm-, Ausgangs- und EEPROM-Sicherheitsregeln auch für beide DIY-Programmer. Bei neuen Registerfunktionen muss keine neue Firmware-Whitelist gepflegt werden.
+
+**Wichtig:** Neue Funktionen sind nur aktiv, wenn die angeschlossene Bridge die neuen Capabilities tatsächlich meldet. Der Firmware-Build veröffentlicht nach erfolgreichem `main`-Build die **ESP32-C3 v0.12**- und **Pro-Micro v0.28**-Laborimages. Bis diese Dateien gebaut und installiert sind, haben bestehende Boards weiterhin ihre alten Einschränkungen. Factory-NVM bleibt gesperrt, User-NVM benötigt eine zeitlich begrenzte Schreibfreigabe nach echtem Sensor-Kaltstart. Die elektrische Funktionsparität ist **noch nicht hardwarevalidiert**.
+
+[Architektur, Befehle und Testmatrix](docs/UNIVERSAL_BRIDGE.md) · [Firmware installieren](firmware-update.html)
 
 ## v0.7.118 – Alarme optional zwischen Ausgang und NVM, auch geführt und als Config
 
 Nach **Ausgang konfigurieren** folgt in beiden Arbeitsansichten der optionale Schritt **Alarme & Fehler**. Ohne ausdrückliche Auswahl wird **keine Alarmänderung** ins NVM übernommen; bereits vorhandene Chipalarme bleiben beim Überspringen erhalten. Die Schaltfläche «Ohne Alarmänderung zum NVM» überspringt den Schritt. Mit «Alle Alarm- und Fehlerfunktionen deaktivieren» kann man die Funktionen dagegen ausdrücklich ausschalten; erst nach Vorschau, RAM-Test und NVM-Freigabe wird dies dauerhaft.
 
-Bei einem normalen Abgleich werden bestätigte Alarmänderungen mit **DSP-/AFE-/AODO-Koeffizienten zu einem einzigen NVM-Abbild** samt CRC16 zusammengeführt. Nachträgliche Alarmänderungen an bestehenden Sensoren funktionieren weiterhin separat, ohne neue Druckmessung, nur über SSP3 mit UID-, CRC-, RAM- und Backupsicherung.
+Bei einem normalen Abgleich werden bestätigte Alarmänderungen mit **DSP-/AFE-/AODO-Koeffizienten zu einem einzigen NVM-Abbild** samt CRC16 zusammengeführt. Nachträgliche Alarmänderungen an bestehenden Sensoren funktionieren weiterhin separat, ohne neue Druckmessung, über SSP3 oder generische USB-Bridge mit UID-, CRC-, RAM- und Backupsicherung.
 
 **Config v2** besitzt jetzt die unabhängige optionale Gruppe «Alarme & Fehler». Sie speichert keine chipbezogenen Registerdaten. Standardinhalt ist `mode: skip`. Importierte Alarmvorlagen ändern den Chip **nicht** automatisch: nach Sensoridentifikation sind die Bedingungen erneut zu prüfen und im RAM zu verifizieren.
 
@@ -32,7 +40,7 @@ Details und Hardwarevorbehalte: [Alarmkonfiguration](docs/ALARM_KONFIGURATION.md
 
 ## v0.7.116 – Alarme und Fehler jetzt auch einstellen
 
-Der **EEPROM Viewer** enthält unter der Alarm-/EOC-Diagnose einen Editor für Druckalarme (Grenzen, Hysterese), EOC-ODER-Signale, sechs Fehlerreaktionen und Ersatzwerte. Alle Änderungen werden zunächst als NVM-Diff berechnet, dann **nur im RAM** geschrieben und rückgelesen. Eine anschliessende dauerhafte Programmierung ist erst nach zusätzlicher Bestätigung und gesichertem Original-NVM möglich. **Ausschliesslich Original-SSP3** für diesen neuen Schreibpfad; DIY-Programmer bleiben nur lesend. Pinrouting und One-Wire-Startfenster werden nicht verändert.
+Der **EEPROM Viewer** enthält unter der Alarm-/EOC-Diagnose einen Editor für Druckalarme (Grenzen, Hysterese), EOC-ODER-Signale, sechs Fehlerreaktionen und Ersatzwerte. Alle Änderungen werden zunächst als NVM-Diff berechnet, dann **nur im RAM** geschrieben und rückgelesen. Eine anschliessende dauerhafte Programmierung ist erst nach zusätzlicher Bestätigung und gesichertem Original-NVM möglich. **Original-SSP3 oder generische DIY-Bridge mit bestätigten Fähigkeiten** für diesen Schreibpfad; ältere DIY-Firmware bleibt nur lesend. Pinrouting und One-Wire-Startfenster werden nicht verändert.
 
 **Anleitung:** [Alarme & Fehler konfigurieren](docs/ALARM_KONFIGURATION.md). Noch keine produktive Hardwarefreigabe: Der reale Alarm- und EOC-Kaltstarttest steht aus.
 
@@ -266,7 +274,7 @@ Nach dem Wiederanschliessen den Knopf verwenden. Für SSP3 + 1-Wire wird der ber
 | --- | --- |
 | Kompaktmodus / One-Pager | **Opt-in unter Einstellungen:** Verbindung, AFE-RAM-Stufen, Config-Vorlagen, Messpunkte, Berechnung, DSP-Prüfung, Ausgang und geschützte NVM-Programmierung auf einer Bildschirmfläche. Originale UI-Steuerelemente und dieselben Sicherheitsprüfungen; Zusatz-Messpunkte per Punktauswahl, Detailinformationen eingeklappt. Die normale siebenstufige Ansicht bleibt bei deaktiviertem Modus unverändert | 
 | **Geführter Assistent** | Neue Oberfläche nach SSP3-Verbindung: Aufgabe, Druck-/Temperaturmatrix, Config-Vorlage, AFE, Messpunkte, DSP-Fit/RAM, unabhängige Verifikation, Ausgang und geschützte NVM-Programmierung. Originalfunktionen und klassische Ansicht bleiben erhalten |
-| **USB-Bridge (experimentell)** | **Nur ESP32-C3 SuperMini (v0.11 Test) und Arduino Pro Micro (v0.27)**: One-Wire-/I²C-DIY-Firmware mit Kennung, Registerzugriff und vorhandenen RAM-/NVM-Schutzbedingungen. Hardware-End-to-End-Freigabe noch offen |
+| **USB-Bridge (experimentell)** | **ESP32-C3 SuperMini (v0.12 Labor) und Arduino Pro Micro (v0.28 Labor; 8/16 MHz)**: One-Wire-/I²C-DIY-Firmware mit Kennung, Registerzugriff und vorhandenen RAM-/NVM-Schutzbedingungen. Hardware-End-to-End-Freigabe noch offen |
 | Verbindung | Browserbasiert über **Chrome / Web Serial**, FTDI / SSP3, standardmässig **1-Wire (AODO)**; I²C/SPI-Optionen |
 | Live-Werte | Obere Statusleiste mit **ADC_S**, **ADC_T**, **DSP_S** und umgerechnetem Sensorwert; Live-Status und letzter Messzeitpunkt in allen sieben Schritten |
 | AFE-Abgleich | Diskrete **− / +** Tasten in der Reihenfolge **PGA1 → Offset → PGA2**. Jeder Klick schreibt die neue Einstellung direkt ins **RAM** und liest sie zurück. Kein NVM-Schreiben |
