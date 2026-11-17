@@ -36,7 +36,7 @@ test('Overview shows real EEPROM settings in understandable categories',()=>{
  assert.equal(get('DSP-Ausgangsskalierung').saved.text,'Ein');
  assert.equal(get('Druckkoeffizienten S0–S15').saved.text,'1 / 16 ungleich 0');
  assert.equal(get('Temperaturkoeffizienten T0–T3').saved.text,'1 / 4 ungleich 0');
- assert.equal(get('Ausgangs-Faktor AODO_F').saved.text,'0.5 (Q3.12)');
+ assert.equal(get('Ausgangs-Faktor AODO_F').saved.text,'0.5 (dimensionslos)');
  assert.equal(get('PGA1').active,null);
 });
 test('RAM and staged values never overwrite or masquerade as EEPROM',()=>{
@@ -65,4 +65,20 @@ test('Overview is read-only and behind the CRC-verified chip gate',()=>{
  assert.ok(html.indexOf('id="eepromOverviewRows"')<html.indexOf('id="eepromRawDetails"'));
  assert.ok(html.indexOf('id="eepromRawDetails"')<html.indexOf('id="eepromRows"'));
  assert.match(html,/eeprom-config-overview\.js/);
+});
+
+test('Known Elmos ADC filter, EOC OR logic and alarm threshold are shown in plain text',()=>{
+ const words=image();
+ words[24]=0x7BA4;words[25]=0x1497;words[26]=0x01BA;
+ words[18]|=(1<<5)|(1<<6); // leave PLC window bits intact
+ words[16]|=(1<<5); // alarm enable, no post scaling
+ words[55]=0xE002;words[56]=0x2002;
+ words[61]=1<<(2*5); // bridge supply fail -> lower replacement
+ const all=overview.summarize(words).flatMap(g=>g.rows);
+ const by=name=>all.find(r=>r.label===name).saved.text;
+ assert.match(by('ADC-Filter, Grenzfrequenz & Abtastrate'),/20 Hz · 2 kS\/s · 15 Bit/);
+ assert.match(by('Status-Verknüpfung für EOC (ODER)'),/Druck unter Alarmgrenze ODER Druck über Alarmgrenze/);
+ assert.match(by('Temperaturquelle'),/Interne Chiptemperatur/);
+ assert.match(by('Alarm unten \/ DSP-Nachskalierung Offset'),/Aktiv/);
+ assert.match(by('Fehlerreaktionen'),/Brückenversorgung fehlerhaft.*Unterer Fehlerwert/);
 });
