@@ -726,6 +726,8 @@ html[data-theme="dark"] .output-preview.warning{border-color:#a8864a;background:
 #nvmWriteStatus[data-state="error"]{border-color:#e4acb1;background:#fff1f2;color:#a1313f}
 #nvmWriteStatus[data-state="success"]{border-color:#9cccb7;background:#edf8f1;color:#256d53}
 #nvmWriteBar{display:block;width:100%;height:9px;accent-color:#166a8e}
+#gwNvmWrite,#cpNvmProgram{flex-wrap:wrap}
+#gwNvmWrite #nvmWriteStatus,#cpNvmProgram #nvmWriteStatus{width:100%;flex:1 1 100%;min-width:0}
 html[data-theme="dark"] #nvmWriteStatus[data-state="progress"]{background:#172e3c;color:#cae9fa}
 html[data-theme="dark"] #nvmWriteStatus[data-state="error"]{background:#3b1f29;color:#ffd6dd}
 html[data-theme="dark"] #nvmWriteStatus[data-state="success"]{background:#15392c;color:#d2f4de}
