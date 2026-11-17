@@ -1,0 +1,24 @@
+name: E703.11 alarm configuration safety
+on:
+  push:
+    branches: [main, 'feature/**']
+  pull_request:
+    branches: [main]
+jobs:
+  alarm-safety:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Syntax checks (alarm and NVM)
+        run: |
+          node --check alarm-config.js
+          node --check alarm-editor.js
+          node --check app.js
+          node --check calibration.js
+          node --check expert.js
+      - name: Alarm validation tests
+        run: node --test tests/alarm-config.test.cjs
