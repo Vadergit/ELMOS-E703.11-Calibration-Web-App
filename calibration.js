@@ -306,13 +306,19 @@ const ELMOS_CAL = (() => {
    raw[1]=Math.max(lo,Math.min(hi,raw[1]));
   }
   const actual=raw.map(dsp=>vdd/2*(1+dsp/32768));
+  const unClippedVolts=[-outputLimit,outputLimit]
+   .map(dsp=>vdd/2*(1+(gain*dsp+offset*32768)/32768));
   const errors=[actual[0]-s0,actual[1]-s1];
-  const ok=errors.every(e=>Math.abs(e)<=toleranceV);
+  const unClippedErrors=[unClippedVolts[0]-s0,unClippedVolts[1]-s1];
+  // Limiting does NOT replace scaling. A 0.25..4.75 V gain must fail,
+  // even if clipped to 0.5..4.5 V at the end.
+  const ok=errors.every(e=>Math.abs(e)<=toleranceV)&&
+   unClippedErrors.every(e=>Math.abs(e)<=toleranceV);
   return {checked:true,ok,mode,scaled,limited,actualVolts:actual,
-   requestedVolts:[s0,s1],errorsVolts:errors,gain,offset,outputLimit,
+   unClippedVolts,requestedVolts:[s0,s1],errorsVolts:errors,gain,offset,outputLimit,
    reason:ok?'AODO-NVM-Skalierung entspricht dem Spannungsziel':
-    'AODO-NVM ergibt '+actual.map(v=>v.toFixed(4)+' V').join(' / ')+
-    ' statt '+s0.toFixed(4)+' / '+s1.toFixed(4)+' V'};
+    'AODO-NVM-Rohskalierung ergibt '+unClippedVolts.map(v=>v.toFixed(4)+' V').join(' / ')+
+    ' statt '+s0.toFixed(4)+' / '+s1.toFixed(4)+' V (Clipping ersetzt keine Skalierung)'};
  }
  function prepareOutputConfig(original,settings,outputLimit=32000){
   if(!Array.isArray(original)||original.length!==64)throw Error('Vollständiges NVM-Abbild erforderlich');
