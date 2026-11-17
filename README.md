@@ -2,7 +2,7 @@
 
 **Ein geführter Kalibrierassistent für den ELMOS E703.11 und das SSP3-Eval-Board.** Ziel ist ein verständlicher Abgleich, der auch ohne tiefere Vorkenntnisse Schritt für Schritt funktioniert. Wer mehr benötigt, kann zusätzliche Messpunkte, DSP-Parameter und einen geschützten Expertenmodus verwenden.
 
-**Version: v0.7.115 · TK0 mit 3 Punkten und TK0 + TKE mit 4 Punkten** · [Änderungsverlauf](CHANGELOG.md) · **[Geplante Funktionen](ROADMAP.md)**
+**Version: v0.7.116 · TK0 mit 3 Punkten und TK0 + TKE mit 4 Punkten** · [Änderungsverlauf](CHANGELOG.md) · **[Geplante Funktionen](ROADMAP.md)**
 
 Der **Demo-Modus** wird in den Einstellungen erst nach Aktivierung von **Expertenparameter** angezeigt. Er simuliert Sensorwerte und Schreibvorgänge; die echte Hardware wird dabei nicht programmiert.
 
@@ -13,6 +13,12 @@ Der **Demo-Modus** wird in den Einstellungen erst nach Aktivierung von **Experte
 > **Geführter Assistent:** Nach der bestätigten SSP3-Verbindung stehen die neue Schritt-für-Schritt-Führung, die klassische Ansicht und der optionale Kompaktmodus zur Verfügung. Ein E703.11-Chip muss für den Abgleich verbunden sein. Als DIY-Programmer sind ausschliesslich ESP32-C3 SuperMini (v0.11 Test) und Arduino Pro Micro (v0.27) vorgesehen. Die originalen ELMOS SSP3-Adapter bleiben separat unterstützt. Der vollständige Hardwaretest der DIY-Programmer ist noch offen.
 >
 > [Geführter Abgleich](docs/GEFUEHRTER_ASSISTENT.md) · [DIY-Programmer (ESP32-C3 / Pro Micro)](docs/USB_BRIDGE_GUIDE.md) · [Pinbelegung der zwei Boards](docs/ESP_BOARD_OPTIONS.md) · [DIY-Firmware-Installer](firmware-update.html)
+
+## v0.7.116 – Alarme und Fehler jetzt auch einstellen
+
+Der **EEPROM Viewer** enthält unter der Alarm-/EOC-Diagnose einen Editor für Druckalarme (Grenzen, Hysterese), EOC-ODER-Signale, sechs Fehlerreaktionen und Ersatzwerte. Alle Änderungen werden zunächst als NVM-Diff berechnet, dann **nur im RAM** geschrieben und rückgelesen. Eine anschliessende dauerhafte Programmierung ist erst nach zusätzlicher Bestätigung und gesichertem Original-NVM möglich. **Ausschliesslich Original-SSP3** für diesen neuen Schreibpfad; DIY-Programmer bleiben nur lesend. Pinrouting und One-Wire-Startfenster werden nicht verändert.
+
+**Anleitung:** [Alarme & Fehler konfigurieren](docs/ALARM_KONFIGURATION.md). Noch keine produktive Hardwarefreigabe: Der reale Alarm- und EOC-Kaltstarttest steht aus.
 
 ## v0.7.115 – Original-PSSC-Lesbarkeit, Alarmdiagnose und Druckeinheit
 
