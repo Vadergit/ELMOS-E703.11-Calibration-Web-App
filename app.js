@@ -929,6 +929,8 @@ if(typeof document!=='undefined') (function UI(){
   const outputNvmRead=$('outputNvmRead');if(outputNvmRead)outputNvmRead.disabled=!st.port||!st.chip||st.writing||st.calTask||st.nvmWorking;
   if(!nvmReason)nvmReason=psscNvmBlock(st.calImage?.before,st.calImage?.after,restoring,outputOnly);
   const approvalGranted=nvmReason==='';
+  const experimentalRecoveryOutput=outputOnly&&
+   (st.psscRamRecovery||(st.regs[0x06]===0x6C04&&st.nvmBackup?.[17]!==0x6C04));
   $('nvmProgram').disabled=!approvalGranted;
   const bootCheckBusy=st.closing||st.nvmWorking||st.writing||st.calTask;
   $('nvmRestart').hidden=!st.nvmDone||!(st.sensorPowerEnabled||demoEnabled);
@@ -938,9 +940,10 @@ if(typeof document!=='undefined') (function UI(){
    'Bereit: '+(outputOnly?'Nur Ausgangskonfiguration (keine neue Kalibrierung). ':'Kalibrierung. ')+
     'Chip-UID, Änderungsplan, 1-Wire-Startschutz und NVM-CRC sind geprüft. '+
     ($('nvmAutoBackup').checked?'Das alte NVM wird vor dem Schreiben gesichert.':'Zusätzliches Backup ist nicht ausgewählt.')+
-    ' Nach dem Schreiben muss der Kaltstart kontrolliert werden.':
+    ' Nach dem Schreiben muss der Kaltstart kontrolliert werden.'+
+    (experimentalRecoveryOutput?' LABORTEST: Ausgangs-NVM-Schreiben über temporäre One-Wire-RAM-Freigabe ist noch nicht am echten Chip validiert. Nur entbehrlichen Testchip verwenden.':''):
    nvmReason;
-  $('nvmWritePrereq').className='callout '+(approvalGranted?'success':'warn');
+  $('nvmWritePrereq').className='callout '+(approvalGranted&&!experimentalRecoveryOutput?'success':'warn');
   const unlocked=[true,true,true,calEndpointsReady(),ready&&st.calStaged,true,!workflowGate(6),true,true];
   document.querySelectorAll('[data-step]').forEach(b=>{
    const index=Number(b.dataset.step);b.classList.toggle('locked',!unlocked[index]);
