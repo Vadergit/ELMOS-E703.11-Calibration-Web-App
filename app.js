@@ -3744,7 +3744,7 @@ if(typeof document!=='undefined') (function UI(){
    const profile=configFromUi(ELMOS_CONFIG.GROUPS,window.ELMOS_GUIDED?.planForPreset?.());
    const fileName=ELMOS_CONFIG.fileName(profile,window.ELMOS_GUIDED?.appliedPlanForConfig?.());
    download(fileName,JSON.stringify(profile,null,2));
-   show('configPreview','Config «'+profile.label+'» vollständig gespeichert als '+fileName+'. Alle fünf wiederverwendbaren Gruppen enthalten. Beim Import wählst du aus, welche übernommen werden. Keine UID, EEPROM-Daten, Messwerte oder DSP-Koeffizienten.','success');
+   show('configPreview','Config «'+profile.label+'» vollständig gespeichert als '+fileName+'. Alle sechs wiederverwendbaren Gruppen enthalten. Beim Import wählst du aus, welche übernommen werden. Keine UID, EEPROM-Daten, Messwerte oder DSP-Koeffizienten.','success');
   }catch(e){show('configPreview','Config konnte nicht gespeichert werden: '+e.message,'error')}
  });
  $('configFile').addEventListener('change',async()=>{
