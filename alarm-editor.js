@@ -76,7 +76,7 @@ const ELMOS_ALARM_EDITOR=(()=>{
    $('alarmRuleSummary').className='callout '+(!check.ok?'warn':confirmed?'success':'');
    $('alarmEditorPreview').disabled=!valid||busy||!check.ok||!confirmed;
    $('alarmEditorRam').disabled=!valid||busy||!check.ok||!confirmed||!st.alarmOnlyPlan;
-   if($('alarmGoNvm'))$('alarmGoNvm').disabled=!ready();
+   if($('alarmGoNvm'))$('alarmGoNvm').disabled=!(ready()||pendingForCalibration());
    return check;
   }
   const status=(s,type='warn')=>show('alarmEditorMessage',s,type);
@@ -206,7 +206,7 @@ const ELMOS_ALARM_EDITOR=(()=>{
    skipForCalibration();const btn=document.querySelector('.stepBtn[data-step="6"]');if(btn)btn.click();
   });
   $('alarmGoNvm').addEventListener('click',()=>{
-   if(!ready())return;
+   if(!ready()&&!pendingForCalibration())return;
    const btn=document.querySelector('.stepBtn[data-step="6"]');if(btn)btn.click();
   });
   $('alarmEditorPreview').addEventListener('click',preview);
