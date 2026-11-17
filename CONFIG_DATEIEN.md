@@ -69,6 +69,14 @@ Besonders wichtig: **AODO_F und AODO_O in der Config sind nur Ausgangs-Zielparam
 
 In der Navigation gibt es zusätzlich zu den **sieben Kalibrierschritten** den eigenständigen Reiter **EEPROM Viewer**. Er ist von jedem Schritt aus erreichbar.
 
+### Sensoreinstellungen im Überblick (ab v0.7.111)
+
+Direkt nach dem Einlesen zeigt der Viewer oberhalb der technischen Registertabelle eine kompakte Übersicht der **im EEPROM gespeicherten Einstellungen**. Die vier Bereiche sind **Betrieb & Kommunikation**, **Analog-Frontend (AFE)**, **DSP & Kalibrierung** sowie **Ausgang & Grenzwerte**. Dokumentierte Werte werden verständlich interpretiert, beispielsweise 1-Wire-Startfenster, PGA-Stufen, Brückenspannung und normierte DSP-Parameter. Die S0–S15- und T0–T3-Koeffizienten können zusätzlich vollständig aufgeklappt werden.
+
+Mit **Aktuelle RAM-Werte vergleichen** liest die App auf ausdrücklichen Klick die zugehörigen RAM-Register, pausiert dafür nötigenfalls den Live-Stream und nimmt ihn anschliessend wieder auf. Abweichungen zum EEPROM werden markiert. Die RAM-Anzeige ist ein **zeitlich gekennzeichneter Schnappschuss**, kein fortlaufender Live-Wert. Bei Chipwechsel, Verbindungswechsel und neuem EEPROM-Scan wird dieser verworfen. Liegt eine zum originalen EEPROM passende, vorgemerkte Änderungs-Konfiguration vor, erscheint sie in einer separaten Spalte **Vorgemerkt**, niemals als bereits gespeicherter Stand.
+
+Die bisherige technische Tabelle bleibt unter **Technische Registertabelle · 64 EEPROM-Wörter** verfügbar, ist aber standardmässig eingeklappt. Die neue Übersicht ist nur lesend: Sie schreibt weder RAM noch NVM und interpretiert unbekannte Bitfelder nicht spekulativ. Normierte Faktoren und Rohwerte sind nicht automatisch physikalische Druck- oder Ausgangsspannungswerte. Das Lesen der RAM-Register und die Verifikation am realen Sensor benötigen weiterhin einen Test am Prüfstand.
+
 Mit **EEPROM lesen (64 Wörter)** wird der bestehende Leseweg der App genutzt: Ein echter E703.11 muss verbunden sein, die 64 Wörter werden ausgelesen und mit CRC8/CRC16 geprüft. Die Tabelle zeigt:
 
 - **Adresse:** Wortindex `00` bis `3F` (PSSC-ähnlich). Die EEPROM-Byteadresse ist der doppelte Index.
