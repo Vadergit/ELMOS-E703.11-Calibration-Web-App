@@ -198,6 +198,7 @@ const ELMOS_EXPERT=(()=>{
    rows.replaceChildren();
    $('eepromExport').disabled=!valid||!st.uid;
    refreshOverview();
+   if(typeof ELMOS_NVM_RECON!=='undefined')ELMOS_NVM_RECON.render($('nvmReconstruction'),valid?st.nvmBackup:null);
    if(!valid){
     expandedEEPROM.clear();eepromViewerUid=null;
     const tr=document.createElement('tr'),td=document.createElement('td');
