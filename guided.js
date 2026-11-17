@@ -175,7 +175,7 @@ const ELMOS_GUIDED=(()=>{
   moveId('psscCurrentOutputStatus','gwOutputRegisters');
   moveLabel('nvmAutoBackup','gwNvmBackup');
   moveId('nvmPrepare','gwNvmPrepare');moveId('nvmProgress','gwNvmPrepare');
-  for(const id of ['nvmMsg','nvmUidHint','nvmWritePrereq'])moveId(id,'gwNvmMessages');
+  for(const id of ['nvmMsg','nvmUidHint','nvmWritePrereq','nvmWriteStatus'])moveId(id,'gwNvmMessages');
   moveId('nvmUserIdField','gwNvmBackup');
   moveId('nvmProgram','gwNvmWrite');
   moveId('nvmDiffDetails','gwNvmDetails');
