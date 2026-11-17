@@ -825,7 +825,7 @@ if(typeof document!=='undefined') (function UI(){
    st.startupTrials.some(trial=>trial.stage==='PSSC-RAM-Start'&&
     trial.powerRestored&&trial.readVerified&&trial.verifiedUid===st.uid.hex);
  }
- function psscNvmBlock(initial,modified,restoring=false,outputOnly=false){
+ function psscNvmBlock(initial,modified,restoring=false,outputOnly=false,alarmOnly=false){
   if(st.adapterKind==='bridge'&&st.bridgeCalibrationNvm&&!bridgeColdStartVerified())return 'Sensorversorgung aktivieren und den Sensor vor dem Abgleich neu verbinden.';
   if(st.adapterKind==='bridge'&&st.bridgeReadOnly)return 'Diese Arduino-Testbridge unterstützt Live-Messungen. NVM-Schreiben ist gesperrt.';
   const recovered=st.psscRamRecovery||(st.regs[0x06]===0x6C04&&initial?.[17]!==0x6C04);
@@ -837,6 +837,16 @@ if(typeof document!=='undefined') (function UI(){
    return 'Für die PSSC-RAM-Verbindung fehlt der bestätigte Neustart dieses Chips. Sensor neu initialisieren und erneut prüfen.';
   if(!initial||!modified)return '';
   if(restoring)return 'Backup-Wiederherstellung nach temporärer PSSC-RAM-Freigabe gesperrt.';
+  if(alarmOnly){
+   if(st.adapterKind!=='ssp3')return 'Alarm-NVM nach temporärer One-Wire-Freigabe derzeit nur mit originalem SSP3.';
+   if(!psscRecoveryProven())return 'Alarm-NVM: Magic-Cookie-Wiederanlauf dieser Chip-UID nicht bestätigt.';
+   try{
+    ELMOS_ALARM_CONFIG.validateDiff(initial,modified,CAL.crc16);
+    CAL.protectStartupCommunication(initial,modified,{allowAlarmMask:true});
+   }catch(e){return 'Alarm-NVM-Schutz: '+e.message;}
+   if(!$('nvmAutoBackup').checked)return 'Alarm-NVM benötigt die aktivierte automatische Sicherung des Original-EEPROM.';
+   return '';
+  }
   if(outputOnly){
    // Scope is deliberately narrower than normal output programming: same
    // AODO mode/CFG_AODO, only scaling and clipping plus recalculated CRC16.
@@ -878,26 +888,28 @@ if(typeof document!=='undefined') (function UI(){
    'Bereit: Koeffizienten können ohne vorheriges NVM-Backup ins RAM geschrieben werden.';
   $('calRamPrereq').className='callout'+(enabled?' success':'');
   $('calApplyRam').disabled=!enabled;
-  const verified=(verificationComplete()||expert.restoreReady()||expert.outputReady())&&!!st.port&&!!st.chip&&!st.nvmWorking&&!st.writing&&!st.calTask;
+  const verified=(verificationComplete()||expert.restoreReady()||expert.outputReady()||ELMOS_ALARM_EDITOR.ready())&&!!st.port&&!!st.chip&&!st.nvmWorking&&!st.writing&&!st.calTask;
   $('nvmBackupRead').disabled=!verificationComplete()||!st.port||!st.chip||st.nvmWorking||st.writing||st.calTask;
   $('nvmBackupDownload').disabled=!st.nvmBackupVerified||!st.nvmBackup;
   $('nvmAutoBackup').disabled=st.nvmWorking||st.writing||st.calTask;
-  $('nvmPrepare').disabled=!verificationComplete()||!st.port||!st.chip||st.writing||st.calTask||st.nvmWorking||!!st.restorePlan||!!st.outputOnlyPlan;
-  const restoring=expert.restoreReady(),outputOnly=expert.outputReady();
-  $('nvmProgram').textContent=demoEnabled?'NVM-Programmierung simulieren':restoring?'Backup auf diesem Chip wiederherstellen':outputOnly?'AODO-Ausgangseinstellungen im NVM speichern':'Kalibrierung dauerhaft ins NVM schreiben';
+  $('nvmPrepare').disabled=!verificationComplete()||!st.port||!st.chip||st.writing||st.calTask||st.nvmWorking||!!st.restorePlan||!!st.outputOnlyPlan||!!st.alarmOnlyPlan;
+  const restoring=expert.restoreReady(),outputOnly=expert.outputReady(),alarmOnly=ELMOS_ALARM_EDITOR.ready();
+  $('nvmProgram').textContent=demoEnabled?'NVM-Programmierung simulieren':restoring?'Backup auf diesem Chip wiederherstellen':outputOnly?'AODO-Ausgangseinstellungen im NVM speichern':alarmOnly?'Alarme & Fehler dauerhaft ins NVM speichern':'Kalibrierung dauerhaft ins NVM schreiben';
   const recognizedUid=st.uid?.hex||'';
-  const outputPlanSelected=!!st.outputOnlyPlan;
-  $('nvmPrepare').textContent=outputPlanSelected?'Ausgangsänderungen bereits geprüft':
+  const outputPlanSelected=!!st.outputOnlyPlan,alarmPlanSelected=!!st.alarmOnlyPlan;
+  $('nvmPrepare').textContent=alarmPlanSelected?'Alarmänderungen im EEPROM Viewer vorbereitet':outputPlanSelected?'Ausgangsänderungen bereits geprüft':
    hasCurrentNvmBackup()?'Änderungen prüfen':'NVM lesen & Änderungen prüfen';
   const nvmTitle=document.querySelector('.panel[data-panel="6"] h2');
   const nvmIntro=document.querySelector('.panel[data-panel="6"] > p.muted.small');
-  if(nvmTitle)nvmTitle.textContent=outputPlanSelected?'Nur Ausgangseinstellungen speichern':'Kalibrierung im Sensor speichern';
-  if(nvmIntro)nvmIntro.textContent=outputPlanSelected?
+  if(nvmTitle)nvmTitle.textContent=alarmPlanSelected?'Alarm und Fehler dauerhaft speichern':outputPlanSelected?'Nur Ausgangseinstellungen speichern':'Kalibrierung im Sensor speichern';
+  if(nvmIntro)nvmIntro.textContent=alarmPlanSelected?
+   'Alarm-/EOC-Änderungen aus dem EEPROM Viewer: Zuerst RAM-Test und Original-Backup bestätigen, dann gezielt ins NVM schreiben.':outputPlanSelected?
    'Ausgangsänderungen ohne neuen Druckabgleich: Original-NVM und UID prüfen, Änderungsliste kontrollieren und erst danach gezielt speichern.':
    'Nach erfolgreicher DSP-Prüfung das aktuelle NVM lesen und die Änderungen prüfen. Anschliessend kann die Kalibrierung dauerhaft gespeichert werden.';
-  $('nvmUserIdField').hidden=outputPlanSelected;
+  $('nvmUserIdField').hidden=outputPlanSelected||alarmPlanSelected;
   const confirmHeading=document.querySelector('.panel[data-panel="6"] .nvm-confirm-section h3');
-  if(confirmHeading)confirmHeading.textContent=outputPlanSelected?
+  if(confirmHeading)confirmHeading.textContent=alarmPlanSelected?
+   '2. Alarm- und Fehlerkonfiguration dauerhaft speichern':outputPlanSelected?
    '2. Ausgangseinstellungen dauerhaft speichern':'2. Kalibrierung dauerhaft speichern';
   const adapterHint=$('nvmAdapterHint');
   if(adapterHint){
@@ -939,7 +951,9 @@ if(typeof document!=='undefined') (function UI(){
   const eepromReadBtn=$('eepromRead');
   if(eepromReadBtn)eepromReadBtn.disabled=!st.port||!st.chip||st.calTask||st.writing||st.nvmWorking;
   const outputNvmRead=$('outputNvmRead');if(outputNvmRead)outputNvmRead.disabled=!st.port||!st.chip||st.writing||st.calTask||st.nvmWorking;
-  if(!nvmReason)nvmReason=psscNvmBlock(st.calImage?.before,st.calImage?.after,restoring,outputOnly);
+  if(!nvmReason&&alarmPlanSelected&&!alarmOnly)nvmReason='Alarmänderungen zuerst im RAM übernehmen und erfolgreich rücklesen.';
+  if(!nvmReason&&alarmOnly&&!$('nvmAutoBackup').checked)nvmReason='Alarm-NVM: Automatische Sicherung des Original-EEPROM aktivieren.';
+  if(!nvmReason)nvmReason=psscNvmBlock(st.calImage?.before,st.calImage?.after,restoring,outputOnly,alarmOnly);
   const approvalGranted=nvmReason==='';
   const experimentalRecoveryOutput=outputOnly&&
    (st.psscRamRecovery||(st.regs[0x06]===0x6C04&&st.nvmBackup?.[17]!==0x6C04));
