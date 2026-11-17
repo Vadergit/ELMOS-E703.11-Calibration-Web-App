@@ -110,7 +110,8 @@ const ELMOS_COMPACT=(()=>{
   moveId('nvmProgress','cpNvmPrepare');
   moveId('nvmUserIdField','cpNvmUid');
   actions(['nvmProgram'],'cpNvmProgram');
-  for(const id of ['nvmWritePrereq','nvmMsg','nvmUidHint','nvmWriteStatus'])moveId(id,'cpNvmStatus');
+  moveId('nvmWriteStatus','cpNvmProgram');
+  for(const id of ['nvmWritePrereq','nvmMsg','nvmUidHint'])moveId(id,'cpNvmStatus');
   moveId('nvmDiffDetails','cpNvmDetails');
   const backup=document.createElement('details');backup.className='cp-fold';backup.innerHTML='<summary>Backup / Kontrolle nach Neustart</summary><div class="cp-fold-body" id="cpNvmMore"></div>';
   $('cpNvmDetails').appendChild(backup);
