@@ -1,3 +1,10 @@
+## ESP32-C3 Firmware v0.11 (Test) – Binärdateien und Web-Installer aktualisiert
+
+- GitHub Actions hat den ESP32-C3-Sketch mit Arduino-ESP32-Core 3.3.7 und USB CDC aktiviert erfolgreich kompiliert.
+- Der Web-Installer bietet jetzt **ESP32-C3 SuperMini v0.11 (Test)** an und nutzt das neue Manifest `firmware/releases/esp32-c3/v0.11/manifest.json` mit vier vorhandenen Binärdateien.
+- Diese Version enthält die experimentelle, gesonderte Freigabe für reine AODO-Skalierung und Clipping im NVM. Der normale Kalibrierpfad und die alten v0.10-Dateien bleiben bestehen.
+- **Nicht hardwarevalidiert:** NVM-Schreiben unter temporärer RAM-Recovery. Nur mit einem entbehrlichen Testchip und vollständiger Sicherung verwenden.
+
 ## v0.7.109 – ESP32-C3: separate Ausgangs-NVM-Testfreigabe vorbereitet
 
 - Der Quellcode der ESP32-C3-SuperMini-Firmware wurde auf **v0.11-dev (noch nicht gebaut / hardwarevalidiert)** erweitert. Neu gibt es einen gesonderten Befehl `NVM ARM OUTPUT` und die explizite Firmwarefähigkeit `BRIDGE_AODO_OUTPUT_NVM_TEST`.
