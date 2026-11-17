@@ -149,7 +149,7 @@ test('Pressure-only fallback retains observations and excludes differing tempera
   {pressure:100,temperature:25,adc_s:-15310.5,adc_t:2207}
  ];
  assert.throws(()=>CAL.fit(points,{pmin:0,pmax:100,orderS:1,orderT:1,fitMode:'tk0',outputLimit:3200}),/T1/);
- const fit=CAL.fit(points,{pmin:0,pmax:100,orderS:1,orderT:0,fitMode:'tk0',outputLimit:3200});
+ const fit=CAL.fit(points,{pmin:0,pmax:100,orderS:1,orderT:0,fitMode:'full',outputLimit:3200});
  assert.equal(fit.points,2);
  assert.equal(fit.recordedPoints,3);
  assert.equal(fit.ignoredTemperaturePoints,1);
@@ -298,8 +298,8 @@ test('One DSP verification point is sufficient at TK0/TKE; temperature coverage 
  assert.ok(html.includes('Ein Prüfpunkt genügt auch bei TK0/TKE'));
  assert.ok(guided.includes('Bereits ein bestandener Prüfpunkt genügt'));
  assert.ok(html.includes('id="calVerifyCount" min="1" max="10" step="1" value="1"'));
- assert.ok(/guided\\.js\\?v=0\\.7\\.\\d+/.test(html));
- assert.ok(/app\\.js\\?v=0\\.7\\.\\d+/.test(html));
+ assert.ok(/guided\.js\?v=0\.7\.\d+/.test(html));
+ assert.ok(/app\.js\?v=0\.7\.\d+/.test(html));
 });
 
 test('Classic and guided calibration point ordering agree at each reference temperature',()=>{
@@ -374,6 +374,6 @@ test('Temperature display survives restart without any current wizard state',()=
  assert.ok(app.includes("'°C · NVM-Abgleich'"));
  assert.ok(app.includes('const temperatureBasis=!restoring&&!outputOnly&&st.calfit?.orderT>0'));
  assert.ok(app.includes('st.regs[pending]=await readReg(pending,1100)'));
- assert.ok(/calibration\\.js\\?v=0\\.7\\.\\d+/.test(html));
- assert.ok(/app\\.js\\?v=0\\.7\\.\\d+/.test(html));
+ assert.ok(/calibration\.js\?v=0\.7\.\d+/.test(html));
+ assert.ok(/app\.js\?v=0\.7\.\d+/.test(html));
 });
