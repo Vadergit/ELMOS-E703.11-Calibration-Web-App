@@ -51,6 +51,9 @@ const ELMOS_NVM_RECON = (() => {
      !Number.isInteger(limit)||limit<1000||limit>32000)
    return {ok:false,error:'Bereich prüfen: Druck max > min, Temperatur −40…125 °C mit T2 > T1, VDD 2,7…5,5 V und DSP-Endwert 1’000…32’000.'};
   const w=words, warnings=[], cfg=w[16], afe=w[28],
+   factoryTemp=(w[31]===0&&w[32]===0x1000&&w[51]===0x0F4D&&w[52]===0xBC8E&&w[53]===0xFC54&&w[54]===0),
+   requestedModel=opts.tempModel??'auto',
+   tempModel=requestedModel==='auto'?(factoryTemp?'factory':'an0203'):requestedModel,
    pga1=pg1[afe&3],pga2=pg2[Math.min((afe>>>7)&15,8)],
    supply=[2.4,1.6,2.0,null][w[27]&3],
    offsetCode=(afe>>>2)&31,
@@ -62,6 +65,7 @@ const ELMOS_NVM_RECON = (() => {
    sF=q12(w[34]),sO=q12(w[33]),
    tF=q12(w[32]),tO=q12(w[31]),
    scoeff=w.slice(35,51).map(q15),tcoeff=w.slice(51,55).map(q15);
+  if(!['factory','an0203'].includes(tempModel))return {ok:false,error:'Unbekanntes Temperaturmodell'};
   const scaledTemp=at=>tcoeff[0]+at*(tcoeff[1]+at*(tcoeff[2]+at*tcoeff[3]));
   const pressure=(s,t)=>{
    let r=0,pow=1;
@@ -82,6 +86,9 @@ const ELMOS_NVM_RECON = (() => {
   };
   const rows=[];
   if(!(cfg&0x1000))warnings.push('Absolute Temperaturkorrektur (t_abs_en) ist nicht eingeschaltet. Die Temperaturrückrechnung beruht nur auf gespeicherten Koeffizienten.');
+  if(!(cfg&0x000C))warnings.push('Temperaturmesspfad (t_cor_en) ist nicht aktiv: TK0/TKR beschreiben möglicherweise nicht das Laufzeitverhalten.');
+  if(factoryTemp)warnings.push('Elmos-Werk-Temperaturprofil erkannt: ungetrimmtes Temperaturmodell mit 100 Digits/°C. Keine garantierte absolute Genauigkeit.');
+  if(requestedModel!=='auto')warnings.push('Temperaturmodell manuell gewählt: prüfen, ob dieses zum Abgleich gehört.');
   if((cfg&3)===0)warnings.push('Druckkorrektur ist in CFG_EN nicht aktiv; die abgelegten Koeffizienten beschreiben möglicherweise nicht den aktiven Ausgang.');
   if(!supply)warnings.push('Reservierter Code für Brückenspeisung: mV/V nicht berechenbar.');
   if(Math.abs(sF)<1e-12)warnings.push('S_F ist null: ADC_S kann nicht rückgerechnet werden.');
@@ -89,7 +96,7 @@ const ELMOS_NVM_RECON = (() => {
   if(Math.abs(postGain)<1e-12)warnings.push('DSP-Nachskalierung mit Nullverstärkung verhindert die eindeutige Umkehr.');
   if(!(cfg&0x1000)&&tcoeff.slice(1).every(x=>Math.abs(x)<1e-12))warnings.push('Keine verwertbare Temperaturkennlinie: TK0/TKR sind aus diesem NVM nicht bestimmbar.');
   for(const tempC of [ta,tb]){
-   const dspTemp=(387.88*tempC-16485)/32768;
+   const dspTemp=(tempModel==='factory'?100*tempC:387.88*tempC-16485)/32768;
    const tempNorm=unique(scaledTemp,dspTemp,'Temperatur '+fmt(tempC,1)+' °C',warnings);
    const adcT=tempNorm===null||!tF?null:(tempNorm-tO)/tF;
    const row={tempC,tempNorm,adcT, endpoints:[]};
@@ -130,7 +137,7 @@ const ELMOS_NVM_RECON = (() => {
   if(tcoeff.slice(1).every(x=>x===0))warnings.push('DSP_T ohne Temperaturabhängigkeit: TK0/TKR nicht bestimmbar.');
   return {ok:true,settings:{pmin,pmax,ta,tb,vdd,limit,pga1,pga2,supply,offsetSteps,offsetStage,
     sign1,sign2,signAdc,sF,sO,tF,tO,post,postGain,postOffset,
-    temperatureActive:!!(cfg&0x1000),scoeff,tcoeff},
+    temperatureActive:!!(cfg&0x1000),temperatureModel:tempModel,factoryTemp,scoeff,tcoeff},
    rows,hasPhysical,tk0,tk0Bar,tkr,adcSpan,analog,warnings:[...new Set(warnings)]};
  }
  function dom(tag,text,cls) {
@@ -161,7 +168,7 @@ const ELMOS_NVM_RECON = (() => {
   if(!styleAdded){const style=dom('style');style.textContent=css;document.head.appendChild(style);styleAdded=true}
   if(!root._nvmInit){
    root._nvmInit=true;
-   root._nvmState={live:null,offline:null,opts:{pmin:0,pmax:6,ta:25,tb:75,vdd:5,limit:32000},last:null};
+   root._nvmState={live:null,offline:null,opts:{pmin:0,pmax:6,ta:25,tb:75,vdd:5,limit:32000,tempModel:'auto'},last:null};
    const heading=dom('h3','Sensor-Rückrechnung aus dem NVM');
    const detail=dom('p','Druckbereich und Temperaturreferenzen ergänzen. Das Berechnungsmodell folgt AN0203 und dem E703.11-DSP. Alle Auswertungen sind lesend; Brückensignale in mV/V sind Näherungen aus nominalen AFE-Daten.','nvmrecon-muted');
    const actions=dom('div',undefined,'nvmrecon-actions');
@@ -190,6 +197,12 @@ const ELMOS_NVM_RECON = (() => {
     input.addEventListener('input',()=>{root._nvmState.opts[key]=Number(input.value);draw(root)});
     label.appendChild(input);grid.appendChild(label);
    }
+   const modelLabel=dom('label','Temperaturmodell'),modelSelect=dom('select');
+   for(const [value,name] of [['auto','Automatisch'],['an0203','AN0203-Abgleich'],['factory','Werkprofil 0,01 °C']]){
+    const option=dom('option',name);option.value=value;modelSelect.appendChild(option);
+   }
+   modelSelect.addEventListener('change',()=>{root._nvmState.opts.tempModel=modelSelect.value;draw(root)});
+   modelLabel.appendChild(modelSelect);grid.appendChild(modelLabel);
    const status=dom('p','Bitte zuerst EEPROM lesen oder ein Backup laden.','nvmrecon-muted');
    status.setAttribute('role','status');status.className='nvmrecon-status nvmrecon-muted';
    const result=dom('div');result.className='nvmrecon-result';
@@ -237,7 +250,7 @@ const ELMOS_NVM_RECON = (() => {
    body.appendChild(row);
   }
   table.appendChild(body);const wrap=dom('div');wrap.style.overflowX='auto';wrap.appendChild(table);box.appendChild(wrap);
-  const e=dom('p','AFE: SVDD '+fmt(r.settings.supply,2)+' V · PGA1 '+fmt(r.settings.pga1,2)+'× · PGA2 '+fmt(r.settings.pga2,2)+'× · Offset-DAC '+r.settings.offsetSteps+' Stufen · S_F '+fmt(r.settings.sF,5)+' · S_O '+fmt(r.settings.sO,5),'nvmrecon-muted');
+  const e=dom('p','Temperaturmodell: '+(r.settings.temperatureModel==='factory'?'Werkprofil (100 Digits/°C)':'AN0203 (387,88 × °C − 16’485)')+' · AFE: SVDD '+fmt(r.settings.supply,2)+' V · PGA1 '+fmt(r.settings.pga1,2)+'× · PGA2 '+fmt(r.settings.pga2,2)+'× · Offset-DAC '+r.settings.offsetSteps+' Stufen · S_F '+fmt(r.settings.sF,5)+' · S_O '+fmt(r.settings.sO,5),'nvmrecon-muted');
   box.appendChild(e);
   if(r.analog){
    const ao=r.analog, p=dom('p','Idealer ratiometrischer Ausgang bei '+fmt(r.settings.vdd,2)+' V: '+fmt(ao.low.volts,4)+' V (Druck min) bis '+fmt(ao.high.volts,4)+' V (Druck max). '+(ao.scaleEnabled?'AODO_F '+fmt(ao.aoF,5)+' / AODO_O '+fmt(ao.aoO,5):'Ausgangsskalierung nicht aktiv')+'. Ohne DAC-Temperaturabgleich, Clipping und Lastfehler.','nvmrecon-muted');
