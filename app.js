@@ -804,10 +804,10 @@ if(typeof document!=='undefined') (function UI(){
    required+' Prüfpunkte gewählt: Alle müssen innerhalb der Toleranz liegen. Prüfpunkte am selben Druck brauchen mindestens 10 °C Temperaturabstand; bei gleicher Temperatur sind mehr als 10 % Druckspanne Abstand nötig. Zusätzliche Temperaturprüfungen sind optional.'
  }
  function workflowGate(n){
-  if(n===8)return ''; // Test / Logging is independent of calibration, even without chip connection.
+  if(n===8||n===9)return ''; // Logging and Alarm tab accessible independently of calibration.
   if(n===7)return ''; // EEPROM Viewer unabhängig vom Kalibrierablauf: nur lesen.
   if(n===5)return ''; // Eigener Ausgangsschritt ist auch bei bestehenden Sensoren erreichbar.
-  if(n===6&&(expert.restoreReady()||expert.outputReady()))return '';
+  if(n===6&&(expert.restoreReady()||expert.outputReady()||ELMOS_ALARM_EDITOR.ready()))return '';
   if(n>=3&&!calEndpointsReady())return 'Zuerst alle '+calibrationPointCount()+' gewählten Kalibrierpunkte bei gleicher AFE-Einstellung aufnehmen.';
   if(n>=4&&(!coefficientSettingsCurrent()||!st.calStaged))return 'Zuerst die Koeffizienten für den eingestellten DSP-Endwert berechnen und ins RAM übertragen.';
   if(n>=6&&!verificationComplete()&&!expert.restoreReady()&&!expert.outputReady())return 'NVM bleibt gesperrt: Zuerst '+(Number.isFinite(verificationRequiredCount())?verificationRequiredCount()+' Prüfpunkte':'eine gültige Anzahl Prüfpunkte')+' über DSP_S im RAM erfolgreich verifizieren.';
@@ -903,7 +903,7 @@ if(typeof document!=='undefined') (function UI(){
   const nvmIntro=document.querySelector('.panel[data-panel="6"] > p.muted.small');
   if(nvmTitle)nvmTitle.textContent=alarmPlanSelected?'Alarm und Fehler dauerhaft speichern':outputPlanSelected?'Nur Ausgangseinstellungen speichern':'Kalibrierung im Sensor speichern';
   if(nvmIntro)nvmIntro.textContent=alarmPlanSelected?
-   'Alarm-/EOC-Änderungen aus dem EEPROM Viewer: Zuerst RAM-Test und Original-Backup bestätigen, dann gezielt ins NVM schreiben.':outputPlanSelected?
+   'Alarm-/EOC-Änderungen aus «Alarme & Fehler»: Zuerst RAM-Test und Original-Backup bestätigen, dann gezielt ins NVM schreiben.':outputPlanSelected?
    'Ausgangsänderungen ohne neuen Druckabgleich: Original-NVM und UID prüfen, Änderungsliste kontrollieren und erst danach gezielt speichern.':
    'Nach erfolgreicher DSP-Prüfung das aktuelle NVM lesen und die Änderungen prüfen. Anschliessend kann die Kalibrierung dauerhaft gespeichert werden.';
   $('nvmUserIdField').hidden=outputPlanSelected||alarmPlanSelected;
@@ -970,7 +970,7 @@ if(typeof document!=='undefined') (function UI(){
     (experimentalRecoveryOutput?' LABORTEST: Ausgangs-NVM-Schreiben über temporäre One-Wire-RAM-Freigabe ist noch nicht am echten Chip validiert. Nur entbehrlichen Testchip verwenden.':''):
    nvmReason;
   $('nvmWritePrereq').className='callout '+(approvalGranted&&!experimentalRecoveryOutput?'success':'warn');
-  const unlocked=[true,true,true,calEndpointsReady(),ready&&st.calStaged,true,!workflowGate(6),true,true];
+  const unlocked=[true,true,true,calEndpointsReady(),ready&&st.calStaged,true,!workflowGate(6),true,true,true];
   document.querySelectorAll('[data-step]').forEach(b=>{
    const index=Number(b.dataset.step);b.classList.toggle('locked',!unlocked[index]);
    b.setAttribute('aria-disabled',String(!unlocked[index]));
@@ -991,7 +991,7 @@ if(typeof document!=='undefined') (function UI(){
   renderCalPoints();renderCalibrationPlan();renderLiveOverview();
  }
  function step(n){
-  const next=Math.max(0,Math.min(8,Number(n)));
+  const next=Math.max(0,Math.min(9,Number(n)));
   if(next!==8&&window.ELMOS_TEST_LOGGER?.isBusy()){
    show('flowMsg','Die Testaufzeichnung läuft. Bitte im Reiter «Test / Logging» zuerst beenden.','warn');
    $('flowMsg').hidden=false;return;
@@ -1006,7 +1006,7 @@ if(typeof document!=='undefined') (function UI(){
    if(active)button.setAttribute('aria-current','step');
    else button.removeAttribute('aria-current');
   });
-  renderFlowState();if(next===5)expert.refreshOutputPreview();if(next===7)expert.refreshEEPROMViewer();draw();
+  renderFlowState();if(next===5)expert.refreshOutputPreview();if(next===7||next===9)expert.refreshEEPROMViewer();draw();
   if(!st.manualLivePause&&st.chip&&!window.ELMOS_TEST_LOGGER?.isBusy())startLive()
  }
  function invalidateCalculation(reason){
