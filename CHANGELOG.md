@@ -1,3 +1,10 @@
+## v0.7.104 – Verständliche Ausgangsdiagnose und kompakte Darstellung
+
+- Analoge Ausgangsvorschau berechnet die tatsächliche Spannung aus den quantisierten Q3.12-Gain-/Offset-Werten. Bei deaktivierter Ausgangsskalierung erklärt die Meldung nun, weshalb die Zielspannungen S0/S1 nicht angewendet werden, und nennt einen konkreten Lösungsweg. Beispielsweise ergeben ±32’000 DSP-Digits ohne Scaling bei 5 V rechnerisch 0.059–4.941 V und überschreiten den linearen Bereich von 0.5–4.5 V.
+- Meldungen unterscheiden zwischen ungültiger VDD, falschem DSP-Zielbereich, S0/S1-Ausserbereich, Gain-/Offset-Fehler, fehlender Skalierung und Abweichungen von den Zielwerten. Kein neuer Druckabgleich erforderlich, nur um 0.5–4.5 V aus ±32’000 Digits zu erreichen.
+- Klassischer Ausgang aufgeräumt: Clipping und ausgelesene Chipregister standardmässig eingeklappt; Error-Signaling-Platzhalter durch ausdrücklich nicht decodierte, nur für Experten sichtbare NVM-Rohdaten ersetzt.
+- Die NVM-Schreib- und Kalibrierlogik wurde nicht geändert. Hardwaretest sowie Überprüfung der tatsächlichen Ausgangsspannung am Sensor bleiben notwendig.
+
 ## v0.7.103 – NVM-Vorbereitung nach One-Wire-RAM-Recovery ohne Clipping-Sperre
 
 - Bei einer bestätigten One-Wire-RAM-Recovery blockieren vorgemerkte Ausgangs-/Clipping-Änderungen die NVM-Kalibrierung nicht mehr: Der bestehende Ausgangsplan wird für diese Kalibrierung ignoriert, ohne die Messpunkte oder RAM-Koeffizienten zurückzusetzen.
