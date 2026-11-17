@@ -581,14 +581,29 @@ if(typeof document!=='undefined') (function UI(){
    return 'Messpunkte wurden mit unterschiedlichen AFE-Gains aufgenommen. PGA1/PGA2/Offset prüfen und betroffene Punkte erneut aufnehmen.';
   if(st.calpoints.some(x=>x.temperatureSource!==selectedTemperatureSource()))
    return 'Messpunkte wurden mit unterschiedlicher Temperaturmessquelle aufgenommen. Quelle kontrollieren und Messpunkte neu erfassen.';
+  if(st.calpoints.some(x=>!capturedReferenceMatches(x)))
+   return 'Ein aufgenommener Messpunkt hat andere Druck-/Temperaturreferenzen als die aktuelle Eingabe. Nur den betroffenen Punkt erneut aufnehmen.';
   return 'Messreihe ist noch nicht vollständig gültig. Referenzbereich und eindeutige Punktzuordnung prüfen.';
+ }
+ function capturedReferenceMatches(point){
+  if(!point||!['lo','hi','extra'].includes(point.kind))return false;
+  let pId,tId;
+  if(point.kind==='lo'){pId='pmin';tId='calLoTemp'}
+  else if(point.kind==='hi'){pId='pmax';tId='calHiTemp'}
+  else{
+   if(!Number.isInteger(point.slot)||point.slot<1||point.slot>8)return false;
+   pId='calExtra'+point.slot+'Pressure';tId='calExtra'+point.slot+'Temp';
+  }
+  const pressure=Number($(pId).value),temperature=Number($(tId).value);
+  return Number.isFinite(pressure)&&Number.isFinite(temperature)&&
+   point.pressure===pressure&&point.temperature===temperature&&point.unit===pressureUnit();
  }
  function calEndpointsReady(){
   const count=calibrationPointCount(),lo=st.points.lo,hi=st.points.hi;
   if(!Number.isFinite(count)||!lo||!hi||!Number.isFinite(lo.v)||!Number.isFinite(hi.v)||Math.abs(lo.v-hi.v)<10)return false;
   const gains=JSON.stringify(st.staged);
   if(JSON.stringify(lo.gains)!==gains||JSON.stringify(hi.gains)!==gains)return false;
-  if(st.calpoints.length!==count||st.calpoints.some(x=>JSON.stringify(x.gains)!==gains||!Number.isFinite(x.adc_s)||x.temperatureSource!==selectedTemperatureSource()))return false;
+  if(st.calpoints.length!==count||st.calpoints.some(x=>JSON.stringify(x.gains)!==gains||!Number.isFinite(x.adc_s)||x.temperatureSource!==selectedTemperatureSource()||!capturedReferenceMatches(x)))return false;
   const pmin=Number($('pmin').value),pmax=Number($('pmax').value);
   if(!(pmax>pmin)||lo.pressure!==pmin||hi.pressure!==pmax)return false;
   if(st.calpoints.filter(x=>x.kind==='lo').length!==1||st.calpoints.filter(x=>x.kind==='hi').length!==1)return false;
@@ -2628,7 +2643,11 @@ if(typeof document!=='undefined') (function UI(){
  function refreshPoints(){
   const a=st.points.lo,b=st.points.hi;
   renderCalPoints();renderFlowState();
-  if(!a||!b)return show('calMsg','Unteren und oberen Referenzpunkt aufnehmen. Weitere Punkte dazwischen ebenfalls erfassen.');
+  if(!a||!b){
+   for(const id of ['hub','middle','usage'])$(id).textContent='—';
+   show('recommendation','Für die AFE-Empfehlung müssen beide Druckendpunkte aufgenommen sein.','warn');
+   return show('calMsg','Unteren und oberen Referenzpunkt aufnehmen. Bereits gemessene andere Punkte bleiben erhalten.');
+  }
   const span=Math.abs(b.v-a.v),mid=(a.v+b.v)/2,max=Math.max(Math.abs(a.v),Math.abs(b.v));
   $('hub').textContent=fmt(span);$('middle').textContent=fmt(mid);$('usage').textContent=(max/25000*100).toFixed(1)+' %';
   if(!calEndpointsReady())show('calMsg',calibrationReadinessReason(),'warn');
@@ -3683,9 +3702,21 @@ if(typeof document!=='undefined') (function UI(){
    renderCalPoints()
   })
  }
- for(const id of ['calLoTemp','calHiTemp'])$(id).addEventListener('change',()=>{
-  erasePoints();show('calPointsMsg','Referenztemperatur eines Endpunkts geändert. Die Messpunkte neu aufnehmen.','warn')
- });
+ // Reference temperature edits affect only their own endpoint.
+ function handleEndpointTemperatureChange(which){
+  const recorded=st.calpoints.find(point=>point.kind===which);
+  if(!recorded){renderCalPoints();return}
+  const current=Number($(which==='lo'?'calLoTemp':'calHiTemp').value);
+  if(recorded.temperature===current){renderCalPoints();return}
+  st.calpoints=st.calpoints.filter(point=>point.kind!==which);
+  st.points[which]=null;
+  st.verify=null;
+  invalidateCalculation('Referenztemperatur eines aufgenommenen Messpunkts geändert. Koeffizienten neu berechnen.');
+  refreshPoints();
+  show('calPointsMsg','Referenztemperatur geändert. Nur der betroffene '+(which==='lo'?'untere':'obere')+' Druckpunkt muss neu gemessen werden. Andere Messpunkte bleiben erhalten.','warn');
+ }
+ $('calLoTemp').addEventListener('change',()=>handleEndpointTemperatureChange('lo'));
+ $('calHiTemp').addEventListener('change',()=>handleEndpointTemperatureChange('hi'));
  $('calPointClear').addEventListener('click',()=>{erasePoints();ca('calPointsMsg','Alle Kalibriermesspunkte verworfen.');});
  $('calCalculate').addEventListener('click',calcCoefficients);
  $('calApplyRam').addEventListener('click',applyCalRam);
