@@ -843,7 +843,7 @@ if(typeof document!=='undefined') (function UI(){
    // Scope is deliberately narrower than normal output programming: same
    // AODO mode/CFG_AODO, only scaling and clipping plus recalculated CRC16.
    // This protects the confirmed 1-Wire startup window after a cold restart.
-   if(st.adapterKind!=='ssp3')return 'Ausgangsänderungen über RAM-Recovery sind nur mit dem originalen SSP3 vorgesehen. DIY-Bridge bleibt dafür gesperrt.';
+   if(st.adapterKind!=='ssp3')return 'Dieser Adapter ('+(st.bridgeBoard||'DIY-Bridge')+') unterstützt das Speichern von AODO-Ausgangsänderungen über temporäre RAM-Recovery noch nicht. Die aktuell freigegebene DIY-Firmware erlaubt Kalibrier-NVM, aber keine Ausgangsregister. Bitte nicht die Schreibsperre umgehen.';
    if(!hasCurrentNvmBackup())return 'Vor einer Ausgangsänderung das aktuelle 64-Wort-NVM mit derselben Chip-UID vollständig lesen und prüfen.';
    if(!$('nvmAutoBackup').checked)return 'Bei Ausgangsänderungen nach RAM-Recovery ist ein gesichertes Original-NVM erforderlich. «Altes NVM automatisch sichern» aktivieren.';
    const outputWords=new Set([16,57,58,59,60,63]);
@@ -894,6 +894,16 @@ if(typeof document!=='undefined') (function UI(){
    'Ausgangsänderungen ohne neuen Druckabgleich: Original-NVM und UID prüfen, Änderungsliste kontrollieren und erst danach gezielt speichern.':
    'Nach erfolgreicher DSP-Prüfung das aktuelle NVM lesen und die Änderungen prüfen. Anschliessend kann die Kalibrierung dauerhaft gespeichert werden.';
   $('nvmUserIdField').hidden=outputPlanSelected;
+  const confirmHeading=document.querySelector('.panel[data-panel="6"] .nvm-confirm-section h3');
+  if(confirmHeading)confirmHeading.textContent=outputPlanSelected?
+   '2. Ausgangseinstellungen dauerhaft speichern':'2. Kalibrierung dauerhaft speichern';
+  const adapterHint=$('nvmAdapterHint');
+  if(adapterHint){
+   const model=st.adapterKind==='ssp3'?'ELMOS SSP3 (Originaladapter)':
+    st.adapterKind==='bridge'?(st.bridgeBoard||'DIY-Programmer'):'Nicht verbunden';
+   adapterHint.textContent='Aktiver Programmieradapter: '+model+
+    (st.adapterKind==='bridge'&&st.firmware?' · '+st.firmware:'');
+  }
   $('nvmUidHint').textContent=recognizedUid?'Chip-UID: '+recognizedUid:'Chip-UID wird beim Verbinden gelesen.';
   let nvmReason='';
   if(st.iface!=='plc')nvmReason='1-Wire-Startschutz: Dauerhaftes NVM-Schreiben ausschliesslich über 1-Wire möglich. Bitte per 1-Wire verbinden.';
