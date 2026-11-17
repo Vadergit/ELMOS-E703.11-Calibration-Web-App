@@ -10,6 +10,7 @@ const ELMOS_ALARM_CONFIG=(()=>{
  const validWords=words=>Array.isArray(words)&&words.length===64&&words.every(isWord);
  const statusBits=[0,1,2,3,4,5,6,7,8,9,12,13];
  const statusLabels={
+  0:'Sensor bereit (Idle)',
   1:'ADC_S: Neue Druckmessung',2:'ADC_T: Neue Temperaturmessung',
   3:'DSP_S: Neuer kalibrierter Druckwert',4:'DSP_T: Neuer Temperaturwert',
   5:'Druck unter Alarmgrenze',6:'Druck über Alarmgrenze',
