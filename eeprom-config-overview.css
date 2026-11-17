@@ -1,5 +1,5 @@
 /* Compact, read-only configuration summary above the technical EEPROM table. */
-.eeprom-overview{margin:12px 0 15px;padding:12px;border:1px solid var(--line,#d1dce7);border-radius:10px;background:var(--card,#fff)}
+.eeprom-overview{margin:12px 0 15px;padding:12px;border:1px solid var(--line,#d1dce7);border-radius:10px;background:var(--paper,#fff)}
 .eeprom-overview-head{display:flex;align-items:flex-start;justify-content:space-between;flex-wrap:wrap;gap:8px 16px;margin-bottom:10px}
 .eeprom-overview-head h3{margin:0 0 2px;font-size:15px}
 .eeprom-overview-head p{margin:0;font-size:12px}
@@ -7,7 +7,7 @@
 .eeprom-overview-note{font-size:12px;margin:4px 0 11px}
 .eeprom-overview-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
 .eeprom-overview-card{min-width:0;border:1px solid var(--line,#d9e2ec);border-radius:8px;overflow-x:auto}
-.eeprom-overview-card h4{margin:0;padding:8px 10px;font-size:12px;font-weight:750;background:var(--surface,#eef3f8);border-bottom:1px solid var(--line,#d9e2ec)}
+.eeprom-overview-card h4{margin:0;padding:8px 10px;font-size:12px;font-weight:750;background:var(--panel-subtle,#eef3f8);border-bottom:1px solid var(--line,#d9e2ec)}
 .eeprom-overview-table{width:100%;border-collapse:collapse;font-size:11.5px;line-height:1.35;font-variant-numeric:tabular-nums}
 .eeprom-overview-table th,.eeprom-overview-table td{padding:6px 8px;border-bottom:1px solid var(--line,#e5ecf2);text-align:left;vertical-align:top}
 .eeprom-overview-table thead th{font-size:10.5px;font-weight:650;color:var(--muted,#63758a)}
@@ -22,3 +22,5 @@
 .eeprom-raw-details>summary{font-weight:650;cursor:pointer;font-size:13px}
 @media(max-width:880px){.eeprom-overview-grid{grid-template-columns:minmax(0,1fr)}}
 @media(max-width:540px){.eeprom-overview{padding:9px}.eeprom-overview-table th,.eeprom-overview-table td{padding:6px 5px}}
+
+.eeprom-overview-error{color:var(--red,#a1313f);font-weight:650}
