@@ -45,7 +45,7 @@ test('RAM and staged values never overwrite or masquerade as EEPROM',()=>{
  const data=overview.summarize(stored,active,staged).flatMap(g=>g.rows);
  const by=name=>data.find(r=>r.label===name);
  assert.equal(by('PGA1').saved.text,'11×');
- assert.equal(by('PGA1').active.text,'3,5×');
+ assert.equal(by('PGA1').active.text,'3.5×');
  assert.equal(by('PGA1').differs,true);
  assert.equal(by('PGA1').pending,true);
  assert.equal(by('Ausgangs-Faktor AODO_F').pending,true);
