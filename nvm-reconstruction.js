@@ -19,30 +19,52 @@ const ELMOS_NVM_RECON = (() => {
    : '—';
  const pg1 = [3.5, 6, 8.5, 11];
  const pg2 = [2, 2.22, 2.5, 2.86, 3.33, 4, 5, 6.67, 10];
- function roots(f, target) {
-  const out=[], min=-0.999969482421875,max=0.999969482421875,n=800;
-  let a=min,fa=f(a)-target;
-  for(let k=1;k<=n;k++){
-   let b=min+(max-min)*k/n,fb=f(b)-target;
-   if(Number.isFinite(fa)&&Number.isFinite(fb)){
-    if(Math.abs(fa)<1e-10 && !out.some(x=>Math.abs(x-a)<1e-5))out.push(a);
-    if(fa*fb<0 || Math.abs(fb)<1e-10){
-     let lo=a,hi=b,fl=fa;
-     for(let j=0;j<52;j++){
-      const mid=(lo+hi)/2,fm=f(mid)-target;
-      if(fl*fm<=0)hi=mid;else{lo=mid;fl=fm}
-     }
-     const r=(lo+hi)/2;
-     if(!out.some(x=>Math.abs(x-r)<1e-5))out.push(r);
-    }
+ // Polynomial root isolation by derivative extrema, not a sampling grid.
+ // Supports first, second and third order curves, including tangential roots.
+ // A non-monotonic curve is rejected whenever more than one inverse exists.
+ function polynomialRoots(coefficients,target) {
+  const c=coefficients.slice(0,4);
+  while(c.length<4)c.push(0);
+  c[0]-=target;
+  const lo=-32767/32768,hi=32767/32768,epsilon=1e-12;
+  const f=x=>((c[3]*x+c[2])*x+c[1])*x+c[0];
+  const candidates=[lo,hi];
+  const A=3*c[3],B=2*c[2],C=c[1];
+  if(Math.abs(A)>epsilon){
+   const disc=B*B-4*A*C;
+   if(disc>=-epsilon){
+    const sqrt=Math.sqrt(Math.max(0,disc));
+    for(const x of [(-B-sqrt)/(2*A),(-B+sqrt)/(2*A)])
+     if(x>lo&&x<hi)candidates.push(x);
    }
-   a=b;fa=fb;
+  }else if(Math.abs(B)>epsilon){
+   const x=-C/B;if(x>lo&&x<hi)candidates.push(x);
   }
-  return out;
+  candidates.sort((a,b)=>a-b);
+  const cuts=candidates.filter((x,i)=>i===0||Math.abs(x-candidates[i-1])>1e-12);
+  const found=[];
+  const add=x=>{if(Number.isFinite(x)&&!found.some(y=>Math.abs(x-y)<1e-8))found.push(x)};
+  for(const x of cuts)if(Math.abs(f(x))<epsilon)add(x);
+  for(let i=1;i<cuts.length;i++){
+   let a=cuts[i-1],b=cuts[i],fa=f(a),fb=f(b);
+   if(fa*fb>=0)continue;
+   for(let n=0;n<64;n++){
+    const mid=(a+b)/2,fm=f(mid);
+    if(fa*fm<=0){b=mid;fb=fm}else{a=mid;fa=fm}
+   }
+   add((a+b)/2);
+  }
+  return found.sort((a,b)=>a-b);
  }
- const unique = (f, target, label, warnings) => {
-  const r=roots(f,target);
-  if(r.length!==1){warnings.push(label+': '+(r.length?'mehrdeutige Polynomumkehr ('+r.length+' Lösungen)':'kein Umkehrwert im gültigen DSP-Bereich')+'.');return null}
+ const uniquePoly=(coefficients,target,label,warnings)=>{
+  const r=polynomialRoots(coefficients,target);
+  if(r.length!==1){
+   const constant=coefficients.slice(1).every(c=>Math.abs(c)<1e-12);
+   warnings.push(label+': '+(constant?'keine invertierbare Kennlinie (konstantes Polynom)':
+    r.length?'mehrdeutige Polynomumkehr ('+r.length+' Lösungen)':
+    'kein Umkehrwert im gültigen DSP-Bereich')+'.');
+   return null;
+  }
   return r[0];
  };
  function calculate(words, opts={}) {
@@ -81,15 +103,9 @@ const ELMOS_NVM_RECON = (() => {
   // The pressure path uses normalized T, not DSP_T. If every pressure coefficient
   // with a temperature power is zero, T is mathematically irrelevant and
   // pressure can be reconstructed even with a fixed or missing DSP_T calibration.
-  const pressure=(s,t)=>{
-   let r=0,pow=1;
-   for(let i=0;i<4;i++){
-    const j=i*4;
-    r+=pow*(scoeff[j]+t*(scoeff[j+1]+t*(scoeff[j+2]+t*scoeff[j+3])));
-    pow*=s;
-   }
-   return r;
-  };
+  const pressureCoeffs=t=>Array.from({length:4},(_,i)=>{
+   const j=i*4;return scoeff[j]+t*(scoeff[j+1]+t*(scoeff[j+2]+t*scoeff[j+3]));
+  });
   const post=!!(cfg&0x4000),postFine=!!(cfg&0x20),
    postGain=post?(postFine?1+q15(w[56]):q12(w[56])):1,
    postOffset=post?(postFine?q15(w[55]):q12(w[55])):0;
@@ -119,14 +135,14 @@ const ELMOS_NVM_RECON = (() => {
    // A constant DSP_T polynomial cannot be inverted. Do not generate 800
    // spurious roots and do not let an irrelevant temperature block pressure.
    const tempNorm=temperatureAvailable?
-    unique(scaledTemp,dspTemp,'Temperatur '+fmt(tempC,1)+' °C',warnings):null;
+    uniquePoly(tcoeff,dspTemp,'Temperatur '+fmt(tempC,1)+' °C',warnings):null;
    const adcT=tempNorm===null||!tF?null:(tempNorm-tO)/tF;
    const pressureTemp=pressureTempIndependent?0:tempNorm;
    const row={tempC,tempNorm,adcT,pressureTempIndependent, endpoints:[]};
    for(const [name,dsp] of [['Nullpunkt',-limit/32768],['Endpunkt',limit/32768]]){
     const beforePost=postGain?(dsp-postOffset)/postGain:null;
     const sNorm=pressureTemp!==null&&beforePost!==null?
-      unique(s=>pressure(s,pressureTemp),beforePost,name+' bei '+fmt(tempC,1)+' °C',warnings):null;
+      uniquePoly(pressureCoeffs(pressureTemp),beforePost,name+' bei '+fmt(tempC,1)+' °C',warnings):null;
     const adcS=sNorm===null||!sF?null:(sNorm-sO)/sF;
     const bridge=adcS===null?null:physical(adcS);
     if(adcS!==null&&Math.abs(adcS)>1)warnings.push('Berechneter ADC_S ausserhalb ±32768 bei '+name+', '+fmt(tempC,1)+' °C.');
