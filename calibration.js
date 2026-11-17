@@ -227,14 +227,17 @@ const ELMOS_CAL = (() => {
   return {...startup,ok:errors.length===0,errors};
  }
  const SVDD_INDEX=0x36/2, SVDD_MASK=0x0003;
- function protectStartupCommunication(before,after,{allowSvdd=false}={}){
+ function protectStartupCommunication(before,after,{allowSvdd=false,allowAlarmMask=false}={}){
   if(!Array.isArray(before)||!Array.isArray(after)||before.length!==64||after.length!==64||
    [...before,...after].some(v=>!Number.isInteger(v)||v<0||v>65535))
    throw Error('1-Wire-Startschutz: Ungültiges 64-Wort-NVM-Abbild');
   for(let i=0;i<28;i++){
    if(i===16){
-    const allowed=((7<<9)|(1<<6)|(1<<7));
+    const allowed=((7<<9)|(1<<6)|(1<<7))|(allowAlarmMask?((1<<5)|(1<<8)):0);
     if(((before[i]^after[i])&~allowed)!==0)throw Error('1-Wire-Startschutz: Nicht erlaubte CFG_EN-Bits verändert');
+   }else if(i===18&&allowAlarmMask&&before[i]!==after[i]){
+    if(((before[i]^after[i])&0xF000)!==0)
+     throw Error('1-Wire-Startschutz: CFG_PADS0.startup_plc oder startup_com verändert');
    }else if(i===SVDD_INDEX&&allowSvdd&&before[i]!==after[i]){
     if(((before[i]^after[i])&~SVDD_MASK)!==0||(after[i]&SVDD_MASK)===SVDD_MASK)
      throw Error('CFG_AFE0: Nur dokumentierte SVDD-Bits dürfen geändert werden');
@@ -246,7 +249,7 @@ const ELMOS_CAL = (() => {
   if(!initial.ok)throw Error('1-Wire-Startschutz: Original-NVM erfüllt die Voraussetzungen für den 1-Wire-Start nicht: '+initial.errors.join('; ')+'. NVM-Schreiben gesperrt.');
   if(!final.ok)throw Error('1-Wire-Startschutz: Geplantes NVM würde den 1-Wire-Start gefährden: '+final.errors.join('; '));
   // Always preserve the original PLC window, interface flags and bitrate.
-  for(const index of [17,18,19])if(before[index]!==after[index])
+  for(const index of [17,...(allowAlarmMask?[]:[18]),19])if(before[index]!==after[index])
    throw Error('1-Wire-Startschutz: Geschützte PLC-Startkonfiguration NVM '+index+' verändert');
   return true;
  }

@@ -111,6 +111,7 @@ const ELMOS_EXPERT=(()=>{
    if(!alarmCurrent)alarmStatusSnapshot=null;
    ELMOS_ALARM_VIEW.render($('alarmSummaryRows'),valid?st.nvmBackup:null,
     alarmCurrent?alarmCurrent.status:null);
+   if(typeof ELMOS_ALARM_EDITOR!=='undefined')ELMOS_ALARM_EDITOR.refresh();
    $('alarmStatusRead').disabled=!valid||alarmStatusReading||st.calTask||st.writing||st.nvmWorking;
    $('alarmStatusInfo').textContent=alarmCurrent?
     'Aktueller STATUS_SYNC wurde um '+new Date(alarmCurrent.at).toLocaleTimeString('de-CH')+' gelesen.':
