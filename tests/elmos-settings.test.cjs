@@ -31,7 +31,7 @@ test('error response text explains the six two-bit actions without hexadecimal',
  assert.match(S.errorMask(w),/Brückenversorgung fehlerhaft → Hochohmig/);
  assert.match(S.errorMask(w),/DSP-Sättigung → Oberer Fehlerwert/);
  assert.equal(S.errorMask(0),'Keine Fehlerreaktion eingerichtet');
- assert.match(S.errorValues(0x8000),/oberer Ersatzwert 100 %/);
+ assert.match(S.errorValues(0x8000),/oberer Ersatzwert -100 %/);
 });
 test('alarm diagnostic depends on CRC-confirmed caller data and status is optional',()=>{
  const w=blank();
