@@ -3,6 +3,24 @@
 Firmware v0.10 unterstützt den PLC-Zugriff über AODO und stellt der lokalen Web-App die bestehenden Abläufe für Registerlesen, AFE/DSP im RAM und User-NVM bereit. Das PLC-Timing und die elektrische Schaltung müssen am Sensor geprüft werden. Den ersten Test auf Chip-Erkennung, Live-Werte und das Lesen des Original-NVM beschränken. RAM-Schreiben anschliessend an einem Testchip prüfen. Vor permanentem Schreiben das Original-NVM exportieren.
 
 
+## Ausgang separat im NVM speichern (experimenteller Quellcode v0.11-dev)
+
+Der Web-Kalibrierassistent ab v0.7.109 besitzt einen **separaten Ausgangs-NVM-Modus** für den ESP32-C3 SuperMini. Die bisherige Firmware v0.10 aus dem Web-Installer hat diesen Modus **nicht**. Ein reines Update der Webseite reicht daher nicht aus.
+
+Die aktuelle Quellcode-Firmware unter [esp32c3_supermini.ino](../firmware/esp32c3_supermini/esp32c3_supermini.ino) enthält einen **noch nicht auf realer Hardware validierten** Befehl `NVM ARM OUTPUT`. Er wird vom ESP32-C3 nur nach bestätigtem Sensor-Kaltstart angenommen. Über `BRIDGE_INFO` meldet diese Firmware die gesonderte Testfähigkeit `BRIDGE_AODO_OUTPUT_NVM_TEST`. Die Webseite prüft diese Kennung; ohne sie bleibt der Button gesperrt.
+
+Nur bei analogem, bereits im NVM vorhandenen AODO-Modus 1–3 und bestätigter Chip-UID darf ein Ausgangsplan die folgenden Wörter ändern: **16 (CFG_EN ausschliesslich Bits 6 und 7), 57 (AODO_O), 58 (AODO_F), 59/60 (Clipping-Limits), 63 (CRC16)**. Eine Änderung von Ausgangsmodus, CFG_AODO, One-Wire-Startfenster, Werks-, AFE- oder DSP-Kalibrierregistern bleibt gesperrt. Die Ausgangsvorschau, vollständige NVM-Sicherung und Readback-Kontrolle sind vor dem Programmieren weiterhin erforderlich.
+
+### Testfirmware von Hand erstellen
+
+1. Bestehende Kalibrierung und **alle 64 NVM-Wörter sichern**. Noch ungesicherte RAM-Kalibrierwerte gehen beim ESP32-Firmwareupdate beziehungsweise beim Neustart des Sensors möglicherweise verloren.
+2. Arduino IDE mit dem Boardpaket **ESP32 by Espressif Systems** verwenden, Board **ESP32C3 Dev Module**, **USB CDC On Boot = Enabled**. Den Sketch `firmware/esp32c3_supermini/esp32c3_supermini.ino` mitsamt `plc_read.h` öffnen und die mitgelieferte Bibliothek `firmware/libraries/ElmosI2c` installieren.
+3. Quellcode kompilieren und auf den **ESP32-C3** flashen, **nicht** auf den E703.11. Die bestehende GPIO4-/GPIO5-/GPIO6-/GPIO10-Verdrahtung und 3.3-V-Pegel beachten.
+4. Sensor mit echter Stromunterbrechung neu starten, in Chrome erneut verbinden und überprüfen, dass `BRIDGE_INFO` die Fähigkeit `BRIDGE_AODO_OUTPUT_NVM_TEST` meldet. Danach **«Nur Ausgang ändern»**, NVM sichern, Scaling/Clipping vormerken und die Änderungsliste vor dem Schreiben prüfen.
+5. Ausschliesslich an einem **entbehrlichen Testchip** programmieren. NVM vollständig zurücklesen, CRC und One-Wire-Kaltstart prüfen und die tatsächliche Ausgangsspannung separat messen.
+
+**Nicht bestätigt:** Firmware-Build, Hardware-End-to-End-Test und der tatsächliche NVM-Schreibvorgang über temporäre One-Wire-RAM-Recovery. Die `v0.10`-Dateien im Web-Installer sind unverändert und besitzen diese neue Funktion ausdrücklich nicht. Diese Funktion ist **kein freigegebener Produktionsprozess**.
+
 ## I²C mit USB-Bridge v0.10
 
 | ESP32-C3 | Elmos E703.11 |
