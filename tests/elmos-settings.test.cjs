@@ -12,6 +12,8 @@ test('EOC OR logic maps documented STATUS bits exactly',()=>{
  assert.equal(S.eocMask((1<<5)|(1<<6)),'Druck unter Alarmgrenze ODER Druck über Alarmgrenze');
  assert.equal(S.eocMask(0),'Keine Statussignale ausgewählt');
  assert.equal(S.eocPin(3<<7),'AODO-Pin');
+ assert.match(S.eocMask(1<<10),/Analogausgang unten begrenzt/);
+ assert.match(S.eocMask(1<<11),/Analogausgang oben begrenzt/);
 });
 test('alarm words are not confused with DSP post-scaling',()=>{
  const words=blank();words[16]=1<<5;
