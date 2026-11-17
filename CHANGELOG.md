@@ -1,3 +1,11 @@
+## v0.7.113 – Echter Browser-Zurück-Schutz bei ungespeicherter Kalibrierung
+
+- Bei bereits aufgenommenen Messpunkten, berechneten/ins RAM geschriebenen, aber noch nicht dauerhaft im NVM gespeicherten Kalibrierdaten oder einem vorbereiteten NVM-Plan fordert die Web-App vor Browser-Zurück, Neuladen oder Schliessen den **nativen Browser-Bestätigungsdialog** an.
+- Die Auswahl «Auf dieser Seite bleiben» bricht das Verlassen wirklich ab und erhält die laufende Sitzung mitsamt Messpunkten. Keine nachträgliche Toast-/Popup-Warnung.
+- Ohne offene Daten oder nach erfolgreichem NVM-Schreiben erscheint keine Warnung. Während einer laufenden Mess-/Schreibaktion bleibt der Dialogschutz aktiv.
+- Umsetzung über `beforeunload` mit `preventDefault()` und `returnValue`; der Wortlaut des Dialogs wird von Microsoft Edge/Chrome bestimmt. Normale Benutzerinteraktion vor der Warnung ist im Browser erforderlich. Gegen Browserabsturz, Betriebssystemabbruch und Stromausfall hilft dieser Schutz nicht; hierfür sind Backups notwendig.
+- Automatisierte Prüfung im Chromium-Browser: «Bleiben» nach einer Messpunktaufnahme behält die Daten, nach erfolgreicher NVM-Speicherung kann ohne Warnung navigiert werden. Zusätzlich neun Fälle der Zustandsprüfung getestet.
+
 ## v0.7.112 – EEPROM-Rohdaten direkt unter der Übersicht anzeigen
 
 - Die 64-Wort-EEPROM-Tabelle ist direkt unter der neuen Konfigurationsübersicht sichtbar, ohne zusätzliches Aufklappen.
