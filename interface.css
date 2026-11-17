@@ -45,6 +45,11 @@ h3 { font-size: 15px; }
 }
 .live-kpi { border: 0; border-radius: 0; background: transparent; padding: 7px 10px; }
 .live-kpi + .live-kpi { border-left: 1px solid var(--line); }
+/* Keep the five readings on one compact row while distinguishing temperature (2) from pressure (3). */
+.live-kpi-pressure-start { border-left: 2px solid #9fb9ce !important; }
+@media (max-width: 370px) {
+  .live-kpi-pressure-start { border-top: 2px solid #9fb9ce; border-left: 0 !important; }
+}
 .live-kpi-primary { background: #dceff5; border-radius: 0 9px 9px 0; }
 .live-kpi-primary .live-kpi-reading { color: #084e69; font-size: clamp(19px, 2vw, 24px); }
 
