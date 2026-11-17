@@ -60,3 +60,16 @@ test('NVM calculator is wired to verified Viewer state and has no sensor writer'
  assert.match(expert,/st\.nvmBackupVerified/);
  assert.doesNotMatch(src,/\b(?:writeReg|nvmWriteWord|ramGrant|ramWrite|exchange|serial\.requestPort)\s*\(/);
 });
+
+
+test('Auto temperature model detects factory scaling and allows explicit override',()=>{
+ const w=image();
+ w[51]=0x0F4D;w[52]=0xBC8E;w[53]=0xFC54;w[54]=0;
+ const a=recon.calculate(w,{limit:24000});
+ assert.equal(a.settings.temperatureModel,'factory');
+ assert.ok(a.rows.every(r=>Number.isFinite(r.tempNorm)));
+ assert.ok(a.warnings.some(s=>s.includes('Werk-Temperaturprofil')));
+ const b=recon.calculate(w,{limit:24000,tempModel:'an0203'});
+ assert.equal(b.settings.temperatureModel,'an0203');
+ assert.notEqual(a.rows[0].tempNorm,b.rows[0].tempNorm);
+});
