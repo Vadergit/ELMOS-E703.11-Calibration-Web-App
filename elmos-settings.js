@@ -63,7 +63,7 @@ const ELMOS_SETTINGS=(()=>{
  };
  const eocMask=cfgP0=>{
   if(!Number.isInteger(cfgP0))return 'Nicht gelesen';
-  const selected=Object.entries(statusNames).filter(([bit])=>((cfgP0>>Number(bit))&1)).map(([,name])=>name);
+  const selected=Object.entries(statusNames).filter(([bit])=>((cfgP0>>(Number(bit)>=12?Number(bit)-2:Number(bit)))&1)).map(([,name])=>name);
   return selected.length?selected.join(' ODER '):'Keine Statussignale ausgewählt';
  };
  const eocPin=cfgP2=>['EOC-Pin','NCS/SA0-Pin','MOSI-Pin','AODO-Pin'][(cfgP2>>7)&3];
