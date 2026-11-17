@@ -4527,6 +4527,7 @@ if(typeof document!=='undefined') (function UI(){
   navigate:n=>step(n),
   skipAlarms:()=>ELMOS_ALARM_EDITOR.skipForCalibration(),
   alarmPending:()=>ELMOS_ALARM_EDITOR.pendingForCalibration(),
+  alarmStandaloneReady:()=>ELMOS_ALARM_EDITOR.ready(),
   alarmProfile:()=>ELMOS_ALARM_EDITOR.profileFromUi(),
   offerSeriesPreset,
   prepareNextSensor,
