@@ -71,6 +71,12 @@ const ELMOS_NVM_RECON = (() => {
    scoeff=w.slice(35,51).map(q15),tcoeff=w.slice(51,55).map(q15);
   if(!['factory','an0203'].includes(tempModel))return {ok:false,error:'Unbekanntes Temperaturmodell'};
   const scaledTemp=at=>tcoeff[0]+at*(tcoeff[1]+at*(tcoeff[2]+at*tcoeff[3]));
+  const tempCorrectionConstant=tcoeff.slice(1).every(c=>c===0);
+  const pressureTempIndependent=scoeff.every((c,i)=>i%4===0||c===0);
+  const temperatureAvailable=!tempCorrectionConstant;
+  // The pressure path uses normalized T, not DSP_T. If every pressure coefficient
+  // with a temperature power is zero, T is mathematically irrelevant and
+  // pressure can be reconstructed even with a fixed or missing DSP_T calibration.
   const pressure=(s,t)=>{
    let r=0,pow=1;
    for(let i=0;i<4;i++){
@@ -102,15 +108,21 @@ const ELMOS_NVM_RECON = (() => {
   if(Math.abs(tF)<1e-12)warnings.push('T_F ist null: ADC_T kann nicht rückgerechnet werden.');
   if(Math.abs(postGain)<1e-12)warnings.push('DSP-Nachskalierung mit Nullverstärkung verhindert die eindeutige Umkehr.');
   if(!(cfg&0x1000)&&tcoeff.slice(1).every(x=>Math.abs(x)<1e-12))warnings.push('Keine verwertbare Temperaturkennlinie: TK0/TKR sind aus diesem NVM nicht bestimmbar.');
+  if(pressureTempIndependent && !temperatureAvailable)
+   warnings.push('Druckpolynom enthält keine temperaturabhängigen S-Koeffizienten: Druckwerte sind trotz konstantem DSP_T rückrechenbar. Die beiden Temperaturzeilen zeigen dasselbe Modell, keine gemessene Temperaturdrift.');
   for(const tempC of [ta,tb]){
    const dspTemp=(tempModel==='factory'?100*tempC:387.88*tempC-16485)/32768;
-   const tempNorm=unique(scaledTemp,dspTemp,'Temperatur '+fmt(tempC,1)+' °C',warnings);
+   // A constant DSP_T polynomial cannot be inverted. Do not generate 800
+   // spurious roots and do not let an irrelevant temperature block pressure.
+   const tempNorm=temperatureAvailable?
+    unique(scaledTemp,dspTemp,'Temperatur '+fmt(tempC,1)+' °C',warnings):null;
    const adcT=tempNorm===null||!tF?null:(tempNorm-tO)/tF;
-   const row={tempC,tempNorm,adcT, endpoints:[]};
+   const pressureTemp=pressureTempIndependent?0:tempNorm;
+   const row={tempC,tempNorm,adcT,pressureTempIndependent, endpoints:[]};
    for(const [name,dsp] of [['Nullpunkt',-limit/32768],['Endpunkt',limit/32768]]){
     const beforePost=postGain?(dsp-postOffset)/postGain:null;
-    const sNorm=tempNorm!==null&&beforePost!==null?
-      unique(s=>pressure(s,tempNorm),beforePost,name+' bei '+fmt(tempC,1)+' °C',warnings):null;
+    const sNorm=pressureTemp!==null&&beforePost!==null?
+      unique(s=>pressure(s,pressureTemp),beforePost,name+' bei '+fmt(tempC,1)+' °C',warnings):null;
     const adcS=sNorm===null||!sF?null:(sNorm-sO)/sF;
     const bridge=adcS===null?null:physical(adcS);
     if(adcS!==null&&Math.abs(adcS)>1)warnings.push('Berechneter ADC_S ausserhalb ±32768 bei '+name+', '+fmt(tempC,1)+' °C.');
@@ -124,9 +136,10 @@ const ELMOS_NVM_RECON = (() => {
   }
   const a=rows[0],b=rows[1],dt=tb-ta,spanBar=pmax-pmin;
   const hasPhysical=[a.zero,a.span,b.zero,b.span].every(finite)&&Math.abs(a.span)>1e-12;
-  const tk0=hasPhysical?(b.zero-a.zero)/dt:null;
-  const tk0Bar=hasPhysical?(tk0/a.span*spanBar):null;
-  const tkr=hasPhysical?(b.span/a.span-1)/dt:null;
+  const canReportTK=hasPhysical&&temperatureAvailable&&!pressureTempIndependent;
+  const tk0=canReportTK?(b.zero-a.zero)/dt:null;
+  const tk0Bar=canReportTK?(tk0/a.span*spanBar):null;
+  const tkr=canReportTK?(b.span/a.span-1)/dt:null;
   const adc0=a.endpoints[0].adcDigits,adc1=a.endpoints[1].adcDigits;
   const adcSpan=finite(adc0)&&finite(adc1)?adc1-adc0:null;
   const ain=!!((cfg>>>9)&7&&((cfg>>>9)&7)<=3), scaleEnabled=!!(cfg&0x40);
@@ -136,15 +149,18 @@ const ELMOS_NVM_RECON = (() => {
    return {digital:q*32768, volts:vdd*(q+1)/2, percent:(q+1)*50};
   };
   const analog=ain ? {low:out(-limit/32768),high:out(limit/32768),mode:(cfg>>>9)&7,scaleEnabled,aoF,aoO}:null;
+  if(ain&&scaleEnabled&&Math.abs(aoF)<1e-12)
+   warnings.push('AODO: scale_en ist aktiv, aber AODO_F=0x0000. Der ideale Analogausgang bleibt bei jedem Druck konstant auf '+fmt(analog.low.volts,4)+' V. Sensorstart, Fehlerreaktionen und tatsächliche Spannung separat prüfen.');
   if(post)warnings.push('DSP-Post-Scaling aktiv: ALARM_LO/HI werden vor der inversen Druckrechnung berücksichtigt.');
   if(ain&&((analog.low.percent<10||analog.high.percent>90)))warnings.push('Analogausgang teilweise ausserhalb des spezifizierten linearen 10–90-%-VDD-Bereichs (ohne Clippingbetrachtung).');
   if(cfg&0x80)warnings.push('AODO-Limitierung aktiv: berechnete Ausgangsspannungen zeigen den idealen Wert vor der Limitierung.');
   if(cfg&0x100)warnings.push('AODO-Fehlerersatz aktiv: Fehlerzustände können einen anderen Ausgangswert erzwingen.');
   if(scoeff.slice(8).some(v=>v!==0))warnings.push('Druck-Nichtlinearitätsanteile 2./3. Ordnung vorhanden: Angaben gelten für die eingestellten Endpunkte.');
-  if(tcoeff.slice(1).every(x=>x===0))warnings.push('DSP_T ohne Temperaturabhängigkeit: TK0/TKR nicht bestimmbar.');
+  if(tempCorrectionConstant)warnings.push('DSP_T enthält nur T0 (konstante Temperatur). Eine absolute Temperatur kann damit nicht rückgerechnet werden. TK0 und TKR sind nicht bestimmbar.');
   return {ok:true,settings:{pmin,pmax,ta,tb,vdd,limit,pga1,pga2,supply,offsetSteps,offsetStage,
     sign1,sign2,signAdc,sF,sO,tF,tO,post,postGain,postOffset,
-    temperatureActive:!!(cfg&0x1000),temperatureModel:tempModel,factoryTemp,scoeff,tcoeff},
+    temperatureActive:!!(cfg&0x1000),temperatureModel:tempModel,factoryTemp,scoeff,tcoeff,
+    pressureTempIndependent,tempCorrectionConstant},
    rows,hasPhysical,tk0,tk0Bar,tkr,adcSpan,analog,warnings:[...new Set(warnings)]};
  }
  function dom(tag,text,cls) {
@@ -247,9 +263,13 @@ const ELMOS_NVM_RECON = (() => {
   const unavailable=[];
   if(!r.settings.sF)unavailable.push('S_F ist 0x0000. Ohne gültigen Druck-Normierungsfaktor lassen sich ADC_S, Nullpunkt, Spanne, TK0 und TKR nicht rekonstruieren.');
   if(r.settings.scoeff.every(c=>c===0))unavailable.push('Alle S0–S15 stehen auf 0x0000. Die Druck-Kennlinie fehlt im ausgewählten Datensatz.');
-  if(!r.settings.tF)unavailable.push('T_F ist 0x0000. ADC_T ist nicht eindeutig rekonstruierbar.');
+  if(!r.settings.tF&&!r.settings.pressureTempIndependent)unavailable.push('T_F ist 0x0000. ADC_T ist nicht eindeutig rekonstruierbar.');
   if(r.settings.tcoeff.every(c=>c===0))unavailable.push('Alle T0–T3 stehen auf 0x0000. Die Temperaturkennlinie fehlt.');
   if(!unavailable.length && !r.hasPhysical)unavailable.push('Die Polynomumkehr ist mit diesen Koeffizienten und Bezugspunkten nicht eindeutig möglich. Siehe Diagnosehinweise.');
+  if(r.settings.tempCorrectionConstant && r.hasPhysical){
+   const note=dom('p','Druck-Rückrechnung erfolgreich: Der gespeicherte Druckabgleich ist temperaturunabhängig. ADC_T, TK0 und TKR können aus dieser NVM-Datei nicht ermittelt werden; Striche bedeuten hier «nicht bestimmbar», nicht «Kalibrierung fehlt».','nvmrecon-status');
+   box.appendChild(note);
+  }
   if(unavailable.length){
    const notice=dom('section',undefined,'nvmrecon-error');
    notice.appendChild(dom('strong','Rückrechnung nicht vollständig möglich'));
