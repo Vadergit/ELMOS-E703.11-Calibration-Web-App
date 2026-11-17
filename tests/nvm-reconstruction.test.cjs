@@ -179,7 +179,7 @@ test('Manual ADC_T at each temperature allows advanced reconstruction if DSP_T i
 
 test('Missing-data summary explains fixed temperature NVM without suggesting pressure fit is missing',()=>{
  const w=image();w[52]=0;w[51]=0xE9B0;
- const result=recon.calculate(w,{pmin:0,pmax:6,ta:25,tb:75});
+ const result=recon.calculate(w,{pmin:0,pmax:6,ta:25,tb:75,limit:24000});
  assert.equal(result.hasPhysical,true);
  const summary=recon.missingExplanations(result);
  const names=summary.map(v=>v.name);
