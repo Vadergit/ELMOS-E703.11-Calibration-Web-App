@@ -74,6 +74,10 @@ const ELMOS_NVM_RECON = (() => {
   const tempCorrectionConstant=tcoeff.slice(1).every(c=>c===0);
   const pressureTempIndependent=scoeff.every((c,i)=>i%4===0||c===0);
   const temperatureAvailable=!tempCorrectionConstant;
+  // A fixed DSP_T can still identify the encoded reference temperature;
+  // it does NOT indicate actual chip temperature or physical TK.
+  const fixedTemperatureC=tempCorrectionConstant?(tempModel==='factory'?
+   tcoeff[0]*32768/100:(tcoeff[0]*32768+16485)/387.88):null;
   // The pressure path uses normalized T, not DSP_T. If every pressure coefficient
   // with a temperature power is zero, T is mathematically irrelevant and
   // pressure can be reconstructed even with a fixed or missing DSP_T calibration.
@@ -160,7 +164,7 @@ const ELMOS_NVM_RECON = (() => {
   return {ok:true,settings:{pmin,pmax,ta,tb,vdd,limit,pga1,pga2,supply,offsetSteps,offsetStage,
     sign1,sign2,signAdc,sF,sO,tF,tO,post,postGain,postOffset,
     temperatureActive:!!(cfg&0x1000),temperatureModel:tempModel,factoryTemp,scoeff,tcoeff,
-    pressureTempIndependent,tempCorrectionConstant},
+    pressureTempIndependent,tempCorrectionConstant,fixedTemperatureC},
    rows,hasPhysical,tk0,tk0Bar,tkr,adcSpan,analog,warnings:[...new Set(warnings)]};
  }
  function dom(tag,text,cls) {
@@ -267,7 +271,8 @@ const ELMOS_NVM_RECON = (() => {
   if(r.settings.tcoeff.every(c=>c===0))unavailable.push('Alle T0–T3 stehen auf 0x0000. Die Temperaturkennlinie fehlt.');
   if(!unavailable.length && !r.hasPhysical)unavailable.push('Die Polynomumkehr ist mit diesen Koeffizienten und Bezugspunkten nicht eindeutig möglich. Siehe Diagnosehinweise.');
   if(r.settings.tempCorrectionConstant && r.hasPhysical){
-   const note=dom('p','Druck-Rückrechnung erfolgreich: Der gespeicherte Druckabgleich ist temperaturunabhängig. ADC_T, TK0 und TKR können aus dieser NVM-Datei nicht ermittelt werden; Striche bedeuten hier «nicht bestimmbar», nicht «Kalibrierung fehlt».','nvmrecon-status');
+   const tempInfo=finite(r.settings.fixedTemperatureC)?' Der fest programmierte DSP_T entspricht nominell '+fmt(r.settings.fixedTemperatureC,2)+' °C; das ist keine aktuelle Temperaturmessung.':'';
+   const note=dom('p','Druck-Rückrechnung erfolgreich: Der gespeicherte Druckabgleich ist temperaturunabhängig.'+tempInfo+' ADC_T, TK0 und TKR können aus dieser NVM-Datei nicht ermittelt werden; Striche bedeuten hier «nicht bestimmbar», nicht «Kalibrierung fehlt».','nvmrecon-status');
    box.appendChild(note);
   }
   if(unavailable.length){
