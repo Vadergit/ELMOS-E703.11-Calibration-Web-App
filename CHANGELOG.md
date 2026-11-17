@@ -1,3 +1,11 @@
+## v0.7.100 – TK0 zwingend mit aktiver Temperaturkompensation
+
+- TK0 erfordert Druckordnung 1 und Temperaturordnung 1. Im klassischen Modus stellt die Auswahl «TK0» beide Ordnungen automatisch auf «Linear»; andere Polynomordnungen werden dort für TK0 deaktiviert.
+- Der Rechenkern blockiert TK0 mit Temperaturordnung 0, statt den dritten Messpunkt stillschweigend zu ignorieren. Er verwendet alle aufgenommenen Druck-/Temperaturpunkte und berechnet dabei auch den temperaturabhängigen Druckkoeffizienten S1.
+- Zusätzliche Sicherheit beim Erstellen des NVM-Änderungsplans: ein unvollständiger oder älterer TK0-Fit ohne Temperaturkoeffizienten kann nicht programmiert werden. Importierte TK0-Profile richten sich ebenfalls auf lineare Ordnungen aus.
+- Die temperaturabhängige **Nachmessung bleibt freiwillig**; der bisherige DSP-Prüfablauf wurde nicht erweitert.
+- Regression mit drei Messpunkten (25 °C/0 %, 25 °C/100 %, 75 °C/0 %): TK0/Temperaturordnung 0 wird abgewiesen; TK0/Temperaturordnung 1 verwendet alle drei Punkte und berechnet S1.
+
 ## v0.7.99 – NVM-Änderungsliste nur im Expertenmodus
 
 - Die aufklappbare «Änderungsliste (inkl. CRC16) anzeigen» im klassischen NVM-Schritt wird wie die übrigen technischen Details nur bei aktivierten Expertenparametern angezeigt.
