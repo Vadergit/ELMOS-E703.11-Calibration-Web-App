@@ -95,7 +95,7 @@ test('Zero calibration coefficients are highlighted rather than presented as suc
  assert.ok(result.warnings.some(x=>x.includes('S0–S15')));
  const file=fs.readFileSync(path.join(__dirname,'..','nvm-reconstruction.js'),'utf8');
  assert.match(file,/Rückrechnung nicht vollständig möglich/);
- assert.match(file,/IMPORTIERTE DATEI/);
+ assert.match(file,/Datei importiert/);
  assert.match(file,/Registerdiagnose/);
 });
 
