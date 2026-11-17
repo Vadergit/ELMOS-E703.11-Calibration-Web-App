@@ -1,3 +1,8 @@
+## v0.7.108 – Beim Vormerken von Ausgangsänderungen die tatsächliche Schreibfreigabe beachten
+
+- Der Ausgangsplan zeigt bei DIY-Bridge und temporärer One-Wire-RAM-Recovery nicht mehr die irreführende Aufforderung, einfach im NVM-Schritt zu speichern. Stattdessen zeigt er ausdrücklich, dass der Plan lediglich vorbereitet ist, aber die Firmware die Ausgangs-NVM-Register noch nicht programmieren kann.
+- Der bestehende Druck-/Temperaturabgleich und die gespeicherten Sensordaten werden dabei nicht verändert. Sicherheitslogik, Adapterprüfung und NVM-Schreibfreigaben sind unverändert.
+
 ## v0.7.107 – Tatsächlichen Adapter und Blockiergrund im Ausgangs-NVM anzeigen
 
 - Der NVM-Schritt nennt bei reinem Ausgangsplan nun korrekt «Ausgangseinstellungen dauerhaft speichern» statt «Kalibrierung dauerhaft speichern».
