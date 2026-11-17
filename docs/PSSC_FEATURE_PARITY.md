@@ -4,9 +4,9 @@ Datum: 17.11.2026. Basis: **Elmos E703.11** Datenblatt 25DS0170E.04, Elmos-Kalib
 
 | Nr. | Herstellerfunktion | Stand v0.7.115 | Nächster Schritt |
 |---|---|---|---|
-| 01 | Alarmgrenzen/Hysterese | Lesen und Klartext-Dekodierung | Geschützter RAM-/NVM-Konfigurator mit Hardwareverifikation |
-| 02 | EOC-/Alarm-Verknüpfungen (ODER) | EEPROM-Dekodierung und reine STATUS_SYNC-Abfrage | Auswahleditor und geprüfte Pin-Änderungslogik |
-| 03 | Fehlerreaktionen | ERR_MASK/ERR_VAL-Dekodierung | Aktionseditor mit Grenzwert-/Fehlerfallprüfung |
+| 01 | Alarmgrenzen/Hysterese | **Editor, RAM-Rücklesung und geschützter NVM-Schreibpfad umgesetzt** | Elektrische Prüfung am Testchip erforderlich |
+| 02 | EOC-/Alarm-Verknüpfungen (ODER) | **Auswahleditor, ODER-Maske und NVM-Plan umgesetzt** | Elektrische Prüfung; physische Pin-Umschaltung bewusst nicht automatisiert |
+| 03 | Fehlerreaktionen | **Sechs Aktionseditoren und Ersatzwerte mit RAM-/NVM-Schutz umgesetzt** | Reale Fehlerreaktion und High-Z am Testchip prüfen |
 | 04 | EEPROM-Klartextübersicht | **Umgesetzt** für bekannte Filter, Temperaturquelle, EOC, Alarm, Post-Scaling, Limiting und Fehleraktionen | Zusätzliche Register schrittweise dekodieren; unbekannte Kombinationen nicht raten |
 | 05 | Filter dauerhaft ins NVM | Nur RAM-Profil und NVM-Vergleich | Selektive, CRC-gesicherte NVM-Persistenz für dokumentierte Filter; Hardwaretest |
 | 06 | Druckeinheit nach Neustart | **Umgesetzt**: lokales Profil, an Chip-UID und CRC des NVM gebunden | Anzeige bei mehreren Rechnern nur über manuell übertragenes Profil |
@@ -41,4 +41,4 @@ Datum: 17.11.2026. Basis: **Elmos E703.11** Datenblatt 25DS0170E.04, Elmos-Kalib
 4. Nach vollständigem Power-Cycle Chip-Wiederverbindung, RAM-/NVM-Lesung und reale Ausgangswerte messen.
 5. Tests gegen die originale PSSC-GUI mit identischen Rohdaten durchführen; Abweichungen dokumentieren.
 
-**v0.7.115 ist daher eine Klartext-/Diagnose- und Anzeigeprofil-Erweiterung, keine vollständige PSSC-Funktionsparität.**
+**v0.7.116 ergänzt die Alarm-Konfiguration, bleibt aber ohne elektrischen Prüfstandtest ein Laborprototyp und keine vollständige PSSC-Funktionsparität.**
