@@ -79,7 +79,7 @@ const ELMOS_ALARM_EDITOR=(()=>{
   }
   const status=(s,type='warn')=>show('alarmEditorMessage',s,type);
   function clearPlan(){
-   if(st.alarmOnlyPlan&&st.calImage===st.alarmOnlyPlan)st.calImage=null;
+   if(st.alarmOnlyPlan&&(st.calImage===st.alarmOnlyPlan||st.calImage?.alarmIntegrated))st.calImage=null;
    st.alarmOnlyPlan=null;$('alarmEditorRam').disabled=true;
    $('alarmEditorDiff').textContent='Kein gültiger Alarmänderungsplan.';
    if($('nvmDiff')&&$('nvmDiff').dataset.scope==='alarm'){
@@ -199,6 +199,9 @@ const ELMOS_ALARM_EDITOR=(()=>{
   $('alarmReadEeprom').addEventListener('click',()=>{
    const btn=$('eepromRead');if(!btn||btn.disabled){status('Erst einen echten Sensor über SSP3 verbinden.','warn');return}
    btn.click();
+  });
+  $('alarmSkipNvm').addEventListener('click',()=>{
+   skipForCalibration();const btn=document.querySelector('.stepBtn[data-step="6"]');if(btn)btn.click();
   });
   $('alarmGoNvm').addEventListener('click',()=>{
    if(!ready())return;
