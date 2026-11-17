@@ -1,3 +1,9 @@
+## v0.7.105 – Clipping-Einstellungen wieder direkt sichtbar
+
+- In Schritt «Ausgang konfigurieren» sind Clipping-Modus und Spannungsgrenzen bei analogem AODO-Ausgang wieder direkt unter der Ausgangsart sichtbar, ohne aufklappbaren Bereich und ohne Expertenmodus.
+- Drei Eingabefelder liegen auf breiten Bildschirmen in einer Zeile. Der bestehende Code für Ein-/Ausblenden und das Vormerken der Werte bleibt unverändert.
+- Keine Änderung der DSP-Kalibrierung, Registerlogik oder NVM-Schreibsicherheit. UI-Korrektur, Hardwaretest noch ausstehend.
+
 ## v0.7.104 – Verständliche Ausgangsdiagnose und kompakte Darstellung
 
 - Analoge Ausgangsvorschau berechnet die tatsächliche Spannung aus den quantisierten Q3.12-Gain-/Offset-Werten. Bei deaktivierter Ausgangsskalierung erklärt die Meldung nun, weshalb die Zielspannungen S0/S1 nicht angewendet werden, und nennt einen konkreten Lösungsweg. Beispielsweise ergeben ±32’000 DSP-Digits ohne Scaling bei 5 V rechnerisch 0.059–4.941 V und überschreiten den linearen Bereich von 0.5–4.5 V.
