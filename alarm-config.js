@@ -83,7 +83,7 @@ const ELMOS_ALARM_CONFIG=(()=>{
   }
   const bits=Array.isArray(selection.selectedStatusBits)?selection.selectedStatusBits:[];
   if(bits.length!==new Set(bits).size||bits.some(bit=>!statusBits.includes(bit)))
-   errors.push('EOC-ODER-Maske enthält ungültige oder doppelte Statussignale.');
+   errors.push('EOC-Statusauswahl enthält ungültige oder doppelte Statussignale.');
   const alarmRouted=bits.some(bit=>bit===5||bit===6);
   const alarmEnabled=selection.alarmEnabled===true,errorEnabled=selection.errorEnabled===true;
   if(alarmEnabled&&!alarmRouted)
