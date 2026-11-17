@@ -40,7 +40,7 @@ const ELMOS_EEPROM_OVERVIEW=(()=>{
   {group:'DSP & Kalibrierung',label:'Temperaturkoeffizienten T0–T3',indices:[51,52,53,54],decode:xs=>xs.filter(x=>x!==0).length+' / 4 ungleich 0'},
   {group:'Ausgang & Grenzwerte',label:'Ausgangs-Offset AODO_O',index:57,decode:q12},
   {group:'Ausgang & Grenzwerte',label:'Ausgangs-Faktor AODO_F',index:58,decode:q12},
-  {group:'Ausgang & Grenzwerte',label:'Begrenzung unten / oben',indices:[59,60],decode:xs=>xs.map(x=>formatNumber(signed(x))).join(' / ')+' Digits'},
+  {group:'Ausgang & Grenzwerte',label:'Begrenzung unten / oben',indices:[59,60],decode:xs=>xs.map(x=>formatNumber(signed(x))).join(' / ')+' (signed Rohwerte)'},
   {group:'Ausgang & Grenzwerte',label:'Alarmgrenze unten / oben',indices:[55,56],decode:xs=>xs.map(x=>formatNumber(signed(x))).join(' / ')+' Digits'},
   {group:'Ausgang & Grenzwerte',label:'Fehlermaske',index:61,decode:raw},
   {group:'Ausgang & Grenzwerte',label:'Benutzerwort',index:30,decode:raw}
@@ -82,7 +82,7 @@ const ELMOS_EEPROM_OVERVIEW=(()=>{
    container.appendChild(elem('p','muted small','Noch keine verifizierten EEPROM-Daten. Bitte zuerst «EEPROM lesen» drücken.'));
    return;
   }
-  const hasRam=!!ram,hasPlan=validWords(staged);
+  const hasPlan=validWords(staged);
   const grid=elem('div','eeprom-overview-grid');
   for(const section of sections){
    const card=elem('section','eeprom-overview-card');
@@ -114,7 +114,7 @@ const ELMOS_EEPROM_OVERVIEW=(()=>{
   const hd=elem('thead');hd.appendChild(hrow);coefficients.appendChild(hd);
   const tb=elem('tbody');
   for(let i=35;i<=54;i++){
-   if(i===51||i>=35&&i<=50){
+   if(i>=35&&i<=54){
     const row=elem('tr');
     row.appendChild(elem('th','',i<=50?'S'+(i-35):'T'+(i-51)));
     for(const source of [words,ram,...(hasPlan?[staged]:[])]){
@@ -131,7 +131,7 @@ const ELMOS_EEPROM_OVERVIEW=(()=>{
   container.appendChild(elem('p','muted small',
    'EEPROM = gespeicherter, CRC-geprüfter Stand · RAM = einmalig gelesener Arbeitsstand'+
    (hasPlan?' · Vorgemerkt = noch nicht in EEPROM programmiert':'')+
-   '. Werte ohne gesicherte Bitfeldzuordnung bleiben als Hexwert sichtbar. Kein automatischer Schreibvorgang.'));
+   '. Rohwerte sind nicht automatisch physikalische Druck- oder Spannungswerte. Kein automatischer Schreibvorgang.'));
  }
  return {summarize,render,validWords};
 })();
