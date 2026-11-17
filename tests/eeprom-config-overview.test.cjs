@@ -59,6 +59,10 @@ test('Overview is read-only and behind the CRC-verified chip gate',()=>{
  assert.match(expert,/readReg\(addr\)/);
  assert.doesNotMatch(mod,/\b(?:nvmWriteWord|writeReg|ramGrant|ramWrite|localStorage|exchange)\s*\(/);
  assert.match(html,/id="eepromOverviewRows"/);
- assert.match(html,/id="eepromRawDetails"/);
+ assert.match(html,/<div id="eepromRawDetails" class="eeprom-raw-details">/);
+ assert.doesNotMatch(html,/<details id="eepromRawDetails"/);
+ assert.match(html,/<h3>EEPROM-Rohdaten · 64 Wörter<\/h3>/);
+ assert.ok(html.indexOf('id="eepromOverviewRows"')<html.indexOf('id="eepromRawDetails"'));
+ assert.ok(html.indexOf('id="eepromRawDetails"')<html.indexOf('id="eepromRows"'));
  assert.match(html,/eeprom-config-overview\.js/);
 });
