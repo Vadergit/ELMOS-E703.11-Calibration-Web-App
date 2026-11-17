@@ -1295,3 +1295,59 @@ test('ESP32-C3 output-only NVM is capability-gated and scope-limited',()=>{
  assert.ok(app.includes('if(after.some((x,i)=>x!==modified[i]))'));
  assert.ok(!proMicro.includes('BRIDGE_AODO_OUTPUT_NVM_TEST'));
 });
+
+test('Clipping activation enters real VDD defaults but never overwrites edited limits',()=>{
+ const expert=read('expert.js');
+ const begin=expert.indexOf('  function renderOutputMode(){');
+ const end=expert.indexOf("  $('expertOutputMode').addEventListener",begin);
+ assert.ok(begin>0&&end>begin);
+ const ids=['expertOutputMode','outputClippingFields','outputClipLow','outputClipHigh','outputClippingMode',
+  'psscVdd','expertPwmPeriodField','psscAnalogFields','psscScalingSection','expertOutputPreset','outputModeHint'];
+ const fields=Object.fromEntries(ids.map(id=>[id,{value:'',valueAsNumber:5,hidden:false,disabled:false,textContent:''}]));
+ fields.expertOutputMode.value='1';fields.outputClippingMode.value='keep';
+ const render=new Function('$','isAnalog','refreshOutputReadOnly','renderOutputPreview',
+  expert.slice(begin,end)+'return renderOutputMode;')(
+   id=>fields[id],mode=>['1','2','3'].includes(String(mode)),()=>{},()=>{});
+ render();
+ assert.equal(fields.outputClipLow.value,'');
+ assert.equal(fields.outputClipLow.disabled,true);
+ fields.outputClippingMode.value='on';render();
+ assert.equal(fields.outputClipLow.value,'0.5');
+ assert.equal(fields.outputClipHigh.value,'4.5');
+ assert.equal(fields.outputClipLow.disabled,false);
+ fields.outputClipLow.value='0.6';render();
+ assert.equal(fields.outputClipLow.value,'0.6');
+ fields.outputClippingMode.value='keep';render();
+ fields.outputClippingMode.value='on';render();
+ assert.equal(fields.outputClipLow.value,'0.6');
+ fields.outputClipLow.value='';fields.outputClipHigh.value='';fields.psscVdd.valueAsNumber=3.3;render();
+ assert.equal(fields.outputClipLow.value,'0.33');
+ assert.equal(fields.outputClipHigh.value,'2.97');
+});
+
+test('Output-only NVM action displays persistent stages and preserves verified plan during archive capture',()=>{
+ const app=read('app.js'),html=read('index.html'),guided=read('guided.js'),compact=read('compact.js');
+ assert.ok(html.includes('id="nvmWriteStatus"')&&html.includes('id="nvmWriteBar"'));
+ assert.ok(app.includes("await archive.begin(outputOnly?'output':'calibration')"));
+ assert.ok(app.includes('const verifiedAlready=hasCurrentNvmBackup();'));
+ assert.ok(app.includes('const readOK=verifiedAlready||await nvmScan({expertRead:true});'));
+ assert.ok(app.includes('st.calImage?.before!==initial||st.calImage?.after!==modified'));
+ assert.ok(app.includes('if(st.nvmAttempting||st.nvmWorking||st.writing)return;'));
+ assert.ok(app.includes('NVM-Rücklesung und Kontrolle: '));
+ assert.ok(app.includes('NVM nicht erfolgreich gespeichert: '));
+ assert.ok(guided.includes("moveId('nvmWriteStatus','gwNvmWrite')"));
+ assert.ok(compact.includes("moveId('nvmWriteStatus','cpNvmProgram')"));
+ const begin=app.indexOf(' function nvmWriteFeedback(');
+ const end=app.indexOf(' async function nvmProgram()',begin);
+ assert.ok(begin>0&&end>begin);
+ const elements=Object.fromEntries(['nvmWriteStatus','nvmWriteStatusText','nvmWriteBar']
+  .map(id=>[id,{hidden:true,dataset:{},textContent:'',removeAttribute(key){this[key]=undefined}}]));
+ const update=new Function('$',app.slice(begin,end)+'return nvmWriteFeedback;')(id=>elements[id]);
+ update('Schreibfortschritt','progress',2,4);
+ assert.equal(elements.nvmWriteStatus.hidden,false);
+ assert.equal(elements.nvmWriteBar.value,2);
+ assert.equal(elements.nvmWriteStatus.dataset.state,'progress');
+ update('Kein Archiv','error');
+ assert.equal(elements.nvmWriteStatus.dataset.state,'error');
+ assert.equal(elements.nvmWriteBar.hidden,true);
+});
