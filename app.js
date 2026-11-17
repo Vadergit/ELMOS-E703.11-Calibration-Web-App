@@ -867,6 +867,7 @@ if(typeof document!=='undefined') (function UI(){
    st.nvmBackup.length===64&&st.uid.ser0===st.nvmBackup[0]&&st.uid.ser1===st.nvmBackup[1]);
  }
  function renderFlowState(){
+  ELMOS_ALARM_EDITOR.refresh();
   updateVerificationProgress();
   const ready=coefficientSettingsCurrent()&&calEndpointsReady();
   const enabled=ready&&!!st.port&&!!st.chip&&st.mode==='usb'&&!st.writing&&!st.calTask&&!st.nvmWorking;
@@ -2819,7 +2820,9 @@ if(typeof document!=='undefined') (function UI(){
   // Restricted, never public raw-register interface. Only for controlled calibration/NVM transaction.
   if(!st.calTask||!st.port||!st.chip||!st.ramWriteScope)throw Error('Technischer Wartungszugriff nur während gewählter Schreib-/Backup-Aktion erlaubt');
   if(!Number.isInteger(word)||word<0||word>65535||!Number.isInteger(addr)||addr%2)throw Error('Ungültige Registerdaten');
-  const permitted=(st.ramWriteScope==='afe-filter'&&filterRegisters.includes(addr))||CAL_REGS.includes(addr)||addr===0x4A||addr===0x4E||addr===0x22;
+  const permitted=(st.ramWriteScope==='afe-filter'&&filterRegisters.includes(addr))||
+   (st.ramWriteScope==='alarm'&&[0x04,0x08,0x9C,0x9E,0xA8,0xAA].includes(addr))||
+   CAL_REGS.includes(addr)||addr===0x4A||addr===0x4E||addr===0x22;
   if(!permitted)throw Error(`Schreibzugriff 0x${h(addr)} ist gesperrt`);
   if(addr===0x22&&!([0xF75A,0x0CC7,0xD21E,0x62A2].includes(word)))throw Error('Nicht freigegebener RAM-Befehl');
   if(addr===0x4E){let ok=[0x98BD,0x25BF,0x36D8,0x0000,0x8800].includes(word)|| ((word&0xFF00)===0x4C00&&(word&1)===0) || ((word&0xFF00)===0xA300&&(word&1)===0&&(word&255)>=0x20&&(word&255)<=0x7E);
@@ -2829,6 +2832,64 @@ if(typeof document!=='undefined') (function UI(){
   if(addr===0x4A&&!st.nvmWorking)throw Error('CM_WDATA nur während des NVM-Programmierens');
   const cmd=st.iface==='plc'?P.plcHostCommand(P.plcWrite(addr,word,st.plcAddress),st.plcHostFormat):st.iface==='i2c'?i2cWriteCommand(addr,word):P.spiWrite(addr,word);
   await exchange(cmd,4000);
+ }
+ // One-time RAM test before ANY permanent alarm programming. Only original SSP3.
+ async function applyAlarmRam(plan){
+  if(!plan||!plan.alarmOnly||plan!==st.alarmOnlyPlan||!hasCurrentNvmBackup()||
+     st.uid?.hex!==plan.uid||st.sessionIndex!==plan.session)
+   throw Error('Alarm: Chip/EEPROM-Änderungsplan nicht mehr gültig.');
+  if(st.adapterKind!=='ssp3'||st.iface!=='plc'||st.mode!=='usb')
+   throw Error('Alarm-RAM-Test derzeit nur mit Original-SSP3 über One-Wire.');
+  if(st.calTask||st.writing||st.nvmWorking||st.reinitRunning||st.powerCycleRunning)
+   throw Error('Alarm-RAM-Test: Ein anderer Chipvorgang läuft.');
+  ELMOS_ALARM_CONFIG.validateDiff(st.nvmBackup,plan.after,CAL.crc16);
+  const recomputed=ELMOS_ALARM_CONFIG.prepare(st.nvmBackup,plan.settings,CAL.crc16);
+  if(recomputed.after.some((w,i)=>w!==plan.after[i]))
+   throw Error('Alarm-RAM-Test: Berechnung weicht vom bestätigten Plan ab.');
+  CAL.protectStartupCommunication(st.nvmBackup,plan.after,{allowAlarmMask:true});
+  const assignments=[[0x9C,55],[0x9E,56],[0xA8,61],[0xAA,62],[0x08,18],[0x04,16]];
+  let writeAttempted=false,oldRam=[],resume=st.live&&!st.manualLivePause;
+  st.calTask=true;st.writing=true;st.ramWriteScope='alarm';stopLive();
+  try{
+   if(st.liveReadPromise)await st.liveReadPromise.catch(()=>{});
+   await ramGrant();
+   // Never assume that the RAM still matches the EEPROM used for the preview.
+   oldRam=await Promise.all(assignments.map(async ([addr,i])=>({addr,index:i,value:await readReg(addr)})));
+   for(const {index,value} of oldRam)if(value!==plan.before[index])
+    throw Error('Alarm-RAM 0x'+h(index*2)+' unterscheidet sich vom EEPROM. Sensor neu starten und erneut lesen.');
+   for(const [addr,index] of assignments){
+    if(plan.before[index]===plan.after[index])continue;
+    writeAttempted=true;
+    await maintWrite(addr,plan.after[index]);
+    if(await readReg(addr)!==plan.after[index])
+     throw Error('Alarm-RAM-Rücklesen fehlgeschlagen an 0x'+h(addr)+'.');
+   }
+   if(st.sessionIndex!==plan.session||st.uid?.hex!==plan.uid)
+    throw Error('Sensor während Alarm-RAM-Test gewechselt.');
+   const plc=await readReg(0x08);
+   if((plc&0xF000)!==(plan.before[18]&0xF000))
+    throw Error('CFG_PADS0: One-Wire-Startfenster nach RAM-Test verändert.');
+   return true;
+  }catch(e){
+   if(writeAttempted&&oldRam.length){
+    let failed=false;
+    for(const saved of oldRam.slice().reverse()){
+     try{
+      if((await readReg(saved.addr))!==saved.value){
+       await maintWrite(saved.addr,saved.value);
+       if((await readReg(saved.addr))!==saved.value)failed=true;
+      }
+     }catch(_){failed=true}
+    }
+    if(failed)throw Error(e.message+' Alarm-RAM konnte nicht vollständig zurückgesetzt werden! Sensor-VDD neu starten und EEPROM erneut lesen.');
+   }
+   throw e;
+  }finally{
+   try{await ramLock()}finally{
+    st.ramWriteScope=null;st.calTask=false;st.writing=false;renderStatus();
+    if(resume&&!st.manualLivePause&&st.chip&&!st.closing)startLive();
+   }
+  }
  }
  async function ramGrant(){
   if(st.iface!=='plc'&&!(st.iface==='i2c'&&st.bridgeI2c&&st.adapterKind==='bridge')&&(Number(st.boot?.[6]||0)&0x8000))throw Error('I²C/SPI benötigt CRC-geschützte Frames – Wartung gesperrt');
@@ -4176,6 +4237,7 @@ if(typeof document!=='undefined') (function UI(){
   setTimeout(()=>auto().catch(()=>{}),350);
  }
  const expert=ELMOS_EXPERT.init({st,CAL,readReg,nvmScan,download,show,stopLive,startLive,lsGet,lsSet,renderFlowState,verificationComplete,withProgress});
+ const alarmEditor=ELMOS_ALARM_EDITOR.init({st,CAL,hasCurrentNvmBackup,applyAlarmRam,renderFlowState,show});
  // Read-only guide bridge: uses the same ADC/DSP samples as the classic UI.
  function guidedTelemetry(){
   const online=!!(st.port&&st.chip);
