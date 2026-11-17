@@ -72,6 +72,9 @@ const ELMOS_NVM_RECON = (() => {
   const pmin=Number(opts.pmin??0),pmax=Number(opts.pmax??6),
    ta=Number(opts.ta??25),tb=Number(opts.tb??75),
    vdd=Number(opts.vdd??5),limit=Number(opts.limit??32000);
+  const rawInputs=[opts.adcT1,opts.adcT2].map(v=>v===null||v===undefined||v===''?null:Number(v));
+  if(rawInputs.some(v=>v!==null&&(!Number.isInteger(v)||v< -32768||v>32767)))
+   return {ok:false,error:'Optionale ADC_T-Rohwerte müssen ganze Digits zwischen −32’768 und 32’767 sein.'};
   if(![pmin,pmax,ta,tb,vdd,limit].every(Number.isFinite)||!(pmin<pmax)||
      !(ta<tb)||ta< -40||tb>125||vdd<2.7||vdd>5.5||
      !Number.isInteger(limit)||limit<1000||limit>32000)
@@ -96,6 +99,7 @@ const ELMOS_NVM_RECON = (() => {
   const tempCorrectionConstant=tcoeff.slice(1).every(c=>c===0);
   const pressureTempIndependent=scoeff.every((c,i)=>i%4===0||c===0);
   const temperatureAvailable=!tempCorrectionConstant;
+  const manualBoth=rawInputs.every(v=>v!==null);
   // A fixed DSP_T can still identify the encoded reference temperature;
   // it does NOT indicate actual chip temperature or physical TK.
   const fixedTemperatureC=tempCorrectionConstant?(tempModel==='factory'?
@@ -130,13 +134,16 @@ const ELMOS_NVM_RECON = (() => {
   if(!(cfg&0x1000)&&tcoeff.slice(1).every(x=>Math.abs(x)<1e-12))warnings.push('Keine verwertbare Temperaturkennlinie: TK0/TKR sind aus diesem NVM nicht bestimmbar.');
   if(pressureTempIndependent && !temperatureAvailable)
    warnings.push('Druckpolynom enthält keine temperaturabhängigen S-Koeffizienten: Druckwerte sind trotz konstantem DSP_T rückrechenbar. Die beiden Temperaturzeilen zeigen dasselbe Modell, keine gemessene Temperaturdrift.');
-  for(const tempC of [ta,tb]){
+  if(rawInputs.some(v=>v!==null))warnings.push('Gemessene ADC_T-Rohwerte benutzt: Temperaturbezug 1/2 muss zur zugehörigen Messung gehören. TK0/TKR bleiben Modellwerte, keine unabhängig gemessenen Kennwerte.');
+  for(const [rowIndex,tempC] of [ta,tb].entries()){
    const dspTemp=(tempModel==='factory'?100*tempC:387.88*tempC-16485)/32768;
    // A constant DSP_T polynomial cannot be inverted. Do not generate 800
    // spurious roots and do not let an irrelevant temperature block pressure.
-   const tempNorm=temperatureAvailable?
-    uniquePoly(tcoeff,dspTemp,'Temperatur '+fmt(tempC,1)+' °C',warnings):null;
-   const adcT=tempNorm===null||!tF?null:(tempNorm-tO)/tF;
+   const measured=rawInputs[rowIndex];
+   const tempNorm=measured!==null?tF*measured/32768+tO:
+    temperatureAvailable?uniquePoly(tcoeff,dspTemp,'Temperatur '+fmt(tempC,1)+' °C',warnings):null;
+   const adcT=measured!==null?measured/32768:
+    tempNorm===null||!tF?null:(tempNorm-tO)/tF;
    const pressureTemp=pressureTempIndependent?0:tempNorm;
    const row={tempC,tempNorm,adcT,pressureTempIndependent, endpoints:[]};
    for(const [name,dsp] of [['Nullpunkt',-limit/32768],['Endpunkt',limit/32768]]){
@@ -156,7 +163,9 @@ const ELMOS_NVM_RECON = (() => {
   }
   const a=rows[0],b=rows[1],dt=tb-ta,spanBar=pmax-pmin;
   const hasPhysical=[a.zero,a.span,b.zero,b.span].every(finite)&&Math.abs(a.span)>1e-12;
-  const canReportTK=hasPhysical&&temperatureAvailable&&!pressureTempIndependent;
+  const canReportTK=hasPhysical&&!pressureTempIndependent&&(
+   (manualBoth&&tF!==0)||
+   (temperatureAvailable&&tF!==0));
   const tk0=canReportTK?(b.zero-a.zero)/dt:null;
   const tk0Bar=canReportTK?(tk0/a.span*spanBar):null;
   const tkr=canReportTK?(b.span/a.span-1)/dt:null;
@@ -176,11 +185,12 @@ const ELMOS_NVM_RECON = (() => {
   if(cfg&0x80)warnings.push('AODO-Limitierung aktiv: berechnete Ausgangsspannungen zeigen den idealen Wert vor der Limitierung.');
   if(cfg&0x100)warnings.push('AODO-Fehlerersatz aktiv: Fehlerzustände können einen anderen Ausgangswert erzwingen.');
   if(scoeff.slice(8).some(v=>v!==0))warnings.push('Druck-Nichtlinearitätsanteile 2./3. Ordnung vorhanden: Angaben gelten für die eingestellten Endpunkte.');
-  if(tempCorrectionConstant)warnings.push('DSP_T enthält nur T0 (konstante Temperatur). Eine absolute Temperatur kann damit nicht rückgerechnet werden. TK0 und TKR sind nicht bestimmbar.');
+  if(tempCorrectionConstant)warnings.push('DSP_T enthält nur T0 (konstante Temperatur). Absolute Temperaturen lassen sich daraus nicht zurückrechnen.'+
+   (manualBoth?' Die manuell angegebenen ADC_T-Werte werden stattdessen für den Druckvergleich verwendet.':' TK0/TKR sind ohne zwei gemessene ADC_T-Werte nicht bestimmbar.'));
   return {ok:true,settings:{pmin,pmax,ta,tb,vdd,limit,pga1,pga2,supply,offsetSteps,offsetStage,
     sign1,sign2,signAdc,sF,sO,tF,tO,post,postGain,postOffset,
     temperatureActive:!!(cfg&0x1000),temperatureModel:tempModel,factoryTemp,scoeff,tcoeff,
-    pressureTempIndependent,tempCorrectionConstant,fixedTemperatureC},
+    pressureTempIndependent,tempCorrectionConstant,fixedTemperatureC,manualTemperatureInputs:rawInputs,manualBoth},
    rows,hasPhysical,tk0,tk0Bar,tkr,adcSpan,analog,warnings:[...new Set(warnings)]};
  }
  function dom(tag,text,cls) {
@@ -253,11 +263,22 @@ const ELMOS_NVM_RECON = (() => {
    }
    modelSelect.addEventListener('change',()=>{root._nvmState.opts.tempModel=modelSelect.value;draw(root)});
    modelLabel.appendChild(modelSelect);grid.appendChild(modelLabel);
+   const advanced=dom('details',undefined,'nvmrecon-warnings');
+   advanced.appendChild(dom('summary','Erweitert: Gemessene Temperatur-ADC-Werte eingeben (optional)'));
+   advanced.appendChild(dom('p','Wenn T0–T3 keine umkehrbare Temperaturkennlinie bilden, lassen sich die normierten Temperaturwerte direkt aus gemessenen ADC_T-Rohwerten berechnen. Für TK0/TKR sind zwei echte ADC_T-Messungen bei den eingetragenen Temperaturen erforderlich.','nvmrecon-muted'));
+   const advancedGrid=dom('div',undefined,'nvmrecon-grid');
+   for(const [key,labelText] of [['adcT1','ADC_T bei Temperatur 1 [Digits]'],['adcT2','ADC_T bei Temperatur 2 [Digits]']]){
+    const label=dom('label',labelText),input=dom('input');input.type='number';input.step='1';
+    input.min='-32768';input.max='32767';input.placeholder='Optional, leer = aus NVM';
+    input.addEventListener('input',()=>{root._nvmState.opts[key]=input.value.trim()===''?null:Number(input.value);draw(root)});
+    label.appendChild(input);advancedGrid.appendChild(label);
+   }
+   advanced.appendChild(advancedGrid);
    const status=dom('p','Bitte zuerst EEPROM lesen oder ein Backup laden.','nvmrecon-muted');
    status.setAttribute('role','status');status.className='nvmrecon-status nvmrecon-muted';
    const result=dom('div');result.className='nvmrecon-result';
    const explain=dom('p','Wichtig: Der Original-Druckbereich in bar, die ursprünglichen Prüfpunkte und die echten, unkalibrierten Messwerte werden durch das NVM allein nicht eindeutig gespeichert. TK0/TKR sind deshalb modellbasierte Rückrechnungen, keine unabhängige Sensormessung.','nvmrecon-muted');
-   root.append(heading,detail,actions,grid,status,result,explain);
+   root.append(heading,detail,actions,grid,advanced,status,result,explain);
   }
   root._nvmState.live=validWords(verifiedWords)?verifiedWords.slice():null;
   draw(root);
@@ -286,7 +307,7 @@ const ELMOS_NVM_RECON = (() => {
   if(!r.settings.tF&&!r.settings.pressureTempIndependent)unavailable.push('T_F ist 0x0000. ADC_T ist nicht eindeutig rekonstruierbar.');
   if(r.settings.tcoeff.every(c=>c===0))unavailable.push('Alle T0–T3 stehen auf 0x0000. Die Temperaturkennlinie fehlt.');
   if(!unavailable.length && !r.hasPhysical)unavailable.push('Die Polynomumkehr ist mit diesen Koeffizienten und Bezugspunkten nicht eindeutig möglich. Siehe Diagnosehinweise.');
-  if(r.settings.tempCorrectionConstant && r.hasPhysical){
+  if(r.settings.tempCorrectionConstant && r.hasPhysical && !r.settings.manualBoth){
    const tempInfo=finite(r.settings.fixedTemperatureC)?' Der fest programmierte DSP_T entspricht nominell '+fmt(r.settings.fixedTemperatureC,2)+' °C; das ist keine aktuelle Temperaturmessung.':'';
    const note=dom('p','Druck-Rückrechnung erfolgreich: Der gespeicherte Druckabgleich ist temperaturunabhängig.'+tempInfo+' ADC_T, TK0 und TKR können aus dieser NVM-Datei nicht ermittelt werden; Striche bedeuten hier «nicht bestimmbar», nicht «Kalibrierung fehlt».','nvmrecon-status');
    box.appendChild(note);
