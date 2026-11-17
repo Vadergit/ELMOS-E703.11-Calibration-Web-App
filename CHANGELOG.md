@@ -1,3 +1,9 @@
+## v0.7.103 – NVM-Vorbereitung nach One-Wire-RAM-Recovery ohne Clipping-Sperre
+
+- Bei einer bestätigten One-Wire-RAM-Recovery blockieren vorgemerkte Ausgangs-/Clipping-Änderungen die NVM-Kalibrierung nicht mehr: Der bestehende Ausgangsplan wird für diese Kalibrierung ignoriert, ohne die Messpunkte oder RAM-Koeffizienten zurückzusetzen.
+- Die NVM-Vorschau zeigt ausdrücklich, dass nur Kalibrierdaten geschrieben werden und die Ausgangs- und One-Wire-Einstellungen unverändert bleiben. Ausgangsänderungen können nach einer erfolgreichen Kalibrierung bei geeigneter Verbindung separat vorgenommen werden.
+- Unverändert: UID-/NVM-Backup-Prüfung, One-Wire-Neustartnachweis, erlaubte NVM-Wörter, CRC16, Registerschutz, Rücklesung und Schreibfreigabe. Kein vollständiger Hardwaretest durchgeführt.
+
 ## v0.7.102 – Referenztemperaturänderung nur für betroffenen Messpunkt
 
 - Das Ändern von `calLoTemp` oder `calHiTemp` löscht nicht mehr pauschal alle aufgenommenen Kalibrierpunkte. Ist der geänderte Endpunkt noch nicht gemessen, bleiben alle Messungen bestehen.
