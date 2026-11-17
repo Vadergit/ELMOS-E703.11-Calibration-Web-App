@@ -732,8 +732,8 @@ html[data-theme="dark"] #nvmWriteStatus[data-state="progress"]{background:#172e3
 html[data-theme="dark"] #nvmWriteStatus[data-state="error"]{background:#3b1f29;color:#ffd6dd}
 html[data-theme="dark"] #nvmWriteStatus[data-state="success"]{background:#15392c;color:#d2f4de}
 </style><link rel="stylesheet" href="guided.css?v=0.7.92"><link rel="stylesheet" href="interface.css?v=0.7.101"><link rel="stylesheet" href="theme.css?v=0.7.9"><link rel="stylesheet" href="verification-guide.css?v=0.7.78"><link rel="stylesheet" href="calibration-graph.css?v=0.7.83"><link rel="stylesheet" href="archive-photos.css?v=0.7.73"><link rel="stylesheet" href="settings-refresh.css?v=0.7.77"><link rel="stylesheet" href="classic-compact.css?v=0.7.100"><link rel="stylesheet" href="eeprom-config-overview.css?v=0.7.111">
-</head><body data-app-version="0.7.117"><div class="wrap"><header class="top">
-<div class="brand"><div class="logo" aria-hidden="true">E</div><div><div class="eyebrow">E703.11 · PSSC · v0.7.117</div><h1><button type="button" id="homeButton" aria-label="Kalibrierassistent – zur Hauptseite">Kalibrierassistent</button></h1></div></div>
+</head><body data-app-version="0.7.118"><div class="wrap"><header class="top">
+<div class="brand"><div class="logo" aria-hidden="true">E</div><div><div class="eyebrow">E703.11 · PSSC · v0.7.118</div><h1><button type="button" id="homeButton" aria-label="Kalibrierassistent – zur Hauptseite">Kalibrierassistent</button></h1></div></div>
 <div class="live-overview" role="group" aria-label="Live-Sensorwerte: zuerst Temperatur, danach Druck und Sensorwert">
   <div class="live-kpi" title="ADC_T · Temperatur-Rohwert, keine direkte Temperatur in °C."><span class="live-kpi-label">ADC_T</span><span class="live-kpi-reading" id="liveAdcT">—</span><span class="live-kpi-unit">Digits</span></div>
   <div class="live-kpi" title="Interne Chiptemperatur aus DSP_T. Der Wert ist nur so genau wie die gespeicherte Temperaturkalibrierung."><span class="live-kpi-label">SSC-Temperatur</span><span class="live-kpi-reading" id="liveTempC">—</span><span class="live-kpi-unit" id="liveTempUnit">°C · nicht kalibriert</span></div>
@@ -851,7 +851,7 @@ html[data-theme="dark"] #nvmWriteStatus[data-state="success"]{background:#15392c
 </section>
 <section id="guidedWorkspace" hidden aria-label="Geführter Sensor-Kalibrierassistent"></section>
 <div id="compactWorkspace" hidden aria-label="Kompakter Kalibrierarbeitsplatz"></div>
-<section id="archiveWorkspace" hidden aria-label="Lokales Kalibrierarchiv und Nachmessung"></section><div class="content"><aside class="side"><button class="stepBtn active" data-step="0"><span class="num">1</span><span>USB & Chip</span></button><button class="stepBtn" data-step="1"><span class="num">2</span><span>AFE optimieren</span></button><button class="stepBtn" data-step="2"><span class="num">3</span><span>Messpunkte</span></button><button class="stepBtn" data-step="3"><span class="num">4</span><span>Berechnen & RAM</span></button><button class="stepBtn" data-step="4"><span class="num">5</span><span>DSP prüfen</span></button><button class="stepBtn" data-step="5"><span class="num">6</span><span>Ausgang konfigurieren</span></button><button class="stepBtn" data-step="6"><span class="num">7</span><span>NVM programmieren</span></button><div class="side-separator"></div><button class="stepBtn viewer-nav" data-step="7"><span class="num">▤</span><span>EEPROM Viewer</span></button><button class="stepBtn viewer-nav" data-step="9"><span class="num">⚑</span><span>Alarme &amp; Fehler</span></button><button class="stepBtn viewer-nav" data-step="8"><span class="num">◷</span><span>Test / Logging</span></button><button type="button" class="stepBtn viewer-nav" id="classicArchiveOpen"><span class="num">▤</span><span>Archiv</span></button><button type="button" class="stepBtn viewer-nav" id="classicVerificationOpen"><span class="num">↕</span><span>Nachmessung</span></button></aside>
+<section id="archiveWorkspace" hidden aria-label="Lokales Kalibrierarchiv und Nachmessung"></section><div class="content"><aside class="side"><button class="stepBtn active" data-step="0"><span class="num">1</span><span>USB & Chip</span></button><button class="stepBtn" data-step="1"><span class="num">2</span><span>AFE optimieren</span></button><button class="stepBtn" data-step="2"><span class="num">3</span><span>Messpunkte</span></button><button class="stepBtn" data-step="3"><span class="num">4</span><span>Berechnen & RAM</span></button><button class="stepBtn" data-step="4"><span class="num">5</span><span>DSP prüfen</span></button><button class="stepBtn" data-step="5"><span class="num">6</span><span>Ausgang konfigurieren</span></button><button class="stepBtn" data-step="9"><span class="num">7</span><span>Alarme &amp; Fehler · optional</span></button><button class="stepBtn" data-step="6"><span class="num">8</span><span>NVM programmieren</span></button><div class="side-separator"></div><button class="stepBtn viewer-nav" data-step="7"><span class="num">▤</span><span>EEPROM Viewer</span></button><button class="stepBtn viewer-nav" data-step="8"><span class="num">◷</span><span>Test / Logging</span></button><button type="button" class="stepBtn viewer-nav" id="classicArchiveOpen"><span class="num">▤</span><span>Archiv</span></button><button type="button" class="stepBtn viewer-nav" id="classicVerificationOpen"><span class="num">↕</span><span>Nachmessung</span></button></aside>
 <main class="main"><div id="flowMsg" class="callout warn" hidden></div>
 <section class="card panel" data-panel="0">
 <div class="eyebrow">Schritt 1 · Verbindung</div>
@@ -954,6 +954,7 @@ html[data-theme="dark"] #nvmWriteStatus[data-state="success"]{background:#15392c
 <label><input type="checkbox" id="configIncludeMeasurement" checked><span><strong>Messung</strong><small>Messpunkte, Samples</small></span></label>
 <label><input type="checkbox" id="configIncludeDsp" checked><span><strong>DSP</strong><small>Polynomordnung, Endwert</small></span></label>
 <label><input type="checkbox" id="configIncludeOutput" checked><span><strong>Ausgang</strong><small>Modus, VDD, S0/S1, Skalierung</small></span></label>
+<label><input type="checkbox" id="configIncludeAlarm" checked><span><strong>Alarme &amp; Fehler</strong><small>Optional · Standard: keine Änderung; Grenzwerte, ODER-Maske, Fehleraktionen</small></span></label>
 </fieldset>
 <div class="flex"><button id="configPresetEdit" type="button">Preset aus aktuellen Einstellungen erstellen</button><button id="configPresetSave" type="button" hidden>Auswahl als Preset speichern</button><button id="configPresetCancel" type="button" hidden>Abbrechen</button><button id="configPresetDelete" type="button" disabled>Preset löschen</button><button id="configSave">Gesamte Config speichern (.json)</button><button id="configApply" class="primary" disabled>Geladene Config übernehmen</button></div>
 <p id="configImportEffect" class="muted small" hidden></p>
@@ -1358,10 +1359,10 @@ html[data-theme="dark"] #nvmWriteStatus[data-state="success"]{background:#15392c
 <div id="expertOutputMsg" class="callout">Noch keine Ausgangsänderung vorgemerkt.</div>
 </div>
 
-<div class="nav"><button data-next="4">Zurück zur DSP-Prüfung</button><button class="primary" data-next="6">Weiter zum NVM</button></div>
+<div class="nav"><button data-next="4">Zurück zur DSP-Prüfung</button><button class="primary" data-next="9">Weiter: Alarme (optional)</button><button type="button" id="outputSkipAlarms">Ohne Alarmänderung zum NVM</button></div>
 </section>
 <section class="card panel nvm-compact" data-panel="6" hidden>
-<div class="eyebrow">Schritt 7 · Dauerhaft speichern</div>
+<div class="eyebrow">Schritt 8 · Dauerhaft speichern</div>
 <h2>Kalibrierung im Sensor speichern</h2>
 <p class="muted small">Nach erfolgreicher DSP-Prüfung das aktuelle NVM lesen und die Änderungen prüfen. Anschliessend kann die Kalibrierung über den finalen Knopf im Sensor gespeichert werden.</p>
 <div class="nvm-compact-row">
@@ -1449,15 +1450,15 @@ html[data-theme="dark"] #nvmWriteStatus[data-state="success"]{background:#15392c
 </div>
 <div class="nav"><button data-next="0">Zur Verbindung</button><button data-next="6">Zum NVM-Schritt</button></div>
 </section>
-<div class="foot"><b>Version v0.7.117</b> · <a href="CHANGELOG.md" target="_blank" rel="noopener noreferrer">Änderungsverlauf</a> · ELMOS E703.11 · unabhängiger Kalibrierprototyp · Sicherheitsprinzip: Factory- und Kommunikations-Bootregister gesperrt; dokumentierte AODO-Ausgangsoptionen nur nach Prüfung im NVM-Plan; Wiederherstellung nur mit passender Chip-UID.</div>
+<div class="foot"><b>Version v0.7.118</b> · <a href="CHANGELOG.md" target="_blank" rel="noopener noreferrer">Änderungsverlauf</a> · ELMOS E703.11 · unabhängiger Kalibrierprototyp · Sicherheitsprinzip: Factory- und Kommunikations-Bootregister gesperrt; dokumentierte AODO-Ausgangsoptionen nur nach Prüfung im NVM-Plan; Wiederherstellung nur mit passender Chip-UID.</div>
 <section class="card panel" data-panel="8" hidden><div class="eyebrow">Werkzeuge · Sensorprotokoll</div><h2>Test / Logging</h2><p class="muted small">Messdaten, Rohwerte und Notizen jederzeit in einem lokalen Archiv protokollieren. Ohne NVM-Schreibvorgang.</p><div id="classicLoggerHost"></div></section>
 <section class="card panel" data-panel="9" hidden>
-<div class="eyebrow">KONFIGURATION · ALARM &amp; EOC</div>
-<h2>Alarme &amp; Fehler</h2>
+<div class="eyebrow">Schritt 7 · Optional nach Ausgang</div>
+<h2>Alarme &amp; Fehler · optional</h2>
 <p class="muted">Eigenständiger Einstellbereich für die Alarmverarbeitung des E703.11. Die Logikprüfung erklärt, welche Funktionen miteinander kombiniert werden dürfen. One-Wire-Startfenster, Werksdaten und Pinbelegung bleiben unverändert.</p>
 <div class="flex" style="margin:12px 0">
 <button type="button" class="primary" id="alarmReadEeprom">EEPROM für Alarmkonfiguration lesen</button>
-<button type="button" id="alarmGoNvm" disabled>Weiter zu NVM programmieren</button>
+<button type="button" id="alarmGoNvm" disabled>Alarmänderungen speichern: Weiter zum NVM</button><button type="button" id="alarmSkipNvm">Ohne Alarmänderung zum NVM</button>
 </div>
 <div class="eeprom-overview" style="padding:13px;margin-bottom:12px">
 <h3>Zusammenhang der Funktionen</h3>
@@ -1494,6 +1495,7 @@ html[data-theme="dark"] #nvmWriteStatus[data-state="success"]{background:#15392c
 <label><input id="alarmEnable" type="checkbox"> Druckalarm einschalten</label>
 <label><input id="alarmErrorEnable" type="checkbox"> Fehlerreaktionen einschalten</label>
 </div>
+<div class="fieldrow"><button type="button" id="alarmDisableAll">Alle Alarm- und Fehlerfunktionen deaktivieren (explizite Änderung)</button></div>
 <h4>EOC-/Alarm-Verknüpfungen (ODER)</h4>
 <p class="muted small">Nur die ausgewählten STATUS-Bits werden logisch ODER-verknüpft. Der EOC-Pin muss bereits auf den gewünschten Ausgang geroutet sein. Das physische Pinrouting wird nicht verändert.</p>
 <p class="muted small">Wähle die Statusbedingungen, die auf den <b>bereits konfigurierten</b> EOC-Ausgang wirken. Eine Änderung der Pinbelegung erfolgt hier bewusst nicht.</p>
@@ -1523,4 +1525,4 @@ html[data-theme="dark"] #nvmWriteStatus[data-state="success"]{background:#15392c
 </fieldset>
 </section>
 
-</section></main></div></div><div id="tip" class="tooltip"></div><script src="calibration.js?v=0.7.116"></script><script src="eeprom-help.js?v=0.7.111"></script><script src="elmos-settings.js?v=0.7.115"></script><script src="eeprom-config-overview.js?v=0.7.115"></script><script src="elmos-alarm-view.js?v=0.7.115"></script><script src="alarm-config.js?v=0.7.117"></script><script src="alarm-editor.js?v=0.7.117"></script><script src="expert.js?v=0.7.116"></script><script src="config.js?v=0.7.90"></script><script src="guided-plan.js?v=0.7.94"></script><script src="demo.js?v=0.6.49"></script><script src="archive-core.js?v=0.7.80"></script><script src="test-logger-core.js?v=0.7.39"></script><script src="archive-analysis.js?v=0.7.79"></script><script src="verification-graph.js?v=0.7.78"></script><script src="calibration-graph.js?v=0.7.83"></script><script src="archive-photos.js?v=0.7.73"></script><script src="verification-report.js?v=0.7.79"></script><script src="calibration-report.js?v=0.7.88"></script><script src="archive-readable-csv.js?v=0.7.78"></script><script src="logging-report.js?v=0.7.73"></script><script src="archive.js?v=0.7.87"></script><script src="live-polling.js?v=0.7.74"></script><script src="app.js?v=0.7.117&amp;nav=3&amp;verify=6&amp;feedback=1"></script><script src="compact.js?v=0.7.110"></script><script src="test-logger.js?v=0.7.73"></script><script src="guided.js?v=0.7.110&amp;nav=8&amp;verify=5"></script><script src="language-pack.js?v=0.7.87&amp;verify=6&amp;feedback=1"></script><script src="language.js?v=0.7.57"></script></body></html>
+</section></main></div></div><div id="tip" class="tooltip"></div><script src="calibration.js?v=0.7.116"></script><script src="eeprom-help.js?v=0.7.111"></script><script src="elmos-settings.js?v=0.7.115"></script><script src="eeprom-config-overview.js?v=0.7.115"></script><script src="elmos-alarm-view.js?v=0.7.115"></script><script src="alarm-config.js?v=0.7.118"></script><script src="alarm-editor.js?v=0.7.118"></script><script src="expert.js?v=0.7.116"></script><script src="config.js?v=0.7.118"></script><script src="guided-plan.js?v=0.7.94"></script><script src="demo.js?v=0.6.49"></script><script src="archive-core.js?v=0.7.80"></script><script src="test-logger-core.js?v=0.7.39"></script><script src="archive-analysis.js?v=0.7.79"></script><script src="verification-graph.js?v=0.7.78"></script><script src="calibration-graph.js?v=0.7.83"></script><script src="archive-photos.js?v=0.7.73"></script><script src="verification-report.js?v=0.7.79"></script><script src="calibration-report.js?v=0.7.88"></script><script src="archive-readable-csv.js?v=0.7.78"></script><script src="logging-report.js?v=0.7.73"></script><script src="archive.js?v=0.7.87"></script><script src="live-polling.js?v=0.7.74"></script><script src="app.js?v=0.7.118&amp;nav=3&amp;verify=6&amp;feedback=1"></script><script src="compact.js?v=0.7.110"></script><script src="test-logger.js?v=0.7.73"></script><script src="guided.js?v=0.7.118&amp;nav=8&amp;verify=5"></script><script src="language-pack.js?v=0.7.87&amp;verify=6&amp;feedback=1"></script><script src="language.js?v=0.7.57"></script></body></html>

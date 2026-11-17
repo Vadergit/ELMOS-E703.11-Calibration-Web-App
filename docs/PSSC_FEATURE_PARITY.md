@@ -41,4 +41,4 @@ Datum: 17.11.2026. Basis: **Elmos E703.11** Datenblatt 25DS0170E.04, Elmos-Kalib
 4. Nach vollständigem Power-Cycle Chip-Wiederverbindung, RAM-/NVM-Lesung und reale Ausgangswerte messen.
 5. Tests gegen die originale PSSC-GUI mit identischen Rohdaten durchführen; Abweichungen dokumentieren.
 
-**v0.7.117 stellt die Alarm-Konfiguration in einem eigenen Tab dar und prüft gefährliche Einstellkombinationen zusätzlich mit einem Live-Regelwerk. Elektrische Sensorhardware-Tests sind weiterhin offen.**
+**v0.7.118 ergänzt die optionale Alarm-Konfiguration direkt nach Ausgang (auch geführt), den kombinierten NVM-Plan und selektive Config-Alarmprofile. Elektrische Sensorhardware-Tests sind weiterhin offen.**

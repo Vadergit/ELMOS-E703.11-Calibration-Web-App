@@ -2,7 +2,7 @@
 
 **Ein geführter Kalibrierassistent für den ELMOS E703.11 und das SSP3-Eval-Board.** Ziel ist ein verständlicher Abgleich, der auch ohne tiefere Vorkenntnisse Schritt für Schritt funktioniert. Wer mehr benötigt, kann zusätzliche Messpunkte, DSP-Parameter und einen geschützten Expertenmodus verwenden.
 
-**Version: v0.7.117 · TK0 mit 3 Punkten und TK0 + TKE mit 4 Punkten** · [Änderungsverlauf](CHANGELOG.md) · **[Geplante Funktionen](ROADMAP.md)**
+**Version: v0.7.118 · TK0 mit 3 Punkten und TK0 + TKE mit 4 Punkten** · [Änderungsverlauf](CHANGELOG.md) · **[Geplante Funktionen](ROADMAP.md)**
 
 Der **Demo-Modus** wird in den Einstellungen erst nach Aktivierung von **Expertenparameter** angezeigt. Er simuliert Sensorwerte und Schreibvorgänge; die echte Hardware wird dabei nicht programmiert.
 
@@ -13,6 +13,14 @@ Der **Demo-Modus** wird in den Einstellungen erst nach Aktivierung von **Experte
 > **Geführter Assistent:** Nach der bestätigten SSP3-Verbindung stehen die neue Schritt-für-Schritt-Führung, die klassische Ansicht und der optionale Kompaktmodus zur Verfügung. Ein E703.11-Chip muss für den Abgleich verbunden sein. Als DIY-Programmer sind ausschliesslich ESP32-C3 SuperMini (v0.11 Test) und Arduino Pro Micro (v0.27) vorgesehen. Die originalen ELMOS SSP3-Adapter bleiben separat unterstützt. Der vollständige Hardwaretest der DIY-Programmer ist noch offen.
 >
 > [Geführter Abgleich](docs/GEFUEHRTER_ASSISTENT.md) · [DIY-Programmer (ESP32-C3 / Pro Micro)](docs/USB_BRIDGE_GUIDE.md) · [Pinbelegung der zwei Boards](docs/ESP_BOARD_OPTIONS.md) · [DIY-Firmware-Installer](firmware-update.html)
+
+## v0.7.118 – Alarme optional zwischen Ausgang und NVM, auch geführt und als Config
+
+Nach **Ausgang konfigurieren** folgt in beiden Arbeitsansichten der optionale Schritt **Alarme & Fehler**. Ohne ausdrückliche Auswahl wird **keine Alarmänderung** ins NVM übernommen; bereits vorhandene Chipalarme bleiben beim Überspringen erhalten. Die Schaltfläche «Ohne Alarmänderung zum NVM» überspringt den Schritt. Mit «Alle Alarm- und Fehlerfunktionen deaktivieren» kann man die Funktionen dagegen ausdrücklich ausschalten; erst nach Vorschau, RAM-Test und NVM-Freigabe wird dies dauerhaft.
+
+Bei einem normalen Abgleich werden bestätigte Alarmänderungen mit **DSP-/AFE-/AODO-Koeffizienten zu einem einzigen NVM-Abbild** samt CRC16 zusammengeführt. Nachträgliche Alarmänderungen an bestehenden Sensoren funktionieren weiterhin separat, ohne neue Druckmessung, nur über SSP3 mit UID-, CRC-, RAM- und Backupsicherung.
+
+**Config v2** besitzt jetzt die unabhängige optionale Gruppe «Alarme & Fehler». Sie speichert keine chipbezogenen Registerdaten. Standardinhalt ist `mode: skip`. Importierte Alarmvorlagen ändern den Chip **nicht** automatisch: nach Sensoridentifikation sind die Bedingungen erneut zu prüfen und im RAM zu verifizieren.
 
 ## v0.7.117 – Eigener Tab «Alarme & Fehler» mit Live-Regelprüfung
 
