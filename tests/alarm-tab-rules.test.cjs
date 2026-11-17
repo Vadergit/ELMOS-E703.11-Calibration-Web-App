@@ -71,7 +71,7 @@ test('alarm tab is independent and still routes verified plan into NVM programmi
  assert.ok(!html.split('data-panel="7" hidden>')[1].split('data-panel="8" hidden>')[0].includes('id="alarmEditorSection"'));
  assert.ok(app.includes("if(n===8||n===9)return ''"));
  assert.ok(app.includes('ELMOS_ALARM_EDITOR.ready()))return'));
- assert.ok(app.includes('Math.min(9,Number(n))'));
+ assert.ok(app.includes('Math.min(10,Number(n))'));
  assert.ok(editor.includes('A.checkDependencies(st.nvmBackup,selection())'));
  assert.ok(editor.includes("btn.click()"));
 });
