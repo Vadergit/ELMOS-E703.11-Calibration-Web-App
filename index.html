@@ -851,7 +851,7 @@ html[data-theme="dark"] #nvmWriteStatus[data-state="success"]{background:#15392c
 </section>
 <section id="guidedWorkspace" hidden aria-label="Geführter Sensor-Kalibrierassistent"></section>
 <div id="compactWorkspace" hidden aria-label="Kompakter Kalibrierarbeitsplatz"></div>
-<section id="archiveWorkspace" hidden aria-label="Lokales Kalibrierarchiv und Nachmessung"></section><div class="content"><aside class="side"><button class="stepBtn active" data-step="0"><span class="num">1</span><span>USB & Chip</span></button><button class="stepBtn" data-step="1"><span class="num">2</span><span>AFE optimieren</span></button><button class="stepBtn" data-step="2"><span class="num">3</span><span>Messpunkte</span></button><button class="stepBtn" data-step="3"><span class="num">4</span><span>Berechnen & RAM</span></button><button class="stepBtn" data-step="4"><span class="num">5</span><span>DSP prüfen</span></button><button class="stepBtn" data-step="5"><span class="num">6</span><span>Ausgang konfigurieren</span></button><button class="stepBtn" data-step="6"><span class="num">7</span><span>NVM programmieren</span></button><div class="side-separator"></div><button class="stepBtn viewer-nav" data-step="7"><span class="num">▤</span><span>EEPROM Viewer</span></button><button class="stepBtn viewer-nav" data-step="8"><span class="num">◷</span><span>Test / Logging</span></button><button type="button" class="stepBtn viewer-nav" id="classicArchiveOpen"><span class="num">▤</span><span>Archiv</span></button><button type="button" class="stepBtn viewer-nav" id="classicVerificationOpen"><span class="num">↕</span><span>Nachmessung</span></button></aside>
+<section id="archiveWorkspace" hidden aria-label="Lokales Kalibrierarchiv und Nachmessung"></section><div class="content"><aside class="side"><button class="stepBtn active" data-step="0"><span class="num">1</span><span>USB & Chip</span></button><button class="stepBtn" data-step="1"><span class="num">2</span><span>AFE optimieren</span></button><button class="stepBtn" data-step="2"><span class="num">3</span><span>Messpunkte</span></button><button class="stepBtn" data-step="3"><span class="num">4</span><span>Berechnen & RAM</span></button><button class="stepBtn" data-step="4"><span class="num">5</span><span>DSP prüfen</span></button><button class="stepBtn" data-step="5"><span class="num">6</span><span>Ausgang konfigurieren</span></button><button class="stepBtn" data-step="6"><span class="num">7</span><span>NVM programmieren</span></button><div class="side-separator"></div><button class="stepBtn viewer-nav" data-step="7"><span class="num">▤</span><span>EEPROM Viewer</span></button><button class="stepBtn viewer-nav" data-step="9"><span class="num">⚑</span><span>Alarme &amp; Fehler</span></button><button class="stepBtn viewer-nav" data-step="8"><span class="num">◷</span><span>Test / Logging</span></button><button type="button" class="stepBtn viewer-nav" id="classicArchiveOpen"><span class="num">▤</span><span>Archiv</span></button><button type="button" class="stepBtn viewer-nav" id="classicVerificationOpen"><span class="num">↕</span><span>Nachmessung</span></button></aside>
 <main class="main"><div id="flowMsg" class="callout warn" hidden></div>
 <section class="card panel" data-panel="0">
 <div class="eyebrow">Schritt 1 · Verbindung</div>
@@ -1416,52 +1416,6 @@ html[data-theme="dark"] #nvmWriteStatus[data-state="success"]{background:#15392c
 <div id="eepromOverviewStatus" class="eeprom-overview-note muted" role="status">Bitte zuerst EEPROM lesen.</div>
 <div id="eepromOverviewRows">Noch keine verifizierten EEPROM-Daten.</div>
 </div>
-<section class="eeprom-overview" aria-labelledby="alarmSummaryHeading">
-<div class="eeprom-overview-head">
- <div><h3 id="alarmSummaryHeading">Alarm, EOC und Fehlerreaktionen</h3>
- <p class="muted">Ausgewählte Statussignale, ODER-Verknüpfungen, Alarmgrenzen, Pinbelegung und Fehleraktionen verständlich anzeigen. Nur Diagnose.</p></div>
- <button id="alarmStatusRead" type="button" disabled>Aktuellen Alarmstatus lesen</button>
-</div>
-<div id="alarmStatusInfo" class="eeprom-overview-note muted">Bitte zuerst EEPROM lesen.</div>
-<div id="alarmSummaryRows">Noch keine Alarmkonfiguration gelesen.</div>
-</section>
-<section class="eeprom-overview" aria-labelledby="alarmEditorHeading" id="alarmEditorSection">
-<div class="eeprom-overview-head"><div>
-<h3 id="alarmEditorHeading">Alarme und Fehler einstellen</h3>
-<p class="muted">E703.11: Grenzen, Hysterese, EOC-Statusverknüpfung und sechs Fehleraktionen konfigurieren. Zuerst nur RAM testen; NVM erst nach ausdrücklicher Bestätigung.</p>
-</div></div>
-<div class="callout warn" id="alarmEditorStatus">Sensor verbinden und zuerst EEPROM lesen. Nur Original-SSP3 für die geprüfte Alarm-Schreibvorbereitung. Gesicherte One-Wire-Startbits bleiben unverändert.</div>
-<fieldset id="alarmEditorFields" disabled style="border:0;padding:0;margin:0">
-<div class="fieldrow" style="margin-top:8px">
-<label>DSP-Skalierungsbereich ± Digits<input id="alarmDspLimit" type="number" min="1000" max="32000" step="1" value="32000"></label>
-<label>Untere Alarmgrenze (% des kalibrierten Druckbereichs)<input id="alarmLowerPct" type="number" min="0" max="100" step="0.01" value="10"></label>
-<label>Obere Alarmgrenze (% des kalibrierten Druckbereichs)<input id="alarmUpperPct" type="number" min="0" max="100" step="0.01" value="90"></label>
-<label>Hysterese (DSP-Digits)<select id="alarmHysteresis"><option value="0">Keine Hysterese</option></select></label>
-</div>
-<div class="fieldrow" style="margin-top:7px">
-<label><input id="alarmEnable" type="checkbox"> Druckalarm einschalten</label>
-<label><input id="alarmErrorEnable" type="checkbox"> Fehlerreaktionen einschalten</label>
-</div>
-<h4>EOC-/Alarm-Verknüpfungen (ODER)</h4>
-<p class="muted small">Wähle die Statusbedingungen, die auf den <b>bereits konfigurierten</b> EOC-Ausgang wirken. Eine Änderung der Pinbelegung erfolgt hier bewusst nicht.</p>
-<div class="fieldrow" id="alarmEocOptions" style="margin:8px 0"></div>
-<h4>Fehleraktionen für den Analogausgang</h4>
-<div class="fieldrow" id="alarmErrorOptions" style="margin:8px 0"></div>
-<div class="fieldrow">
-<label>Unterer Fehler-Ersatzwert (% DSP_AODO)<input id="alarmErrorLowPct" type="number" min="-100" max="99.21875" step="0.78125" value="-80"></label>
-<label>Oberer Fehler-Ersatzwert (% DSP_AODO)<input id="alarmErrorHighPct" type="number" min="-100" max="99.21875" step="0.78125" value="80"></label>
-</div>
-<label style="display:flex;gap:7px;align-items:center;margin:10px 0"><input type="checkbox" id="alarmDspConfirm"> Der DSP-Endbereich ist am aktuellen Sensor geprüft. Die Alarmgrenzen sollen in diesem Messbereich gelten.</label>
-<div class="flex" style="margin-top:10px">
-<button id="alarmEditorPreview" type="button">Änderungen prüfen</button>
-<button id="alarmEditorRam" type="button" disabled>Im RAM übernehmen &amp; rücklesen</button>
-<button id="alarmEditorDiscard" type="button">Änderungen verwerfen</button>
-</div>
-<div id="alarmEditorMessage" class="callout muted">Noch keine Änderung vorbereitet.</div>
-<pre id="alarmEditorDiff" class="monoarea">NVM-Änderungen werden hier angezeigt. Keine automatische Programmierung.</pre>
-<p class="muted small">Nach bestandener RAM-Prüfung im Schritt <b>NVM programmieren</b> den gesicherten Chip und die Änderungsliste bestätigen. Kein automatischer NVM-Schreibvorgang. Bei aktivem DSP-Post-Scaling sind Alarmänderungen gesperrt.</p>
-</fieldset>
-</section>
 <div id="eepromRawDetails" class="eeprom-raw-details"><h3>EEPROM-Rohdaten · 64 Wörter</h3>
 <div class="fieldrow" style="margin:13px 0 8px">
 <label>In EEPROM-Wörtern und Beschreibungen suchen<input id="eepromSearch" type="search" placeholder="z. B. Offset, Temperatur, 1-Wire oder AODO_F"></label>
@@ -1496,4 +1450,77 @@ html[data-theme="dark"] #nvmWriteStatus[data-state="success"]{background:#15392c
 <div class="nav"><button data-next="0">Zur Verbindung</button><button data-next="6">Zum NVM-Schritt</button></div>
 </section>
 <div class="foot"><b>Version v0.7.116</b> · <a href="CHANGELOG.md" target="_blank" rel="noopener noreferrer">Änderungsverlauf</a> · ELMOS E703.11 · unabhängiger Kalibrierprototyp · Sicherheitsprinzip: Factory- und Kommunikations-Bootregister gesperrt; dokumentierte AODO-Ausgangsoptionen nur nach Prüfung im NVM-Plan; Wiederherstellung nur mit passender Chip-UID.</div>
-<section class="card panel" data-panel="8" hidden><div class="eyebrow">Werkzeuge · Sensorprotokoll</div><h2>Test / Logging</h2><p class="muted small">Messdaten, Rohwerte und Notizen jederzeit in einem lokalen Archiv protokollieren. Ohne NVM-Schreibvorgang.</p><div id="classicLoggerHost"></div></section></main></div></div><div id="tip" class="tooltip"></div><script src="calibration.js?v=0.7.116"></script><script src="eeprom-help.js?v=0.7.111"></script><script src="elmos-settings.js?v=0.7.115"></script><script src="eeprom-config-overview.js?v=0.7.115"></script><script src="elmos-alarm-view.js?v=0.7.115"></script><script src="alarm-config.js?v=0.7.116"></script><script src="alarm-editor.js?v=0.7.116"></script><script src="expert.js?v=0.7.116"></script><script src="config.js?v=0.7.90"></script><script src="guided-plan.js?v=0.7.94"></script><script src="demo.js?v=0.6.49"></script><script src="archive-core.js?v=0.7.80"></script><script src="test-logger-core.js?v=0.7.39"></script><script src="archive-analysis.js?v=0.7.79"></script><script src="verification-graph.js?v=0.7.78"></script><script src="calibration-graph.js?v=0.7.83"></script><script src="archive-photos.js?v=0.7.73"></script><script src="verification-report.js?v=0.7.79"></script><script src="calibration-report.js?v=0.7.88"></script><script src="archive-readable-csv.js?v=0.7.78"></script><script src="logging-report.js?v=0.7.73"></script><script src="archive.js?v=0.7.87"></script><script src="live-polling.js?v=0.7.74"></script><script src="app.js?v=0.7.116&amp;nav=3&amp;verify=6&amp;feedback=1"></script><script src="compact.js?v=0.7.110"></script><script src="test-logger.js?v=0.7.73"></script><script src="guided.js?v=0.7.110&amp;nav=8&amp;verify=5"></script><script src="language-pack.js?v=0.7.87&amp;verify=6&amp;feedback=1"></script><script src="language.js?v=0.7.57"></script></body></html>
+<section class="card panel" data-panel="8" hidden><div class="eyebrow">Werkzeuge · Sensorprotokoll</div><h2>Test / Logging</h2><p class="muted small">Messdaten, Rohwerte und Notizen jederzeit in einem lokalen Archiv protokollieren. Ohne NVM-Schreibvorgang.</p><div id="classicLoggerHost"></div></section>
+<section class="card panel" data-panel="9" hidden>
+<div class="eyebrow">KONFIGURATION · ALARM &amp; EOC</div>
+<h2>Alarme &amp; Fehler</h2>
+<p class="muted">Eigenständiger Einstellbereich für die Alarmverarbeitung des E703.11. Die Logikprüfung erklärt, welche Funktionen miteinander kombiniert werden dürfen. One-Wire-Startfenster, Werksdaten und Pinbelegung bleiben unverändert.</p>
+<div class="flex" style="margin:12px 0">
+<button type="button" class="primary" id="alarmReadEeprom">EEPROM für Alarmkonfiguration lesen</button>
+<button type="button" id="alarmGoNvm" disabled>Weiter zu NVM programmieren</button>
+</div>
+<div class="eeprom-overview" style="padding:13px;margin-bottom:12px">
+<h3>Zusammenhang der Funktionen</h3>
+<p class="muted small"><b>1. Druckalarm:</b> DSP_S wird mit den beiden Grenzen und der Hysterese verglichen. Die interne Alarmberechnung benötigt CFG_EN.alarm_en.</p>
+<p class="muted small"><b>2. EOC-Ausgang:</b> Die ausgewählten STATUS-Bits werden mit ODER verknüpft. Alarm-Bits sind nur wirksam, wenn die Alarmberechnung aktiv ist. EOC-Pinzuordnung und I²C/One-Wire dürfen nicht kollidieren.</p>
+<p class="muted small"><b>3. Fehlerreaktion:</b> Mit ERR_EN werden bei sechs Hardware-/DSP-Fehlern ein Ersatzwert oder High-Z aktiviert. Ohne ERR_EN sind die zugehörigen Aktionen unwirksam.</p>
+<p class="muted small"><b>4. Ausschluss:</b> DSP-Post-Scaling nutzt ALARM_LO/HI als Rechenkoeffizienten. Deshalb sind Druckalarmgrenzen und Post-Scaling nicht gleichzeitig einstellbar.</p>
+<p class="muted small"><b>5. Sicherer Ablauf:</b> EEPROM mit CRC lesen → Einstellungen und Regeln prüfen → RAM schreiben und rücklesen → NVM-Änderungsliste bestätigen → echten Neustart und elektrische Funktion prüfen.</p>
+</div>
+<section class="eeprom-overview" aria-labelledby="alarmSummaryHeading">
+<div class="eeprom-overview-head">
+ <div><h3 id="alarmSummaryHeading">Alarm, EOC und Fehlerreaktionen</h3>
+ <p class="muted">Ausgewählte Statussignale, ODER-Verknüpfungen, Alarmgrenzen, Pinbelegung und Fehleraktionen verständlich anzeigen. Nur Diagnose.</p></div>
+ <button id="alarmStatusRead" type="button" disabled>Aktuellen Alarmstatus lesen</button>
+</div>
+<div id="alarmStatusInfo" class="eeprom-overview-note muted">Bitte zuerst EEPROM lesen.</div>
+<div id="alarmSummaryRows">Noch keine Alarmkonfiguration gelesen.</div>
+</section>
+<section class="eeprom-overview" aria-labelledby="alarmEditorHeading" id="alarmEditorSection">
+<div class="eeprom-overview-head"><div>
+<h3 id="alarmEditorHeading">Alarme und Fehler einstellen</h3>
+<p class="muted small">Eingaben werden gegen den tatsächlichen Chipmodus und die dokumentierten E703.11-Abhängigkeiten geprüft. Ungültige Kombinationen sind vor der RAM-Übernahme gesperrt.</p>
+<p class="muted">E703.11: Grenzen, Hysterese, EOC-Statusverknüpfung und sechs Fehleraktionen konfigurieren. Zuerst nur RAM testen; NVM erst nach ausdrücklicher Bestätigung.</p>
+</div></div>
+<div class="callout warn" id="alarmEditorStatus">Sensor verbinden und zuerst EEPROM lesen. Nur Original-SSP3 für die geprüfte Alarm-Schreibvorbereitung. Gesicherte One-Wire-Startbits bleiben unverändert.</div>
+<fieldset id="alarmEditorFields" disabled style="border:0;padding:0;margin:0">
+<div class="fieldrow" style="margin-top:8px">
+<label>DSP-Skalierungsbereich ± Digits<input id="alarmDspLimit" type="number" min="1000" max="32000" step="1" value="32000"></label>
+<label>Untere Alarmgrenze (% des kalibrierten Druckbereichs)<input id="alarmLowerPct" type="number" min="0" max="100" step="0.01" value="10"></label>
+<label>Obere Alarmgrenze (% des kalibrierten Druckbereichs)<input id="alarmUpperPct" type="number" min="0" max="100" step="0.01" value="90"></label>
+<label>Hysterese (DSP-Digits)<select id="alarmHysteresis"><option value="0">Keine Hysterese</option></select></label>
+</div>
+<div class="fieldrow" style="margin-top:7px">
+<label><input id="alarmEnable" type="checkbox"> Druckalarm einschalten</label>
+<label><input id="alarmErrorEnable" type="checkbox"> Fehlerreaktionen einschalten</label>
+</div>
+<h4>EOC-/Alarm-Verknüpfungen (ODER)</h4>
+<p class="muted small">Nur die ausgewählten STATUS-Bits werden logisch ODER-verknüpft. Der EOC-Pin muss bereits auf den gewünschten Ausgang geroutet sein. Das physische Pinrouting wird nicht verändert.</p>
+<p class="muted small">Wähle die Statusbedingungen, die auf den <b>bereits konfigurierten</b> EOC-Ausgang wirken. Eine Änderung der Pinbelegung erfolgt hier bewusst nicht.</p>
+<div class="fieldrow" id="alarmEocOptions" style="margin:8px 0"></div>
+<h4>Fehleraktionen für den Analogausgang</h4>
+<p class="muted small">Nur bei aktivierter Fehlersignalisierung werden die sechs Einstellungen ausgewertet. Ersatzwerte beziehen sich auf DSP_AODO, nicht direkt auf Volt. High-Z schaltet den Ausgang hochohmig.</p>
+<div class="fieldrow" id="alarmErrorOptions" style="margin:8px 0"></div>
+<div class="fieldrow">
+<label>Unterer Fehler-Ersatzwert (% DSP_AODO)<input id="alarmErrorLowPct" type="number" min="-100" max="99.21875" step="0.78125" value="-80"></label>
+<label>Oberer Fehler-Ersatzwert (% DSP_AODO)<input id="alarmErrorHighPct" type="number" min="-100" max="99.21875" step="0.78125" value="80"></label>
+</div>
+<label style="display:flex;gap:7px;align-items:center;margin:10px 0"><input type="checkbox" id="alarmDspConfirm"> Der DSP-Endbereich ist am aktuellen Sensor geprüft. Die Alarmgrenzen sollen in diesem Messbereich gelten.</label>
+<div class="eeprom-overview" style="margin:12px 0;padding:12px">
+<h4 style="margin:0 0 5px">Logikprüfung · Was ist erlaubt?</h4>
+<p class="muted small" style="margin:0 0 8px">Diese Prüfung aktualisiert sich bei jeder Änderung. Rote Fehler verhindern die Vorbereitung; Hinweise erklären fehlende Wirkung oder Risiken.</p>
+<div id="alarmRuleSummary" class="callout">Bitte Sensor verbinden und EEPROM auslesen.</div>
+<div id="alarmRuleList" role="status" aria-live="polite"></div>
+</div>
+<div class="flex" style="margin-top:10px">
+<button id="alarmEditorPreview" type="button">Änderungen prüfen</button>
+<button id="alarmEditorRam" type="button" disabled>Im RAM übernehmen &amp; rücklesen</button>
+<button id="alarmEditorDiscard" type="button">Änderungen verwerfen</button>
+</div>
+<div id="alarmEditorMessage" class="callout muted">Noch keine Änderung vorbereitet.</div>
+<pre id="alarmEditorDiff" class="monoarea">NVM-Änderungen werden hier angezeigt. Keine automatische Programmierung.</pre>
+<p class="muted small">Nach bestandener RAM-Prüfung im Schritt <b>NVM programmieren</b> den gesicherten Chip und die Änderungsliste bestätigen. Kein automatischer NVM-Schreibvorgang. Bei aktivem DSP-Post-Scaling sind Alarmänderungen gesperrt.</p>
+</fieldset>
+</section>
+
+</section></main></div></div><div id="tip" class="tooltip"></div><script src="calibration.js?v=0.7.116"></script><script src="eeprom-help.js?v=0.7.111"></script><script src="elmos-settings.js?v=0.7.115"></script><script src="eeprom-config-overview.js?v=0.7.115"></script><script src="elmos-alarm-view.js?v=0.7.115"></script><script src="alarm-config.js?v=0.7.116"></script><script src="alarm-editor.js?v=0.7.116"></script><script src="expert.js?v=0.7.116"></script><script src="config.js?v=0.7.90"></script><script src="guided-plan.js?v=0.7.94"></script><script src="demo.js?v=0.6.49"></script><script src="archive-core.js?v=0.7.80"></script><script src="test-logger-core.js?v=0.7.39"></script><script src="archive-analysis.js?v=0.7.79"></script><script src="verification-graph.js?v=0.7.78"></script><script src="calibration-graph.js?v=0.7.83"></script><script src="archive-photos.js?v=0.7.73"></script><script src="verification-report.js?v=0.7.79"></script><script src="calibration-report.js?v=0.7.88"></script><script src="archive-readable-csv.js?v=0.7.78"></script><script src="logging-report.js?v=0.7.73"></script><script src="archive.js?v=0.7.87"></script><script src="live-polling.js?v=0.7.74"></script><script src="app.js?v=0.7.116&amp;nav=3&amp;verify=6&amp;feedback=1"></script><script src="compact.js?v=0.7.110"></script><script src="test-logger.js?v=0.7.73"></script><script src="guided.js?v=0.7.110&amp;nav=8&amp;verify=5"></script><script src="language-pack.js?v=0.7.87&amp;verify=6&amp;feedback=1"></script><script src="language.js?v=0.7.57"></script></body></html>
