@@ -21,4 +21,4 @@ jobs:
           node --check calibration.js
           node --check expert.js
       - name: Alarm validation tests
-        run: node --test tests/alarm-config.test.cjs
+        run: node --test tests/alarm-config.test.cjs tests/alarm-tab-rules.test.cjs
