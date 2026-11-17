@@ -1,3 +1,14 @@
+## v0.7.117 – Eigener Alarmtab und verifizierbare Einstellabhängigkeiten
+
+- Neue eigenständige Navigation **«Alarme & Fehler»**, getrennt von den 64 EEPROM-Rohdaten.
+- Alarm- und EOC-Diagnose, Alarmgrenzen, Hysterese, EOC-ODER-Verknüpfungen und Fehlerreaktionen in einem Arbeitsbereich.
+- Umfangreiche Erklärungen zum Zusammenspiel von Alarm, EOC, ERR_EN, DSP-Nachskalierung und sicherer RAM-/NVM-Übernahme.
+- Live-Regelprüfung aus dem bestätigten NVM-Abbild: harte Sperren bei aktiver Nachskalierung, überlappenden Hystereseschwellen, EOC-/One-Wire-/Temperatur-/SDA-Pinkonflikten oder ungültigen Zahlen; Hinweise bei unwirksamen Konfigurationen.
+- Die gleichen harten Regeln gelten bei der Registerberechnung, nicht nur im Browser.
+- Direktes EEPROM-Einlesen und Wechsel zu NVM aus dem Alarmtab; der bisherige Workflow-Sperrfehler für geprüfte Alarmänderungen ist behoben.
+- Zusätzliche Regressionstests; geschützte Boot-/Factory-Wörter bleiben unangetastet.
+- **Laborprototyp:** Die elektrische Alarmfunktion und die dauerhafte NVM-Übernahme müssen weiterhin mit echter Hardware geprüft werden.
+
 ## v0.7.116 – Alarm- und Fehlereditor mit sicherem RAM-/NVM-Ablauf
 
 - In der EEPROM-Ansicht lassen sich jetzt Alarmgrenzen (0–100 %), Hysterese, EOC-ODER-Maske und sechs Fehlerreaktionen inklusive Ersatzwerten einstellen.

@@ -50,13 +50,99 @@ const ELMOS_ALARM_CONFIG=(()=>{
    limit:norm
   };
  }
+ // Independent dependency check. The UI shows these rules live, but prepare()
+ // enforces the same hard errors so they cannot be bypassed by editing the DOM.
+ function checkDependencies(words,selection){
+  const errors=[],warnings=[],facts=[];
+  if(!validWords(words))return {ok:false,errors:['Aktuelles 64-Wort-EEPROM fehlt.'],warnings,facts};
+  if(!selection||typeof selection!=='object')return {ok:false,errors:['Konfiguration fehlt.'],warnings,facts};
+  const mode=(words[16]>>9)&7,postScaling=!!(words[16]&(1<<14));
+  const plcPermanent=!!(words[17]&4),pin=['EOC','NCS/SA0','MOSI','AODO'][(words[20]>>7)&3];
+  const tempSource=words[29]&3,selSda=(words[20]>>9)&3;
+  facts.push('EOC-Pinzuordnung: '+pin+' (bleibt unverändert).');
+  facts.push('Ausgang: '+(['High-Z','Analog (DAC 0)','Analog (DAC 1)','Analog (DAC 2)','PWM','FM','Alarm','I²C SDA'][mode])+'.');
+  facts.push('One-Wire dauerhaft: '+(plcPermanent?'Ein':'Aus')+'; Startfenster wird nicht verändert.');
+  if(postScaling)errors.push('DSP-Post-Scaling aktiv: ALARM_LO/HI enthalten Koeffizienten statt Alarmgrenzen.');
+  const limit=Number(selection.limit),lo=Number(selection.lowerPct),hi=Number(selection.upperPct);
+  const hyst=Number(selection.hysteresis);
+  if(!Number.isInteger(limit)||limit<1000||limit>32000)
+   errors.push('Gültigen DSP-Endbereich (1’000–32’000 Digits) angeben.');
+  if(selection.lowerPct===''||selection.upperPct===''||!Number.isFinite(lo)||!Number.isFinite(hi)||lo<0||hi>100||lo>=hi)
+   errors.push('Untere und obere Grenze müssen innerhalb 0–100 % liegen und klar aufsteigend sein.');
+  if(selection.hysteresis===''||!Number.isInteger(hyst)||hyst<0||hyst>15)
+   errors.push('Hysterese-Code muss zwischen 0 und 15 liegen.');
+  if(Number.isFinite(lo)&&Number.isFinite(hi)&&Number.isFinite(limit)&&
+     Number.isInteger(hyst)&&hyst>=0&&hyst<=15&&hi>lo&&limit>0){
+   const h=hyst===0?0:2**(hyst-1);
+   const span=(hi-lo)*2*limit/100;
+   if(2*h>=span)
+    errors.push('Hysterese zu gross: Die beiden Grenzbereiche überlappen. Grenzen weiter auseinanderlegen oder Hysterese verkleinern.');
+   facts.push('Hysterese: '+h+' DSP-Digits; Abstand der Grenzwerte: '+Math.round(span)+' DSP-Digits.');
+   facts.push('Alarm-Schwellen: '+Math.round((2*lo/100-1)*limit/4)*4+
+    ' / '+Math.round((2*hi/100-1)*limit/4)*4+' DSP_S-Digits (nach Registerrundung).');
+  }
+  const bits=Array.isArray(selection.selectedStatusBits)?selection.selectedStatusBits:[];
+  if(bits.length!==new Set(bits).size||bits.some(bit=>!statusBits.includes(bit)))
+   errors.push('EOC-Statusauswahl enthält ungültige oder doppelte Statussignale.');
+  const alarmRouted=bits.some(bit=>bit===5||bit===6);
+  const alarmEnabled=selection.alarmEnabled===true,errorEnabled=selection.errorEnabled===true;
+  if(alarmEnabled&&!alarmRouted)
+   warnings.push('Druckalarm ist aktiv, aber weder Unter- noch Überdruck ist mit dem EOC-Ausgang verknüpft. Die internen STATUS-Bits bleiben dennoch nutzbar.');
+  if(!alarmEnabled&&alarmRouted)
+   warnings.push('EOC hat Druckalarm-Bits ausgewählt, die Alarmberechnung ist jedoch ausgeschaltet.');
+  if(bits.some(bit=>bit===12||bit===13)&&!(words[16]&(1<<7)))
+   warnings.push('Ausgangsbegrenzungs-Status ausgewählt, obwohl LIMIT_EN deaktiviert ist.');
+  if(bits.length){
+   if(pin==='AODO'&&plcPermanent)
+    errors.push('EOC auf AODO kollidiert mit dauerhaftem One-Wire. Pinrouting zuerst in Original-PSSC prüfen; hier keine Änderung zulässig.');
+   if(pin==='EOC'&&tempSource===3)
+    errors.push('EOC-Pin wird für einen externen Temperatursensor verwendet.');
+   if(pin==='EOC'&&selSda===2)
+    errors.push('EOC-Pin ist gleichzeitig als I²C-SDA ausgewählt.');
+   if(pin==='MOSI'&&selSda===1)
+    errors.push('MOSI-Pin ist gleichzeitig als I²C-SDA ausgewählt.');
+  }
+  const acts=Array.isArray(selection.errorActions)?selection.errorActions.map(Number):[];
+  if(acts.length!==6||acts.some(a=>!Number.isInteger(a)||a<0||a>3))
+   errors.push('Alle sechs Fehlerreaktionen müssen gültig (0–3) sein.');
+  const usesReplacement=acts.some(a=>a===1||a===2),usesHighZ=acts.some(a=>a===3);
+  for(const [field,name] of [['errorLowPct','Unterer Fehler-Ersatzwert'],['errorHighPct','Oberer Fehler-Ersatzwert']]){
+   const raw=selection[field],value=Number(raw);
+   if(raw===''||raw===null||raw===undefined||!Number.isFinite(value)||
+      value< -100||value>99.21875)
+    errors.push(name+' muss zwischen −100 und +99,21875 % liegen.');
+  }
+  if(hyst>0&&!alarmEnabled)
+   warnings.push('Hysterese ist eingestellt, aber der Druckalarm ist ausgeschaltet.');
+  if(bits.length===0)
+   warnings.push('Kein EOC-Status ausgewählt: Der konfigurierte EOC-Ausgang signalisiert damit keine dieser Bedingungen.');
+  if(errorEnabled&&acts.every(a=>a===0))
+   warnings.push('Fehlersignalisierung eingeschaltet, aber alle Fehleraktionen stehen auf «Keine Änderung».');
+  if(!errorEnabled&&acts.some(a=>a!==0))
+   warnings.push('Fehleraktionen sind vorbereitet, aber ERR_EN ist deaktiviert. Sie wirken noch nicht.');
+  if((usesReplacement||usesHighZ)&&![1,2,3,4,5,6].includes(mode))
+   warnings.push('Fehlerreaktionen ändern DSP_AODO beziehungsweise den AODO-Pin. Der aktuelle Ausgangsmodus ist dafür nicht sinnvoll.');
+  if(errorEnabled&&usesHighZ)
+   warnings.push('High-Z kann den Analogausgang absichtlich deaktivieren. Nachgeschaltete Elektronik und Failsafe testen.');
+  if(plcPermanent&&errorEnabled&&(usesHighZ||usesReplacement))
+   warnings.push('One-Wire ist dauerhaft auf AODO aktiv: Analoge Fehlerreaktionen auf AODO sind in diesem Betrieb nicht direkt als Spannungsausgang nutzbar.');
+  if((errorEnabled&&usesReplacement)&&
+      (!Number.isFinite(Number(selection.errorLowPct))||!Number.isFinite(Number(selection.errorHighPct))))
+   errors.push('Fehler-Ersatzwerte sind keine gültigen Zahlen.');
+  if(words[16]&(1<<13))
+   facts.push('ACD-Diagnose ist freigegeben.');
+  else if(bits.includes(9)||acts[4]!==0)
+   warnings.push('Sensorerfassungsfehler ausgewählt, aber CFG_EN.s_acd_en ist aus. Dieses Statussignal kann inaktiv bleiben.');
+  return {ok:errors.length===0,errors,warnings,facts,
+   hasEocMask:bits.length>0,postScaling,mode,pin,plcPermanent};
+ }
  function prepare(original,selection,crc16){
   assert(validWords(original),'Keine gültige 64-Wort-EEPROM-Sicherung.');
   assert(typeof crc16==='function'&&crc16(original)===original[63],
     'Original-EEPROM-CRC16 stimmt nicht.');
   assert(selection&&typeof selection==='object'&&!Array.isArray(selection),'Einstellungen fehlen.');
-  assert(!(original[16]&(1<<14)),
-    'DSP-Post-Scaling aktiv. ALARM_LO/HI sind Korrekturkoeffizienten. Keine Alarmänderung erlaubt.');
+  const dependencies=checkDependencies(original,selection);
+  assert(dependencies.ok,dependencies.errors.join(' '));
   const limit=int(selection.limit,'DSP-Endbereich',1000,32000);
   const low=number(selection.lowerPct,'Untere Druckgrenze',0,100);
   const hi=number(selection.upperPct,'Obere Druckgrenze',0,100);
@@ -118,6 +204,6 @@ const ELMOS_ALARM_CONFIG=(()=>{
    'DSP-Post-Scaling nicht gleichzeitig mit Alarm editieren.');
   return true;
  }
- return Object.freeze({statusBits,statusLabels,errors,actions,read,prepare,validateDiff});
+ return Object.freeze({statusBits,statusLabels,errors,actions,read,checkDependencies,prepare,validateDiff});
 })();
 if(typeof module!=='undefined'&&module.exports)module.exports=ELMOS_ALARM_CONFIG;

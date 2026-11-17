@@ -2,8 +2,19 @@
 
 Quellen: Elmos E703.11 Datenblatt 25DS0170E.04, Kapitel 6.3.2.4, 6.3.2.5, 6.3.2.9, 6.4.2 und 6.5.7.2.
 
+## Neuer Tab seit v0.7.117
+
+Der Alarmeditor befindet sich jetzt als **eigener Reiter «Alarme & Fehler» in der klassischen Seitenleiste**, nicht mehr im EEPROM Viewer. Dort stehen die Schaltlogik, Statusanzeigen und Konfigurationsfelder zusammen.
+
+Die dynamische **Logikprüfung** unterscheidet:
+- **Nicht zulässig:** DSP-Post-Scaling belegt Alarmregister; Hysterese überlappt den Grenzabstand; EOC auf AODO kollidiert mit permanentem One-Wire; EOC wird gleichzeitig als Temperaturmess- oder SDA-Pin verwendet; Eingabewerte liegen ausserhalb des dokumentierten Bereichs. Die Vorschau und NVM-Planung sind gesperrt.
+- **Hinweis:** Alarmbits ausgewählt, aber ALARM_EN aus; Fehlerreaktionen gesetzt, aber ERR_EN aus; LIMIT-Status ohne LIMIT_EN; ACD-Fehler ohne aktivierte Diagnose; High-Z kann den Ausgang abschalten. Dies sind Warnungen, nicht automatisch Registerkorrekturen.
+- **Aktueller Sensor:** Ausgangsmodus, permanente One-Wire-Freigabe, EOC-Pinzuordnung sowie gerundete DSP-Schwellen und Hysteresespanne.
+
+Vom Tab aus kann der komplette EEPROM-Satz gelesen werden. Nach bestätigtem RAM-Test führt ein eigener Button zum NVM-Speicherschritt. Die 64-Wort-CRC-/UID- und Bootschutzregeln bleiben aktiv.
+
 ## Bedienung
-Im **EEPROM Viewer → EEPROM lesen (64 Wörter) → Alarme und Fehler einstellen**.
+Im eigenen Reiter **«Alarme & Fehler» → «EEPROM für Alarmkonfiguration lesen» → Einstellungen prüfen**.
 
 1. Echten Sensor per Original-SSP3 und One-Wire verbinden, vollständiges EEPROM mit CRC lesen und als JSON sichern. Bei DIY-Bridge ist diese Funktion derzeit nur lesend verfügbar.
 2. Den *tatsächlich gültigen DSP-Endwert* (z. B. ±32'000 Digits) eingeben und ausdrücklich bestätigen. Untere und obere Alarmgrenze in Prozent des kalibrierten Druckbereichs einstellen.
