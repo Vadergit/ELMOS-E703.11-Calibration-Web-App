@@ -73,3 +73,26 @@ test('Auto temperature model detects factory scaling and allows explicit overrid
  assert.equal(b.settings.temperatureModel,'an0203');
  assert.notEqual(a.rows[0].tempNorm,b.rows[0].tempNorm);
 });
+
+
+test('Imported 64-word file overrides live EEPROM until removed',()=>{
+ const live=image(),file=image();file[34]=0;
+ assert.equal(recon.chooseSource(live,file).kind,'file');
+ assert.equal(recon.chooseSource(live,file).words[34],0);
+ assert.equal(recon.chooseSource(live,null).kind,'eeprom');
+ assert.equal(recon.chooseSource(null,file).kind,'file');
+ assert.equal(recon.chooseSource(null,null).kind,'none');
+ assert.equal(recon.chooseSource(live,[1,2]).kind,'eeprom');
+});
+test('Zero calibration coefficients are highlighted rather than presented as successful results',()=>{
+ const blank=image();blank[34]=0;blank.fill(0,35,55);
+ const result=recon.calculate(blank);
+ assert.equal(result.ok,true);
+ assert.equal(result.rows[0].zero,null);
+ assert.ok(result.warnings.some(x=>x.includes('Werks-Standardwert')));
+ assert.ok(result.warnings.some(x=>x.includes('S0–S15')));
+ const file=fs.readFileSync(path.join(__dirname,'..','nvm-reconstruction.js'),'utf8');
+ assert.match(file,/Rückrechnung nicht vollständig möglich/);
+ assert.match(file,/IMPORTIERTE DATEI/);
+ assert.match(file,/Registerdiagnose/);
+});
