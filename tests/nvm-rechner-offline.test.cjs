@@ -21,7 +21,9 @@ test('Guided task opens same panel without chip requirement',()=>{
  const guided=read('guided.js');
  assert.match(guided,/data-gw-task="nvm"/);
  assert.match(guided,/task==='nvm'.*navigate\?\.\(10\)/);
- assert.ok(guided.indexOf("task==='nvm'")<guided.indexOf("if(!s.chip)"));
+ const nextStart=guided.indexOf('async function next(');
+ assert.ok(nextStart>0);
+ assert.ok(guided.indexOf("task==='nvm'",nextStart)<guided.indexOf("if(!s.chip)",nextStart));
  assert.doesNotMatch(guided,/href="nvm-rechner\.html"/);
 });
 test('Legacy link redirects to embedded calculator',()=>{
