@@ -708,8 +708,19 @@ html.compact-mode .foot{display:none}
 .operation-progress-dialog .operation-progress{position:static;max-width:100%;pointer-events:auto}
 .cal-point-recorded > .fieldrow{display:none!important}
 .operation-progress progress{display:block;width:100%;accent-color:var(--focus,#075874)}
-</style><link rel="stylesheet" href="guided.css?v=0.7.92"><link rel="stylesheet" href="interface.css?v=0.7.101"><link rel="stylesheet" href="theme.css?v=0.7.9"><link rel="stylesheet" href="verification-guide.css?v=0.7.78"><link rel="stylesheet" href="calibration-graph.css?v=0.7.83"><link rel="stylesheet" href="archive-photos.css?v=0.7.73"><link rel="stylesheet" href="settings-refresh.css?v=0.7.77"><link rel="stylesheet" href="classic-compact.css?v=0.7.100"></head><body data-app-version="0.7.103"><div class="wrap"><header class="top">
-<div class="brand"><div class="logo" aria-hidden="true">E</div><div><div class="eyebrow">E703.11 · PSSC · v0.7.103</div><h1><button type="button" id="homeButton" aria-label="Kalibrierassistent – zur Hauptseite">Kalibrierassistent</button></h1></div></div>
+
+/* v0.7.104: compact output settings; warning status distinct from errors */
+.output-config{gap:9px;margin:10px 0}
+.output-section{padding:12px 14px}
+.output-section .output-grid{margin:7px 0;gap:8px}
+.output-section .output-heading{margin-bottom:6px}
+.output-section .output-endpoint-row{padding:6px 9px}
+.output-section .output-preview{margin-top:7px;padding:9px 11px}
+.output-preview.warning{border-color:#e8ce99;background:#fff9ed;color:#77501b}
+html[data-theme="dark"] .output-preview.warning{border-color:#a8864a;background:#352b1d;color:#ffdd9b}
+#outputClippingFields{margin:8px 0 2px}
+</style><link rel="stylesheet" href="guided.css?v=0.7.92"><link rel="stylesheet" href="interface.css?v=0.7.101"><link rel="stylesheet" href="theme.css?v=0.7.9"><link rel="stylesheet" href="verification-guide.css?v=0.7.78"><link rel="stylesheet" href="calibration-graph.css?v=0.7.83"><link rel="stylesheet" href="archive-photos.css?v=0.7.73"><link rel="stylesheet" href="settings-refresh.css?v=0.7.77"><link rel="stylesheet" href="classic-compact.css?v=0.7.100"></head><body data-app-version="0.7.104"><div class="wrap"><header class="top">
+<div class="brand"><div class="logo" aria-hidden="true">E</div><div><div class="eyebrow">E703.11 · PSSC · v0.7.104</div><h1><button type="button" id="homeButton" aria-label="Kalibrierassistent – zur Hauptseite">Kalibrierassistent</button></h1></div></div>
 <div class="live-overview" role="group" aria-label="Live-Sensorwerte: zuerst Temperatur, danach Druck und Sensorwert">
   <div class="live-kpi" title="ADC_T · Temperatur-Rohwert, keine direkte Temperatur in °C."><span class="live-kpi-label">ADC_T</span><span class="live-kpi-reading" id="liveAdcT">—</span><span class="live-kpi-unit">Digits</span></div>
   <div class="live-kpi" title="Interne Chiptemperatur aus DSP_T. Der Wert ist nur so genau wie die gespeicherte Temperaturkalibrierung."><span class="live-kpi-label">SSC-Temperatur</span><span class="live-kpi-reading" id="liveTempC">—</span><span class="live-kpi-unit" id="liveTempUnit">°C · nicht kalibriert</span></div>
@@ -1266,24 +1277,24 @@ html.compact-mode .foot{display:none}
     </label>
     <label id="expertPwmPeriodField" hidden>PWM Period (2–65’535 Takte)<input id="expertPwmPeriod" type="number" min="2" max="65535" step="1" value="16384"></label>
   </div>
-  <div id="outputClippingFields" hidden>
-    <h3>Ausgang begrenzen (Clipping)</h3>
+  <details id="outputClippingFields" class="output-detail" hidden>
+    <summary>Clipping · optionale Begrenzung</summary>
     <div class="fieldrow">
       <label>Clipping<select id="outputClippingMode"><option value="keep">Unverändert lassen</option><option value="on">Aktivieren</option><option value="off">Deaktivieren</option></select></label>
       <label>Untergrenze (V)<input id="outputClipLow" type="number" step="any" min="0" placeholder="0.5" disabled></label>
       <label>Obergrenze (V)<input id="outputClipHigh" type="number" step="any" min="0" placeholder="4.5" disabled></label>
     </div>
-    <p class="muted small">Grenzen bezogen auf die eingetragene VDD. S0 und S1 bleiben die Zielspannungen der Kalibrier-Endpunkte. Beim Aktivieren werden die Grenzen ohne Hysterese vorgemerkt.</p>
-  </div>
+    <p class="muted small">Clipping begrenzt den analogen Ausgang zusätzlich. Es ersetzt nicht die Ausgangsskalierung und verändert S0/S1 nicht.</p>
+  </details>
   <p id="outputModeHint" class="muted small" role="status" aria-live="polite">Ausgangstyp wählen. Noch keine Änderung am Chip.</p>
   <div id="psscOneWireOnlyStatus" class="callout" hidden>One Wire only ist keine eigene AODO-Registerart. Zuerst das Original-NVM lesen; nur bei dauerhaft aktiviertem 1-Wire wird diese Auswahl bestätigt.</div>
-  <div id="psscCurrentOutputStatus" class="callout">Aktuelle Chip-Ausgangseinstellungen können beim Verbinden ausgelesen werden. Die gewünschten Zielspannungen S0/S1 bleiben davon unabhängig.</div>
+  <details class="output-detail"><summary>Ausgelesene Chip-Ausgangsregister (RAM) · nur Information</summary><div id="psscCurrentOutputStatus" class="callout">Chipregister noch nicht gelesen. Zielspannungen S0/S1 bleiben unabhängig davon.</div></details>
 </section>
 
 <section class="output-section" id="psscScalingSection" aria-labelledby="scalingTitle">
-  <div class="output-heading"><h3 id="scalingTitle">Scaling</h3><span class="output-tag">S0 / S1 wie in PSSC</span></div>
-  <label class="toggle"><input id="expertScaleEnable" type="checkbox"> <strong>Ausgangsskalierung aktivieren</strong></label>
-  <p class="muted small">Für <b>Analog Ratiometric 0..5 V</b> sind <strong>S0 = 10 % VDD</strong> und <strong>S1 = 90 % VDD</strong> voreingestellt (bei 5 V: 0.5 V und 4.5 V). Diese Werte sind <strong>Zielspannungen</strong>, keine aus dem Chip gelesenen Werte. Gain und Offset werden automatisch berechnet; das Auslesen der Chipregister verändert S0/S1 nicht.</p>
+  <div class="output-heading"><h3 id="scalingTitle">Ausgangsskalierung</h3><span class="output-tag">S0 / S1 · Zielspannungen</span></div>
+  <label class="toggle"><input id="expertScaleEnable" type="checkbox"> <strong>Skalierung aktivieren (für S0/S1 erforderlich)</strong></label>
+  <p class="muted small">S0/S1 sind Sollspannungen: Standard 10–90 % VDD (bei 5 V: 0.5–4.5 V). Ohne Skalierung werden diese Zielwerte nicht angewendet. Die Anzeige ist eine Berechnung, keine Ausgangsmessung.</p>
   <div id="psscAnalogFields">
     <div class="output-grid">
       <label>VDD (V) · Referenz für Skalierung und Clipping<input id="psscVdd" type="number" min="2.7" max="5.5" step="0.1" value="5"></label>
@@ -1294,7 +1305,7 @@ html.compact-mode .foot{display:none}
     <div class="output-endpoint-head"><span>Scaling</span><span>DSP_S</span><span>sensor value</span><span>Ausgang</span></div>
     <div class="output-endpoint-row"><strong>S0</strong><output id="psscDspS0">−32’000</output><span>0.0000 %</span><label><input id="psscS0" type="number" step="0.001" min="0" max="5.5" value="0.5" aria-label="Ausgang S0 in Volt"> V</label></div>
     <div class="output-endpoint-row"><strong>S1</strong><output id="psscDspS1">+32’000</output><span>100.0000 %</span><label><input id="psscS1" type="number" step="0.001" min="0" max="5.5" value="4.5" aria-label="Ausgang S1 in Volt"> V</label></div>
-    <div id="psscScalingPreview" class="output-preview" aria-live="polite">Standard 10–90 % VDD (bei 5 V: 0.5–4.5 V) wird berechnet.</div>
+    <div id="psscScalingPreview" class="output-preview" role="status" aria-live="polite">Ausgangsvorschau wird berechnet.</div>
   </div>
   <details class="output-detail" data-expert-area hidden><summary>Erweitert · AODO_F (Gain) und AODO_O (Offset)</summary><div class="inner">
     <p class="muted small">Die beiden 16-Bit-Q3.12-Register skalieren und verschieben DSP_S. Bei einer analogen Einstellung werden sie automatisch aus S0/S1 berechnet. Nur für Spezialabgleiche von Hand ändern.</p>
@@ -1317,26 +1328,19 @@ html.compact-mode .foot{display:none}
 </section>
 
 <section class="output-section" aria-labelledby="errorTitle" data-expert-area hidden>
-  <div class="output-heading"><h3 id="errorTitle">Error Signaling</h3><span class="output-locked">Nur Diagnose · keine Schreibfreigabe</span></div>
-  <p class="muted small">Die Fehlerreaktionen bleiben unverändert. «Nicht decodiert» bedeutet ausdrücklich nicht, dass der Chip «Ignore» eingestellt hat.</p>
-  <div class="output-errors">
-    <label>DSP Saturation Error<select disabled><option>Aktuelle Reaktion nicht decodiert</option></select></label>
-    <label>Sensor and Wiring Diagnosis Error<select disabled><option>Aktuelle Reaktion nicht decodiert</option></select></label>
-    <label>Acquisition Chain Diagnosis Error<select disabled><option>Aktuelle Reaktion nicht decodiert</option></select></label>
-    <label>Bridge Supply Diagnosis Error<select disabled><option>Aktuelle Reaktion nicht decodiert</option></select></label>
-  </div>
-  <div class="output-heading output-subheading"><h3>Error Values</h3><span class="output-locked">Nur Diagnose</span></div>
-  <div class="output-grid output-grid-3">
-    <label>ErrValLow<input type="text" value="Nicht decodiert" readonly></label>
-    <label>ErrValHigh<input type="text" value="Nicht decodiert" readonly></label>
-    <label>ERR_MASK / ERR_VAL_HI_LO · NVM (hex)<input id="psscErrorRaw" type="text" value="NVM zuerst lesen" readonly></label>
-  </div>
+  <details class="output-detail">
+    <summary id="errorTitle">Error Signaling · NVM-Rohdaten (Experten)</summary>
+    <p class="muted small">Fehlerreaktionen und Fehlerwerte sind noch nicht zuverlässig decodiert. Darum wird hier keine vermeintliche Fehlerreaktion angezeigt. Dies ist kein aktueller Sensorfehler. Die Register bleiben unverändert.</p>
+    <div class="output-grid">
+      <label>ERR_MASK / ERR_VAL_HI_LO · NVM (hex)<input id="psscErrorRaw" type="text" value="NVM zuerst lesen" readonly></label>
+    </div>
+  </details>
 </section>
 
 <div class="flex">
-  <button id="expertOutputPreset">Scaling berechnen</button>
+  <button id="expertOutputPreset">Scaling berechnen und aktivieren</button>
   <button class="primary" id="expertOutputStage">Ausgangskonfiguration prüfen und vormerken</button>
-  <button id="expertOutputDiscard">Änderungen verwerfen</button>
+  <button id="expertOutputDiscard">Ausgangsänderungen verwerfen</button>
 </div>
 <div id="expertOutputMsg" class="callout">Noch keine Ausgangsänderung vorgemerkt.</div>
 </div>
@@ -1421,5 +1425,5 @@ html.compact-mode .foot{display:none}
 </div>
 <div class="nav"><button data-next="0">Zur Verbindung</button><button data-next="6">Zum NVM-Schritt</button></div>
 </section>
-<div class="foot"><b>Version v0.7.103</b> · <a href="CHANGELOG.md" target="_blank" rel="noopener noreferrer">Änderungsverlauf</a> · ELMOS E703.11 · unabhängiger Kalibrierprototyp · Sicherheitsprinzip: Factory- und Kommunikations-Bootregister gesperrt; dokumentierte AODO-Ausgangsoptionen nur nach Prüfung im NVM-Plan; Wiederherstellung nur mit passender Chip-UID.</div>
-<section class="card panel" data-panel="8" hidden><div class="eyebrow">Werkzeuge · Sensorprotokoll</div><h2>Test / Logging</h2><p class="muted small">Messdaten, Rohwerte und Notizen jederzeit in einem lokalen Archiv protokollieren. Ohne NVM-Schreibvorgang.</p><div id="classicLoggerHost"></div></section></main></div></div><div id="tip" class="tooltip"></div><script src="calibration.js?v=0.7.100"></script><script src="eeprom-help.js?v=0.6.30"></script><script src="expert.js?v=0.7.45"></script><script src="config.js?v=0.7.90"></script><script src="guided-plan.js?v=0.7.94"></script><script src="demo.js?v=0.6.49"></script><script src="archive-core.js?v=0.7.80"></script><script src="test-logger-core.js?v=0.7.39"></script><script src="archive-analysis.js?v=0.7.79"></script><script src="verification-graph.js?v=0.7.78"></script><script src="calibration-graph.js?v=0.7.83"></script><script src="archive-photos.js?v=0.7.73"></script><script src="verification-report.js?v=0.7.79"></script><script src="calibration-report.js?v=0.7.88"></script><script src="archive-readable-csv.js?v=0.7.78"></script><script src="logging-report.js?v=0.7.73"></script><script src="archive.js?v=0.7.87"></script><script src="live-polling.js?v=0.7.74"></script><script src="app.js?v=0.7.103&amp;nav=3&amp;verify=6&amp;feedback=1"></script><script src="compact.js?v=0.7.18"></script><script src="test-logger.js?v=0.7.73"></script><script src="guided.js?v=0.7.93&amp;nav=8&amp;verify=5"></script><script src="language-pack.js?v=0.7.87&amp;verify=6&amp;feedback=1"></script><script src="language.js?v=0.7.57"></script></body></html>
+<div class="foot"><b>Version v0.7.104</b> · <a href="CHANGELOG.md" target="_blank" rel="noopener noreferrer">Änderungsverlauf</a> · ELMOS E703.11 · unabhängiger Kalibrierprototyp · Sicherheitsprinzip: Factory- und Kommunikations-Bootregister gesperrt; dokumentierte AODO-Ausgangsoptionen nur nach Prüfung im NVM-Plan; Wiederherstellung nur mit passender Chip-UID.</div>
+<section class="card panel" data-panel="8" hidden><div class="eyebrow">Werkzeuge · Sensorprotokoll</div><h2>Test / Logging</h2><p class="muted small">Messdaten, Rohwerte und Notizen jederzeit in einem lokalen Archiv protokollieren. Ohne NVM-Schreibvorgang.</p><div id="classicLoggerHost"></div></section></main></div></div><div id="tip" class="tooltip"></div><script src="calibration.js?v=0.7.100"></script><script src="eeprom-help.js?v=0.6.30"></script><script src="expert.js?v=0.7.104"></script><script src="config.js?v=0.7.90"></script><script src="guided-plan.js?v=0.7.94"></script><script src="demo.js?v=0.6.49"></script><script src="archive-core.js?v=0.7.80"></script><script src="test-logger-core.js?v=0.7.39"></script><script src="archive-analysis.js?v=0.7.79"></script><script src="verification-graph.js?v=0.7.78"></script><script src="calibration-graph.js?v=0.7.83"></script><script src="archive-photos.js?v=0.7.73"></script><script src="verification-report.js?v=0.7.79"></script><script src="calibration-report.js?v=0.7.88"></script><script src="archive-readable-csv.js?v=0.7.78"></script><script src="logging-report.js?v=0.7.73"></script><script src="archive.js?v=0.7.87"></script><script src="live-polling.js?v=0.7.74"></script><script src="app.js?v=0.7.103&amp;nav=3&amp;verify=6&amp;feedback=1"></script><script src="compact.js?v=0.7.18"></script><script src="test-logger.js?v=0.7.73"></script><script src="guided.js?v=0.7.93&amp;nav=8&amp;verify=5"></script><script src="language-pack.js?v=0.7.87&amp;verify=6&amp;feedback=1"></script><script src="language.js?v=0.7.57"></script></body></html>
