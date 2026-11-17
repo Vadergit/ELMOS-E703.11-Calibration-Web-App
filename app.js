@@ -3118,6 +3118,8 @@ if(typeof document!=='undefined') (function UI(){
       archive.current?.type!==(outputOnly?'output':'calibration')||
       archive.current?.chipUID!==id)
     throw Error('Das aktive Archivprotokoll gehört nicht zu diesem Sensor oder Vorgang. Bitte das falsche Protokoll zuerst abschliessen.');
+   if(st.calImage?.before!==initial||st.calImage?.after!==modified)
+    throw Error('Der vorbereitete NVM-Plan wurde beim Start des Archivs verändert. Kein NVM-Schreiben. Änderungsliste erneut prüfen.');
    if(!await archive.event('nvm_before',{uid:id,words:initial,plannedWords:modified,changes:st.calImage.changes,supply:archiveVoltages()}))
     throw Error('Archivprotokoll konnte nicht geschrieben werden. NVM bleibt unverändert.');
    nvmWriteFeedback('Archivprotokoll bereit. Chip und NVM werden vor dem Schreiben erneut geprüft …');
@@ -4206,8 +4208,11 @@ if(typeof document!=='undefined') (function UI(){
     try{words['0x'+h(address)]=await readReg(address)}
     catch(e){errors.push({register:'0x'+h(address),error:e.message})}
    }
-   // The existing guarded NVM read helper checks all 64 words plus CRC8/CRC16.
-   const readOK=await nvmScan({expertRead:true});
+   // A fresh NVM scan invalidates the output-only plan. If the exact 64-word
+   // backup is already proven for this port/session/UID, reuse that immutable
+   // snapshot here. The actual NVM writer independently re-reads before write.
+   const verifiedAlready=hasCurrentNvmBackup();
+   const readOK=verifiedAlready||await nvmScan({expertRead:true});
    const nvm=readOK&&st.nvmBackupVerified&&st.nvmBackup?.length===64?
     {words:st.nvmBackup.slice(),crc8Validated:true,crc16Validated:true}: {words:null,crc8Validated:false,crc16Validated:false};
    if(!readOK)errors.push({stage:'nvm_scan',error:'Vollständiges NVM nicht bestätigt'});
