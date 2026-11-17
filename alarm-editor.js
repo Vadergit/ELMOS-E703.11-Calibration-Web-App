@@ -210,6 +210,18 @@ const ELMOS_ALARM_EDITOR=(()=>{
    if(!ready()&&!pendingForCalibration())return;
    const btn=document.querySelector('.stepBtn[data-step="6"]');if(btn)btn.click();
   });
+  $('alarmDisableAll').addEventListener('click',()=>{
+   if($('alarmEditorFields').disabled)return;
+   if(st.alarmOnlyPlan)clearPlan();
+   profilePending=null;exportMode='edit';dirty=true;
+   $('alarmEnable').checked=false;$('alarmErrorEnable').checked=false;
+   A.statusBits.forEach(bit=>$('alarmStatusBit'+bit).checked=false);
+   A.errors.forEach((_,i)=>$('alarmErrAction'+i).value='0');
+   $('alarmLowerPct').value='10';$('alarmUpperPct').value='90';
+   $('alarmHysteresis').value='0';
+   status('Alle Alarm- und Fehlerfreigaben ausgeschaltet. Die Änderung ist erst nach Vorschau, RAM-Rücklesung und NVM-Bestätigung dauerhaft.','warn');
+   updateRules();renderFlowState();
+  });
   $('alarmEditorPreview').addEventListener('click',preview);
   $('alarmEditorRam').addEventListener('click',testRam);
   $('alarmEditorDiscard').addEventListener('click',()=>{
