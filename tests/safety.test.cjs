@@ -1274,3 +1274,24 @@ test('analog clipping rounds voltage limits inward and preserves One Wire settin
  before[61]=1;
  assert.throws(()=>CAL.prepareOutputConfig(before,{...settings,clipping}),/Fehlerreaktionen/);
 });
+
+test('ESP32-C3 output-only NVM is capability-gated and scope-limited',()=>{
+ const app=read('app.js'),fw=read('firmware/esp32c3_supermini/esp32c3_supermini.ino');
+ const proMicro=read('firmware/pro_micro/pro_micro.ino');
+ assert.ok(fw.includes('BRIDGE_AODO_OUTPUT_NVM_TEST'));
+ assert.ok(fw.includes('strcmp(command, "NVM ARM OUTPUT") == 0'));
+ assert.ok(fw.includes('if (!coldStartVerified || probe(activeSlave))'));
+ assert.ok(fw.includes('readOriginalOutputCfgEn(cfg)'));
+ assert.ok(fw.includes('~uint16_t(0x00C0)'));
+ assert.ok(fw.includes('index == 57 || index == 58 || index == 59 || index == 60 || index == 63'));
+ assert.ok(fw.includes('outputDataPending = false;'));
+ assert.ok(fw.includes('disarmNvm();'));
+ assert.ok(app.includes("st.bridgeOutputNvm=isEsp32C3&&caps.includes('BRIDGE_AODO_OUTPUT_NVM_TEST')"));
+ assert.ok(app.includes("outputOnly?'NVM ARM OUTPUT':'NVM ARM CALIBRATION'"));
+ assert.ok(app.includes("if(st.adapterKind==='bridge'&&!st.bridgeOutputNvm)"));
+ assert.ok(app.includes('const outputWords=new Set([16,57,58,59,60,63]);'));
+ assert.ok(app.includes('CAL.protectStartupCommunication(initial,modified,{allowSvdd})'));
+ assert.ok(app.includes('if(finalRecoveryBlock)throw Error(finalRecoveryBlock)'));
+ assert.ok(app.includes('if(after.some((x,i)=>x!==modified[i]))'));
+ assert.ok(!proMicro.includes('BRIDGE_AODO_OUTPUT_NVM_TEST'));
+});
