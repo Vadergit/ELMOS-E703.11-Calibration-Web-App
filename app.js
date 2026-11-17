@@ -805,7 +805,7 @@ if(typeof document!=='undefined') (function UI(){
  }
  function workflowGate(n){
   if(n===8||n===9)return ''; // Logging and Alarm tab accessible independently of calibration.
-  if(n===7)return ''; // EEPROM Viewer unabhängig vom Kalibrierablauf: nur lesen.
+  if(n===7||n===10)return ''; // EEPROM Viewer und NVM-Rückrechner jederzeit (auch offline) aufrufbar.
   if(n===5)return ''; // Eigener Ausgangsschritt ist auch bei bestehenden Sensoren erreichbar.
   if(n===6&&(expert.restoreReady()||expert.outputReady()||ELMOS_ALARM_EDITOR.ready()))return '';
   if(n>=3&&!calEndpointsReady())return 'Zuerst alle '+calibrationPointCount()+' gewählten Kalibrierpunkte bei gleicher AFE-Einstellung aufnehmen.';
@@ -985,7 +985,7 @@ if(typeof document!=='undefined') (function UI(){
     (experimentalRecoveryOutput?' LABORTEST: Ausgangs-NVM-Schreiben über temporäre One-Wire-RAM-Freigabe ist noch nicht am echten Chip validiert. Nur entbehrlichen Testchip verwenden.':''):
    nvmReason;
   $('nvmWritePrereq').className='callout '+(approvalGranted&&!experimentalRecoveryOutput?'success':'warn');
-  const unlocked=[true,true,true,calEndpointsReady(),ready&&st.calStaged,true,!workflowGate(6),true,true,true];
+  const unlocked=[true,true,true,calEndpointsReady(),ready&&st.calStaged,true,!workflowGate(6),true,true,true,true];
   document.querySelectorAll('[data-step]').forEach(b=>{
    const index=Number(b.dataset.step);b.classList.toggle('locked',!unlocked[index]);
    b.setAttribute('aria-disabled',String(!unlocked[index]));
@@ -1006,7 +1006,7 @@ if(typeof document!=='undefined') (function UI(){
   renderCalPoints();renderCalibrationPlan();renderLiveOverview();
  }
  function step(n){
-  const next=Math.max(0,Math.min(9,Number(n)));
+  const next=Math.max(0,Math.min(10,Number(n)));
   if(next!==8&&window.ELMOS_TEST_LOGGER?.isBusy()){
    show('flowMsg','Die Testaufzeichnung läuft. Bitte im Reiter «Test / Logging» zuerst beenden.','warn');
    $('flowMsg').hidden=false;return;
@@ -1021,7 +1021,7 @@ if(typeof document!=='undefined') (function UI(){
    if(active)button.setAttribute('aria-current','step');
    else button.removeAttribute('aria-current');
   });
-  renderFlowState();if(next===5)expert.refreshOutputPreview();if(next===7||next===9)expert.refreshEEPROMViewer();draw();
+  renderFlowState();if(next===5)expert.refreshOutputPreview();if(next===7||next===9||next===10)expert.refreshEEPROMViewer();draw();
   if(!st.manualLivePause&&st.chip&&!window.ELMOS_TEST_LOGGER?.isBusy())startLive()
  }
  function invalidateCalculation(reason){
@@ -4159,6 +4159,19 @@ if(typeof document!=='undefined') (function UI(){
    event.preventDefault();
   }
  });
+ function openNvmCalculator(){
+  window.ELMOS_ARCHIVE?.close?.();
+  if(window.ELMOS_GUIDED?.isOpen()){
+   window.ELMOS_GUIDED.close();
+   if(window.ELMOS_GUIDED.isOpen())return; // running test logger prevents view switch
+  }
+  if(typeof ELMOS_COMPACT!=='undefined')ELMOS_COMPACT.set(false);
+  if($('compactMode'))$('compactMode').checked=false;
+  toggleSettings(false);
+  step(10);
+  if(currentStep===10)window.scrollTo({top:0,behavior:'auto'});
+ }
+ document.querySelectorAll('[data-open-nvm]').forEach(el=>el.addEventListener('click',openNvmCalculator));
  $('homeButton').addEventListener('click',()=>{
   toggleSettings(false);
   window.ELMOS_ARCHIVE?.close();
@@ -4597,5 +4610,5 @@ if(typeof document!=='undefined') (function UI(){
 
  });
  $('operationProgressDialog').addEventListener('cancel',event=>event.preventDefault());
- gainSummary();renderStatus();step(0);window.addEventListener('resize',draw);
+ gainSummary();renderStatus();step(location.hash==='#nvm-rechner'?10:0);window.addEventListener('resize',draw);
 })();
