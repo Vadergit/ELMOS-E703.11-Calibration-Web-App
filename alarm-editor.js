@@ -23,6 +23,9 @@ const ELMOS_ALARM_EDITOR=(()=>{
    if(st.alarmOnlyPlan&&st.calImage===st.alarmOnlyPlan)st.calImage=null;
    st.alarmOnlyPlan=null;$('alarmEditorRam').disabled=true;
    $('alarmEditorDiff').textContent='Kein gültiger Alarmänderungsplan.';
+   if($('nvmDiff')&&(!$('nvmDiff').dataset.scope||$('nvmDiff').dataset.scope==='alarm')){
+    $('nvmDiff').textContent='Kein vorgemerkter Alarmänderungsplan.';delete $('nvmDiff').dataset.scope;
+   }
   }
   const proven=()=>!!(hasCurrentNvmBackup()&&st.mode==='usb'&&st.iface==='plc'&&st.adapterKind==='ssp3');
   function fill(config){
@@ -86,6 +89,7 @@ const ELMOS_ALARM_EDITOR=(()=>{
     $('alarmEditorDiff').textContent=img.changes.map(c=>
      (labels[c.index]||'Register')+' (CM '+c.index+'): 0x'+c.from.toString(16).toUpperCase().padStart(4,'0')+
      ' → 0x'+c.to.toString(16).toUpperCase().padStart(4,'0')).join('\n');
+    if($('nvmDiff')){$('nvmDiff').textContent=$('alarmEditorDiff').textContent;$('nvmDiff').dataset.scope='alarm';}
     status('Änderungen vorbereitet. RAM-Prüfung starten. Am EEPROM wurde nichts geändert.');
     dirty=false;refresh();renderFlowState();
    }catch(e){clearPlan();status('Keine Alarmänderung vorgemerkt: '+e.message,'error');renderFlowState()}
