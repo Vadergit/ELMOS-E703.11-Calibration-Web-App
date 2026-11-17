@@ -2,7 +2,7 @@
 
 **Ein geführter Kalibrierassistent für den ELMOS E703.11 und das SSP3-Eval-Board.** Ziel ist ein verständlicher Abgleich, der auch ohne tiefere Vorkenntnisse Schritt für Schritt funktioniert. Wer mehr benötigt, kann zusätzliche Messpunkte, DSP-Parameter und einen geschützten Expertenmodus verwenden.
 
-**Version: v0.7.116 · TK0 mit 3 Punkten und TK0 + TKE mit 4 Punkten** · [Änderungsverlauf](CHANGELOG.md) · **[Geplante Funktionen](ROADMAP.md)**
+**Version: v0.7.117 · TK0 mit 3 Punkten und TK0 + TKE mit 4 Punkten** · [Änderungsverlauf](CHANGELOG.md) · **[Geplante Funktionen](ROADMAP.md)**
 
 Der **Demo-Modus** wird in den Einstellungen erst nach Aktivierung von **Expertenparameter** angezeigt. Er simuliert Sensorwerte und Schreibvorgänge; die echte Hardware wird dabei nicht programmiert.
 
@@ -13,6 +13,14 @@ Der **Demo-Modus** wird in den Einstellungen erst nach Aktivierung von **Experte
 > **Geführter Assistent:** Nach der bestätigten SSP3-Verbindung stehen die neue Schritt-für-Schritt-Führung, die klassische Ansicht und der optionale Kompaktmodus zur Verfügung. Ein E703.11-Chip muss für den Abgleich verbunden sein. Als DIY-Programmer sind ausschliesslich ESP32-C3 SuperMini (v0.11 Test) und Arduino Pro Micro (v0.27) vorgesehen. Die originalen ELMOS SSP3-Adapter bleiben separat unterstützt. Der vollständige Hardwaretest der DIY-Programmer ist noch offen.
 >
 > [Geführter Abgleich](docs/GEFUEHRTER_ASSISTENT.md) · [DIY-Programmer (ESP32-C3 / Pro Micro)](docs/USB_BRIDGE_GUIDE.md) · [Pinbelegung der zwei Boards](docs/ESP_BOARD_OPTIONS.md) · [DIY-Firmware-Installer](firmware-update.html)
+
+## v0.7.117 – Eigener Tab «Alarme & Fehler» mit Live-Regelprüfung
+
+In der klassischen Navigation befindet sich jetzt ein unabhängiger Tab **Alarme & Fehler**, getrennt vom EEPROM-Rohdatenviewer. Die Alarm- und EOC-Diagnose sowie der vollständige Editor liegen dort zusammen. Von dort lassen sich EEPROM-Lesung und anschliessend der geschützte NVM-Schritt direkt aufrufen.
+
+Ein **Live-Regelwerk** erklärt im selben Tab die aktiven Chipmodi, ausgewählte STATUS-Verknüpfungen und voneinander abhängige Funktionen. Echte Konflikte (DSP-Post-Scaling, überlappende Hystereseschwellen, EOC/One-Wire-/Temperatur-/SDA-Pinkollisionen, ungültige Werte) verhindern die Vorschau auch im Berechnungsmodul. Unwirksame oder riskante Einstellungen erzeugen Hinweise. One-Wire-Startbits und EOC-Pinrouting bleiben weiterhin unverändert.
+
+Details und Hardwarevorbehalte: [Alarmkonfiguration](docs/ALARM_KONFIGURATION.md).
 
 ## v0.7.116 – Alarme und Fehler jetzt auch einstellen
 
