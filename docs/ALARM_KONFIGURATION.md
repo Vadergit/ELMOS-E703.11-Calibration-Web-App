@@ -1,3 +1,13 @@
+## v0.7.118 – Optionaler Schritt nach dem Ausgang
+
+Im klassischen und geführten Kalibrierablauf erscheinen Alarme zwischen **Ausgang konfigurieren** und **NVM programmieren**. Der Schritt ist optional. Der Button **«Ohne Alarmänderung zum NVM»** erhält bestehende Alarmwerte im Chip. Er bedeutet **nicht**, dass alle alten Alarme deaktiviert werden.
+
+Für einen neuen Alarmabgleich: EEPROM lesen, DSP-Bereich und Pinbelegung kontrollieren, Einstellungen wählen, Vorschau, RAM schreiben und rücklesen. Im normalen Abgleich werden die bestätigten Alarmregister dann **in dasselbe finale Kalibrier-NVM-Abbild** aufgenommen. Keine zweite NVM-Programmierung nötig.
+
+**Nachträglich ändern:** Sensor mit SSP3 verbinden, aktuelles NVM sichern, «Alarme & Fehler» öffnen, Einstellungen ändern und separat über RAM-Rücklesung und NVM mit Backup übernehmen. Kein Druckabgleich notwendig.
+
+**Config-Dateien:** Eigene Gruppe «Alarme & Fehler» bei Export/Import/Preset. Standard `mode: skip`; ein importiertes Alarmprofil muss am neuen Chip erneut geprüft und im RAM bestätigt werden. Für Serienprojekte ist so eine gezielte Wiederverwendung möglich.
+
 # Alarm- und Fehlerkonfigurator – v0.7.116 (Labor)
 
 Quellen: Elmos E703.11 Datenblatt 25DS0170E.04, Kapitel 6.3.2.4, 6.3.2.5, 6.3.2.9, 6.4.2 und 6.5.7.2.
