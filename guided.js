@@ -60,7 +60,7 @@ const ELMOS_GUIDED=(()=>{
    '<div id="gwPage0" class="gw-page"><div class="gw-columns gw-six">'+
     '<button class="gw-choice" data-gw-task="calibration"><span class="gw-choice-icon">◉</span><strong>Sensor neu abgleichen</strong><small>Von der Messung über die DSP-Prüfung bis zur sicheren NVM-Programmierung.</small></button>'+
     '<button class="gw-choice" data-gw-task="output"><span class="gw-choice-icon">↗</span><strong>Nur Ausgang ändern</strong><small>Bereits kalibrierten Sensor prüfen und AODO-Ausgang neu konfigurieren.</small></button>'+
-    '<a class="gw-choice" href="nvm-rechner.html" style="text-decoration:none" aria-label="NVM-Rechner offline öffnen"><span class="gw-choice-icon">▣</span><strong>NVM-Rückrechner · Offline</strong><small>Backupdatei einlesen und Nullpunkt, TK0 und TKR ohne Sensor berechnen.</small></a>'+
+    '<button type="button" class="gw-choice" data-gw-task="nvm"><span class="gw-choice-icon">▣</span><strong>NVM-Rückrechner · Offline</strong><small>Backup importieren und Werte direkt in dieser App berechnen.</small></button>'+
     '<button class="gw-choice" data-gw-task="inspect"><span class="gw-choice-icon">▤</span><strong>EEPROM / Diagnose</strong><small>Die bestehende Register- und EEPROM-Ansicht ohne geführten Abgleich öffnen.</small></button>'+
     '<button class="gw-choice" data-gw-task="testlog"><span class="gw-choice-icon">◷</span><strong>Test / Logging</strong><small>Beliebige Sensortests durchführen, alle Telemetriedaten samt Notizen speichern.</small></button>'+
     '<button class="gw-choice" data-gw-task="verification"><span class="gw-choice-icon">↕</span><strong>Nachmessung</strong><small>Druck- und Temperaturprüfungen mit Hysterese und frei wählbaren Prüfpunkten.</small></button>'+
@@ -720,6 +720,7 @@ const ELMOS_GUIDED=(()=>{
    window.ELMOS_ARCHIVE.open(task==='verification'?'verification':'archive');
    return;
   }
+  if(stage===0&&task==='nvm'){close();window.ELMOS_GUIDED_API?.navigate?.(10);return}
   const s=state();
   if(!s.chip){msg('Zuerst den E703.11 über USB verbinden. Eine reine USB-CDC-Verbindung ohne Chipzugriff genügt nicht.','warn');return}
   if(stage===0){
@@ -930,6 +931,7 @@ const ELMOS_GUIDED=(()=>{
   $('guidedLaunch')?.addEventListener('click',open);
   $('guidedLaunchTop')?.addEventListener('click',toggleTopView);
   const restorePreferredView=()=>{
+   if(location.hash==='#nvm-rechner'){if(mode)close();else syncTopMode();return}
    // No saved choice: use the guided start screen. An explicit classic choice
    // always wins, including after a reload and reconnect.
    if(rememberedView()==='classic'){
