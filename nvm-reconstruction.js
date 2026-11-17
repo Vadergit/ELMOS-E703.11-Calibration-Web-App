@@ -196,6 +196,43 @@ const ELMOS_NVM_RECON = (() => {
     pressureTempIndependent,tempCorrectionConstant,fixedTemperatureC,manualTemperatureInputs:rawInputs,manualBoth},
    rows,hasPhysical,tk0,tk0Bar,tkr,adcSpan,analog,warnings:[...new Set(warnings)]};
  }
+
+ // Explain unavailable readings without inventing original measurements.
+ function missingExplanations(r){
+  if(!r?.ok)return [];
+  const items=[],cfg=r.settings,rows=r.rows;
+  const missingT=rows.some(row=>!finite(row.adcT));
+  const missingS=rows.some(row=>row.endpoints.some(p=>!finite(p.adcDigits)));
+  const missingBridge=rows.some(row=>!finite(row.zero)||!finite(row.span));
+  if(missingT){
+   const reason=cfg.tempCorrectionConstant?
+    'Im NVM ist nur ein fester Temperaturwert hinterlegt. Es fehlen gemessene ADC_T-Werte bei den eingestellten Temperaturen.':
+    !cfg.tF?'Die Temperaturskalierung fehlt. Benötigt werden passende gemessene ADC_T-Werte.':
+    'Die Temperaturkennlinie liefert keinen eindeutigen Rohwert. Benötigt werden die damals gemessenen ADC_T-Werte.';
+   items.push({name:'Temperatur-Rohwerte (ADC_T)',reason});
+  }
+  if(missingS){
+   const reason=(!cfg.sF||cfg.scoeff.every(c=>c===0))?
+    'Im NVM fehlt eine nutzbare Druckkalibrierung.':
+    !cfg.pressureTempIndependent&&rows.some(row=>!finite(row.tempNorm))?
+    'Für diese Temperaturpunkte fehlen passende ADC_T-Messwerte.':
+    'Die Druckkennlinie ist nicht eindeutig umkehrbar. Hilfreich wären die ursprünglichen Druck- und ADC_S-Messwerte.';
+   items.push({name:'Druck-Rohwerte (ADC_S)',reason});
+  }
+  if(missingBridge&&!missingS)
+   items.push({name:'Nullpunkt / Spanne in mV/V',
+    reason:'Die Verstärker- oder Brückeneinstellungen im NVM reichen für eine eindeutige Rückrechnung nicht aus.'});
+  if(!finite(r.tk0)||!finite(r.tkr)){
+   const reason=cfg.pressureTempIndependent?
+    'Im Druckabgleich ist keine Temperaturabhängigkeit hinterlegt. Für echte Temperaturabweichungen wären Druckmessungen bei zwei Temperaturen nötig.':
+    missingT?'Es fehlen verwertbare Temperaturwerte für beide Bezugstemperaturen.':
+    'Die Druckwerte lassen sich nicht bei beiden Temperaturen vollständig zurückrechnen.';
+   items.push({name:'Temperaturgang (TK0 / TKR)',reason});
+  }
+  items.push({name:'Ursprünglicher Druckbereich / Prüfpunkte',
+   reason:'Nicht eindeutig im NVM gespeichert. Der Rechner verwendet deinen eingegebenen Druckbereich; die Originalwerte stehen im Kalibrierprotokoll.'});
+  return items;
+ }
  function dom(tag,text,cls) {
   const n=document.createElement(tag);
   if(cls)n.className=cls;
@@ -286,15 +323,18 @@ const ELMOS_NVM_RECON = (() => {
     dom('p','Der ursprüngliche Druckbereich in bar, die Prüfpunkte und echte unkalibrierte Messwerte werden durch das NVM allein nicht eindeutig gespeichert. TK0/TKR sind modellbasierte Rückrechnungen, keine unabhängige Sensormessung.','nvmrecon-muted'));
    const setup=dom('section',undefined,'nvmrecon-setup');
    setup.append(heading,detail,actions,grid,advanced);
-   root.append(setup,status,result,explain);
+   const missing=dom('section',undefined,'nvmrecon-missing');
+   missing.hidden=true;
+   root.append(setup,status,result,explain,missing);
   }
   root._nvmState.live=validWords(verifiedWords)?verifiedWords.slice():null;
   draw(root);
  }
  function draw(root){
   const state=root._nvmState,status=root.querySelector('.nvmrecon-status'),
-   box=root.querySelector('.nvmrecon-result');
+   box=root.querySelector('.nvmrecon-result'),missing=root.querySelector('.nvmrecon-missing');
   box.replaceChildren();
+  if(missing){missing.replaceChildren();missing.hidden=true;}
   const selected=chooseSource(state.live,state.offline),words=selected.words;
   const clear=root.querySelector('.nvmrecon-clear');
   if(clear)clear.disabled=!validWords(state.offline);
@@ -408,7 +448,19 @@ const ELMOS_NVM_RECON = (() => {
   for(const message of r.warnings)ul.appendChild(dom('li',message));
   ul.appendChild(dom('li','Nominale AFE-Verstärkungen, ADC-Fullscale ±700 mV und Offset-DAC-Stufe 50 mV/V verwendet. Fabriktrim, reale Brückenspannung und Temperaturdrift der Elektronik sind nicht rückgerechnet.'));
   warnings.appendChild(ul);box.appendChild(warnings);
+  if(missing){
+   missing.appendChild(dom('h3','Nicht berechenbare Werte'));
+   missing.appendChild(dom('p','Welche Angaben fehlen und warum?','nvmrecon-missing-intro'));
+   const entries=dom('ul');
+   for(const item of missingExplanations(r)){
+    const li=dom('li');
+    li.append(dom('strong',item.name+': '),document.createTextNode(item.reason));
+    entries.appendChild(li);
+   }
+   missing.appendChild(entries);
+   missing.hidden=false;
+  }
  }
- return {calculate,render,validWords,chooseSource};
+ return {calculate,render,validWords,chooseSource,missingExplanations};
 })();
 if(typeof module!=='undefined'&&module.exports)module.exports=ELMOS_NVM_RECON;
