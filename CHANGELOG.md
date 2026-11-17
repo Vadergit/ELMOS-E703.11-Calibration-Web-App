@@ -1,3 +1,9 @@
+## v0.7.107 – Tatsächlichen Adapter und Blockiergrund im Ausgangs-NVM anzeigen
+
+- Der NVM-Schritt nennt bei reinem Ausgangsplan nun korrekt «Ausgangseinstellungen dauerhaft speichern» statt «Kalibrierung dauerhaft speichern».
+- Der aktive Programmieradapter (originaler SSP3 bzw. erkanntes DIY-Board inklusive Firmware) wird direkt neben der Chip-UID angegeben. Der statische PSSC-Schriftzug im App-Kopf ist keine Hardwarekennung.
+- Bei PSSC-RAM-Recovery mit DIY-Bridge erklärt die Sperre, dass die freigegebene Firmware bisher nur Kalibrier-NVM, nicht die AODO-Ausgangsregister unterstützt. NVM-, UID- und One-Wire-Sicherheitsprüfungen bleiben unverändert. Keine neue Ausgangs-Schreibfreigabe, kein Hardwaretest.
+
 ## v0.7.106 – Ausgang separat speichern, auch nach bestätigter SSP3-RAM-Recovery
 
 - Die bereits vorhandene Aufgabe «Nur Ausgang ändern» kann nach vollständigem 64-Wort-NVM-Lesen mit bestätigter Chip-UID den analogen Ausgang ohne neue Druck-/Temperaturkalibrierung konfigurieren.
