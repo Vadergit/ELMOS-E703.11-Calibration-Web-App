@@ -78,6 +78,80 @@ const ELMOS_EXPERT=(()=>{
    const factory={5:'ABS_V_DAC01',6:'ABS_V_DAC23',7:'ABS_V_DAC45',8:'ABS_I_DAC01',9:'ABS_I_DAC23',10:'ABS_I_DAC45',11:'G01',12:'G2OFF',13:'CFG_CAL0',14:'CFG_CAL1'};
    return names[i]||factory[i]||(i>=35&&i<=50?'S'+(i-35):i>=51&&i<=54?'T'+(i-51):'CM_W'+i);
   }
+  // Separate snapshot of the live RAM configuration. Never silently reuse stale
+  // values after reconnect, a fresh EEPROM scan or a new programming session.
+  let overviewRam=null,overviewRamUid=null,overviewRamSession=null,overviewRamCrc=null,overviewRamAt=null,overviewReading=false;
+  const overviewValid=()=>!!(st.mode==='usb'&&st.port&&st.chip&&st.uid&&
+   st.nvmBackupVerified&&ELMOS_EEPROM_OVERVIEW.validWords(st.nvmBackup)&&
+   st.nvmBackup[0]===st.uid.ser0&&st.nvmBackup[1]===st.uid.ser1);
+  function overviewPlan(){
+   const image=st.calImage;
+   if(!overviewValid()||!image||!ELMOS_EEPROM_OVERVIEW.validWords(image.before)||
+      !ELMOS_EEPROM_OVERVIEW.validWords(image.after)||
+      !image.before.every((w,i)=>w===st.nvmBackup[i]))return null;
+   return image.after.some((w,i)=>w!==st.nvmBackup[i])?image.after:null;
+  }
+  function refreshOverview(){
+   const valid=overviewValid(),target=$('eepromOverviewRows'),status=$('eepromOverviewStatus'),
+    button=$('eepromReadRam');
+   if(!valid){
+    overviewRam=null;overviewRamUid=null;overviewRamSession=null;overviewRamCrc=null;overviewRamAt=null;
+   }
+   const current=valid&&overviewRam&&overviewRamUid===st.uid.hex&&
+    overviewRamSession===st.sessionIndex&&overviewRamCrc===st.nvmBackup[63]?
+     overviewRam:null;
+   if(valid&&!current)overviewRam=null;
+   button.disabled=!valid||overviewReading||st.calTask||st.writing||st.nvmWorking;
+   const plan=valid?overviewPlan():null;
+   ELMOS_EEPROM_OVERVIEW.render(target,valid?st.nvmBackup:null,current,plan);
+   status.textContent=!valid?'Keine gültige EEPROM-Lesung vorhanden.':
+    'EEPROM: 64 Wörter CRC-geprüft · RAM: '+(current?
+     'am '+new Date(overviewRamAt).toLocaleTimeString('de-CH')+' gelesen':
+     'noch nicht gelesen')+(plan?' · Vorgemerkte Änderungen vorhanden':'')+
+    '. Die Ansicht verändert keine Register.';
+  }
+  async function readOverviewRam(){
+   if(!overviewValid())return;
+   if(overviewReading||st.calTask||st.writing||st.nvmWorking||st.afeWriteActive||
+      st.closing||st.reinitRunning||st.powerCycleRunning){
+    show('eepromOverviewStatus','Ein anderer Sensorvorgang läuft. Bitte zuerst abschliessen.','warn');return;
+   }
+   const uid=st.uid.hex,session=st.sessionIndex,crc=st.nvmBackup[63],
+    resume=st.live&&!st.manualLivePause;
+   const indices=[16,17,18,19,20,21,22,24,25,26,27,28,29,
+    ...Array.from({length:32},(_,i)=>31+i)];
+   // CM index -> documented E703.11 RAM register address, in bytes.
+   const address=i=>i>=16&&i<=22?0x04+(i-16)*2:
+    i>=24&&i<=29?0x14+(i-24)*2:
+    i>=31&&i<=62?0x6C+(i-31)*2:null;
+   overviewReading=true;st.calTask=true;stopLive();
+   $('eepromReadRam').disabled=true;
+   try{
+    if(st.liveReadPromise)await st.liveReadPromise.catch(()=>{});
+    const snapshot={};
+    for(let n=0;n<indices.length;n++){
+     const i=indices[n],addr=address(i);
+     if(st.sessionIndex!==session||st.uid?.hex!==uid||!st.chip)
+      throw Error('Sensorverbindung hat sich während des Lesens geändert.');
+     if(addr===null)throw Error('Unbekannte RAM-Adresse zu CM '+i);
+     snapshot[i]=await readReg(addr);
+     $('eepromOverviewStatus').textContent='RAM wird nur lesend geprüft: '+(n+1)+' / '+indices.length+' Register …';
+    }
+    if(!overviewValid()||st.uid.hex!==uid||st.sessionIndex!==session||st.nvmBackup[63]!==crc)
+     throw Error('Die EEPROM-Grundlage hat sich während des RAM-Lesens geändert.');
+    overviewRam=snapshot;overviewRamUid=uid;overviewRamSession=session;
+    overviewRamCrc=crc;overviewRamAt=Date.now();
+   }catch(e){
+    overviewRam=null;overviewRamAt=null;
+    show('eepromOverviewStatus','RAM-Vergleich fehlgeschlagen: '+e.message,'error');
+   }finally{
+    st.calTask=false;overviewReading=false;
+    refreshOverview();
+    if(resume&&st.chip&&!st.closing&&!st.nvmWorking&&!st.manualLivePause)startLive();
+    renderFlowState();
+   }
+  }
+
   // UI-only expansion state. It is cleared whenever the verified chip identity changes.
   const expandedEEPROM=new Set();
   let eepromViewerUid=null;
@@ -89,6 +163,7 @@ const ELMOS_EXPERT=(()=>{
    const rows=$('eepromRows'),filter=($('eepromSearch').value||'').trim().toLowerCase();
    rows.replaceChildren();
    $('eepromExport').disabled=!valid||!st.uid;
+   refreshOverview();
    if(!valid){
     expandedEEPROM.clear();eepromViewerUid=null;
     const tr=document.createElement('tr'),td=document.createElement('td');
@@ -197,6 +272,7 @@ const ELMOS_EXPERT=(()=>{
    return !!(st.nvmBackupVerified&&st.nvmBackup&&save(st.nvmBackup,source))
   }
   function afterNvmScan(){
+   overviewRam=null;overviewRamAt=null;
    const ok=!!st.nvmBackupVerified&&!!st.nvmBackup;
    if(ok){
     const saved=save(st.nvmBackup,'SSP3-EEPROM-Lesung');
@@ -565,6 +641,7 @@ const ELMOS_EXPERT=(()=>{
   $('eepromRead').addEventListener('click',readNvm);
   $('eepromExport').addEventListener('click',exportCurrent);
   $('eepromSearch').addEventListener('input',refreshEEPROMViewer);
+  $('eepromReadRam').addEventListener('click',readOverviewRam);
   $('expertNvmExport').addEventListener('click',exportCurrent);
   $('expertRegistersRead').addEventListener('click',()=>withProgress('Chipregister werden gelesen',readRegisters));
   $('expertOutputPreset').addEventListener('click',preset);
