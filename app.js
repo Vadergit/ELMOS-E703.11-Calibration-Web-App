@@ -2709,10 +2709,13 @@ if(typeof document!=='undefined') (function UI(){
    if(!Number.isInteger(outputLimit)||outputLimit<1000||outputLimit>32000)throw Error('DSP-Endwert muss zwischen 1’000 und 32’000 Digits liegen');
    const fitMode=$('calFitMode').value;
    fitRequest={pmin,pmax,orderS,orderT,fitMode,outputLimit};
-    if(fitMode==='tk0'&&(orderS!==1||![0,1].includes(orderT)))throw Error('3-Punkte-TK0 benötigt linearen Druck; Temperaturordnung 0 (nur Druck) oder 1 (TK0).');
-    const required=fitMode==='tk0'?(orderT===0?2:3):(orderS+1)*(orderT+1);
+    if(fitMode==='tk0'&&(orderS!==1||orderT!==1))throw Error('3-Punkte-TK0 benötigt linearen Druck UND Temperaturordnung 1. Temperaturordnung 0 würde die TK0-Messung ignorieren.');
+    const required=fitMode==='tk0'?3:(orderS+1)*(orderT+1);
     if(st.calpoints.length<required)throw Error('Für diese Polynom- und Temperaturordnung sind mindestens '+required+' unabhängige Messpunkte nötig. Anzahl in Schritt 3 erhöhen.');
    const solution=CAL.fit(st.calpoints,{pmin,pmax,orderS,orderT,fitMode,outputLimit});
+   if(fitMode==='tk0'&&(solution.pressureOnly||solution.ignoredTemperaturePoints!==0||
+       solution.points!==st.calpoints.length||!Array.isArray(solution.registers.tcoeffs)))
+    throw Error('TK0-Berechnung unvollständig: alle gemessenen Druck-/Temperaturpunkte müssen berücksichtigt werden.');
     st.calfit=solution;st.calImage=null;st.calStaged=false;st.calVerified=false;st.calValidation=[];renderDSPLive();
     if(window.ELMOS_ARCHIVE?.active)void window.ELMOS_ARCHIVE.event('coefficient_fit',{solution,AFE:{...st.staged}}).catch(e=>show('calFitMsg','Archivfehler: '+e.message,'error'));
    const r=solution.registers;
@@ -3215,7 +3218,15 @@ if(typeof document!=='undefined') (function UI(){
   invalidateCalculation('Temperaturmessquelle geändert. Bitte Chipquelle kontrollieren und alle Messpunkte mit derselben Quelle neu erfassen.');
   renderCalibrationPlan();
  });
+ function alignTk0Ui(){
+  const active=$('calFitMode').value==='tk0';
+  for(const id of ['calSOrder','calTOrder']){
+   for(const option of $(id).options)option.disabled=active&&option.value!=='1';
+  }
+  if(active){$('calSOrder').value='1';$('calTOrder').value='1'}
+ }
  for(const id of ['calSOrder','calTOrder','calFitMode'])$(id).addEventListener('change',()=>{
+  if(id==='calFitMode')alignTk0Ui();
   $('calTempFallback').hidden=true;
   invalidateCalculation('Polynomordnung verändert. Neu berechnen und anschliessend neu ins RAM übertragen.');
  });
@@ -3224,6 +3235,7 @@ if(typeof document!=='undefined') (function UI(){
   invalidateCalculation('Temperaturkompensation bewusst deaktiviert; Druckfit neu berechnen.');
   calcCoefficients();
  });
+ alignTk0Ui();
  function updateDSPOutputLimit(){
   const limit=Number($('calDspLimit').value);
   $('calDspLimitHint').textContent=Number.isInteger(limit)&&limit>=1000&&limit<=32000?
@@ -3497,7 +3509,7 @@ if(typeof document!=='undefined') (function UI(){
     $('pmin').value=String(values.reference.min);$('pmax').value=String(values.reference.max);
    }
    if(has('dsp')){
-    $('calSOrder').value=String(values.dsp.sOrder);$('calTOrder').value=String(values.dsp.tOrder);$('calFitMode').value=values.dsp.fitMode||'full';
+    $('calSOrder').value=String(values.dsp.sOrder);$('calTOrder').value=String(values.dsp.tOrder);$('calFitMode').value=values.dsp.fitMode||'full';alignTk0Ui();
     $('calDspLimit').value=String(values.dsp.dspLimit);$('calDspLimit').dataset.userEdited='1';
    }
    if(has('measurement')||has('reference')||has('dsp')){
