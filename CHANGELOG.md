@@ -1,3 +1,13 @@
+## v0.7.114 – Elmos AN0203: DSP/AODO vor NVM zusammen prüfen
+
+- Druck- und Temperatur-Sollwertformeln nach Elmos AN0203 zentralisiert; optional kleinere DSP-Spanne bleibt erlaubt.
+- Im finalen Analog-Kalibrierplan wird die auf der Oberfläche sichtbare AODO-Skalierung nun automatisch mit vorgemerkt, wenn keine explizite Ausgangsvormerkung besteht. Der NVM-Diff bleibt vor jedem Schreiben kontrollierbar.
+- **NVM-Schreibsperre bei S0/S1-Widerspruch:** `CFG_EN.scale_en`, `AODO_O/F`, Limiting, DSP-Spanne und VDD müssen im 64-Wort-Endbild zusammenpassen. Clipping kann einen falschen Roh-Gain nicht verstecken.
+- Tempöräre One-Wire-Recovery umgeht keine geschützten Bootregister; in diesem Fall wird ein nicht speicherbares analoges Spannungsziel blockiert.
+- Neuer Ausgangsvergleich unmittelbar vor NVM-Schreiben und nach echtem Power-Cycle.
+- Neun eigenständige Offline-Tests sowie [Testanleitung](docs/ELMOS_KALTSTART_TEST.md).
+- **Grenze:** Proprietäre `pssc_cal_calibration`-/`pssc_cal_overall`-Interna sind noch nicht bitgenau portiert oder mit der Original-DLL verglichen; reale AODO-Spannung benötigt externes DMM. Laborprototyp, nicht hardwarefreigegeben.
+
 ## v0.7.113 – Echter Browser-Zurück-Schutz bei ungespeicherter Kalibrierung
 
 - Bei bereits aufgenommenen Messpunkten, berechneten/ins RAM geschriebenen, aber noch nicht dauerhaft im NVM gespeicherten Kalibrierdaten oder einem vorbereiteten NVM-Plan fordert die Web-App vor Browser-Zurück, Neuladen oder Schliessen den **nativen Browser-Bestätigungsdialog** an.
