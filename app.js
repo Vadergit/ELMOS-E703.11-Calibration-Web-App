@@ -4066,6 +4066,9 @@ if(typeof document!=='undefined') (function UI(){
 
  // wiring
  document.querySelectorAll('[data-step]').forEach(b=>b.addEventListener('click',()=>step(b.dataset.step)));document.querySelectorAll('[data-next]').forEach(b=>b.addEventListener('click',()=>step(b.dataset.next)));
+ $('outputSkipAlarms').addEventListener('click',()=>{
+  ELMOS_ALARM_EDITOR.skipForCalibration();step(6);
+ });
  $('iface').value=lsGet('elmos8-iface')||'plc';if(!ifcfg[$('iface').value])$('iface').value='plc';st.iface=$('iface').value;
  $('adapterType').value=demoEnabled?'ssp3':lsGet('elmos-adapter-type-v1')||'ssp3';
  if(demoEnabled)$('iface').value='plc';
@@ -4518,6 +4521,9 @@ if(typeof document!=='undefined') (function UI(){
    nvmBackupVerified:!!st.nvmBackupVerified,outputReady:expert.outputReady()
   }),
   navigate:n=>step(n),
+  skipAlarms:()=>ELMOS_ALARM_EDITOR.skipForCalibration(),
+  alarmPending:()=>ELMOS_ALARM_EDITOR.pendingForCalibration(),
+  alarmProfile:()=>ELMOS_ALARM_EDITOR.profileFromUi(),
   offerSeriesPreset,
   prepareNextSensor,
   applySeriesSettings:profile=>applySeriesConfig(profile,configIncluded(profile)),
