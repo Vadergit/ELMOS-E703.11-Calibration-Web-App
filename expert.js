@@ -490,8 +490,22 @@ const ELMOS_EXPERT=(()=>{
   }
   function renderOutputMode(){
    const mode=$('expertOutputMode').value;
+   const clippingEnabled=isAnalog(mode)&&$('outputClippingMode').value==='on';
    $('outputClippingFields').hidden=!isAnalog(mode);
-   $('outputClipLow').disabled=$('outputClipHigh').disabled=$('outputClippingMode').value!=='on';
+   // The grey 0.5 V / 4.5 V placeholders are not values. On first
+   // activation put the actual 10–90 % VDD defaults in both inputs.
+   // Never overwrite a previously entered limit when re-rendering.
+   if(clippingEnabled){
+    const vdd=$('psscVdd').valueAsNumber;
+    for(const [id,ratio,placeholder] of [['outputClipLow',.1,.5],['outputClipHigh',.9,4.5]]){
+     const field=$(id);
+     if(field.value.trim()===''){
+      const reference=Number.isFinite(vdd)&&vdd>0?vdd*ratio:placeholder;
+      field.value=String(Number(reference.toFixed(5)));
+     }
+    }
+   }
+   $('outputClipLow').disabled=$('outputClipHigh').disabled=!clippingEnabled;
    $('expertPwmPeriodField').hidden=mode!=='4';
    $('psscAnalogFields').hidden=!isAnalog(mode);
    $('psscScalingSection').hidden=mode==='onewire';
