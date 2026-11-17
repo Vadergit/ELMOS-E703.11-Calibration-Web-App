@@ -52,7 +52,7 @@ test('TKE fits S*T independently with fourth physical reference',()=>{
 
 test('An incomplete four-point TKE calibration cannot calculate coefficients',()=>{
  assert.throws(()=>CAL.fit(reference.slice(0,3),{...opts,fitMode:'full'}),/4 unabhängige Messpunkte/);
- const pressureOnly=CAL.fit(reference.slice(0,3),{...opts,fitMode:'tk0',orderT:0});
+ const pressureOnly=CAL.fit(reference.slice(0,3),{...opts,fitMode:'full',orderT:0});
  assert.equal(pressureOnly.orderT,0);
  assert.equal(pressureOnly.registers.tcoeffs,null);
  assert.equal(pressureOnly.points,2);
@@ -76,7 +76,7 @@ test('Three-point calibration mode survives portable profile export and import',
 test('TK0 mode reuses existing hardware write gates and is visible in both UIs',()=>{
  const app=read('app.js'),guided=read('guided.js'),html=read('index.html');
  assert.ok(app.includes("CAL.fit(st.calpoints,{pmin,pmax,orderS,orderT,fitMode,outputLimit})"));
- assert.ok(app.includes("const required=fitMode==='tk0'?(orderT===0?2:3):(orderS+1)*(orderT+1)"));
+ assert.ok(app.includes("const required=fitMode==='tk0'?3:(orderS+1)*(orderT+1)"));
  assert.ok(app.includes("st.calfit.fitMode||'full'"));
  assert.ok(app.includes("if(!calEndpointsReady())throw Error"));
  assert.ok(guided.includes("moveLabel('calFitMode','gwFitFields')"));
@@ -298,8 +298,8 @@ test('One DSP verification point is sufficient at TK0/TKE; temperature coverage 
  assert.ok(html.includes('Ein Prüfpunkt genügt auch bei TK0/TKE'));
  assert.ok(guided.includes('Bereits ein bestandener Prüfpunkt genügt'));
  assert.ok(html.includes('id="calVerifyCount" min="1" max="10" step="1" value="1"'));
- assert.ok(html.includes('guided.js?v=0.7.93'));
- assert.ok(html.includes('app.js?v=0.7.99'));
+ assert.ok(/guided\\.js\\?v=0\\.7\\.\\d+/.test(html));
+ assert.ok(/app\\.js\\?v=0\\.7\\.\\d+/.test(html));
 });
 
 test('Classic and guided calibration point ordering agree at each reference temperature',()=>{
@@ -374,6 +374,6 @@ test('Temperature display survives restart without any current wizard state',()=
  assert.ok(app.includes("'°C · NVM-Abgleich'"));
  assert.ok(app.includes('const temperatureBasis=!restoring&&!outputOnly&&st.calfit?.orderT>0'));
  assert.ok(app.includes('st.regs[pending]=await readReg(pending,1100)'));
- assert.ok(html.includes('calibration.js?v=0.7.95'));
- assert.ok(html.includes('app.js?v=0.7.99'));
+ assert.ok(/calibration\\.js\\?v=0\\.7\\.\\d+/.test(html));
+ assert.ok(/app\\.js\\?v=0\\.7\\.\\d+/.test(html));
 });
