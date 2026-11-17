@@ -892,12 +892,12 @@ if(typeof document!=='undefined') (function UI(){
   $('nvmBackupRead').disabled=!verificationComplete()||!st.port||!st.chip||st.nvmWorking||st.writing||st.calTask;
   $('nvmBackupDownload').disabled=!st.nvmBackupVerified||!st.nvmBackup;
   $('nvmAutoBackup').disabled=st.nvmWorking||st.writing||st.calTask;
-  $('nvmPrepare').disabled=!verificationComplete()||!st.port||!st.chip||st.writing||st.calTask||st.nvmWorking||!!st.restorePlan||!!st.outputOnlyPlan||!!st.alarmOnlyPlan;
+  $('nvmPrepare').disabled=!verificationComplete()||!st.port||!st.chip||st.writing||st.calTask||st.nvmWorking||!!st.restorePlan||!!st.outputOnlyPlan||!!(st.alarmOnlyPlan&&!st.alarmOnlyPlan.duringCalibration);
   const restoring=expert.restoreReady(),outputOnly=expert.outputReady(),alarmOnly=ELMOS_ALARM_EDITOR.ready();
   $('nvmProgram').textContent=demoEnabled?'NVM-Programmierung simulieren':restoring?'Backup auf diesem Chip wiederherstellen':outputOnly?'AODO-Ausgangseinstellungen im NVM speichern':alarmOnly?'Alarme & Fehler dauerhaft ins NVM speichern':'Kalibrierung dauerhaft ins NVM schreiben';
   const recognizedUid=st.uid?.hex||'';
-  const outputPlanSelected=!!st.outputOnlyPlan,alarmPlanSelected=!!st.alarmOnlyPlan;
-  $('nvmPrepare').textContent=alarmPlanSelected?'Alarmänderungen im EEPROM Viewer vorbereitet':outputPlanSelected?'Ausgangsänderungen bereits geprüft':
+  const outputPlanSelected=!!st.outputOnlyPlan,alarmPlanSelected=!!(st.alarmOnlyPlan&&!st.alarmOnlyPlan.duringCalibration);
+  $('nvmPrepare').textContent=alarmPlanSelected?'Alarmänderungen bereits vorbereitet':outputPlanSelected?'Ausgangsänderungen bereits geprüft':
    hasCurrentNvmBackup()?'Änderungen prüfen':'NVM lesen & Änderungen prüfen';
   const nvmTitle=document.querySelector('.panel[data-panel="6"] h2');
   const nvmIntro=document.querySelector('.panel[data-panel="6"] > p.muted.small');
@@ -3108,9 +3108,28 @@ if(typeof document!=='undefined') (function UI(){
       vdd:Number($('psscVdd').value)}
     };
    }
-   const image=CAL.configFrom(st.nvmBackup,st.calfit,st.afe??0x800,{
+   let image=CAL.configFrom(st.nvmBackup,st.calfit,st.afe??0x800,{
     output:recovery?null:outputPlan,bridgeSupply,userId:requestedNvmUserId()
    });
+   const includeAlarms=ELMOS_ALARM_EDITOR.pendingForCalibration();
+   if(st.alarmOnlyPlan?.duringCalibration&&!includeAlarms)
+    throw Error('Alarmänderungen sind nicht erfolgreich im RAM geprüft. Im Schritt «Alarme & Fehler» prüfen oder bewusst auslassen.');
+   if(includeAlarms){
+    if(recovery)throw Error('Alarmregister dürfen nach temporärer 1-Wire-RAM-Freigabe nicht in den gemeinsamen NVM-Abgleich übernommen werden.');
+    const alarmPlan=st.alarmOnlyPlan;
+    if(st.adapterKind!=='ssp3'||!alarmPlan.ramVerified)
+     throw Error('Gemeinsamer Alarm-NVM-Plan nur nach bestätigtem SSP3-RAM-Test.');
+    if(!$('nvmAutoBackup').checked)
+     throw Error('Bei Alarmänderungen ist das automatische Original-NVM-Backup Pflicht.');
+    const normalized=ELMOS_ALARM_CONFIG.prepare(image.after,alarmPlan.settings,CAL.crc16);
+    ELMOS_ALARM_CONFIG.validateDiff(image.after,normalized.after,CAL.crc16);
+    CAL.protectStartupCommunication(image.before,normalized.after,{allowSvdd:true,allowAlarmMask:true});
+    image={...image,after:normalized.after,
+     changes:normalized.after.map((to,index)=>to===image.before[index]?null:
+      {index,address:index*2,from:image.before[index],to}).filter(Boolean),
+     alarmIntegrated:true,alarmSettings:structuredClone(alarmPlan.settings),
+     calibrationBeforeAlarm:image.after.slice()};
+   }
    const finalMode=(image.after[16]>>9)&7;
    if(selectedOutputMode!=='onewire'&&finalMode>=1&&finalMode<=3){
     const out=CAL.analogOutputStatus(image.after,
@@ -3124,9 +3143,9 @@ if(typeof document!=='undefined') (function UI(){
    if(autoStageAnalog&&!recovery)st.expertOutputPlan=outputPlan;
    if(st.adapterKind==='bridge'&&image.changes.some(c=>c.index===CAL.SVDD_INDEX))
     throw Error('Brückenspannung dauerhaft speichern wird derzeit nur mit SSP3 unterstützt.');
-   const recoveryBlock=psscNvmBlock(image.before,image.after);
+   const recoveryBlock=psscNvmBlock(image.before,image.after,false,false,false);
    if(recoveryBlock)throw Error(recoveryBlock);
-   if(image.changes.some(c=>(c.index<28&&![16,22,CAL.SVDD_INDEX].includes(c.index))||c.index===29))throw Error('Unzulässiges NVM-Register im Änderungsplan');
+   if(image.changes.some(c=>(c.index<28&&![16,22,CAL.SVDD_INDEX,...(includeAlarms?[18]:[])].includes(c.index))||c.index===29))throw Error('Unzulässiges NVM-Register im Änderungsplan');
    if(!image.changes.length)throw Error('Keine NVM-Änderungen nötig');
    st.calImage=image;
    $('nvmDiff').textContent=image.changes.map(c=>{
@@ -3140,7 +3159,8 @@ if(typeof document!=='undefined') (function UI(){
      (verificationRequiredCount()===1?' Nur ein unabhängiger DSP-Prüfpunkt wurde verifiziert.':'')+
      (recovery?' Nur Kalibrierdaten werden gespeichert. Ausgangs- und One-Wire-Einstellungen bleiben erhalten.':'')+
      (ignoredOutputPlan?' Vorgemerkte Ausgangsänderungen inklusive Clipping werden nicht übernommen und können später separat gespeichert werden.':'')+
-     (autoStageAnalog&&!recovery?' Analogskalierung wurde anhand der sichtbaren S0/S1-Werte automatisch in die Änderungsliste aufgenommen.':''),
+     (autoStageAnalog&&!recovery?' Analogskalierung wurde anhand der sichtbaren S0/S1-Werte automatisch in die Änderungsliste aufgenommen.':'')+
+     (includeAlarms?' Alarm-/EOC- und Fehlerregister sind in derselben NVM-Änderungsliste enthalten.':''),
      'warn');
    $('nvmProgress').textContent='NVM gelesen · Änderungsliste bereit';
   }catch(e){
@@ -3197,10 +3217,11 @@ if(typeof document!=='undefined') (function UI(){
    }
    const recoveryBlock=psscNvmBlock(initial,modified,restoring,outputOnly,alarmOnly);
    if(recoveryBlock)throw Error(recoveryBlock);
+   const alarmIntegrated=!restoring&&!alarmOnly&&!outputOnly&&st.calImage?.alarmIntegrated===true;
    const allowSvdd=!restoring&&!outputOnly&&!alarmOnly;
    if(st.adapterKind==='bridge'&&modified[CAL.SVDD_INDEX]!==initial[CAL.SVDD_INDEX])
     throw Error('Brückenspannung dauerhaft speichern wird derzeit nur mit SSP3 unterstützt.');
-   CAL.protectStartupCommunication(initial,modified,{allowSvdd,allowAlarmMask:alarmOnly});
+   CAL.protectStartupCommunication(initial,modified,{allowSvdd,allowAlarmMask:alarmOnly||alarmIntegrated});
    const startup=CAL.oneWireStartupStatus(initial);
    if(startup.requiresCookie&&!(st.powerCycleResult?.readVerified&&st.powerCycleResult.verifiedUid===id)&&!psscRecoveryProven()&&!bridgeColdStartVerified())
     throw Error('1-Wire-Startschutz: Cookie-Start für die aktuelle Chip-UID nicht verifiziert. NVM-Schreiben gesperrt.');
@@ -3218,8 +3239,18 @@ if(typeof document!=='undefined') (function UI(){
    if(!restoring&&!outputOnly&&!alarmOnly&&st.calfit.stats.maxDigits>100)throw Error('Fitfehler zu gross (>100 Digits)');
    if(!restoring&&!outputOnly&&!alarmOnly&&modified[30]!==(requestedNvmUserId()??initial[30]))
     throw Error('USER-ID wurde geändert. Änderungsliste erneut vorbereiten.');
-   const allowedNormal=new Set([16,22,CAL.SVDD_INDEX,28,30,31,32,33,34,...Array.from({length:16},(_,i)=>35+i),51,52,53,54,57,58,59,60,63]);
+   const allowedNormal=new Set([16,22,CAL.SVDD_INDEX,28,30,31,32,33,34,...Array.from({length:16},(_,i)=>35+i),51,52,53,54,57,58,59,60,63,...(alarmIntegrated?[18,55,56,61,62]:[])]);
    if(st.calImage.changes.some(c=>restoring?(c.index<28||c.index>63):alarmOnly?![16,18,55,56,61,62,63].includes(c.index):outputOnly?![16,22,57,58,59,60,63].includes(c.index):!allowedNormal.has(c.index)))throw Error('Unzulässige NVM-Änderung');
+   if(alarmIntegrated){
+    if(st.adapterKind!=='ssp3'||!ELMOS_ALARM_EDITOR.pendingForCalibration()||!$('nvmAutoBackup').checked)
+     throw Error('Gemeinsamer Alarm-NVM-Plan nicht mehr bestätigt. Alarm-RAM erneut prüfen und Original sichern.');
+    const alarm=st.alarmOnlyPlan;
+    if(JSON.stringify(st.calImage.alarmSettings)!==JSON.stringify(alarm.settings))
+     throw Error('Alarmkonfiguration wurde seit der NVM-Vorschau verändert.');
+    const recalculated=ELMOS_ALARM_CONFIG.prepare(st.calImage.calibrationBeforeAlarm,alarm.settings,CAL.crc16);
+    if(modified.some((w,i)=>w!==recalculated.after[i]))
+     throw Error('Alarm-/Kalibrier-NVM-Abbild verändert. Neue Vorschau erforderlich.');
+   }
    if(restoring){
     for(let i=0;i<28;i++)if(modified[i]!==initial[i])throw Error('Factory-/Bootbereich weicht beim Restore ab');
    }else if(alarmOnly){
@@ -3229,7 +3260,11 @@ if(typeof document!=='undefined') (function UI(){
    }else if(outputOnly||st.calImage.changes.some(c=>[16,22,57,58,59,60].includes(c.index))){
     if(!st.expertOutputPlan)throw Error('AODO-NVM-Änderung ohne geprüften Expertenvorschlag');
     const expected=CAL.prepareOutputConfig(initial,st.expertOutputPlan,outputOnly?st.outputOnlyPlan.limit:st.calfit.outputLimit);
-    for(const i of [16,22,57,58,59,60])if(modified[i]!==expected[i])throw Error('Ausgangsregister entspricht nicht dem geprüften Vorschlag');
+    for(const i of [16,22,57,58,59,60]){
+     const mismatch=i===16&&alarmIntegrated?
+      (((modified[i]^expected[i])&~((1<<5)|(1<<8)))!==0):modified[i]!==expected[i];
+     if(mismatch)throw Error('Ausgangsregister entspricht nicht dem geprüften Vorschlag');
+    }
    }
    // A standalone output edit must create its own archive record; it cannot
    // assume a guided calibration already started one. This is a prerequisite
@@ -3287,8 +3322,8 @@ if(typeof document!=='undefined') (function UI(){
    }
    const finalRecoveryBlock=psscNvmBlock(initial,modified,restoring,outputOnly);
    if(finalRecoveryBlock)throw Error(finalRecoveryBlock);
-   CAL.protectStartupCommunication(initial,modified,{allowSvdd,allowAlarmMask:alarmOnly});
-   for(let i=0;i<28;i++)if(modified[i]!==initial[i]&&(restoring||![16,...(alarmOnly?[18]:[22]),...(allowSvdd?[CAL.SVDD_INDEX]:[])].includes(i)))throw Error('Boot-/Werksbereich verändert');
+   CAL.protectStartupCommunication(initial,modified,{allowSvdd,allowAlarmMask:alarmOnly||alarmIntegrated});
+   for(let i=0;i<28;i++)if(modified[i]!==initial[i]&&(restoring||![16,...((alarmOnly||alarmIntegrated)?[18,22]:[22]),...(allowSvdd?[CAL.SVDD_INDEX]:[])].includes(i)))throw Error('Boot-/Werksbereich verändert');
    // Only USER region access is authorized; NEVER unlock factory calibration area.
    nvmWriteFeedback('Chip bestätigt, NVM-Schreibfreigabe wird angefordert …');
    if(st.adapterKind==='bridge'&&st.bridgeCalibrationNvm)
@@ -3329,7 +3364,7 @@ if(typeof document!=='undefined') (function UI(){
     configuredUserId:'0x'+h(after[30],2),supply:archiveVoltages()
    }};
    try{await window.ELMOS_ARCHIVE?.event('nvm_after',{uid:id,words:after,crc16:after[63],verified:true})}
-   catch(archiveError){logging('KRITISCH: NVM erfolgreich geschrieben, Archiv-Export fehlgeschlagen: '+archiveError.message);ca('backupMsg','NVM erfolgreich verifiziert, aber der Archivordner ist nicht beschreibbar! Bitte unmittelbar NVM-Backup exportieren.','error')}st.calImage=null;st.restorePlan=null;st.outputOnlyPlan=null;st.alarmOnlyPlan=null;if(saveOldNvm)expert.afterNvmScan();const previousProgram=storedProgrammedNvm();
+   catch(archiveError){logging('KRITISCH: NVM erfolgreich geschrieben, Archiv-Export fehlgeschlagen: '+archiveError.message);ca('backupMsg','NVM erfolgreich verifiziert, aber der Archivordner ist nicht beschreibbar! Bitte unmittelbar NVM-Backup exportieren.','error')}st.calImage=null;st.restorePlan=null;st.outputOnlyPlan=null;st.alarmOnlyPlan=null;st.alarmCalibrationSkipped=true;if(saveOldNvm)expert.afterNvmScan();const previousProgram=storedProgrammedNvm();
    const carryTemperatureBasis=!restoring&&CAL.programmedTemperatureProfileMatches(
     previousProgram,id,Object.fromEntries([[31,0x6C],[32,0x6E],[51,0x94],[52,0x96],[53,0x98],[54,0x9A]]
      .map(([word,address])=>[address,after[word]])));
