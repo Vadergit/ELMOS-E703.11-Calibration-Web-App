@@ -3014,9 +3014,38 @@ if(typeof document!=='undefined') (function UI(){
    // psscNvmBlock independently verifies the complete before/after NVM diff.
    const ignoredOutputPlan=recovery&&!!st.expertOutputPlan;
    const bridgeSupply=await readNvmBridgeSupply(st.afe0);
+   // AN0203: DSP calibration AND AODO scaling must form one coherent NVM image.
+   // The original PSSC workflow prepares the complete cfg_t before programming.
+   // Auto-stage an unmodified analogue proposal from the visible S0/S1 settings;
+   // the explicit NVM diff/confirmation remains required.
+   const selectedOutputMode=$('expertOutputMode').value;
+   let outputPlan=st.expertOutputPlan;
+   const autoStageAnalog=!outputPlan&&['1','2','3'].includes(selectedOutputMode);
+   if(autoStageAnalog){
+    if(!$('expertScaleEnable').checked)
+     throw Error('Analogausgang: Skalierung ist deaktiviert. Vor NVM bitte S0/S1 aktivieren.');
+    outputPlan={
+     mode:selectedOutputMode,scaleEnabled:true,
+     gain:Number($('expertScaleGain').value),offset:Number($('expertScaleOffset').value),
+     clipping:{mode:$('outputClippingMode').value,
+      low:$('outputClipLow').valueAsNumber,high:$('outputClipHigh').valueAsNumber,
+      vdd:Number($('psscVdd').value)}
+    };
+   }
    const image=CAL.configFrom(st.nvmBackup,st.calfit,st.afe??0x800,{
-    output:recovery?null:st.expertOutputPlan,bridgeSupply,userId:requestedNvmUserId()
+    output:recovery?null:outputPlan,bridgeSupply,userId:requestedNvmUserId()
    });
+   const finalMode=(image.after[16]>>9)&7;
+   if(selectedOutputMode!=='onewire'&&finalMode>=1&&finalMode<=3){
+    const out=CAL.analogOutputStatus(image.after,
+     Number($('psscS0').value),Number($('psscS1').value),
+     Number($('psscVdd').value),st.calfit.outputLimit);
+    if(!out.checked||!out.ok)
+     throw Error('AODO-Skalierung im endgültigen NVM stimmt nicht mit S0/S1 überein: '+
+      out.reason+(recovery?' Temporärer One-Wire-RAM-Zugang: AODO darf hier nicht geschrieben werden.':
+      ' Bitte Ausgang konfigurieren und NVM-Änderungsliste erneut vorbereiten.'));
+   }
+   if(autoStageAnalog&&!recovery)st.expertOutputPlan=outputPlan;
    if(st.adapterKind==='bridge'&&image.changes.some(c=>c.index===CAL.SVDD_INDEX))
     throw Error('Brückenspannung dauerhaft speichern wird derzeit nur mit SSP3 unterstützt.');
    const recoveryBlock=psscNvmBlock(image.before,image.after);
@@ -3034,7 +3063,9 @@ if(typeof document!=='undefined') (function UI(){
    ca('nvmMsg',image.changes.length+' von 64 NVM-Wörtern werden verändert (CRC16 zuletzt). Factory-/Bootschutz geprüft.'+
      (verificationRequiredCount()===1?' Nur ein unabhängiger DSP-Prüfpunkt wurde verifiziert.':'')+
      (recovery?' Nur Kalibrierdaten werden gespeichert. Ausgangs- und One-Wire-Einstellungen bleiben erhalten.':'')+
-     (ignoredOutputPlan?' Vorgemerkte Ausgangsänderungen inklusive Clipping werden nicht übernommen und können später separat gespeichert werden.':''),'warn');
+     (ignoredOutputPlan?' Vorgemerkte Ausgangsänderungen inklusive Clipping werden nicht übernommen und können später separat gespeichert werden.':'')+
+     (autoStageAnalog&&!recovery?' Analogskalierung wurde anhand der sichtbaren S0/S1-Werte automatisch in die Änderungsliste aufgenommen.':''),
+     'warn');
    $('nvmProgress').textContent='NVM gelesen · Änderungsliste bereit';
   }catch(e){
    st.calImage=null;
@@ -3088,6 +3119,16 @@ if(typeof document!=='undefined') (function UI(){
    if(startup.requiresCookie&&!(st.powerCycleResult?.readVerified&&st.powerCycleResult.verifiedUid===id)&&!psscRecoveryProven()&&!bridgeColdStartVerified())
     throw Error('1-Wire-Startschutz: Cookie-Start für die aktuelle Chip-UID nicht verifiziert. NVM-Schreiben gesperrt.');
    if(CAL.crc16(initial)!==initial[63]||CAL.crc16(modified)!==modified[63])throw Error('CRC16-Prüfung fehlgeschlagen');
+   // Repeat the target-voltage check immediately before any NVM write command.
+   // A valid DSP fit alone is not proof of a correctly scaled AODO pin.
+   if(!restoring&&!outputOnly&&((modified[16]>>9)&7)>=1&&((modified[16]>>9)&7)<=3&&
+      st.expertOutputPlan?.mode!=='onewire'){
+    const out=CAL.analogOutputStatus(modified,
+     Number($('psscS0').value),Number($('psscS1').value),
+     Number($('psscVdd').value),st.calfit.outputLimit);
+    if(!out.checked||!out.ok)throw Error('NVM-Schreibsperre: '+out.reason+
+      '. Neue Ausgangsskalierung prüfen, kein Sensorprogrammieren.');
+   }
    if(!restoring&&!outputOnly&&st.calfit.stats.maxDigits>100)throw Error('Fitfehler zu gross (>100 Digits)');
    if(!restoring&&!outputOnly&&modified[30]!==(requestedNvmUserId()??initial[30]))
     throw Error('USER-ID wurde geändert. Änderungsliste erneut vorbereiten.');
@@ -3201,8 +3242,11 @@ if(typeof document!=='undefined') (function UI(){
      .map(([word,address])=>[address,after[word]])));
    const temperatureBasis=!restoring&&!outputOnly&&st.calfit?.orderT>0?
     'an0203-celsius-v1':carryTemperatureBasis?'an0203-celsius-v1':null;
+   const outputTarget=!restoring&&!outputOnly&&((after[16]>>9)&7)>=1&&((after[16]>>9)&7)<=3?
+    {s0:Number($('psscS0').value),s1:Number($('psscS1').value),
+     vdd:Number($('psscVdd').value),limit:st.calfit.outputLimit}:null;
    lsSet('elmos8-last-program',JSON.stringify({
-    id,words:after,ts:new Date().toISOString(),restore:restoring,temperatureBasis
+    id,words:after,ts:new Date().toISOString(),restore:restoring,temperatureBasis,outputTarget
    }));
    ca('nvmMsg',restoring?'Backup-Wiederherstellung abgeschlossen, NVM rückgelesen und CRC16 bestätigt. Sensor neu starten und erneut prüfen.':outputOnly?'AODO-Ausgangseinstellungen dauerhaft gespeichert, NVM rückgelesen und CRC16 bestätigt. Sensor neu starten und Ausgabefunktion prüfen.':'NVM-Programmierung und vollständiges Rücklesen/CRC16 erfolgreich. Sensor neu starten und Schnittstelle erneut prüfen.','success');
    nvmWriteFeedback('NVM erfolgreich programmiert, 64/64 Wörter geprüft. Sensor neu starten und Ausgang messen.','success');
@@ -3288,6 +3332,11 @@ if(typeof document!=='undefined') (function UI(){
    renderStatus();
    if(!readOK)throw Error('NVM nach Neustart nicht lesbar oder CRC-Prüfung fehlgeschlagen');
    if(st.nvmBackup.some((word,index)=>expected.words[index]!==word))throw Error('NVM nach Neustart weicht vom programmierten Abbild ab');
+   if(expected.outputTarget){
+    const {s0,s1,vdd,limit}=expected.outputTarget;
+    const out=CAL.analogOutputStatus(st.nvmBackup,s0,s1,vdd,limit);
+    if(!out.checked||!out.ok)throw Error('AODO stimmt nach Neustart nicht mit dem gespeicherten Spannungsziel überein: '+out.reason);
+   }
    const boot=await bootSnapshot();
    for(const [index,addr] of [[16,4],[17,6],[18,8],[19,10],[20,12],[22,16]]){
     const expectedWord=recoveredAfterBoot&&addr===6?0x6C04:st.nvmBackup[index];
