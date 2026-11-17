@@ -33,7 +33,7 @@ test('Portable Config contains only selected alarm data and no chip-specific NVM
  assert.ok(!JSON.stringify(result).includes('uid'));
  assert.ok(!JSON.stringify(result).includes('nvmBackup'));
  assert.throws(()=>CFG.validate({...selected,alarm:{mode:'edit',settings:{...settings(),lowerPct:80,upperPct:20}}},CAL));
- assert.throws(()=>CFG.validate({...selected,alarm:{mode:'edit',settings:{...settings(),hysteresis:15}}},CAL));
+ assert.throws(()=>CFG.validate({...selected,alarm:{mode:'edit',settings:{...settings(),lowerPct:49,upperPct:51,hysteresis:15}}},CAL));
 });
 test('Calibration and alarm settings can form one CRC-valid image with protected boot fields',()=>{
  const before=original();
