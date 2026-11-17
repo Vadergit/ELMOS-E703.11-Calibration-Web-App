@@ -229,14 +229,15 @@ const ELMOS_NVM_RECON = (() => {
   if(!root._nvmInit){
    root._nvmInit=true;
    root._nvmState={live:null,offline:null,fileName:null,fileError:null,opts:{pmin:0,pmax:6,ta:25,tb:75,vdd:5,limit:32000,tempModel:'auto'},last:null};
-   const heading=dom('h3','Sensor-Rückrechnung aus dem NVM');
-   const detail=dom('p','Druckbereich und Temperaturreferenzen ergänzen. Das Berechnungsmodell folgt AN0203 und dem E703.11-DSP. Alle Auswertungen sind lesend; Brückensignale in mV/V sind Näherungen aus nominalen AFE-Daten.','nvmrecon-muted');
+   const heading=dom('h3','Datenquelle & Referenzen','nvmrecon-section-title');
+   const detail=dom('p','NVM-Backup laden und Referenzbedingungen festlegen. Die Rückrechnung erfolgt lokal, ohne Sensorzugriff.','nvmrecon-muted nvmrecon-intro');
    const actions=dom('div',undefined,'nvmrecon-actions');
    const file=dom('input');file.type='file';file.accept='.json,application/json';
-   file.setAttribute('aria-label','NVM-Backup JSON lokal öffnen');
-   const clear=dom('button','Offline-Datei entfernen');clear.type='button';
+   file.id='nvmReconFile';file.setAttribute('aria-label','NVM-Backup JSON lokal öffnen');
+   const upload=dom('label','NVM-Backup importieren','nvmrecon-upload');upload.htmlFor=file.id;
+   const clear=dom('button','Datei entfernen','nvmrecon-clear');clear.type='button';clear.disabled=true;
    clear.addEventListener('click',()=>{root._nvmState.offline=null;root._nvmState.fileName=null;root._nvmState.fileError=null;file.value='';draw(root)});
-   actions.append(dom('span','NVM-Backup als Datenquelle importieren (hat Vorrang vor EEPROM)','nvmrecon-muted'),file,clear);
+   actions.append(upload,file,clear,dom('span','JSON · 64 Wörter · nur lesend','nvmrecon-actions-hint'));
    file.addEventListener('change',async()=>{
     const f=file.files?.[0];if(!f)return;
     try{
@@ -266,7 +267,7 @@ const ELMOS_NVM_RECON = (() => {
    }
    modelSelect.addEventListener('change',()=>{root._nvmState.opts.tempModel=modelSelect.value;draw(root)});
    modelLabel.appendChild(modelSelect);grid.appendChild(modelLabel);
-   const advanced=dom('details',undefined,'nvmrecon-warnings');
+   const advanced=dom('details',undefined,'nvmrecon-warnings nvmrecon-advanced');
    advanced.appendChild(dom('summary','Erweitert: Gemessene Temperatur-ADC-Werte eingeben (optional)'));
    advanced.appendChild(dom('p','Wenn T0–T3 keine umkehrbare Temperaturkennlinie bilden, lassen sich die normierten Temperaturwerte direkt aus gemessenen ADC_T-Rohwerten berechnen. Für TK0/TKR sind zwei echte ADC_T-Messungen bei den eingetragenen Temperaturen erforderlich.','nvmrecon-muted'));
    const advancedGrid=dom('div',undefined,'nvmrecon-grid');
@@ -277,11 +278,15 @@ const ELMOS_NVM_RECON = (() => {
     label.appendChild(input);advancedGrid.appendChild(label);
    }
    advanced.appendChild(advancedGrid);
-   const status=dom('p','Bitte zuerst EEPROM lesen oder ein Backup laden.','nvmrecon-muted');
-   status.setAttribute('role','status');status.className='nvmrecon-status nvmrecon-muted';
+   const status=dom('div','Noch keine Datenquelle gewählt','nvmrecon-status nvmrecon-source-empty');
+   status.setAttribute('role','status');status.setAttribute('aria-live','polite');
    const result=dom('div');result.className='nvmrecon-result';
-   const explain=dom('p','Wichtig: Der Original-Druckbereich in bar, die ursprünglichen Prüfpunkte und die echten, unkalibrierten Messwerte werden durch das NVM allein nicht eindeutig gespeichert. TK0/TKR sind deshalb modellbasierte Rückrechnungen, keine unabhängige Sensormessung.','nvmrecon-muted');
-   root.append(heading,detail,actions,grid,advanced,status,result,explain);
+   const explain=dom('details',undefined,'nvmrecon-explain');
+   explain.append(dom('summary','Grenzen der Rückrechnung'),
+    dom('p','Der ursprüngliche Druckbereich in bar, die Prüfpunkte und echte unkalibrierte Messwerte werden durch das NVM allein nicht eindeutig gespeichert. TK0/TKR sind modellbasierte Rückrechnungen, keine unabhängige Sensormessung.','nvmrecon-muted'));
+   const setup=dom('section',undefined,'nvmrecon-setup');
+   setup.append(heading,detail,actions,grid,advanced);
+   root.append(setup,status,result,explain);
   }
   root._nvmState.live=validWords(verifiedWords)?verifiedWords.slice():null;
   draw(root);
@@ -291,17 +296,24 @@ const ELMOS_NVM_RECON = (() => {
    box=root.querySelector('.nvmrecon-result');
   box.replaceChildren();
   const selected=chooseSource(state.live,state.offline),words=selected.words;
+  const clear=root.querySelector('.nvmrecon-clear');
+  if(clear)clear.disabled=!validWords(state.offline);
   if(state.fileError){
    const err=dom('p',state.fileError,'nvmrecon-error');
    box.appendChild(err);
   }
   if(!words){
-   status.textContent='Keine NVM-Daten. Bitte zuerst «EEPROM lesen» drücken oder ein NVM-Backup (JSON) öffnen.';
+   status.className='nvmrecon-status nvmrecon-source-empty';
+   status.textContent='Keine NVM-Daten · JSON-Backup importieren oder EEPROM eines Sensors lesen.';
    state.last=null;return;
   }
-  status.textContent=selected.kind==='file'?
-   'Aktive Datenquelle: IMPORTIERTE DATEI «'+(state.fileName||'NVM-Backup')+'» (64 Wörter, Vorrang vor angeschlossenem EEPROM; Datei-CRC/UID nicht unabhängig geprüft).':
-   'Aktive Datenquelle: LIVE-EEPROM, vollständige Lesung mit UID/CRC-Prüfung durch die Web-App. Importiere ein Backup, um stattdessen dessen Daten zu berechnen.';
+  status.className='nvmrecon-status nvmrecon-source-active';
+  const badge=dom('span',selected.kind==='file'?'Datei importiert':'Live-EEPROM','nvmrecon-source-tag');
+  const name=dom('strong',selected.kind==='file'?(state.fileName||'NVM-Backup'):'64 NVM-Wörter vom Sensor','nvmrecon-source-name');
+  const hint=dom('span',selected.kind==='file'?
+   '64 Wörter · Vorrang vor Live-Daten · Datei-CRC/UID nicht separat geprüft':
+   '64 Wörter · UID und CRC durch die Web-App geprüft','nvmrecon-source-hint');
+  status.replaceChildren(badge,name,hint);
   const r=calculate(words,state.opts);state.last=r;
   if(!r.ok){box.appendChild(dom('p',r.error,'nvmrecon-error'));return}
   const unavailable=[];
@@ -313,7 +325,7 @@ const ELMOS_NVM_RECON = (() => {
   if(!unavailable.length && !r.hasPhysical)unavailable.push('Die Polynomumkehr ist mit diesen Koeffizienten und Bezugspunkten nicht eindeutig möglich. Siehe Diagnosehinweise.');
   if(r.settings.tempCorrectionConstant && r.hasPhysical && !r.settings.manualBoth){
    const tempInfo=finite(r.settings.fixedTemperatureC)?' Der fest programmierte DSP_T entspricht nominell '+fmt(r.settings.fixedTemperatureC,2)+' °C; das ist keine aktuelle Temperaturmessung.':'';
-   const note=dom('p','Druck-Rückrechnung erfolgreich: Der gespeicherte Druckabgleich ist temperaturunabhängig.'+tempInfo+' ADC_T, TK0 und TKR können aus dieser NVM-Datei nicht ermittelt werden; Striche bedeuten hier «nicht bestimmbar», nicht «Kalibrierung fehlt».','nvmrecon-status');
+   const note=dom('p','Druck-Rückrechnung erfolgreich: Der gespeicherte Druckabgleich ist temperaturunabhängig.'+tempInfo+' ADC_T, TK0 und TKR sind nicht rückrechenbar; «—» bedeutet nicht bestimmbar.','nvmrecon-note');
    box.appendChild(note);
   }
   if(unavailable.length){
@@ -326,6 +338,9 @@ const ELMOS_NVM_RECON = (() => {
    notice.appendChild(dom('p','Geprüfte Datenquelle: '+origin+'. Kontrolliere die NVM-Werte und gegebenenfalls, ob der Sensor wirklich kalibriert und ins NVM programmiert wurde.'));
    box.appendChild(notice);
   }
+  const metricsTitle=dom('div',undefined,'nvmrecon-results-head');
+  metricsTitle.append(dom('h3','Berechnete Kennwerte'),dom('span','Modellbasierte Näherung','nvmrecon-mini-label'));
+  box.appendChild(metricsTitle);
   const metrics=dom('div',undefined,'nvmrecon-metrics');
   for(const [name,value,unit,sub] of [
    ['Nullpunkt bei '+fmt(r.settings.ta,1)+' °C',r.rows[0].zero,'mV/V','Nominales Brückensignal'],
@@ -335,10 +350,17 @@ const ELMOS_NVM_RECON = (() => {
    ['TKR',finite(r.tkr)?r.tkr*10000:null,'% / 100 K','Relative Spannenänderung'],
    ['ADC-Spanne',r.adcSpan,'Digits','Bei Temperatur 1']
   ]){
-   const card=dom('div',undefined,'nvmrecon-metric');
-   card.append(dom('small',name),dom('strong',fmt(value,4)+' '+unit),dom('small',sub));metrics.appendChild(card);
+   const isPrimary=metrics.childElementCount<2;
+   const card=dom('div',undefined,'nvmrecon-metric'+(isPrimary?' nvmrecon-metric-primary':'')+(!finite(value)?' nvmrecon-metric-unavailable':''));
+   if(!finite(value))card.title='Aus den vorhandenen NVM-Daten nicht bestimmbar';
+   const output=dom('div',undefined,'nvmrecon-metric-reading');
+   output.append(dom('strong',fmt(value,name==='ADC-Spanne'?0:4)),dom('span',unit,'nvmrecon-metric-unit'));
+   card.append(dom('small',name),output,dom('small',sub));metrics.appendChild(card);
   }
   box.appendChild(metrics);
+  const tableHead=dom('div',undefined,'nvmrecon-results-head nvmrecon-table-head');
+  tableHead.append(dom('h3','ADC- und Brückenwerte'),dom('span','Referenzpunkte · keine Live-Messung','nvmrecon-mini-label'));
+  box.appendChild(tableHead);
   const table=dom('table',undefined,'nvmrecon-table');
   const head=dom('tr');['Temperatur','ADC_T [Digits]','ADC_S Null','ADC_S End','Null [mV/V]','Spanne [mV/V]'].forEach(s=>head.appendChild(dom('th',s)));
   const thead=dom('thead');thead.appendChild(head);table.appendChild(thead);
@@ -350,9 +372,11 @@ const ELMOS_NVM_RECON = (() => {
      .forEach(s=>row.appendChild(dom('td',s)));
    body.appendChild(row);
   }
-  table.appendChild(body);const wrap=dom('div');wrap.style.overflowX='auto';wrap.appendChild(table);box.appendChild(wrap);
+  table.appendChild(body);const wrap=dom('div',undefined,'nvmrecon-table-scroll');wrap.style.overflowX='auto';wrap.appendChild(table);box.appendChild(wrap);
   const e=dom('p','Temperaturmodell: '+(r.settings.temperatureModel==='factory'?'Werkprofil (100 Digits/°C)':'AN0203 (387,88 × °C − 16’485)')+' · AFE: SVDD '+fmt(r.settings.supply,2)+' V · PGA1 '+fmt(r.settings.pga1,2)+'× · PGA2 '+fmt(r.settings.pga2,2)+'× · Offset-DAC '+r.settings.offsetSteps+' Stufen · S_F '+fmt(r.settings.sF,5)+' · S_O '+fmt(r.settings.sO,5),'nvmrecon-muted');
-  box.appendChild(e);
+  const technical=dom('details',undefined,'nvmrecon-technical');
+  technical.appendChild(dom('summary','AFE- und Registerdetails'));
+  technical.appendChild(e);
   const raw=dom('details',undefined,'nvmrecon-warnings');
   const coeffCount=r.settings.scoeff.filter(c=>c!==0).length;
   const tempCount=r.settings.tcoeff.filter(c=>c!==0).length;
@@ -364,12 +388,21 @@ const ELMOS_NVM_RECON = (() => {
   raw.appendChild(rawText);
   raw.appendChild(dom('p','Druck-Koeffizienten: '+words.slice(35,51).map((w,i)=>'S'+i+'='+hex(w)).join(' · '),'nvmrecon-muted'));
   raw.appendChild(dom('p','Temperatur-Koeffizienten: '+words.slice(51,55).map((w,i)=>'T'+i+'='+hex(w)).join(' · '),'nvmrecon-muted'));
-  box.appendChild(raw);
+  technical.appendChild(raw);
+  box.appendChild(technical);
   if(r.analog){
-   const ao=r.analog, p=dom('p','Idealer ratiometrischer Ausgang bei '+fmt(r.settings.vdd,2)+' V: '+fmt(ao.low.volts,4)+' V (Druck min) bis '+fmt(ao.high.volts,4)+' V (Druck max). '+(ao.scaleEnabled?'AODO_F '+fmt(ao.aoF,5)+' / AODO_O '+fmt(ao.aoO,5):'Ausgangsskalierung nicht aktiv')+'. Ohne DAC-Temperaturabgleich, Clipping und Lastfehler.','nvmrecon-muted');
-   box.appendChild(p);
+   const ao=r.analog, section=dom('section',undefined,'nvmrecon-analog');
+   const info=dom('div',undefined,'nvmrecon-analog-main');
+   info.append(dom('span','Analogausgang · ideal, bei '+fmt(r.settings.vdd,2)+' V Versorgung','nvmrecon-analog-label'),
+    dom('strong',fmt(ao.low.volts,3)+' → '+fmt(ao.high.volts,3)+' V','nvmrecon-analog-value'));
+   const other=dom('span',ao.scaleEnabled?'AODO_F '+fmt(ao.aoF,5)+' · AODO_O '+fmt(ao.aoO,5):'Ausgangsskalierung nicht aktiv','nvmrecon-analog-meta');
+   section.append(info,other);
+   if(ao.scaleEnabled && Math.abs(ao.aoF)<1e-12)
+    section.appendChild(dom('span','Faktor 0 · Ausgang rechnerisch konstant','nvmrecon-analog-alert'));
+   box.appendChild(section);
   }
-  const warnings=dom('details',undefined,'nvmrecon-warnings');warnings.open=r.warnings.length>0;
+  const warnings=dom('details',undefined,'nvmrecon-warnings nvmrecon-diagnostics');
+  warnings.open=!r.hasPhysical;
   warnings.appendChild(dom('summary',r.warnings.length+' Hinweise / Gültigkeitsgrenzen'));
   const ul=dom('ul');
   for(const message of r.warnings)ul.appendChild(dom('li',message));
