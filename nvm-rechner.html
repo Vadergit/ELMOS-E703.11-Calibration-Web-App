@@ -1,0 +1,69 @@
+<!doctype html>
+<html lang="de-CH">
+<head>
+ <meta charset="utf-8">
+ <meta name="viewport" content="width=device-width, initial-scale=1">
+ <meta name="color-scheme" content="light dark">
+ <title>NVM-Rückrechner · ELMOS E703.11</title>
+ <style>
+  :root{font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;color-scheme:light;--bg:#f3f6fa;--paper:#fff;--ink:#263c55;--muted:#62768a;--border:#cdd9e5;--accent:#226eae}
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);font-size:14px}
+  .wrap{max-width:1200px;margin:auto;padding:20px}
+  .top{display:flex;justify-content:space-between;align-items:center;gap:15px;margin-bottom:16px;flex-wrap:wrap}
+  .top h1{margin:0;font-size:23px;letter-spacing:-.03em}
+  .top small{color:var(--muted);display:block;margin:5px 0}
+  .back{color:var(--accent);font-weight:650;text-decoration:none}
+  .back:hover{text-decoration:underline}
+  .panel{padding:22px;background:var(--paper);border:1px solid var(--border);border-radius:14px}
+  .lead{line-height:1.55;color:var(--muted);margin:0 0 13px}
+  .offline-indicator{font-size:12px;font-weight:650;padding:6px 10px;border-radius:999px;border:1px solid var(--border);background:#e9f6f0;color:#23674b;display:inline-block;margin-bottom:13px}
+  #nvmReconstruction h3{font-size:19px;margin:0 0 12px}
+  button,input,select{font:inherit;color:inherit}
+  button{cursor:pointer;border-radius:8px;background:var(--paper);border:1px solid #a8bed1;padding:10px 13px;font-weight:600}
+  button:hover{border-color:var(--accent);background:#f1f7fc}
+  input,select{border:1px solid #b5c6d7;border-radius:8px;background:var(--paper);padding:9px 10px;max-width:100%}
+  .nvmrecon-grid label{font-size:12px}
+  .nvmrecon-grid input{margin-top:6px}
+  .nvmrecon-grid select{width:100%;margin-top:6px;min-height:41px}
+  .nvmrecon-actions{padding:8px 0}
+  .nvmrecon-status{padding:9px 12px;background:#edf4fa;border-radius:8px;line-height:1.5}
+  .nvmrecon-metric strong{font-variant-numeric:tabular-nums}
+  .nvmrecon-warnings{overflow-wrap:anywhere}
+  .nvmrecon-warnings details{padding:8px}
+  .footer{font-size:12px;color:var(--muted);line-height:1.5;margin:14px 4px}
+  @media(max-width:650px){.wrap{padding:10px}.panel{padding:14px}.top h1{font-size:20px}}
+  @media(prefers-color-scheme:dark){
+   :root{color-scheme:dark;--bg:#101925;--paper:#192638;--ink:#e0eaf5;--muted:#a2b5cb;--border:#394c64;--accent:#8ac6ff}
+   .offline-indicator{background:#173e35;color:#adf0d3}
+   button:hover{background:#283f56}
+   .nvmrecon-status{background:#23394f}
+  }
+ </style>
+</head>
+<body>
+ <div class="wrap">
+  <header class="top">
+   <div><h1>ELMOS E703.11 · NVM-Rückrechner</h1><small>Nullpunkt · Spanne · TK0 · TKR · ADC und Ausgang</small></div>
+   <a class="back" href="index.html">← Zur Kalibrier-Web-App</a>
+  </header>
+  <main class="panel">
+   <div class="offline-indicator">Offline nutzbar · Kein Sensor und kein SSP3 nötig</div>
+   <p class="lead">Wähle ein exportiertes EEPROM-/NVM-Backup im JSON-Format mit 64 Wörtern. Der Rechner arbeitet vollständig im Browser und benötigt keine Sensorverbindung. Die Importdatei wird nur lokal eingelesen; es werden keine Register geschrieben.</p>
+   <section id="nvmReconstruction" aria-label="NVM-Rückrechnung"></section>
+  </main>
+  <p class="footer">Die Ergebnisse in mV/V und für die Temperaturkoeffizienten sind modellbasierte Rückrechnungen. Ein gespeichertes NVM-Abbild ersetzt keine Originalmessung. Nicht eindeutig rekonstruierbare Werte werden entsprechend gekennzeichnet.</p>
+ </div>
+ <script src="nvm-reconstruction.js?v=0.1.3"></script>
+ <script>
+  (function(){
+   const root=document.getElementById('nvmReconstruction');
+   if(typeof ELMOS_NVM_RECON==='undefined'){
+    root.textContent='Rechnermodul konnte nicht geladen werden. Bitte Webseite neu laden.';
+    return;
+   }
+   ELMOS_NVM_RECON.render(root,null);
+  })();
+ </script>
+</body>
+</html>
