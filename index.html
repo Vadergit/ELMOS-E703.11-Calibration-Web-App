@@ -851,7 +851,7 @@ html[data-theme="dark"] #nvmWriteStatus[data-state="success"]{background:#15392c
 </section>
 <section id="guidedWorkspace" hidden aria-label="Geführter Sensor-Kalibrierassistent"></section>
 <div id="compactWorkspace" hidden aria-label="Kompakter Kalibrierarbeitsplatz"></div>
-<section id="archiveWorkspace" hidden aria-label="Lokales Kalibrierarchiv und Nachmessung"></section><div class="content"><aside class="side"><button class="stepBtn active" data-step="0"><span class="num">1</span><span>USB & Chip</span></button><button class="stepBtn" data-step="1"><span class="num">2</span><span>AFE optimieren</span></button><button class="stepBtn" data-step="2"><span class="num">3</span><span>Messpunkte</span></button><button class="stepBtn" data-step="3"><span class="num">4</span><span>Berechnen & RAM</span></button><button class="stepBtn" data-step="4"><span class="num">5</span><span>DSP prüfen</span></button><button class="stepBtn" data-step="5"><span class="num">6</span><span>Ausgang konfigurieren</span></button><button class="stepBtn" data-step="6"><span class="num">7</span><span>NVM programmieren</span></button><div class="side-separator"></div><button class="stepBtn viewer-nav" data-step="7"><span class="num">▤</span><span>EEPROM Viewer</span></button><button class="stepBtn viewer-nav" data-step="9"><span class="num">⚑</span><span>Alarme &amp; Fehler</span></button><button class="stepBtn viewer-nav" data-step="8"><span class="num">◷</span><span>Test / Logging</span></button><button type="button" class="stepBtn viewer-nav" id="classicArchiveOpen"><span class="num">▤</span><span>Archiv</span></button><button type="button" class="stepBtn viewer-nav" id="classicVerificationOpen"><span class="num">↕</span><span>Nachmessung</span></button></aside>
+<section id="archiveWorkspace" hidden aria-label="Lokales Kalibrierarchiv und Nachmessung"></section><div class="content"><aside class="side"><button class="stepBtn active" data-step="0"><span class="num">1</span><span>USB & Chip</span></button><button class="stepBtn" data-step="1"><span class="num">2</span><span>AFE optimieren</span></button><button class="stepBtn" data-step="2"><span class="num">3</span><span>Messpunkte</span></button><button class="stepBtn" data-step="3"><span class="num">4</span><span>Berechnen & RAM</span></button><button class="stepBtn" data-step="4"><span class="num">5</span><span>DSP prüfen</span></button><button class="stepBtn" data-step="5"><span class="num">6</span><span>Ausgang konfigurieren</span></button><button class="stepBtn" data-step="9"><span class="num">7</span><span>Alarme &amp; Fehler · optional</span></button><button class="stepBtn" data-step="6"><span class="num">8</span><span>NVM programmieren</span></button><div class="side-separator"></div><button class="stepBtn viewer-nav" data-step="7"><span class="num">▤</span><span>EEPROM Viewer</span></button><button class="stepBtn viewer-nav" data-step="8"><span class="num">◷</span><span>Test / Logging</span></button><button type="button" class="stepBtn viewer-nav" id="classicArchiveOpen"><span class="num">▤</span><span>Archiv</span></button><button type="button" class="stepBtn viewer-nav" id="classicVerificationOpen"><span class="num">↕</span><span>Nachmessung</span></button></aside>
 <main class="main"><div id="flowMsg" class="callout warn" hidden></div>
 <section class="card panel" data-panel="0">
 <div class="eyebrow">Schritt 1 · Verbindung</div>
@@ -1358,10 +1358,10 @@ html[data-theme="dark"] #nvmWriteStatus[data-state="success"]{background:#15392c
 <div id="expertOutputMsg" class="callout">Noch keine Ausgangsänderung vorgemerkt.</div>
 </div>
 
-<div class="nav"><button data-next="4">Zurück zur DSP-Prüfung</button><button class="primary" data-next="6">Weiter zum NVM</button></div>
+<div class="nav"><button data-next="4">Zurück zur DSP-Prüfung</button><button class="primary" data-next="9">Weiter: Alarme (optional)</button><button type="button" id="outputSkipAlarms">Ohne Alarmänderung zum NVM</button></div>
 </section>
 <section class="card panel nvm-compact" data-panel="6" hidden>
-<div class="eyebrow">Schritt 7 · Dauerhaft speichern</div>
+<div class="eyebrow">Schritt 8 · Dauerhaft speichern</div>
 <h2>Kalibrierung im Sensor speichern</h2>
 <p class="muted small">Nach erfolgreicher DSP-Prüfung das aktuelle NVM lesen und die Änderungen prüfen. Anschliessend kann die Kalibrierung über den finalen Knopf im Sensor gespeichert werden.</p>
 <div class="nvm-compact-row">
@@ -1452,12 +1452,12 @@ html[data-theme="dark"] #nvmWriteStatus[data-state="success"]{background:#15392c
 <div class="foot"><b>Version v0.7.117</b> · <a href="CHANGELOG.md" target="_blank" rel="noopener noreferrer">Änderungsverlauf</a> · ELMOS E703.11 · unabhängiger Kalibrierprototyp · Sicherheitsprinzip: Factory- und Kommunikations-Bootregister gesperrt; dokumentierte AODO-Ausgangsoptionen nur nach Prüfung im NVM-Plan; Wiederherstellung nur mit passender Chip-UID.</div>
 <section class="card panel" data-panel="8" hidden><div class="eyebrow">Werkzeuge · Sensorprotokoll</div><h2>Test / Logging</h2><p class="muted small">Messdaten, Rohwerte und Notizen jederzeit in einem lokalen Archiv protokollieren. Ohne NVM-Schreibvorgang.</p><div id="classicLoggerHost"></div></section>
 <section class="card panel" data-panel="9" hidden>
-<div class="eyebrow">KONFIGURATION · ALARM &amp; EOC</div>
-<h2>Alarme &amp; Fehler</h2>
+<div class="eyebrow">Schritt 7 · Optional nach Ausgang</div>
+<h2>Alarme &amp; Fehler · optional</h2>
 <p class="muted">Eigenständiger Einstellbereich für die Alarmverarbeitung des E703.11. Die Logikprüfung erklärt, welche Funktionen miteinander kombiniert werden dürfen. One-Wire-Startfenster, Werksdaten und Pinbelegung bleiben unverändert.</p>
 <div class="flex" style="margin:12px 0">
 <button type="button" class="primary" id="alarmReadEeprom">EEPROM für Alarmkonfiguration lesen</button>
-<button type="button" id="alarmGoNvm" disabled>Weiter zu NVM programmieren</button>
+<button type="button" id="alarmGoNvm" disabled>Alarmänderungen speichern: Weiter zum NVM</button><button type="button" id="alarmSkipNvm">Ohne Alarmänderung zum NVM</button>
 </div>
 <div class="eeprom-overview" style="padding:13px;margin-bottom:12px">
 <h3>Zusammenhang der Funktionen</h3>
