@@ -54,7 +54,8 @@ const ELMOS_CONFIG=(()=>{
   return {format:FORMAT,version:VERSION,label,createdAt:obj.createdAt,afe,calibration:calSettings,output};
  }
 
- const GROUPS=['afe','reference','measurement','dsp','output'];
+ const GROUPS=['afe','reference','measurement','dsp','output','alarm'];
+ const LEGACY_GROUPS=GROUPS.filter(x=>x!=='alarm');
  function validateSelective(obj,cal){
   exact(obj,['format','version','label','createdAt','include',...GROUPS],'Config v2');
   if(obj.format!==FORMAT||obj.version!==2)throw Error('Nur E703.11 Config v2 erlaubt');
@@ -114,6 +115,40 @@ const ELMOS_CONFIG=(()=>{
    throw Error('Für die Polynomordnung fehlen Messpunkte');
   if(out.measurement?.matrix&&out.dsp&&(out.dsp.sOrder>=out.measurement.matrix.p||out.dsp.tOrder>=out.measurement.matrix.temp))
    throw Error('Polynomordnung passt nicht zur Messmatrix');
+  if(obj.include.includes('alarm')){
+   const a=obj.alarm;
+   exact(a,['mode','settings'],'Alarmkonfiguration');
+   const mode=options(a.mode,['skip','edit'],'Alarmmodus');
+   if(mode==='skip'){
+    if(Object.hasOwn(a,'settings'))throw Error('Alarmprofil «skip» darf keine Einstellungen erzwingen');
+    out.alarm={mode:'skip'};
+   }else{
+    const v=a.settings;
+    exact(v,['limit','lowerPct','upperPct','hysteresis','alarmEnabled',
+      'errorEnabled','selectedStatusBits','errorActions','errorLowPct','errorHighPct'],
+      'Alarmeinstellungen');
+    if(typeof v.alarmEnabled!=='boolean'||typeof v.errorEnabled!=='boolean')
+     throw Error('Alarm- und Fehlerfreigabe müssen Boolean sein');
+    if(!Array.isArray(v.selectedStatusBits)||v.selectedStatusBits.length>12||
+       new Set(v.selectedStatusBits).size!==v.selectedStatusBits.length||
+       v.selectedStatusBits.some(x=>![0,1,2,3,4,5,6,7,8,9,12,13].includes(x)))
+     throw Error('Ungültige Alarm/EOC-Statusbit-Auswahl');
+    if(!Array.isArray(v.errorActions)||v.errorActions.length!==6)
+     throw Error('Sechs Fehlerreaktionen erforderlich');
+    const limit=integer(v.limit,1000,32000,'Alarm-DSP-Endwert');
+    const lo=number(v.lowerPct,0,100,'Alarm-Untergrenze'),hi=number(v.upperPct,0,100,'Alarm-Obergrenze');
+    if(lo>=hi)throw Error('Alarm-Obergrenze muss grösser als Untergrenze sein');
+    const hyst=integer(v.hysteresis,0,15,'Alarm-Hysterese');
+    if(2*(hyst?2**(hyst-1):0)>=(hi-lo)*2*limit/100)
+     throw Error('Alarm-Hysterese überlappt Grenzwertabstand');
+    out.alarm={mode:'edit',settings:{limit,lowerPct:lo,upperPct:hi,hysteresis:hyst,
+     alarmEnabled:v.alarmEnabled,errorEnabled:v.errorEnabled,
+     selectedStatusBits:v.selectedStatusBits.slice(),
+     errorActions:v.errorActions.map((x,i)=>integer(x,0,3,'Fehleraktion '+i)),
+     errorLowPct:number(v.errorLowPct,-100,99.21875,'Unterer Fehlerersatzwert'),
+     errorHighPct:number(v.errorHighPct,-100,99.21875,'Oberer Fehlerersatzwert')}};
+   }
+  }
   if(obj.include.includes('output')){
    const o=obj.output;exact(o,['mode','scaleEnabled','vdd','s0','s1','gain','offset','pwmPeriod','clipping'],'Ausgang');
    const mode=options(String(o.mode),['keep','1','2','3','4','5','onewire'],'Ausgangstyp');
@@ -157,6 +192,7 @@ const ELMOS_CONFIG=(()=>{
   if(include.includes('measurement'))input.measurement={pointCount:c.pointCount,samples:c.samples,...(c.matrix?{matrix:c.matrix}:{})};
   if(include.includes('dsp'))input.dsp={sOrder:c.sOrder,tOrder:c.tOrder,dspLimit:c.dspLimit,fitMode:c.fitMode||'full'};
   if(include.includes('output'))input.output=fields.output;
+  if(include.includes('alarm'))input.alarm=fields.alarm??{mode:'skip'};
   return validateSelective(input,cal);
  }
 
@@ -164,7 +200,7 @@ const ELMOS_CONFIG=(()=>{
  // If the precise guided matrix is unknown, use an honest measurement-count label.
  function fileName(profile,appliedPlan=null){
   const source=profile.version===2?profile:{
-   label:profile.label,include:GROUPS,
+   label:profile.label,include:LEGACY_GROUPS,
    measurement:{pointCount:profile.calibration.pointCount,samples:profile.calibration.samples},
    dsp:{sOrder:profile.calibration.sOrder,tOrder:profile.calibration.tOrder,dspLimit:profile.calibration.dspLimit},
    reference:profile.calibration.reference,output:profile.output
@@ -209,12 +245,13 @@ const ELMOS_CONFIG=(()=>{
  function describe(p){
   if(p.version===2){
    const names={afe:'AFE (PGA1 / Offset / PGA2 / Brückenspannung)',reference:'Druckbereich / Einheit',
-    measurement:'Messpunkte / Samples',dsp:'DSP-Ordnung / Endwert',output:'Ausgang / S0 / S1'};
+    measurement:'Messpunkte / Samples',dsp:'DSP-Ordnung / Endwert',output:'Ausgang / S0 / S1',alarm:'Alarme / EOC / Fehlerreaktionen'};
    return p.include.map(g=>names[g]+(g==='afe'?': '+p.afe.pga1+' / '+p.afe.offset*50+' mV/V / '+p.afe.pga2+
      (Number.isInteger(p.afe.bridgeSupply)?' / SVDD '+[2.4,1.6,2.0][p.afe.bridgeSupply]+' V':''):
     g==='reference'?': '+p.reference.min+'–'+p.reference.max+' '+p.reference.unit:
     g==='measurement'?': '+p.measurement.pointCount+' Punkte, '+p.measurement.samples+' Samples':
-    g==='dsp'?': ±'+p.dsp.dspLimit+' Digits':g==='output'?': '+p.output.mode:'' )).join('\n');
+    g==='dsp'?': ±'+p.dsp.dspLimit+' Digits':g==='output'?': '+p.output.mode:
+    g==='alarm'?': '+(p.alarm.mode==='skip'?'Keine Alarmänderung':'Grenzen und Statusverknüpfungen') :'' )).join('\n');
   }
   const c=p.calibration,o=p.output;return [
   'AFE: PGA1 Stufe '+p.afe.pga1+', Offset '+(p.afe.offset*50)+' mV/V, PGA2 Stufe '+p.afe.pga2,
