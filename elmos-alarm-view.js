@@ -9,7 +9,7 @@ const ELMOS_ALARM_VIEW=(()=>{
  function summary(words,statusWord=null){
   if(!Array.isArray(words)||words.length!==64||words.some(w=>!Number.isInteger(w)||w<0||w>65535))return null;
   const alarm=S.alarmValues(words),pin=S.eocPin(words[20]),mask=words[18]&0x0FFF;
-  const routing=S.eocMask(words[18]),selected=Object.keys(S.statusNames).map(Number).filter(bit=>((mask>>bit)&1)===1);
+  const routing=S.eocMask(words[18]),selected=Object.keys(S.statusNames).map(Number).filter(bit=>((mask>>(bit>=12?bit-2:bit))&1)===1);
   const live=Number.isInteger(statusWord)&&statusWord>=0&&statusWord<=65535?
    selected.filter(bit=>statusWord&(1<<bit)).map(bit=>S.statusNames[bit]):null;
   const errors=S.errorMask(words[61]),errorEnabled=!!(words[16]&(1<<8));
