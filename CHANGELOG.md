@@ -1,3 +1,11 @@
+## v0.7.110 – Clipping-Vorgabewerte und NVM-Schreibstatus
+
+- Bei «Clipping aktivieren» werden leere Unter- und Obergrenzen automatisch mit tatsächlich gespeicherten Eingabewerten von 10 % bzw. 90 % VDD (5 V → 0.5 V / 4.5 V) befüllt. Manuell geänderte Grenzen bleiben beim Umschalten erhalten.
+- Der NVM-Schreibknopf zeigt ab dem Klick direkt einen dauerhaften Status und Phasen wie Archiv/Vorprüfung, Schreibfreigabe, geschriebene Wörter und vollständige 64-Wort-Rücklesung. Fehler und Erfolg bleiben sichtbar, auch im geführten und kompakten Layout.
+- Ein fehlendes Ausgangs- oder Kalibrierprotokoll wird nun vor dem Schreiben über das Archivmodul gestartet, statt mit einer generischen Fehlermeldung abzubrechen. Fehlender Archivordner oder fehlende Schreibberechtigung werden konkret gemeldet; ohne erfolgreiches Archivprotokoll wird kein NVM-Schreiben begonnen.
+- Wenn das Original-NVM bereits für die aktuelle Chip-UID verifiziert ist, übernimmt der Archiv-Snapshot dessen vorhandene 64 Wörter, ohne die vorbereitete Ausgangsänderung zu verwerfen. Der eigentliche Schreibpfad liest und prüft das NVM vor dem Programmieren weiterhin erneut.
+- JavaScript-Syntax und 12 UI-/Sicherheitsprüfungen bestanden. Hardwareprogrammierung noch nicht am echten E703.11 validiert.
+
 ## ESP32-C3 Firmware v0.11 (Test) – Binärdateien und Web-Installer aktualisiert
 
 - GitHub Actions hat den ESP32-C3-Sketch mit Arduino-ESP32-Core 3.3.7 und USB CDC aktiviert erfolgreich kompiliert.
