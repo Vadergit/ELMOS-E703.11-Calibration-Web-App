@@ -372,7 +372,7 @@ test('Temperature display survives restart without any current wizard state',()=
  assert.ok(app.includes('CAL.programmedTemperatureProfileMatches(storedProgrammedNvm(),st.uid.hex,st.regs)'));
  assert.ok(app.includes('((st.calStaged&&st.calfit?.orderT>0)||nvmProfile)'));
  assert.ok(app.includes("'°C · NVM-Abgleich'"));
- assert.ok(app.includes('const temperatureBasis=!restoring&&!outputOnly&&st.calfit?.orderT>0'));
+ assert.ok(app.includes('const temperatureBasis=!restoring&&!outputOnly&&!alarmOnly&&st.calfit?.orderT>0'));
  assert.ok(app.includes('st.regs[pending]=await readReg(pending,1100)'));
  assert.ok(/calibration\.js\?v=0\.7\.\d+/.test(html));
  assert.ok(/app\.js\?v=0\.7\.\d+/.test(html));
