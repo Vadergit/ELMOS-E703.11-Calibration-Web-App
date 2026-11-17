@@ -28,8 +28,8 @@ test('Numerical inversion produces two physically consistent ADC and bridge endp
  assert.ok(r.rows.every(row=>Number.isFinite(row.zero)&&Number.isFinite(row.span)));
  assert.ok(Math.abs(r.rows[0].span-r.rows[1].span)<1e-7);
  assert.ok(Math.abs(r.rows[0].zero-r.rows[1].zero)<1e-7);
- assert.ok(Math.abs(r.tk0)<1e-10);
- assert.ok(Math.abs(r.tkr)<1e-10);
+ assert.equal(r.tk0,null); // no temperature cross coefficients: physical TK not determinable
+ assert.equal(r.tkr,null);
 });
 test('Temperature cross coefficients induce nonzero TK0 and TKR',()=>{
  const w=image();w[36]=0x0400;w[40]=0x0600;
@@ -48,7 +48,9 @@ test('Ill-posed NVM or settings never silently invent physical measurements',()=
  assert.equal(recon.calculate(image(),{pmin:6,pmax:0}).ok,false);
  const badTemp=image();badTemp[51]=0;badTemp[52]=0;badTemp[53]=0;badTemp[54]=0;
  const t=recon.calculate(badTemp,{limit:24000});
- assert.equal(t.rows[0].zero,null);
+ assert.ok(Number.isFinite(t.rows[0].zero)); // temperature-independent pressure must still work
+ assert.equal(t.tk0,null);
+ assert.equal(t.rows[0].adcT,null);
  assert.ok(t.warnings.some(x=>x.includes('Temperatur')));
 });
 test('NVM calculator is wired to verified Viewer state and has no sensor writer',()=>{
@@ -95,4 +97,26 @@ test('Zero calibration coefficients are highlighted rather than presented as suc
  assert.match(file,/Rückrechnung nicht vollständig möglich/);
  assert.match(file,/IMPORTIERTE DATEI/);
  assert.match(file,/Registerdiagnose/);
+});
+
+
+test('Negative pressure slope and fixed DSP_T keep pressure inverse usable, but TK unknown',()=>{
+ const w=Array(64).fill(0);
+ // Anonymised synthetic pressure-only configuration; no factory or serial words.
+ w[16]=0x13D6;w[27]=0;w[28]=0x1C53;
+ w[31]=0xFF6B;w[32]=0x1000;w[33]=0x136A;w[34]=0x4C00;
+ w[35]=0x0004;w[39]=0x81BC;w[51]=0xE9B0;
+ // Output scale is enabled, but coefficient zero: AODO diagnostic expected.
+ const r=recon.calculate(w,{pmin:0,pmax:6,ta:25,tb:75,vdd:5,limit:32000});
+ assert.equal(r.ok,true);
+ assert.equal(r.hasPhysical,true);
+ assert.ok(r.rows.every(a=>Number.isFinite(a.zero)&&Number.isFinite(a.span)));
+ assert.ok(r.rows.every(a=>a.endpoints.every(p=>Number.isFinite(p.adcDigits))));
+ assert.equal(r.rows[0].zero,r.rows[1].zero);
+ assert.equal(r.rows[0].span,r.rows[1].span);
+ assert.equal(r.tk0,null);assert.equal(r.tk0Bar,null);assert.equal(r.tkr,null);
+ assert.equal(r.rows[0].adcT,null);
+ assert.ok(Number.isFinite(r.settings.fixedTemperatureC));
+ assert.ok(r.warnings.some(s=>s.includes('AODO_F=0x0000')));
+ assert.ok(r.warnings.every(s=>!s.includes('800 Lösungen')));
 });
