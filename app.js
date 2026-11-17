@@ -2868,7 +2868,7 @@ if(typeof document!=='undefined') (function UI(){
    if(st.liveReadPromise)await st.liveReadPromise.catch(()=>{});
    await ramGrant();
    // Never assume that the RAM still matches the EEPROM used for the preview.
-   oldRam=await Promise.all(assignments.map(async ([addr,i])=>({addr,index:i,value:await readReg(addr)})));
+   for(const [addr,index] of assignments)oldRam.push({addr,index,value:await readReg(addr)});
    for(const {index,value} of oldRam)if(value!==plan.before[index])
     throw Error('Alarm-RAM 0x'+h(index*2)+' unterscheidet sich vom EEPROM. Sensor neu starten und erneut lesen.');
    for(const [addr,index] of assignments){
@@ -3321,7 +3321,7 @@ if(typeof document!=='undefined') (function UI(){
    if(!sameBoot(beforeBoot,await bootSnapshot()))throw Error('Bootregister nach Programmierung abweichend');
    const verifiedOutputLimit=outputOnly?st.outputOnlyPlan?.limit:st.calfit?.outputLimit;
    st.nvmDone=true;st.nvmBackup=after;st.nvmBackupVerified=true;
-   if(!restoring&&!outputOnly&&st.calfit&&saveCalibrationDisplayProfile(after,id))
+   if(!restoring&&!outputOnly&&!alarmOnly&&st.calfit&&saveCalibrationDisplayProfile(after,id))
     logging('Druckeinheit und Messbereich lokal mit Chip-UID/NVM-CRC gespeichert (nicht im Sensor).');
    st.programmedSnapshot={session:st.sessionIndex, data:{
     at:new Date().toISOString(),uid:id,
@@ -3333,9 +3333,9 @@ if(typeof document!=='undefined') (function UI(){
    const carryTemperatureBasis=!restoring&&CAL.programmedTemperatureProfileMatches(
     previousProgram,id,Object.fromEntries([[31,0x6C],[32,0x6E],[51,0x94],[52,0x96],[53,0x98],[54,0x9A]]
      .map(([word,address])=>[address,after[word]])));
-   const temperatureBasis=!restoring&&!outputOnly&&st.calfit?.orderT>0?
+   const temperatureBasis=!restoring&&!outputOnly&&!alarmOnly&&st.calfit?.orderT>0?
     'an0203-celsius-v1':carryTemperatureBasis?'an0203-celsius-v1':null;
-   const outputTarget=!restoring&&Number.isInteger(verifiedOutputLimit)&&((after[16]>>9)&7)>=1&&((after[16]>>9)&7)<=3?
+   const outputTarget=!restoring&&!alarmOnly&&Number.isInteger(verifiedOutputLimit)&&((after[16]>>9)&7)>=1&&((after[16]>>9)&7)<=3?
     {s0:Number($('psscS0').value),s1:Number($('psscS1').value),
      vdd:Number($('psscVdd').value),limit:verifiedOutputLimit}:null;
    lsSet('elmos8-last-program',JSON.stringify({
