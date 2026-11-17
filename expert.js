@@ -80,7 +80,7 @@ const ELMOS_EXPERT=(()=>{
   }
   // Separate snapshot of the live RAM configuration. Never silently reuse stale
   // values after reconnect, a fresh EEPROM scan or a new programming session.
-  let overviewRam=null,overviewRamUid=null,overviewRamSession=null,overviewRamCrc=null,overviewRamAt=null,overviewReading=false;
+  let overviewRam=null,overviewRamUid=null,overviewRamSession=null,overviewRamCrc=null,overviewRamAt=null,overviewReading=false,overviewError=null;
   const overviewValid=()=>!!(st.mode==='usb'&&st.port&&st.chip&&st.uid&&
    st.nvmBackupVerified&&ELMOS_EEPROM_OVERVIEW.validWords(st.nvmBackup)&&
    st.nvmBackup[0]===st.uid.ser0&&st.nvmBackup[1]===st.uid.ser1);
@@ -95,7 +95,7 @@ const ELMOS_EXPERT=(()=>{
    const valid=overviewValid(),target=$('eepromOverviewRows'),status=$('eepromOverviewStatus'),
     button=$('eepromReadRam');
    if(!valid){
-    overviewRam=null;overviewRamUid=null;overviewRamSession=null;overviewRamCrc=null;overviewRamAt=null;
+    overviewRam=null;overviewRamUid=null;overviewRamSession=null;overviewRamCrc=null;overviewRamAt=null;overviewError=null;
    }
    const current=valid&&overviewRam&&overviewRamUid===st.uid.hex&&
     overviewRamSession===st.sessionIndex&&overviewRamCrc===st.nvmBackup[63]?
@@ -104,11 +104,12 @@ const ELMOS_EXPERT=(()=>{
    button.disabled=!valid||overviewReading||st.calTask||st.writing||st.nvmWorking;
    const plan=valid?overviewPlan():null;
    ELMOS_EEPROM_OVERVIEW.render(target,valid?st.nvmBackup:null,current,plan);
-   status.textContent=!valid?'Keine gültige EEPROM-Lesung vorhanden.':
+   status.className='eeprom-overview-note'+(overviewError?' eeprom-overview-error':' muted');
+   status.textContent=overviewError||(!valid?'Keine gültige EEPROM-Lesung vorhanden.':
     'EEPROM: 64 Wörter CRC-geprüft · RAM: '+(current?
      'am '+new Date(overviewRamAt).toLocaleTimeString('de-CH')+' gelesen':
      'noch nicht gelesen')+(plan?' · Vorgemerkte Änderungen vorhanden':'')+
-    '. Die Ansicht verändert keine Register.';
+    '. Die Ansicht verändert keine Register.');
   }
   async function readOverviewRam(){
    if(!overviewValid())return;
@@ -124,7 +125,7 @@ const ELMOS_EXPERT=(()=>{
    const address=i=>i>=16&&i<=22?0x04+(i-16)*2:
     i>=24&&i<=29?0x14+(i-24)*2:
     i>=31&&i<=62?0x6C+(i-31)*2:null;
-   overviewReading=true;st.calTask=true;stopLive();
+   overviewError=null;overviewReading=true;st.calTask=true;stopLive();
    $('eepromReadRam').disabled=true;
    try{
     if(st.liveReadPromise)await st.liveReadPromise.catch(()=>{});
@@ -140,10 +141,10 @@ const ELMOS_EXPERT=(()=>{
     if(!overviewValid()||st.uid.hex!==uid||st.sessionIndex!==session||st.nvmBackup[63]!==crc)
      throw Error('Die EEPROM-Grundlage hat sich während des RAM-Lesens geändert.');
     overviewRam=snapshot;overviewRamUid=uid;overviewRamSession=session;
-    overviewRamCrc=crc;overviewRamAt=Date.now();
+    overviewRamCrc=crc;overviewRamAt=Date.now();overviewError=null;
    }catch(e){
     overviewRam=null;overviewRamAt=null;
-    show('eepromOverviewStatus','RAM-Vergleich fehlgeschlagen: '+e.message,'error');
+    overviewError='RAM-Vergleich fehlgeschlagen: '+e.message;
    }finally{
     st.calTask=false;overviewReading=false;
     refreshOverview();
