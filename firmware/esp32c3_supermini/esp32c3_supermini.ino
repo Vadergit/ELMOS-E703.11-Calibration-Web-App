@@ -34,7 +34,36 @@ static uint8_t activeSlave = plc::ReadAddress;
 static bool recoveryUsed = false;
 static bool coldStartVerified = false;
 static bool nvmArmed = false;
+static bool nvmOutputMode = false;
+static bool outputDataPending = false;
+static uint16_t outputPendingWord = 0;
+static uint16_t originalOutputCfgEn = 0;
 static bool i2cMode = false;
+
+static void disarmNvm() {
+  nvmArmed = false;
+  nvmOutputMode = false;
+  outputDataPending = false;
+}
+
+// Read the original (not temporary RAM) CFG_EN word from chip user NVM.
+// Fail closed on read/status errors or timeout.
+static bool readOriginalOutputCfgEn(uint16_t &cfg) {
+  plc::writeWord(0x4E, 0x4C20, plcBaud, false, false, activeSlave);
+  for (unsigned attempt = 0; attempt < 35; ++attempt) {
+    uint16_t status = 0;
+    if (plc::readWord(0x46, plcBaud, status, nullptr, activeSlave)) return false;
+    if ((status & 7) == 0) {
+      delay(3);
+      uint16_t confirmed = 0;
+      if (plc::readWord(0x46, plcBaud, confirmed, nullptr, activeSlave) ||
+          (confirmed & 7) != 0) return false;
+      return !plc::readWord(0x48, plcBaud, cfg, nullptr, activeSlave);
+    }
+    delay(6);
+  }
+  return false;
+}
 
 static void answer(const char *message) {
   // Same line-terminator as the existing SSP3-oriented Web Serial parser.
@@ -75,8 +104,16 @@ static bool allowedWrite(uint8_t address, uint16_t word) {
   if (!nvmArmed) return false;
   if (word == 0x98BD || word == 0x25BF || word == 0x36D8 || word == 0 || word == 0x8800) return true;
   const unsigned index = (word & 0xFF) >> 1;
-  return (word & 0xFF81) == 0xA300 &&
-         (index == 28 || (index >= 30 && index <= 54) || index == 63);
+  if ((word & 0xFF81) != 0xA300) return false;
+  if (nvmOutputMode) {
+    // Restricted output-only programming, never general NVM access.
+    // Stage each data word immediately before its matching program command.
+    if (!outputDataPending) return false;
+    if (index == 16)
+      return ((outputPendingWord ^ originalOutputCfgEn) & ~uint16_t(0x00C0)) == 0;
+    return index == 57 || index == 58 || index == 59 || index == 60 || index == 63;
+  }
+  return index == 28 || (index >= 30 && index <= 54) || index == 63;
 }
 
 static void plcFrame(const char *hex) {
@@ -126,6 +163,14 @@ static void plcFrame(const char *hex) {
     return;
   }
   plc::writeWord(address, word, plcBaud, false, false, slave);
+  if (nvmOutputMode) {
+    if (address == 0x4A) {
+      outputPendingWord = word;
+      outputDataPending = true;
+    } else if (address == 0x4E && (word & 0xFF81) == 0xA300) {
+      outputDataPending = false;
+    }
+  }
   answer("# PLC FRAME SENT");
 }
 
@@ -168,7 +213,7 @@ static const char *probeAddresses() {
 }
 
 static const char *openPlcAccess(bool powerCycle, bool recover = false) {
-  nvmArmed = false;
+  disarmNvm();
   if (powerCycle) {
     coldStartVerified = false;
     recoveryUsed = false;
@@ -341,7 +386,7 @@ static void onCommand(const char *command) {
       plc::configurePins();
     }
     const bool nextI2cMode = strcmp(command, "IF_CFG 2 1 0") == 0;
-    if (i2cMode || nextI2cMode) nvmArmed = coldStartVerified = false;
+    if (i2cMode || nextI2cMode) { disarmNvm(); coldStartVerified = false; }
     i2cMode = nextI2cMode;
     elmosI2c::slave = 0;
     answer(i2cMode ? "# I2C" : "# PLC");
@@ -350,19 +395,40 @@ static void onCommand(const char *command) {
   } else if (i2cMode && ((strncmp(command, "PLC", 3) == 0 &&
                         strncmp(command, "PLC IO ", 7) != 0 &&
                         strncmp(command, "PLC_BAUD ", 9) != 0) ||
-                        strcmp(command, "NVM ARM CALIBRATION") == 0)) {
+                        strcmp(command, "NVM ARM CALIBRATION") == 0 ||
+                        strcmp(command, "NVM ARM OUTPUT") == 0)) {
     answer("!BRIDGE I2C_MODE_ACTIVE");
   } else if (strcmp(command, "NVM ARM CALIBRATION") == 0) {
+    disarmNvm();
     nvmArmed = coldStartVerified && !probe(activeSlave);
     answer(nvmArmed ? "# NVM CALIBRATION ARMED" : "!BRIDGE NVM_COLD_START_REQUIRED");
+  } else if (strcmp(command, "NVM ARM OUTPUT") == 0) {
+    disarmNvm();
+    // The chip must have been reached after a real power-cycle, not merely
+    // through an arbitrary RAM unlock. Also require original NVM identity.
+    if (!coldStartVerified || probe(activeSlave)) {
+      answer("!BRIDGE NVM_COLD_START_REQUIRED");
+    } else {
+      uint16_t cfg = 0;
+      const bool readable = readOriginalOutputCfgEn(cfg);
+      const unsigned aodoMode = (cfg >> 9) & 7;
+      if (!readable || aodoMode < 1 || aodoMode > 3) {
+        answer("!BRIDGE OUTPUT_NVM_CFG_UNVERIFIED");
+      } else {
+        originalOutputCfgEn = cfg;
+        nvmOutputMode = true;
+        nvmArmed = true;
+        answer("# NVM OUTPUT ARMED");
+      }
+    }
   } else if (strcmp(command, "NVM DISARM") == 0) {
-    nvmArmed = false;
+    disarmNvm();
     answer("# NVM DISARMED");
   } else if (strcmp(command, "BRIDGE_INFO") == 0) {
-    nvmArmed = false;
-    answer("# E70311-BRIDGE V1 CAPS=PLC_UID,PLC_READ,PLC_WRITE,NVM,POWER_GPIO_10,PSSC_RAM,AFE_FILTER,BRIDGE_CAL_NVM,PLC_RX_DIAG,PLC_GPIO4_IO,I2C_CRC");
+    disarmNvm();
+    answer("# E70311-BRIDGE V1 CAPS=PLC_UID,PLC_READ,PLC_WRITE,NVM,POWER_GPIO_10,PSSC_RAM,AFE_FILTER,BRIDGE_CAL_NVM,BRIDGE_AODO_OUTPUT_NVM_TEST,PLC_RX_DIAG,PLC_GPIO4_IO,I2C_CRC");
   } else if (strcmp(command, ".VERSION") == 0) {
-    answer("# ESP32-C3 SuperMini ELMOS PLC/I2C bridge v0.10");
+    answer("# ESP32-C3 SuperMini ELMOS PLC/I2C bridge v0.11-dev");
   } else if (strcmp(command, "BRIDGE_PING") == 0) {
     answer("# PONG ESP32-C3 SUPERMini PLC_UID");
   } else if (strcmp(command, "BRIDGE_STATS") == 0) {
@@ -371,7 +437,8 @@ static void onCommand(const char *command) {
                   static_cast<unsigned long>(ESP.getFreeHeap()));
     Serial.flush();
   } else if (strcmp(command, "PLC IO GPIO4") == 0 || strcmp(command, "PLC IO SPLIT") == 0) {
-    nvmArmed = coldStartVerified = false;
+    disarmNvm();
+    coldStartVerified = false;
     plc::singlePin = strcmp(command, "PLC IO GPIO4") == 0;
     activeSlave = plc::ReadAddress;
     answer(plc::singlePin ? "# PLC IO GPIO4" : "# PLC IO SPLIT");
@@ -382,7 +449,8 @@ static void onCommand(const char *command) {
   } else if (strcmp(command, "PLC_UID 100000") == 0) {
     printUid(100000);
   } else if (strcmp(command, "PLC_BAUD 25000") == 0 || strcmp(command, "PLC_BAUD 100000") == 0) {
-    nvmArmed = coldStartVerified = false;
+    disarmNvm();
+    coldStartVerified = false;
     plcBaud = strcmp(command, "PLC_BAUD 25000") == 0 ? 25000 : 100000;
     answer("# PLC BAUD");
   } else if (strcmp(command, "PLC ACCESS") == 0 || strcmp(command, "PLC START") == 0) {
