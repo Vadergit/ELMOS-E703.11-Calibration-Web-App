@@ -17,30 +17,32 @@ const ELMOS_ALARM_EDITOR=(()=>{
   });
   for(let i=1;i<=15;i++){const o=document.createElement('option');o.value=String(i);o.textContent=(2**(i-1))+' Digits';
    $('alarmHysteresis').appendChild(o)}
-  let key='',dirty=false,loading=false,profilePending=null;
+  let key='',dirty=false,loading=false,profilePending=null,exportMode='skip';
   const calibrationActive=()=>!!(st.calStaged&&st.calVerified&&!st.nvmDone);
   function skipForCalibration(){
    // A skip is not an instruction to clear any existing sensor alarms.
    if(st.alarmOnlyPlan?.duringCalibration)clearPlan();
-   st.alarmCalibrationSkipped=true;
+   exportMode='skip';profilePending={mode:'skip'};st.alarmCalibrationSkipped=true;
    status('Ohne Alarmänderung fortfahren. Bereits gespeicherte Alarmwerte werden nicht heimlich verändert.','success');
    renderFlowState();
   }
   function profileFromUi(){
-   if(profilePending)return structuredClone(profilePending);
-   if(!$('alarmEditorFields'))return {mode:'skip'};
+   if(exportMode!=='edit')return {mode:'skip'};
    const s=selection();
-   if(!s.alarmEnabled&&!s.errorEnabled&&!s.selectedStatusBits.length&&
-      s.errorActions.every(x=>Number(x)===0))return {mode:'skip'};
-   return {mode:'edit',settings:{...s,selectedStatusBits:s.selectedStatusBits.slice(),
-    errorActions:s.errorActions.map(Number)}};
+   return {mode:'edit',settings:{
+    limit:Number(s.limit),lowerPct:Number(s.lowerPct),upperPct:Number(s.upperPct),
+    hysteresis:Number(s.hysteresis),alarmEnabled:s.alarmEnabled,
+    errorEnabled:s.errorEnabled,selectedStatusBits:s.selectedStatusBits.slice(),
+    errorActions:s.errorActions.map(Number),
+    errorLowPct:Number(s.errorLowPct),errorHighPct:Number(s.errorHighPct)}};
+
   }
   function applyProfile(profile){
    if(!profile||profile.mode==='skip'){
     profilePending={mode:'skip'};skipForCalibration();return;
    }
    if(profile.mode!=='edit'||!profile.settings)throw Error('Alarmprofil ist ungültig');
-   profilePending=structuredClone(profile);
+   profilePending=structuredClone(profile);exportMode='edit';
    const cur=A.checkDependencies(st.nvmBackup||Array(64).fill(0),profile.settings);
    if(!cur.ok&&st.nvmBackupVerified)throw Error(cur.errors.join(' '));
    fill(profile.settings);
@@ -192,7 +194,7 @@ const ELMOS_ALARM_EDITOR=(()=>{
    finally{refresh();renderFlowState()}
   }
   for(const event of ['input','change'])$('alarmEditorFields').addEventListener(event,()=>{
-   if(loading)return;dirty=true;profilePending=null;
+   if(loading)return;dirty=true;profilePending=null;exportMode='edit';
    if(st.alarmOnlyPlan){clearPlan();status('Einstellungen verändert: Vorschau und RAM-Prüfung erneut durchführen. Frühere RAM-Werte bleiben bis zum Neustart aktiv.');renderFlowState()}
    updateRules();
   });
