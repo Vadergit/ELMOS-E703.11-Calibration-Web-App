@@ -812,11 +812,11 @@ if(typeof document!=='undefined') (function UI(){
   if(n===6&&(expert.restoreReady()||expert.outputReady()))return '';
   if(n>=3&&!calEndpointsReady())return 'Zuerst alle '+calibrationPointCount()+' gewählten Kalibrierpunkte bei gleicher AFE-Einstellung aufnehmen.';
   if(n>=4&&(!coefficientSettingsCurrent()||!st.calStaged))return 'Zuerst die Koeffizienten für den eingestellten DSP-Endwert berechnen und ins RAM übertragen.';
-  if(n>=6&&!verificationComplete()&&!expert.restoreReady())return 'NVM bleibt gesperrt: Zuerst '+(Number.isFinite(verificationRequiredCount())?verificationRequiredCount()+' Prüfpunkte':'eine gültige Anzahl Prüfpunkte')+' über DSP_S im RAM erfolgreich verifizieren.';
+  if(n>=6&&!verificationComplete()&&!expert.restoreReady()&&!expert.outputReady())return 'NVM bleibt gesperrt: Zuerst '+(Number.isFinite(verificationRequiredCount())?verificationRequiredCount()+' Prüfpunkte':'eine gültige Anzahl Prüfpunkte')+' über DSP_S im RAM erfolgreich verifizieren.';
   return ''
  }
- // The recovery changes a RAM address, so require a fresh cold-start proof
- // and keep every factory, boot and output word identical to the original NVM.
+ // A temporary 1-Wire RAM recovery requires a cold-start proof. For safety,
+ // output-only recovery updates may change scaling/clipping, never AODO mode or boot words.
  function bridgeColdStartVerified(){
   const proof=st.bridgeColdStart;
   return st.adapterKind==='bridge'&&st.bridgeCalibrationNvm&&!!st.port&&!!st.uid?.hex&&
@@ -838,9 +838,25 @@ if(typeof document!=='undefined') (function UI(){
   if(!psscRecoveryProven()&&!bridgeColdStartVerified())
    return 'Für die PSSC-RAM-Verbindung fehlt der bestätigte Neustart dieses Chips. Sensor neu initialisieren und erneut prüfen.';
   if(!initial||!modified)return '';
+  if(restoring)return 'Backup-Wiederherstellung nach temporärer PSSC-RAM-Freigabe gesperrt.';
+  if(outputOnly){
+   // Scope is deliberately narrower than normal output programming: same
+   // AODO mode/CFG_AODO, only scaling and clipping plus recalculated CRC16.
+   // This protects the confirmed 1-Wire startup window after a cold restart.
+   if(st.adapterKind!=='ssp3')return 'Ausgangsänderungen über RAM-Recovery sind nur mit dem originalen SSP3 vorgesehen. DIY-Bridge bleibt dafür gesperrt.';
+   if(!hasCurrentNvmBackup())return 'Vor einer Ausgangsänderung das aktuelle 64-Wort-NVM mit derselben Chip-UID vollständig lesen und prüfen.';
+   if(!$('nvmAutoBackup').checked)return 'Bei Ausgangsänderungen nach RAM-Recovery ist ein gesichertes Original-NVM erforderlich. «Altes NVM automatisch sichern» aktivieren.';
+   const outputWords=new Set([16,57,58,59,60,63]);
+   if(((initial[16]^modified[16])&~((1<<6)|(1<<7)))!==0||initial[22]!==modified[22]||
+      modified.some((word,index)=>word!==initial[index]&&!outputWords.has(index)))
+    return 'Bei RAM-Recovery sind nur AODO-Skalierung und Clipping erlaubt. Ausgangsmodus, CFG_AODO und alle Start-/Kalibrierregister müssen unverändert bleiben.';
+   try{CAL.protectStartupCommunication(initial,modified)}
+   catch(e){return '1-Wire-Startschutz: '+e.message;}
+   return '';
+  }
   const calibrationWords=new Set([CAL.SVDD_INDEX,28,30,31,32,33,34,...Array.from({length:16},(_,i)=>35+i),51,52,53,54,63]);
-  if(restoring||outputOnly||modified.some((word,index)=>word!==initial[index]&&!calibrationWords.has(index)))
-   return 'Nach PSSC-RAM-Freigabe lassen sich nur Kalibrierdaten speichern. Ausgangs- und Starteinstellungen müssen unverändert bleiben.';
+  if(modified.some((word,index)=>word!==initial[index]&&!calibrationWords.has(index)))
+   return 'Nach PSSC-RAM-Freigabe sind bei der Kalibrierung ausschliesslich Kalibrierdaten erlaubt. Ausgangs- und Starteinstellungen bleiben unverändert.';
   return '';
  }
  function hasCurrentNvmBackup(){
@@ -868,7 +884,16 @@ if(typeof document!=='undefined') (function UI(){
   const restoring=expert.restoreReady(),outputOnly=expert.outputReady();
   $('nvmProgram').textContent=demoEnabled?'NVM-Programmierung simulieren':restoring?'Backup auf diesem Chip wiederherstellen':outputOnly?'AODO-Ausgangseinstellungen im NVM speichern':'Kalibrierung dauerhaft ins NVM schreiben';
   const recognizedUid=st.uid?.hex||'';
-  $('nvmPrepare').textContent=hasCurrentNvmBackup()?'Änderungen prüfen':'NVM lesen & Änderungen prüfen';
+  const outputPlanSelected=!!st.outputOnlyPlan;
+  $('nvmPrepare').textContent=outputPlanSelected?'Ausgangsänderungen bereits geprüft':
+   hasCurrentNvmBackup()?'Änderungen prüfen':'NVM lesen & Änderungen prüfen';
+  const nvmTitle=document.querySelector('.panel[data-panel="6"] h2');
+  const nvmIntro=document.querySelector('.panel[data-panel="6"] > p.muted.small');
+  if(nvmTitle)nvmTitle.textContent=outputPlanSelected?'Nur Ausgangseinstellungen speichern':'Kalibrierung im Sensor speichern';
+  if(nvmIntro)nvmIntro.textContent=outputPlanSelected?
+   'Ausgangsänderungen ohne neuen Druckabgleich: Original-NVM und UID prüfen, Änderungsliste kontrollieren und erst danach gezielt speichern.':
+   'Nach erfolgreicher DSP-Prüfung das aktuelle NVM lesen und die Änderungen prüfen. Anschliessend kann die Kalibrierung dauerhaft gespeichert werden.';
+  $('nvmUserIdField').hidden=outputPlanSelected;
   $('nvmUidHint').textContent=recognizedUid?'Chip-UID: '+recognizedUid:'Chip-UID wird beim Verbinden gelesen.';
   let nvmReason='';
   if(st.iface!=='plc')nvmReason='1-Wire-Startschutz: Dauerhaftes NVM-Schreiben ausschliesslich über 1-Wire möglich. Bitte per 1-Wire verbinden.';
@@ -910,7 +935,10 @@ if(typeof document!=='undefined') (function UI(){
   $('nvmRestart').disabled=bootCheckBusy||!st.chip||!st.port;
   $('nvmPostBoot').disabled=bootCheckBusy||!st.chip||!st.port;
   $('nvmWritePrereq').textContent=approvalGranted?
-   'Bereit: Chip-UID stimmt, NVM-Änderungsplan und CRC sind geprüft. Beim Klick wird '+($('nvmAutoBackup').checked?'das alte NVM vor dem Schreiben automatisch gesichert und danach':'ohne zusätzliches Backup')+' programmiert.':
+   'Bereit: '+(outputOnly?'Nur Ausgangskonfiguration (keine neue Kalibrierung). ':'Kalibrierung. ')+
+    'Chip-UID, Änderungsplan, 1-Wire-Startschutz und NVM-CRC sind geprüft. '+
+    ($('nvmAutoBackup').checked?'Das alte NVM wird vor dem Schreiben gesichert.':'Zusätzliches Backup ist nicht ausgewählt.')+
+    ' Nach dem Schreiben muss der Kaltstart kontrolliert werden.':
    nvmReason;
   $('nvmWritePrereq').className='callout '+(approvalGranted?'success':'warn');
   const unlocked=[true,true,true,calEndpointsReady(),ready&&st.calStaged,true,!workflowGate(6),true,true];
