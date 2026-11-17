@@ -67,9 +67,9 @@ const ELMOS_ALARM_CONFIG=(()=>{
   const hyst=Number(selection.hysteresis);
   if(!Number.isInteger(limit)||limit<1000||limit>32000)
    errors.push('Gültigen DSP-Endbereich (1’000–32’000 Digits) angeben.');
-  if(!Number.isFinite(lo)||!Number.isFinite(hi)||lo<0||hi>100||lo>=hi)
+  if(selection.lowerPct===''||selection.upperPct===''||!Number.isFinite(lo)||!Number.isFinite(hi)||lo<0||hi>100||lo>=hi)
    errors.push('Untere und obere Grenze müssen innerhalb 0–100 % liegen und klar aufsteigend sein.');
-  if(!Number.isInteger(hyst)||hyst<0||hyst>15)
+  if(selection.hysteresis===''||!Number.isInteger(hyst)||hyst<0||hyst>15)
    errors.push('Hysterese-Code muss zwischen 0 und 15 liegen.');
   if(Number.isFinite(lo)&&Number.isFinite(hi)&&Number.isFinite(limit)&&
      Number.isInteger(hyst)&&hyst>=0&&hyst<=15&&hi>lo&&limit>0){
@@ -78,6 +78,8 @@ const ELMOS_ALARM_CONFIG=(()=>{
    if(2*h>=span)
     errors.push('Hysterese zu gross: Die beiden Grenzbereiche überlappen. Grenzen weiter auseinanderlegen oder Hysterese verkleinern.');
    facts.push('Hysterese: '+h+' DSP-Digits; Abstand der Grenzwerte: '+Math.round(span)+' DSP-Digits.');
+   facts.push('Alarm-Schwellen: '+Math.round((2*lo/100-1)*limit/4)*4+
+    ' / '+Math.round((2*hi/100-1)*limit/4)*4+' DSP_S-Digits (nach Registerrundung).');
   }
   const bits=Array.isArray(selection.selectedStatusBits)?selection.selectedStatusBits:[];
   if(bits.length!==new Set(bits).size||bits.some(bit=>!statusBits.includes(bit)))
@@ -104,6 +106,16 @@ const ELMOS_ALARM_CONFIG=(()=>{
   if(acts.length!==6||acts.some(a=>!Number.isInteger(a)||a<0||a>3))
    errors.push('Alle sechs Fehlerreaktionen müssen gültig (0–3) sein.');
   const usesReplacement=acts.some(a=>a===1||a===2),usesHighZ=acts.some(a=>a===3);
+  for(const [field,name] of [['errorLowPct','Unterer Fehler-Ersatzwert'],['errorHighPct','Oberer Fehler-Ersatzwert']]){
+   const raw=selection[field],value=Number(raw);
+   if(raw===''||raw===null||raw===undefined||!Number.isFinite(value)||
+      value< -100||value>99.21875)
+    errors.push(name+' muss zwischen −100 und +99,21875 % liegen.');
+  }
+  if(hyst>0&&!alarmEnabled)
+   warnings.push('Hysterese ist eingestellt, aber der Druckalarm ist ausgeschaltet.');
+  if(bits.length===0)
+   warnings.push('Kein EOC-Status ausgewählt: Der konfigurierte EOC-Ausgang signalisiert damit keine dieser Bedingungen.');
   if(errorEnabled&&acts.every(a=>a===0))
    warnings.push('Fehlersignalisierung eingeschaltet, aber alle Fehleraktionen stehen auf «Keine Änderung».');
   if(!errorEnabled&&acts.some(a=>a!==0))
@@ -112,6 +124,8 @@ const ELMOS_ALARM_CONFIG=(()=>{
    warnings.push('Fehlerreaktionen ändern DSP_AODO beziehungsweise den AODO-Pin. Der aktuelle Ausgangsmodus ist dafür nicht sinnvoll.');
   if(errorEnabled&&usesHighZ)
    warnings.push('High-Z kann den Analogausgang absichtlich deaktivieren. Nachgeschaltete Elektronik und Failsafe testen.');
+  if(plcPermanent&&errorEnabled&&(usesHighZ||usesReplacement))
+   warnings.push('One-Wire ist dauerhaft auf AODO aktiv: Analoge Fehlerreaktionen auf AODO sind in diesem Betrieb nicht direkt als Spannungsausgang nutzbar.');
   if((errorEnabled&&usesReplacement)&&
       (!Number.isFinite(Number(selection.errorLowPct))||!Number.isFinite(Number(selection.errorHighPct))))
    errors.push('Fehler-Ersatzwerte sind keine gültigen Zahlen.');
