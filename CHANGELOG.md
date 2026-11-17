@@ -1,3 +1,12 @@
+## v0.7.116 – Alarm- und Fehlereditor mit sicherem RAM-/NVM-Ablauf
+
+- In der EEPROM-Ansicht lassen sich jetzt Alarmgrenzen (0–100 %), Hysterese, EOC-ODER-Maske und sechs Fehlerreaktionen inklusive Ersatzwerten einstellen.
+- Ein 64-Wort-NVM-Diff mit CRC entsteht zunächst nur als Vorschau. RAM-Übernahme ausschliesslich über Original-SSP3 mit Readback und Rücksetzversuch im Fehlerfall.
+- Die dauerhafte Speicherung verwendet den bestehenden UID-/Backup-/CRC-/Power-Cycle-geschützten NVM-Ablauf und ist erst nach erfolgreichem RAM-Test freigegeben.
+- Keine Änderung von physischer EOC-Pinbelegung, One-Wire-Startfenster, Factory- oder sonstigen Bootregistern. Bei aktivem DSP-Post-Scaling bleibt der Alarmeditor gesperrt.
+- Eigene Regressionstests für Kodierung, Hysterese, STATUS-Maske, CRC, Sperren und Workflow. [Prüfanleitung](docs/ALARM_KONFIGURATION.md).
+- **Laborprototyp:** Kein vollständiger elektrischer Alarmtest mit echtem E703.11 durchgeführt.
+
 ## v0.7.115 – Verständliche Original-PSSC-Konfiguration und Alarmdiagnose
 
 - Klartext statt Hex für alle bekannten Original-Elmos-Filterkombinationen mit Frequenz, Abtastrate und Auflösung.
