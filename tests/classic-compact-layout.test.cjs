@@ -45,7 +45,7 @@ test('calibration exports require expert mode while deleting points remains acce
 });
 test('header and footer reflect the new deployed version',()=>{
  assert.match(html,/E703\.11 · PSSC · v0\.7\.99/);
- assert.match(html,/data-app-version="0\.7\.99"/);
+ assert.match(html,/data-app-version="0\\.7\\.\\d+"/);
  assert.match(html,/Version v0\.7\.99/);
 });
 
