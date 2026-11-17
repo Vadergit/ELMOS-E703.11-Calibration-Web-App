@@ -877,9 +877,9 @@ const ELMOS_GUIDED=(()=>{
   if($('compactMode'))$('compactMode').checked=false;
   mode=true;
   const loggingActive=!!window.ELMOS_TEST_LOGGER?.isBusy();
-  stage=loggingActive?10:0;
+  stage=loggingActive?11:0;
   task=loggingActive?'testlog':'calibration';
-  visited=loggingActive?new Set([0,10]):new Set([0]);
+  visited=loggingActive?new Set([0,11]):new Set([0]);
   plan=null;signature=null;seriesPointFields=null;selectedPoint=0;latestCapture=null;lastCaptureRenderKey=null;
   try{build()}catch(e){
    console.error(e);
