@@ -23,7 +23,7 @@ const ELMOS_ALARM_EDITOR=(()=>{
    if(st.alarmOnlyPlan&&st.calImage===st.alarmOnlyPlan)st.calImage=null;
    st.alarmOnlyPlan=null;$('alarmEditorRam').disabled=true;
    $('alarmEditorDiff').textContent='Kein gültiger Alarmänderungsplan.';
-   if($('nvmDiff')&&(!$('nvmDiff').dataset.scope||$('nvmDiff').dataset.scope==='alarm')){
+   if($('nvmDiff')&&$('nvmDiff').dataset.scope==='alarm'){
     $('nvmDiff').textContent='Kein vorgemerkter Alarmänderungsplan.';delete $('nvmDiff').dataset.scope;
    }
   }
