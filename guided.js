@@ -116,7 +116,7 @@ const ELMOS_GUIDED=(()=>{
        <div class="gw-panel-actions" id="gwScalingActions"></div>
       </div>
       <div class="gw-advanced" id="gwAdvancedOutput" hidden><details><summary>Expertenparameter · AODO Gain/Offset</summary><div class="gw-fields" id="gwExpertOutputFields"></div></details></div>
-      <div id="gwOutputClipping"></div><div class="gw-panel-actions" id="gwOutputActions"></div>
+      <div id="gwOutputClipping"></div><div class="gw-panel-actions" id="gwOutputActions"></div><div class="gw-panel-actions"><button id="gwOutputSkipAlarm" type="button">Ohne Alarmänderung weiter zur NVM-Programmierung</button></div>
      </section>
      <section class="gw-tile is-soft gw-output-review">
       <div class="gw-section-head"><div><h3>Vorschau und Status</h3><p>Ausgelesene Werte, Skalierung und Startschutz</p></div></div>
@@ -223,6 +223,9 @@ const ELMOS_GUIDED=(()=>{
    $('gwAlarmConfigArea').hidden=!$('gwUseAlarms').checked;
    if(!$('gwUseAlarms').checked)window.ELMOS_GUIDED_API?.skipAlarms?.();
    updateUI();
+  });
+  $('gwOutputSkipAlarm').addEventListener('click',()=>{
+   window.ELMOS_GUIDED_API?.skipAlarms?.();goto(9);
   });
   $('gwSkipAlarm').addEventListener('click',()=>{
    $('gwUseAlarms').checked=false;$('gwAlarmConfigArea').hidden=true;
