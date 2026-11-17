@@ -55,8 +55,8 @@ test('Seven calibration steps plus independent EEPROM viewer and test logger',()
  const html=read('index.html');
  const panels=Array.from(html.matchAll(/<section[^>]*data-panel="([0-9]+)"/g),m=>Number(m[1]));
  const steps=Array.from(html.matchAll(/<button class="stepBtn[^"]*" data-step="([0-9]+)"/g),m=>Number(m[1]));
- assert.deepEqual(panels,[0,1,2,3,4,5,6,7,8]);
- assert.deepEqual(steps,[0,1,2,3,4,5,6,7,8]);
+ assert.deepEqual(panels,[0,1,2,3,4,5,6,7,8,9]);
+ assert.deepEqual(steps,[0,1,2,3,4,5,6,7,9,8]);
  assert.equal(html.split('id="expertOutputMode"').length-1,1);
  const output=html.split('data-panel="5" hidden>')[1].split('data-panel="6" hidden>')[0];
  assert.ok(output.includes('id="expertOutputMode"'));
