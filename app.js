@@ -75,48 +75,7 @@ if(typeof document!=='undefined') (function UI(){
  })):null;
  // E703.11 datasheet 25DS0170E.04, table 7.5-1, continuous profiles.
  const filterRegisters=[0x14,0x16,0x18];
- const filterProfiles=[
-  ['Butterworth · 10,94 kHz · 50 kS/s · 5 Bit', [0x48D3,0x2A9E,0x0412]],
-  ['Butterworth · 12,56 kHz · 50 kS/s · 7 Bit', [0x4AA3,0x2AD6,0x0511]],
-  ['Butterworth · 10,98 kHz · 50 kS/s · 7 Bit', [0x49E3,0x2AD3,0x0512]],
-  ['Butterworth · 6,44 kHz · 50 kS/s · 8 Bit', [0x49A3,0x2E9B,0x0112]],
-  ['Butterworth · 4 kHz · 50 kS/s · 10 Bit', [0xCA13,0x2E1A,0x0536]],
-  ['Butterworth · 500 Hz · 50 kS/s · 13 Bit', [0xEB23,0x369F,0x0132]],
-  ['Butterworth · 2,1 kHz · 50 kS/s · 12 Bit', [0xCB22,0x3A1E,0x0136]],
-  ['Butterworth · 1,04 kHz · 50 kS/s · 13 Bit', [0xEA12,0x3A9F,0x0532]],
-  ['Butterworth · 7,21 kHz · 31 kS/s · 9 Bit', [0x48A3,0x0B56,0x0451]],
-  ['Butterworth · 1 kHz · 31 kS/s · 13 Bit', [0x49A2,0x1B9B,0x0076]],
-  ['Butterworth · 4,37 kHz · 20 kS/s · 7 Bit', [0x48D1,0x2A9E,0x0493]],
-  ['Butterworth · 3,39 kHz · 20 kS/s · 11 Bit', [0x4BE0,0x2E9B,0x0093]],
-  ['Butterworth · 1,97 kHz · 20 kS/s · 12 Bit', [0x48D0,0x2E53,0x01B4]],
-  ['Butterworth · 960 Hz · 20 kS/s · 13 Bit', [0x49E0,0x2E56,0x05B4]],
-  ['Butterworth · 490 Hz · 20 kS/s · 14 Bit', [0x68D0,0x32D7,0x01B0]],
-  ['Butterworth · 250 Hz · 8 kS/s · 14 Bit', [0x59A3,0x319B,0x00F7]],
-  ['Butterworth · 115 Hz · 2 kS/s · 14 Bit', [0x5A94,0x0C5F,0x04BE]],
-  ['Butterworth · 50 Hz · 2 kS/s · 14 Bit', [0x78D4,0x10D7,0x01B9]],
-  ['Butterworth · 20 Hz · 2 kS/s · 15 Bit', [0x7BA4,0x1497,0x01BA]],
-  ['Butterworth · 10 Hz · 2 kS/s · 15 Bit', [0x7894,0x1452,0x029E]],
-  ['Bessel · 7,89 kHz · 50 kS/s · 7 Bit', [0x4BE3,0x2E9F,0x0112]],
-  ['Bessel · 7,17 kHz · 50 kS/s · 8 Bit', [0x4BE3,0x2E9B,0x0111]],
-  ['Bessel · 6,33 kHz · 50 kS/s · 8 Bit', [0x49E3,0x2E9F,0x0012]],
-  ['Bessel · 5,15 kHz · 50 kS/s · 9 Bit', [0x4B93,0x2ED6,0x0115]],
-  ['Bessel · 3,11 kHz · 50 kS/s · 10 Bit', [0xC853,0x2E1F,0x0435]],
-  ['Bessel · 370 Hz · 50 kS/s · 14 Bit', [0xEB63,0x369F,0x0131]],
-  ['Bessel · 1,53 kHz · 50 kS/s · 12 Bit', [0xCB62,0x3A1B,0x0036]],
-  ['Bessel · 860 Hz · 50 kS/s · 12 Bit', [0xEA52,0x3A9F,0x0432]],
-  ['Bessel · 3,95 kHz · 31 kS/s · 10 Bit', [0x49E3,0x0F1F,0x0052]],
-  ['Bessel · 870 Hz · 31 kS/s · 13 Bit', [0x49A2,0x1B9B,0x0175]],
-  ['Bessel · 3,15 kHz · 20 kS/s · 11 Bit', [0x4BE1,0x2E9F,0x0193]],
-  ['Bessel · 2,13 kHz · 20 kS/s · 11 Bit', [0x49E0,0x2E9B,0x0090]],
-  ['Bessel · 1,51 kHz · 20 kS/s · 12 Bit', [0x4AD0,0x2E1F,0x05B4]],
-  ['Bessel · 790 Hz · 20 kS/s · 13 Bit', [0x48A0,0x2E56,0x04B4]],
-  ['Bessel · 410 Hz · 20 kS/s · 14 Bit', [0x6990,0x3257,0x00B0]],
-  ['Bessel · 190 Hz · 8 kS/s · 14 Bit', [0x59A3,0x319A,0x01F4]],
-  ['Bessel · 90 Hz · 2 kS/s · 14 Bit', [0x5AA4,0x0C56,0x05BD]],
-  ['Bessel · 40 Hz · 2 kS/s · 14 Bit', [0x7994,0x1057,0x00B9]],
-  ['Bessel · 15 Hz · 2 kS/s · 15 Bit', [0x7BE4,0x1497,0x01B9]],
-  ['Bessel · 10 Hz · 2 kS/s · 15 Bit', [0x78D4,0x1452,0x029D]],
- ];
+ const filterProfiles=ELMOS_SETTINGS.filterProfiles;
  const REG_NAMES={4:'CFG_EN',6:'CFG_SPI_I2C',8:'CFG_PADS0',10:'CFG_PADS1',12:'CFG_PADS2',16:'CFG_AODO',0x14:'CFG_ADC',0x16:'CFG_LP0',0x18:'CFG_LP1',0x1A:'CFG_AFE0',0x1C:'CFG_AFE1',0x1E:'CFG_AFE2',0x26:'ADC_TC',0x28:'ADC_T',0x2A:'ADC_S'};
  const st={chipDiag:null,diagRunning:false,lastPlcReply:null,mode:'offline',port:null,closing:false,reader:null,readerPromise:null,readerAlive:false,adapterNoReply:false,sessionStartedAt:null,sessionIndex:0,cmdQueue:Promise.resolve(),replyBuffer:'',responseWait:null,iface:'plc',adapterKind:'ssp3',sensorPowerEnabled:false,startupRunning:false,startupAbort:false,startupAttempts:0,magicRunning:false,magicResult:null,powerCycleRunning:false,powerCycleResult:null,startupTrials:[],powerHelp:null,plcHostFormat:'legacy',plcAddress:0x6C,plcAddressVerified:false,plcAddressSource:'',plcAddressProbes:[],firmware:'',chip:false,readOnlySensor:null,sensorLost:false,reinitRunning:false,boot:null,afe:null,afe0:null,bridgeWriteAllowed:false,bridgeReadBusy:false,staged:{pga1:0,pga2:0,offset:0},adc:null,dsp:null,dspError:null,dspT:null,dspTError:null,liveReadPromise:null,trend:[],history:[],log:[],regs:{},points:{lo:null,hi:null},verify:null,live:false,manualLivePause:false,timeout:null,consecutiveErrors:0,liveReadAttempts:0,liveReadSuccesses:0,liveLastError:null,liveLastAttemptAt:null,measurementPeriod:null,measurementStatus:null,measurementError:null,measurementStarts:0,measurementFreshCount:0,measurementLastChangedAt:null,writing:false,pressure:5,calpoints:[],calfit:null,calImage:null,nvmBackup:null,nvmBackupVerified:false,calStaged:false,calVerified:false,calValidation:[],calTask:false,testLogging:false,nvmWorking:false,nvmAttempting:false,nvmDone:false,afeWriteActive:false,ramWriteScope:null,uid:null,expertOutputPlan:null,restorePlan:null,outputOnlyPlan:null,uidShownForInput:null,profilePendingAFE:null};
  let currentStep=0,pendingGain=null,writeTimer=null;let tipEnabled=true,liveIntervalMs=250;
