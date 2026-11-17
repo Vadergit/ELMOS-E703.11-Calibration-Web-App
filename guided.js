@@ -762,8 +762,8 @@ const ELMOS_GUIDED=(()=>{
   if(stage===7){goto(8);return}
   if(stage===8){
    if(!$('gwUseAlarms').checked){window.ELMOS_GUIDED_API?.skipAlarms?.();goto(9);return}
-   if(!window.ELMOS_GUIDED_API?.alarmPending?.()){
-    msg('Alarmkonfiguration zuerst im RAM rücklesen oder den optionalen Schritt überspringen.','warn');return;
+   if(!window.ELMOS_GUIDED_API?.alarmPending?.()&&!window.ELMOS_GUIDED_API?.alarmStandaloneReady?.()){
+    msg('Alarmkonfiguration zuerst im RAM rücklesen oder den optionalen Schritt überspringen. Bei bereits vorgemerktem Ausgang zuerst diesen speichern und den Alarm anschliessend separat bearbeiten.','warn');return;
    }
    goto(9);return;
   }
