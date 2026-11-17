@@ -3,6 +3,7 @@
    64-word EEPROM image, an explicitly requested RAM snapshot or a staged image.
    No sensor communication, register writes or local storage occur here. */
 const ELMOS_EEPROM_OVERVIEW=(()=>{
+ const SETTINGS=typeof ELMOS_SETTINGS!=='undefined'?ELMOS_SETTINGS:require('./elmos-settings.js');
  const isWord=x=>Number.isInteger(x)&&x>=0&&x<=65535;
  const validWords=x=>Array.isArray(x)&&x.length===64&&x.every(isWord);
  const raw=x=>'0x'+Number(x).toString(16).toUpperCase().padStart(4,'0');
@@ -10,7 +11,7 @@ const ELMOS_EEPROM_OVERVIEW=(()=>{
  const formatNumber=x=>Number(x).toLocaleString('de-CH',{maximumFractionDigits:6});
  const modeNames=['High-Z','Analog, DAC 0','Analog, DAC 1','Analog, DAC 2','PWM','FM','Alarm','SDA'];
  const pga1=[3.5,6,8.5,11],pga2=[2,2.22,2.5,2.86,3.33,4,5,6.67,10];
- const q12=x=>formatNumber(signed(x)/4096)+' (Q3.12)';
+ const q12=x=>formatNumber(signed(x)/4096)+' (dimensionslos)';
  const q15=x=>formatNumber(signed(x)/32768)+' (Q0.15)';
  const bit=x=>x?'Ein':'Aus';
  const offset=x=>{
@@ -25,13 +26,15 @@ const ELMOS_EEPROM_OVERVIEW=(()=>{
   {group:'Betrieb & Kommunikation',label:'1-Wire dauerhaft',index:17,decode:x=>bit((x>>>2)&1)},
   {group:'Betrieb & Kommunikation',label:'1-Wire-Startfenster',index:18,decode:x=>['4 ms','10 ms','200 ms','Deaktiviert'][(x>>>12)&3]},
   {group:'Betrieb & Kommunikation',label:'Registerzugriff dauerhaft',index:19,decode:x=>bit((x>>>8)&1)},
+  {group:'Betrieb & Kommunikation',label:'Status-Verknüpfung für EOC (ODER)',index:18,decode:x=>SETTINGS.eocMask(x)},
+  {group:'Betrieb & Kommunikation',label:'EOC-Signal auf Pin',index:20,decode:x=>SETTINGS.eocPin(x)},
+  {group:'Betrieb & Kommunikation',label:'I²C-Signalfilter',index:20,decode:x=>((x>>12)&1)?'Deaktiviert':'Aktiv (Störimpulse unterdrücken)'},
   {group:'Analog-Frontend (AFE)',label:'Brückenspannung SVDD',index:27,decode:x=>['2,4 V','1,6 V','2,0 V','Reservierter Code'][(x&3)]},
   {group:'Analog-Frontend (AFE)',label:'PGA1',index:28,decode:x=>formatNumber(pga1[x&3])+'×'},
   {group:'Analog-Frontend (AFE)',label:'Offset-DAC',index:28,decode:offset},
   {group:'Analog-Frontend (AFE)',label:'PGA2',index:28,decode:x=>pga2[(x>>>7)&15]===undefined?'Undokumentierter Code':formatNumber(pga2[(x>>>7)&15])+'×'},
-  {group:'Analog-Frontend (AFE)',label:'Temperaturpfad CFG_AFE2',index:29,decode:raw},
-  {group:'Analog-Frontend (AFE)',label:'ADC-Konfiguration',index:24,decode:raw},
-  {group:'Analog-Frontend (AFE)',label:'Filter CFG_LP0 / LP1',indices:[25,26],decode:xs=>xs.map(raw).join(' / ')},
+  {group:'Analog-Frontend (AFE)',label:'Temperaturquelle',index:29,decode:x=>SETTINGS.tempSource(x)},
+  {group:'Analog-Frontend (AFE)',label:'ADC-Filter, Grenzfrequenz & Abtastrate',indices:[24,25,26],decode:xs=>SETTINGS.filter(xs)},
   {group:'DSP & Kalibrierung',label:'Druck-Normierung Offset S_O',index:33,decode:q12},
   {group:'DSP & Kalibrierung',label:'Druck-Normierung Faktor S_F',index:34,decode:q12},
   {group:'DSP & Kalibrierung',label:'Temperatur-Offset T_O',index:31,decode:q12},
@@ -40,10 +43,12 @@ const ELMOS_EEPROM_OVERVIEW=(()=>{
   {group:'DSP & Kalibrierung',label:'Temperaturkoeffizienten T0–T3',indices:[51,52,53,54],decode:xs=>xs.filter(x=>x!==0).length+' / 4 ungleich 0'},
   {group:'Ausgang & Grenzwerte',label:'Ausgangs-Offset AODO_O',index:57,decode:q12},
   {group:'Ausgang & Grenzwerte',label:'Ausgangs-Faktor AODO_F',index:58,decode:q12},
-  {group:'Ausgang & Grenzwerte',label:'Begrenzung unten / oben',indices:[59,60],decode:xs=>xs.map(x=>formatNumber(signed(x))).join(' / ')+' (signed Rohwerte)'},
-  {group:'Ausgang & Grenzwerte',label:'Alarmgrenze unten / oben',indices:[55,56],decode:xs=>xs.map(x=>formatNumber(signed(x))).join(' / ')+' Digits'},
-  {group:'Ausgang & Grenzwerte',label:'Fehlermaske',index:61,decode:raw},
-  {group:'Ausgang & Grenzwerte',label:'Benutzerwort',index:30,decode:raw}
+  {group:'Ausgang & Grenzwerte',label:'Ausgangsbegrenzung',indices:[16,59,60],decode:(xs,all)=>SETTINGS.limitText(all)},
+  {group:'Ausgang & Grenzwerte',label:'Alarm unten / DSP-Nachskalierung Offset',index:55,decode:(x,all)=>SETTINGS.alarmText(all,'lower')},
+  {group:'Ausgang & Grenzwerte',label:'Alarm oben / DSP-Nachskalierung Faktor',index:56,decode:(x,all)=>SETTINGS.alarmText(all,'upper')},
+  {group:'Ausgang & Grenzwerte',label:'Fehlerreaktionen',index:61,decode:x=>SETTINGS.errorMask(x)},
+  {group:'Ausgang & Grenzwerte',label:'Fehler-Ersatzwerte',index:62,decode:x=>SETTINGS.errorValues(x)},
+  {group:'Ausgang & Grenzwerte',label:'Benutzerkennung',index:30,decode:x=>String(x)+' (dezimal)'}
  ];
  const groups=[...new Set(entries.map(x=>x.group))];
  const getValue=(source,item)=>{
@@ -51,7 +56,7 @@ const ELMOS_EEPROM_OVERVIEW=(()=>{
   if(!source)return null;
   const values=indexes.map(i=>Array.isArray(source)?source[i]:source[i]);
   if(!values.every(isWord))return null;
-  return {values,text:item.decode(item.indices?values:values[0]),
+  return {values,text:item.decode(item.indices?values:values[0],source),
    raw:values.map(raw).join(' / ')};
  };
  function summarize(words,ram,staged){
@@ -131,7 +136,7 @@ const ELMOS_EEPROM_OVERVIEW=(()=>{
   container.appendChild(elem('p','muted small',
    'EEPROM = gespeicherter, CRC-geprüfter Stand · RAM = einmalig gelesener Arbeitsstand'+
    (hasPlan?' · Vorgemerkt = noch nicht in EEPROM programmiert':'')+
-   '. Rohwerte sind nicht automatisch physikalische Druck- oder Spannungswerte. Kein automatischer Schreibvorgang.'));
+   '. Nur eindeutig dokumentierte Werte werden in Klartext aufgelöst; unbekannte Werte werden nicht geschätzt. Kein Schreibvorgang.'));
  }
  return {summarize,render,validWords};
 })();

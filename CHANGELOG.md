@@ -1,3 +1,12 @@
+## v0.7.115 – Verständliche Original-PSSC-Konfiguration und Alarmdiagnose
+
+- Klartext statt Hex für alle bekannten Original-Elmos-Filterkombinationen mit Frequenz, Abtastrate und Auflösung.
+- EOC-ODER-Maske und Pinzuordnung, Alarm-/DSP-Post-Skalierung, Fehlerreaktionen, Ersatzwerte und Temperaturquelle in der EEPROM-Konfigurationsübersicht dekodiert.
+- Zusätzliche **nur lesende** Alarm-/EOC-Diagnose mit optionalem `STATUS_SYNC`-Snapshot, an aktuelle UID, Sitzung und CRC gebunden.
+- Physikalischer Druckbereich und Einheit lokal pro Sensor-UID und NVM-CRC nach erfolgreichem Abgleich gespeichert und bei späterer geprüfter EEPROM-Lesung wiederhergestellt.
+- Gemeinsamer Filterkatalog, Softwaretests und [vollständiger Funktionsvergleich](docs/PSSC_FEATURE_PARITY.md).
+- **Grenze:** NVM-Schreiben für noch ungeprüfte Alarm-, Filter-, Schnittstellen- und Class-Funktionen bleibt gesperrt. Keine vollständig portierte Original-DLL.
+
 ## v0.7.114 – Elmos AN0203: DSP/AODO vor NVM zusammen prüfen
 
 - Druck- und Temperatur-Sollwertformeln nach Elmos AN0203 zentralisiert; optional kleinere DSP-Spanne bleibt erlaubt.

@@ -2,7 +2,7 @@
 
 **Ein geführter Kalibrierassistent für den ELMOS E703.11 und das SSP3-Eval-Board.** Ziel ist ein verständlicher Abgleich, der auch ohne tiefere Vorkenntnisse Schritt für Schritt funktioniert. Wer mehr benötigt, kann zusätzliche Messpunkte, DSP-Parameter und einen geschützten Expertenmodus verwenden.
 
-**Version: v0.7.114 · TK0 mit 3 Punkten und TK0 + TKE mit 4 Punkten** · [Änderungsverlauf](CHANGELOG.md) · **[Geplante Funktionen](ROADMAP.md)**
+**Version: v0.7.115 · TK0 mit 3 Punkten und TK0 + TKE mit 4 Punkten** · [Änderungsverlauf](CHANGELOG.md) · **[Geplante Funktionen](ROADMAP.md)**
 
 Der **Demo-Modus** wird in den Einstellungen erst nach Aktivierung von **Expertenparameter** angezeigt. Er simuliert Sensorwerte und Schreibvorgänge; die echte Hardware wird dabei nicht programmiert.
 
@@ -13,6 +13,16 @@ Der **Demo-Modus** wird in den Einstellungen erst nach Aktivierung von **Experte
 > **Geführter Assistent:** Nach der bestätigten SSP3-Verbindung stehen die neue Schritt-für-Schritt-Führung, die klassische Ansicht und der optionale Kompaktmodus zur Verfügung. Ein E703.11-Chip muss für den Abgleich verbunden sein. Als DIY-Programmer sind ausschliesslich ESP32-C3 SuperMini (v0.11 Test) und Arduino Pro Micro (v0.27) vorgesehen. Die originalen ELMOS SSP3-Adapter bleiben separat unterstützt. Der vollständige Hardwaretest der DIY-Programmer ist noch offen.
 >
 > [Geführter Abgleich](docs/GEFUEHRTER_ASSISTENT.md) · [DIY-Programmer (ESP32-C3 / Pro Micro)](docs/USB_BRIDGE_GUIDE.md) · [Pinbelegung der zwei Boards](docs/ESP_BOARD_OPTIONS.md) · [DIY-Firmware-Installer](firmware-update.html)
+
+## v0.7.115 – Original-PSSC-Lesbarkeit, Alarmdiagnose und Druckeinheit
+
+Die EEPROM-Konfigurationsübersicht zeigt alle **40 dokumentierten ADC-Filterprofile** als Filtertyp, Grenzfrequenz und Abtastrate, dazu Temperaturquelle, EOC-ODER-Verknüpfungen, Alarmschwellen beziehungsweise DSP-Post-Scaling, Fehleraktionen und Ersatzwerte in Klartext. Unbekannte Kombinationen werden nicht geraten.
+
+Unter EEPROM Viewer gibt es eine separate **Alarm-/EOC-Diagnose**, die `STATUS_SYNC` auf Wunsch einmalig nur lesend abruft. Die bisherige geschützte NVM-Programmierung bleibt unverändert.
+
+Beim erfolgreichen Abgleich werden Druckbereich und Einheit lokal mit der **Chip-UID und NVM-CRC** verknüpft und nach einem bestätigten EEPROM-Scan wiederhergestellt. Diese Metadaten liegen nicht auf dem Sensor und sind auf anderen Rechnern nicht automatisch verfügbar.
+
+**Wichtig:** [18-Punkte-Vergleich zur originalen Elmos-GUI](docs/PSSC_FEATURE_PARITY.md). Viele weitere Herstellerfunktionen (Alarm-Editor, DMM-Overall, Class Calibration, DLL-Golden-Vectors, etc.) sind weiterhin offen und nicht als produktiv fertig zu betrachten.
 
 ## Labor-Update 17.11.2026 – Elmos-konforme DSP/AODO-NVM-Konsistenz
 

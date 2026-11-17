@@ -81,6 +81,7 @@ const ELMOS_EXPERT=(()=>{
   // Separate snapshot of the live RAM configuration. Never silently reuse stale
   // values after reconnect, a fresh EEPROM scan or a new programming session.
   let overviewRam=null,overviewRamUid=null,overviewRamSession=null,overviewRamCrc=null,overviewRamAt=null,overviewReading=false,overviewError=null;
+  let alarmStatusSnapshot=null,alarmStatusReading=false;
   const overviewValid=()=>!!(st.mode==='usb'&&st.port&&st.chip&&st.uid&&
    st.nvmBackupVerified&&ELMOS_EEPROM_OVERVIEW.validWords(st.nvmBackup)&&
    st.nvmBackup[0]===st.uid.ser0&&st.nvmBackup[1]===st.uid.ser1);
@@ -104,12 +105,43 @@ const ELMOS_EXPERT=(()=>{
    button.disabled=!valid||overviewReading||st.calTask||st.writing||st.nvmWorking;
    const plan=valid?overviewPlan():null;
    ELMOS_EEPROM_OVERVIEW.render(target,valid?st.nvmBackup:null,current,plan);
+   const alarmCurrent=valid&&alarmStatusSnapshot&&alarmStatusSnapshot.uid===st.uid.hex&&
+    alarmStatusSnapshot.session===st.sessionIndex&&alarmStatusSnapshot.crc===st.nvmBackup[63]?
+     alarmStatusSnapshot:null;
+   if(!alarmCurrent)alarmStatusSnapshot=null;
+   ELMOS_ALARM_VIEW.render($('alarmSummaryRows'),valid?st.nvmBackup:null,
+    alarmCurrent?alarmCurrent.status:null);
+   $('alarmStatusRead').disabled=!valid||alarmStatusReading||st.calTask||st.writing||st.nvmWorking;
+   $('alarmStatusInfo').textContent=alarmCurrent?
+    'Aktueller STATUS_SYNC wurde um '+new Date(alarmCurrent.at).toLocaleTimeString('de-CH')+' gelesen.':
+    'Alarm- und EOC-Einstellungen aus EEPROM. Aktuellen Status auf Wunsch separat lesen.';
    status.className='eeprom-overview-note'+(overviewError?' eeprom-overview-error':' muted');
    status.textContent=overviewError||(!valid?'Keine gültige EEPROM-Lesung vorhanden.':
     'EEPROM: 64 Wörter CRC-geprüft · RAM: '+(current?
      'am '+new Date(overviewRamAt).toLocaleTimeString('de-CH')+' gelesen':
      'noch nicht gelesen')+(plan?' · Vorgemerkte Änderungen vorhanden':'')+
     '. Die Ansicht verändert keine Register.');
+  }
+  async function readAlarmStatus(){
+   if(!overviewValid()||alarmStatusReading||st.calTask||st.writing||st.nvmWorking||
+      st.reinitRunning||st.powerCycleRunning||st.closing)return;
+   const uid=st.uid.hex,session=st.sessionIndex,crc=st.nvmBackup[63];
+   const resume=st.live&&!st.manualLivePause;
+   alarmStatusReading=true;st.calTask=true;stopLive();
+   try{
+    if(st.liveReadPromise)await st.liveReadPromise.catch(()=>{});
+    const status=await readReg(0x32);
+    if(!overviewValid()||st.uid.hex!==uid||st.sessionIndex!==session||
+       st.nvmBackup[63]!==crc)
+     throw Error('Sensor hat sich während der Statuslesung geändert');
+    alarmStatusSnapshot={uid,session,crc,status,at:Date.now()};
+   }catch(err){
+    alarmStatusSnapshot=null;
+    show('alarmStatusInfo','STATUS_SYNC konnte nicht gelesen werden: '+err.message,'warn');
+   }finally{
+    alarmStatusReading=false;st.calTask=false;refreshOverview();
+    if(resume&&st.chip&&!st.nvmWorking)startLive();
+   }
   }
   async function readOverviewRam(){
    if(!overviewValid())return;
@@ -643,6 +675,7 @@ const ELMOS_EXPERT=(()=>{
   $('eepromExport').addEventListener('click',exportCurrent);
   $('eepromSearch').addEventListener('input',refreshEEPROMViewer);
   $('eepromReadRam').addEventListener('click',readOverviewRam);
+  $('alarmStatusRead').addEventListener('click',readAlarmStatus);
   $('expertNvmExport').addEventListener('click',exportCurrent);
   $('expertRegistersRead').addEventListener('click',()=>withProgress('Chipregister werden gelesen',readRegisters));
   $('expertOutputPreset').addEventListener('click',preset);
