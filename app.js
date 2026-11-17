@@ -843,7 +843,10 @@ if(typeof document!=='undefined') (function UI(){
    // Scope is deliberately narrower than normal output programming: same
    // AODO mode/CFG_AODO, only scaling and clipping plus recalculated CRC16.
    // This protects the confirmed 1-Wire startup window after a cold restart.
-   if(st.adapterKind!=='ssp3')return 'Dieser Adapter ('+(st.bridgeBoard||'DIY-Bridge')+') unterstützt das Speichern von AODO-Ausgangsänderungen über temporäre RAM-Recovery noch nicht. Die aktuell freigegebene DIY-Firmware erlaubt Kalibrier-NVM, aber keine Ausgangsregister. Bitte nicht die Schreibsperre umgehen.';
+   if(st.adapterKind==='bridge'&&!st.bridgeOutputNvm)
+    return 'ESP32-C3 SuperMini: Die verbundene Firmware bietet keine geprüfte AODO-NVM-Freigabe. Für reines Scaling/Clipping ist die neue ESP32-C3-Testfirmware mit BRIDGE_AODO_OUTPUT_NVM_TEST nötig. Die bisherige v0.10 kann nur Kalibrier-NVM schreiben. Firmware zuerst flashen und nach Neustart neu verbinden.';
+   if(st.adapterKind!=='ssp3'&&!(st.adapterKind==='bridge'&&st.bridgeOutputNvm))
+    return 'Nur der originale SSP3 oder ein ESP32-C3 mit ausdrücklich erkannter AODO-Testfirmware darf diese Ausgangsänderung programmieren.';
    if(!hasCurrentNvmBackup())return 'Vor einer Ausgangsänderung das aktuelle 64-Wort-NVM mit derselben Chip-UID vollständig lesen und prüfen.';
    if(!$('nvmAutoBackup').checked)return 'Bei Ausgangsänderungen nach RAM-Recovery ist ein gesichertes Original-NVM erforderlich. «Altes NVM automatisch sichern» aktivieren.';
    const outputWords=new Set([16,57,58,59,60,63]);
@@ -1171,6 +1174,9 @@ if(typeof document!=='undefined') (function UI(){
    throw Error('DIY-Programmer nicht unterstützt. Nur ESP32-C3 SuperMini (v0.10) und Arduino Pro Micro (v0.27) auswählen.');
   st.bridgeBoard=isProMicro?'Arduino Pro Micro':'ESP32-C3 SuperMini';
   st.bridgeCalibrationNvm=caps.includes('PRO_MICRO_NVM')||caps.includes('BRIDGE_CAL_NVM');
+  // Only the explicitly upgraded ESP32-C3 test firmware may program AODO
+  // words in a recovered One-Wire session. Never infer this from NVM support.
+  st.bridgeOutputNvm=isEsp32C3&&caps.includes('BRIDGE_AODO_OUTPUT_NVM_TEST');
   st.bridgeAfeFilter=caps.includes('AFE_FILTER');
   st.bridgeI2c=caps.includes('I2C_CRC');
   st.bridgePlcIo=caps.includes('PLC_D4_IO')?'D4':caps.includes('PLC_GPIO4_IO')?'GPIO4':null;
@@ -2250,7 +2256,7 @@ if(typeof document!=='undefined') (function UI(){
   st.psscRamRecovery=false;st.coldStartAfeRestored=false;
   st.startupTrials=[];st.chipDiag=null;st.lastPlcReply=null;st.readerAlive=false;
   st.plcAddress=0x6C;st.plcAddressVerified=false;st.plcAddressSource='';st.plcAddressProbes=[];
-  st.reinitRunning=false;st.firmware='';st.bridgeBoard=null;st.readOnlySensor=null;st.powerHelp=null;st.powerCycleResult=null;st.magicResult=null;st.liveReadAttempts=0;st.liveReadSuccesses=0;st.liveLastError=null;st.liveLastAttemptAt=null;st.measurementPeriod=null;st.measurementStatus=null;st.measurementError=null;st.measurementStarts=0;st.measurementFreshCount=0;st.measurementLastChangedAt=null;st.plcHostFormat=$('plcHostFormat').value;st.chip=false;st.afe=null;st.afe0=null;st.boot=null;st.regs={};st.dsp=null;st.dspError=null;st.calStaged=false;st.calVerified=false;st.nvmDone=false;st.adc=null;st.manualLivePause=false;st.afeWriteActive=false;st.ramWriteScope=null;st.uid=null;st.uidShownForInput=null;st.restorePlan=null;st.expertOutputPlan=null;st.outputOnlyPlan=null;st.iface=$('iface').value;st.adapterKind=$('adapterType').value;
+  st.reinitRunning=false;st.firmware='';st.bridgeBoard=null;st.bridgeOutputNvm=false;st.readOnlySensor=null;st.powerHelp=null;st.powerCycleResult=null;st.magicResult=null;st.liveReadAttempts=0;st.liveReadSuccesses=0;st.liveLastError=null;st.liveLastAttemptAt=null;st.measurementPeriod=null;st.measurementStatus=null;st.measurementError=null;st.measurementStarts=0;st.measurementFreshCount=0;st.measurementLastChangedAt=null;st.plcHostFormat=$('plcHostFormat').value;st.chip=false;st.afe=null;st.afe0=null;st.boot=null;st.regs={};st.dsp=null;st.dspError=null;st.calStaged=false;st.calVerified=false;st.nvmDone=false;st.adc=null;st.manualLivePause=false;st.afeWriteActive=false;st.ramWriteScope=null;st.uid=null;st.uidShownForInput=null;st.restorePlan=null;st.expertOutputPlan=null;st.outputOnlyPlan=null;st.iface=$('iface').value;st.adapterKind=$('adapterType').value;
   st.sensorPowerEnabled=st.adapterKind==='bridge'&&!demoEnabled&&$('plcPowerCycle').checked;
   $('nvmRestartStatus').hidden=true;
   $('nvmRebootConfirm').checked=false;
@@ -3108,7 +3114,8 @@ if(typeof document!=='undefined') (function UI(){
    CAL.protectStartupCommunication(initial,modified,{allowSvdd});
    for(let i=0;i<28;i++)if(modified[i]!==initial[i]&&(restoring||![16,22,...(allowSvdd?[CAL.SVDD_INDEX]:[])].includes(i)))throw Error('Boot-/Werksbereich verändert');
    // Only USER region access is authorized; NEVER unlock factory calibration area.
-   if(st.adapterKind==='bridge'&&st.bridgeCalibrationNvm)await exchange('NVM ARM CALIBRATION');
+   if(st.adapterKind==='bridge'&&st.bridgeCalibrationNvm)
+    await exchange(outputOnly?'NVM ARM OUTPUT':'NVM ARM CALIBRATION');
    for(const x of [0x98BD,0x25BF,0x36D8])await maintWrite(0x4E,x);
    const status=await readReg(0x46);if(!(status&8))throw Error('NVM User-Bereich nicht freigegeben (CM_STATUS.ep_en=0)');
    const changes=st.calImage.changes.slice().sort((a,b)=>a.index===63?1:b.index===63?-1:a.index-b.index);
