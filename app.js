@@ -2962,8 +2962,10 @@ if(typeof document!=='undefined') (function UI(){
    if(startup.requiresCookie&&!(st.powerCycleResult?.readVerified&&st.powerCycleResult.verifiedUid===st.uid.hex)&&!psscRecoveryProven()&&!bridgeColdStartVerified())
     throw Error('One-Wire-Startfenster '+startup.windowLabel+' vorhanden, Magic-Cookie-Start am aktuellen Chip nicht bestätigt. Kein NVM-Schreiben.');
    const recovery=st.psscRamRecovery||(st.regs[0x06]===0x6C04&&st.nvmBackup[17]!==0x6C04);
-   if(recovery&&['on','off'].includes(st.expertOutputPlan?.clipping?.mode))
-    throw Error('Clipping kann in einer One-Wire-RAM-Recovery-Sitzung nicht gespeichert werden');
+   // A temporary One-Wire RAM recovery may only persist calibration words.
+   // Ignore any staged output/clipping changes instead of blocking calibration.
+   // psscNvmBlock independently verifies the complete before/after NVM diff.
+   const ignoredOutputPlan=recovery&&!!st.expertOutputPlan;
    const bridgeSupply=await readNvmBridgeSupply(st.afe0);
    const image=CAL.configFrom(st.nvmBackup,st.calfit,st.afe??0x800,{
     output:recovery?null:st.expertOutputPlan,bridgeSupply,userId:requestedNvmUserId()
@@ -2984,7 +2986,8 @@ if(typeof document!=='undefined') (function UI(){
    }).join('\n');
    ca('nvmMsg',image.changes.length+' von 64 NVM-Wörtern werden verändert (CRC16 zuletzt). Factory-/Bootschutz geprüft.'+
      (verificationRequiredCount()===1?' Nur ein unabhängiger DSP-Prüfpunkt wurde verifiziert.':'')+
-     (recovery?' Nur Kalibrierdaten werden gespeichert. Ausgangs- und One-Wire-Einstellungen bleiben erhalten.':''),'warn');
+     (recovery?' Nur Kalibrierdaten werden gespeichert. Ausgangs- und One-Wire-Einstellungen bleiben erhalten.':'')+
+     (ignoredOutputPlan?' Vorgemerkte Ausgangsänderungen inklusive Clipping werden nicht übernommen und können später separat gespeichert werden.':''),'warn');
    $('nvmProgress').textContent='NVM gelesen · Änderungsliste bereit';
   }catch(e){
    st.calImage=null;
