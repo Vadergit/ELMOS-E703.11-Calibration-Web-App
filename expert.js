@@ -269,30 +269,66 @@ const ELMOS_EXPERT=(()=>{
     status.className='callout '+(check?.ok?'success':'warn');
    }
   }
+
   function renderOutputPreview(){
    const mode=$('expertOutputMode').value,limit=currentLimit();
    $('psscOutputLimit').value=Number.isInteger(limit)?'±'+limit.toLocaleString('de-CH'):'Ungültig';
    const label=$('psscScalingSource');
    if(label){
     const fresh=!!st.calfit||!!st.calpoints?.length||$('calDspLimit').dataset.userEdited==='1';
-    label.textContent=fresh?'DSP-Bereich automatisch aus «Berechnen & RAM» übernommen. ADC_S ±25’000 ist davon unabhängig.':'Bestehender Sensor: DSP-Bereich aus der Anzeigeeinstellung übernommen. Bereich bei Bedarf dort korrigieren.';
+    label.textContent=fresh?'DSP-Bereich aus der aktuellen Kalibrierung. ADC_S ist davon unabhängig.':'DSP-Bereich aus der Anzeigeeinstellung übernommen; bei einem bestehenden Sensor den tatsächlichen DSP-Bereich prüfen.';
    }
    $('psscDspS0').textContent=Number.isInteger(limit)?'−'+limit.toLocaleString('de-CH'):'—';
    $('psscDspS1').textContent=Number.isInteger(limit)?'+'+limit.toLocaleString('de-CH'):'—';
    if(!isAnalog(mode))return;
-   const vdd=Number($('psscVdd').value);
-   const gain=$('expertScaleEnable').checked?Number($('expertScaleGain').value):1;
-   const offset=$('expertScaleEnable').checked?Number($('expertScaleOffset').value):0;
-   let msg,invalid=false;
-   if(!Number.isFinite(vdd)||vdd<2.7||vdd>5.5||!Number.isInteger(limit)||limit<1000||limit>32000||!Number.isFinite(gain)||!Number.isFinite(offset)){
-    msg='VDD oder DSP-Endwert ungültig.';invalid=true;
+   const enabled=$('expertScaleEnable').checked;
+   const vdd=$('psscVdd').valueAsNumber;
+   const s0=$('psscS0').valueAsNumber,s1=$('psscS1').valueAsNumber;
+   const gain=enabled?$('expertScaleGain').valueAsNumber:1;
+   const offset=enabled?$('expertScaleOffset').valueAsNumber:0;
+   let message='',kind='success';
+   const v=x=>x.toFixed(4)+' V';
+   if(!Number.isFinite(vdd)||vdd<2.7||vdd>5.5){
+    message='Ungültige Versorgung: VDD muss zwischen 2.7 und 5.5 V liegen.';kind='error';
+   }else if(!Number.isInteger(limit)||limit<1000||limit>32000){
+    message='Ungültiger DSP-Zielbereich: ±1’000 bis ±32’000 Digits einstellen.';kind='error';
+   }else if(!Number.isFinite(s0)||!Number.isFinite(s1)||s0<vdd*.1-1e-9||s1>vdd*.9+1e-9||s0>=s1){
+    message='Ungültige S0/S1-Ziele: beide müssen aufsteigend zwischen '+v(vdd*.1)+' und '+v(vdd*.9)+' liegen.';kind='error';
+   }else if(!Number.isFinite(gain)||!Number.isFinite(offset)){
+    message='Ungültiger AODO Gain/Offset: «Scaling berechnen und aktivieren» wählen.';kind='error';
    }else{
-    const lo=offset*32768-gain*limit,hi=offset*32768+gain*limit;
-    const v0=(lo/32768+1)*vdd/2,v1=(hi/32768+1)*vdd/2;
-    invalid=lo< -26214||hi>26214||lo>=hi;
-    msg='Berechnet nach Q3.12: S0 = '+v0.toFixed(5)+' V ('+(100*v0/vdd).toFixed(3)+' % VDD) · S1 = '+v1.toFixed(5)+' V ('+(100*v1/vdd).toFixed(3)+' % VDD). '+(invalid?'Ausserhalb des linearen 10–90-%-Bereichs; nicht freigegeben.':'Nur Vorschau, keine Chipprogrammierung.');
+    // Display exactly the Q3.12-quantised values that the NVM will use.
+    const gainCode=enabled?Math.round(gain*4096):4096;
+    const offsetCode=enabled?Math.round(offset*4096):0;
+    if(enabled&&(gainCode< -32768||gainCode>32767||offsetCode< -32768||offsetCode>32767)){
+     message='Gain/Offset sind ausserhalb des 16-Bit-Q3.12-Registerbereichs. Scaling neu berechnen.';kind='error';
+    }else{
+     const lo=offsetCode*8-gainCode*limit/4096,hi=offsetCode*8+gainCode*limit/4096;
+     const lowV=(1+lo/32768)*vdd/2,highV=(1+hi/32768)*vdd/2;
+     const valid=lo>=-26214&&hi<=26214&&lo<hi;
+     const actual=v(lowV)+' bis '+v(highV);
+     if(!enabled){
+      message='Ausgangsskalierung AUS: Bei DSP_S ±'+limit+' ergibt sich rechnerisch '+actual+'. Die eingegebenen S0/S1-Zielspannungen wirken nicht. '+
+       (valid?'Zum Erreichen von S0/S1 «Scaling berechnen und aktivieren» wählen.':
+        'Damit wird der lineare 10–90-%-VDD-Bereich überschritten. Lösung: «Scaling berechnen und aktivieren», nicht den Druckabgleich wiederholen.');
+      kind=valid?'warning':'error';
+     }else if(!valid){
+      message='Ausgangsskalierung ausserhalb des linearen Bereichs: Rechnerisch '+actual+', zulässig '+v(vdd*.1)+' bis '+v(vdd*.9)+'. «Scaling berechnen und aktivieren» wählen.';
+      kind='error';
+     }else{
+      message='Q3.12-Vorschau (nicht gemessen): S0 ≈ '+v(lowV)+' · S1 ≈ '+v(highV)+'. Ziele: '+v(s0)+' / '+v(s1)+'. Noch nichts am Chip geändert.';
+      if(Math.max(Math.abs(lowV-s0),Math.abs(highV-s1))>0.025){
+       message+=' Die aktuellen Gain/Offset-Werte passen nicht zu den Zielspannungen. Scaling neu berechnen.';
+       kind='warning';
+      }
+     }
+    }
    }
-   $('psscScalingPreview').textContent=msg;$('psscScalingPreview').classList.toggle('invalid',invalid);
+   const panel=$('psscScalingPreview');
+   panel.textContent=message;
+   panel.classList.toggle('invalid',kind==='error');
+   panel.classList.toggle('warning',kind==='warning');
+   return {kind,message};
   }
   function calculateAnalogScaling(){
    if(!isAnalog($('expertOutputMode').value))throw Error('S0/S1 in Volt nur für Analog Ratiometric verfügbar');
@@ -322,6 +358,10 @@ const ELMOS_EXPERT=(()=>{
     // Ausgangskonfiguration ist für alle Benutzer zugänglich.
     if(isAnalog($('expertOutputMode').value)&&!manualScaling)calculateAnalogScaling();
    const values=outputValues();
+   if(isAnalog(values.mode)){
+    const diagnostic=renderOutputPreview();
+    if(diagnostic?.kind==='error')throw Error(diagnostic.message);
+   }
     if(values.mode==='keep'){
      if(st.outputOnlyPlan&&st.calImage===st.outputOnlyPlan)st.calImage=null;
      st.outputOnlyPlan=null;st.expertOutputPlan=null;
@@ -361,7 +401,7 @@ const ELMOS_EXPERT=(()=>{
      st.outputOnlyPlan=null;st.restorePlan=null;st.calImage=null;st.expertOutputPlan=values;
      show('expertOutputMsg','Ausgangseinstellung geprüft und in den normalen finalen Kalibrier-NVM-Plan vorgemerkt. Noch nichts am Sensor geändert.','success')
     }
-   }catch(e){st.outputOnlyPlan=null;st.expertOutputPlan=null;if(st.calImage?.outputOnly)st.calImage=null;show('expertOutputMsg','Ausgangsvorschlag abgelehnt: '+e.message,'error')}
+   }catch(e){st.outputOnlyPlan=null;st.expertOutputPlan=null;if(st.calImage?.outputOnly)st.calImage=null;show('expertOutputMsg','Ausgang nicht vorgemerkt: '+e.message,'error')}
    renderFlowState()
   }
   function outputReady(){
@@ -509,7 +549,7 @@ const ELMOS_EXPERT=(()=>{
   $('expertRegistersRead').addEventListener('click',()=>withProgress('Chipregister werden gelesen',readRegisters));
   $('expertOutputPreset').addEventListener('click',preset);
   $('expertOutputStage').addEventListener('click',propose);
-  $('expertOutputDiscard').addEventListener('click',()=>{st.expertOutputPlan=null;st.outputOnlyPlan=null;st.calImage=null;show('expertOutputMsg','Ausgangsänderungen verworfen.','success');renderFlowState()});
+  $('expertOutputDiscard').addEventListener('click',()=>{st.expertOutputPlan=null;st.outputOnlyPlan=null;st.calImage=null;show('expertOutputMsg','Ausgangsänderungen verworfen. Die Kalibrierung bleibt erhalten, am Chip wurde nichts geändert.','success');renderFlowState()});
   $('expertRestorePreview').addEventListener('click',prepareRestore);
   $('expertBackupImport').addEventListener('change',()=>withProgress('Backup-Datei wird geladen',importFile));
   renderBackups();refreshEEPROMViewer();
