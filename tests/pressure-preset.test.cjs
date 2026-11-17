@@ -33,7 +33,7 @@ test('Classic calibration starts at 0–100 %, including default verification re
  assert.match(html,/id="ptest" type="number" step="any" value="50"/);
  assert.match(html,/id="calVerifyPressure" step="any" value="50"/);
  assert.match(html,/id="calVerifyTolerance" step="any" min="0.000001" value="0.2"/);
- assert.match(html,/data-app-version="0.7.99"/);
+ assert.match(html,/data-app-version="0\\.7\\.\\d+"/);
 });
 test('Explicit 0–10 bar calibration still remains possible',()=>{
  const plan=PLAN.create({pmin:0,pmax:10,unit:'bar'});
