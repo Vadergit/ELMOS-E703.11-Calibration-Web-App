@@ -1,3 +1,11 @@
+## v0.7.109 – ESP32-C3: separate Ausgangs-NVM-Testfreigabe vorbereitet
+
+- Der Quellcode der ESP32-C3-SuperMini-Firmware wurde auf **v0.11-dev (noch nicht gebaut / hardwarevalidiert)** erweitert. Neu gibt es einen gesonderten Befehl `NVM ARM OUTPUT` und die explizite Firmwarefähigkeit `BRIDGE_AODO_OUTPUT_NVM_TEST`.
+- Die Firmware erlaubt in diesem gesonderten Modus ausschliesslich die AODO-Wörter **16 (CFG_EN nur Bits 6/7), 57–60 und 63 (CRC16)**; bei Wort 16 werden die unveränderlichen Bits mit dem Original-NVM verglichen. Der Kaltstart muss nachweislich erfolgreich gewesen sein. Kommunikations-, Boot-, AFE- und Kalibrierregister bleiben gesperrt.
+- Die Web-App schaltet die bisherige Ausgangs-NVM-Sperre für den ESP32-C3 nur frei, wenn diese neue Fähigkeit nach einem echten Verbindungsaufbau gemeldet wird, das Original-NVM gültig ist, ein Backup aktiviert ist und alle bestehenden UID-, CRC-, Recovery- und Änderungsschutzprüfungen erfolgreich sind.
+- Der original NVM-Schreibablauf mit Rücklesung, CRC16 und Neustartprüfung bleibt erhalten. Die bisherige ESP32-Firmware **v0.10 im Web-Installer ist weiterhin ohne Ausgangs-NVM-Freigabe**. Für den neuen Teststand ist ein separates Kompilieren und Flashen des ESP32-C3-Sketches nötig.
+- **Validierung:** JavaScript-Syntax und acht sicherheitsrelevante Funktionsfälle geprüft. Der ESP32-Build und die tatsächliche NVM-Programmierung am Sensor sind noch nicht geprüft. Keinen produktiven Sensor dafür verwenden.
+
 ## v0.7.108 – Beim Vormerken von Ausgangsänderungen die tatsächliche Schreibfreigabe beachten
 
 - Der Ausgangsplan zeigt bei DIY-Bridge und temporärer One-Wire-RAM-Recovery nicht mehr die irreführende Aufforderung, einfach im NVM-Schritt zu speichern. Stattdessen zeigt er ausdrücklich, dass der Plan lediglich vorbereitet ist, aber die Firmware die Ausgangs-NVM-Register noch nicht programmieren kann.
