@@ -1,3 +1,11 @@
+## v0.7.111 – EEPROM-Konfigurationsübersicht und RAM-Vergleich
+
+- Der EEPROM Viewer zeigt nach einer 64-Wort-Lesung und CRC8/CRC16-Prüfung die gespeicherten Sensoreinstellungen kompakt in vier Gruppen: Kommunikation, AFE, DSP/Kalibrierung und Ausgang.
+- Dokumentierte Felder wie PGA1, Offset, PGA2, SVDD, 1-Wire-Startfenster und AODO-Skalierung sind verständlich dekodiert; unbestätigte Register bleiben als Rohwert sichtbar. S0–S15 und T0–T3 sind zusätzlich einzeln aufklappbar.
+- Ein optionaler Knopf liest die aktuellen RAM-Register auf Wunsch, zeigt Unterschiede zum EEPROM und hält den Zeitpunkt des Snapshots fest. Vorgemerkte, noch nicht programmierte Einstellungen werden nur mit zum EEPROM passender Ausgangsbasis separat angezeigt.
+- Die bisherige 64-Wort-Registertabelle bleibt vollständig vorhanden, ist für eine schlanke Ansicht jedoch standardmässig eingeklappt. Die neue Übersicht enthält keinerlei Schreibpfad.
+- JavaScript-Syntax und reine Vergleichs-/Dekodierungsfunktionen softwareseitig geprüft. Der zusätzliche RAM-Leseablauf muss am echten E703.11 getestet werden.
+
 ## v0.7.110 – Clipping-Vorgabewerte und NVM-Schreibstatus
 
 - Bei «Clipping aktivieren» werden leere Unter- und Obergrenzen automatisch mit tatsächlich gespeicherten Eingabewerten von 10 % bzw. 90 % VDD (5 V → 0.5 V / 4.5 V) befüllt. Manuell geänderte Grenzen bleiben beim Umschalten erhalten.
