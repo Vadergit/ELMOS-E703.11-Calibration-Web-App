@@ -1,3 +1,8 @@
+## v0.7.112 – EEPROM-Rohdaten direkt unter der Übersicht anzeigen
+
+- Die 64-Wort-EEPROM-Tabelle ist direkt unter der neuen Konfigurationsübersicht sichtbar, ohne zusätzliches Aufklappen.
+- Suche, Registerdetails, CRC-geprüfte Lesedaten und Schutzstatus bleiben unverändert. Die Darstellung enthält weiterhin keine Schreibfunktion.
+
 ## v0.7.111 – EEPROM-Konfigurationsübersicht und RAM-Vergleich
 
 - Der EEPROM Viewer zeigt nach einer 64-Wort-Lesung und CRC8/CRC16-Prüfung die gespeicherten Sensoreinstellungen kompakt in vier Gruppen: Kommunikation, AFE, DSP/Kalibrierung und Ausgang.
