@@ -4080,7 +4080,22 @@ if(typeof document!=='undefined') (function UI(){
  $('exportDiag').addEventListener('click',()=>download('ELMOS_USB_Diagnose_'+Date.now()+'.json',JSON.stringify(report(),null,2)));
  $('exportCSV').addEventListener('click',()=>download('ELMOS_ADC_'+Date.now()+'.csv','\uFEFFZeit;ADC_S;ADC_T;ADC_TC;Quelle;PGA1;PGA2;Offset\n'+st.history.map(v=>[v.time,v.adc_s,v.adc_t,v.adc_tc,v.source,v.gains.pga1,v.gains.pga2,v.gains.offset].join(';')).join('\n'),'text/csv;charset=utf-8'));
  Object.assign(HELP,{sorder:'Polynomgrad für die Druck-Kennlinie. Höhere Grade brauchen mehr unabhängige Messpunkte und bergen ein erhöhtes Überanpassungsrisiko.',torder:'Temperaturkompensation. Bei Ordnung 0 wird der bestehende Temperaturpfad im Chip beibehalten. Für Ordnung 1–3 sind Messpunkte bei verschiedenen Temperaturen nötig.',nvm:'Permanenter NVM-Speicher. Ein Stromausfall während der Programmierung kann trotz Schutz der Schnittstellenregister einen CRC-Fehler erzeugen. Vorher Backup und RAM-Test durchführen.'});
- window.addEventListener('beforeunload',e=>{if(st.nvmWorking){e.preventDefault();e.returnValue=''} });
+ // A native browser dialog runs BEFORE a pending Back/Reload/Close navigation.
+ // Only protect unfinished work; no custom toast after the page is gone.
+ function shouldConfirmPageLeave(state){
+  const hardwareBusy=!!(state.nvmWorking||state.nvmAttempting||state.calTask||state.writing);
+  const unsavedCalibration=!state.nvmDone&&(
+   (Array.isArray(state.calpoints)&&state.calpoints.length>0)||
+   !!state.calfit||!!state.calStaged||!!state.calVerified||!!state.calImage
+  );
+  const unsavedProgramPlan=!!(state.outputOnlyPlan||state.restorePlan)&&!state.nvmDone;
+  return hardwareBusy||unsavedCalibration||unsavedProgramPlan;
+ }
+ window.addEventListener('beforeunload',e=>{
+  if(!shouldConfirmPageLeave(st))return;
+  e.preventDefault();
+  e.returnValue=''; // Edge/Chromium compatibility; the browser controls the dialog text.
+ });
  const tip=$('tip');document.querySelectorAll('.help').forEach(el=>{el.setAttribute('tabindex','0');el.addEventListener('mouseenter',e=>tooltip(e,el));el.addEventListener('mousemove',e=>placeTip(e));el.addEventListener('mouseleave',()=>tip.classList.remove('visible'));el.addEventListener('focus',e=>tooltip(e,el));el.addEventListener('blur',()=>tip.classList.remove('visible'))});function tooltip(e,el){if(!tipEnabled)return;const message=HELP[el.dataset.help];if(!message){tip.classList.remove('visible');return}tip.textContent=message;tip.classList.add('visible');placeTip(e)}function placeTip(e){if(!tip.classList.contains('visible'))return;const rect=e.target?.getBoundingClientRect?.()||{left:25,top:25,bottom:42};const width=tip.offsetWidth||310,height=tip.offsetHeight||80;const left=Math.max(10,Math.min(window.innerWidth-width-10,rect.left));let top=rect.top-height-9;if(top<10)top=rect.bottom+9;tip.style.left=left+'px';tip.style.top=Math.max(10,Math.min(window.innerHeight-height-10,top))+'px'}
  if(demoEnabled){
   $('demoNotice').hidden=false;
