@@ -1,3 +1,5 @@
+> **Neuer Laborstand v0.28:** Der Pro Micro kann nun wie der ESP32-C3 beliebige gerade RAM-Register und User-NVM-Wörter 16–63 über `NVM ARM HOST` übertragen. Die Web-App entscheidet über erlaubte Alarm-, DSP- und Ausgangsänderungen. Voraussetzung sind die Capabilities `BRIDGE_GENERIC_RAM_V1` und `BRIDGE_USER_NVM_V1` sowie ein bestätigter Sensor-Kaltstart. Beide Taktvarianten werden gebaut; Hardwaretests stehen noch aus. [Protokoll](UNIVERSAL_BRIDGE.md).
+
 # Pro Micro mit ATmega32U4 als E703.11-Testbridge
 
 Firmware v0.27 unterstützt Chip-Erkennung, Live-Messung und RAM-Kalibrierung über One-Wire (AODO) und I²C. Bei Bedarf aktiviert sie den Zugriff vorübergehend im Sensor-RAM. Dauerhaftes Schreiben von Kalibrierdaten setzt die Freigabe im Kalibrierassistenten voraus. Die [Firmware-Downloads](../firmware-update.html) enthalten Builds für 16 MHz und 8 MHz.

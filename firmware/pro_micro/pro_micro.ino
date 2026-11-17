@@ -52,6 +52,31 @@ static int hexDigit(char ch) {
 static bool nvmArmed = false;
 static bool i2cMode = false;
 static bool nvmUserIdOnly = false;
+static bool nvmHostMode = false;
+static bool nvmDataPending = false;
+static bool coldStartVerified = false;
+static uint32_t nvmArmedAt = 0;
+static uint32_t nvmLastCommandAt = 0;
+static void disarmNvm() {
+  nvmArmed = false;
+  nvmUserIdOnly = false;
+  nvmHostMode = false;
+  nvmDataPending = false;
+}
+static bool nvmSessionActive() {
+  if (!nvmArmed) return false;
+  const uint32_t now = millis();
+  if (now - nvmLastCommandAt > 20000UL || now - nvmArmedAt > 180000UL) {
+    disarmNvm();
+    return false;
+  }
+  nvmLastCommandAt = now;
+  return true;
+}
+static void armNvmSession() {
+  nvmArmed = true;
+  nvmArmedAt = nvmLastCommandAt = millis();
+}
 
 static void plcFrame(const char *hex) {
   const size_t length = strlen(hex);
@@ -95,26 +120,27 @@ static void plcFrame(const char *hex) {
     answer(F("!BRIDGE PLC_BAD_CRC"));
     return;
   }
-  const bool startMeasurement = address == 0x22 && word == 0x8B93;
-  const bool readEepromWord = address == 0x4E && (word & 0xFF81) == 0x4C00;
-  // DSP coefficients occupy the even RAM addresses 0x6C through 0x9A.
-  const bool writeAfeFilter = address == 0x14 || address == 0x16 || address == 0x18;
-  const bool writeDspRam = address >= 0x6C && address <= 0x9A;
-  // Only the explicit USB maintenance session can program calibration data.
-  // Factory, startup, and interface words cannot be programmed by this path.
+  // Any aligned RAM word may be sent. NVM controls remain session gated.
+  const bool readNvm = address == 0x4E && (word & 0xFF81) == 0x4C00;
+  const bool ramLock = address == 0x4E && word == 0x0000;
+  const bool program = address == 0x4E && (word & 0xFF81) == 0xA300;
   const uint8_t nvmIndex = (word & 0xFF) >> 1;
-  const bool calibrationWord = nvmIndex == 28 || (nvmIndex >= 30 && nvmIndex <= 54) || nvmIndex == 63;
-  const bool programCalibration = (word & 0xFF81) == 0xA300 && calibrationWord &&
-    (!nvmUserIdOnly || nvmIndex == 30 || nvmIndex == 63);
-  const bool userNvmCommand = address == 0x4E &&
-    (word == 0x98BD || word == 0x25BF || word == 0x36D8 ||
-     word == 0x0000 || word == 0x8800 || programCalibration);
-  const bool writeUserNvm = nvmArmed && (address == 0x4A || userNvmCommand);
-  if (slave != activeSlave || (!startMeasurement && !readEepromWord && !writeDspRam && !writeAfeFilter && !writeUserNvm)) {
+  const bool legacyProgram = nvmIndex == 28 || (nvmIndex >= 30 && nvmIndex <= 54) || nvmIndex == 63;
+  const bool hostProgram = nvmHostMode && nvmDataPending && nvmIndex >= 16 && nvmIndex <= 63;
+  const bool programAllowed = program && nvmSessionActive() &&
+    (nvmHostMode ? hostProgram : legacyProgram && (!nvmUserIdOnly || nvmIndex == 30 || nvmIndex == 63));
+  const bool maintenance = address == 0x4E &&
+     (word == 0x98BD || word == 0x25BF || word == 0x36D8 || word == 0x8800);
+  const bool writeAllowed = address == 0x4A ? nvmSessionActive() :
+    address == 0x4E ? (readNvm || ramLock || programAllowed ||
+      (maintenance && nvmSessionActive())) : true;
+  if (slave != activeSlave || !writeAllowed) {
     answer(F("!BRIDGE PLC_WRITE_DENIED"));
     return;
   }
   plc::writeWord(address, word, plcBaud, false, false, slave);
+  if (nvmHostMode && address == 0x4A) nvmDataPending = true;
+  if (nvmHostMode && program) nvmDataPending = false;
   answer(F("# PLC FRAME SENT"));
 }
 
@@ -202,10 +228,12 @@ static const char *openPlcAccess(bool powerCycle, bool recover = false) {
 }
 
 static void establishAccess(bool powerCycle, bool recover = false) {
+  if (powerCycle || recover) { disarmNvm(); coldStartVerified = false; }
   if (const char *error = openPlcAccess(powerCycle, recover)) {
     answer(error);
     return;
   }
+  if (powerCycle) coldStartVerified = true;
   char response[40];
   snprintf(response, sizeof(response), "# PLC ACCESS ADDR=%02X RAM_RECOVERY=%u",
            unsigned(activeSlave & 0xFE), unsigned(recoveryUsed));
@@ -530,17 +558,22 @@ static void i2cCommand(const char *command) {
     snprintf(reply, sizeof(reply), "%02X %02X", unsigned(word & 0xFF), unsigned(word >> 8));
     answer(reply);
   } else {
-    const bool ramCookie = reg == 0x22 &&
-        (word == 0xF75A || word == 0x0CC7 || word == 0xD21E || word == 0x62A2);
-    const bool afe = reg == 0x14 || reg == 0x16 || reg == 0x18 || reg == 0x1A || reg == 0x1C;
-    const bool dsp = reg >= 0x6C && reg <= 0x9A;
-    const bool measure = reg == 0x22 && word == 0x8B93;
+    // Generic I2C RAM access. NVM operations still require an armed session.
     const bool readNvm = reg == 0x4E && (word & 0xFF81) == 0x4C00;
-    if (!ramCookie && !afe && !dsp && !measure && !readNvm) {
+    const bool ramLock = reg == 0x4E && word == 0;
+    const bool program = reg == 0x4E && (word & 0xFF81) == 0xA300;
+    const unsigned index = (word & 0xFF) >> 1;
+    const bool permission = reg == 0x4A ? nvmSessionActive() :
+       reg == 0x4E ? (readNvm || ramLock ||
+         (program && nvmHostMode && nvmDataPending && nvmSessionActive() && index >= 16 && index <= 63) ||
+         ((word == 0x98BD || word == 0x25BF || word == 0x36D8 || word == 0x8800) && nvmSessionActive())) : true;
+    if (!permission) {
       answer(F("!BRIDGE I2C_WRITE_DENIED"));
       return;
     }
     const char *error = elmosI2c::writeWord(reg, word);
+    if (!error && nvmHostMode && reg == 0x4A) nvmDataPending = true;
+    if (!error && nvmHostMode && program) nvmDataPending = false;
     answer(error ? error : "# I2C WRITE");
   }
 }
@@ -550,7 +583,7 @@ static void onCommand(const char *command) {
     if (i2cMode) Wire.end();
     i2cMode = strcmp_P(command, PSTR("IF_CFG 2 1 0")) == 0;
     elmosI2c::slave = 0;
-    nvmArmed = false;
+    disarmNvm();coldStartVerified = false;
     answer(i2cMode ? "# I2C" : "# PLC");
     return;
   }
@@ -566,27 +599,40 @@ static void onCommand(const char *command) {
     return;
   }
   if (strcmp_P(command, PSTR("NVM ARM CALIBRATION")) == 0 || strcmp_P(command, PSTR("NVM ARM USER ID")) == 0) {
+    disarmNvm();
     nvmUserIdOnly = strcmp_P(command, PSTR("NVM ARM USER ID")) == 0;
-    nvmArmed = true;
+    armNvmSession();
     answer(F("# NVM CALIBRATION ARMED"));
     return;
   }
+  if (strcmp_P(command, PSTR("NVM ARM HOST")) == 0) {
+    disarmNvm();
+    if (!coldStartVerified || probe(activeSlave)) {
+      answer(F("!BRIDGE NVM_COLD_START_REQUIRED"));
+    } else {
+      nvmHostMode = true;
+      armNvmSession();
+      answer(F("# NVM HOST ARMED"));
+    }
+    return;
+  }
   if (strcmp_P(command, PSTR("NVM DISARM")) == 0) {
-    nvmArmed = false;
+    disarmNvm();
     answer(F("# NVM DISARMED"));
     return;
   }
   if (strncmp_P(command, PSTR("PLC "), 4) == 0 && strncmp_P(command, PSTR("PLC 02"), 6) != 0)
-    nvmArmed = false;
+    disarmNvm();
   if (strcmp_P(command, PSTR("BRIDGE_INFO")) == 0) {
-    answer(F("# E70311-BRIDGE V1 CAPS=PLC_UID,PLC_READ,PLC_WRITE,NVM,PRO_MICRO_NVM,PLC_RX_DIAG,POWER_D7,PSSC_RAM,AFE_FILTER,I2C_CRC,PLC_D4_IO"));
+    answer(F("# E70311-BRIDGE V1 CAPS=PLC_UID,PLC_READ,PLC_WRITE,NVM,PRO_MICRO_NVM,PLC_RX_DIAG,POWER_D7,PSSC_RAM,AFE_FILTER,BRIDGE_GENERIC_RAM_V1,BRIDGE_USER_NVM_V1,I2C_CRC,PLC_D4_IO"));
   } else if (strcmp_P(command, PSTR(".VERSION")) == 0) {
     #if F_CPU == 16000000UL
-    answer(F("# Pro Micro PLC/I2C v0.27 16 MHz"));
+    answer(F("# Pro Micro PLC/I2C v0.28-dev 16 MHz"));
 #else
-    answer(F("# Pro Micro PLC/I2C v0.27 8 MHz"));
+    answer(F("# Pro Micro PLC/I2C v0.28-dev 8 MHz"));
 #endif
   } else if (strcmp_P(command, PSTR("PLC IO D4")) == 0 || strcmp_P(command, PSTR("PLC IO SPLIT")) == 0) {
+    disarmNvm();coldStartVerified = false;
     plc::singlePin = strcmp_P(command, PSTR("PLC IO D4")) == 0;
     answer(plc::singlePin ? "# PLC IO D4" : "# PLC IO SPLIT");
   } else if (strcmp_P(command, PSTR("PLC POWER TEST")) == 0) {
@@ -621,6 +667,7 @@ static void onCommand(const char *command) {
   } else if (strcmp_P(command, PSTR("PLC_UID 100000")) == 0) {
     printUid(100000);
   } else if (strcmp_P(command, PSTR("PLC_BAUD 25000")) == 0 || strcmp_P(command, PSTR("PLC_BAUD 100000")) == 0) {
+    disarmNvm();coldStartVerified = false;
     plcBaud = strcmp_P(command, PSTR("PLC_BAUD 25000")) == 0 ? 25000 : 100000;
     answer(F("# PLC BAUD"));
   } else if (strcmp_P(command, PSTR("PLC ACCESS")) == 0 || strcmp_P(command, PSTR("PLC START")) == 0) {

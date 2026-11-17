@@ -88,7 +88,8 @@ const ELMOS_ALARM_EDITOR=(()=>{
     $('nvmDiff').textContent='Kein vorgemerkter Alarmänderungsplan.';delete $('nvmDiff').dataset.scope;
    }
   }
-  const proven=()=>!!(hasCurrentNvmBackup()&&st.mode==='usb'&&st.iface==='plc'&&st.adapterKind==='ssp3');
+  const proven=()=>!!(hasCurrentNvmBackup()&&st.mode==='usb'&&st.iface==='plc'&&
+   (st.adapterKind==='ssp3'||(st.adapterKind==='bridge'&&st.bridgeGenericRam&&st.bridgeUserNvm)));
   function fill(config){
    loading=true;
    for(const [id,value] of [['alarmDspLimit',config.limit],['alarmLowerPct',config.lowerPct],
@@ -133,7 +134,7 @@ const ELMOS_ALARM_EDITOR=(()=>{
    }
    updateRules();
    $('alarmEditorStatus').textContent=!valid?
-    'Vorbereitung: Original-SSP3 über One-Wire verbinden und vollständig geprüftes EEPROM lesen. DIY-Bridge bleibt nur lesend.':
+    'Vorbereitung: SSP3 oder DIY-Bridge mit generischem Register-/User-NVM-Protokoll über One-Wire verbinden und geprüftes EEPROM lesen.':
     postScaling?'DSP-Post-Scaling ist aktiv und belegt die Alarmregister. Alarmänderung gesperrt.':
     'Startfenster und physische Pinbelegung bleiben unverändert. Zuerst RAM prüfen; NVM ausschliesslich nach expliziter Bestätigung.';
   }
@@ -150,7 +151,7 @@ const ELMOS_ALARM_EDITOR=(()=>{
   }
   function preview(){
    try{
-    if(!proven())throw Error('Zuerst das aktuelle EEPROM mit Original-SSP3 lesen.');
+    if(!proven())throw Error('Zuerst das aktuelle EEPROM mit SSP3 oder einer unterstützten generischen USB-Bridge lesen.');
     if(st.writing||st.calTask||st.nvmWorking)throw Error('Ein anderer Vorgang läuft.');
     if(st.calStaged&&!st.nvmDone&&!calibrationActive())
      throw Error('Laufenden DSP-Abgleich zuerst erfolgreich über DSP_S prüfen.');

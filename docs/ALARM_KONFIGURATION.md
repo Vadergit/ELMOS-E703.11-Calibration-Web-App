@@ -4,7 +4,7 @@ Im klassischen und geführten Kalibrierablauf erscheinen Alarme zwischen **Ausga
 
 Für einen neuen Alarmabgleich: EEPROM lesen, DSP-Bereich und Pinbelegung kontrollieren, Einstellungen wählen, Vorschau, RAM schreiben und rücklesen. Im normalen Abgleich werden die bestätigten Alarmregister dann **in dasselbe finale Kalibrier-NVM-Abbild** aufgenommen. Keine zweite NVM-Programmierung nötig.
 
-**Nachträglich ändern:** Sensor mit SSP3 verbinden, aktuelles NVM sichern, «Alarme & Fehler» öffnen, Einstellungen ändern und separat über RAM-Rücklesung und NVM mit Backup übernehmen. Kein Druckabgleich notwendig.
+**Nachträglich ändern:** Sensor mit SSP3 oder einer DIY-Bridge mit beiden neuen Capabilities verbinden, aktuelles NVM sichern, «Alarme & Fehler» öffnen, Einstellungen ändern und separat über RAM-Rücklesung und NVM mit Backup übernehmen. Kein Druckabgleich notwendig.
 
 **Config-Dateien:** Eigene Gruppe «Alarme & Fehler» bei Export/Import/Preset. Standard `mode: skip`; ein importiertes Alarmprofil muss am neuen Chip erneut geprüft und im RAM bestätigt werden. Für Serienprojekte ist so eine gezielte Wiederverwendung möglich.
 
@@ -26,7 +26,7 @@ Vom Tab aus kann der komplette EEPROM-Satz gelesen werden. Nach bestätigtem RAM
 ## Bedienung
 Im eigenen Reiter **«Alarme & Fehler» → «EEPROM für Alarmkonfiguration lesen» → Einstellungen prüfen**.
 
-1. Echten Sensor per Original-SSP3 und One-Wire verbinden, vollständiges EEPROM mit CRC lesen und als JSON sichern. Bei DIY-Bridge ist diese Funktion derzeit nur lesend verfügbar.
+1. Echten Sensor per Original-SSP3 oder generischer ESP32-/Pro-Micro-Bridge über One-Wire verbinden, vollständiges EEPROM mit CRC lesen und als JSON sichern. Bei älteren DIY-Bridge-Versionen ohne BRIDGE_GENERIC_RAM_V1/BRIDGE_USER_NVM_V1 bleibt die Alarm-Programmierung gesperrt.
 2. Den *tatsächlich gültigen DSP-Endwert* (z. B. ±32'000 Digits) eingeben und ausdrücklich bestätigen. Untere und obere Alarmgrenze in Prozent des kalibrierten Druckbereichs einstellen.
 3. Hysterese auswählen (0: deaktiviert; weitere 15 Schritte von 1 bis 16'384 Digits).
 4. Gewünschte Statussignale 1–9, 12–13 für den EOC-Ausgang als ODER-Verknüpfung auswählen. Die physische Pinbelegung bleibt **unverändert**.
@@ -37,7 +37,7 @@ Im eigenen Reiter **«Alarme & Fehler» → «EEPROM für Alarmkonfiguration les
 9. Vollständige 64-Wort-Rücklesung und CRC abwarten, echten VDD-Neustart durchführen, Alarm- und Fehlerfunktion elektrisch testen.
 
 ## Sicherheitsbedingungen
-- Nur Original-SSP3 für die neue RAM-/NVM-Schreibfunktion vorgesehen. DIY-Programmer bleiben an dieser Stelle gesperrt.
+- Für die neue RAM-/NVM-Schreibfunktion sind SSP3 und DIY-Programmer mit beiden generischen Capability-Kennungen vorgesehen. Alte DIY-Firmware ohne diese Kennungen bleibt gesperrt.
 - Aktives DSP-Post-Scaling benutzt dieselben ALARM_LO-/ALARM_HI-Wörter und **blockiert** daher Alarmänderungen.
 - Erlaubte EEPROM-Indizes: 16 (nur alarm_en und err_en), 18 (nur die unteren 12 Statusmasken-Bits), 55, 56, 61, 62 und 63 (CRC16). Factory-Wörter, Startup-PLC und Pinrouting bleiben erhalten.
 - RAM-Test, aktuelles EEPROM-Backup, aktive Chip-UID, CRC16 und ein expliziter NVM-Schreibauftrag sind zwingende Voraussetzungen.
