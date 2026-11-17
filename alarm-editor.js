@@ -17,7 +17,38 @@ const ELMOS_ALARM_EDITOR=(()=>{
   });
   for(let i=1;i<=15;i++){const o=document.createElement('option');o.value=String(i);o.textContent=(2**(i-1))+' Digits';
    $('alarmHysteresis').appendChild(o)}
-  let key='',dirty=false,loading=false;
+  let key='',dirty=false,loading=false,profilePending=null;
+  const calibrationActive=()=>!!(st.calStaged&&st.calVerified&&!st.nvmDone);
+  function skipForCalibration(){
+   // A skip is not an instruction to clear any existing sensor alarms.
+   if(st.alarmOnlyPlan?.duringCalibration)clearPlan();
+   st.alarmCalibrationSkipped=true;
+   status('Ohne Alarmänderung fortfahren. Bereits gespeicherte Alarmwerte werden nicht heimlich verändert.','success');
+   renderFlowState();
+  }
+  function profileFromUi(){
+   if(profilePending)return structuredClone(profilePending);
+   if(!$('alarmEditorFields'))return {mode:'skip'};
+   const s=selection();
+   if(!s.alarmEnabled&&!s.errorEnabled&&!s.selectedStatusBits.length&&
+      s.errorActions.every(x=>Number(x)===0))return {mode:'skip'};
+   return {mode:'edit',settings:{...s,selectedStatusBits:s.selectedStatusBits.slice(),
+    errorActions:s.errorActions.map(Number)}};
+  }
+  function applyProfile(profile){
+   if(!profile||profile.mode==='skip'){
+    profilePending={mode:'skip'};skipForCalibration();return;
+   }
+   if(profile.mode!=='edit'||!profile.settings)throw Error('Alarmprofil ist ungültig');
+   profilePending=structuredClone(profile);
+   const cur=A.checkDependencies(st.nvmBackup||Array(64).fill(0),profile.settings);
+   if(!cur.ok&&st.nvmBackupVerified)throw Error(cur.errors.join(' '));
+   fill(profile.settings);
+   if(st.alarmOnlyPlan)clearPlan();
+   st.alarmCalibrationSkipped=false;
+   status('Alarme aus Config übernommen. Noch keine Register geschrieben. Bitte mit Sensor/EEPROM prüfen und im RAM bestätigen.','warn');
+   renderFlowState();
+  }
   function updateRules(){
    const valid=proven(),busy=st.writing||st.calTask||st.nvmWorking;
    const check=valid?A.checkDependencies(st.nvmBackup,selection()):
@@ -83,9 +114,18 @@ const ELMOS_ALARM_EDITOR=(()=>{
    if(identity!==key){
     key=identity;clearPlan();
     if(valid){
-     const limit=(st.calfit?.outputLimit ?? Number($('dspDisplayLimit').value)) || 32000;
-     fill(A.read(st.nvmBackup,Math.max(1000,Math.min(32000,limit))));
-     status('Alarmwerte aus dem aktuellen EEPROM gelesen. DSP-Skala prüfen und bestätigen.');
+     if(profilePending?.mode==='edit'){
+      fill(profilePending.settings);
+      status('Alarmprofil geladen. Mit der aktuellen Chipkonfiguration und DSP-Spanne überprüfen.');
+     }else if(profilePending?.mode==='skip'){
+      // Do not use old EEPROM alarm flags as an implicit instruction to enable alarms.
+      fill(A.read(st.nvmBackup,(st.calfit?.outputLimit ?? Number($('dspDisplayLimit').value)) || 32000));
+      status('Keine Alarmänderungen aus dem Profil gewünscht. Chip-Alarme bleiben unverändert.','warn');
+     }else{
+      const limit=(st.calfit?.outputLimit ?? Number($('dspDisplayLimit').value)) || 32000;
+      fill(A.read(st.nvmBackup,Math.max(1000,Math.min(32000,limit))));
+      status('Alarmwerte aus dem aktuellen EEPROM gelesen. DSP-Skala prüfen und bestätigen.');
+     }
     }
    }
    updateRules();
@@ -94,32 +134,48 @@ const ELMOS_ALARM_EDITOR=(()=>{
     postScaling?'DSP-Post-Scaling ist aktiv und belegt die Alarmregister. Alarmänderung gesperrt.':
     'Startfenster und physische Pinbelegung bleiben unverändert. Zuerst RAM prüfen; NVM ausschliesslich nach expliziter Bestätigung.';
   }
+  function pendingForCalibration(){
+   const p=st.alarmOnlyPlan;
+   return !!(p?.duringCalibration&&p.ramVerified&&p.session===st.sessionIndex&&
+    p.uid===st.uid?.hex&&p.before.every((v,i)=>v===st.nvmBackup?.[i])&&
+    proven()&&!dirty);
+  }
   function ready(){
    const p=st.alarmOnlyPlan;
    return !!(p?.ramVerified&&p.session===st.sessionIndex&&p.uid===st.uid?.hex&&
-    st.calImage===p&&p.before.every((v,i)=>v===st.nvmBackup?.[i])&&proven()&&!dirty);
+    !p.duringCalibration&&st.calImage===p&&p.before.every((v,i)=>v===st.nvmBackup?.[i])&&proven()&&!dirty);
   }
   function preview(){
    try{
     if(!proven())throw Error('Zuerst das aktuelle EEPROM mit Original-SSP3 lesen.');
     if(st.writing||st.calTask||st.nvmWorking)throw Error('Ein anderer Vorgang läuft.');
-    if(st.calStaged&&!st.nvmDone)throw Error('Laufenden DSP-Abgleich zuerst abschliessen.');
-    if(st.calImage&&!st.alarmOnlyPlan)throw Error('Anderer NVM-Plan vorhanden. Erst abschliessen.');
+    if(st.calStaged&&!st.nvmDone&&!calibrationActive())
+     throw Error('Laufenden DSP-Abgleich zuerst erfolgreich über DSP_S prüfen.');
+    if(st.calImage&&!st.alarmOnlyPlan)
+     throw Error('Anderer NVM-Plan vorhanden. Erst abschliessen.');
     if(!$('alarmDspConfirm').checked)throw Error('DSP-Endbereich ausdrücklich bestätigen.');
     const rules=A.checkDependencies(st.nvmBackup,selection());
     if(!rules.ok)throw Error(rules.errors.join(' '));
     const img=A.prepare(st.nvmBackup,selection(),CAL.crc16);
     CAL.protectStartupCommunication(img.before,img.after,{allowAlarmMask:true});
     if(!img.changes.length)throw Error('Keine Änderungen notwendig.');
-    const p={...img,uid:st.uid.hex,session:st.sessionIndex,alarmOnly:true,ramVerified:false};
-    st.alarmOnlyPlan=p;st.calImage=p;st.restorePlan=null;st.outputOnlyPlan=null;st.expertOutputPlan=null;
+    const duringCalibration=calibrationActive();
+    const p={...img,uid:st.uid.hex,session:st.sessionIndex,
+     alarmOnly:true,duringCalibration,ramVerified:false};
+    st.alarmOnlyPlan=p;
+    if(!duringCalibration){
+     st.calImage=p;st.restorePlan=null;st.outputOnlyPlan=null;st.expertOutputPlan=null;
+    }else st.calImage=null;
+    st.alarmCalibrationSkipped=false;profilePending=null;
     const labels={16:'Alarm-/Fehlerfreigabe',18:'EOC-ODER-Maske',55:'Untere Grenze',56:'Obere Grenze/Hysterese',
      61:'Fehleraktionen',62:'Fehler-Ersatzwerte',63:'CRC16'};
     $('alarmEditorDiff').textContent=img.changes.map(c=>
      (labels[c.index]||'Register')+' (CM '+c.index+'): 0x'+c.from.toString(16).toUpperCase().padStart(4,'0')+
      ' → 0x'+c.to.toString(16).toUpperCase().padStart(4,'0')).join('\n');
     if($('nvmDiff')){$('nvmDiff').textContent=$('alarmEditorDiff').textContent;$('nvmDiff').dataset.scope='alarm';}
-    status('Änderungen vorbereitet. RAM-Prüfung starten. Am EEPROM wurde nichts geändert.');
+    status(duringCalibration?
+     'Alarmänderungen für den laufenden Druckabgleich vorgemerkt. RAM prüfen; später mit DSP/AODO zusammen im NVM speichern.':
+     'Änderungen für den bereits abgeglichenen Sensor vorbereitet. RAM prüfen; kein neuer Druckabgleich nötig.');
     dirty=false;refresh();renderFlowState();
    }catch(e){clearPlan();status('Keine Alarmänderung vorgemerkt: '+e.message,'error');renderFlowState()}
   }
@@ -136,7 +192,7 @@ const ELMOS_ALARM_EDITOR=(()=>{
    finally{refresh();renderFlowState()}
   }
   for(const event of ['input','change'])$('alarmEditorFields').addEventListener(event,()=>{
-   if(loading)return;dirty=true;
+   if(loading)return;dirty=true;profilePending=null;
    if(st.alarmOnlyPlan){clearPlan();status('Einstellungen verändert: Vorschau und RAM-Prüfung erneut durchführen. Frühere RAM-Werte bleiben bis zum Neustart aktiv.');renderFlowState()}
    updateRules();
   });
@@ -156,8 +212,13 @@ const ELMOS_ALARM_EDITOR=(()=>{
    status(changedRam?'NVM-Plan verworfen. RAM bleibt bis zum echten Neustart geändert.':'NVM-Plan verworfen. Sensor-EEPROM bleibt unverändert.');
    refresh();renderFlowState();
   });
-  api={refresh,ready};refresh();return api;
+  api={refresh,ready,pendingForCalibration,skipForCalibration,applyProfile,profileFromUi};refresh();return api;
  }
- return {init,refresh:()=>api?.refresh(),ready:()=>api?.ready()??false};
+ return {init,refresh:()=>api?.refresh(),ready:()=>api?.ready()??false,
+  pendingForCalibration:()=>api?.pendingForCalibration()??false,
+  skipForCalibration:()=>api?.skipForCalibration(),
+  applyProfile:profile=>api?.applyProfile(profile),
+  profileFromUi:()=>api?.profileFromUi()||{mode:'skip'}};
+
 })();
 if(typeof module!=='undefined'&&module.exports)module.exports=ELMOS_ALARM_EDITOR;
