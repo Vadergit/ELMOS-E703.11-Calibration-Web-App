@@ -103,7 +103,7 @@
   <section class="board" aria-labelledby="esp32">
     <h2 id="esp32">ESP32-C3 SuperMini <span class="version">v0.11 (Test)</span></h2>
     <p>One-Wire und I²C. Wähle im USB-Dialog den ESP32-C3 SuperMini.</p>
-    <p class="note"><strong>Ausgang separat ins NVM:</strong> Der Installer installiert die neue v0.11-Testfirmware. Ihr NVM-Schreibpfad ist noch nicht an echter Hardware validiert. Ein neuer <a href="docs/ESP32_C3_PLC_TEST.md">v0.11-dev-Testquellcode mit Anleitung</a> ist separat verfügbar und muss derzeit mit der Arduino IDE kompiliert werden. Vor einem Firmwareupdate zuerst ungesicherte Kalibrierwerte sichern.</p>
+    <p class="note"><strong>Neu in v0.11 (Test):</strong> Separate NVM-Freigabe für Ausgangsskalierung und Clipping auf dem ESP32-C3. Die installierbare Firmware ist kompiliert. <strong>Der tatsächliche NVM-Schreibvorgang am Sensor ist noch nicht hardwarevalidiert.</strong> Nur mit einem entbehrlichen Testchip testen. Vor dem Firmwareupdate alle noch nicht gespeicherten Kalibrierdaten und das Original-NVM sichern. <a href="docs/ESP32_C3_PLC_TEST.md">Technische Details</a>.</p>
     <div class="actions">
     <esp-web-install-button manifest="firmware/releases/esp32-c3/v0.11/manifest.json">
       <button type="button" slot="activate" disabled>ESP32 installieren</button>
