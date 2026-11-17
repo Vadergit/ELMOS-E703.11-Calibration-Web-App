@@ -1,3 +1,9 @@
+## v0.7.101 – Live-Werte logisch nach Temperatur und Druck sortiert
+
+- Die permanente Live-Anzeige zeigt neu zuerst **ADC_T** und **SSC-Temperatur**, rechts davon **ADC_S**, **DSP_S** und **Sensorwert**.
+- Eine dezente Trennlinie zwischen Temperatur- und Druckwerten macht die Zuordnung sichtbar. Die fünf Kacheln bleiben in der Desktop-Ansicht kompakt auf einer Zeile; auf schmalen Mobilgeräten bleiben die bisherigen responsiven Umbrüche erhalten.
+- IDs, Live-Polling, Berechnungen, NVM-Programmierung und Anzeigeeinheiten bleiben unverändert. Keine Änderung an Sensorzugriff oder Kalibrierlogik.
+
 ## v0.7.100 – TK0 zwingend mit aktiver Temperaturkompensation
 
 - TK0 erfordert Druckordnung 1 und Temperaturordnung 1. Im klassischen Modus stellt die Auswahl «TK0» beide Ordnungen automatisch auf «Linear»; andere Polynomordnungen werden dort für TK0 deaktiviert.
