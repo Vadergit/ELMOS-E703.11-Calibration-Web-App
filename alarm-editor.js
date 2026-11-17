@@ -115,6 +115,7 @@ const ELMOS_ALARM_EDITOR=(()=>{
    $('alarmEditorFields').disabled=!valid||postScaling||busy;
    if(identity!==key){
     key=identity;clearPlan();
+    if(!profilePending)exportMode='skip'; // New sensor: no automatic alarm activation
     if(valid){
      if(profilePending?.mode==='edit'){
       fill(profilePending.settings);
