@@ -105,8 +105,9 @@ const ELMOS_SETTINGS=(()=>{
  const errorValues=word=>{
   if(!Number.isInteger(word))return 'Nicht gelesen';
   // ERR_VAL_HI_LO is Q0.7. Values are DSP_AODO ratios, NOT measured volts.
-  return 'Unterer Ersatzwert '+one((word&255)/128*100)+' %, oberer Ersatzwert '+
-   one(((word>>>8)&255)/128*100)+' % (DSP_AODO, nicht gemessene Volt)';
+  const sign8=x=>x&0x80?x-256:x;
+  return 'Unterer Ersatzwert '+one(sign8(word&255)/128*100)+' %, oberer Ersatzwert '+
+   one(sign8((word>>>8)&255)/128*100)+' % (signiertes DSP_AODO, keine gemessene Spannung)';
  };
  const limitText=words=>{
   if(!validate(words))return 'Nicht gelesen';
