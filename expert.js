@@ -396,7 +396,13 @@ const ELMOS_EXPERT=(()=>{
      const plan={uid:st.uid.hex,outputOnly:true,limit,before:before.slice(),after,changes};
      st.outputOnlyPlan=plan;st.restorePlan=null;st.calImage=plan;
      st.expertOutputPlan=values;
-     show('expertOutputMsg','Ausgangsänderung ohne neuen Druckabgleich vorbereitet: '+changes.length+' NVM-Wörter. Im NVM-Schritt die automatisch übernommene Chip-UID prüfen und danach den Schreibknopf betätigen. Noch nichts am Sensor geändert.','warn')
+     const bridgeRecovered=st.adapterKind==='bridge'&&
+      (st.psscRamRecovery||(st.regs[0x06]===0x6C04&&before[17]!==0x6C04));
+     show('expertOutputMsg',bridgeRecovered?
+      'Ausgangsänderung rechnerisch vorbereitet ('+changes.length+' NVM-Wörter), aber derzeit NICHT schreibbar: '+
+      (st.bridgeBoard||'DIY-Bridge')+' erlaubt bei temporärer One-Wire-RAM-Recovery keine AODO-NVM-Programmierung. '+
+      'Kalibrierung und Original-NVM bleiben unverändert. Kein neuer Druckabgleich erforderlich, aber eine geeignete und geprüfte Adapter-/Firmware-Schreibfreigabe ist nötig.':
+      'Ausgangsänderung ohne neuen Druckabgleich vorbereitet: '+changes.length+' NVM-Wörter. Im NVM-Schritt die Chip-UID und die Schreibfreigabe kontrollieren. Noch nichts am Sensor geändert.','warn')
     }else{
      st.outputOnlyPlan=null;st.restorePlan=null;st.calImage=null;st.expertOutputPlan=values;
      show('expertOutputMsg','Ausgangseinstellung geprüft und in den normalen finalen Kalibrier-NVM-Plan vorgemerkt. Noch nichts am Sensor geändert.','success')
