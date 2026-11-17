@@ -5,24 +5,31 @@ const fs=require('node:fs');
 const path=require('node:path');
 const read=name=>fs.readFileSync(path.join(__dirname,'..',name),'utf8');
 
-test('Offline NVM calculator can be opened without the main app or a sensor',()=>{
- const html=read('nvm-rechner.html');
+test('NVM calculator is an in-app, independent panel, without a sensor gate',()=>{
+ const html=read('index.html'),app=read('app.js');
+ assert.match(html,/data-panel="10" hidden/);
  assert.match(html,/id="nvmReconstruction"/);
+ assert.match(html,/data-step="10"/);
+ assert.match(html,/id="nvmCalculatorOpen" data-open-nvm/);
  assert.match(html,/nvm-reconstruction\.js\?v=/);
- assert.match(html,/ELMOS_NVM_RECON\.render\(root,null\)/);
- assert.match(html,/Kein Sensor und kein SSP3 nötig/);
- assert.doesNotMatch(html,/<script src="(?:app|expert|guided)\.js/);
- assert.doesNotMatch(html,/navigator\.serial|requestPort|st\.chip|st\.port/);
+ assert.match(app,/if\(n===7\|\|n===10\)return ''/);
+ assert.match(app,/Math\.min\(10,Number\(n\)\)/);
+ assert.match(app,/step\(10\)/);
+ assert.match(app,/querySelectorAll\('\[data-open-nvm\]'\)/);
 });
-test('Visible entry points lead to the standalone offline calculator',()=>{
- const html=read('index.html'),guided=read('guided.js');
- assert.match(html,/id="nvmCalculatorOpen"/);
- assert.match(html,/href="nvm-rechner\.html"/);
- assert.match(html,/NVM-Rechner · Offline/);
- assert.match(guided,/href="nvm-rechner\.html"/);
- assert.match(guided,/NVM-Rückrechner · Offline/);
+test('Guided task opens same panel without chip requirement',()=>{
+ const guided=read('guided.js');
+ assert.match(guided,/data-gw-task="nvm"/);
+ assert.match(guided,/task==='nvm'.*navigate\?\.\(10\)/);
+ assert.ok(guided.indexOf("task==='nvm'")<guided.indexOf("if(!s.chip)"));
+ assert.doesNotMatch(guided,/href="nvm-rechner\.html"/);
 });
-test('Standalone calculator supports local JSON backup input and no writes',()=>{
+test('Legacy link redirects to embedded calculator',()=>{
+ const legacy=read('nvm-rechner.html');
+ assert.match(legacy,/index\.html#nvm-rechner/);
+ assert.doesNotMatch(legacy,/ELMOS_NVM_RECON\.render/);
+});
+test('Calculator supports local JSON and remains read-only',()=>{
  const calculator=read('nvm-reconstruction.js');
  assert.match(calculator,/file\.addEventListener\('change'/);
  assert.match(calculator,/JSON\.parse\(await f\.text\(\)\)/);
