@@ -90,3 +90,11 @@
  #nvmReconstruction .nvmrecon-analog{align-items:flex-start;flex-direction:column}
  #nvmReconstruction .nvmrecon-metric-reading strong{font-size:17px}
 }
+
+/* Compact, always-visible list of genuinely unavailable reconstruction data. */
+#nvmReconstruction .nvmrecon-missing{margin:12px 0 2px;padding:12px 14px;border:1px solid var(--nv-edge);border-radius:10px;background:var(--nv-soft)}
+#nvmReconstruction .nvmrecon-missing h3{margin:0;font-size:13px;font-weight:800;color:var(--ink)}
+#nvmReconstruction .nvmrecon-missing-intro{margin:2px 0 7px;font-size:11px;color:var(--nv-muted)}
+#nvmReconstruction .nvmrecon-missing ul{margin:0;padding-left:18px;display:grid;gap:5px}
+#nvmReconstruction .nvmrecon-missing li{font-size:11.5px;line-height:1.45;color:var(--ink);padding-left:1px}
+#nvmReconstruction .nvmrecon-missing li strong{font-weight:750}
