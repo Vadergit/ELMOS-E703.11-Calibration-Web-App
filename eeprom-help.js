@@ -14,6 +14,7 @@ const ELMOS_EEPROM_HELP=(()=>{
   11:'G01',12:'G2OFF',13:'CFG_CAL0',14:'CFG_CAL1',15:'CRC8 factory',
   16:'CFG_EN',17:'CFG_SPI_I2C',18:'CFG_PADS0',19:'CFG_PADS1',
   20:'CFG_PADS2',21:'CFG_PERIOD',22:'CFG_AODO',
+  24:'CFG_ADC',25:'CFG_LP0',26:'CFG_LP1',
   27:'CFG_AFE0',28:'CFG_AFE1',29:'CFG_AFE2',30:'USER',
   31:'T_O',32:'T_F',33:'S_O',34:'S_F',
   55:'ALARM_LO',56:'ALARM_HI',57:'AODO_O',58:'AODO_F',
@@ -34,6 +35,9 @@ const ELMOS_EEPROM_HELP=(()=>{
   20:['Weitere Pin-Konfiguration','Weitere Konfiguration der Pins. Einzelne Bitbelegungen werden hier ohne verifizierte Definition nicht aufgeschlüsselt.'],
   21:['Betriebs-/Periodenkonfiguration','Konfigurationswort für zeitliche Betriebsparameter. Ohne geprüfte Bitdefinition keine automatische Interpretation.'],
   22:['AODO-Ausgangsparameter','Konfiguration der analogen, PWM- oder FM-Ausgabe. Die Bedeutung des Rohwerts hängt von der aktiven Ausgangsart ab.'],
+  24:['ADC-Konfiguration','Konfiguration der ADC-Abtastung. Ohne geprüfte Bitfeldzuordnung wird der Hexwert angezeigt.'],
+  25:['Tiefpassfilter Stufe 0','CFG_LP0 enthält Parameter des digitalen Tiefpassfilters. Die Grenzfrequenz wird hier nicht aus unbestätigten Bits geschätzt.'],
+  26:['Tiefpassfilter Stufe 1','CFG_LP1 enthält weitere Filterparameter. Für eine genaue Filterkurve ist die dokumentierte Konfiguration nötig.'],
   27:['Analog-Frontend-Konfiguration 0','Weitere Einstellungen des analogen Frontends. Einzelne Bits sind hier nicht vollständig dokumentiert.'],
   28:['PGA1, Offset und PGA2','AFE-Einstellung der Druckmesskette. Enthält die erste Verstärkung, den Offset-DAC-Code und die zweite Verstärkung.'],
   29:['Analog-Frontend-Konfiguration 2','Weitere Einstellungen des analogen Frontends. Keine freie Bitinterpretation ohne Datenblattprüfung.'],
@@ -56,7 +60,7 @@ const ELMOS_EEPROM_HELP=(()=>{
   if(index===0)return 0x50;
   if(index===1)return 0x52;
   if(index>=16&&index<=22)return 0x04+(index-16)*2;
-  if(index>=27&&index<=29)return 0x1A+(index-27)*2;
+  if(index>=24&&index<=29)return 0x14+(index-24)*2;
   if(index>=31&&index<=62)return 0x6C+(index-31)*2;
   return null;
  };
@@ -109,7 +113,7 @@ const ELMOS_EEPROM_HELP=(()=>{
   }else if(index>=8&&index<=10){
    short='Werksabgleich Strom-DAC';
    description='Herstellerseitige Korrekturdaten der absoluten Stromausgabe. Nicht als 4–20-mA-Ausgangsfunktion des E703.11 interpretieren.';
-  }else if(index>=23&&index<=26){
+  }else if(index===23){
    short='Nicht aufgeschlüsseltes CM-Wort';
    description='Kein ausreichend verifizierter Registername bzw. keine verifizierte Bitfeldbeschreibung vorhanden. Rohwert nur lesend anzeigen.';
   }else if(index>=35&&index<=50){
