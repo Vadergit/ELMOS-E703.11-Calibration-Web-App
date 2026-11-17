@@ -1,3 +1,11 @@
+## v0.7.106 – Ausgang separat speichern, auch nach bestätigter SSP3-RAM-Recovery
+
+- Die bereits vorhandene Aufgabe «Nur Ausgang ändern» kann nach vollständigem 64-Wort-NVM-Lesen mit bestätigter Chip-UID den analogen Ausgang ohne neue Druck-/Temperaturkalibrierung konfigurieren.
+- Nach temporärer One-Wire-RAM-Freigabe wird ausschliesslich bei originalem SSP3, nach dokumentiert bestätigtem Kaltstart und gültigem NVM-Backup eine eng begrenzte Änderung an AODO-Skalierung oder Clipping zugelassen. Ausgangsmodus, CFG_AODO, One-Wire-Start, AFE, Koeffizienten und sämtliche weiteren NVM-Register bleiben unverändert.
+- Ein Original-NVM-Backup ist dabei obligatorisch. UID, NVM-CRC, bevorstehende Änderungen, Startup-Register und Rücklesung bleiben vor und nach der Programmierung geschützt und werden erneut kontrolliert.
+- Die NVM-Seite benennt bei vorbereitetem Ausgangsplan ausdrücklich «Nur Ausgangseinstellungen speichern» und blendet die USER-ID aus, weil diese in einer reinen Ausgangsänderung nicht modifiziert werden darf. Die eigene DSP-Kalibrierung bleibt erhalten.
+- **Laborprototyp:** Diese eng begrenzte neue Hardwarefunktion wurde nur statisch und mit sieben simulierten Sicherheitsszenarien getestet. Die reale NVM-Programmierung unter PSSC-RAM-Recovery wurde nicht validiert. Ausschliesslich mit entbehrlichem Testchip prüfen.
+
 ## v0.7.105 – Clipping-Einstellungen wieder direkt sichtbar
 
 - In Schritt «Ausgang konfigurieren» sind Clipping-Modus und Spannungsgrenzen bei analogem AODO-Ausgang wieder direkt unter der Ausgangsart sichtbar, ohne aufklappbaren Bereich und ohne Expertenmodus.
