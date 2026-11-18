@@ -30,9 +30,9 @@ const ELMOS_HOME_NAVIGATION=(()=>{
   api()?.closeSettings?.();
   archive()?.close?.();
   const g=guided();
-  if(!g?.open||!g?.resetForHome)throw Error('Geführte Hauptseite nicht verfügbar. Bitte Webseite aktualisieren.');
+  if(!g?.open||!g?.resetForHome)throw Error('Geführte Startseite nicht verfügbar. Bitte Webseite aktualisieren.');
   if(!g.isOpen?.())g.open();
-  if(!g.isOpen?.()||!g.resetForHome())throw Error('Geführte Hauptseite konnte nicht geöffnet werden.');
+  if(!g.isOpen?.()||!g.resetForHome())throw Error('Geführte Startseite konnte nicht geöffnet werden.');
   if(location.hash==='#nvm-rechner')history.replaceState(history.state,'',location.pathname+location.search);
   document.title='ELMOS E703.11 – Kalibrierassistent';
   window.scrollTo({top:0,behavior:'auto'});
@@ -51,12 +51,12 @@ const ELMOS_HOME_NAVIGATION=(()=>{
    abort.disabled=s.critical;
   }
   if(s.critical){
-   displayProblem('Ein Sensor- oder Schreibvorgang ist noch aktiv. Dieser darf zum Schutz der NVM-/RAM-Daten und des USB-Protokolls nicht unterbrochen werden. Bitte den Vorgang fertig machen und danach zur Hauptseite wechseln.');
+   displayProblem('Ein Sensor- oder Schreibvorgang ist noch aktiv. Dieser darf zum Schutz der NVM-/RAM-Daten und des USB-Protokolls nicht unterbrochen werden. Bitte den Vorgang fertig machen und danach zur geführten Startseite wechseln.');
   }else{
    const kind=s.recording?'Testaufzeichnung':s.archiveType==='verification'?'Nachmessung':
     s.archiveType==='calibration'?'Kalibrierung':s.archiveType==='output'?'Ausgangskonfiguration':
     s.measuring?'Messung':'angefangener Vorgang';
-   displayProblem('Aktive Aufgabe: '+kind+'. Möchtest du den Vorgang abbrechen und zur geführten Hauptseite zurückkehren? Bereits gespeicherte Messwerte bleiben im Archiv. Eine laufende Leseantwort wird sicher beendet; der Sensor wird nicht getrennt. Bereits geänderte RAM-Einstellungen werden nicht zurückgesetzt und es erfolgt kein neues NVM-Schreiben.'+(api()?.navigationSafety?.()?.nvmDone?' Bereits programmierte NVM-Daten im Sensor bleiben unverändert.':''));
+   displayProblem('Aktive Aufgabe: '+kind+'. Möchtest du den Vorgang abbrechen und zur geführten Startseite zurückkehren? Bereits gespeicherte Messwerte bleiben im Archiv. Eine laufende Leseantwort wird sicher beendet; der Sensor wird nicht getrennt. Bereits geänderte RAM-Einstellungen werden nicht zurückgesetzt und es erfolgt kein neues NVM-Schreiben.'+(api()?.navigationSafety?.()?.nvmDone?' Bereits programmierte NVM-Daten im Sensor bleiben unverändert.':''));
   }
   if(!dialog.open)dialog.showModal();
   return false;
