@@ -510,7 +510,15 @@ const ELMOS_TEST_LOGGER=(()=>{
  }
  function isBusy(){return !!(S.recordId||S.starting||S.stopping)}
  window.addEventListener('elmos-archive-interrupted',onInterrupted);
- return {mount,unmount,isBusy,warn:message=>announce(message,true),get active(){return !!S.recordId}};
+ // Save the last pending sample before marking the record as aborted.
+ // Do not modify device configuration or interrupt a register transaction.
+ async function abortForHome(){
+  if(S.starting){throw Error('Teststart läuft noch. Bitte zuerst abschliessen.')}
+  if(S.recordId)await stop('aborted','home_navigation');
+  if(isBusy())throw Error('Die Testaufzeichnung konnte nicht sicher beendet werden.');
+  return true;
+ }
+ return {mount,unmount,isBusy,abortForHome,warn:message=>announce(message,true),get active(){return !!S.recordId}};
 
 })();
 if(typeof window!=='undefined')window.ELMOS_TEST_LOGGER=ELMOS_TEST_LOGGER;
