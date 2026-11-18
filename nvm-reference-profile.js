@@ -52,8 +52,13 @@ const ELMOS_NVM_PROFILE=(()=>{
    delete fields.pmin;delete fields.pmax;
   }
   if(finite(fields.ta)&&finite(fields.tb)&&fields.tb<=fields.ta)delete fields.tb;
-  const unit=pressureUnit(d.pressureUnit??d.unit);
+  const specifiedUnit=d.pressureUnit??d.unit;
+  const unit=pressureUnit(specifiedUnit);
   if(unit)fields.pressureUnit=unit;
+  else if(specifiedUnit!==undefined&&specifiedUnit!==null){
+   // Never silently present a custom pressure unit as bar.
+   delete fields.pmin;delete fields.pmax;
+  }
   if(['factory','an0203'].includes(d.tempModel))fields.tempModel=d.tempModel;
   return fields;
  };
