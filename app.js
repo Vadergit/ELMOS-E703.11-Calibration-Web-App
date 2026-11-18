@@ -402,7 +402,16 @@ if(typeof document!=='undefined') (function UI(){
   if(!Number.isFinite(min)||!Number.isFinite(max)||max<=min||
      !['%','bar','mbar','kPa','psi','custom'].includes(selected)||
      !Number.isInteger(limit)||limit<1000||limit>32000)return null;
-  return {uid,crc:words[63],min,max,unit,selected,limit,
+  const points=ELMOS_NVM_PROFILE.cleanPoints(st.calpoints);
+  const temperatures=ELMOS_NVM_PROFILE.readings(points);
+  const outputVdd=Number($('psscVdd').value);
+  const reference={
+   pmin:min,pmax:max,pressureUnit:selected==='custom'?undefined:selected,
+   limit,...temperatures,
+   ...(Number.isFinite(outputVdd)&&outputVdd>=2.7&&outputVdd<=5.5?{vdd:outputVdd}:{}),
+   ...(st.calfit?.orderT>0?{tempModel:'an0203'}:{})
+  };
+  return {uid,crc:words[63],min,max,unit,selected,limit,reference,points,
    customUnit:selected==='custom'?$('calUnitOther').value.trim():'',savedAt:new Date().toISOString()};
  }
  function saveCalibrationDisplayProfile(words=st.nvmBackup,uid=st.uid?.hex){
