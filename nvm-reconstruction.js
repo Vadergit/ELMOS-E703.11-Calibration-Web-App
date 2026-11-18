@@ -23,11 +23,12 @@ const ELMOS_NVM_RECON = (() => {
  // Polynomial root isolation by derivative extrema, not a sampling grid.
  // Supports first, second and third order curves, including tangential roots.
  // A non-monotonic curve is rejected whenever more than one inverse exists.
- function polynomialRoots(coefficients,target) {
+ function polynomialRoots(coefficients,target,bounds=[-1,32767/32768]) {
   const c=coefficients.slice(0,4);
   while(c.length<4)c.push(0);
   c[0]-=target;
-  const lo=-32767/32768,hi=32767/32768,epsilon=1e-12;
+  const [lo,hi]=bounds,epsilon=1e-12;
+  if(!Number.isFinite(lo)||!Number.isFinite(hi)||lo>=hi)return [];
   const f=x=>((c[3]*x+c[2])*x+c[1])*x+c[0];
   const candidates=[lo,hi];
   const A=3*c[3],B=2*c[2],C=c[1];
@@ -57,13 +58,13 @@ const ELMOS_NVM_RECON = (() => {
   }
   return found.sort((a,b)=>a-b);
  }
- const uniquePoly=(coefficients,target,label,warnings)=>{
-  const r=polynomialRoots(coefficients,target);
+ const uniquePoly=(coefficients,target,label,warnings,bounds)=>{
+  const r=polynomialRoots(coefficients,target,bounds);
   if(r.length!==1){
    const constant=coefficients.slice(1).every(c=>Math.abs(c)<1e-12);
    warnings.push(label+': '+(constant?'keine invertierbare Kennlinie (konstantes Polynom)':
     r.length?'mehrdeutige Polynomumkehr ('+r.length+' Lösungen)':
-    'kein Umkehrwert im gültigen DSP-Bereich')+'.');
+    'kein Umkehrwert im gültigen ADC-Rohwertbereich')+'.');
    return null;
   }
   return r[0];
@@ -120,6 +121,16 @@ const ELMOS_NVM_RECON = (() => {
    const stage=(adc*700/(pga2*supply))*(sign2*signAdc);
    return (stage-offsetStage)/(pga1*sign1);
   };
+  // The normalized intermediate S (or T) can be outside ±1 even when the
+  // originating 16-bit ADC sample is valid. Derive inverse bounds from the
+  // real ADC domain via the NVM Q3.12 gain and offset (e.g. S_O = -2.371).
+  const adcBounds=[-1,32767/32768];
+  const scaledBounds=(gain,offset)=>{
+   if(!gain)return null;
+   const pair=adcBounds.map(adc=>gain*adc+offset);
+   return [Math.min(...pair),Math.max(...pair)];
+  };
+  const pressureBounds=scaledBounds(sF,sO),temperatureBounds=scaledBounds(tF,tO);
   const rows=[];
   if(!sF)warnings.push('S_F (NVM-Wort 34 / RAM 0x72) ist 0x0000: Die Druck-Normierung ist nicht invertierbar. Das ist der dokumentierte Werks-Standardwert; für eine gültige Sensorrückrechnung muss ein Druckabgleich im NVM vorhanden sein.');
   if(scoeff.every(c=>c===0))warnings.push('S0–S15 sind alle 0: Im gespeicherten Datensatz sind keine nutzbaren Druck-Korrekturkoeffizienten vorhanden.');
@@ -145,15 +156,16 @@ const ELMOS_NVM_RECON = (() => {
    // spurious roots and do not let an irrelevant temperature block pressure.
    const measured=rawInputs[rowIndex];
    const tempNorm=measured!==null?tF*measured/32768+tO:
-    temperatureAvailable?uniquePoly(tcoeff,dspTemp,'Temperatur '+fmt(tempC,1)+' °C',warnings):null;
+    temperatureAvailable&&temperatureBounds?
+      uniquePoly(tcoeff,dspTemp,'Temperatur '+fmt(tempC,1)+' °C',warnings,temperatureBounds):null;
    const adcT=measured!==null?measured/32768:
     tempNorm===null||!tF?null:(tempNorm-tO)/tF;
    const pressureTemp=pressureTempIndependent?0:tempNorm;
    const row={tempC,tempNorm,adcT,pressureTempIndependent, endpoints:[]};
    for(const [name,dsp] of [['Nullpunkt',-limit/32768],['Endpunkt',limit/32768]]){
     const beforePost=postGain?(dsp-postOffset)/postGain:null;
-    const sNorm=pressureTemp!==null&&beforePost!==null?
-      uniquePoly(pressureCoeffs(pressureTemp),beforePost,name+' bei '+fmt(tempC,1)+' °C',warnings):null;
+    const sNorm=pressureTemp!==null&&beforePost!==null&&pressureBounds?
+      uniquePoly(pressureCoeffs(pressureTemp),beforePost,name+' bei '+fmt(tempC,1)+' °C',warnings,pressureBounds):null;
     const adcS=sNorm===null||!sF?null:(sNorm-sO)/sF;
     const bridge=adcS===null?null:physical(adcS);
     if(adcS!==null&&Math.abs(adcS)>1)warnings.push('Berechneter ADC_S ausserhalb ±32768 bei '+name+', '+fmt(tempC,1)+' °C.');
