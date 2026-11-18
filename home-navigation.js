@@ -89,8 +89,12 @@ const ELMOS_HOME_NAVIGATION=(()=>{
    }
    if(situation().critical||situation().measuring||logger()?.isBusy?.())
     throw Error('Ein Vorgang ist noch aktiv. Es wurde nichts verworfen.');
+   const abortedType=archive()?.active?archive().current?.type:null;
    if(archive()?.active)await archive().finalise('aborted',{snapshot:null});
-   if(guided()?.hasUnfinishedTask?.())api()?.clearHomeDraft?.();
+   // Also clear classic-mode calibration points: the guided view may have
+   // been closed while the same sensor's archive session stayed active.
+   if(guided()?.hasUnfinishedTask?.()||abortedType==='calibration'||abortedType==='output')
+    api()?.clearHomeDraft?.();
    return homeNow();
   }catch(error){
    if(status){status.hidden=false;status.textContent='Rückkehr nicht möglich: '+String(error.message||error)}
