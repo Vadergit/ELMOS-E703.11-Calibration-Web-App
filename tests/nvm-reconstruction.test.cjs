@@ -220,5 +220,5 @@ test('Missing-data summary is always shown below explanation, not in a hidden di
  assert.match(source,/Nicht berechenbare Werte/);
  assert.match(source,/missing\.hidden=false/);
  assert.match(style,/#nvmReconstruction \.nvmrecon-missing/);
- assert.match(html,/nvm-reconstruction\.js\?v=0\.2\.3/);
+ assert.match(html,/nvm-reconstruction\.js\?v=0\.3\.0/);
 });
