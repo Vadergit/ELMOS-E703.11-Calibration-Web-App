@@ -749,11 +749,11 @@ const ELMOS_GUIDED=(()=>{
   $('gwConnectionPage').hidden=!connectionOpen;
   $('gwSwapPage').hidden=!swapping||connectionOpen;
   $('gwConnectionToggle').setAttribute('aria-expanded',String(connectionOpen));
-  $('gwPresetLaunch').hidden=swapping||stage!==1;
+  $('gwPresetLaunch').hidden=connectionOpen||swapping||stage!==1;
   if($('gwPresetLaunch').hidden&&$('gwPresetDialog').open)$('gwPresetDialog').close();
   root.querySelector('.gw-footer').hidden=swapping||connectionOpen;
-  root.classList.toggle('gw-logger-mode',loggerPage);
-  $('gwLogPage').hidden=!loggerPage;
+  root.classList.toggle('gw-logger-mode',loggerPage&&!connectionOpen);
+  $('gwLogPage').hidden=connectionOpen||!loggerPage;
   for(let i=0;i<steps.length;i++){
    $('gwPage'+i).hidden=connectionOpen||swapping||i!==stage;
    const side=document.querySelector('[data-gw-side="'+i+'"]');
