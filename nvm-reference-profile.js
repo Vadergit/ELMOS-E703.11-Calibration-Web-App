@@ -24,7 +24,11 @@ const ELMOS_NVM_PROFILE=(()=>{
   const temperatures=[...new Set(points.map(p=>p.temperature))].sort((a,b)=>a-b);
   const readingsAt=t=>{
    const p=points.filter(p=>p.temperature===t&&finite(p.adcT));
-   return p.length&&p.every(x=>Math.abs(x.adcT-p[0].adcT)<=250)?p[0].adcT:null;
+   if(!p.length)return null;
+   const values=p.map(x=>x.adcT).sort((a,b)=>a-b);
+   if(values[values.length-1]-values[0]>250)return null;
+   const middle=values.length>>1;
+   return values.length%2?values[middle]:(values[middle-1]+values[middle])/2;
   };
   return {
    ...(temperatures.length?{ta:temperatures[0]}:{}),
@@ -127,6 +131,11 @@ const ELMOS_NVM_PROFILE=(()=>{
   if(!profile)return {ok:false,reason:''};
   if(profile.uid&&uid&&profile.uid.toUpperCase()!==uid.toUpperCase())
    return {ok:false,reason:'Das Kalibrierprofil gehört zu einer anderen Chip-UID.'};
+  if(profile.uid&&Array.isArray(words)&&words.length===64){
+   const serial=words.slice(0,2).reverse().map(w=>Number(w).toString(16).toUpperCase().padStart(4,'0')).join('');
+   if(profile.uid.slice(-8).toUpperCase()!==serial)
+    return {ok:false,reason:'Die Seriennummer im NVM stimmt nicht mit dem Kalibrierprofil überein.'};
+  }
   if(profile.crc!==null&&Array.isArray(words)&&words.length===64&&profile.crc!==words[63])
    return {ok:false,reason:'Die NVM-Prüfsumme stimmt nicht zum gespeicherten Kalibrierprofil.'};
   return {ok:true,verified:!!profile.verified||
