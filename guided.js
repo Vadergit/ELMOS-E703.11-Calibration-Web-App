@@ -191,7 +191,7 @@ const ELMOS_GUIDED=(()=>{
   for(const id of ['expertScaleGain','expertScaleOffset'])moveLabel(id,'gwExpertOutputFields');
   for(const id of ['expertOutputPreset','expertOutputStage','outputNvmRead'])moveId(id,'gwOutputActions');
   moveId('outputClippingFields','gwOutputClipping');
-  for(const id of ['outputModeHint','psscScalingPreview','expertOutputMsg','outputOneWireStatus','psscOneWireOnlyStatus'])moveId(id,'gwOutputStatuses');
+  for(const id of ['outputModeHint','psscScalingPreview','expertOutputMsg','outputOneWireStatus','outputScalingAdvisory','psscOneWireOnlyStatus'])moveId(id,'gwOutputStatuses');
   moveId('psscCurrentOutputStatus','gwOutputRegisters');
   moveId('alarmEditorSection','gwAlarmHost');
   move($('alarmSummaryHeading').closest('section'),'gwAlarmDiagnostic');
@@ -199,7 +199,7 @@ const ELMOS_GUIDED=(()=>{
   moveLabel('nvmAutoBackup','gwNvmBackup');
   moveId('nvmPrepare','gwNvmPrepare');moveId('nvmProgress','gwNvmPrepare');
   for(const id of ['nvmRecheckActions','nvmRecheckHint','nvmRecheckMsg'])moveId(id,'gwNvmPrepare');
-  for(const id of ['nvmMsg','nvmUidHint','nvmWritePrereq'])moveId(id,'gwNvmMessages');
+  for(const id of ['nvmMsg','nvmOutputAdvisory','nvmUidHint','nvmWritePrereq'])moveId(id,'gwNvmMessages');
   moveId('nvmUserIdField','gwNvmBackup');
   moveId('nvmProgram','gwNvmWrite');
   moveId('nvmWriteStatus','gwNvmWrite');
@@ -746,9 +746,9 @@ const ELMOS_GUIDED=(()=>{
   $('gwChipStatus').classList.toggle('is-offline',!s.chip);
   const completed=s.points?.length||0;
   if(stage===4&&plan){renderCapture();if(completed===plan.total)$('gwNext').disabled=false}
-  if(stage===5||stage===6||stage===9){
+  if(stage===5||stage===6||stage===7||stage===9){
    // Reflect the same guarded source-of-truth as the classic buttons.
-   const text=stage===5?s.calStaged?'Koeffizienten im RAM bestätigt':'Noch keine bestätigte RAM-Übernahme':stage===6?s.calVerified?'DSP-Prüfung abgeschlossen':'DSP-Prüfung ausstehend':s.nvmDone?'NVM-Schreiben bestätigt':'NVM-Schreiben noch nicht bestätigt';
+   const text=stage===5?s.calStaged?'Koeffizienten im RAM bestätigt':'Noch keine bestätigte RAM-Übernahme':stage===6?s.calVerified?'DSP-Prüfung abgeschlossen':'DSP-Prüfung ausstehend':stage===7?s.outputScalingRequired?'Ausgangsskalierung für den aktuellen DSP-Bereich bestätigen':'Ausgangskonfiguration bereit zur Prüfung':s.nvmDone?'NVM-Schreiben bestätigt':'NVM-Schreiben noch nicht bestätigt';
    setText('gwFooterHint',text);
   }
   const ready=stage===4?!!plan&&plan.points.every(p=>pointRecord(p)):stage===5?!!s.calStaged:stage===6?!!s.calVerified:stage===9?!!s.nvmDone:true;
@@ -880,7 +880,12 @@ const ELMOS_GUIDED=(()=>{
   }
   if(stage===5){if(!s.calStaged){msg('Bitte die Koeffizienten zuerst berechnen und ins RAM übertragen.','warn');return}goto(6);return}
   if(stage===6){if(!s.calVerified){msg('Die unabhängige DSP-Prüfung muss erfolgreich abgeschlossen sein.','warn');return}goto(7);return}
-  if(stage===7){goto(8);return}
+  if(stage===7){
+   if(task==='calibration'&&s.outputScalingRequired){
+    msg('Die alte Ausgangsskalierung passt nicht zum aktuellen DSP-Zielbereich. Bitte «Scaling berechnen und aktivieren» und danach «Ausgangskonfiguration prüfen und vormerken» anklicken. Die Messpunkte und RAM-Kalibrierung bleiben erhalten.','warn');return;
+   }
+   goto(8);return
+  }
   if(stage===8){
    if(!$('gwUseAlarms').checked){window.ELMOS_GUIDED_API?.skipAlarms?.();goto(9);return}
    if(!window.ELMOS_GUIDED_API?.alarmPending?.()&&!window.ELMOS_GUIDED_API?.alarmStandaloneReady?.()){
