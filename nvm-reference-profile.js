@@ -98,7 +98,28 @@ const ELMOS_NVM_PROFILE=(()=>{
  const fromFile=(data,filename='Kalibrierprofil.json')=>{
   if(!data||typeof data!=='object'||Array.isArray(data))throw Error('Kalibrierprofil muss ein JSON-Objekt sein.');
   let profile=null;
-  if(data.format==='E70311-Reference-Profile-v1'){
+  if(data.format==='E70311-CALIBRATION-COMPLETE-v1'){
+   const nvm=data.nvm?.programmed;
+   if(data.type!=='calibration'||data.verifiedNvm!==true||
+      !Array.isArray(nvm?.words)||nvm.words.length!==64||
+      nvm.words.some(w=>!Number.isInteger(w)||w<0||w>65535)||
+      nvm.crc16!==nvm.words[63]||nvm.uid!==data.chipUID)
+    throw Error('Komplettabgleich enthält kein bestätigtes 64-Wort-NVM.');
+   const points=cleanPoints(data.calibrationPoints);
+   const temperatures=Array.isArray(data.reference?.temperatures)?
+    data.reference.temperatures.map(number).filter(finite).sort((a,b)=>a-b):[];
+   const fields=normalizeFields({
+    pmin:data.reference?.min,pmax:data.reference?.max,
+    pressureUnit:data.reference?.unit,limit:data.dsp?.outputLimit,
+    ...(temperatures.length?{ta:temperatures[0]}:{}),
+    ...(temperatures.length>1?{tb:temperatures[temperatures.length-1]}:{}),
+    vdd:data.calibrationSessionReport?.expertOutput?.vdd,
+    ...(data.dsp?.temperatureOrder>0?{tempModel:'an0203'}:{}),
+    ...readings(points)
+   });
+   profile={kind:'file',name:filename,uid:data.chipUID,crc:nvm.crc16,
+    fields,points,recordedAt:data.endedAt||data.nvmProgrammedAt,verified:false};
+  }else if(data.format==='E70311-Reference-Profile-v1'){
    profile={kind:'file',name:filename,uid:data.uid||null,crc:data.crc??null,
     fields:normalizeFields(data.fields),points:cleanPoints(data.points),
     recordedAt:data.savedAt||null,verified:false};
