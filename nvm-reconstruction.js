@@ -473,7 +473,7 @@ const ELMOS_NVM_RECON = (() => {
    const result=dom('div');result.className='nvmrecon-result';
    const explain=dom('details',undefined,'nvmrecon-explain');
    explain.append(dom('summary','Grenzen der Rückrechnung'),
-    dom('p','Der ursprüngliche Druckbereich in bar, die Prüfpunkte und echte unkalibrierte Messwerte werden durch das NVM allein nicht eindeutig gespeichert. TK0/TKR sind modellbasierte Rückrechnungen, keine unabhängige Sensormessung.','nvmrecon-muted'));
+    dom('p','Der ursprüngliche Druckbereich, die Prüfpunkte und echte unkalibrierte Messwerte werden durch das NVM allein nicht eindeutig gespeichert. TK0/TKR sind modellbasierte Rückrechnungen, keine unabhängige Sensormessung.','nvmrecon-muted'));
    const setup=dom('section',undefined,'nvmrecon-setup');
    setup.append(heading,detail,actions,feedback,grid,origin,profileDetails,advanced);
    const missing=dom('section',undefined,'nvmrecon-missing');
@@ -701,7 +701,7 @@ const ELMOS_NVM_RECON = (() => {
    ['Nullpunkt bei '+fmt(r.settings.ta,1)+' °C',r.rows[0].zero,'mV/V','Nominales Brückensignal','zero'],
    ['Spanne bei '+fmt(r.settings.ta,1)+' °C',r.rows[0].span,'mV/V','Zwischen Druck min/max','span'],
    ['TK0',finite(r.tk0)?r.tk0*100:null,'mV/V / 100 K','Nullpunktänderung','tk0'],
-   ['TK0, druckbezogen',finite(r.tk0Bar)?r.tk0Bar*100:null,'bar / 100 K','Äquivalenter Druckoffset','tk0bar'],
+   ['TK0, druckbezogen',finite(r.tk0Bar)?r.tk0Bar*100:null,r.settings.pressureUnit+' / 100 K','Äquivalenter Druckoffset','tk0bar'],
    ['TKR',finite(r.tkr)?r.tkr*10000:null,'% / 100 K','Relative Spannenänderung','tkr'],
    ['ADC-Spanne',r.adcSpan,'Digits','Bei Temperatur 1','adcspan']
   ]){
