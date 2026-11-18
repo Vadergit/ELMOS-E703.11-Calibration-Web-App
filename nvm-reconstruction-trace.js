@@ -42,6 +42,12 @@ const ELMOS_NVM_TRACE=(()=>{
    '('+f(ep.dsp,9)+' − '+f(s.postOffset,8)+') / '+f(s.postGain,8)+' = '+
     f(finite(s.postGain)&&s.postGain!==0?(ep.dsp-s.postOffset)/s.postGain:null,9),
    s.post?'Nachskalierung ist laut NVM aktiv.':'Nachskalierung nicht aktiv: Faktor 1, Offset 0.'));
+  const active=s.scoeff.map((v,i)=>({v,i})).filter(p=>p.v!==0);
+  result.push(step('Gespeicherte Druck-Koeffizienten',
+   'S_i = int16(NVM[35+i]) / 32768',
+   active.length?active.map(p=>'S'+p.i+' ['+(35+p.i)+'] '+raw(w[35+p.i])+' = '+f(p.v,9)).join(' · '):
+    'Alle S-Koeffizienten sind null.',
+   'Es werden nur die von null verschiedenen Koeffizienten aufgelistet.'));
   const k=temp===null?null:Array.from({length:4},(_,i)=>{
    const c=s.scoeff.slice(i*4,i*4+4);
    return ((c[3]*temp+c[2])*temp+c[1])*temp+c[0];
