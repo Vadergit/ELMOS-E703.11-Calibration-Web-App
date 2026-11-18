@@ -71,10 +71,14 @@ const ELMOS_NVM_PROFILE=(()=>{
   const points=cleanPoints(saved.points);
   const fields=normalizeFields({
    pmin:saved.min,pmax:saved.max,
-   limit:saved.limit,pressureUnit:saved.selected==='custom'?null:(saved.unit||saved.selected),
+   limit:saved.limit,pressureUnit:saved.selected==='custom'?'custom':(saved.unit||saved.selected),
    ...saved.reference,
    ...readings(points)
   });
+  if(saved.selected==='custom'){
+   // Unknown custom display units must never be silently re-labelled as bar.
+   delete fields.pmin;delete fields.pmax;delete fields.pressureUnit;
+  }
   if(!Object.keys(fields).length)return null;
   return {kind:'saved',name:'Bestätigter Abgleich aus diesem Browser',uid,crc,
    fields,points,recordedAt:saved.savedAt||null,verified:true};
