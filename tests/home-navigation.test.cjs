@@ -43,10 +43,10 @@ function harness({critical=false,measuring=false,archiveActive=false,logging=fal
  return {events,elements,archive,guided,api,code,window,document};
 }
 test('global home links and confirmation dialog are present on every classic tool',()=>{
- assert.match(html,/id="guidedHomeTop"[^>]*>⌂ Hauptseite<\/button>/);
- assert.match(html,/id="homeButton" aria-label="Zur geführten Hauptseite"/);
+ assert.match(html,/id="guidedHomeTop"[^>]*>⌂ Geführte Startseite<\/button>/);
+ assert.match(html,/id="homeButton" aria-label="Zur geführten Startseite"/);
  assert.match(html,/<h2>Sensorbrücken-Rechner<\/h2>/);
- assert.match(html,/<button type="button" data-guided-home>Zur Hauptseite<\/button>/);
+ assert.match(html,/<button type="button" data-guided-home>Zur geführten Startseite<\/button>/);
  assert.doesNotMatch(html,/Zum USB-Start/);
  for(const id of ['guidedHomeConfirm','guidedHomeAbort','guidedHomeStay','guidedHomeConfirmStatus'])
   assert.match(html,new RegExp('id="'+id+'"'));

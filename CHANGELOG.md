@@ -1,3 +1,11 @@
+## v0.7.133 – Geführte Startseite und Seitenposition getrennt behandeln
+
+- Eine erfolgreiche Sensorerkennung verändert **keine** geöffnete Seite mehr. Insbesondere erfolgt kein automatischer Sprung von «USB & Chip» zu «AFE optimieren».
+- Ein EEPROM Viewer oder Sensorbrücken-Rechner, der aus dem geführten Modus geöffnet wurde, bleibt auch nach einem erneuten Sensoranschluss sichtbar. Die gespeicherte Präferenz «Geführt» bleibt unabhängig davon bestehen.
+- Die globale Schaltfläche heisst jetzt «Geführte Startseite» und führt ausdrücklich zur Aufgabenauswahl; die klassische Seite «USB & Chip» ist davon getrennt.
+- Für einen unterbrochenen, aktiv geöffneten geführten Abgleich bleibt die bestehende sicherheitsbedingte Ungültigmachung der Messpunkte bestehen.
+- Erweiterte Regressionstests für Verbindungs- und Ansichtswechsel. USB-/NVM-Protokoll und Kalibrierberechnung unverändert.
+
 ## v0.7.132 – Geführte Ansicht beim Sensorwechsel beibehalten
 
 - Nach erfolgreicher E703.11-Erkennung erfolgt kein pauschaler Sprung mehr zur klassischen AFE-Seite. Nur wenn die klassische Ansicht ausdrücklich gewählt ist und der USB-Start angezeigt wird, erfolgt die bisherige Weiterleitung zur AFE-Einstellung.
