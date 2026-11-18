@@ -1,3 +1,12 @@
+## v0.7.137 – SSP3-Kaltstart-Nachweis für kombinierte NVM-Kalibrierung vereinheitlicht
+
+- Fehler in v0.7.136: Nach bestätigtem SSP3-Power-Cycle mit Magic-Cookie-Fallback und korrekt vorgemerkter AODO-Skalierung zeigte Schritt «Ausgang» eine grüne Startfreigabe, während Schritt «NVM» ausschliesslich den alternativen PSSC-RAM-Startnachweis akzeptierte und deshalb blockierte.
+- Die NVM-Sicherheitsprüfung `psscRecoveryProven()` akzeptiert jetzt **beide** vollständig bestätigten SSP3-Kaltstartpfade: PSSC-RAM-Start und AN0204 (PWR_OFF → PWR_ON/PLC T, erfolgreicher Chip-Readback).
+- Beide Prüfpfade benötigen die **laufende USB-Port-/Sitzungsbindung**, dieselbe Chip-UID, bestätigte PLC-Adresse `0x6C`, wiederhergestellte Stromversorgung und gültige Register-Rücklesung. AN0204 verlangt zusätzlich erfolgreiche OFF/ON-Befehlsquittungen, den abgeschlossenen Startstatus und eine bestätigte PLC-RAM-Freigabe.
+- Eine blosse Magic Cookie, ein ADC-Lesewert, eine alte Sitzung, eine unbestätigte Registeradresse oder eine DIY-Bridge reichen ausdrücklich **nicht** für die SSP3-NVM-Freigabe. CRC16, 64-Wort-Backup, AODO-Zielspannungen, RAM-DSP-Verifikation und unveränderte Kommunikations-Bootregister bleiben Pflicht.
+- Regressionsprüfung für gültigen PSSC-/AN0204-Kaltstart und für unzulässige Freigaben ergänzt. Softwareseitig geprüft; die dauerhafte NVM-Programmierung muss weiterhin an einem entbehrlichen E703.11 mit SSP3 validiert werden.
+- Hinweis: Beim Laden der neuen Version wird eine bisherige Kalibrierung im Browser nicht wiederhergestellt. Die laufende Sitzung nicht ohne Sicherung neu laden.
+
 ## v0.7.136 – Verbindung und NVM-Freigabe erneut prüfen, ohne Sensorneustart
 
 - Neuer Button **«Verbindung & NVM-Freigabe erneut prüfen (ohne Neustart)»** nach der DSP-Verifikation in klassischer, geführter und kompakter Ansicht.
