@@ -31,7 +31,8 @@ const ELMOS_NVM_RECON = (() => {
    const chipUid=uid.toUpperCase();
    const safeJSON=key=>{try{const raw=readLocal(key);return raw?JSON.parse(raw):null}catch{return null}};
    const saved=safeJSON('elmos-dsp-display-by-uid-v1-'+chipUid);
-   if(saved?.uid===chipUid&&saved.crc===words[63]){
+   if(saved?.uid===chipUid&&saved.crc===words[63]&&
+       (!('nvmWords' in saved)||(Array.isArray(saved.nvmWords)&&saved.nvmWords.length===64&&saved.nvmWords.every((v,i)=>v===words[i])))){
     if(Number.isInteger(saved.limit)&&saved.limit>=1000&&saved.limit<=32000){
      result.limit=saved.limit;
      result.limitSource='local';
