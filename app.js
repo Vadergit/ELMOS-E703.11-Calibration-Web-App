@@ -3316,7 +3316,7 @@ if(typeof document!=='undefined') (function UI(){
     throw Error('Das aktive Archivprotokoll gehört nicht zu diesem Sensor oder Vorgang. Bitte das falsche Protokoll zuerst abschliessen.');
    if(st.calImage?.before!==initial||st.calImage?.after!==modified)
     throw Error('Der vorbereitete NVM-Plan wurde beim Start des Archivs verändert. Kein NVM-Schreiben. Änderungsliste erneut prüfen.');
-   if(!await archive.event('nvm_before',{uid:id,words:initial,plannedWords:modified,changes:st.calImage.changes,supply:archiveVoltages(),calibrationReport:!outputOnly&&!alarmOnly?report():null}))
+   if(!await archive.event('nvm_before',{uid:id,words:initial,plannedWords:modified,changes:st.calImage.changes,operation:restoring?'restore':outputOnly?'output':alarmOnly?'alarm':'calibration',supply:archiveVoltages(),calibrationReport:!outputOnly&&!alarmOnly?report():null}))
     throw Error('Archivprotokoll konnte nicht geschrieben werden. NVM bleibt unverändert.');
    nvmWriteFeedback('Archivprotokoll bereit. Chip und NVM werden vor dem Schreiben erneut geprüft …');
    const saveOldNvm=$('nvmAutoBackup').checked;
@@ -3398,7 +3398,7 @@ if(typeof document!=='undefined') (function UI(){
     nvm:{words:after.slice(),crc8Validated:CAL.crc8(after)===(after[15]>>>8),crc16Validated:true},
     configuredUserId:'0x'+h(after[30],2),supply:archiveVoltages()
    }};
-   try{await window.ELMOS_ARCHIVE?.event('nvm_after',{uid:id,words:after,crc16:after[63],verified:true})}
+   try{await window.ELMOS_ARCHIVE?.event('nvm_after',{uid:id,words:after,crc16:after[63],verified:true,operation:restoring?'restore':outputOnly?'output':alarmOnly?'alarm':'calibration'})}
    catch(archiveError){logging('KRITISCH: NVM erfolgreich geschrieben, Archiv-Export fehlgeschlagen: '+archiveError.message);ca('backupMsg','NVM erfolgreich verifiziert, aber der Archivordner ist nicht beschreibbar! Bitte unmittelbar NVM-Backup exportieren.','error')}st.calImage=null;st.restorePlan=null;st.outputOnlyPlan=null;st.alarmOnlyPlan=null;st.alarmCalibrationSkipped=true;if(saveOldNvm)expert.afterNvmScan();const previousProgram=storedProgrammedNvm();
    const carryTemperatureBasis=!restoring&&CAL.programmedTemperatureProfileMatches(
     previousProgram,id,Object.fromEntries([[31,0x6C],[32,0x6E],[51,0x94],[52,0x96],[53,0x98],[54,0x9A]]
