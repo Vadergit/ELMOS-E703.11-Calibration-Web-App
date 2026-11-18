@@ -248,7 +248,7 @@ test('I2C-calibrated E703.11: inverse S range follows raw ADC domain even when S
  assert.equal(recon.missingExplanations(calc).some(x=>x.name==='Nullpunkt / Spanne in mV/V'),false);
 });
 test('Temperature polynomial inverse uses T_F and T_O mapped raw ADC limits',()=>{
- const w=image();w[31]=0xD000;w[32]=0x4800;
+ const w=image();w[31]=0xD000;w[32]=0x6000;
  // DSP_T = 0.2 * T: T for 25/75 C is outside ±1, but ADC_T remains valid.
  w[51]=0;w[52]=Math.round(0.2*32768);
  const r=recon.calculate(w,{limit:24000});
