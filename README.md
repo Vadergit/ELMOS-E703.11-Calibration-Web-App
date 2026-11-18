@@ -2,7 +2,7 @@
 
 **Ein geführter Kalibrierassistent für den ELMOS E703.11 und das SSP3-Eval-Board.** Ziel ist ein verständlicher Abgleich, der auch ohne tiefere Vorkenntnisse Schritt für Schritt funktioniert. Wer mehr benötigt, kann zusätzliche Messpunkte, DSP-Parameter und einen geschützten Expertenmodus verwenden.
 
-**Version: v0.7.130 · Stabile manuelle Chipinitialisierung wiederhergestellt** · [Änderungsverlauf](CHANGELOG.md) · **[Geplante Funktionen](ROADMAP.md)**
+**Version: v0.7.131 · Auto-Connect verwendet die bewährte manuelle Chipinitialisierung** · [Änderungsverlauf](CHANGELOG.md) · **[Geplante Funktionen](ROADMAP.md)**
 
 Der **Demo-Modus** wird in den Einstellungen erst nach Aktivierung von **Expertenparameter** angezeigt. Er simuliert Sensorwerte und Schreibvorgänge; die echte Hardware wird dabei nicht programmiert.
 
@@ -13,6 +13,14 @@ Der **Demo-Modus** wird in den Einstellungen erst nach Aktivierung von **Experte
 > **Geführter Assistent:** Nach der bestätigten SSP3-Verbindung stehen die neue Schritt-für-Schritt-Führung, die klassische Ansicht und der optionale Kompaktmodus zur Verfügung. Ein E703.11-Chip muss für den Abgleich verbunden sein. Als DIY-Programmer sind ausschliesslich ESP32-C3 SuperMini (v0.12 Labor-Quellcode) und Arduino Pro Micro (v0.28 Labor-Quellcode) vorgesehen. Die originalen ELMOS SSP3-Adapter bleiben separat unterstützt. Der vollständige Hardwaretest der DIY-Programmer ist noch offen.
 >
 > [Geführter Abgleich](docs/GEFUEHRTER_ASSISTENT.md) · [DIY-Programmer (ESP32-C3 / Pro Micro)](docs/USB_BRIDGE_GUIDE.md) · [Pinbelegung der zwei Boards](docs/ESP_BOARD_OPTIONS.md) · [DIY-Firmware-Installer](firmware-update.html)
+
+## v0.7.131 – Auto-Connect nutzt denselben ESP32-C3-/Pro-Micro-Initialisierungsablauf wie manuell
+
+**Ursache:** Der bisherige automatische Bridge-Zugriff rief `connectBridgeChip({autoProbe:true})` auf. Bei `PLC_NO_VALID_FRAME` unterdrückte dieser Modus die `PLC RECOVER`-Funktion, obwohl genau die normale `connectBridgeChip()`-Initialisierung im manuellen Ablauf funktioniert.
+
+Bei aktiviertem Auto-Connect werden jetzt dieselben Schritte wie im manuellen Bridge-Initialisierungspfad verwendet: Adapterfirmware und Interface konfigurieren, `BRIDGE_INFO` lesen, `PLC ACCESS` / optional `PLC START` durchführen und bei Bedarf `PLC RECOVER` versuchen. Anschliessend wird die Chip-UID verlangt. Die automatische Reinitialisierung ändert **keine NVM-Wörter** und übernimmt niemals alte Kalibrierpunkte. Bei Fehlern erfolgt ein erneuter Versuch.
+
+**Achtung:** `PLC RECOVER` kann für die Kommunikation vorübergehend Einstellungen im Sensor-RAM verändern und damit den Analogausgang beeinflussen. Die App zeigt diesen Hinweis bei der ausdrücklich aktivierten Auto-Connect-Option. Für an sicherheitsrelevante Folgesysteme angeschlossene Sensoren die Funktion nicht einschalten. Kein voller Praxistest mit echter Hardware erfolgt.
 
 ## v0.7.130 – Rückkehr zum zuletzt funktionierenden manuellen Sensorstart
 

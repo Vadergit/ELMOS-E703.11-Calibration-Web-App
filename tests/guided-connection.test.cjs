@@ -160,7 +160,7 @@ test('auto reconnect is opt-in, uses authorised ports, and never auto-programs t
  assert.doesNotMatch(source,/nvmProgram\(|writeReg\(|testPlcMagicCookie\(|startSsp3WithBoundedRetry\(/);
 });
 
-test('auto-connect uses ESP32-C3 bridge ACCESS for a newly connected chip',async()=>{
+test('auto-connect shares the ESP32-C3 manual bridge initialization sequence',async()=>{
  const start=app.indexOf(' async function attemptAutoReconnect(){');
  const end=app.indexOf(' const HELP=',start);
  assert.ok(start>0&&end>start);
@@ -168,8 +168,11 @@ test('auto-connect uses ESP32-C3 bridge ACCESS for a newly connected chip',async
  const simulate=adapter=>{
   const calls=[],st={port:{},readerAlive:true,chip:false,uid:null,adapterKind:adapter};
   const deps={st,mayAutoReconnect:()=>true,autoReconnectBlocked:()=>false,renderStatus:()=>calls.push('render'),
+   firmware:async()=>calls.push('firmware'),
+   selectChipInterface:async()=>calls.push('interface'),
+   stopLive:()=>calls.push('stop-live'),
    bridgeHello:async()=>{calls.push('hello');return true},
-   connectBridgeChip:async opts=>{assert.deepEqual(opts,{autoProbe:true});calls.push('access');st.chip=true;st.uid={hex:'0020011DBBE7'}},
+   connectBridgeChip:async(...args)=>{assert.equal(args.length,0,'Auto uses same no-argument bridge path as manual');calls.push('recover-capable');st.chip=true;st.uid={hex:'0020011DBBE7'}},
    detect:async opts=>{assert.deepEqual(opts,{requireUid:true});calls.push('read');st.chip=true;st.uid={hex:'0020011DBBE7'}},
    logging:()=>{},scheduleAutoReconnect:()=>calls.push('retry'),
    navigator:{serial:{getPorts:async()=>[]}},connect:async()=>{},autoReconnectBusy:false,autoReconnectAttempts:0,autoReconnectLastAt:0,autoReconnectLastError:''};
@@ -178,7 +181,7 @@ test('auto-connect uses ESP32-C3 bridge ACCESS for a newly connected chip',async
  };
  const bridge=simulate('bridge');
  await bridge.fn();
- assert.deepEqual(bridge.calls,['render','hello','access','render']);
+ assert.deepEqual(bridge.calls,['render','stop-live','firmware','interface','hello','recover-capable','render']);
  const ssp3=simulate('ssp3');
  await ssp3.fn();
  assert.deepEqual(ssp3.calls,['render','read','render']);
@@ -200,15 +203,18 @@ test('failed bridge auto-connect remains retryable without triggering write oper
  assert.ok(from>0&&to>from);
  const calls=[],st={port:{},readerAlive:true,chip:false,uid:null,adapterKind:'bridge'};
  const deps={st,mayAutoReconnect:()=>true,autoReconnectBlocked:()=>false,renderStatus:()=>calls.push('render'),
+  firmware:async()=>calls.push('firmware'),
+  selectChipInterface:async()=>calls.push('interface'),
+  stopLive:()=>calls.push('stop-live'),
   bridgeHello:async()=>{calls.push('hello');return true},
-  connectBridgeChip:async()=>{calls.push('access');throw Error('PLC_NO_VALID_FRAME')},
+  connectBridgeChip:async()=>{calls.push('recover-capable');throw Error('PLC_NO_VALID_FRAME')},
   detect:async()=>{throw Error('Should not read chip registers before ACCESS')},
   logging:()=>calls.push('log'),scheduleAutoReconnect:()=>calls.push('retry'),
   navigator:{serial:{getPorts:async()=>[]}},connect:async()=>{},autoReconnectBusy:false,autoReconnectAttempts:0,autoReconnectLastAt:0,autoReconnectLastError:''};
  const attempt=new Function(...Object.keys(deps),app.slice(from,to)+';return attemptAutoReconnect;')(...Object.values(deps));
  await attempt();
  assert.equal(st.chip,false);
- assert.deepEqual(calls,['render','hello','access','log','render','render','retry']);
+ assert.deepEqual(calls,['render','stop-live','firmware','interface','hello','recover-capable','log','render','render','retry']);
 });
 
 test('auto PLC reconnect honours configured VDD switch to reopen short startup windows',()=>{
@@ -259,4 +265,22 @@ test('the damaged auto-connect state is reset once on upgrading to v0.7.130',()=
  assert.match(app,/elmos-auto-reconnect-v130-safety-reset/);
  assert.match(app,/lsSet\(autoReconnectKey,'0'\)/);
  assert.match(app,/let autoReconnectEnabled=lsGet\(autoReconnectKey\)==='1'/);
+});
+
+test('auto bridge path now uses manual PLC RECOVER fallback and never calls autoProbe:true',()=>{
+ const start=app.indexOf(' async function attemptAutoReconnect(){');
+ const end=app.indexOf(' const HELP=',start);
+ const attempt=app.slice(start,end);
+ assert.match(attempt,/await firmware\(\)/);
+ assert.match(attempt,/await selectChipInterface\(\)/);
+ assert.match(attempt,/await bridgeHello\(\)/);
+ assert.match(attempt,/await connectBridgeChip\(\)/);
+ assert.doesNotMatch(attempt,/connectBridgeChip\(\{autoProbe:true\}\)/);
+ const bridgeStart=app.indexOf(' async function connectBridgeChip(');
+ const bridgeEnd=app.indexOf(' // CRC8 verification follows DS',bridgeStart);
+ const bridge=app.slice(bridgeStart,bridgeEnd);
+ assert.match(bridge,/await bridgeAccess\(\{power,recover:true\}\)/);
+ assert.match(bridge,/if\(autoProbe\|\|!st\.bridgePsscRam/);
+ assert.match(html,/temporäre RAM-Freigabe/);
+ assert.doesNotMatch(attempt,/writeReg\(|nvmProgram\(|nvmWrite\(/);
 });

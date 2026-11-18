@@ -1,3 +1,11 @@
+## v0.7.131 – Automatische Wiederverbindung übernimmt manuellen Bridge-Pfad
+
+- Auto-Connect verwendet für ESP32-C3 und Pro Micro künftig die vollständige bewährte Sequenz `firmware → selectChipInterface → bridgeHello → connectBridgeChip()` statt `connectBridgeChip({autoProbe:true})`.
+- `PLC RECOVER` kann bei `PLC_NO_VALID_FRAME` im Rahmen der bereits vorhandenen Routine temporär die 1-Wire-Kommunikation im Sensor-RAM aktivieren. Diese Änderung kann den Analogausgang beeinflussen; die automatische Funktion bleibt optional und explizit gekennzeichnet.
+- Sensorstatus und UID werden vor Wiedererkennung zurückgesetzt. Ohne bestätigte UID werden Live-Werte gestoppt und die Prüfung wiederholt. Keine automatische NVM-Programmierung.
+- Automatisierte Tests für erfolgreichen Wiederzugriff, fehlgeschlagenen Wiederzugriff und Gleichheit der manuellen Initialisierungssequenz; Version und Cache aktualisiert.
+- Hardwaretest am ESP32-C3 SuperMini noch offen.
+
 ## v0.7.130 – Rückbau der Verbindungsregression aus v0.7.129
 
 - Verbindungslogik und Benutzeroberfläche auf die v0.7.128 zurückgesetzt, bei der die manuelle ESP32-C3-Sensorinitialisierung funktionierte.
