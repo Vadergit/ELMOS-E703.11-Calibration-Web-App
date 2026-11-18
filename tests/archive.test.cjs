@@ -45,7 +45,7 @@ test('archive schema rejects foreign JSON without throwing',()=>{
  assert.equal(C.valid({hello:'world'}),false);
  assert.equal(C.valid({...valid,schemaVersion:99}),false);
  assert.equal(C.valid({...valid,events:null}),false);
- assert.match(C.filename({...valid,chipUID:'0011FF'}),/^ELMOS_20261113_120000_0011FF_/);
+ assert.match(C.filename({...valid,chipUID:'0011FF'}),/^ELMOS_Abgleich_20261113_120000_0011FF_/);
 });
 test('previous failed verification is never erased by a successful retry',()=>{
  const plan=C.makePlan({mode:'pressure',pressure:'0 5 10 5 0',fixedTemperature:25,cycles:1});
