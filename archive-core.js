@@ -45,11 +45,20 @@ const ELMOS_ARCHIVE_CORE=(()=>{
    ['calibration','verification','output','testlog'].includes(record.type)&&
    Array.isArray(record.events)&&typeof record.startedAt==='string';
  }
+ const filenameType={calibration:'Abgleich',verification:'Nachmessung',testlog:'Logging',output:'Ausgang'};
+ function safeFilenameLabel(input){
+  return String(input??'').trim().replace(/ä/g,'ae').replace(/ö/g,'oe').replace(/ü/g,'ue')
+   .replace(/Ä/g,'Ae').replace(/Ö/g,'Oe').replace(/Ü/g,'Ue').replace(/ß/g,'ss')
+   .normalize('NFKD').replace(/[\u0300-\u036f]/g,'').replace(/[^A-Za-z0-9]+/g,'_')
+   .replace(/^_+|_+$/g,'').slice(0,45).replace(/_+$/,'');
+ }
  function filename(record){
   const stamp=(record.startedAt||'').replace(/[-:]/g,'').replace(/[.Z]/g,'').replace('T','_').slice(0,15);
   const uid=String(record.chipUID||'UNKNOWN').replace(/[^a-z0-9]/gi,'').slice(0,24)||'UNKNOWN';
-  const id=String(record.id||'').replace(/[^a-z0-9-]/gi,'').slice(0,36);
-  return 'ELMOS_'+stamp+'_'+uid+'_'+id+'.json';
+  const id=String(record.id||'').replace(/[^a-z0-9-]/gi,'').slice(0,36)||'NOID';
+  const type=filenameType[record.type]||'Protokoll';
+  const label=safeFilenameLabel(record.label||record.verificationMetadata?.name||record.testConfiguration?.name);
+  return 'ELMOS_'+type+'_'+stamp+'_'+uid+(label?'_'+label:'')+'_'+id+'.json';
  }
  const eventPayload=e=>e?.data&&typeof e.data==='object'?e.data:e;
  function lastAttempt(record,stepIndex){
@@ -157,7 +166,7 @@ const ELMOS_ARCHIVE_CORE=(()=>{
    measured:latest.filter(Boolean).length,planned:latest.length,
    status:record.status||'running'};
  }
- return {FORMAT,VERSION,points,direction,makePlan,valid,filename,lastAttempt,hysteresis,hasMeaningfulData,verificationCompletion,displayStatus,outcomes};
+ return {FORMAT,VERSION,points,direction,makePlan,valid,filename,safeFilenameLabel,lastAttempt,hysteresis,hasMeaningfulData,verificationCompletion,displayStatus,outcomes};
 })();
 if(typeof module!=='undefined'&&module.exports)module.exports=ELMOS_ARCHIVE_CORE;
 if(typeof window!=='undefined')window.ELMOS_ARCHIVE_CORE=ELMOS_ARCHIVE_CORE;
