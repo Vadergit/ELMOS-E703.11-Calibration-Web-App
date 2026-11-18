@@ -174,34 +174,37 @@ if(typeof document!=='undefined') (function UI(){
  const hexWords=arr=>arr.map(x=>P.hx(x,2)).join(' ');
  const sleep=ms=>new Promise(r=>setTimeout(r,ms));
  const sameBoot=(a,b)=>!!a&&!!b&&LOCKED.every(k=>a[k]===b[k]);
+ // Background probes must not publish a provisional chip connection before UID verification.
+ function confirmedSensorForUi(){return !!st.chip&&(!autoReconnectBusy||!!st.uid?.hex)}
  function renderSensorReconnect(){
   const banner=$('sensorReconnectBanner'),button=$('sensorReconnectButton'),message=$('sensorReconnectMessage');
   if(!banner||!button||!message)return;
   const autoInfo=$('sensorAutoReconnectStatus');
-  const visible=!demoEnabled&&!!st.port&&!st.chip&&!st.readOnlySensor&&!st.closing;
+  const visible=!demoEnabled&&!!st.port&&!confirmedSensorForUi()&&!st.readOnlySensor&&!st.closing;
   banner.hidden=!visible;
   if(!visible)return;
   if(autoInfo){
    const active=autoReconnectEnabled&&!autoReconnectSuppressed;
-   autoInfo.textContent=!active?'Auto-Connect: Aus · In Einstellungen → Verbindung aktivieren.':
-    autoReconnectBusy?'Auto-Connect: Sensorprüfung läuft · Versuch '+autoReconnectAttempts:
-    'Auto-Connect: Aktiv · vollständige Chipinitialisierung · Versuche '+autoReconnectAttempts+
-    (autoReconnectLastAt?' · zuletzt '+new Date(autoReconnectLastAt).toLocaleTimeString('de-CH'):' · noch kein Versuch')+
-    (autoReconnectLastError?' · Fehler: '+autoReconnectLastError.slice(0,110):'')+
+   // Attempts, timestamps and transient errors stay in the diagnosis log.
+   // A stable message prevents the banner from changing on every retry.
+   const autoText=!active?'Auto-Connect: Aus · In Einstellungen → Verbindung aktivieren.':
+    'Auto-Connect: Aktiv · Sensorerkennung läuft im Hintergrund.'+
     (st.adapterKind==='bridge'&&st.iface==='plc'&&!st.sensorPowerEnabled?
-    ' · Kurzes 1-Wire-Startfenster erfordert geschaltete Sensor-VDD (GPIO10/D7).':'');
+    ' · Das kurze 1-Wire-Startfenster benötigt geschaltete Sensor-VDD (GPIO10/D7).':'');
+   if(autoInfo.textContent!==autoText)autoInfo.textContent=autoText;
   }
   // A user must always be able to request manual initialization even while
   // a background probe is running. The manual path then waits for its completion.
-  const working=st.reinitRunning||st.powerCycleRunning||st.magicRunning||st.startupRunning||st.diagRunning;
+  // Only deliberate/manual operations change the visible message to "initialising".
+  // Auto-Connect may internally toggle those flags while probing.
+  const working=!autoReconnectBusy&&(st.reinitRunning||st.powerCycleRunning||
+   st.magicRunning||st.startupRunning||st.diagRunning);
   const adapter=st.adapterKind==='bridge'?(st.bridgeBoard||'DIY-Programmer'):'SSP3';
-  message.textContent=working?'Verbindung wird geprüft und initialisiert …':
+  const statusText=working?'Verbindung wird geprüft und initialisiert …':
    st.adapterNoReply?`Der ${adapter} antwortet nicht auf USB-Befehle. USB-Port neu öffnen und prüfen, ob ein anderes Programm den Port verwendet.`:
-   st.adapterKind==='bridge'&&st.bridgeRxNote?st.bridgeRxNote:
-   st.sensorLost?`Kommunikation zum Sensor fehlgeschlagen. Der ${adapter} antwortet weiterhin über USB.`:
-   st.plcAddressProbes.length&&st.iface==='plc'
-     ? 'Keine bestätigte Chipantwort. Adressen 0x6C und 0x7C wurden geprüft. Details mit «Diagnose exportieren» sichern.'
-     : 'Keine gültige Sensorantwort. Sensoranschluss prüfen und erneut initialisieren.';
+   st.sensorLost?`Sensor-Kommunikation unterbrochen. Der ${adapter} bleibt über USB erreichbar. Bei Bedarf neu initialisieren.`:
+   `Noch keine bestätigte Sensorantwort. Der ${adapter} ist über USB verbunden. Sensoranschluss prüfen.`;
+  if(message.textContent!==statusText)message.textContent=statusText;
   button.disabled=working||st.writing||st.nvmWorking||st.calTask||st.afeWriteActive;
   button.textContent=working?'Initialisierung läuft …':
    st.adapterNoReply?'USB-Port neu öffnen':'Sensor neu initialisieren';
@@ -255,7 +258,7 @@ if(typeof document!=='undefined') (function UI(){
   if(addrRow)addrRow.hidden=st.iface!=='plc'||!$('expertMode').checked;
   if($('plcAddressLabel'))$('plcAddressLabel').textContent=(st.chip||st.readOnlySensor)&&st.plcAddressVerified?
    '0x'+h(st.plcAddress)+' (Sensorregister bestätigt)':
-   connected?'Suche: 0x6C / 0x7C':'—';$('status').textContent=demoEnabled?'Demo · Simulation':st.chip?'Sensor verbunden':st.readOnlySensor?'Sensor verbunden · Diagnose':st.reinitRunning||st.powerCycleRunning?'Sensor wird initialisiert':connected?(st.adapterNoReply?'SSP3 antwortet nicht':st.sensorLost?'Sensor nicht verbunden':'USB verbunden · Sensor nicht erkannt'):'Nicht verbunden';$('statusDot').className='dot'+(st.chip||st.readOnlySensor?' active':connected?' missing':'');$('fw').textContent=st.firmware?st.firmware.slice(0,19):'—';$('chip').textContent=st.readOnlySensor|| (st.chip?'Antwort erhalten':'—');$('ifaceLabel').textContent=st.iface==='plc'?'1-Wire':st.iface==='i2c'?'I²C':'SPI';$('srcLabel').textContent=st.adc?.source==='usb'?'USB / Chip':'Keine Messdaten';$('choose').disabled=connected||demoEnabled||!webSerialAvailable();$('auto').hidden=demoEnabled;$('disconnect').hidden=demoEnabled;$('adapterType').disabled=demoEnabled||st.closing;$('iface').disabled=demoEnabled;$('guidedLaunch').disabled=!st.chip||st.closing;$('guidedLaunch').classList.toggle('primary',st.chip&&!st.closing);$('auto').disabled=connected||!webSerialAvailable();$('disconnect').disabled=!connected||st.closing;$('readNow').disabled=!st.chip||st.magicRunning||st.powerCycleRunning;$('live').disabled=!connected||st.magicRunning||st.powerCycleRunning;$('live').textContent=st.live?'Live-Messung stoppen':'Live-Messung starten';$('readBoot').disabled=!st.chip;$('readRegs').disabled=!st.chip&&!st.readOnlySensor;$('afeWord').textContent=st.afe===null?'CFG_AFE1: —':'CFG_AFE1: 0x'+h(st.afe,2);const startupTools=$('plcStartupTools');if(startupTools)startupTools.hidden=demoEnabled||st.adapterKind!=='ssp3'||st.iface!=='plc'||!$('expertMode').checked;
+   connected?'Suche: 0x6C / 0x7C':'—';$('status').textContent=demoEnabled?'Demo · Simulation':confirmedSensorForUi()?'Sensor verbunden':st.readOnlySensor?'Sensor verbunden · Diagnose':!autoReconnectBusy&&(st.reinitRunning||st.powerCycleRunning)?'Sensor wird initialisiert':connected?(st.adapterNoReply?'USB-Adapter antwortet nicht':st.sensorLost?'Sensor nicht verbunden':'USB verbunden · Sensor nicht erkannt'):'Nicht verbunden';$('statusDot').className='dot'+(confirmedSensorForUi()||st.readOnlySensor?' active':connected?' missing':'');$('fw').textContent=st.firmware?st.firmware.slice(0,19):'—';$('chip').textContent=st.readOnlySensor|| (st.chip?'Antwort erhalten':'—');$('ifaceLabel').textContent=st.iface==='plc'?'1-Wire':st.iface==='i2c'?'I²C':'SPI';$('srcLabel').textContent=st.adc?.source==='usb'?'USB / Chip':'Keine Messdaten';$('choose').disabled=connected||demoEnabled||!webSerialAvailable();$('auto').hidden=demoEnabled;$('disconnect').hidden=demoEnabled;$('adapterType').disabled=demoEnabled||st.closing;$('iface').disabled=demoEnabled;$('guidedLaunch').disabled=!st.chip||st.closing;$('guidedLaunch').classList.toggle('primary',st.chip&&!st.closing);$('auto').disabled=connected||!webSerialAvailable();$('disconnect').disabled=!connected||st.closing;$('readNow').disabled=!st.chip||st.magicRunning||st.powerCycleRunning;$('live').disabled=!connected||st.magicRunning||st.powerCycleRunning;$('live').textContent=st.live?'Live-Messung stoppen':'Live-Messung starten';$('readBoot').disabled=!st.chip;$('readRegs').disabled=!st.chip&&!st.readOnlySensor;$('afeWord').textContent=st.afe===null?'CFG_AFE1: —':'CFG_AFE1: 0x'+h(st.afe,2);const startupTools=$('plcStartupTools');if(startupTools)startupTools.hidden=demoEnabled||st.adapterKind!=='ssp3'||st.iface!=='plc'||!$('expertMode').checked;
  $('connectionBaudOptions').hidden=!$('expertMode').checked;
  $('iface').querySelector('option[value=spi]').disabled=st.adapterKind==='bridge';
  $('plcBaud').closest('label').hidden=st.iface!=='plc';
@@ -545,7 +548,7 @@ if(typeof document!=='undefined') (function UI(){
  }
  function dspNumber(n){return Number.isFinite(n)?n.toLocaleString('de-CH',{minimumFractionDigits:2,maximumFractionDigits:2}):'—'}
  function renderLiveOverview(){
-  const connected=!!st.port&&st.chip;
+  const connected=!!st.port&&confirmedSensorForUi();
   const activeADC=connected&&st.adc&&Number.isFinite(st.adc.s);
   const activeDSP=connected&&st.dsp&&Number.isInteger(st.dsp.raw)&&!st.dspError;
   const range=getActiveDSPRange();
@@ -623,7 +626,7 @@ if(typeof document!=='undefined') (function UI(){
    'Kein gültiger Anzeigebereich');
  }
  function renderDSPLive(){
-  const connected=!!st.port&&st.chip;
+  const connected=!!st.port&&confirmedSensorForUi();
   const fresh=connected&&st.dsp&&Number.isInteger(st.dsp.raw);
   const range=getActiveDSPRange();
   const val=fresh&&range?range.min+(st.dsp.raw+range.limit)/(2*range.limit)*(range.max-range.min):NaN;

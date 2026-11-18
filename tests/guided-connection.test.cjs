@@ -226,10 +226,13 @@ test('auto PLC reconnect honours configured VDD switch to reopen short startup w
  assert.match(app,/await bridgeAccess\(\{power\}\)/);
  assert.match(app,/if\(autoProbe\|\|!st\.bridgePsscRam/);
 });
-test('sensor banner shows auto-connect enabled state, attempts and last error',()=>{
+test('sensor banner shows a stable auto-connect state while detailed retries stay in the log',()=>{
  assert.match(html,/id="sensorAutoReconnectStatus"/);
  assert.match(app,/Auto-Connect: Aus/);
- assert.match(app,/Auto-Connect: Sensorprüfung läuft/);
+ assert.match(app,/Auto-Connect: Aktiv · Sensorerkennung läuft im Hintergrund/);
+ const from=app.indexOf(' function renderSensorReconnect(){');
+ const to=app.indexOf(' const runningOperations=',from);
+ assert.doesNotMatch(app.slice(from,to),/autoReconnectAttempts|autoReconnectLastError/);
  assert.match(app,/autoReconnectAttempts\+\+/);
  assert.match(app,/autoReconnectLastError=String\(error\.message\|\|error\)/);
  assert.match(html,/data-app-version="0\.7\.131"/);
@@ -258,7 +261,7 @@ test('manual reconnect is not disabled by an in-flight auto probe and cancels fu
  assert.match(code,/cancelAutoReconnect\(\)/);
  assert.match(code,/if\(autoReconnectPromise\)await Promise\.race/);
  assert.match(code,/await connectBridgeChip\(\)/);
- assert.match(app,/const working=st\.reinitRunning\|\|st\.powerCycleRunning/);
+ assert.match(app,/const working=!autoReconnectBusy&&\(st\.reinitRunning\|\|st\.powerCycleRunning/);
  assert.match(app,/autoReconnectPromise=task/);
 });
 test('the damaged auto-connect state is reset once on upgrading to v0.7.130',()=>{
@@ -283,4 +286,51 @@ test('auto bridge path now uses manual PLC RECOVER fallback and never calls auto
  assert.match(bridge,/if\(autoProbe\|\|!st\.bridgePsscRam/);
  assert.match(html,/temporäre RAM-Freigabe/);
  assert.doesNotMatch(attempt,/writeReg\(|nvmProgram\(|nvmWrite\(/);
+});
+
+
+test('background reconnect probes keep the disconnected UI stable until the UID is confirmed',()=>{
+ const begin=app.indexOf(' function confirmedSensorForUi(){');
+ const end=app.indexOf(' const runningOperations=',begin);
+ assert.ok(begin>=0&&end>begin,'isolated connection UI logic remains testable');
+ const code=app.slice(begin,end);
+ const render=(overrides={},busy=true)=>{
+  const elements={
+   sensorReconnectBanner:{hidden:false},
+   sensorReconnectButton:{disabled:false,textContent:''},
+   sensorReconnectMessage:{textContent:'',},
+   sensorAutoReconnectStatus:{textContent:''}
+  };
+  const st={port:{},chip:false,uid:null,readOnlySensor:null,closing:false,
+   reinitRunning:false,powerCycleRunning:false,magicRunning:false,startupRunning:false,
+   diagRunning:false,writing:false,nvmWorking:false,calTask:false,afeWriteActive:false,
+   adapterKind:'bridge',bridgeBoard:'ESP32-C3 SuperMini',iface:'plc',
+   sensorPowerEnabled:true,sensorLost:true,adapterNoReply:false,...overrides};
+  const fn=new Function('st','autoReconnectBusy','autoReconnectEnabled',
+   'autoReconnectSuppressed','demoEnabled','$',
+   code+'return {renderSensorReconnect,confirmedSensorForUi};');
+  const ui=fn(st,busy,true,false,false,id=>elements[id]);
+  ui.renderSensorReconnect();
+  return {elements,ready:ui.confirmedSensorForUi()};
+ };
+ const idle=render({chip:false},false);
+ const interim=render({chip:true,uid:null},true);
+ const failed=render({chip:false,uid:null},true);
+ const success=render({chip:true,uid:{hex:'0020011DBBE7'}},true);
+ assert.equal(idle.ready,false);
+ assert.equal(interim.ready,false,'Provisional AFE result is not a confirmed connection');
+ assert.equal(failed.ready,false);
+ assert.equal(idle.elements.sensorReconnectBanner.hidden,false);
+ assert.equal(interim.elements.sensorReconnectBanner.hidden,false,'Banner does not disappear halfway through a probe');
+ assert.equal(failed.elements.sensorReconnectBanner.hidden,false);
+ assert.equal(success.ready,true);
+ assert.equal(success.elements.sensorReconnectBanner.hidden,true);
+ assert.equal(idle.elements.sensorAutoReconnectStatus.textContent,
+  interim.elements.sensorAutoReconnectStatus.textContent,'Retries keep the same on-screen auto-connect label');
+ assert.equal(interim.elements.sensorReconnectMessage.textContent,
+  failed.elements.sensorReconnectMessage.textContent,'Retries do not alternate detailed error messages');
+ assert.doesNotMatch(interim.elements.sensorAutoReconnectStatus.textContent,/Versuch|Fehler:|zuletzt/);
+ assert.match(html,/html\.archive-active #sensorReconnectBanner\{display:none!important\}/);
+ assert.match(app,/const connected=!!st\.port&&confirmedSensorForUi\(\);/);
+ assert.match(app,/\$\('status'\)\.textContent=demoEnabled\?'Demo · Simulation':confirmedSensorForUi\(\)/);
 });
