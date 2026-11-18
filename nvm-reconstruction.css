@@ -172,3 +172,7 @@
 #nvmReconstruction .nvmrecon-profile-table th:first-child,
 #nvmReconstruction .nvmrecon-profile-table td:first-child{text-align:left}
 #nvmReconstruction .nvmrecon-profile-table th{color:var(--nv-muted);font-size:10.5px;background:var(--nv-soft)}
+
+#nvmReconstruction .nvmrecon-pressure-unit-label{display:flex;align-items:center;gap:10px;flex-wrap:wrap;font-size:11.5px;font-weight:700;color:var(--nv-muted);margin:9px 0}
+#nvmReconstruction .nvmrecon-pressure-unit{min-width:90px;min-height:31px;border-radius:7px;border:1px solid var(--nv-edge);padding:5px 7px;font-size:12px;background:var(--paper);color:var(--ink)}
+#nvmReconstruction .nvmrecon-pressure-unit:disabled{background:var(--nv-soft);color:var(--nv-muted);border-style:dashed;opacity:.8;cursor:not-allowed}
