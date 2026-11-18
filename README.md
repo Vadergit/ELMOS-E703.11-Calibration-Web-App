@@ -2,7 +2,7 @@
 
 **Ein geführter Kalibrierassistent für den ELMOS E703.11 und das SSP3-Eval-Board.** Ziel ist ein verständlicher Abgleich, der auch ohne tiefere Vorkenntnisse Schritt für Schritt funktioniert. Wer mehr benötigt, kann zusätzliche Messpunkte, DSP-Parameter und einen geschützten Expertenmodus verwenden.
 
-**Version: v0.7.139 · Auto-Connect verwendet die bewährte manuelle Chipinitialisierung** · [Änderungsverlauf](CHANGELOG.md) · **[Geplante Funktionen](ROADMAP.md)**
+**Version: v0.7.140 · Auto-Connect verwendet die bewährte manuelle Chipinitialisierung** · [Änderungsverlauf](CHANGELOG.md) · **[Geplante Funktionen](ROADMAP.md)**
 
 Der **Demo-Modus** wird in den Einstellungen erst nach Aktivierung von **Expertenparameter** angezeigt. Er simuliert Sensorwerte und Schreibvorgänge; die echte Hardware wird dabei nicht programmiert.
 
@@ -13,6 +13,10 @@ Der **Demo-Modus** wird in den Einstellungen erst nach Aktivierung von **Experte
 > **Geführter Assistent:** Nach der bestätigten SSP3-Verbindung stehen die neue Schritt-für-Schritt-Führung, die klassische Ansicht und der optionale Kompaktmodus zur Verfügung. Ein E703.11-Chip muss für den Abgleich verbunden sein. Als DIY-Programmer sind ausschliesslich ESP32-C3 SuperMini (v0.12 Labor-Quellcode) und Arduino Pro Micro (v0.28 Labor-Quellcode) vorgesehen. Die originalen ELMOS SSP3-Adapter bleiben separat unterstützt. Der vollständige Hardwaretest der DIY-Programmer ist noch offen.
 >
 > [Geführter Abgleich](docs/GEFUEHRTER_ASSISTENT.md) · [DIY-Programmer (ESP32-C3 / Pro Micro)](docs/USB_BRIDGE_GUIDE.md) · [Pinbelegung der zwei Boards](docs/ESP_BOARD_OPTIONS.md) · [DIY-Firmware-Installer](firmware-update.html)
+
+## v0.7.140 – DSP und AODO gemeinsam mit ESP32-C3 User-NVM prüfen
+
+Der Magic-Cookie-Recovery-Abgleich wurde für **ESP32-C3 SuperMini** erweitert: Eine ausdrücklich vorgemerkte, zu S0/S1 passende Analogskalierung darf zusammen mit den DSP-Koeffizienten in den geprüften Änderungsplan aufgenommen werden, **wenn** die Firmware `BRIDGE_GENERIC_RAM_V1` und `BRIDGE_USER_NVM_V1` meldet und ein tatsächlicher, per Lastschalter am GPIO10 gestarteter Sensor-Kaltstart derselben UID/Sitzung bestätigt ist. Die Firmware verlangt zusätzlich beim eigentlichen NVM-Write den hardwaregebundenen `NVM ARM HOST`-Nachweis. Ein reiner RAM-Magic-Cookie-/PLC-RECOVER-Zugriff reicht nicht. Original-NVM-Backup, CRC/UID/Bootschutz, analoge Spannungsvorschau und Hardwaretest bleiben Pflicht. Bestehende Sensor-RAM-Abgleiche vor einem Browser-Reload archivieren.
 
 ## v0.7.139 – Kaltstartnachweis beim NVM-Plan sicher nachprüfen
 
