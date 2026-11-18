@@ -964,7 +964,10 @@ if(typeof document!=='undefined') (function UI(){
      !proof.steps.some(step=>step.ok===true&&step.command==='PWR_OFF 03E8')||
      !proof.steps.some(step=>step.ok===true&&step.command==='PWR_ON 0C80 00C8 0 -> PLC T'))
    return false;
+  const resumeLive=st.live&&!st.manualLivePause;
+  stopLive();
   try{
+   if(st.liveReadPromise)await st.liveReadPromise.catch(()=>{});
    const cfg=await readReg(0x06,1800),pads=await readReg(0x0A,1800);
    if(st.port!==port||st.sessionIndex!==session||st.uid?.hex!==uid||
       st.powerCycleResult!==proof)throw Error('USB-Sitzung oder Chip-ID verändert');
@@ -979,6 +982,9 @@ if(typeof document!=='undefined') (function UI(){
   }catch(error){
    proof.plcReadbackError=String(error.message||error);
    logging('Kaltstart-Nachprüfung nur lesend: '+proof.plcReadbackError);
+  }finally{
+   if(resumeLive&&st.port===port&&!st.closing&&!st.calTask&&!st.writing&&!st.nvmWorking)
+    startLive();
   }
   return psscRecoveryProven();
  }
