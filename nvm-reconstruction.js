@@ -736,8 +736,8 @@ const ELMOS_NVM_RECON = (() => {
    status.classList.add('nvmrecon-file-current');
    const badge=dom('span','LOKALE DATEI · NICHT LIVE','nvmrecon-source-tag');
    const name=dom('strong',state.fileName||'NVM-Backup','nvmrecon-source-name');
-   const hint=dom('span','64 Wörter · '+(state.fileKind==='complete'?'bestätigter Komplettabgleich':'aus JSON importiert')+
-    ' · Datei-CRC/UID nicht separat geprüft'+
+   const hint=dom('span','64 Wörter · '+(state.fileKind==='complete'?'verifizierter Komplettabgleich laut Export':'aus JSON importiert')+
+    ' · Chip-UID aus Dateidaten geprüft; NVM-Prüfsumme nicht am Sensor erneut gelesen'+
     (state.connected?' · «Sensor-NVM auslesen» lädt den aktuellen Chipstand':' · ohne Sensorverbindung'),'nvmrecon-source-hint');
    status.replaceChildren(badge,name,hint);
   }
