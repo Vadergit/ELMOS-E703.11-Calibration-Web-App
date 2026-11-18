@@ -57,7 +57,7 @@ const ELMOS_ARCHIVE_CORE=(()=>{
   const uid=String(record.chipUID||'UNKNOWN').replace(/[^a-z0-9]/gi,'').slice(0,24)||'UNKNOWN';
   const id=String(record.id||'').replace(/[^a-z0-9-]/gi,'').slice(0,36)||'NOID';
   const type=filenameType[record.type]||'Protokoll';
-  const label=safeFilenameLabel(record.label||record.verificationMetadata?.name||record.testConfiguration?.name);
+  const label=safeFilenameLabel(record.label); // fixed at begin(); later metadata must never rename an open file
   return 'ELMOS_'+type+'_'+stamp+'_'+uid+(label?'_'+label:'')+'_'+id+'.json';
  }
  const eventPayload=e=>e?.data&&typeof e.data==='object'?e.data:e;
