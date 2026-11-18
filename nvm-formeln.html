@@ -1,0 +1,149 @@
+<!doctype html>
+<html lang="de-CH">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="color-scheme" content="light dark">
+<title>Formeln verstehen · ELMOS E703.11 NVM-Rückrechner</title>
+<style>
+:root{--bg:#eaf0f5;--paper:#fff;--soft:#f2f6fa;--ink:#19324b;--muted:#50657b;--line:#bac9d8;--blue:#126491;--blue-soft:#e7f3fc}
+*{box-sizing:border-box}html{scroll-behavior:smooth}body{font:14px/1.65 system-ui,-apple-system,"Segoe UI",Arial,sans-serif;margin:0;background:var(--bg);color:var(--ink)}a{color:var(--blue)}
+a:focus-visible{outline:3px solid #1e91d7;outline-offset:3px;border-radius:3px}
+.header{position:sticky;top:0;z-index:5;border-bottom:1px solid var(--line);background:var(--paper);box-shadow:0 1px 6px #17293b0a}
+.header-inner{max-width:1250px;margin:auto;padding:13px 20px;display:flex;align-items:center;justify-content:space-between;gap:15px;flex-wrap:wrap}
+.brand{display:flex;gap:11px;align-items:center}.mark{width:34px;height:34px;border-radius:9px;background:var(--blue);color:#fff;font-weight:850;display:grid;place-items:center;font-size:20px}
+.brand strong{display:block;font-size:15px;line-height:1.25}.brand small{display:block;color:var(--muted);font-size:11px}
+.back{text-decoration:none;font-weight:700;font-size:12px;border:1px solid var(--line);padding:7px 11px;border-radius:7px;white-space:nowrap}
+.layout{max-width:1250px;display:grid;grid-template-columns:228px minmax(0,1fr);gap:20px;margin:18px auto;padding:0 20px}
+.toc{align-self:start;position:sticky;top:90px;background:var(--paper);border:1px solid var(--line);border-radius:12px;padding:14px}
+.toc strong{display:block;margin:0 0 8px;font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.07em}
+.toc a{display:block;padding:6px 8px;text-decoration:none;font-size:12px;border-radius:6px;color:var(--ink)}
+.toc a:hover{background:var(--blue-soft);color:var(--blue)}
+.main{min-width:0}.hero{background:var(--paper);border:1px solid var(--line);border-radius:13px;padding:22px 24px;margin-bottom:12px}
+.kicker{text-transform:uppercase;color:var(--blue);font-size:10px;letter-spacing:.12em;font-weight:850}
+h1{font-size:28px;letter-spacing:-.03em;line-height:1.2;margin:5px 0 10px}h2{font-size:18px;line-height:1.25;margin:0 0 8px;letter-spacing:-.02em}h3{font-size:13px;margin:0 0 5px}
+p{margin:6px 0 10px;color:var(--ink)}.muted{color:var(--muted);font-size:12px}
+.chips{display:flex;gap:7px;flex-wrap:wrap;margin-top:14px}.chips a{padding:6px 9px;border:1px solid var(--line);border-radius:6px;font-weight:700;text-decoration:none;font-size:11px;background:var(--soft)}
+.chapter{background:var(--paper);border:1px solid var(--line);border-radius:12px;padding:19px 23px;margin:12px 0;scroll-margin-top:85px}
+.chapter-intro{font-size:12px;color:var(--muted);margin-bottom:12px}.steps{display:grid;gap:10px}
+.step{border-left:3px solid #8eb8d2;padding:2px 0 4px 13px;margin:4px 0 9px}
+.formula{display:block;background:var(--soft);padding:10px 12px;margin:8px 0;border:1px solid var(--line);border-radius:8px;color:var(--ink);font:600 13px/1.7 "SFMono-Regular",Consolas,"Courier New",monospace;white-space:pre-wrap;overflow-wrap:anywhere}
+.note{background:var(--blue-soft);border-left:3px solid var(--blue);padding:10px 13px;border-radius:5px;font-size:12px;line-height:1.55;margin:12px 0}
+.info-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px;margin:12px 0}.mini{padding:11px 13px;border:1px solid var(--line);border-radius:9px;background:var(--soft)}.mini strong{display:block;font-size:12px}.mini span{font-size:11px;color:var(--muted)}
+table{border-collapse:collapse;width:100%;font-size:12px;margin:12px 0}th,td{border-bottom:1px solid var(--line);text-align:left;padding:9px 7px;vertical-align:top}th{font-size:11px;color:var(--muted);background:var(--soft)}
+.footer{margin:22px 0;color:var(--muted);font-size:11px;line-height:1.6}
+@media(max-width:880px){.layout{grid-template-columns:1fr;gap:10px}.toc{position:static;display:flex;flex-wrap:wrap;gap:2px;padding:10px}.toc strong{flex-basis:100%;margin:0}.toc a{padding:4px 8px}}
+@media(max-width:540px){.layout{padding:0 10px;margin-top:10px}.header-inner{padding:10px}.hero,.chapter{padding:14px}.info-grid{grid-template-columns:1fr}h1{font-size:24px}}
+@media(prefers-color-scheme:dark){:root{--bg:#111b27;--paper:#1c2d3d;--soft:#22394e;--ink:#e6f0f8;--muted:#b8c9d8;--line:#425b70;--blue:#8fd1ff;--blue-soft:#203e55}.mark{color:#142738}.note{color:var(--ink)}}@media print{.header,.toc,.chips,.back{display:none!important}.layout{display:block;max-width:none;padding:0}.hero,.chapter{break-inside:avoid;border-color:#bbb;box-shadow:none}.chapter{page-break-inside:avoid}body{background:white;color:black}}
+</style>
+</head>
+<body>
+<header class="header"><div class="header-inner"><div class="brand"><span class="mark">E</span><div><strong>NVM-Rückrechner · Formelübersicht</strong><small>ELMOS E703.11 · vom Register zum Ergebnis</small></div></div><a class="back" href="index.html#nvm-rechner">← Zurück zum NVM-Rechner</a></div></header>
+<div class="layout">
+<nav class="toc" aria-label="Inhaltsverzeichnis">
+<strong>Rechenweg</strong>
+<a href="#uebersicht">Überblick</a><a href="#register">1. Registerwerte</a><a href="#temperatur">2. Temperaturpfad / ADC_T</a><a href="#druck">3. Druckpfad / ADC_S</a><a href="#bruecke">4. Brückensignal in mV/V</a>
+<strong>Kennwerte</strong>
+<a href="#nullpunkt">Nullpunkt</a><a href="#spanne">Spanne</a><a href="#tk0">TK0</a><a href="#tk0bar">TK0 in bar</a><a href="#tkr">TKR</a><a href="#adcspan">ADC-Spanne</a><a href="#analog">Analogausgang</a>
+<strong>Einordnung</strong><a href="#beispiel">Rechenbeispiel</a><a href="#grenzen">Grenzen & Quellen</a>
+</nav>
+<main class="main">
+<section class="hero" id="uebersicht"><div class="kicker">Nachschlagewerk · nur lesend</div><h1>Wie entstehen die Werte aus dem NVM?</h1>
+<p>Der Rechner macht die Signalverarbeitung des E703.11 rückwärts: Er nimmt einen gewünschten DSP-Druckwert, sucht den dazu passenden normierten Sensorwert und rechnet über die gespeicherten Verstärker- und Skalierungseinstellungen zurück.</p>
+<p class="muted">Die kleinen <strong>ⓘ</strong>-Symbole im Rechner zeigen die konkreten Zahlen aus deiner importierten Datei. Auf dieser Seite stehen die allgemeinen Formeln und ihre Bedeutung.</p>
+<div class="chips"><a href="#nullpunkt">Nullpunkt</a><a href="#spanne">Spanne</a><a href="#tk0">TK0</a><a href="#tkr">TKR</a><a href="#adcspan">ADC-Spanne</a><a href="#analog">Ausgang</a></div>
+<div class="note"><strong>Wichtig:</strong> Die mV/V-Werte sind Näherungen auf Basis nominaler AFE-Daten. Das NVM enthält nicht automatisch die ursprünglichen Rohmessungen oder den echten Druckbereich in bar.</div></section>
+
+<section class="chapter" id="register"><div class="kicker">Schritt 1</div><h2>Registerwerte in Zahlen umwandeln</h2>
+<p>Ein NVM-Wort besitzt 16 Bit. Der Rechner interpretiert es zuerst als vorzeichenbehaftete Zahl und skaliert es anschliessend entsprechend dem Datenformat.</p>
+<div class="info-grid"><div class="mini"><strong>Q3.12</strong><span>Verstärkung und Offset: S_F, S_O, T_F, T_O, AODO_F und AODO_O</span><code class="formula">Wert = int16(Rohwort) / 4096</code></div>
+<div class="mini"><strong>Q0.15</strong><span>Druck- und Temperaturpolynome: S0–S15 sowie T0–T3</span><code class="formula">Wert = int16(Rohwort) / 32768</code></div></div>
+<table><thead><tr><th>NVM-Wörter</th><th>Verwendung</th></tr></thead><tbody>
+<tr><td>31–34</td><td>T_O, T_F, S_O, S_F – Normierung der beiden ADC-Pfade</td></tr>
+<tr><td>35–50</td><td>S0–S15 – Druckpolynom mit Temperaturkompensation</td></tr>
+<tr><td>51–54</td><td>T0–T3 – Temperaturkorrektur</td></tr>
+<tr><td>55–56</td><td>ALARM_LO/HI – nur bei aktivierter DSP-Nachskalierung als Koeffizienten</td></tr>
+<tr><td>57–58</td><td>AODO_O, AODO_F – Ausgangsskalierung</td></tr>
+<tr><td>16, 27, 28</td><td>CFG_EN, CFG_AFE0, CFG_AFE1 – aktivierte Funktionen und analoge Verstärker</td></tr>
+</tbody></table></section>
+
+<section class="chapter" id="temperatur"><div class="kicker">Schritt 2</div><h2>Temperaturpfad: vom Grad Celsius zu ADC_T</h2>
+<p>Für ein gemäss AN0203 abgeglichenes Modell wird zuerst der gewünschte DSP-Temperaturwert berechnet. Das Werksprofil verwendet eine andere Zuordnung.</p>
+<code class="formula">DSP_T,Ziel [Digits] = 387,88 × Temperatur [°C] − 16’485
+DSP_T,Ziel (normiert) = DSP_T,Ziel [Digits] / 32768</code>
+<p>Dann wird das gespeicherte Temperaturpolynom umgekehrt, um <strong>T</strong> zu finden:</p>
+<code class="formula">DSP_T = T0 + T1 × T + T2 × T² + T3 × T³
+T = T_F × ADC_T + T_O
+ADC_T [Digits] = ((T − T_O) / T_F) × 32768</code>
+<div class="note">Wenn T1–T3 null sind, ist <strong>DSP_T konstant</strong>. Dann lässt sich der ursprüngliche ADC_T-Wert nicht aus dem NVM bestimmen. Zwei separat gemessene ADC_T-Werte können im Rechner optional eingegeben werden. Bei nicht eindeutigen Polynomen wird kein Rohwert erfunden.</div></section>
+
+<section class="chapter" id="druck"><div class="kicker">Schritt 3</div><h2>Druckpfad: DSP_S zurück zu ADC_S</h2>
+<div class="steps"><div class="step"><h3>3.1 Gewünschten DSP-Druckwert festlegen</h3><code class="formula">DSP_S,min = −DSP-Endwert / 32768
+DSP_S,max = +DSP-Endwert / 32768</code><p class="muted">Der DSP-Endwert ist ein Eingabewert; standardmässig wird ±32’000 verwendet.</p></div>
+<div class="step"><h3>3.2 Optionale Nachskalierung zurücknehmen</h3><code class="formula">DSP_S,vor = (DSP_S,Ziel − Post-Offset) / Post-Gain</code><p class="muted">Nur wenn die DSP-Nachskalierung aktiviert ist. Sonst gilt Gain = 1 und Offset = 0.</p></div>
+<div class="step"><h3>3.3 Temperaturabhängige Druckkoeffizienten bilden</h3><code class="formula">K0 = S0  + S1×T  + S2×T²  + S3×T³
+K1 = S4  + S5×T  + S6×T²  + S7×T³
+K2 = S8  + S9×T  + S10×T² + S11×T³
+K3 = S12 + S13×T + S14×T² + S15×T³</code><p class="muted">Ohne temperaturabhängige Druckkoeffizienten hat T auf dieses Polynom keinen Einfluss.</p></div>
+<div class="step"><h3>3.4 Druckpolynom umkehren</h3><code class="formula">DSP_S,vor = K0 + K1×S + K2×S² + K3×S³</code><p class="muted">Gesucht ist S. Bei nichtlinearen Kennlinien prüft der Rechner, ob es genau eine zulässige Lösung gibt.</p></div>
+<div class="step"><h3>3.5 ADC_S zurückrechnen</h3><code class="formula">S = S_F × ADC_S + S_O
+ADC_S [Digits] = ((S − S_O) / S_F) × 32768</code><p class="muted">S_F und S_O stammen aus NVM-Wort 34 bzw. 33.</p></div></div></section>
+
+<section class="chapter" id="bruecke"><div class="kicker">Schritt 4</div><h2>ADC_S in mV/V umrechnen</h2>
+<p>Aus dem normierten ADC_S-Signal und den eingestellten Verstärkern wird das nominale Brückensignal abgeschätzt:</p>
+<code class="formula">B [mV/V] =
+ (ADC_S × 700 / (PGA2 × SVDD) × sign2 × signADC − Offset-DAC)
+ / (PGA1 × sign1)</code>
+<table><thead><tr><th>Zeichen</th><th>Bedeutung</th></tr></thead><tbody>
+<tr><td>700</td><td>Nominale ADC-Fullscale in mV</td></tr><tr><td>SVDD</td><td>Brückenversorgung in V (nominal aus CFG_AFE0)</td></tr>
+<tr><td>PGA1, PGA2</td><td>Verstärkerstufen (nominal aus CFG_AFE1)</td></tr><tr><td>Offset-DAC</td><td>Eingestellte Kompensation, näherungsweise 50 mV/V pro Stufe</td></tr>
+<tr><td>sign1, sign2, signADC</td><td>Vorzeichen aus den konfigurierten Invertierungsbits</td></tr>
+</tbody></table><div class="note">Dieser Schritt ist eine <strong>Modellannahme</strong> des Rückrechners, keine unabhängige Messung. Fabriktrim, echte Versorgungsspannung und thermische Drifts werden nicht rekonstruiert.</div></section>
+
+<section class="chapter" id="nullpunkt"><h2>Nullpunkt</h2><p>Der untere DSP-Zielwert wird rückwärts bis zum Brückensignal umgerechnet. Dieses Ergebnis ist der angezeigte nominelle Nullpunkt.</p>
+<code class="formula">Nullpunkt(T1) = B(pmin, T1)</code><p class="muted">Die vollständige numerische Folge – DSP-Sollwert, Post-Skalierung, K0–K3, S, ADC_S und B – zeigt das Info-Symbol neben dem Nullpunkt.</p></section>
+<section class="chapter" id="spanne"><h2>Spanne</h2><p>Die Differenz zwischen oberem und unterem Brückensignal bei derselben Bezugstemperatur.</p>
+<code class="formula">Spanne(T1) = B(pmax, T1) − B(pmin, T1)</code><p class="muted">Auch ein negatives Vorzeichen kann aus der Richtung einer realen Brückenkennlinie entstehen.</p></section>
+<section class="chapter" id="tk0"><h2>TK0 – Nullpunkt-Temperaturgang</h2><p>Wie stark sich der rückgerechnete Nullpunkt zwischen den zwei Bezugstemperaturen verschiebt, bezogen auf 100 K.</p>
+<code class="formula">TK0 [mV/V pro 100 K] =
+ (Nullpunkt(T2) − Nullpunkt(T1)) / (T2 − T1) × 100</code>
+<p class="muted">Nur möglich, wenn der Temperaturbezug und die benötigten Druckwerte für beide Temperaturpunkte eindeutig sind.</p></section>
+<section class="chapter" id="tk0bar"><h2>TK0 als Druckfehler in bar</h2><p>Der Nullpunktgang wird über die Spanne und den eingetragenen Druckbereich in einen Druckfehler umgerechnet.</p>
+<code class="formula">TK0 [bar pro 100 K] =
+ (TK0 [mV/V pro K] / Spanne(T1) [mV/V])
+ × (pmax − pmin) [bar] × 100</code>
+<div class="note">Hier hängt der Zahlenwert ausdrücklich vom <strong>manuell eingegebenen Druckbereich</strong> ab. Ein anderer Druckbereich ergibt einen anderen Wert in bar.</div></section>
+<section class="chapter" id="tkr"><h2>TKR – relativer Spannentemperaturgang</h2><p>Der TKR gibt an, wie stark sich die Druckspanne mit der Temperatur verändert, in Prozent pro 100 K.</p>
+<code class="formula">TKR [% pro 100 K] =
+ (Spanne(T2) / Spanne(T1) − 1)
+ / (T2 − T1) × 10’000</code>
+<p class="muted">Der Faktor 10’000 entsteht aus ×100 für Prozent und ×100 für 100 K.</p></section>
+<section class="chapter" id="adcspan"><h2>ADC-Spanne</h2><p>Die Differenz der rückgerechneten Druck-ADC-Rohwerte bei Temperatur 1.</p><code class="formula">ADC-Spanne [Digits] = ADC_S,max [Digits] − ADC_S,min [Digits]</code><p class="muted">Ein negativer Wert ist nicht automatisch ein Rechenfehler. Er beschreibt die Richtung der ADC-Kennlinie.</p></section>
+
+<section class="chapter" id="analog"><h2>Idealer Analogausgang</h2><p>Wenn die Ausgangsskalierung aktiv ist, verwendet der DSP zwei zusätzliche NVM-Koeffizienten. Anschliessend wird der normierte Wert ratiometrisch in eine Spannung umgerechnet:</p>
+<code class="formula">DSP_AODO = AODO_F × DSP_S + AODO_O
+Vout,ideal = VDD × (DSP_AODO + 1) / 2</code>
+<p class="muted">Bei deaktivierter Skalierung gilt DSP_AODO = DSP_S. AODO_F und AODO_O werden als Q3.12 ausgelesen.</p>
+<div class="note">Der Rechner zeigt die <strong>ideale Spannung vor Begrenzung und Fehlerersatz</strong>. Reale Ausgangsspannungen müssen bei Bedarf mit einem Messgerät geprüft werden. Bei AODO_F = 0 kann die ideale Ausgangsspannung für alle Druckwerte konstant sein.</div></section>
+
+<section class="chapter" id="beispiel"><h2>Kleines Rechenbeispiel</h2><p>Ein vereinfachter, frei gewählter linearer Datensatz ohne Temperaturkompensation oder Nachskalierung:</p>
+<div class="info-grid"><div class="mini"><strong>Eingaben</strong><span>DSP_S,Ziel = 0,4 · S0 = 0 · S4 = 0,8 · S_F = 1 · S_O = 0</span></div><div class="mini"><strong>Nominales AFE</strong><span>SVDD = 2,4 V · PGA1 = 11 · PGA2 = 10 · DAC = 0 · Vorzeichen = +1</span></div></div>
+<code class="formula">0,4 = 0 + 0,8 × S       → S = 0,5
+ADC_S = (0,5 − 0) / 1   → ADC_S = 0,5
+ADC_S [Digits] = 0,5 × 32768 = 16’384
+B = (0,5 × 700 / (10 × 2,4)) / 11
+  ≈ 1,32576 mV/V</code>
+<p class="muted">Beispielwerte, keine Daten eines angeschlossenen Sensors. Im Rechner stehen an derselben Stelle die NVM-Werte deiner ausgewählten Datei.</p></section>
+
+<section class="chapter" id="grenzen"><h2>Was lässt sich nicht immer herauslesen?</h2><p>Ein NVM-Abbild speichert Kalibrierkoeffizienten, aber nicht zwangsläufig die Rohmessungen, mit denen sie berechnet wurden.</p>
+<table><thead><tr><th>Fehlende Information</th><th>Wozu wäre sie nötig?</th></tr></thead><tbody>
+<tr><td>Ursprüngliche Druck- und Prüfpunkte</td><td>Zur unabhängigen Zuordnung der Kalibrierung zu bar oder Prozent.</td></tr>
+<tr><td>Originale ADC_T- / ADC_S-Rohdaten</td><td>Zur Kontrolle der damaligen Messwerte und für nicht eindeutig umkehrbare Polynome.</td></tr>
+<tr><td>Tatsächliche analoge Verstärkung / Brückenspannung</td><td>Für eine präzise physikalische Rückrechnung von mV/V statt einer nominalen Näherung.</td></tr>
+<tr><td>Messung der Ausgangsspannung</td><td>Zur Kontrolle von DAC, Last, Begrenzung und Fehlerersatz.</td></tr>
+</tbody></table>
+<h3>Dokumentationsgrundlage</h3>
+<p class="muted"><strong>ELMOS E703.11</strong>, Datenblatt <em>25DS0170E.04</em> (16.11.2023): §6.3.1.2–6.3.1.4 Temperaturpfad, §6.3.2.1–6.3.2.2 DSP-Druckkorrektur, §6.3.2.5–6.3.2.6 Nach- und Ausgangsskalierung sowie AFE-Spezifikationen. <strong>AN0203</strong>, <em>E703.x1 Calibration Guide</em> (06.02.2020): Referenzzuordnung der DSP-Zielwerte und Kalibrierablauf.</p>
+<p class="muted">Der Trace in der Web-App beschreibt die implementierte Modellrückrechnung. Er ersetzt keine Prüfung der echten Sensorkennlinie oder des physikalischen Ausgangs.</p></section>
+<p class="footer">NVM-Formelübersicht · ELMOS E703.11 · Nur lesende Berechnungen. <a href="index.html#nvm-rechner">Zurück zum Rückrechner</a></p>
+</main></div>
+</body></html>
