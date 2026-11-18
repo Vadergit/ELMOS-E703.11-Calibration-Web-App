@@ -34,7 +34,7 @@ test('guided connection is available on any step, including sensor-swap and comm
  assert.match(guided,/connectionOpen=true;render\(\);/);
  assert.match(guided,/if\(swapping\)/);
  assert.match(css,/gw-connection-page/);
- assert.match(html,/guided\.js\?v=0\.7\.128/);
+ assert.match(html,/guided\.js\?v=0\.7\.129/);
 });
 test('switching protocol on same authorised USB port closes old session and rereads a new UID',async()=>{
  const m=makeGuidedConnect();
@@ -235,7 +235,7 @@ test('sensor banner shows a stable auto-connect state while detailed retries sta
  assert.doesNotMatch(app.slice(from,to),/autoReconnectAttempts|autoReconnectLastError/);
  assert.match(app,/autoReconnectAttempts\+\+/);
  assert.match(app,/autoReconnectLastError=String\(error\.message\|\|error\)/);
- assert.match(html,/data-app-version="0\.7\.131"/);
+ assert.match(html,/data-app-version="0\.7\.\d+"/);
 });
 
 test('manual reinitialization retains bridge recovery and is independent of auto-probe',()=>{
@@ -251,7 +251,7 @@ test('manual reinitialization retains bridge recovery and is independent of auto
  const bridge=app.slice(bridgeStart,bridgeEnd);
  assert.match(bridge,/if\(autoProbe\|\|!st\.bridgePsscRam/);
  assert.match(bridge,/await bridgeAccess\(\{power,recover:true\}\)/);
- assert.match(html,/data-app-version="0\.7\.131"/);
+ assert.match(html,/data-app-version="0\.7\.\d+"/);
 });
 
 test('manual reconnect is not disabled by an in-flight auto probe and cancels future retries',()=>{

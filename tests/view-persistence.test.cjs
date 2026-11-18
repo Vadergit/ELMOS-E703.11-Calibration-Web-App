@@ -39,7 +39,7 @@ test('Guided is default; an explicit classic choice survives reload and load cal
   const calls=[],node={addEventListener:type=>calls.push('listen:'+type)};
   let loadCallback=null;
   const context={
-   mode:false,
+   mode:false,location:{hash:''},
    $:()=>node,
    rememberedView:()=>preference,
    open:()=>{calls.push('open');context.mode=true},
@@ -63,7 +63,7 @@ test('Late script load retries a failed guided mounting, but never overrides cho
  let preference='guided',loadCallback,tries=0;
  const el={addEventListener(){}};
  const context={
-  mode:false,$:()=>el,rememberedView:()=>preference,
+  mode:false,location:{hash:''},$:()=>el,rememberedView:()=>preference,
   toggleTopView(){},syncTopMode(){},
   open(){tries++;if(tries===2)context.mode=true},
   window:{addEventListener:(_,fn)=>loadCallback=fn},
@@ -81,12 +81,12 @@ test('Late script load retries a failed guided mounting, but never overrides cho
  assert.equal(tries,2);
 });
 test('A successful guided opening and explicit classic switch update the saved view',()=>{
- const src=section(' function open(){',' function onSensorReset(){');
+ const src=section(' function open(){',' function onSensorReset(');
  const saved=[],classes=new Set();
  let busy=false;
  const root={hidden:true,replaceChildren(){}};
  const context={
-  mode:false,nextSensorPending:null,
+  mode:false,nextSensorPending:null,temporaryClassicTool:false,
   stage:0,task:'calibration',visited:new Set([0]),plan:null,signature:null,
   seriesPointFields:null,selectedPoint:0,latestCapture:null,lastCaptureRenderKey:null,
   subscriptions:[],poll:null,pendingCapture:null,root,
@@ -119,6 +119,14 @@ test('A successful guided opening and explicit classic switch update the saved v
  run.close(); // Switching is blocked while logging, so do not forget guided preference.
  assert.equal(context.mode,true);
  assert.deepEqual(saved,['guided','classic','guided']);
+ busy=false;
+ run.close({preservePreference:true}); // Opening EEPROM is not a view preference.
+ assert.equal(context.mode,false);
+ assert.equal(context.temporaryClassicTool,true);
+ assert.deepEqual(saved,['guided','classic','guided']);
+ run.open();
+ assert.equal(context.temporaryClassicTool,false);
+ assert.deepEqual(saved,['guided','classic','guided','guided']);
 });
 test('HTML suppresses first-paint classic flash and uses the same persisted key',()=>{
  const html=read('index.html');
@@ -126,4 +134,42 @@ test('HTML suppresses first-paint classic flash and uses the same persisted key'
  assert.match(html,/guided-restore-pending \.content\{visibility:hidden\}/);
  assert.match(html,/guided\.js\?v=0\.7\.\d+/);
  assert.match(html,/data-app-version="0\.7\.\d+"/);
+});
+
+test('reconnecting from a guided EEPROM tool restores guided mode only after UID confirmation',()=>{
+ const src=section(' function onConnected(){',' function init(){');
+ function simulate({temporary,preference='guided',uid='0020011DBBE7',mode=false,reset=false}={}){
+  const events=[];
+  const ctx={mode,temporaryClassicTool:temporary,chipResetPending:reset,
+   rememberedView:()=>preference,
+   state:()=>({uid}),
+   open:()=>{events.push('open');ctx.mode=true},
+   render:()=>events.push('render'),
+   renderConnectionStatus:()=>events.push('connection'),
+   connectionOpen:false,
+   plan:null,signature:null,seriesPointFields:null,selectedPoint:0,
+   latestCapture:null,lastCaptureRenderKey:null,stage:7,visited:new Set([0,7])};
+  vm.runInNewContext(src+'\nonConnected()',ctx);
+  return {events,mode:ctx.mode,temporary:ctx.temporaryClassicTool};
+ }
+ const fromGuided=simulate({temporary:true});
+ assert.deepEqual(fromGuided.events,['open']);
+ assert.equal(fromGuided.mode,true);
+ assert.equal(fromGuided.temporary,false);
+ assert.deepEqual(simulate({temporary:true,preference:'classic'}).events,[]);
+ assert.deepEqual(simulate({temporary:true,uid:null}).events,[]);
+ assert.deepEqual(simulate({temporary:false}).events,[]);
+ const ongoingGuided=simulate({mode:true,reset:true});
+ assert.deepEqual(ongoingGuided.events,['render']);
+ assert.equal(ongoingGuided.mode,true);
+});
+
+test('successful chip detection does not jump from EEPROM Viewer to classic AFE',()=>{
+ const app=read('app.js');
+ const detect=app.slice(app.indexOf(' async function detect({'),app.indexOf(' async function recoverOneWireStartup()'));
+ assert.ok(detect.length>1000);
+ assert.doesNotMatch(detect,/^\s*step\(1\);/m,'Unconditional AFE navigation must not occur');
+ assert.match(detect,/currentStep===0&&\!window\.ELMOS_GUIDED\?\.isOpen\?\.\(\)/);
+ assert.match(detect,/window\.ELMOS_GUIDED\?\.preferredView\?\.\(\)==='classic'/);
+ assert.ok(detect.indexOf('onConnected?.()')<detect.indexOf('step(1)'));
 });

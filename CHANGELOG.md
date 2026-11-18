@@ -1,3 +1,10 @@
+## v0.7.132 – Geführte Ansicht beim Sensorwechsel beibehalten
+
+- Nach erfolgreicher E703.11-Erkennung erfolgt kein pauschaler Sprung mehr zur klassischen AFE-Seite. Nur wenn die klassische Ansicht ausdrücklich gewählt ist und der USB-Start angezeigt wird, erfolgt die bisherige Weiterleitung zur AFE-Einstellung.
+- EEPROM Viewer und Sensorbrücken-Rechner sind vorübergehende Werkzeugansichten: Der Wechsel dorthin speichert nicht automatisch «Klassisch» als Benutzerpräferenz.
+- Nach Trennen und erneutem Verbinden wird aus einer vorübergehend geöffneten Expertenwerkzeug-Ansicht die zuvor gewählte geführte Startseite wiederhergestellt, sobald die Chip-UID bestätigt ist. Ein ausdrücklich gewählter klassischer Modus bleibt klassisch.
+- UI-Regressionstests für Verbindungswechsel und bevorzugte Ansicht, neuer Browser-Cachestand. Sensor-Kommunikation, RAM- und NVM-Programmierung sind unverändert.
+
 ## v0.7.131 – Automatische Wiederverbindung übernimmt manuellen Bridge-Pfad
 
 - Auto-Connect verwendet für ESP32-C3 und Pro Micro künftig die vollständige bewährte Sequenz `firmware → selectChipInterface → bridgeHello → connectBridgeChip()` statt `connectBridgeChip({autoProbe:true})`.
