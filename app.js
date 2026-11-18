@@ -4616,6 +4616,8 @@ if(typeof document!=='undefined') (function UI(){
   if(demoEnabled)throw Error('Im Demo-Modus ist kein echter USB-Protokollwechsel möglich.');
   if(!['ssp3','bridge'].includes(adapter)||!['plc','i2c','spi'].includes(iface)||
      (adapter==='bridge'&&iface==='spi'))throw Error('Ungültige Kombination aus Adapter und Chip-Protokoll.');
+  if(iface==='spi'&&!$('expertMode').checked)
+   throw Error('SPI-Testmodus benötigt aktivierte Expertenparameter.');
   if(st.closing||st.reinitRunning||st.powerCycleRunning||st.magicRunning||st.startupRunning||
      st.diagRunning||st.writing||st.nvmWorking||st.calTask||st.afeWriteActive||
      st.ramMeasurementStarting||st.bridgeReadBusy||window.ELMOS_TEST_LOGGER?.isBusy())
@@ -4648,6 +4650,8 @@ if(typeof document!=='undefined') (function UI(){
   return {uid:st.uid.hex,iface:st.iface,adapter:st.adapterKind};
  }
  async function guidedDiagnostic(action,{magicConfirmed=false}={}){
+  if(action!=='export'&&!$('expertMode').checked)
+   throw Error('Diese Diagnose benötigt aktivierte Expertenparameter.');
   if(action==='export'){$('plcStartupLogExport').click();return 'USB-Protokoll bereitgestellt.'}
   if(action==='diagnose'){
    const result=await runChipDiagnostics('Geführter Modus: manuelle Registerdiagnose');

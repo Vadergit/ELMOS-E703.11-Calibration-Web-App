@@ -359,3 +359,10 @@ html.guided-active #guidedWorkspace [hidden]{display:none!important}
 html[data-theme="dark"] #guidedWorkspace .gw-connection-link{background:#1a344a;color:#daecff;border-color:#486782}
 html[data-theme="dark"] #guidedWorkspace .gw-connection-diagnostic{background:#162536;color:#d6e5f1;border-color:#3c5266}
 @media(max-width:740px){#guidedWorkspace .gw-connection-page .gw-columns,#guidedWorkspace .gw-connection-page .gw-fields{grid-template-columns:1fr}#guidedWorkspace .gw-connection-top-actions{justify-content:flex-start}}
+
+#guidedWorkspace .gw-connection-backbar{margin:0 0 12px}
+#guidedWorkspace .gw-connection-backbar button{background:#eef6ff;color:#165a8c;border:1px solid #a3c5e4;font-weight:750}
+#guidedWorkspace .gw-connection-page [data-gw-expert][hidden]{display:none!important}
+#guidedWorkspace .gw-connection-page .gw-connection-advanced{margin-top:12px;padding:10px 12px;border:1px solid #cbddeb;border-radius:10px}
+#guidedWorkspace .gw-connection-page .gw-connection-consent{display:flex;align-items:flex-start;gap:8px;font-size:12px}
+#guidedWorkspace .gw-connection-page .gw-connection-consent input{margin-top:3px}
