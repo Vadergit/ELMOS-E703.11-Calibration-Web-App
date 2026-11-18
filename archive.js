@@ -420,6 +420,15 @@ const ELMOS_ARCHIVE=(()=>{
   const interruptedRecord=S.record;
   void flush().then(()=>{if(S.record!==interruptedRecord)return;S.record=null;S.filename=null;renderActive();return refresh()}).catch(()=>{});
  }
+ function downloadCalibrationComplete(record){
+  if(!window.ELMOS_CALIBRATION_COMPLETE?.eligible(record))
+   throw Error('Noch kein bestätigter vollständiger Sensorabgleich vorhanden.');
+  const payload=window.ELMOS_CALIBRATION_COMPLETE.build(record);
+  const name=window.ELMOS_CALIBRATION_COMPLETE.filename(record);
+  const url=URL.createObjectURL(new Blob([JSON.stringify(payload,null,2)],{type:'application/json'}));
+  const link=el('a');link.href=url;link.download=name;link.click();
+  setTimeout(()=>URL.revokeObjectURL(url),3000);
+ }
  async function download(record,format='json'){
   if(!record)throw Error('Kein Archivprotokoll ausgewählt');
   let data,mime,name;
@@ -695,6 +704,13 @@ const ELMOS_ARCHIVE=(()=>{
     else exportVerificationPdf(r);
    });
    top.append(pdfBtn);
+  }
+  if(r.type==='calibration'&&window.ELMOS_CALIBRATION_COMPLETE?.eligible(r)){
+   const full=el('button','Kompletten Abgleich als JSON herunterladen','ar-pdf-export');
+   full.type='button';
+   full.title='Original-NVM, programmiertes NVM, Messpunkte, AFE, DSP und vollständiges Archiv';
+   full.addEventListener('click',()=>{try{downloadCalibrationComplete(r)}catch(error){note(error.message,true)}});
+   top.append(full);
   }
   root.append(top,outcome(info),section('Geräte- und Aufzeichnungsdaten'),facts(info));
   if(r.type==='verification'){
