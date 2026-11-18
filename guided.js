@@ -838,11 +838,11 @@ const ELMOS_GUIDED=(()=>{
    window.ELMOS_ARCHIVE.open(task==='verification'?'verification':'archive');
    return;
   }
-  if(stage===0&&task==='nvm'){close({preservePreference:true});window.ELMOS_GUIDED_API?.navigate?.(10);return}
+  if(stage===0&&task==='nvm'){close({preservePreference:true});if(mode)return;window.ELMOS_GUIDED_API?.navigate?.(10);return}
   const s=state();
   if(!s.chip){msg('Zuerst den E703.11 über USB verbinden. Eine reine USB-CDC-Verbindung ohne Chipzugriff genügt nicht.','warn');return}
   if(stage===0){
-   if(task==='inspect'){close({preservePreference:true});window.ELMOS_GUIDED_API?.navigate?.(7);return}
+   if(task==='inspect'){close({preservePreference:true});if(mode)return;window.ELMOS_GUIDED_API?.navigate?.(7);return}
    if(task==='testlog'){goto(11);return}
    if(task==='calibration'&&!seriesSettings){
     try{await window.ELMOS_GUIDED_API?.offerSeriesPreset?.()}
