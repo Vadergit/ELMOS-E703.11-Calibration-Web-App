@@ -507,7 +507,7 @@ const ELMOS_NVM_RECON = (() => {
   const sourceKey=words?[selected.kind,sourceUid||'',words[0],words[1],words[63],selected.kind==='file'?state.fileName||'':''].join('|'):null;
   const profileModule=typeof ELMOS_NVM_PROFILE!=='undefined'?ELMOS_NVM_PROFILE:null;
   let profile=state.profileFile||reference?.savedProfile||null;
-  if(!profile&&state.sessionProfile?.verified)profile=state.sessionProfile;
+  if(!profile&&(state.sessionProfile?.verified||state.sessionProfile?.kind==='file'))profile=state.sessionProfile;
   const compatibility=profile&&profileModule?
    profileModule.match(profile,words,sourceUid):{ok:!!profile,verified:false};
   const profileProblem=profile&&!compatibility.ok?compatibility.reason:null;
