@@ -193,3 +193,30 @@ test('NVM workflow requires explicitly staged AODO and a verified SSP3 startup a
  assert.match(src,/!!st\.calImage\?\.recoveryCombined/);
  assert.match(src,/Original-NVM-Backup|automatisches Original-NVM-Backup/);
 });
+
+test('Live NVM recheck is a read-only same-session operation without power cycle',()=>{
+ const fs=require('node:fs');
+ const path=require('node:path');
+ const app=fs.readFileSync(path.join(__dirname,'../app.js'),'utf8');
+ const html=fs.readFileSync(path.join(__dirname,'../index.html'),'utf8');
+ const guided=fs.readFileSync(path.join(__dirname,'../guided.js'),'utf8');
+ const compact=fs.readFileSync(path.join(__dirname,'../compact.js'),'utf8');
+ const start=app.indexOf('async function recheckNvmWithoutRestart(){');
+ const end=app.indexOf('async function nvmProgram(){',start);
+ assert.ok(start>0&&end>start,'recheck must have its own isolated handler');
+ const routine=app.slice(start,end);
+ assert.match(routine,/await nvmScan\(\{preview:true\}\)/,'re-reads full protected NVM via existing read-only method');
+ assert.match(routine,/await prepareNvmOperation\(\)/,'re-creates the original NVM safety plan');
+ assert.match(routine,/await verifyRam\('Vor NVM-Lesung'\)/);
+ assert.match(routine,/await verifyRam\('Nach NVM-Lesung'\)/);
+ assert.match(routine,/st\.port!==currentPort\|\|st\.sessionIndex!==currentSession\|\|st\.uid\?\.hex!==currentUid/);
+ assert.match(routine,/st\.calImage=null/,'failed check must invalidate old NVM plan');
+ assert.doesNotMatch(routine,/PWR_OFF|PWR_ON|powerCycle\(|reinitializeSensor\(|erasePoints\(|await maintWrite\(|applyCalRam\(/);
+ assert.doesNotMatch(routine,/st\.calpoints\s*=|st\.calfit\s*=|st\.points\s*=/);
+ assert.match(app,/\$\('nvmRecheck'\)\.addEventListener\('click',recheckNvmWithoutRestart\)/);
+ for(const id of ['nvmRecheck','nvmRecheckMsg','nvmRecheckHint','nvmRecheckActions'])
+  assert.ok(html.includes('id="'+id+'"'),id+' must be present');
+ assert.ok(guided.includes("'nvmRecheckActions','nvmRecheckHint','nvmRecheckMsg'"));
+ assert.ok(compact.includes("'nvmRecheckActions','nvmRecheckHint'"));
+ assert.ok(compact.includes("moveId('nvmRecheckMsg','cpNvmStatus')"));
+});
