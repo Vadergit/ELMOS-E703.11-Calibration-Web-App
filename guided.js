@@ -22,9 +22,6 @@ const ELMOS_GUIDED=(()=>{
  let selectedPoint=0,visited=new Set([0]),poll=null,pendingCapture=null,afeStatsStart=0,afeGainSignature='';
  let latestCapture=null,lastCaptureRenderKey=null,nextSensorBusy=false,nextSensorPending=null,seriesPointFields=null;
  let connectionOpen=false,connectionBusy=false,chipResetPending=false;
- // Opening EEPROM/NVM from the guided chooser is a temporary classic tool,
- // not an explicit preference change to the classic calibration workflow.
- let temporaryClassicTool=false;
  const originalCaptureLabels=new Map();
  const subscriptions=[];
  const subscribe=(el,type,handler)=>{el.addEventListener(type,handler);subscriptions.push({el,type,handler})};
@@ -995,7 +992,7 @@ const ELMOS_GUIDED=(()=>{
   // Measurement and write actions remain guarded by the existing chip checks.
   if(typeof ELMOS_COMPACT!=='undefined')ELMOS_COMPACT.set(false);
   if($('compactMode'))$('compactMode').checked=false;
-  mode=true;temporaryClassicTool=false;connectionOpen=false;connectionBusy=false;chipResetPending=false;
+  mode=true;connectionOpen=false;connectionBusy=false;chipResetPending=false;
   const loggingActive=!!window.ELMOS_TEST_LOGGER?.isBusy();
   stage=loggingActive?11:0;
   task=loggingActive?'testlog':'calibration';
@@ -1021,7 +1018,7 @@ const ELMOS_GUIDED=(()=>{
    msg('Bitte die Testaufzeichnung zuerst beenden, bevor du die Ansicht wechselst.','warn');return;
   }
   window.ELMOS_TEST_LOGGER?.unmount();
-  mode=false;temporaryClassicTool=!!preservePreference;connectionOpen=false;
+  mode=false;connectionOpen=false;
   if(poll){window.clearInterval(poll);poll=null}
   if(pendingCapture){window.clearInterval(pendingCapture);pendingCapture=null}
   for(const {el,type,handler} of subscriptions)el.removeEventListener(type,handler);
@@ -1064,17 +1061,10 @@ const ELMOS_GUIDED=(()=>{
   msg('USB-/COM-Port getrennt. Adapter erneut anschliessen oder USB-Port auswählen.','warn');
  }
  function onConnected(){
-  if(!mode){
-   // A successful sensor reconnect after opening an embedded expert tool
-   // returns to the guided task chooser only when the user had selected guided.
-   // Never override an explicit selection of the classic view.
-   if(temporaryClassicTool&&rememberedView()!=='classic'&&state().uid){
-    temporaryClassicTool=false;
-    open();
-   }
-   return;
-  }
-  if(!chipResetPending)return;
+  // Reconnecting a sensor is not a navigation command. When a classic
+  // EEPROM/NVM tool was opened from guided, leave that tool visible.
+  // The separate "Geführte Startseite" action returns to the task chooser.
+  if(!mode||!chipResetPending)return;
   chipResetPending=false;
   plan=null;signature=null;seriesPointFields=null;selectedPoint=0;
   latestCapture=null;lastCaptureRenderKey=null;stage=0;visited=new Set([0]);
