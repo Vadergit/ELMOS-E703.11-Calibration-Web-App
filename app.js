@@ -931,6 +931,16 @@ if(typeof document!=='undefined') (function UI(){
  // A verified cold start is the same hardware proof whether performed by
  // PSSC-RAM-Start or by the bounded AN0204 SSP3 power/cookie startup.
  // A successful read/Magic Cookie alone must never permit an NVM write.
+ // The ESP32-C3 may execute a combined DSP/AODO recovery only with the
+ // generic user-NVM transport, an actual switched sensor VDD cold-start and
+ // a UID/session-bound bridge proof. Firmware NVM ARM HOST independently
+ // checks its own coldStartVerified latch immediately before programming.
+ function bridgeCombinedRecoveryReady(){
+  return st.adapterKind==='bridge'&&st.bridgeBoard==='ESP32-C3 SuperMini'&&
+   st.iface==='plc'&&st.bridgeGenericRam===true&&
+   st.bridgeUserNvm===true&&st.bridgeOutputNvm===true&&
+   bridgeColdStartVerified();
+ }
  function psscRecoveryProven(){
   const uid=st.uid?.hex;
   if(st.adapterKind!=='ssp3'||st.iface!=='plc'||!st.port||!st.chip||
@@ -1036,6 +1046,15 @@ if(typeof document!=='undefined') (function UI(){
      return 'Generischer NVM-Zugriff benötigt ein vollständiges, geprüftes 64-Wort-EEPROM der aktuellen Chip-UID.';
     if(!$('nvmAutoBackup').checked)
      return 'Vor jedem DIY-NVM-Schreibvorgang das Original-NVM automatisch sichern.';
+    if(allowCombinedRecovery){
+     if(!bridgeCombinedRecoveryReady())
+      return 'ESP32-C3: Kombinierte DSP-/AODO-Skalierung benötigt BRIDGE_GENERIC_RAM_V1, BRIDGE_USER_NVM_V1 und einen echten, bestätigten Sensor-VDD-Kaltstart über den Lastschalter. Eine reine PLC-RECOVER-Verbindung reicht nicht.';
+     if(!st.expertOutputPlan||!['1','2','3'].includes(String(st.expertOutputPlan.mode))||
+        !st.expertOutputPlan.scaleEnabled)
+      return 'ESP32-C3: Analoge Ausgangsskalierung zuerst ausdrücklich prüfen und vormerken.';
+     try{CAL.validateRecoveryCalibrationDiff(initial,modified,{allowAnalogScaling:true})}
+     catch(error){return 'ESP32-C3 Kombi-NVM-Schutz: '+error.message}
+    }
    }
    return '';
   }
@@ -3453,10 +3472,13 @@ if(typeof document!=='undefined') (function UI(){
    const recoveryCombined=!!(recovery&&explicitOutputPlan&&
      ['1','2','3'].includes(String(explicitOutputPlan.mode)));
    if(recoveryCombined){
-    if(st.adapterKind!=='ssp3'||!psscRecoveryProven())
-     throw Error('Magic Cookie: Kombinierte DSP-/AODO-Programmierung nicht freigegeben. '+
-      psscRecoveryEvidence()+
-      ' Bitte weder neu verbinden noch den Abgleich zurücksetzen. Kein NVM-Schreiben.');
+    const ssp3Ready=st.adapterKind==='ssp3'&&psscRecoveryProven();
+    const esp32Ready=bridgeCombinedRecoveryReady();
+    if(!ssp3Ready&&!esp32Ready)
+     throw Error(st.adapterKind==='bridge'?
+      'ESP32-C3: Kombinierte DSP-/AODO-Programmierung braucht die generische BRIDGE_USER_NVM_V1-Firmware und einen durch GPIO10-Lastschalter bestätigten Sensor-Kaltstart derselben USB-Sitzung und Chip-UID. Ein blosses PLC RECOVER oder ein verbundener Sensor genügt nicht. Kein NVM-Schreiben und kein automatischer Neustart.':
+      'Magic Cookie: Kombinierte DSP-/AODO-Programmierung nicht freigegeben. '+
+       psscRecoveryEvidence()+' Kein NVM-Schreiben.');
     if(!$('nvmAutoBackup').checked)
      throw Error('Magic Cookie: Vor einer kombinierten NVM-Programmierung «Altes NVM automatisch sichern» aktivieren.');
     if(Number(explicitOutputPlan.mode)!==originalMode)
@@ -3521,7 +3543,8 @@ if(typeof document!=='undefined') (function UI(){
    }).join('\n');
    ca('nvmMsg',image.changes.length+' von 64 NVM-Wörtern werden verändert (CRC16 zuletzt). Factory-/Bootschutz geprüft.'+
      (verificationRequiredCount()===1?' Nur ein unabhängiger DSP-Prüfpunkt wurde verifiziert.':'')+
-     (recoveryCombined?' SSP3-Magic-Cookie-Start bestätigt: Die ausdrücklich vorgemerkte AODO-Skalierung wird zusammen mit den Kalibrierkoeffizienten gespeichert. AODO-Modus und One-Wire-Startregister bleiben unverändert. Original-NVM-Backup ist Pflicht.':
+     (recoveryCombined?' '+(st.adapterKind==='bridge'?'ESP32-C3 Kaltstart und generische User-NVM-Capability bestätigt':'SSP3-Magic-Cookie-Start bestätigt')+
+      ': Die ausdrücklich vorgemerkte AODO-Skalierung wird zusammen mit den Kalibrierkoeffizienten gespeichert. AODO-Modus und One-Wire-Startregister bleiben unverändert. Original-NVM-Backup ist Pflicht.':
       recovery?' Nur Kalibrierdaten werden gespeichert. Ausgangs- und One-Wire-Einstellungen bleiben erhalten.':'')+
      (ignoredOutputPlan?' Permanentes One Wire ist im Original-NVM bestätigt; die AODO-Einstellungen bleiben unverändert.':'')+
      (autoStageAnalog&&!recovery?' Analogskalierung wurde anhand der sichtbaren S0/S1-Werte automatisch in die Änderungsliste aufgenommen.':'')+

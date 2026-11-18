@@ -1509,3 +1509,59 @@ test('AN0204 proof: recover failed initial PLC-RAM read only after authenticated
  assert.equal(alternate.ok,true,'previously supported valid PSSC start remains accepted');
  assert.deepEqual(alternate.calls,[]);
 });
+
+
+test('ESP32-C3 combined DSP/AODO recovery requires generic user NVM and cold-start UID proof',()=>{
+ const app=read('app.js');
+ const start=app.indexOf(' function bridgeColdStartVerified(){');
+ const end=app.indexOf(' function hasCurrentNvmBackup(){',start);
+ assert.ok(start>0&&end>start);
+ const build=new Function('st','CAL','$','hasCurrentNvmBackup',
+  app.slice(start,end)+'return {ready:bridgeCombinedRecoveryReady,block:psscNvmBlock};');
+ const port={},uid='0020018A487B';
+ const base={adapterKind:'bridge',bridgeBoard:'ESP32-C3 SuperMini',
+  bridgeGenericRam:true,bridgeUserNvm:true,bridgeOutputNvm:true,
+  bridgeCalibrationNvm:true,bridgeReadOnly:false,iface:'plc',
+  port,sessionIndex:42,uid:{hex:uid},bridgeColdStart:{port,session:42,uid},
+  expertOutputPlan:{mode:'1',scaleEnabled:true},regs:{},psscRamRecovery:true};
+ const before=Array(64).fill(0);
+ before[16]=(1<<9)|(1<<6);before[17]=4;
+ before[19]=(1<<11)|(1<<8)|(1<<7);before[63]=CAL.crc16(before);
+ const after=before.slice();
+ after[33]=0x0200;after[34]=0x4000;after[58]=0x10A3;
+ after[63]=CAL.crc16(after);
+ const testCase=(model,planned=after,backup=true)=>{
+  const api=build(model,CAL,()=>({checked:true}),()=>backup);
+  return api.block(before,planned,false,false,false,true);
+ };
+ assert.equal(testCase(base),'','valid generic ESP32 combined recovery');
+ for(const [name,changes] of Object.entries({
+  noGenericCapability:{bridgeGenericRam:false},
+  noUserNvm:{bridgeUserNvm:false},
+  noAodoCapability:{bridgeOutputNvm:false},
+  noColdStart:{bridgeColdStart:null},
+  staleSession:{sessionIndex:43},
+  wrongUid:{uid:{hex:'DEADBEEF'}},
+  wrongPort:{port:{}},
+  wrongBoard:{bridgeBoard:'Arduino Pro Micro'},
+  noAodoPlan:{expertOutputPlan:null},
+  wrongInterface:{iface:'i2c'},
+  readOnly:{bridgeReadOnly:true}
+ })){
+  assert.notEqual(testCase({...base,...changes}),'',name+' must block');
+ }
+ assert.notEqual(testCase(base,after,false),'','original NVM backup must be current');
+ const tampered=after.slice();tampered[17]^=4;
+ tampered[63]=CAL.crc16(tampered);
+ assert.notEqual(testCase(base,tampered),'','communication boot register cannot change');
+ const alteredMode=after.slice();alteredMode[16]^=0x0200;
+ alteredMode[63]=CAL.crc16(alteredMode);
+ assert.notEqual(testCase(base,alteredMode),'','AODO mode may not change during recovery');
+ const firmware=read('firmware/esp32c3_supermini/esp32c3_supermini.ino');
+ assert.ok(firmware.includes('BRIDGE_USER_NVM_V1'));
+ assert.ok(firmware.includes('strcmp(command, "NVM ARM HOST") == 0'));
+ assert.ok(firmware.includes('if (!coldStartVerified || probe(activeSlave))'));
+ assert.ok(app.includes("const armCommand=st.bridgeUserNvm?'NVM ARM HOST'"));
+ assert.ok(app.includes('const esp32Ready=bridgeCombinedRecoveryReady()'));
+ assert.ok(app.includes('const finalRecoveryBlock=psscNvmBlock('));
+});
