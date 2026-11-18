@@ -1440,7 +1440,10 @@ test('AODO preflight warns on outdated scaling after recalculating DSP',()=>{
   'correct pre-existing AODO need not be modified');
  assert.equal(needed(st,id=>({value:id==='psscS0'?'4.8':values[id]})),true,
   'invalid voltage targets are safely reported');
- assert.equal(needed({...st,adapterKind:'bridge'},fields,()=>false),false);
+ assert.equal(needed({...st,adapterKind:'bridge'},fields,()=>false),true,
+  'an unread original NVM must not silently hide a missing AODO review');
+ assert.equal(needed({...st,expertOutputPlan:plan},fields,()=>false),false,
+  'a deliberately staged plan can continue to the final NVM hardware checks');
  assert.ok(app.includes('st.expertOutputPlan=null;st.outputOnlyPlan=null;'));
  assert.ok(app.includes('outputScalingRequired:outputScalingPreflight().required'));
  assert.ok(guide.includes("if(task==='calibration'&&s.outputScalingRequired)"));
