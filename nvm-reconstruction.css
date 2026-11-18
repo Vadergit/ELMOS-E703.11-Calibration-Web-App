@@ -98,3 +98,34 @@
 #nvmReconstruction .nvmrecon-missing ul{margin:0;padding-left:18px;display:grid;gap:5px}
 #nvmReconstruction .nvmrecon-missing li{font-size:11.5px;line-height:1.45;color:var(--ink);padding-left:1px}
 #nvmReconstruction .nvmrecon-missing li strong{font-weight:750}
+
+
+/* Drill-down into formulas: the normal result grid stays unchanged in size. */
+#nvmReconstruction .nvmrecon-metric-heading{display:flex;align-items:flex-start;justify-content:space-between;gap:3px;min-height:18px}
+#nvmReconstruction .nvmrecon-metric-heading small{display:block;flex:1;min-width:0;color:var(--ink);font-size:10.5px;font-weight:700;line-height:1.3}
+#nvmReconstruction .nvmrecon-formula-trigger{display:inline-grid;place-items:center;flex:none;width:22px;height:22px;min-width:22px;min-height:22px;padding:0;margin:-3px -3px -2px 0;border:0;border-radius:50%;background:transparent;color:var(--blue);font-family:inherit;font-size:16px;font-weight:700;line-height:1;cursor:pointer}
+#nvmReconstruction .nvmrecon-formula-trigger:hover{background:var(--blue-soft);color:var(--blue)}
+#nvmReconstruction .nvmrecon-formula-trigger:focus-visible{outline:2px solid var(--focus,var(--blue));outline-offset:1px}
+#nvmReconstruction .nvmrecon-table th .nvmrecon-formula-trigger{vertical-align:middle;margin:0 -7px 0 2px;width:19px;height:19px;min-width:19px;min-height:19px;font-size:13px}
+#nvmReconstruction .nvmrecon-analog .nvmrecon-formula-trigger{margin:0}
+#nvmReconstruction .nvmrecon-formula-index{font-size:10.5px;text-decoration:none;font-weight:700;color:var(--blue)}
+#nvmReconstruction .nvmrecon-formula-index:hover{text-decoration:underline}
+#nvmReconstruction .nvmrecon-formula-dialog{position:fixed;inset:0;margin:auto;max-width:min(830px,calc(100vw - 30px));width:100%;max-height:min(87dvh,880px);padding:0;background:var(--paper);border:1px solid var(--line);border-radius:15px;color:var(--ink);box-shadow:0 20px 80px #0005;overflow:hidden}
+#nvmReconstruction .nvmrecon-formula-dialog::backdrop{background:rgba(7,22,38,.60)}
+#nvmReconstruction .nvmrecon-formula-close{position:absolute;top:12px;right:13px;z-index:3;min-height:30px;padding:5px 9px;border:1px solid var(--line);border-radius:7px;background:var(--paper);font-size:12px;font-weight:700;color:var(--ink)}
+#nvmReconstruction .nvmrecon-formula-content{max-height:min(87dvh,880px);overflow:auto;overscroll-behavior:contain;padding:24px 25px 30px}
+#nvmReconstruction .nvmrecon-formula-eyebrow{font-size:10px;color:var(--blue);font-weight:850;letter-spacing:.12em;text-transform:uppercase;margin-right:80px}
+#nvmReconstruction .nvmrecon-formula-title{font-size:22px;line-height:1.25;margin:5px 70px 8px 0;letter-spacing:-.02em;color:var(--ink)}
+#nvmReconstruction .nvmrecon-formula-summary{margin:0 0 11px;font-size:12.5px;line-height:1.5;color:var(--nv-muted)}
+#nvmReconstruction .nvmrecon-formula-final{display:inline-flex;max-width:100%;overflow-wrap:anywhere;align-items:center;padding:8px 12px;margin:3px 0 16px;border:1px solid var(--line);border-radius:9px;background:var(--blue-soft);font-size:16px;font-weight:800;line-height:1.45;font-variant-numeric:tabular-nums}
+#nvmReconstruction .nvmrecon-formula-steps{counter-reset:formula;list-style:none;display:grid;gap:8px;padding:0;margin:0}
+#nvmReconstruction .nvmrecon-formula-steps li{position:relative;padding:11px 12px 10px 41px;border:1px solid var(--nv-edge);border-radius:10px;background:var(--nv-soft)}
+#nvmReconstruction .nvmrecon-formula-steps li::before{counter-increment:formula;content:counter(formula);position:absolute;left:12px;top:12px;width:20px;height:20px;display:grid;place-items:center;border-radius:50%;background:var(--blue-soft);color:var(--blue);font-size:11px;font-weight:800}
+#nvmReconstruction .nvmrecon-formula-steps h3{font-size:12.5px;line-height:1.4;font-weight:800;margin:0 0 6px;color:var(--ink)}
+#nvmReconstruction .nvmrecon-formula-equation{display:block;padding:8px 10px;margin:5px 0;border:1px solid var(--line);border-radius:7px;background:var(--paper);font:600 12px/1.6 Consolas,Monaco,monospace;white-space:pre-wrap;overflow-wrap:anywhere;color:var(--ink)}
+#nvmReconstruction .nvmrecon-formula-values{font:600 11.5px/1.5 Consolas,Monaco,monospace;overflow-wrap:anywhere;color:var(--ink)}
+#nvmReconstruction .nvmrecon-formula-description{font-size:11.5px;color:var(--nv-muted);line-height:1.5;margin:5px 0 0}
+#nvmReconstruction .nvmrecon-formula-disclaimer{font-size:11px;color:var(--nv-muted);margin:12px 0;line-height:1.6}
+#nvmReconstruction .nvmrecon-formula-guide{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:750;color:var(--blue);text-decoration:none;padding:7px 0}
+#nvmReconstruction .nvmrecon-formula-guide:hover{text-decoration:underline}
+@media(max-width:630px){#nvmReconstruction .nvmrecon-formula-content{padding:18px 14px 24px}#nvmReconstruction .nvmrecon-formula-title{font-size:18px;margin-right:60px}#nvmReconstruction .nvmrecon-formula-dialog{width:calc(100vw - 14px);max-width:none;max-height:94dvh}#nvmReconstruction .nvmrecon-formula-content{max-height:94dvh}#nvmReconstruction .nvmrecon-formula-steps li{padding-left:38px}}
