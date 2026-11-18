@@ -505,15 +505,110 @@ const ELMOS_NVM_RECON = (() => {
   const readLocal=key=>{try{return localStorage.getItem(key)}catch{return null}};
   const reference=words?referenceMetadata(words,sourceUid,readLocal):null;
   const sourceKey=words?[selected.kind,sourceUid||'',words[0],words[1],words[63],selected.kind==='file'?state.fileName||'':''].join('|'):null;
-  if(sourceKey!==state.sourceKey){
-   state.sourceKey=sourceKey;
-   if(reference&&!state.limitEdited){
-    state.opts.limit=reference.limit;
-    const limitInput=root.querySelector('[data-key="limit"]');
-    if(limitInput)limitInput.value=String(reference.limit);
+  const profileModule=typeof ELMOS_NVM_PROFILE!=='undefined'?ELMOS_NVM_PROFILE:null;
+  let profile=state.profileFile||reference?.savedProfile||null;
+  if(!profile&&state.sessionProfile?.verified)profile=state.sessionProfile;
+  const compatibility=profile&&profileModule?
+   profileModule.match(profile,words,sourceUid):{ok:!!profile,verified:false};
+  const profileProblem=profile&&!compatibility.ok?compatibility.reason:null;
+  if(profileProblem)profile=null;
+  const profileKey=profile?JSON.stringify([sourceKey,profile.kind,profile.uid,profile.crc,profile.fields,profile.recordedAt]):null;
+  if(sourceKey!==state.sourceKey||profileKey!==state.profileKey){
+   const changedSource=sourceKey!==state.sourceKey;
+   if(changedSource){state.profileOverride=false;state.sourceKey=sourceKey}
+   state.profileKey=profileKey;
+   if(profile){
+    state.profileLocked={...profile.fields};
+    state.limitEdited=false;
+    state.profileOverride=false;
+    for(const [key,value] of Object.entries(profile.fields)){
+     if(key==='pressureUnit'){state.opts.pressureUnit=value;continue}
+     if(!['pmin','pmax','ta','tb','vdd','limit','adcT1','adcT2','tempModel'].includes(key))continue;
+     state.opts[key]=value;
+     const control=root.querySelector('[data-key="'+key+'"]');
+     if(control)control.value=String(value);
+    }
+   }else{
+    state.profileLocked={};
+    if(reference&&!state.limitEdited){
+     state.opts.limit=reference.limit;
+     const limitInput=root.querySelector('[data-key="limit"]');
+     if(limitInput)limitInput.value=String(reference.limit);
+    }
+    if(changedSource)state.opts.pressureUnit='bar';
    }
   }
+  state.profileCurrent=profile;
   state.reference=reference;
+  // Only fields explicitly provided by a profile are read-only. All other
+  // references (including default end points) remain editable.
+  for(const key of ['pmin','pmax','ta','tb','vdd','limit','tempModel','adcT1','adcT2']){
+   const control=root.querySelector('[data-key="'+key+'"]');
+   if(!control)continue;
+   const locked=profile&&Object.hasOwn(state.profileLocked,key)&&!state.profileOverride;
+   control.disabled=!!locked;
+   const label=control.closest('label');
+   if(label){
+    label.classList.toggle('nvmrecon-profile-fixed',!!locked);
+    label.title=locked?'Fixwert aus '+profile.name+'. Über «Kalibrierprofil & Messpunkte» entsperren.':'';
+   }
+  }
+  for(const key of ['pmin','pmax']){
+   const label=root.querySelector('[data-profile-key="'+key+'"]');
+   if(label)label.firstChild.textContent=(key==='pmin'?'Druck min.':'Druck max.')+
+    ' ['+(state.opts.pressureUnit||'bar')+']';
+  }
+  const details=root.querySelector('.nvmrecon-profile-details');
+  const summary=root.querySelector('.nvmrecon-profile-summary');
+  const profileStatus=root.querySelector('.nvmrecon-profile-status');
+  const pointsContainer=root.querySelector('.nvmrecon-profile-points');
+  const profileRemove=root.querySelector('.nvmrecon-profile-remove');
+  const profileUnlock=root.querySelector('.nvmrecon-profile-unlock');
+  const sessionButton=root.querySelector('.nvmrecon-session-use');
+  if(profileRemove)profileRemove.hidden=!state.profileFile;
+  if(profileUnlock){
+   profileUnlock.hidden=!profile;
+   profileUnlock.textContent=state.profileOverride?'Profil-Fixwerte wieder sperren':'Fixwerte manuell ändern';
+  }
+  if(sessionButton)sessionButton.hidden=!state.sessionProfile?.points?.length||!!state.profileFile||
+   !!reference?.savedProfile||!!state.sessionProfile?.verified;
+  if(summary)summary.textContent=profile?
+   'Kalibrierprofil · '+Object.keys(state.profileLocked).filter(k=>k!=='pressureUnit').length+
+   ' Fixwerte · '+(profile.points?.length||0)+' Messpunkte':
+   'Kalibrierprofil laden / ursprüngliche Messpunkte ansehen';
+  if(profileStatus){
+   let text=profile?
+    (profile.kind==='saved'?'Bestätigter Abgleich: Chip-UID und NVM-Prüfsumme stimmen überein.':
+     compatibility.verified?'Profil gehört zum aktuell gelesenen NVM.':
+     'Geladene Profilvorgabe – Übereinstimmung mit dem Chip-NVM nicht bestätigt.')+
+    (state.profileOverride?' Manuelle Änderungen aktiv.':' Vorhandene Referenzwerte sind gesperrt, fehlende Angaben bleiben frei.'):'';
+   if(!profile&&state.sessionProfile?.points?.length)
+    text='Ein aktueller Kalibrierablauf ist im Browser vorhanden. Solange dessen NVM nicht bestätigt ist, werden die Werte nicht automatisch dem EEPROM zugeordnet.';
+   if(profileProblem)text+=' '+profileProblem;
+   if(state.profileFileError)text+=' Profilimport fehlgeschlagen: '+state.profileFileError;
+   if(!text)text='Du kannst ein Kalibrierprotokoll oder eine Config-Vorlage laden. Ohne Profil bleiben die Referenzen bearbeitbar.';
+   profileStatus.textContent=text;
+   profileStatus.className='nvmrecon-profile-status'+(profileProblem||state.profileFileError?' is-error':'');
+  }
+  if(pointsContainer){
+   pointsContainer.replaceChildren();
+   if(profile?.points?.length){
+    const table=dom('table',undefined,'nvmrecon-profile-table');
+    const head=dom('tr');
+    for(const col of ['#','Druck ['+(state.opts.pressureUnit||'bar')+']','Temperatur [°C]','ADC_S [Digits]','ADC_T [Digits]'])
+     head.appendChild(dom('th',col));
+    const thead=dom('thead');thead.appendChild(head);table.appendChild(thead);
+    const tbody=dom('tbody');
+    for(const [i,p] of profile.points.entries()){
+     const tr=dom('tr');
+     for(const value of [i+1,fmt(p.pressure,3),fmt(p.temperature,2),fmt(p.adcS,1),fmt(p.adcT,1)])
+      tr.appendChild(dom('td',String(value)));
+     tbody.appendChild(tr);
+    }
+    table.appendChild(tbody);pointsContainer.appendChild(table);
+   }else pointsContainer.appendChild(dom('p','Keine ursprünglichen Messpunkte vorhanden. Nur die Referenzvorgaben sind verfügbar.','nvmrecon-muted'));
+  }
+
   const clear=root.querySelector('.nvmrecon-clear');
   if(clear)clear.disabled=!validWords(state.offline);
   const read=root.querySelector('#nvmReconReadSensor');
@@ -534,10 +629,14 @@ const ELMOS_NVM_RECON = (() => {
   }
   const origin=root.querySelector('.nvmrecon-reference-hint');
   if(origin&&reference){
-   const limitText=state.limitEdited?'DSP-Endwert: manuell gewählt':
+   const limitText=profile&&Object.hasOwn(profile.fields,'limit')&&!state.profileOverride?
+    'DSP-Endwert: Fixwert aus '+(profile.kind==='saved'?'bestätigtem Abgleich':'geladenem Kalibrierprofil'):
+    state.limitEdited?'DSP-Endwert: manuell gewählt':
     reference.limitSource==='local'?'DSP-Endwert: aus lokalem UID-/NVM-gebundenem Kalibrierprofil':
     'DSP-Endwert: Standard ±32’000 · nicht im NVM gespeichert';
-   const tempText=state.opts.tempModel!=='auto'?'Temperaturmodell: manuell gewählt':
+   const tempText=profile&&Object.hasOwn(profile.fields,'tempModel')&&!state.profileOverride?
+    'Temperaturmodell: aus '+(profile.kind==='saved'?'bestätigtem Abgleich':'geladenem Profil'):
+    state.opts.tempModel!=='auto'?'Temperaturmodell: manuell gewählt':
     reference.temperatureSource==='factory'?'Temperaturmodell: Werkprofil anhand der Koeffizienten erkannt':
     reference.temperatureSource==='local'?'Temperaturmodell: AN0203 aus passender lokaler Kalibrierhistorie':
     'Temperaturmodell: nicht eindeutig im NVM · AN0203 wird angenommen';
