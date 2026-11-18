@@ -58,7 +58,7 @@ test('NVM calculator is wired to verified Viewer state and has no sensor writer'
  const html=read('index.html'),expert=read('expert.js'),src=read('nvm-reconstruction.js');
  assert.match(html,/id="nvmReconstruction"/);
  assert.match(html,/nvm-reconstruction\.js/);
- assert.match(expert,/ELMOS_NVM_RECON\.render\(\$\('nvmReconstruction'\),valid\?st\.nvmBackup:null\)/);
+ assert.match(expert,/ELMOS_NVM_RECON\.render\(\$\('nvmReconstruction'\),valid\?st\.nvmBackup:null,\{/);
  assert.match(expert,/st\.nvmBackupVerified/);
  assert.doesNotMatch(src,/\b(?:writeReg|nvmWriteWord|ramGrant|ramWrite|exchange|serial\.requestPort)\s*\(/);
 });
@@ -220,5 +220,5 @@ test('Missing-data summary is always shown below explanation, not in a hidden di
  assert.match(source,/Nicht berechenbare Werte/);
  assert.match(source,/missing\.hidden=false/);
  assert.match(style,/#nvmReconstruction \.nvmrecon-missing/);
- assert.match(html,/nvm-reconstruction\.js\?v=0\.3\.0/);
+ assert.match(html,/nvm-reconstruction\.js\?v=0\.3\.1/);
 });
