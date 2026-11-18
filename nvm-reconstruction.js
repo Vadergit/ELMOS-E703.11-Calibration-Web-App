@@ -10,7 +10,8 @@ const ELMOS_NVM_RECON = (() => {
  const q12 = v => i16(v) / 4096;
  const q15 = v => i16(v) / 32768;
  const finite = v => typeof v === 'number' && Number.isFinite(v);
- const chooseSource = (live,offline) =>
+ const chooseSource = (live,offline,preferred='file') =>
+  preferred==='eeprom'&&validWords(live)?{kind:'eeprom',words:live}:
   validWords(offline)?{kind:'file',words:offline}:
   validWords(live)?{kind:'eeprom',words:live}:{kind:'none',words:null};
  const hex = v => '0x'+Number(v).toString(16).toUpperCase().padStart(4,'0');
@@ -252,7 +253,7 @@ const ELMOS_NVM_RECON = (() => {
   const content=dialog?.querySelector('.nvmrecon-formula-content');
   if(!dialog||!content)return;
   content.replaceChildren();
-  const state=root._nvmState,selected=chooseSource(state.live,state.offline);
+  const state=root._nvmState,selected=chooseSource(state.live,state.offline,state.preferred);
   const trace=(typeof ELMOS_NVM_TRACE!=='undefined'&&state.last?.ok&&selected.words)?
    ELMOS_NVM_TRACE.trace(key,state.last,selected.words):null;
   if(!trace){
@@ -300,21 +301,30 @@ const ELMOS_NVM_RECON = (() => {
  '.nvmrecon-warnings summary{cursor:pointer}'
  ].join('\n');
  let styleAdded=false;
- function render(root,verifiedWords){
+ function render(root,verifiedWords,liveInfo={}){
   if(!root)return;
   if(!styleAdded){const style=dom('style');style.textContent=css;document.head.appendChild(style);styleAdded=true}
   if(!root._nvmInit){
    root._nvmInit=true;
-   root._nvmState={live:null,offline:null,fileName:null,fileError:null,opts:{pmin:0,pmax:6,ta:25,tb:75,vdd:5,limit:32000,tempModel:'auto'},last:null};
+   root._nvmState={live:null,offline:null,preferred:'file',connected:false,busy:false,liveMeta:null,readNotice:'',readError:false,reading:false,fileName:null,fileError:null,opts:{pmin:0,pmax:6,ta:25,tb:75,vdd:5,limit:32000,tempModel:'auto'},last:null};
    const heading=dom('h3','Datenquelle & Referenzen','nvmrecon-section-title');
    const detail=dom('p','NVM-Backup laden und Referenzbedingungen festlegen. Die Rückrechnung erfolgt lokal, ohne Sensorzugriff.','nvmrecon-muted nvmrecon-intro');
    const actions=dom('div',undefined,'nvmrecon-actions');
    const file=dom('input');file.type='file';file.accept='.json,application/json';
    file.id='nvmReconFile';file.setAttribute('aria-label','NVM-Backup JSON lokal öffnen');
+   const read=dom('button','↻ Sensor-NVM auslesen','nvmrecon-read-sensor');
+   read.id='nvmReconReadSensor';read.type='button';
+   read.title='Aktuelle 64 NVM-Wörter direkt vom angeschlossenen Sensor lesen und prüfen';
    const upload=dom('label','NVM-Backup importieren','nvmrecon-upload');upload.htmlFor=file.id;
    const clear=dom('button','Datei entfernen','nvmrecon-clear');clear.type='button';clear.disabled=true;
-   clear.addEventListener('click',()=>{root._nvmState.offline=null;root._nvmState.fileName=null;root._nvmState.fileError=null;file.value='';draw(root)});
-   actions.append(upload,file,clear,dom('span','JSON · 64 Wörter · nur lesend','nvmrecon-actions-hint'));
+   clear.addEventListener('click',()=>{
+    const state=root._nvmState;state.offline=null;state.fileName=null;state.fileError=null;
+    state.preferred='eeprom';file.value='';draw(root);
+   });
+   actions.append(read,upload,file,clear,dom('span','64 Wörter · Sensor-NVM oder lokale JSON-Datei','nvmrecon-actions-hint'));
+   const feedback=dom('p',undefined,'nvmrecon-read-feedback');
+   feedback.setAttribute('role','status');feedback.hidden=true;
+   actions.after(feedback);
    file.addEventListener('change',async()=>{
     const f=file.files?.[0];if(!f)return;
     try{
@@ -323,6 +333,8 @@ const ELMOS_NVM_RECON = (() => {
      const words=Array.isArray(data)?data:data.words;
      if(!validWords(words))throw Error('Kein gültiges 64-Wort-Backup');
      root._nvmState.offline=words.slice();
+     root._nvmState.preferred='file';
+     root._nvmState.readNotice='';
      root._nvmState.fileName=f.name;
      root._nvmState.fileError=null;
      draw(root);
@@ -374,7 +386,11 @@ const ELMOS_NVM_RECON = (() => {
    dialog.append(close,dom('div',undefined,'nvmrecon-formula-content'));
    root.append(setup,status,result,explain,missing,dialog);
   }
-  root._nvmState.live=validWords(verifiedWords)?verifiedWords.slice():null;
+  const state=root._nvmState;
+  state.live=validWords(verifiedWords)?verifiedWords.slice():null;
+  state.connected=!!liveInfo?.connected;
+  state.busy=!!liveInfo?.busy;
+  state.liveMeta=state.live&&liveInfo?.uid?{uid:liveInfo.uid,readAt:liveInfo.readAt??null}:null;
   draw(root);
  }
  function draw(root){
@@ -382,9 +398,21 @@ const ELMOS_NVM_RECON = (() => {
    box=root.querySelector('.nvmrecon-result'),missing=root.querySelector('.nvmrecon-missing');
   box.replaceChildren();
   if(missing){missing.replaceChildren();missing.hidden=true;}
-  const selected=chooseSource(state.live,state.offline),words=selected.words;
+  const selected=chooseSource(state.live,state.offline,state.preferred),words=selected.words;
   const clear=root.querySelector('.nvmrecon-clear');
   if(clear)clear.disabled=!validWords(state.offline);
+  const read=root.querySelector('#nvmReconReadSensor');
+  if(read){
+   read.disabled=!state.connected||state.busy||state.reading;
+   read.textContent=state.reading?'NVM wird gelesen …':'↻ Sensor-NVM auslesen';
+   read.title=state.connected?'Aktuelle NVM-Wörter erneut mit UID, CRC8 und CRC16 prüfen':'Zum direkten Lesen zuerst einen Sensor verbinden';
+  }
+  const feedback=root.querySelector('.nvmrecon-read-feedback');
+  if(feedback){
+   feedback.hidden=!state.readNotice;
+   feedback.textContent=state.readNotice||'';
+   feedback.className='nvmrecon-read-feedback'+(state.readError?' is-error':'');
+  }
   if(state.fileError){
    const err=dom('p',state.fileError,'nvmrecon-error');
    box.appendChild(err);
@@ -395,12 +423,24 @@ const ELMOS_NVM_RECON = (() => {
    state.last=null;return;
   }
   status.className='nvmrecon-status nvmrecon-source-active';
-  const badge=dom('span',selected.kind==='file'?'Datei importiert':'Live-EEPROM','nvmrecon-source-tag');
-  const name=dom('strong',selected.kind==='file'?(state.fileName||'NVM-Backup'):'64 NVM-Wörter vom Sensor','nvmrecon-source-name');
-  const hint=dom('span',selected.kind==='file'?
-   '64 Wörter · Vorrang vor Live-Daten · Datei-CRC/UID nicht separat geprüft':
-   '64 Wörter · UID und CRC durch die Web-App geprüft','nvmrecon-source-hint');
-  status.replaceChildren(badge,name,hint);
+  if(selected.kind==='eeprom'){
+   status.classList.add('nvmrecon-live-current');
+   const meta=state.liveMeta;
+   const dt=meta?.readAt?new Date(meta.readAt):null;
+   const time=dt&&!Number.isNaN(dt.getTime())?dt.toLocaleString('de-CH',{dateStyle:'short',timeStyle:'medium'}):'Lesezeitpunkt nicht dokumentiert';
+   const badge=dom('span','● AKTUELLER SENSOR · NVM','nvmrecon-source-tag');
+   const name=dom('strong','Direkt vom verbundenen Sensor · '+(meta?.uid?'UID '+meta.uid:'Chip-UID geprüft'),'nvmrecon-source-name');
+   const hint=dom('span','64/64 Wörter · UID / CRC8 / CRC16 geprüft · zuletzt gelesen: '+time+
+    (validWords(state.offline)?' · importierte Datei nicht aktiv':''),'nvmrecon-source-hint');
+   status.replaceChildren(badge,name,hint);
+  }else{
+   status.classList.add('nvmrecon-file-current');
+   const badge=dom('span','LOKALE DATEI · NICHT LIVE','nvmrecon-source-tag');
+   const name=dom('strong',state.fileName||'NVM-Backup','nvmrecon-source-name');
+   const hint=dom('span','64 Wörter · aus JSON importiert · Datei-CRC/UID nicht separat geprüft'+
+    (state.connected?' · «Sensor-NVM auslesen» lädt den aktuellen Chipstand':' · ohne Sensorverbindung'),'nvmrecon-source-hint');
+   status.replaceChildren(badge,name,hint);
+  }
   const r=calculate(words,state.opts);state.last=r;
   if(!r.ok){box.appendChild(dom('p',r.error,'nvmrecon-error'));return}
   const unavailable=[];
@@ -518,6 +558,23 @@ const ELMOS_NVM_RECON = (() => {
    missing.hidden=false;
   }
  }
- return {calculate,render,validWords,chooseSource,missingExplanations};
+ function setReadFeedback(root,message='',options={}){
+  if(!root?._nvmState)return;
+  const state=root._nvmState;
+  state.readNotice=String(message||'');
+  state.readError=!!options.error;
+  state.reading=!!options.reading;
+  draw(root);
+ }
+ function preferLive(root){
+  if(!root?._nvmState?.live)return false;
+  root._nvmState.preferred='eeprom';
+  root._nvmState.readNotice='';
+  root._nvmState.readError=false;
+  root._nvmState.reading=false;
+  draw(root);
+  return true;
+ }
+ return {calculate,render,validWords,chooseSource,missingExplanations,setReadFeedback,preferLive};
 })();
 if(typeof module!=='undefined'&&module.exports)module.exports=ELMOS_NVM_RECON;
