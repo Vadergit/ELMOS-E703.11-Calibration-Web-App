@@ -220,3 +220,12 @@ test('Live NVM recheck is a read-only same-session operation without power cycle
  assert.ok(compact.includes("'nvmRecheckActions','nvmRecheckHint'"));
  assert.ok(compact.includes("moveId('nvmRecheckMsg','cpNvmStatus')"));
 });
+
+test('fit distinguishes missing ADC samples from numeric zero and the signed minimum',()=>{
+ const options={pmin:0,pmax:100,outputLimit:16000};
+ for(const missing of [null,undefined,'']){
+  assert.throws(()=>C.fit(points([[missing,1000,0,25],[24000,1000,100,25]]),options),/Ungültiger Messpunkt/);
+ }
+ const result=C.fit(points([[-32768,1000,0,25],[0,1000,100,25]]),options);
+ assert.equal(result.stats.rangeDigits,32768);
+});
