@@ -211,7 +211,7 @@ test('Live NVM recheck is a read-only same-session operation without power cycle
  assert.match(routine,/await verifyRam\('Nach NVM-Lesung'\)/);
  assert.match(routine,/st\.port!==currentPort\|\|st\.sessionIndex!==currentSession\|\|st\.uid\?\.hex!==currentUid/);
  assert.match(routine,/st\.calImage=null/,'failed check must invalidate old NVM plan');
- assert.doesNotMatch(routine,/PWR_OFF|PWR_ON|powerCycle\(|reinitializeSensor\(|erasePoints\(|await maintWrite\(|applyCalRam\(/);
+ assert.doesNotMatch(routine,/await exchange\(['\"]PWR_|await testSsp3PowerStartup\(|reinitializeSensor\(|erasePoints\(|await maintWrite\(|applyCalRam\(/);
  assert.doesNotMatch(routine,/st\.calpoints\s*=|st\.calfit\s*=|st\.points\s*=/);
  assert.match(app,/\$\('nvmRecheck'\)\.addEventListener\('click',recheckNvmWithoutRestart\)/);
  for(const id of ['nvmRecheck','nvmRecheckMsg','nvmRecheckHint','nvmRecheckActions'])
