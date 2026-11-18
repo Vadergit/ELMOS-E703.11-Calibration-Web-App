@@ -1078,8 +1078,7 @@ if(typeof document!=='undefined') (function UI(){
   else if(!recognizedUid||st.uid.ser0!==st.nvmBackup[0]||st.uid.ser1!==st.nvmBackup[1])nvmReason='Chip-UID wurde nicht vollständig mit dem NVM-Backup abgeglichen.';
   const outputStatus=$('outputOneWireStatus');
   const startup=st.nvmBackupVerified&&st.nvmBackup?.length===64?CAL.oneWireStartupStatus(st.nvmBackup):null;
-  const cookieVerified=!!(st.powerCycleResult?.readVerified&&st.powerCycleResult.verifiedUid&&
-   st.powerCycleResult.verifiedUid===st.uid?.hex&&st.iface==='plc'&&st.port&&st.chip)||psscRecoveryProven()||bridgeColdStartVerified();
+  const cookieVerified=psscRecoveryProven()||bridgeColdStartVerified();
   if(outputStatus){
    const connected=st.mode==='usb'&&st.iface==='plc'&&st.chip;
    const saved=startup;
@@ -3273,7 +3272,7 @@ if(typeof document!=='undefined') (function UI(){
    if(!hasCurrentNvmBackup())throw Error('Kein vollständig geprüftes NVM für die aktuell verbundene Chip-UID verfügbar');
    const startup=CAL.oneWireStartupStatus(st.nvmBackup);
    if(!startup.ok)throw Error('1-Wire-Startfenster nicht sicher: '+startup.errors.join('; '));
-   if(startup.requiresCookie&&!(st.powerCycleResult?.readVerified&&st.powerCycleResult.verifiedUid===st.uid.hex)&&!psscRecoveryProven()&&!bridgeColdStartVerified())
+   if(startup.requiresCookie&&!psscRecoveryProven()&&!bridgeColdStartVerified())
     throw Error('One-Wire-Startfenster '+startup.windowLabel+' vorhanden, Magic-Cookie-Start am aktuellen Chip nicht bestätigt. Kein NVM-Schreiben.');
    const recovery=st.psscRamRecovery||(st.regs[0x06]===0x6C04&&st.nvmBackup[17]!==0x6C04);
    // A temporary One-Wire RAM recovery may only persist calibration words.
@@ -3530,7 +3529,7 @@ if(typeof document!=='undefined') (function UI(){
     throw Error('Brückenspannung dauerhaft speichern wird derzeit nur mit SSP3 unterstützt.');
    CAL.protectStartupCommunication(initial,modified,{allowSvdd,allowAlarmMask:alarmOnly||alarmIntegrated});
    const startup=CAL.oneWireStartupStatus(initial);
-   if(startup.requiresCookie&&!(st.powerCycleResult?.readVerified&&st.powerCycleResult.verifiedUid===id)&&!psscRecoveryProven()&&!bridgeColdStartVerified())
+   if(startup.requiresCookie&&!psscRecoveryProven()&&!bridgeColdStartVerified())
     throw Error('1-Wire-Startschutz: Cookie-Start für die aktuelle Chip-UID nicht verifiziert. NVM-Schreiben gesperrt.');
    if(CAL.crc16(initial)!==initial[63]||CAL.crc16(modified)!==modified[63])throw Error('CRC16-Prüfung fehlgeschlagen');
    // Repeat the target-voltage check immediately before any NVM write command.
