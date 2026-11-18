@@ -1027,17 +1027,24 @@ if(typeof document!=='undefined') (function UI(){
  // the new DSP endpoint voltages unless a matching AODO plan was confirmed.
  // This is advisory only; the final NVM diff/UID/CRC/write guards remain authoritative.
  function outputScalingPreflight(){
-  if(!st.calfit||!st.calStaged||!hasCurrentNvmBackup())
+  if(!st.calfit||!st.calStaged)
    return {required:false,reason:''};
   const mode=String($('expertOutputMode').value);
   if(!['1','2','3'].includes(mode))return {required:false,reason:''};
+  const proposed=st.expertOutputPlan;
+  if(!hasCurrentNvmBackup()){
+   // The old AODO scaling is still unknown. Do not let the guided workflow
+   // skip output confirmation just because the NVM read happens later.
+   if(proposed&&String(proposed.mode)===mode&&proposed.scaleEnabled===true)
+    return {required:false,reason:''};
+   return {required:true,reason:'Original-NVM für den Ausgang ist noch nicht geprüft und keine neue S0/S1-Skalierung vorgemerkt'};
+  }
   const vdd=Number($('psscVdd').value),s0=Number($('psscS0').value),
    s1=Number($('psscS1').value),limit=st.calfit.outputLimit;
   let old;
   try{old=CAL.analogOutputStatus(st.nvmBackup,s0,s1,vdd,limit)}
   catch(error){return {required:true,reason:error.message}}
   if(old.checked&&old.ok&&old.mode===Number(mode))return {required:false,reason:''};
-  const proposed=st.expertOutputPlan;
   if(proposed&&String(proposed.mode)===mode&&proposed.scaleEnabled){
    try{
     const image=CAL.prepareOutputConfig(st.nvmBackup,proposed,limit);
