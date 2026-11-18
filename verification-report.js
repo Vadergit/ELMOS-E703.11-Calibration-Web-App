@@ -95,6 +95,7 @@ const ELMOS_VERIFICATION_REPORT=(()=>{
    [tr('Zusätzliche Informationen','Additional information'),meta.notes]
   ].filter(x=>x[1]).map(x=>fld(x[0],x[1])).join('');
   const settings=[
+   fld(tr('Name der Nachmessung','Verification name'),record.label||null),
    fld(tr('Prüfart','Test type'),modeName(mode)),
    fld(tr('Kalibrierter Druckbereich','Calibrated pressure range'),
     Number.isFinite(config.calibrationMin)&&Number.isFinite(config.calibrationMax)?
