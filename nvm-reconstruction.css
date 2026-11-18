@@ -129,3 +129,18 @@
 #nvmReconstruction .nvmrecon-formula-guide{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:750;color:var(--blue);text-decoration:none;padding:7px 0}
 #nvmReconstruction .nvmrecon-formula-guide:hover{text-decoration:underline}
 @media(max-width:630px){#nvmReconstruction .nvmrecon-formula-content{padding:18px 14px 24px}#nvmReconstruction .nvmrecon-formula-title{font-size:18px;margin-right:60px}#nvmReconstruction .nvmrecon-formula-dialog{width:calc(100vw - 14px);max-width:none;max-height:94dvh}#nvmReconstruction .nvmrecon-formula-content{max-height:94dvh}#nvmReconstruction .nvmrecon-formula-steps li{padding-left:38px}}
+
+/* Clear distinction between verified live EEPROM readings and local JSON files. */
+#nvmReconstruction .nvmrecon-read-sensor{font-size:12px;font-weight:800;min-height:36px;padding:8px 13px;border:1px solid var(--blue);border-radius:8px;background:var(--blue);color:#fff}
+#nvmReconstruction .nvmrecon-read-sensor:hover:not(:disabled){filter:brightness(.94);background:var(--blue);color:#fff;border-color:var(--blue)}
+#nvmReconstruction .nvmrecon-read-sensor:disabled{cursor:not-allowed;opacity:.58}
+#nvmReconstruction .nvmrecon-read-feedback{font-size:11.5px;line-height:1.45;margin:0 0 9px;padding:7px 10px;border-radius:7px;border:1px solid var(--nv-edge);color:var(--ink);background:var(--paper)}
+#nvmReconstruction .nvmrecon-read-feedback.is-error{border-color:var(--red);color:var(--red)}
+#nvmReconstruction .nvmrecon-status.nvmrecon-live-current{border:1px solid var(--green);border-left:4px solid var(--green);background:var(--paper);padding:10px 12px}
+#nvmReconstruction .nvmrecon-live-current .nvmrecon-source-tag{background:var(--green);color:var(--paper);letter-spacing:.02em;padding:5px 9px;font-weight:850}
+#nvmReconstruction .nvmrecon-live-current .nvmrecon-source-name{font-size:12.5px;font-weight:800}
+#nvmReconstruction .nvmrecon-live-current .nvmrecon-source-hint{flex-basis:100%;margin:0;color:var(--ink);font-size:11.5px}
+#nvmReconstruction .nvmrecon-status.nvmrecon-file-current{border-style:dashed;background:var(--nv-soft)}
+#nvmReconstruction .nvmrecon-file-current .nvmrecon-source-tag{background:var(--nv-edge);color:var(--ink);font-weight:800}
+#nvmReconstruction .nvmrecon-file-current .nvmrecon-source-hint{flex-basis:100%;margin:0}
+@media(max-width:620px){#nvmReconstruction .nvmrecon-read-sensor{flex-basis:100%;text-align:center}}
