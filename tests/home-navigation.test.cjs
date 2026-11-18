@@ -42,16 +42,18 @@ function harness({critical=false,measuring=false,archiveActive=false,logging=fal
  const code=vm.runInNewContext(script+'\nELMOS_HOME_NAVIGATION',context);
  return {events,elements,archive,guided,api,code,window,document};
 }
-test('global home links and confirmation dialog are present on every classic tool',()=>{
- assert.match(html,/id="guidedHomeTop"[^>]*>⌂ Geführte Startseite<\/button>/);
- assert.match(html,/id="homeButton" aria-label="Zur geführten Startseite"/);
+test('classic navigation uses only the sidebar, guided tasks alone offer task chooser',()=>{
+ assert.match(html,/id="guidedHomeTop"[^>]*>↩ Aufgabenauswahl<\/button>/);
+ assert.match(html,/html\.guided-task-open #guidedHomeTop\{display:inline-flex\}/);
+ assert.match(html,/<h1>Kalibrierassistent<\/h1>/);
+ assert.doesNotMatch(html,/id="homeButton"/);
+ assert.doesNotMatch(html,/data-guided-home/);
  assert.match(html,/<h2>Sensorbrücken-Rechner<\/h2>/);
- assert.match(html,/<button type="button" data-guided-home>Zur geführten Startseite<\/button>/);
  assert.doesNotMatch(html,/Zum USB-Start/);
  for(const id of ['guidedHomeConfirm','guidedHomeAbort','guidedHomeStay','guidedHomeConfirmStatus'])
   assert.match(html,new RegExp('id="'+id+'"'));
- assert.match(html,/home-navigation\.js\?v=0\.7\.132/);
- assert.match(app,/window\.ELMOS_HOME_NAVIGATION\?\.requestHome\?\.\(\)/);
+ assert.match(html,/home-navigation\.js\?v=0\.7\.134/);
+ assert.match(read('guided.js'),/window\.ELMOS_HOME_NAVIGATION\.requestHome\(\)/);
 });
 test('idle Home opens the guided task chooser without disconnecting or clearing the sensor',()=>{
  const m=harness();
