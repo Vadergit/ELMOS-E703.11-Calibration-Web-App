@@ -4647,7 +4647,7 @@ if(typeof document!=='undefined') (function UI(){
   if(!st.chip||!st.uid?.hex)throw Error($('connMsg')?.textContent||'Keine gültige Chipantwort.');
   return {uid:st.uid.hex,iface:st.iface,adapter:st.adapterKind};
  }
- async function guidedDiagnostic(action){
+ async function guidedDiagnostic(action,{magicConfirmed=false}={}){
   if(action==='export'){$('plcStartupLogExport').click();return 'USB-Protokoll bereitgestellt.'}
   if(action==='diagnose'){
    const result=await runChipDiagnostics('Geführter Modus: manuelle Registerdiagnose');
@@ -4656,6 +4656,17 @@ if(typeof document!=='undefined') (function UI(){
   if(action==='startup'){
    await recoverOneWireStartup();
    return $('plcStartupState').textContent;
+  }
+  if(action==='magic'){
+   if(!magicConfirmed)throw Error('Bitte die temporäre RAM-Umschaltung von 1-Wire ausdrücklich bestätigen.');
+   if(st.adapterKind!=='ssp3'||st.iface!=='plc'||!st.port||st.chip)
+    throw Error('Magic Cookie nur bei nicht erkanntem Chip am SSP3 im 1-Wire-Modus möglich.');
+   const archive=window.ELMOS_ARCHIVE;
+   if(archive?.active)await archive.finalise('incomplete',{snapshot:null});
+   // The existing guarded routine requires the same explicit consent flag as classic mode.
+   $('plcMagicConfirm').checked=true;
+   try{await testPlcMagicCookie();return $('plcMagicState').textContent}
+   finally{$('plcMagicConfirm').checked=false}
   }
   throw Error('Unbekannte Diagnosefunktion.');
  }

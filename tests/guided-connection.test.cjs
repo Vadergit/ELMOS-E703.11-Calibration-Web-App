@@ -27,7 +27,7 @@ function makeGuidedConnect(overrides={}){
 test('guided connection is available on any step, including sensor-swap and communication recovery',()=>{
  for(const id of ['gwConnectionToggle','gwConnectionPage','gwConnectionAdapter','gwConnectionInterface',
   'gwConnectionApply','gwConnectionChoose','gwConnectionReinit','gwConnectionDiagnose',
-  'gwConnectionStartup','gwConnectionLog','gwConnectionClose']){
+  'gwConnectionStartup','gwConnectionLog','gwConnectionMagic','gwConnectionMagicConfirm','gwConnectionClose']){
   assert.match(guided,new RegExp('id="'+id+'"'));
  }
  assert.match(guided,/if\(connectionOpen\)\{renderConnectionStatus\(\);return;/);
@@ -77,7 +77,10 @@ test('connection helpers reuse read-only diagnostic and protected 1-wire start-t
  const body=app.slice(start,end);
  assert.match(body,/runChipDiagnostics/);
  assert.match(body,/recoverOneWireStartup/);
+ assert.match(body,/testPlcMagicCookie/);
+ assert.match(body,/if\(!magicConfirmed\)throw Error/);
  assert.match(body,/plcStartupLogExport/);
  assert.doesNotMatch(body,/nvmWriteWord|nvmProgram\(/);
  assert.match(app,/connectGuided,guidedDiagnostic/);
+ assert.match(guided,/gwConnectionMagic'\)\.disabled=working\|\|!usb\|\|connected/);
 });

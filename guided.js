@@ -145,6 +145,7 @@ const ELMOS_GUIDED=(()=>{
     '<section class="gw-tile"><h3>Verbindung beheben</h3><p>Falls der Adapter verbunden ist, aber der Sensor nicht antwortet, kannst du die Register nur lesend prüfen und das USB-Protokoll zur Fehlersuche speichern.</p>'+
     '<div class="gw-panel-actions"><button id="gwConnectionReinit" type="button">Sensor erneut erkennen</button><button id="gwConnectionDiagnose" type="button">Registerdiagnose (nur lesen)</button><button id="gwConnectionStartup" type="button">1-Wire-Lesetest (12 s)</button><button id="gwConnectionLog" type="button">USB-Protokoll herunterladen</button></div>'+
     '<p class="gw-connection-hint">Der 12-Sekunden-Test führt keine Power-Cycle- oder NVM-Befehle aus. Für ein abgelaufenes 1-Wire-Startfenster zuerst die normale Neuinitialisierung verwenden. SPI wird bei DIY-Bridges nicht unterstützt.</p>'+
+    '<details class="gw-connection-advanced"><summary>Erweitert · 1-Wire-Magic-Cookie (nur RAM)</summary><p>Nur bei nicht erkanntem Sensor am SSP3 und ausschliesslich am Prüfplatz: Die zwei dokumentierten PLC-Frames schalten 1-Wire eventuell vorübergehend im RAM frei. Dadurch kann der Analogausgang AODO bis zum Sensor-Neustart überlagert werden. Keine NVM-Programmierung.</p><label class="gw-connection-consent"><input type="checkbox" id="gwConnectionMagicConfirm"> Ich akzeptiere die temporäre Umschaltung von AODO/1-Wire am Testchip.</label><div class="gw-panel-actions"><button type="button" id="gwConnectionMagic" disabled>Magic Cookie testen (nur RAM)</button></div></details>'+
     '<pre id="gwConnectionDiagnosticResult" class="gw-connection-diagnostic" role="status" hidden></pre><div class="gw-panel-actions"><button id="gwConnectionClose" type="button">Zurück zum Assistenten</button><a href="usb-diagnose.html" target="_blank" rel="noopener noreferrer">Separater USB-Test</a></div></section>'+
     '</div></section>'+
    '<div id="gwLogPage" class="gw-page gw-logger-page" hidden></div>'+
@@ -234,6 +235,8 @@ const ELMOS_GUIDED=(()=>{
   $('gwConnectionDiagnose').addEventListener('click',()=>guidedConnectionDiagnostic('diagnose'));
   $('gwConnectionStartup').addEventListener('click',()=>guidedConnectionDiagnostic('startup'));
   $('gwConnectionLog').addEventListener('click',()=>guidedConnectionDiagnostic('export'));
+  $('gwConnectionMagicConfirm').addEventListener('change',renderConnectionStatus);
+  $('gwConnectionMagic').addEventListener('click',()=>guidedConnectionDiagnostic('magic'));
   $('gwTasks').addEventListener('click',returnToTasks);
   $('gwAfeReset').addEventListener('click',()=>{
    afeStatsStart=Date.now();afeGainSignature='';
@@ -659,6 +662,7 @@ const ELMOS_GUIDED=(()=>{
   $('gwConnectionAdapter').value=s.adapter||'ssp3';
   $('gwConnectionInterface').value=s.iface||'plc';
   updateConnectionChoices();
+  $('gwConnectionMagicConfirm').checked=false;
   msg('');
   render();
  }
@@ -676,12 +680,13 @@ const ELMOS_GUIDED=(()=>{
   status.className='gw-alert '+(connected?'success':usb?'warn':'');
   status.textContent=(connected?'Sensor erkannt, UID '+(s.uid||'nicht bekannt')+'. ':usb?'USB-Adapter verbunden, Sensor nicht erkannt. ':'Noch kein USB-Adapter verbunden. ')+
    'Aktives Protokoll: '+current+'.'+(s.connectionMessage?' '+s.connectionMessage:'');
-  for(const id of ['gwConnectionApply','gwConnectionChoose','gwConnectionReinit','gwConnectionDiagnose','gwConnectionStartup','gwConnectionLog','gwConnectionClose'])
+  for(const id of ['gwConnectionApply','gwConnectionChoose','gwConnectionReinit','gwConnectionDiagnose','gwConnectionStartup','gwConnectionLog','gwConnectionMagic','gwConnectionClose'])
    $(id).disabled=working;
   $('gwConnectionReinit').disabled=working||!usb;
   $('gwConnectionDiagnose').disabled=working||!usb;
   $('gwConnectionStartup').disabled=working||!usb||connected||s.iface!=='plc'||s.adapter!=='ssp3';
   $('gwConnectionLog').disabled=working||!usb;
+  $('gwConnectionMagic').disabled=working||!usb||connected||s.iface!=='plc'||s.adapter!=='ssp3'||!$('gwConnectionMagicConfirm').checked;
  }
  async function connectGuidedSensor(selectPort){
   if(connectionBusy)return;
@@ -708,9 +713,10 @@ const ELMOS_GUIDED=(()=>{
   const report=$('gwConnectionDiagnosticResult');
   if(action!=='export'){report.hidden=false;report.textContent='Lesende Diagnose läuft …'}
   try{
-   const result=await api.guidedDiagnostic(action);
+   const result=await api.guidedDiagnostic(action,{magicConfirmed:action==='magic'&&$('gwConnectionMagicConfirm').checked});
    if(action==='export')msg('USB-Protokoll wurde als JSON zum Herunterladen bereitgestellt.','success');
    else{
+    if(action==='magic')$('gwConnectionMagicConfirm').checked=false;
     report.hidden=false;report.textContent=String(result||'Diagnose beendet. Kein gültiger Sensor erkannt.');
     msg(action==='startup'?'1-Wire-Lesetest abgeschlossen.':'Registerdiagnose abgeschlossen.','success');
    }
