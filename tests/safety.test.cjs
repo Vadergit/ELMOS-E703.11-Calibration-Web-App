@@ -1452,3 +1452,60 @@ test('AODO preflight warns on outdated scaling after recalculating DSP',()=>{
  for(const id of ['outputScalingAdvisory','nvmOutputAdvisory'])
   assert.ok(html.includes('id="'+id+'"'),id+' present for classic and guided views');
 });
+
+
+test('AN0204 proof: recover failed initial PLC-RAM read only after authenticated hardware cold start',async()=>{
+ const app=read('app.js');
+ const begin=app.indexOf(' function psscRecoveryProven(){');
+ const end=app.indexOf(' function psscNvmBlock(',begin);
+ assert.ok(begin>0&&end>begin,'startup proof functions must exist');
+ const factory=new Function('st','readReg','P','h','logging','stopLive','startLive',
+  app.slice(begin,end)+'return {valid:psscRecoveryProven,refresh:refreshPsscRecoveryProofReadOnly,evidence:psscRecoveryEvidence};');
+ const port={},uid='0020018A487B';
+ const proof={
+  port,session:3,stage:'verified',powerRestored:true,readVerified:true,
+  verifiedUid:uid,plcAddress:'0x6C',plcEnabledInRam:null,
+  steps:[{ok:true,command:'PWR_OFF 03E8'},
+         {ok:true,command:'PWR_ON 0C80 00C8 0 -> PLC T'}]
+ };
+ const base={
+  adapterKind:'ssp3',iface:'plc',chip:true,port,sessionIndex:3,
+  uid:{hex:uid},plcAddressVerified:true,plcAddress:0x6C,
+  startupTrials:[],powerCycleResult:proof,closing:false,calTask:false,
+  writing:false,nvmWorking:false,manualLivePause:false,live:true,liveReadPromise:null
+ };
+ async function evaluate(state,ram=0x6C04, address=0x6C){
+  const calls=[],logs=[];
+  const api=factory(state,async reg=>{calls.push(reg);return reg===0x06?ram:0x081F;},
+   {plcAddressFromConfig:()=>address},v=>Number(v).toString(16),
+   s=>logs.push(s),()=>{state.live=false},()=>{state.live=true});
+  return {ok:await api.refresh(),calls,logs,valid:api.valid(),reason:api.evidence()};
+ }
+ const successful=await evaluate({...base,powerCycleResult:{...proof}});
+ assert.equal(successful.ok,true,'original, verified power cycle can be completed by RAM readback');
+ assert.deepEqual(successful.calls,[0x06,0x0A],'read-only CFG/RAM registers');
+ assert.ok(successful.logs.some(l=>l.includes('Kein Power-Cycle und kein Schreibvorgang')));
+ assert.equal(await evaluate({...base,powerCycleResult:{...proof,plcEnabledInRam:true}}).then(r=>r.calls.length),0);
+ const noProof=await evaluate({...base,powerCycleResult:null});
+ assert.equal(noProof.ok,false,'connected sensor alone is insufficient');
+ assert.deepEqual(noProof.calls,[]);
+ assert.match(noProof.reason,/Kein protokollierter SSP3-Power-Cycle/);
+ for(const [name,change] of Object.entries({
+  missingOff:{steps:proof.steps.slice(1)},missingOn:{steps:proof.steps.slice(0,1)},
+  staleSession:{session:2},stalePort:{port:{}},wrongUid:{verifiedUid:'DEADBEEF'},
+  notPowered:{powerRestored:false},readNotVerified:{readVerified:false},
+  failedStart:{stage:'failed'},wrongAddress:{plcAddress:'0x7C'}
+ })){
+  const r=await evaluate({...base,powerCycleResult:{...proof,...change}});
+  assert.equal(r.ok,false,name);
+  assert.deepEqual(r.calls,[],name+' must not trigger a fake recovery read');
+ }
+ assert.equal((await evaluate({...base,powerCycleResult:{...proof}},0x6C00)).ok,false,
+  'PLC enable bit must be read from actual RAM');
+ assert.equal((await evaluate({...base,powerCycleResult:{...proof}},0x6C04,0x7C)).ok,false,
+  'PLC address must agree with sensor configuration');
+ const pssc={stage:'PSSC-RAM-Start',port,session:3,powerRestored:true,readVerified:true,verifiedUid:uid};
+ const alternate=await evaluate({...base,powerCycleResult:null,startupTrials:[pssc]});
+ assert.equal(alternate.ok,true,'previously supported valid PSSC start remains accepted');
+ assert.deepEqual(alternate.calls,[]);
+});
