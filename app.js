@@ -3872,6 +3872,7 @@ if(typeof document!=='undefined') (function UI(){
      st.referenceTemplate=ELMOS_NVM_PROFILE.fromFile({
       ...(has('reference')?{reference:values.reference}:{}),
       ...(has('dsp')?{dsp:values.dsp}:{}),
+      ...(has('measurement')?{measurement:values.measurement}:{}),
       ...(has('output')?{output:values.output}:{})
      },profile.label||'Aktive Config-Vorlage');
     }catch(_){st.referenceTemplate=null}
