@@ -4,6 +4,7 @@
    Physikalische Brueckensignale sind NOMINALE AFE-Rueckrechnungen, keine
    rekonstruierten Originalmessungen. Kein NVM/RAM-Zugriff und kein Schreiben. */
 const ELMOS_NVM_RECON = (() => {
+ const calibration = typeof module !== 'undefined' && module.exports ? require('./calibration.js') : ELMOS_CAL;
  const validWords = a => Array.isArray(a) && a.length === 64 &&
    a.every(v => Number.isInteger(v) && v >= 0 && v <= 65535);
 
@@ -24,6 +25,10 @@ const ELMOS_NVM_RECON = (() => {
      uid.slice(-8).toUpperCase()!==raw[1].toString(16).toUpperCase().padStart(4,'0')+
        raw[0].toString(16).toUpperCase().padStart(4,'0')))
    throw Error('Chip-UID passt nicht zur Seriennummer SER0/SER1 im importierten EEPROM.');
+  const crc8Valid=calibration.crc8(raw)===(raw[15]>>>8);
+  const crc16Valid=calibration.crc16(raw)===raw[63];
+  if((full||data?.format==='E70311-CM64-v2')&&(!crc8Valid||!crc16Valid))
+   throw Error('EEPROM-Prüfsumme ungültig: '+[!crc8Valid?'CRC8 (Werksbereich)':null,!crc16Valid?'CRC16 (gesamtes NVM)':null].filter(Boolean).join(', '));
   let profile=null,profileWarning=null;
   if(full&&typeof parseProfile==='function'){
    try{profile=parseProfile(data,filename)}
@@ -31,7 +36,7 @@ const ELMOS_NVM_RECON = (() => {
   }
   const noPressureCalibration=raw[34]===0&&raw.slice(35,51).every(word=>word===0);
   return {words:raw.slice(),uid:uid?.toUpperCase()||null,full,profile,
-    profileWarning,noPressureCalibration};
+    profileWarning,noPressureCalibration,crc8Valid,crc16Valid};
  }
  const i16 = v => v & 0x8000 ? v - 65536 : v;
  const q12 = v => i16(v) / 4096;
@@ -433,7 +438,9 @@ const ELMOS_NVM_RECON = (() => {
      state.fileError=null;
      state.fileNotice=(imported.full?'Komplettabgleich':'EEPROM-Backup')+
       ' geladen: 64 von 64 Wörtern'+(imported.uid?' · UID '+imported.uid:'')+
-      '. '+(imported.noPressureCalibration?
+      '. '+(imported.crc8Valid&&imported.crc16Valid?'CRC8 und CRC16 bestätigt. ':
+       'Rohabbild zur Diagnose · '+[!imported.crc8Valid?'CRC8 ungültig':null,!imported.crc16Valid?'CRC16 ungültig':null].filter(Boolean).join(', ')+'. ')+
+      (imported.noPressureCalibration?
        'Keine gespeicherte Druckkalibrierung erkannt (S_F und S0–S15 sind 0).':
        'Kalibrierregister vorhanden; Werte werden unten ausgewertet.')+
       (imported.profileWarning?' '+imported.profileWarning:'');

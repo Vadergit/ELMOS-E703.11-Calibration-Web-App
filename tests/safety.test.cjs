@@ -1638,6 +1638,18 @@ test('Sensorbrücken-Rechner loads CM64 and complete calibration JSON without di
  const good=RECON.parseNvmImport(complete,'Komplettabgleich.json',()=>({name:'Confirmed references'}));
  assert.equal(good.full,true);
  assert.equal(good.profile.name,'Confirmed references');
+ assert.equal(good.crc8Valid,true);
+ assert.equal(good.crc16Valid,true);
+ const damaged=words.slice();
+ damaged[35]^=1;
+ assert.throws(()=>RECON.parseNvmImport({...nvm,words:damaged}),/CRC16/);
+ assert.throws(()=>RECON.parseNvmImport({...complete,nvm:{programmed:{
+  ...complete.nvm.programmed,words:damaged}}}),/CRC16/);
+ assert.equal(RECON.parseNvmImport(damaged).crc16Valid,false);
+ const factoryDamaged=words.slice();
+ factoryDamaged[2]^=1;
+ factoryDamaged[63]=require('../calibration.js').crc16(factoryDamaged);
+ assert.throws(()=>RECON.parseNvmImport({...nvm,words:factoryDamaged}),/CRC8/);
  const missingReferences=RECON.parseNvmImport(complete,'Komplettabgleich.json',()=>{
   throw Error('Reference metadata unavailable');
  });
