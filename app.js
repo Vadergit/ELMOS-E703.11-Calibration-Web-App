@@ -4850,6 +4850,7 @@ if(typeof document!=='undefined') (function UI(){
    nvmBackupVerified:!!st.nvmBackupVerified,outputReady:expert.outputReady()
   }),
   navigate:n=>step(n),
+  closeSettings:()=>toggleSettings(false),
   navigationSafety:()=>({
    critical:!!(st.closing||st.writing||st.nvmWorking||st.nvmAttempting||
     st.afeWriteActive||st.powerCycleRunning||st.magicRunning||
