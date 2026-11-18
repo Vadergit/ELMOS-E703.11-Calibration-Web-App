@@ -140,8 +140,10 @@ const ELMOS_CAL = (() => {
   const smin=Math.min(...ps.map(p=>p.s)),smax=Math.max(...ps.map(p=>p.s));
   if(smax-smin<4000)throw Error('ADC-Signalhub zu klein für eine numerisch stabile Kalibrierung. AFE anpassen.');
   // AN0203 and 25DS0170E.04 §6.3: ADC_S and DSP_S are Q0.15; S_F / S_O are Q3.12.
-  // S pre-scaling uses ±0.99 at the observed end points (beware of limited headroom).
-  const sf=q(1.98*32768/(smax-smin),12,'S_F');
+  // Use ±0.99 where representable. For smaller spans let the coefficient
+  // range and fit error checks determine whether the requested target fits.
+  const maxQ3Gain=32767/4096;
+  const sf=q(Math.min(1.98*32768/(smax-smin),maxQ3Gain),12,'S_F');
   const so=q(-fromQ(sf,12)*((smax+smin)/2)/32768,12,'S_O');
   const normS=raw=>fromQ(sf,12)*raw/32768+fromQ(so,12);
   if(ps.some(p=>Math.abs(normS(p.s))>0.999))throw Error('S-Normalisierung nach Quantisierung übersteuert.');

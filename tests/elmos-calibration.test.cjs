@@ -229,3 +229,11 @@ test('fit distinguishes missing ADC samples from numeric zero and the signed min
  const result=C.fit(points([[-32768,1000,0,25],[0,1000,100,25]]),options);
  assert.equal(result.stats.rangeDigits,32768);
 });
+
+test('a smaller pressure span can fit a reduced DSP target within Q3.12',()=>{
+ const result=C.fit(points([[-3000,1000,0,25],[3000,1000,100,25]]),{
+  pmin:0,pmax:100,outputLimit:16000
+ });
+ assert.equal(result.registers.sf,32767);
+ assert.ok(result.stats.maxDigits<1);
+});
