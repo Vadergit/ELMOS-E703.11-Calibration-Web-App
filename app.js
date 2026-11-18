@@ -4334,7 +4334,7 @@ if(typeof document!=='undefined') (function UI(){
  function openNvmCalculator(){
   window.ELMOS_ARCHIVE?.close?.();
   if(window.ELMOS_GUIDED?.isOpen()){
-   window.ELMOS_GUIDED.close();
+   window.ELMOS_GUIDED.close({preservePreference:true});
    if(window.ELMOS_GUIDED.isOpen())return; // running test logger prevents view switch
   }
   if(typeof ELMOS_COMPACT!=='undefined')ELMOS_COMPACT.set(false);
