@@ -12,7 +12,7 @@ const ELMOS_HOME_NAVIGATION=(()=>{
   const safety=api()?.navigationSafety?.()||{};
   const recording=!!logger()?.isBusy?.();
   const measuring=!!safety.measuring||!!archive()?.isMeasuring;
-  const critical=!!safety.critical||!!archive()?.isFinishing;
+  const critical=!!safety.critical||!!archive()?.isFinishing||!!guided()?.hasPendingOperation?.();
   const unfinished=!!archive()?.active||!!guided()?.hasUnfinishedTask?.()||recording||measuring;
   return {critical,recording,measuring,unfinished,archiveType:archive()?.current?.type||null};
  }
@@ -27,6 +27,7 @@ const ELMOS_HOME_NAVIGATION=(()=>{
   if(dialog?.open)dialog.close();
  }
  function homeNow(){
+  api()?.closeSettings?.();
   archive()?.close?.();
   const g=guided();
   if(!g?.open||!g?.resetForHome)throw Error('Geführte Hauptseite nicht verfügbar. Bitte Webseite aktualisieren.');
@@ -55,7 +56,7 @@ const ELMOS_HOME_NAVIGATION=(()=>{
    const kind=s.recording?'Testaufzeichnung':s.archiveType==='verification'?'Nachmessung':
     s.archiveType==='calibration'?'Kalibrierung':s.archiveType==='output'?'Ausgangskonfiguration':
     s.measuring?'Messung':'angefangener Vorgang';
-   displayProblem('Es läuft eine '+kind+'. Möchtest du den Vorgang abbrechen und zur geführten Hauptseite zurückkehren? Bereits gespeicherte Messwerte bleiben im Archiv. Eine laufende Leseantwort wird sicher beendet; der Sensor wird nicht getrennt und es erfolgt kein NVM-Schreiben.');
+   displayProblem('Es läuft eine '+kind+'. Möchtest du den Vorgang abbrechen und zur geführten Hauptseite zurückkehren? Bereits gespeicherte Messwerte bleiben im Archiv. Eine laufende Leseantwort wird sicher beendet; der Sensor wird nicht getrennt und es erfolgt kein NVM-Schreiben.'+(api()?.navigationSafety?.()?.nvmDone?' Bereits programmierte NVM-Daten im Sensor bleiben unverändert.':''));
   }
   if(!dialog.open)dialog.showModal();
   return false;
