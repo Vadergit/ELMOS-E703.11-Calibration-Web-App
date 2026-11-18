@@ -1,3 +1,12 @@
+## v0.7.140 – Kombinierte DSP-/AODO-NVM-Kalibrierung auf ESP32-C3 mit Bridge-User-NVM
+
+- Ursache: Der Magic-Cookie-/PLC-RAM-Recovery-Zweig von `prepareNvmOperation()` erlaubte eine **gemeinsame Druckkalibrierung und analoge Ausgangsskalierung** nur mit originalem SSP3, obwohl die aktuelle ESP32-C3-Laborfirmware eine generische User-NVM-Capability `BRIDGE_USER_NVM_V1` mit `NVM ARM HOST` bereitstellt.
+- Neue Freigabe ausschliesslich für den **ESP32-C3 SuperMini mit erkanntem `BRIDGE_GENERIC_RAM_V1` und `BRIDGE_USER_NVM_V1`** sowie bestätigtem 1-Wire-Zugriff, aktivem Lastschalter-Kaltstart der aktuellen USB-Sitzung und derselben Chip-UID. Fehlende Capabilities oder eine reine `PLC RECOVER`-Verbindung reichen nicht. Der Hardwarestart wird im Bridge-Firmwarebefehl `NVM ARM HOST` nochmals unabhängig geprüft.
+- Analogmodus bleibt unverändert, S0/S1 müssen ausdrücklich vorgemerkt sein. Der kombinierte NVM-Diff wird gegen die bestehende `CAL.validateRecoveryCalibrationDiff(...,{allowAnalogScaling:true})`-Whitelist geprüft. Factory-/Bootregister sind weiterhin unveränderbar; unabhängige DSP-Prüfung, AODO-Zielspannungen, UID, CRC16 und automatisches Original-NVM-Backup bleiben Pflicht.
+- Die NVM-Änderungsliste zeigt die tatsächliche erkannte Programmiermethode anstatt pauschal «SSP3». Kein automatisches Neustarten und kein Schreiben ohne explizite Bestätigung.
+- **Bisherige ESP32-C3-Firmware ohne die genannten Fähigkeiten bleibt gesperrt.** Für eine echte Sensor-VDD-Trennung ist ein Lastschalter an GPIO10 nötig; Firmwarebestätigung allein beweist keine elektrische Unterbrechung am realen Aufbau. Hardware-NVM-Programmierung nur mit einem entbehrlichen Testchip validieren.
+- Positive und negative Sicherheitsprüfungen hinzugefügt. Ein Browser-Reload kann den laufenden RAM-Abgleich verlieren, deshalb vorher archivieren.
+
 ## v0.7.139 – SSP3-Kaltstartfreigabe nachträglich nur lesend bestätigen
 
 - Fehlerfolge: Auch in v0.7.138 konnte ein korrekt berechneter und im RAM verifizierter kombinierter DSP-/AODO-NVM-Plan am Kaltstartnachweis scheitern. Beim ursprünglichen AN0204-SSP3-Power-Cycle wurde die flüchtige PLC-Freigabe (`CFG_SPI_I2C.plc_en`) nur einmal abgefragt. War diese Abfrage vorübergehend nicht verfügbar, blieb der ansonsten gültige physische Kaltstartnachweis auf `unbestätigt`.
