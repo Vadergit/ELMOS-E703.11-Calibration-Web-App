@@ -2,7 +2,7 @@
 
 **Ein geführter Kalibrierassistent für den ELMOS E703.11 und das SSP3-Eval-Board.** Ziel ist ein verständlicher Abgleich, der auch ohne tiefere Vorkenntnisse Schritt für Schritt funktioniert. Wer mehr benötigt, kann zusätzliche Messpunkte, DSP-Parameter und einen geschützten Expertenmodus verwenden.
 
-**Version: v0.7.121 · EEPROM-/RAM-Abweichungen gelb markieren** · [Änderungsverlauf](CHANGELOG.md) · **[Geplante Funktionen](ROADMAP.md)**
+**Version: v0.7.122 · RAM-Anzeige für Alarme und Ausgangsbegrenzung korrigiert** · [Änderungsverlauf](CHANGELOG.md) · **[Geplante Funktionen](ROADMAP.md)**
 
 Der **Demo-Modus** wird in den Einstellungen erst nach Aktivierung von **Expertenparameter** angezeigt. Er simuliert Sensorwerte und Schreibvorgänge; die echte Hardware wird dabei nicht programmiert.
 
@@ -13,6 +13,10 @@ Der **Demo-Modus** wird in den Einstellungen erst nach Aktivierung von **Experte
 > **Geführter Assistent:** Nach der bestätigten SSP3-Verbindung stehen die neue Schritt-für-Schritt-Führung, die klassische Ansicht und der optionale Kompaktmodus zur Verfügung. Ein E703.11-Chip muss für den Abgleich verbunden sein. Als DIY-Programmer sind ausschliesslich ESP32-C3 SuperMini (v0.12 Labor-Quellcode) und Arduino Pro Micro (v0.28 Labor-Quellcode) vorgesehen. Die originalen ELMOS SSP3-Adapter bleiben separat unterstützt. Der vollständige Hardwaretest der DIY-Programmer ist noch offen.
 >
 > [Geführter Abgleich](docs/GEFUEHRTER_ASSISTENT.md) · [DIY-Programmer (ESP32-C3 / Pro Micro)](docs/USB_BRIDGE_GUIDE.md) · [Pinbelegung der zwei Boards](docs/ESP_BOARD_OPTIONS.md) · [DIY-Firmware-Installer](firmware-update.html)
+
+## v0.7.122 – Alarm- und Ausgangsbegrenzungswerte im RAM-Vergleich
+
+Im EEPROM Viewer werden nach «Aktuelle RAM-Werte vergleichen» auch die Alarm-/DSP-Nachskalierungsregister CM55/CM56 und die Ausgangsbegrenzung CM59/CM60 korrekt dargestellt. Diese Register wurden bereits ausgelesen, aber die bisherige Textauswertung erwartete fälschlicherweise ein vollständiges 64-Wort-NVM-Array statt des RAM-Snapshots. Die Auswertung prüft nun für RAM die tatsächlich benötigten Register, für vollständige EEPROM-Arrays weiterhin alle 64 Wörter. Nicht vorhandene oder ungültige Werte bleiben neutral. Die Änderung ist ausschliesslich lesend, ohne neue Sensor- oder Schreibbefehle.
 
 ## v0.7.121 – EEPROM-/RAM-Vergleich farblich hervorheben
 

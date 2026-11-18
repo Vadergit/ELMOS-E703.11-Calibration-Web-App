@@ -1,3 +1,11 @@
+## v0.7.122 – Alarm- und Begrenzungsregister im RAM-Vergleich korrigiert
+
+- Die im RAM bereits gelesenen Alarm-/DSP-Nachskalierungsregister CM55 und CM56 werden im EEPROM Viewer korrekt angezeigt, statt fälschlicherweise «Nicht gelesen» zu melden.
+- Die gleiche Korrektur gilt für die Ausgangsbegrenzung über CM59 und CM60.
+- RAM-Snapshots mit einzelnen Registerwerten werden nur mit den erforderlichen vollständigen 16-Bit-Wörtern ausgewertet; 64-Wort-EEPROM-Arrays behalten ihre strenge Validierung.
+- Fehlende Werte bleiben unmarkiert, tatsächliche Abweichungen weiterhin gelb hinterlegt. Keine Sensor-Schreiboperationen.
+- Zusätzliche Regressionstests und Version v0.7.122 samt aktualisierten Browser-Cache-Parametern.
+
 ## v0.7.121 – Gelbe Markierung abweichender RAM-Werte im EEPROM Viewer
 
 - «Sensoreinstellungen im Überblick»: Unterschiede zwischen EEPROM und einmalig gelesenem RAM werden mit gelbem Hintergrund direkt hinter dem betroffenen RAM-Wert markiert.
