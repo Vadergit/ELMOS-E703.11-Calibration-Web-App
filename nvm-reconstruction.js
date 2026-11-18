@@ -239,6 +239,46 @@ const ELMOS_NVM_RECON = (() => {
   if(text!==undefined)n.textContent=text;
   return n;
  }
+
+ function formulaButton(root,key,label){
+  const btn=dom('button','ⓘ','nvmrecon-formula-trigger');
+  btn.type='button';btn.title='Berechnung und Formel anzeigen';
+  btn.setAttribute('aria-label','Berechnung für '+label+' anzeigen');
+  btn.addEventListener('click',()=>openFormula(root,key));
+  return btn;
+ }
+ function openFormula(root,key){
+  const dialog=root.querySelector('.nvmrecon-formula-dialog');
+  const content=dialog?.querySelector('.nvmrecon-formula-content');
+  if(!dialog||!content)return;
+  content.replaceChildren();
+  const state=root._nvmState,selected=chooseSource(state.live,state.offline);
+  const trace=(typeof ELMOS_NVM_TRACE!=='undefined'&&state.last?.ok&&selected.words)?
+   ELMOS_NVM_TRACE.trace(key,state.last,selected.words):null;
+  if(!trace){
+   content.appendChild(dom('p','Keine Berechnung verfügbar. Bitte zuerst ein gültiges NVM-Backup laden.','nvmrecon-muted'));
+   if(!dialog.open)dialog.showModal();
+   return;
+  }
+  content.appendChild(dom('div','SO WIRD DER WERT BERECHNET','nvmrecon-formula-eyebrow'));
+  content.appendChild(dom('h2',trace.title,'nvmrecon-formula-title'));
+  content.appendChild(dom('p',trace.summary,'nvmrecon-formula-summary'));
+  content.appendChild(dom('div',trace.result,'nvmrecon-formula-final'));
+  const steps=dom('ol',undefined,'nvmrecon-formula-steps');
+  for(const item of trace.steps){
+   const li=dom('li');
+   li.append(dom('h3',item.title),dom('code',item.formula,'nvmrecon-formula-equation'));
+   li.appendChild(dom('div',item.substitution,'nvmrecon-formula-values'));
+   if(item.description)li.appendChild(dom('p',item.description,'nvmrecon-formula-description'));
+   steps.appendChild(li);
+  }
+  content.appendChild(steps);
+  content.appendChild(dom('p',trace.note,'nvmrecon-formula-disclaimer'));
+  const link=dom('a','Alle Formeln und Begriffe ausführlich erklärt ↗','nvmrecon-formula-guide');
+  link.href='nvm-formeln.html#'+trace.section;link.target='_blank';link.rel='noopener noreferrer';
+  content.appendChild(link);
+  if(!dialog.open)dialog.showModal();
+ }
  const css = [
  '.nvmrecon-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(112px,1fr));gap:9px;margin:12px 0}',
  '.nvmrecon-grid label{display:flex;flex-direction:column;gap:3px;font-size:12px}',
@@ -325,7 +365,14 @@ const ELMOS_NVM_RECON = (() => {
    setup.append(heading,detail,actions,grid,advanced);
    const missing=dom('section',undefined,'nvmrecon-missing');
    missing.hidden=true;
-   root.append(setup,status,result,explain,missing);
+   const dialog=dom('dialog',undefined,'nvmrecon-formula-dialog');
+   dialog.setAttribute('aria-label','Rechenweg und Formel');
+   const close=dom('button','Schliessen ×','nvmrecon-formula-close');
+   close.type='button';close.setAttribute('aria-label','Berechnungsdetails schliessen');
+   close.addEventListener('click',()=>dialog.close());
+   dialog.addEventListener('click',event=>{if(event.target===dialog)dialog.close()});
+   dialog.append(close,dom('div',undefined,'nvmrecon-formula-content'));
+   root.append(setup,status,result,explain,missing,dialog);
   }
   root._nvmState.live=validWords(verifiedWords)?verifiedWords.slice():null;
   draw(root);
@@ -379,30 +426,40 @@ const ELMOS_NVM_RECON = (() => {
    box.appendChild(notice);
   }
   const metricsTitle=dom('div',undefined,'nvmrecon-results-head');
-  metricsTitle.append(dom('h3','Berechnete Kennwerte'),dom('span','Modellbasierte Näherung','nvmrecon-mini-label'));
+  const formulaIndex=dom('a','Formeln & Erklärung ↗','nvmrecon-formula-index');
+  formulaIndex.href='nvm-formeln.html';formulaIndex.target='_blank';formulaIndex.rel='noopener noreferrer';
+  metricsTitle.append(dom('h3','Berechnete Kennwerte'),formulaIndex);
   box.appendChild(metricsTitle);
   const metrics=dom('div',undefined,'nvmrecon-metrics');
-  for(const [name,value,unit,sub] of [
-   ['Nullpunkt bei '+fmt(r.settings.ta,1)+' °C',r.rows[0].zero,'mV/V','Nominales Brückensignal'],
-   ['Spanne bei '+fmt(r.settings.ta,1)+' °C',r.rows[0].span,'mV/V','Zwischen Druck min/max'],
-   ['TK0',finite(r.tk0)?r.tk0*100:null,'mV/V / 100 K','Nullpunktänderung'],
-   ['TK0, druckbezogen',finite(r.tk0Bar)?r.tk0Bar*100:null,'bar / 100 K','Äquivalenter Druckoffset'],
-   ['TKR',finite(r.tkr)?r.tkr*10000:null,'% / 100 K','Relative Spannenänderung'],
-   ['ADC-Spanne',r.adcSpan,'Digits','Bei Temperatur 1']
+  for(const [name,value,unit,sub,traceKey] of [
+   ['Nullpunkt bei '+fmt(r.settings.ta,1)+' °C',r.rows[0].zero,'mV/V','Nominales Brückensignal','zero'],
+   ['Spanne bei '+fmt(r.settings.ta,1)+' °C',r.rows[0].span,'mV/V','Zwischen Druck min/max','span'],
+   ['TK0',finite(r.tk0)?r.tk0*100:null,'mV/V / 100 K','Nullpunktänderung','tk0'],
+   ['TK0, druckbezogen',finite(r.tk0Bar)?r.tk0Bar*100:null,'bar / 100 K','Äquivalenter Druckoffset','tk0bar'],
+   ['TKR',finite(r.tkr)?r.tkr*10000:null,'% / 100 K','Relative Spannenänderung','tkr'],
+   ['ADC-Spanne',r.adcSpan,'Digits','Bei Temperatur 1','adcspan']
   ]){
    const isPrimary=metrics.childElementCount<2;
    const card=dom('div',undefined,'nvmrecon-metric'+(isPrimary?' nvmrecon-metric-primary':'')+(!finite(value)?' nvmrecon-metric-unavailable':''));
    if(!finite(value))card.title='Aus den vorhandenen NVM-Daten nicht bestimmbar';
    const output=dom('div',undefined,'nvmrecon-metric-reading');
    output.append(dom('strong',fmt(value,name==='ADC-Spanne'?0:4)),dom('span',unit,'nvmrecon-metric-unit'));
-   card.append(dom('small',name),output,dom('small',sub));metrics.appendChild(card);
+   const heading=dom('div',undefined,'nvmrecon-metric-heading');
+   heading.append(dom('small',name),formulaButton(root,traceKey,name));
+   card.append(heading,output,dom('small',sub));metrics.appendChild(card);
   }
   box.appendChild(metrics);
   const tableHead=dom('div',undefined,'nvmrecon-results-head nvmrecon-table-head');
   tableHead.append(dom('h3','ADC- und Brückenwerte'),dom('span','Referenzpunkte · keine Live-Messung','nvmrecon-mini-label'));
   box.appendChild(tableHead);
   const table=dom('table',undefined,'nvmrecon-table');
-  const head=dom('tr');['Temperatur','ADC_T [Digits]','ADC_S Null','ADC_S End','Null [mV/V]','Spanne [mV/V]'].forEach(s=>head.appendChild(dom('th',s)));
+  const head=dom('tr');
+  for(const [text,key] of [['Temperatur',null],['ADC_T [Digits]','adcT'],
+   ['ADC_S Null','adcS0'],['ADC_S End','adcS1'],['Null [mV/V]','bridge'],['Spanne [mV/V]','span']]){
+   const th=dom('th');th.appendChild(dom('span',text));
+   if(key)th.appendChild(formulaButton(root,key,text));
+   head.appendChild(th);
+  }
   const thead=dom('thead');thead.appendChild(head);table.appendChild(thead);
   const body=dom('tbody');
   for(const r0 of r.rows){
@@ -436,7 +493,7 @@ const ELMOS_NVM_RECON = (() => {
    info.append(dom('span','Analogausgang · ideal, bei '+fmt(r.settings.vdd,2)+' V Versorgung','nvmrecon-analog-label'),
     dom('strong',fmt(ao.low.volts,3)+' → '+fmt(ao.high.volts,3)+' V','nvmrecon-analog-value'));
    const other=dom('span',ao.scaleEnabled?'AODO_F '+fmt(ao.aoF,5)+' · AODO_O '+fmt(ao.aoO,5):'Ausgangsskalierung nicht aktiv','nvmrecon-analog-meta');
-   section.append(info,other);
+   section.append(info,other,formulaButton(root,'analog','Analogausgang'));
    if(ao.scaleEnabled && Math.abs(ao.aoF)<1e-12)
     section.appendChild(dom('span','Faktor 0 · Ausgang rechnerisch konstant','nvmrecon-analog-alert'));
    box.appendChild(section);
