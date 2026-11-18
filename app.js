@@ -910,7 +910,7 @@ if(typeof document!=='undefined') (function UI(){
  }
  function workflowGate(n){
   if(n===8||n===9)return ''; // Logging and Alarm tab accessible independently of calibration.
-  if(n===7||n===10)return ''; // EEPROM Viewer und NVM-Rückrechner jederzeit (auch offline) aufrufbar.
+  if(n===7||n===10)return ''; // EEPROM Viewer und Sensorbrücken-Rechner jederzeit (auch offline) aufrufbar.
   if(n===5)return ''; // Eigener Ausgangsschritt ist auch bei bestehenden Sensoren erreichbar.
   if(n===6&&(expert.restoreReady()||expert.outputReady()||ELMOS_ALARM_EDITOR.ready()))return '';
   if(n>=3&&!calEndpointsReady())return 'Zuerst alle '+calibrationPointCount()+' gewählten Kalibrierpunkte bei gleicher AFE-Einstellung aufnehmen.';
@@ -4353,7 +4353,7 @@ if(typeof document!=='undefined') (function UI(){
   ELMOS_NVM_RECON.setReadFeedback(root,'Lese 64 NVM-Wörter vom verbundenen Sensor und prüfe UID, CRC8 und CRC16 …',{reading:true});
   let ok=false;
   try{ok=await expert.readNvm();}
-  catch(error){logging('NVM-Rechner: '+error.message)}
+  catch(error){logging('Sensorbrücken-Rechner: '+error.message)}
   expert.refreshEEPROMViewer();
   if(ok&&ELMOS_NVM_RECON.preferLive(root)){
    ELMOS_NVM_RECON.setReadFeedback(root,'Aktuelles NVM erfolgreich aus dem Sensor gelesen und geprüft.');
