@@ -144,3 +144,7 @@
 #nvmReconstruction .nvmrecon-file-current .nvmrecon-source-tag{background:var(--nv-edge);color:var(--ink);font-weight:800}
 #nvmReconstruction .nvmrecon-file-current .nvmrecon-source-hint{flex-basis:100%;margin:0}
 @media(max-width:620px){#nvmReconstruction .nvmrecon-read-sensor{flex-basis:100%;text-align:center}}
+
+/* Clearly distinguish true NVM data from assumed or locally remembered references. */
+#nvmReconstruction .nvmrecon-reference-hint{margin:7px 0 1px;font-size:10.5px;line-height:1.45;color:var(--nv-muted);font-weight:600}
+#nvmReconstruction .nvmrecon-reference-hint::before{content:"ⓘ ";color:var(--blue);font-size:13px;vertical-align:baseline}
