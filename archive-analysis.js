@@ -49,7 +49,8 @@ const ELMOS_ARCHIVE_ANALYSIS=(()=>{
   const archiveStatus=typeof window!=='undefined'&&window.ELMOS_ARCHIVE_CORE?.displayStatus?
    window.ELMOS_ARCHIVE_CORE.displayStatus(record):record.status||'running';
   const summary={
-   id:record.id,type:record.type,title:isLog?(record.testConfiguration?.name||'Unbenannter Sensortest'):
+   id:record.id,type:record.type,title:isLog?('Test / Logging'+(record.label||record.testConfiguration?.name?' · '+(record.label||record.testConfiguration.name):'')):
+    record.type==='verification'&&record.label?'Nachmessung · '+record.label:
     (descriptors[record.type]||record.type),
    status:archiveStatus,startedAt:record.startedAt,endedAt:record.endedAt,
    chipUID:record.chipUID||null,userID:record.customUID||record.initial?.configuredUserId||null,
