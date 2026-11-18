@@ -34,7 +34,7 @@ test('guided connection is available on any step, including sensor-swap and comm
  assert.match(guided,/connectionOpen=true;render\(\);/);
  assert.match(guided,/if\(swapping\)/);
  assert.match(css,/gw-connection-page/);
- assert.match(html,/guided\.js\?v=0\.7\.127/);
+ assert.match(html,/guided\.js\?v=0\.7\.128/);
 });
 test('switching protocol on same authorised USB port closes old session and rereads a new UID',async()=>{
  const m=makeGuidedConnect();
