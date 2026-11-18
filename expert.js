@@ -584,7 +584,8 @@ const ELMOS_EXPERT=(()=>{
    }
    const created=new Date().toISOString();
    const entry={format:'E70311-CM64-v2',uid:st.uid.hex,created,source:'Manueller Export',words:st.nvmBackup.slice(),version:st.uid.version};
-   download('ELMOS_E70311_UID_'+st.uid.hex+'_'+created.replace(/[:.]/g,'-')+'.json',JSON.stringify(entry,null,2));
+   const stamp=created.replace(/[-:.Z]/g,'').replace('T','_');
+   download('ELMOS_NVM_'+stamp+'_'+st.uid.hex+'_'+st.nvmBackup[63].toString(16).toUpperCase().padStart(4,'0')+'.json',JSON.stringify(entry,null,2));
   }
   // Expert switch is contextual: reveal controls in their own tabs, no modal.
   $('expertMode').addEventListener('change',()=>{
