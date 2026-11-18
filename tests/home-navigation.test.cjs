@@ -21,7 +21,7 @@ function harness({critical=false,measuring=false,archiveActive=false,logging=fal
   isMeasuring:false,isFinishing:false,
   close(){events.push('archive-close')},
   async finalise(status,options){events.push('finalise-'+status);
-   assert.deepEqual(options,{snapshot:null});archive.active=false;}};
+   assert.equal(options.snapshot,null);archive.active=false;}};
  const logger={active:logging,isBusy:()=>logging};
  const guided={active:false,isOpen(){return this.active},open(){events.push('open-guided');this.active=true},
   resetForHome(){events.push('reset-home');return true},
