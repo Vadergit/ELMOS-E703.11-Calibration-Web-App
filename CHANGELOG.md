@@ -1,3 +1,11 @@
+## v0.7.123 – Geführte Verbindung und Protokollwechsel
+
+- «Verbindung & Diagnose» ist im geführten Modus unabhängig vom aktuellen Kalibrierschritt erreichbar und öffnet sich nach einem Sensor-Kommunikationsabbruch.
+- Adapterwahl (Original-SSP3 oder DIY-Bridge), Chipprotokoll (1-Wire, I²C, SPI beim SSP3), Neuverbinden am bekannten Port sowie neue USB-Portauswahl.
+- Vor dem Sensorwechsel wird ein aktiver Abgleich sicher abgeschlossen oder unvollständig archiviert. Alte Messpunkte, Chipzuordnung und NVM-Freigaben werden nicht wiederverwendet. Der Browser führt keine automatische NVM-Programmierung aus.
+- Bei Verbindungsfehlern sind die vorhandene lesende Registerdiagnose, der 12-s-1-Wire-Lesetest und der USB-Protokollexport direkt aus der geführten Ansicht erreichbar.
+- Version und Cache-Parameter aktualisiert; neue automatisierte Tests für Schnittstellenwechsel, aktive Archivdatensätze und gesperrte Chipvorgänge. Hardware-Gesamttest offen.
+
 ## v0.7.122 – Alarm- und Begrenzungsregister im RAM-Vergleich korrigiert
 
 - Die im RAM bereits gelesenen Alarm-/DSP-Nachskalierungsregister CM55 und CM56 werden im EEPROM Viewer korrekt angezeigt, statt fälschlicherweise «Nicht gelesen» zu melden.

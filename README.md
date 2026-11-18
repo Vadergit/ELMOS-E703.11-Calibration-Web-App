@@ -2,7 +2,7 @@
 
 **Ein geführter Kalibrierassistent für den ELMOS E703.11 und das SSP3-Eval-Board.** Ziel ist ein verständlicher Abgleich, der auch ohne tiefere Vorkenntnisse Schritt für Schritt funktioniert. Wer mehr benötigt, kann zusätzliche Messpunkte, DSP-Parameter und einen geschützten Expertenmodus verwenden.
 
-**Version: v0.7.122 · RAM-Anzeige für Alarme und Ausgangsbegrenzung korrigiert** · [Änderungsverlauf](CHANGELOG.md) · **[Geplante Funktionen](ROADMAP.md)**
+**Version: v0.7.123 · Protokollwechsel und Verbindungsdiagnose im geführten Modus** · [Änderungsverlauf](CHANGELOG.md) · **[Geplante Funktionen](ROADMAP.md)**
 
 Der **Demo-Modus** wird in den Einstellungen erst nach Aktivierung von **Expertenparameter** angezeigt. Er simuliert Sensorwerte und Schreibvorgänge; die echte Hardware wird dabei nicht programmiert.
 
@@ -13,6 +13,12 @@ Der **Demo-Modus** wird in den Einstellungen erst nach Aktivierung von **Experte
 > **Geführter Assistent:** Nach der bestätigten SSP3-Verbindung stehen die neue Schritt-für-Schritt-Führung, die klassische Ansicht und der optionale Kompaktmodus zur Verfügung. Ein E703.11-Chip muss für den Abgleich verbunden sein. Als DIY-Programmer sind ausschliesslich ESP32-C3 SuperMini (v0.12 Labor-Quellcode) und Arduino Pro Micro (v0.28 Labor-Quellcode) vorgesehen. Die originalen ELMOS SSP3-Adapter bleiben separat unterstützt. Der vollständige Hardwaretest der DIY-Programmer ist noch offen.
 >
 > [Geführter Abgleich](docs/GEFUEHRTER_ASSISTENT.md) · [DIY-Programmer (ESP32-C3 / Pro Micro)](docs/USB_BRIDGE_GUIDE.md) · [Pinbelegung der zwei Boards](docs/ESP_BOARD_OPTIONS.md) · [DIY-Firmware-Installer](firmware-update.html)
+
+## v0.7.123 – Verbindung und Protokoll direkt im geführten Modus wechseln
+
+Über **«Verbindung & Diagnose»** ist nun auf jeder Seite des geführten Assistenten eine Verbindungskontrolle verfügbar. Das Protokoll kann zwischen 1-Wire, I²C und (beim Original-SSP3) SPI gewechselt werden; Original-SSP3 und DIY-Bridge lassen sich auswählen. Die App beendet den bisherigen Archivvorgang geschützt, verwirft alte Messpunkte und Schreibfreigaben und initialisiert den Chip am bekannten USB-Port erneut. Bei einem Adapterwechsel kann ein anderer USB-Port ausgewählt werden. Für Kommunikationsprobleme stehen lesende Registerdiagnose, 1-Wire-Lesetest und USB-Protokollexport zur Verfügung. Ein Sensorverlust öffnet die Hilfsansicht automatisch.
+
+**Wichtig:** Der Wechsel erfolgt nur nach bewusstem Klick, nicht automatisch während der Kalibrierung. Die echte Hardware-Kompatibilität jedes Protokolls, insbesondere SPI und DIY-Bridges, ist separat zu prüfen.
 
 ## v0.7.122 – Alarm- und Ausgangsbegrenzungswerte im RAM-Vergleich
 
