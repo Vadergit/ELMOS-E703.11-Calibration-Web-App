@@ -44,7 +44,7 @@ const ELMOS_HOME_NAVIGATION=(()=>{
   api()?.closeSettings?.();
   archive()?.close?.();
   const g=guided();
-  if(!g?.isOpen?.())return true;
+  if(!g?.isOpen?.()){closeDialog();return true}
   // Pending sensor-swap selection is a UI state, not an active chip command.
   // Reset only after the existing navigation safety checks have passed.
   g.resetForHome?.();
