@@ -627,9 +627,9 @@ static void onCommand(const char *command) {
     answer(F("# E70311-BRIDGE V1 CAPS=PLC_UID,PLC_READ,PLC_WRITE,NVM,PRO_MICRO_NVM,PLC_RX_DIAG,POWER_D7,PSSC_RAM,AFE_FILTER,BRIDGE_GENERIC_RAM_V1,BRIDGE_USER_NVM_V1,I2C_CRC,PLC_D4_IO"));
   } else if (strcmp_P(command, PSTR(".VERSION")) == 0) {
     #if F_CPU == 16000000UL
-    answer(F("# Pro Micro PLC/I2C v0.28-dev 16 MHz"));
+    answer(F("# Pro Micro PLC/I2C v0.29 16 MHz"));
 #else
-    answer(F("# Pro Micro PLC/I2C v0.28-dev 8 MHz"));
+    answer(F("# Pro Micro PLC/I2C v0.29 8 MHz"));
 #endif
   } else if (strcmp_P(command, PSTR("PLC IO D4")) == 0 || strcmp_P(command, PSTR("PLC IO SPLIT")) == 0) {
     disarmNvm();coldStartVerified = false;

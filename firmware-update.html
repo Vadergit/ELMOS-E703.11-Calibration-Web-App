@@ -101,11 +101,11 @@
   <div class="boards">
 
   <section class="board" aria-labelledby="esp32">
-    <h2 id="esp32">ESP32-C3 SuperMini <span class="version">v0.12 (Labor)</span></h2>
+    <h2 id="esp32">ESP32-C3 SuperMini <span class="version">v0.13 (Labor)</span></h2>
     <p>One-Wire und I²C. Wähle im USB-Dialog den ESP32-C3 SuperMini.</p>
-    <p class="note"><strong>Neu in v0.12 (Labor):</strong> Gemeinsame, zeitlich begrenzte Freigabe für User-NVM und universelle RAM-Registerzugriffe. Die installierbare Firmware ist kompiliert. <strong>Der tatsächliche NVM-Schreibvorgang am Sensor ist noch nicht hardwarevalidiert.</strong> Nur mit einem entbehrlichen Testchip testen. Vor dem Firmwareupdate alle noch nicht gespeicherten Kalibrierdaten und das Original-NVM sichern. <a href="docs/ESP32_C3_PLC_TEST.md">Technische Details</a>.</p>
+    <p class="note"><strong>Neu in v0.13 (Labor):</strong> I²C-Erkennung auch für Sensoradressen 0x79–0x7F, einschliesslich 0x7D. ESP32-C3 am Sensor mit CRC-geprüften Messwerten und wiederholten Kaltstarts getestet. Die installierbare Firmware ist kompiliert. <strong>Der tatsächliche NVM-Schreibvorgang am Sensor ist noch nicht hardwarevalidiert.</strong> Nur mit einem entbehrlichen Testchip testen. Vor dem Firmwareupdate alle noch nicht gespeicherten Kalibrierdaten und das Original-NVM sichern. <a href="docs/ESP32_C3_PLC_TEST.md">Technische Details</a>.</p>
     <div class="actions">
-    <esp-web-install-button manifest="firmware/releases/esp32-c3/v0.12/manifest.json">
+    <esp-web-install-button manifest="firmware/releases/esp32-c3/v0.13/manifest.json">
       <button type="button" slot="activate" disabled>ESP32 installieren</button>
       <span slot="unsupported">Öffne diese Seite in Chrome oder Edge auf dem Computer.</span>
       <span slot="not-allowed">Öffne diese Seite über HTTPS oder localhost.</span>
@@ -136,12 +136,12 @@
         <tr><th scope="row"><span class="pin " aria-hidden="true">5</span>GND</th><td>Sensor-GND</td></tr>
       </tbody>
     </table>
-    <p class="note">Sensorversorgung und Signalpegel: 3,3 V.</p>
+    <p class="note">Sensorversorgung und Signalpegel: 3,3 V. Bei I²C-Auswahl über NCS/SA0 den Sensor-Pin 9 mit GND verbinden.</p>
     <p><a href="docs/ESP32_C3_PLC_TEST.md">Anschlussplan und Firmware-Stand</a></p>
   </section>
 
   <section class="board" aria-labelledby="pro-micro">
-    <h2 id="pro-micro">Pro Micro <span class="version">v0.28 (Labor)</span></h2>
+    <h2 id="pro-micro">Pro Micro <span class="version">v0.29 (Labor)</span></h2>
     <p>One-Wire und I²C. Wähle die auf deinem Board angegebene Ausführung.</p>
     <div class="actions">
     <p><label for="proMicroClock">Ausführung</label>
@@ -155,8 +155,8 @@
       <button type="button" id="proMicroChoose" disabled>Pro Micro installieren</button></p>
     <p id="proMicroStatus" role="status"></p>
     <details><summary>HEX-Datei für manuellen Upload</summary><ul>
-      <li><a href="firmware/releases/pro-micro/v0.28/pro-micro-16mhz.hex" download>HEX für 5 V / 16 MHz</a></li>
-      <li><a href="firmware/releases/pro-micro/v0.28/pro-micro-8mhz.hex" download>HEX für 3,3 V / 8 MHz</a></li>
+      <li><a href="firmware/releases/pro-micro/v0.29/pro-micro-16mhz.hex" download>HEX für 5 V / 16 MHz</a></li>
+      <li><a href="firmware/releases/pro-micro/v0.29/pro-micro-8mhz.hex" download>HEX für 3,3 V / 8 MHz</a></li>
     </ul></details>
     </div>
     <figure>
@@ -192,7 +192,7 @@
 </main>
 
   <script type="module">
-    import { setupProMicroInstaller } from './pro-micro-installer.js';
+    import { setupProMicroInstaller } from './pro-micro-installer.js?v=0.29';
     setupProMicroInstaller();
     const installer = document.querySelector('esp-web-install-button');
     const status = document.getElementById('installerStatus');

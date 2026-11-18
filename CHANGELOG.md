@@ -1,3 +1,10 @@
+## Firmware ESP32-C3 v0.13 / Pro Micro v0.29 – vollständige I²C-Adresssuche
+
+- Gemeinsame I²C-Bibliothek prüft CRC-Adressen bis einschliesslich 0x7F. Bisher endete die Suche vor 0x78 und übersah dadurch einen angeschlossenen Sensor auf 0x7D.
+- CRC-Prüfung, Chipkennung und Konfigurationsprüfung bleiben für die Erkennung erforderlich.
+- ESP32-C3 mit SDA GPIO6, SCL GPIO7, Versorgung GPIO10 und NCS/SA0 an GND am realen E703.11 geprüft. Keine Verbindung über AODO nötig, wenn I²C im Sensor aktiv ist.
+- Pro-Micro-Builds für 8 und 16 MHz übernehmen dieselbe Korrektur. Ein realer Pro-Micro-Hardwaretest steht aus.
+
 ## v0.7.119 – Funktionsoffene USB-Bridge für beide DIY-Programmer
 
 - ESP32-C3 SuperMini und Arduino Pro Micro: Generische 16-Bit-RAM-Registerzugriffe über One-Wire/PLC und I²C statt Funktionstabellen im Mikrocontroller.

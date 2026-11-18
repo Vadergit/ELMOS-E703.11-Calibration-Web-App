@@ -106,7 +106,10 @@ inline const char *connect(bool powerCycle) {
     slave = DefaultAddress;
     return nullptr;
   }
-  for (uint8_t device = 0x09; device < 0x78; device += 2) {
+  // E703.11 accepts its configured six address bits across the full range.
+  // Bit zero selects CRC, so also probe CRC aliases 0x79..0x7F.
+  // In particular 0x7D must remain reachable when the sensor uses base 0x7C.
+  for (uint8_t device = 0x09; device < 0x80; device += 2) {
     if (device != DefaultAddress && probe(device)) {
       if (slave) {
         slave = 0;

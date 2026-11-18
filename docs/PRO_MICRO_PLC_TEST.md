@@ -1,3 +1,7 @@
+## I²C-Adresskorrektur v0.29
+
+Dieselbe gemeinsame Bibliothek wie beim ESP32-C3 erkennt jetzt auch die CRC-Adressen 0x79–0x7F, insbesondere 0x7D. Builds für 8 und 16 MHz sind vorgesehen. SDA bleibt D2, SCL D3 und Versorgung D7. Der Hardwaretest dieser Korrektur erfolgte am ESP32-C3; ein Pro-Micro-Hardwaretest steht aus.
+
 > **Neuer Laborstand v0.28:** Der Pro Micro kann nun wie der ESP32-C3 beliebige gerade RAM-Register und User-NVM-Wörter 16–63 über `NVM ARM HOST` übertragen. Die Web-App entscheidet über erlaubte Alarm-, DSP- und Ausgangsänderungen. Voraussetzung sind die Capabilities `BRIDGE_GENERIC_RAM_V1` und `BRIDGE_USER_NVM_V1` sowie ein bestätigter Sensor-Kaltstart. Beide Taktvarianten werden gebaut; Hardwaretests stehen noch aus. [Protokoll](UNIVERSAL_BRIDGE.md).
 
 # Pro Micro mit ATmega32U4 als E703.11-Testbridge

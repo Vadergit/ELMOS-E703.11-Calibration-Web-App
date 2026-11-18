@@ -115,7 +115,7 @@ const bootFilters = [
   { usbVendorId: 0x1b4f, usbProductId: 0x9203 },
   { usbVendorId: 0x1b4f, usbProductId: 0x9205 },
 ];
-const release = './firmware/releases/pro-micro/v0.27/';
+const release = './firmware/releases/pro-micro/v0.29/';
 
 export function setupProMicroInstaller() {
   const clock = document.getElementById('proMicroClock');

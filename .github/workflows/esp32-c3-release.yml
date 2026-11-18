@@ -31,6 +31,8 @@ jobs:
           arduino-cli core install arduino:avr@1.8.6
           arduino-cli core update-index --additional-urls https://raw.githubusercontent.com/sparkfun/Arduino_Boards/main/IDE_Board_Manager/package_sparkfun_index.json
           arduino-cli core install SparkFun:avr --additional-urls https://raw.githubusercontent.com/sparkfun/Arduino_Boards/main/IDE_Board_Manager/package_sparkfun_index.json
+      - name: Test I2C address discovery and bridge guards
+        run: node --test tests/i2c-address-range.test.cjs tests/universal-bridge.test.cjs
       - name: Compile ESP32-C3 SuperMini CDC firmware
         run: |
           set -euo pipefail
@@ -50,8 +52,8 @@ jobs:
         if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
         run: |
           set -euo pipefail
-          esp="firmware/releases/esp32-c3/v0.12"
-          pro="firmware/releases/pro-micro/v0.28"
+          esp="firmware/releases/esp32-c3/v0.13"
+          pro="firmware/releases/pro-micro/v0.29"
           mkdir -p "$esp" "$pro"
           app=$(find build/esp -maxdepth 1 -name '*.ino.bin' -print -quit)
           boot=$(find build/esp -maxdepth 1 -name '*.bootloader.bin' -print -quit)
@@ -68,7 +70,7 @@ jobs:
           cat > "$esp/manifest.json" <<'MANIFEST'
           {
             "name": "ELMOS E703.11 Universal DIY Bridge (Laborversion)",
-            "version": "0.12",
+            "version": "0.13",
             "new_install_prompt_erase": false,
             "builds": [{
               "chipFamily": "ESP32-C3",
@@ -81,25 +83,8 @@ jobs:
             }]
           }
           MANIFEST
-          python3 - <<'PYTHON'
-          from pathlib import Path
-          p=Path('firmware-update.html')
-          x=p.read_text()
-          x=x.replace('ESP32-C3 SuperMini <span class="version">v0.11 (Test)</span>',
-                      'ESP32-C3 SuperMini <span class="version">v0.12 (Labor)</span>')
-          x=x.replace('manifest="firmware/releases/esp32-c3/v0.11/manifest.json"',
-                      'manifest="firmware/releases/esp32-c3/v0.12/manifest.json"')
-          x=x.replace('Pro Micro <span class="version">v0.27</span>',
-                      'Pro Micro <span class="version">v0.28 (Labor)</span>')
-          x=x.replace('firmware/releases/pro-micro/v0.27/',
-                      'firmware/releases/pro-micro/v0.28/')
-          x=x.replace('Neu in v0.11 (Test):', 'Neu in v0.12 (Labor):')
-          x=x.replace('Separate NVM-Freigabe für Ausgangsskalierung und Clipping auf dem ESP32-C3.',
-                      'Gemeinsame, zeitlich begrenzte Freigabe für User-NVM und universelle RAM-Registerzugriffe.')
-          p.write_text(x)
-          PYTHON
-          grep -q 'manifest="firmware/releases/esp32-c3/v0.12/manifest.json"' firmware-update.html
-          grep -q 'firmware/releases/pro-micro/v0.28/pro-micro-8mhz.hex' firmware-update.html
+          grep -q 'manifest="firmware/releases/esp32-c3/v0.13/manifest.json"' firmware-update.html
+          grep -q 'firmware/releases/pro-micro/v0.29/pro-micro-8mhz.hex' firmware-update.html
           grep -q 'BRIDGE_USER_NVM_V1' firmware/esp32c3_supermini/esp32c3_supermini.ino
           grep -q 'BRIDGE_USER_NVM_V1' firmware/pro_micro/pro_micro.ino
           test -s "$esp/application.bin"
@@ -110,8 +95,8 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add firmware/releases/esp32-c3/v0.12 firmware/releases/pro-micro/v0.28 firmware-update.html
+          git add firmware/releases/esp32-c3/v0.13 firmware/releases/pro-micro/v0.29 firmware-update.html pro-micro-installer.js
           if ! git diff --cached --quiet; then
-            git commit -m "release: ESP32-C3 v0.12 and Pro Micro v0.28 universal bridges"
+            git commit -m "release: ESP32-C3 v0.13 and Pro Micro v0.29 universal bridges"
             git push
           fi

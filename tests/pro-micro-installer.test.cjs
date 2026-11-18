@@ -7,7 +7,7 @@ const root = path.join(__dirname, '..');
 const js = fs.readFileSync(path.join(root, 'pro-micro-installer.js'));
 const installer = import('data:text/javascript;base64,' + js.toString('base64'));
 const variant = mhz => fs.readFileSync(path.join(root,
-  `firmware/releases/pro-micro/v0.27/pro-micro-${mhz}mhz.hex`), 'ascii');
+  `firmware/releases/pro-micro/v0.29/pro-micro-${mhz}mhz.hex`), 'ascii');
 
 function caterina({ signature = [0x87, 0x95, 0x1e], corrupt = false } = {}) {
   const flash = new Uint8Array(0x7000).fill(0xff);
