@@ -21,6 +21,7 @@ const ELMOS_GUIDED=(()=>{
  let stage=0,task='calibration',root=null,original=[],mode=false,plan=null,signature=null,taskOpening=false;
  let selectedPoint=0,visited=new Set([0]),poll=null,pendingCapture=null,afeStatsStart=0,afeGainSignature='';
  let latestCapture=null,lastCaptureRenderKey=null,nextSensorBusy=false,nextSensorPending=null,seriesPointFields=null;
+ let connectionOpen=false,connectionBusy=false;
  const originalCaptureLabels=new Map();
  const subscriptions=[];
  const subscribe=(el,type,handler)=>{el.addEventListener(type,handler);subscriptions.push({el,type,handler})};
@@ -56,7 +57,7 @@ const ELMOS_GUIDED=(()=>{
  }
  function UI(){
   const sides=steps.map((v,i)=>'<button type="button" class="gw-sideitem" data-gw-side="'+i+'"><span class="gw-no">'+(i+1)+'</span><span>'+v[0]+'</span></button>').join('');
-  return '<div class="gw-shell"><aside class="gw-sidebar"><div class="gw-backlogo"><span>◆</span> E703.11 · Geführter Abgleich</div><nav class="gw-sideitems">'+sides+'</nav><div class="gw-sidebar-footer">Die Originalsoftware bleibt jederzeit über «Klassisch» erreichbar.<div style="margin-top:9px">Laborversion · keine Hardwarefreigabe für NVM</div></div></aside><main class="gw-main"><div class="gw-topline"><span id="gwKicker" class="gw-kicker">Schritt 1</span><span id="gwChipStatus" class="gw-chipstatus"></span></div><div class="gw-progressbar"><span id="gwProgress"></span></div><div class="gw-heading-row"><div><h2 class="gw-title" id="gwTitle"></h2><p class="gw-desc" id="gwDesc"></p></div><button class="gw-preset gw-preset-launch" id="gwPresetLaunch" type="button" aria-haspopup="dialog" aria-controls="gwPresetDialog" hidden><strong>Preset laden</strong></button></div>'+
+  return '<div class="gw-shell"><aside class="gw-sidebar"><div class="gw-backlogo"><span>◆</span> E703.11 · Geführter Abgleich</div><nav class="gw-sideitems">'+sides+'</nav><div class="gw-sidebar-footer">Die Originalsoftware bleibt jederzeit über «Klassisch» erreichbar.<div style="margin-top:9px">Laborversion · keine Hardwarefreigabe für NVM</div></div></aside><main class="gw-main"><div class="gw-topline"><span id="gwKicker" class="gw-kicker">Schritt 1</span><div class="gw-connection-top-actions"><span id="gwChipStatus" class="gw-chipstatus"></span><button type="button" id="gwConnectionToggle" class="gw-connection-link">Verbindung &amp; Diagnose</button></div></div><div class="gw-progressbar"><span id="gwProgress"></span></div><div class="gw-heading-row"><div><h2 class="gw-title" id="gwTitle"></h2><p class="gw-desc" id="gwDesc"></p></div><button class="gw-preset gw-preset-launch" id="gwPresetLaunch" type="button" aria-haspopup="dialog" aria-controls="gwPresetDialog" hidden><strong>Preset laden</strong></button></div>'+
    '<div id="gwPage0" class="gw-page"><div class="gw-columns gw-six">'+
     '<button class="gw-choice" data-gw-task="calibration"><span class="gw-choice-icon">◉</span><strong>Sensor neu abgleichen</strong><small>Von der Messung über die DSP-Prüfung bis zur sicheren NVM-Programmierung.</small></button>'+
     '<button class="gw-choice" data-gw-task="output"><span class="gw-choice-icon">↗</span><strong>Nur Ausgang ändern</strong><small>Bereits kalibrierten Sensor prüfen und AODO-Ausgang neu konfigurieren.</small></button>'+
@@ -136,6 +137,16 @@ const ELMOS_GUIDED=(()=>{
    '<div id="gwPage10" class="gw-page gw-finish-page" hidden><section class="gw-finish-signal"><div class="gw-finish-top"><div><span class="gw-kicker">Live-Sensorsignal</span><h3>Aktueller Sensorausgang</h3></div><span id="gwFinishStatus" class="gw-live-badge">Warte auf Chipwerte</span></div><div class="gw-finish-number" aria-live="off"><strong id="gwFinishSignalValue">—</strong><span id="gwFinishSignalUnit">—</span></div><div id="gwFinishSource" class="gw-finish-caption">DSP_S wird vom Chip gelesen und auf den eingestellten Anzeigebereich bezogen.</div><div class="gw-finish-bar"><span id="gwFinishBar"></span></div><div class="gw-finish-limits"><span id="gwFinishRangeMin">—</span><span id="gwFinishRangeMax">—</span></div><div class="gw-finish-kpis"><div><span>DSP_S</span><strong id="gwFinishDsp">—</strong><small>Digits</small></div><div><span>ADC_S</span><strong id="gwFinishAdc">—</strong><small>Digits</small></div><div><span>ADC_T</span><strong id="gwFinishTemp">—</strong><small>Digits</small></div><div><span>Letzte Messung</span><strong id="gwFinishTime">—</strong></div></div></section>'+
     '<div class="gw-columns gw-finish-bottom"><section class="gw-tile"><div class="gw-section-head"><div><h3>Signalverlauf</h3><p>ADC_S im Zeitverlauf · letzte 60 Sekunden</p></div></div><div id="gwFinishChartHost" class="gw-finish-chart"></div></section><section class="gw-tile gw-finish-checklist"><h3>Abgleich und Freigabe</h3><div id="gwFinishCompletion" class="gw-alert">NVM-Status prüfen.</div><p id="gwFinishConfig">Gewünschte Ausgangseinstellungen werden hier als Sollwerte dargestellt.</p><p class="gw-finish-warning">Vor der Freigabe den Sensor stromlos machen und den Ausgang nach dem Neustart mit einem Messgerät prüfen. Die Anzeige ersetzt keinen Hardwaretest.</p><div class="gw-panel-actions" id="gwPostBoot"></div><button class="gw-secondary-link" id="gwBackClassic" type="button">Zur vollständigen Expertenansicht wechseln</button></section></div></div>'+
    '<section id="gwSwapPage" class="gw-tile" hidden><ol><li>Stecke den fertig abgeglichenen Sensor ab.</li><li>Schliesse den nächsten Sensor am Programmieradapter an.</li><li>Klicke auf «Neuen Sensor verbinden».</li></ol><p>Der Assistent übernimmt den Messplan und die Ausgangsvorgaben. Er schreibt die Frontend-Einstellungen ins RAM des neuen Sensors. Für ihn nimmst du danach neue Messwerte auf.</p><div class="gw-panel-actions"><button id="gwSwapConnect" class="primary" type="button">Neuen Sensor verbinden</button><button id="gwSwapChoose" type="button" hidden>USB-Port auswählen</button><button id="gwSwapCancel" type="button">Serie abbrechen</button></div></section>'+
+   '<section id="gwConnectionPage" class="gw-page gw-connection-page" hidden><div class="gw-columns">'+
+    '<section class="gw-tile"><h3>USB-Adapter und Chip-Protokoll</h3><p>Bei einem anderen Sensor kannst du 1-Wire, I²C oder SPI auswählen, ohne in die klassische Ansicht zu wechseln. Der bisherige USB-Port wird sicher geschlossen und mit dem neuen Protokoll neu initialisiert.</p>'+
+    '<div class="gw-fields"><label>Programmieradapter<select id="gwConnectionAdapter"><option value="ssp3">Original ELMOS SSP3</option><option value="bridge">ESP32-C3 / Pro Micro</option></select></label><label>Chip-Schnittstelle<select id="gwConnectionInterface"><option value="plc">1-Wire · AODO</option><option value="i2c">I²C · SCL/SDA</option><option value="spi">SPI · Testmodus (SSP3)</option></select></label></div>'+
+    '<div class="gw-panel-actions"><button id="gwConnectionApply" class="primary" type="button">Protokoll übernehmen &amp; verbinden</button><button id="gwConnectionChoose" type="button">Anderen USB-Port auswählen</button></div><p class="gw-connection-hint">Ein neuer Sensor erhält eine neue Chip-UID-Prüfung. Ein bisheriger Abgleich wird vor dem Wechsel separat abgeschlossen oder als unvollständig archiviert. Keine NVM-Programmierung.</p>'+
+    '<div class="gw-alert" id="gwConnectionStatus" role="status">Verbindungsstatus wird abgefragt.</div></section>'+
+    '<section class="gw-tile"><h3>Verbindung beheben</h3><p>Falls der Adapter verbunden ist, aber der Sensor nicht antwortet, kannst du die Register nur lesend prüfen und das USB-Protokoll zur Fehlersuche speichern.</p>'+
+    '<div class="gw-panel-actions"><button id="gwConnectionReinit" type="button">Sensor erneut erkennen</button><button id="gwConnectionDiagnose" type="button">Registerdiagnose (nur lesen)</button><button id="gwConnectionStartup" type="button">1-Wire-Lesetest (12 s)</button><button id="gwConnectionLog" type="button">USB-Protokoll herunterladen</button></div>'+
+    '<p class="gw-connection-hint">Der 12-Sekunden-Test führt keine Power-Cycle- oder NVM-Befehle aus. Für ein abgelaufenes 1-Wire-Startfenster zuerst die normale Neuinitialisierung verwenden. SPI wird bei DIY-Bridges nicht unterstützt.</p>'+
+    '<pre id="gwConnectionDiagnosticResult" class="gw-connection-diagnostic" role="status" hidden></pre><div class="gw-panel-actions"><button id="gwConnectionClose" type="button">Zurück zum Assistenten</button><a href="usb-diagnose.html" target="_blank" rel="noopener noreferrer">Separater USB-Test</a></div></section>'+
+    '</div></section>'+
    '<div id="gwLogPage" class="gw-page gw-logger-page" hidden></div>'+
    '<dialog id="gwPresetDialog" aria-labelledby="gwPresetTitle"><div class="gw-preset-dialog-heading"><h3 id="gwPresetTitle">Sensor-Presets</h3><button id="gwPresetClose" type="button">Schliessen</button></div><div class="gw-fields gw-3" id="gwConfigFields"></div><div id="gwConfigSource"></div><div id="gwConfigGroups"></div><div class="gw-panel-actions" id="gwConfigActions"></div><div id="gwConfigEffect"></div><div id="gwConfigStatus"></div></dialog>'+
    '<div id="gwMessage" class="gw-alert" hidden></div><footer class="gw-footer"><small id="gwFooterHint">E703.11 · Kalibrierassistent</small><div class="gw-actions"><button id="gwTasks" type="button" hidden>Zur Aufgabenübersicht</button><button id="gwPrevious" type="button">Zurück</button><button id="gwNext" class="primary" type="button">Weiter</button></div></footer></main></div>';
@@ -214,6 +225,15 @@ const ELMOS_GUIDED=(()=>{
   $('gwSwapConnect').addEventListener('click',()=>connectNextSensor(false));
   $('gwSwapChoose').addEventListener('click',()=>connectNextSensor(true));
   $('gwSwapCancel').addEventListener('click',returnToTasks);
+  $('gwConnectionToggle').addEventListener('click',()=>connectionOpen?closeConnectionPanel():openConnectionPanel());
+  $('gwConnectionClose').addEventListener('click',closeConnectionPanel);
+  $('gwConnectionAdapter').addEventListener('change',updateConnectionChoices);
+  $('gwConnectionApply').addEventListener('click',()=>connectGuidedSensor(false));
+  $('gwConnectionChoose').addEventListener('click',()=>connectGuidedSensor(true));
+  $('gwConnectionReinit').addEventListener('click',()=>connectGuidedSensor(false));
+  $('gwConnectionDiagnose').addEventListener('click',()=>guidedConnectionDiagnostic('diagnose'));
+  $('gwConnectionStartup').addEventListener('click',()=>guidedConnectionDiagnostic('startup'));
+  $('gwConnectionLog').addEventListener('click',()=>guidedConnectionDiagnostic('export'));
   $('gwTasks').addEventListener('click',returnToTasks);
   $('gwAfeReset').addEventListener('click',()=>{
    afeStatsStart=Date.now();afeGainSignature='';
@@ -626,9 +646,83 @@ const ELMOS_GUIDED=(()=>{
    'NVM-Schreibbestätigung fehlt. Keine Hardwarefreigabe.';
  }
 
+ function updateConnectionChoices(){
+  const adapter=$('gwConnectionAdapter').value,iface=$('gwConnectionInterface');
+  const spi=iface.querySelector('option[value="spi"]');
+  spi.disabled=adapter==='bridge';
+  if(spi.disabled&&iface.value==='spi')iface.value='plc';
+ }
+ function openConnectionPanel(){
+  if(!mode)return;
+  const s=state();
+  connectionOpen=true;
+  $('gwConnectionAdapter').value=s.adapter||'ssp3';
+  $('gwConnectionInterface').value=s.iface||'plc';
+  updateConnectionChoices();
+  msg('');
+  render();
+ }
+ function closeConnectionPanel(){
+  if(connectionBusy)return;
+  connectionOpen=false;
+  render();
+ }
+ function renderConnectionStatus(){
+  if(!connectionOpen)return;
+  const s=state(),working=connectionBusy||s.connectionBusy;
+  const connected=!!s.chip,usb=!!s.usbConnected;
+  const current=s.iface==='plc'?'1-Wire':s.iface==='i2c'?'I²C':s.iface==='spi'?'SPI':'unbekannt';
+  const status=$('gwConnectionStatus');
+  status.className='gw-alert '+(connected?'success':usb?'warn':'');
+  status.textContent=(connected?'Sensor erkannt, UID '+(s.uid||'nicht bekannt')+'. ':usb?'USB-Adapter verbunden, Sensor nicht erkannt. ':'Noch kein USB-Adapter verbunden. ')+
+   'Aktives Protokoll: '+current+'.'+(s.connectionMessage?' '+s.connectionMessage:'');
+  for(const id of ['gwConnectionApply','gwConnectionChoose','gwConnectionReinit','gwConnectionDiagnose','gwConnectionStartup','gwConnectionLog','gwConnectionClose'])
+   $(id).disabled=working;
+  $('gwConnectionReinit').disabled=working||!usb;
+  $('gwConnectionDiagnose').disabled=working||!usb;
+  $('gwConnectionStartup').disabled=working||!usb||connected||s.iface!=='plc'||s.adapter!=='ssp3';
+  $('gwConnectionLog').disabled=working||!usb;
+ }
+ async function connectGuidedSensor(selectPort){
+  if(connectionBusy)return;
+  const api=window.ELMOS_GUIDED_API,s=state();
+  if(!api?.connectGuided) return msg('Verbindungssteuerung nicht verfügbar. Bitte die App neu laden.','error');
+  if((s.chip||s.activeArchive)&&!window.confirm('Der bisherige Sensorabgleich wird abgeschlossen oder als unvollständig archiviert. Alte Messpunkte und Schreibfreigaben werden verworfen. Sensor neu verbinden?'))return;
+  connectionBusy=true;renderConnectionStatus();
+  msg('Sensor und Adapter werden mit den gewählten Einstellungen geprüft …','warn');
+  try{
+   const result=await api.connectGuided({
+    adapter:$('gwConnectionAdapter').value,iface:$('gwConnectionInterface').value,
+    choosePort:!!selectPort
+   });
+   $('gwConnectionDiagnosticResult').hidden=true;
+   msg('Sensor '+result.uid+' über '+(result.iface==='plc'?'1-Wire':result.iface==='i2c'?'I²C':'SPI')+' erkannt. Du kannst einen neuen Abgleich starten.','success');
+  }catch(error){msg('Verbindung fehlgeschlagen: '+String(error.message||error),'error')}
+  finally{connectionBusy=false;renderConnectionStatus()}
+ }
+ async function guidedConnectionDiagnostic(action){
+  if(connectionBusy)return;
+  const api=window.ELMOS_GUIDED_API;
+  if(!api?.guidedDiagnostic)return msg('Diagnosefunktion nicht verfügbar. Bitte die App neu laden.','error');
+  connectionBusy=true;renderConnectionStatus();
+  const report=$('gwConnectionDiagnosticResult');
+  if(action!=='export'){report.hidden=false;report.textContent='Lesende Diagnose läuft …'}
+  try{
+   const result=await api.guidedDiagnostic(action);
+   if(action==='export')msg('USB-Protokoll wurde als JSON zum Herunterladen bereitgestellt.','success');
+   else{
+    report.hidden=false;report.textContent=String(result||'Diagnose beendet. Kein gültiger Sensor erkannt.');
+    msg(action==='startup'?'1-Wire-Lesetest abgeschlossen.':'Registerdiagnose abgeschlossen.','success');
+   }
+  }catch(error){
+   report.hidden=false;report.textContent=String(error.message||error);
+   msg('Diagnose fehlgeschlagen: '+String(error.message||error),'error');
+  }finally{connectionBusy=false;renderConnectionStatus()}
+ }
  function updateUI(){
   if(!mode)return;
   const s=state();
+  if(connectionOpen){renderConnectionStatus();return}
   if(nextSensorPending){void refreshSwapPort();return}
   $('gwChipStatus').textContent=statusText();
   $('gwChipStatus').classList.toggle('is-offline',!s.chip);
@@ -652,23 +746,25 @@ const ELMOS_GUIDED=(()=>{
   if(!mode)return;
   const swapping=!!nextSensorPending;
   const loggerPage=stage===11&&!swapping;
-  $('gwSwapPage').hidden=!swapping;
+  $('gwConnectionPage').hidden=!connectionOpen;
+  $('gwSwapPage').hidden=!swapping||connectionOpen;
+  $('gwConnectionToggle').setAttribute('aria-expanded',String(connectionOpen));
   $('gwPresetLaunch').hidden=swapping||stage!==1;
   if($('gwPresetLaunch').hidden&&$('gwPresetDialog').open)$('gwPresetDialog').close();
-  root.querySelector('.gw-footer').hidden=swapping;
+  root.querySelector('.gw-footer').hidden=swapping||connectionOpen;
   root.classList.toggle('gw-logger-mode',loggerPage);
   $('gwLogPage').hidden=!loggerPage;
   for(let i=0;i<steps.length;i++){
-   $('gwPage'+i).hidden=swapping||i!==stage;
+   $('gwPage'+i).hidden=connectionOpen||swapping||i!==stage;
    const side=document.querySelector('[data-gw-side="'+i+'"]');
-   side.disabled=swapping;
+   side.disabled=swapping||connectionOpen;
    side.classList.toggle('is-active',i===stage);
    side.classList.toggle('is-done',visited.has(i)&&i!==stage);
    side.setAttribute('aria-current',i===stage?'step':'false');
   }
-  $('gwKicker').textContent=loggerPage?'Sensor-Testprotokoll':'Schritt '+(stage+1)+' von '+steps.length;
-  $('gwTitle').textContent=swapping?'Nächsten Sensor anschliessen':loggerPage?'Test / Logging':steps[stage][1];
-  $('gwDesc').textContent=swapping?'Wechsle den Sensor, um den Serienabgleich fortzusetzen.':loggerPage?
+  $('gwKicker').textContent=connectionOpen?'Verbindung / Diagnose':loggerPage?'Sensor-Testprotokoll':'Schritt '+(stage+1)+' von '+steps.length;
+  $('gwTitle').textContent=connectionOpen?'Sensor verbinden und Protokoll prüfen':swapping?'Nächsten Sensor anschliessen':loggerPage?'Test / Logging':steps[stage][1];
+  $('gwDesc').textContent=connectionOpen?'USB-Adapter, Chip-Schnittstelle und Diagnose direkt im geführten Modus bedienen.':swapping?'Wechsle den Sensor, um den Serienabgleich fortzusetzen.':loggerPage?
    'Sensorwerte in frei wählbaren Intervallen aufzeichnen, mitteln und mit Notizen archivieren.':
    steps[stage][2];
   $('gwProgress').style.width=(loggerPage?100:(stage+1)/steps.length*100).toFixed(1)+'%';
@@ -676,6 +772,7 @@ const ELMOS_GUIDED=(()=>{
   $('gwTasks').hidden=stage!==10;
   $('gwNext').hidden=loggerPage||stage===0||(stage===10&&state().demo); // A card click now enters the chosen task immediately.
   $('gwNext').textContent=stage===8?'Weiter zum NVM':stage===9?'Abschluss prüfen':stage===10?'Nächsten Sensor abgleichen':'Weiter';
+  if(connectionOpen){renderConnectionStatus();return;}
   if(swapping){
    $('gwChipStatus').textContent='Sensorwechsel';
    $('gwChipStatus').classList.add('is-offline');
@@ -877,7 +974,7 @@ const ELMOS_GUIDED=(()=>{
   // Measurement and write actions remain guarded by the existing chip checks.
   if(typeof ELMOS_COMPACT!=='undefined')ELMOS_COMPACT.set(false);
   if($('compactMode'))$('compactMode').checked=false;
-  mode=true;
+  mode=true;connectionOpen=false;connectionBusy=false;
   const loggingActive=!!window.ELMOS_TEST_LOGGER?.isBusy();
   stage=loggingActive?11:0;
   task=loggingActive?'testlog':'calibration';
@@ -903,7 +1000,7 @@ const ELMOS_GUIDED=(()=>{
    msg('Bitte die Testaufzeichnung zuerst beenden, bevor du die Ansicht wechselst.','warn');return;
   }
   window.ELMOS_TEST_LOGGER?.unmount();
-  mode=false;
+  mode=false;connectionOpen=false;
   if(poll){window.clearInterval(poll);poll=null}
   if(pendingCapture){window.clearInterval(pendingCapture);pendingCapture=null}
   for(const {el,type,handler} of subscriptions)el.removeEventListener(type,handler);
@@ -920,7 +1017,7 @@ const ELMOS_GUIDED=(()=>{
    msg('Sensor nicht mehr erreichbar. Die Testaufzeichnung wird unterbrochen.','warn');
   }
   plan=null;signature=null;seriesPointFields=null;selectedPoint=0;latestCapture=null;lastCaptureRenderKey=null;stage=0;visited=new Set([0]);
-  render();
+  connectionOpen=true;render();
   msg('Die Sensorverbindung wurde unterbrochen. Die bisherigen Kalibrierpunkte sind nicht mehr freigegeben. Nach der Neuinitialisierung einen neuen Abgleich starten.','warn');
  }
  function onConnected(){

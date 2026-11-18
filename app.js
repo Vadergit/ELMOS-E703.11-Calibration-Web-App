@@ -4611,9 +4611,59 @@ if(typeof document!=='undefined') (function UI(){
   },true);
  }
 
+ async function connectGuided({adapter,iface,choosePort=false}={}){
+  // User-initiated reconnect only. Never reuse old measurements or grant NVM writes.
+  if(demoEnabled)throw Error('Im Demo-Modus ist kein echter USB-Protokollwechsel möglich.');
+  if(!['ssp3','bridge'].includes(adapter)||!['plc','i2c','spi'].includes(iface)||
+     (adapter==='bridge'&&iface==='spi'))throw Error('Ungültige Kombination aus Adapter und Chip-Protokoll.');
+  if(st.closing||st.reinitRunning||st.powerCycleRunning||st.magicRunning||st.startupRunning||
+     st.diagRunning||st.writing||st.nvmWorking||st.calTask||st.afeWriteActive||
+     st.ramMeasurementStarting||st.bridgeReadBusy||window.ELMOS_TEST_LOGGER?.isBusy())
+   throw Error('Zuerst den laufenden Sensor-/Loggingvorgang beenden.');
+  if(st.port&&adapter!==st.adapterKind&&!choosePort)
+   throw Error('Beim Adapterwechsel bitte «Anderen USB-Port auswählen» verwenden.');
+  // The picker must be invoked synchronously from the user's click, BEFORE any await on disconnect.
+  let port=st.port;
+  if(choosePort){
+   if(!webSerialAvailable())throw Error(webSerialMessage());
+   try{port=await navigator.serial.requestPort()}
+   catch(error){if(error?.name==='NotFoundError')throw Error('USB-Portauswahl abgebrochen.');throw error}
+  }
+  const archive=window.ELMOS_ARCHIVE;
+  if(archive?.active){
+   if(st.nvmDone&&st.chip&&archive.current?.chipUID===st.uid?.hex)
+    await finishSensorArchive(st.uid.hex);
+   else await archive.finalise('incomplete',{snapshot:null});
+  }
+  if(st.port&&!await disconnect())throw Error('Bisheriger USB-Port konnte nicht geschlossen werden.');
+  erasePoints();st.calfit=null;st.calImage=null;
+  window.ELMOS_GUIDED?.onSensorReset?.();
+  $('adapterType').value=adapter;$('iface').value=iface;
+  st.adapterKind=adapter;st.iface=iface;
+  lsSet('elmos-adapter-type-v1',adapter);lsSet('elmos8-iface',iface);
+  renderStatus();
+  if(port)await connect(port);
+  else await auto();
+  if(!st.chip||!st.uid?.hex)throw Error($('connMsg')?.textContent||'Keine gültige Chipantwort.');
+  return {uid:st.uid.hex,iface:st.iface,adapter:st.adapterKind};
+ }
+ async function guidedDiagnostic(action){
+  if(action==='export'){$('plcStartupLogExport').click();return 'USB-Protokoll bereitgestellt.'}
+  if(action==='diagnose'){
+   const result=await runChipDiagnostics('Geführter Modus: manuelle Registerdiagnose');
+   return formatChipDiag(result);
+  }
+  if(action==='startup'){
+   await recoverOneWireStartup();
+   return $('plcStartupState').textContent;
+  }
+  throw Error('Unbekannte Diagnosefunktion.');
+ }
  window.ELMOS_GUIDED_API=Object.freeze({
   state:()=>({
-   chip:!!st.chip,usbReady:!!(st.port&&st.readerAlive),demo:demoEnabled,mode:st.mode,adapter:st.adapterKind,uid:st.uid?.hex||null,
+   chip:!!st.chip,usbReady:!!(st.port&&st.readerAlive),usbConnected:!!st.port,demo:demoEnabled,mode:st.mode,adapter:st.adapterKind,iface:st.iface,uid:st.uid?.hex||null,
+   connectionBusy:!!(st.closing||st.reinitRunning||st.powerCycleRunning||st.magicRunning||st.startupRunning||st.diagRunning||st.writing||st.nvmWorking||st.calTask||st.afeWriteActive),
+   connectionMessage:$('connMsg')?.textContent||'',activeArchive:!!window.ELMOS_ARCHIVE?.active,
    // Read-only summary for the guided completion cards; measurements remain owned by the classic workflow.
    points:st.calpoints.map(x=>({kind:x.kind,slot:x.slot,at:x.at,pressure:x.pressure,temperature:x.temperature,
     adc_s:x.adc_s,adc_t:x.adc_t,adc_tc:x.adc_tc,spread:x.spread,sampleCount:x.sampleCount,temperatureSource:x.temperatureSource})),
@@ -4621,6 +4671,7 @@ if(typeof document!=='undefined') (function UI(){
    nvmBackupVerified:!!st.nvmBackupVerified,outputReady:expert.outputReady()
   }),
   navigate:n=>step(n),
+  connectGuided,guidedDiagnostic,
   skipAlarms:()=>ELMOS_ALARM_EDITOR.skipForCalibration(),
   alarmPending:()=>ELMOS_ALARM_EDITOR.pendingForCalibration(),
   alarmStandaloneReady:()=>ELMOS_ALARM_EDITOR.ready(),

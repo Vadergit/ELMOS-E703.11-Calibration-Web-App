@@ -345,3 +345,17 @@ html.guided-active #guidedWorkspace [hidden]{display:none!important}
  #guidedWorkspace .gw-main{padding:16px 13px 12px}
  #guidedWorkspace .gw-columns.gw-six .gw-choice{min-height:88px}
 }
+
+/* Guided connection workspace: available from every step, including after a lost sensor. */
+#guidedWorkspace .gw-connection-top-actions{display:flex;align-items:center;gap:8px;flex-wrap:wrap;justify-content:flex-end}
+#guidedWorkspace .gw-connection-link{border:1px solid #b7cfe4;border-radius:9px;background:#eef6ff;color:#205a8a;font-weight:700;font-size:12px;padding:6px 10px;min-height:32px}
+#guidedWorkspace .gw-connection-link[aria-expanded="true"]{background:#dceefe;border-color:#73a6d2}
+#guidedWorkspace .gw-connection-page .gw-fields{margin-top:13px}
+#guidedWorkspace .gw-connection-page .gw-panel-actions{align-items:center}
+#guidedWorkspace .gw-connection-page .gw-panel-actions a{font-size:12px;color:#23679d;text-decoration:underline}
+#guidedWorkspace .gw-connection-page .gw-connection-hint{margin:12px 0;color:#5d7085;font-size:11px}
+#guidedWorkspace .gw-connection-diagnostic{white-space:pre-wrap;overflow-wrap:anywhere;overflow:auto;max-height:300px;border:1px solid #d5e3ef;border-radius:9px;background:#f7fafc;padding:12px;font:11px/1.5 ui-monospace,Consolas,monospace}
+#guidedWorkspace .gw-connection-diagnostic[hidden]{display:none}
+html[data-theme="dark"] #guidedWorkspace .gw-connection-link{background:#1a344a;color:#daecff;border-color:#486782}
+html[data-theme="dark"] #guidedWorkspace .gw-connection-diagnostic{background:#162536;color:#d6e5f1;border-color:#3c5266}
+@media(max-width:740px){#guidedWorkspace .gw-connection-page .gw-columns,#guidedWorkspace .gw-connection-page .gw-fields{grid-template-columns:1fr}#guidedWorkspace .gw-connection-top-actions{justify-content:flex-start}}
