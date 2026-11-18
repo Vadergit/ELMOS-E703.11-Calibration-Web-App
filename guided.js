@@ -61,12 +61,12 @@ const ELMOS_GUIDED=(()=>{
    '<div id="gwPage0" class="gw-page"><div class="gw-columns gw-six">'+
     '<button class="gw-choice" data-gw-task="calibration"><span class="gw-choice-icon">◉</span><strong>Sensor neu abgleichen</strong><small>Von der Messung über die DSP-Prüfung bis zur sicheren NVM-Programmierung.</small></button>'+
     '<button class="gw-choice" data-gw-task="output"><span class="gw-choice-icon">↗</span><strong>Nur Ausgang ändern</strong><small>Bereits kalibrierten Sensor prüfen und AODO-Ausgang neu konfigurieren.</small></button>'+
-    '<button type="button" class="gw-choice" data-gw-task="nvm"><span class="gw-choice-icon">▣</span><strong>NVM-Rückrechner</strong><small>Backup importieren und Werte direkt in dieser App berechnen.</small></button>'+
+    '<button type="button" class="gw-choice" data-gw-task="nvm"><span class="gw-choice-icon">▣</span><strong>Sensorbrücken-Rechner</strong><small>NVM-Daten importieren und Brückennullpunkt, Spanne, TK0 und TKR analysieren.</small></button>'+
     '<button class="gw-choice" data-gw-task="inspect"><span class="gw-choice-icon">▤</span><strong>EEPROM / Diagnose</strong><small>Die bestehende Register- und EEPROM-Ansicht ohne geführten Abgleich öffnen.</small></button>'+
     '<button class="gw-choice" data-gw-task="testlog"><span class="gw-choice-icon">◷</span><strong>Test / Logging</strong><small>Beliebige Sensortests durchführen, alle Telemetriedaten samt Notizen speichern.</small></button>'+
     '<button class="gw-choice" data-gw-task="verification"><span class="gw-choice-icon">↕</span><strong>Nachmessung</strong><small>Druck- und Temperaturprüfungen mit Hysterese und frei wählbaren Prüfpunkten.</small></button>'+
     '<button class="gw-choice" data-gw-task="archive"><span class="gw-choice-icon">▥</span><strong>Archiv</strong><small>Frühere Abgleiche und Tests suchen, Ergebnisse prüfen und vergleichen.</small></button></div>'+
-    '<div class="gw-alert">Für den NVM-Rückrechner und das Archiv ist keine Sensorverbindung erforderlich. Für den geführten Sensorabgleich muss zuerst der Chip über USB erkannt werden.</div></div>'+
+    '<div class="gw-alert">Für den Sensorbrücken-Rechner und das Archiv ist keine Sensorverbindung erforderlich. Für den geführten Sensorabgleich muss zuerst der Chip über USB erkannt werden.</div></div>'+
    '<div id="gwPage1" class="gw-page" hidden><div class="gw-preset-grid">'+
     '<button class="gw-preset" data-gw-preset="quick"><strong>Schnell</strong><small>0–100 % · 2 Druckpunkte, ohne Temperaturkorrektur.</small></button>'+
     '<button class="gw-preset" data-gw-preset="tk0"><strong>TK0 · 3 Punkte</strong><small>Nullpunkt-Temperaturgang und Druckspanne · ohne TKE.</small></button>'+
