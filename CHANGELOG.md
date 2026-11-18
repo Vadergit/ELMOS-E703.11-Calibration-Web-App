@@ -1,3 +1,12 @@
+## v0.7.142 – Sensorbrücken-Rechner: Komplettabgleich und NVM-Backup zuverlässig laden
+
+- Der lokale Import im Sensorbrücken-Rechner nimmt weiterhin reine **64-Wort-NVM-Backups** (`E70311-CM64-v2`) und bestätigt deren erfolgreiche Übernahme nun deutlich mit Datei, Chip-UID und Kalibrierzustand. Die vom Benutzer geprüfte Beispieldatei `ELMOS_NVM_20261118_171706468_0020018A487B_2916.json` wird erkannt; S_F und S0–S15 sind darin 0, also kein gespeicherter Druckabgleich.
+- Ein vollständiger bestätigter **Komplettabgleich** (`E70311-CALIBRATION-COMPLETE-v1`) lädt auch dann die 64 NVM-Wörter, wenn seine optionalen Referenz- oder Messpunktmetadaten fehlen beziehungsweise ungültig sind. Dies wird separat als Profilwarnung statt als gescheiterter NVM-Import angezeigt.
+- Der Dateidialog wird jetzt über einen echten Upload-Button geöffnet; nach jeder Auswahl wird das File-Input geleert, sodass dieselbe Datei erneut gewählt werden kann.
+- Erfolg und Fehler erscheinen direkt neben der Dateiauswahl. Bei einem ungültigen Folgeimport bleiben bereits erfolgreich geladene NVM-Daten erhalten.
+- Vorhandene UID/SER-Prüfung ist für Dateien lokal; die Oberfläche behauptet keine erneute hardwareseitige NVM-CRC-Prüfung. Kein RAM-, EEPROM- oder anderer Sensor-Schreibvorgang.
+- Regressionstests für das konkrete 64-Wort-Beispiel, bestätigte Komplettdatei, fehlende Zusatzmetadaten, falsche UID und ungültige Wortzahl ergänzt.
+
 ## v0.7.141 – Deutliches DSP-Warnfenster bei Übersteuerung und zu hohem Zielwert
 
 - Der bislang nur in einer kleinen Callout-Zeile sichtbare DSP-Grenzbereich (Zielwert ab ±31'000 Digits) öffnet nach der Koeffizientenberechnung ein auffälliges, zugängliches Dialogfenster mit konkreter Reserve zur 16-Bit-Grenze und einer Empfehlung für einen kleineren DSP-Endwert. Ein hoher Zielwert ist dabei eine **Vorsichtswarnung**, noch kein Nachweis für tatsächliche Sättigung.
