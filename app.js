@@ -2969,7 +2969,7 @@ if(typeof document!=='undefined') (function UI(){
    if(factoryCRC!==factoryHigh)throw Error(`Werks-CRC8 stimmt nicht: 0x${h(factoryCRC)} statt 0x${h(factoryHigh)}. Programmierung gesperrt.`);
    for(const index of [0,1,15,16,17,18,19,20,22,CAL.SVDD_INDEX,28,63])if(await nvmReadWord(index*2)!==words[index])throw Error('NVM bei Wiederholungslesung unstabil (Wort '+index+')');
    const after=await bootSnapshot();if(!sameBoot(before,after))throw Error('Bootregister haben sich beim NVM-Lesen verändert');
-   st.nvmBackup=words;st.nvmBackupVerified=true;st.nvmBackupProof={session,uid,words};st.calImage=null;
+   st.nvmBackup=words;st.nvmBackupVerified=true;st.nvmBackupProof={session,uid,words,readAt:new Date().toISOString()};st.calImage=null;
    if((postBoot||expertRead)&&restoreCalibrationDisplayProfile())
     logging('Anzeigebereich aus UID-/NVM-gebundenem Profil wiederhergestellt.');
    expert.refreshOutputReadOnly();expert.refreshEEPROMViewer();
@@ -4172,6 +4172,29 @@ if(typeof document!=='undefined') (function UI(){
   if(currentStep===10)window.scrollTo({top:0,behavior:'auto'});
  }
  document.querySelectorAll('[data-open-nvm]').forEach(el=>el.addEventListener('click',openNvmCalculator));
+ document.addEventListener('click',async event=>{
+  const button=event.target.closest?.('#nvmReconReadSensor');
+  if(!button)return;
+  const root=$('nvmReconstruction');
+  if(!root)return;
+  if(!st.port||!st.chip||st.mode!=='usb'){
+   ELMOS_NVM_RECON.setReadFeedback(root,'Kein Sensor verbunden. Bitte zuerst unter «USB & Chip» verbinden.',{error:true});
+   return;
+  }
+  if(st.writing||st.calTask||st.nvmWorking||st.closing){
+   ELMOS_NVM_RECON.setReadFeedback(root,'Ein anderer Chipvorgang läuft. NVM-Lesen ist gerade nicht möglich.',{error:true});
+   return;
+  }
+  ELMOS_NVM_RECON.setReadFeedback(root,'Lese 64 NVM-Wörter vom verbundenen Sensor und prüfe UID, CRC8 und CRC16 …',{reading:true});
+  let ok=false;
+  try{ok=await expert.readNvm();}
+  catch(error){logging('NVM-Rechner: '+error.message)}
+  expert.refreshEEPROMViewer();
+  if(ok){
+   ELMOS_NVM_RECON.preferLive(root);
+   ELMOS_NVM_RECON.setReadFeedback(root,'Aktuelles NVM erfolgreich aus dem Sensor gelesen und geprüft.');
+  }else ELMOS_NVM_RECON.setReadFeedback(root,'NVM-Lesung fehlgeschlagen. Verbindung und Diagnoselog prüfen; kein ungeprüftes Sensor-NVM verwendet.',{error:true});
+ });
  $('homeButton').addEventListener('click',()=>{
   toggleSettings(false);
   window.ELMOS_ARCHIVE?.close();
