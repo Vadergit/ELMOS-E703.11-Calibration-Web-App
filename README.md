@@ -2,7 +2,7 @@
 
 **Ein geführter Kalibrierassistent für den ELMOS E703.11 und das SSP3-Eval-Board.** Ziel ist ein verständlicher Abgleich, der auch ohne tiefere Vorkenntnisse Schritt für Schritt funktioniert. Wer mehr benötigt, kann zusätzliche Messpunkte, DSP-Parameter und einen geschützten Expertenmodus verwenden.
 
-**Version: v0.7.127 · Wiederverbindung am ESP32-C3 SuperMini korrigiert** · [Änderungsverlauf](CHANGELOG.md) · **[Geplante Funktionen](ROADMAP.md)**
+**Version: v0.7.128 · Auto-Connect mit VDD-Start und sichtbarem Verbindungsstatus** · [Änderungsverlauf](CHANGELOG.md) · **[Geplante Funktionen](ROADMAP.md)**
 
 Der **Demo-Modus** wird in den Einstellungen erst nach Aktivierung von **Expertenparameter** angezeigt. Er simuliert Sensorwerte und Schreibvorgänge; die echte Hardware wird dabei nicht programmiert.
 
@@ -13,6 +13,12 @@ Der **Demo-Modus** wird in den Einstellungen erst nach Aktivierung von **Experte
 > **Geführter Assistent:** Nach der bestätigten SSP3-Verbindung stehen die neue Schritt-für-Schritt-Führung, die klassische Ansicht und der optionale Kompaktmodus zur Verfügung. Ein E703.11-Chip muss für den Abgleich verbunden sein. Als DIY-Programmer sind ausschliesslich ESP32-C3 SuperMini (v0.12 Labor-Quellcode) und Arduino Pro Micro (v0.28 Labor-Quellcode) vorgesehen. Die originalen ELMOS SSP3-Adapter bleiben separat unterstützt. Der vollständige Hardwaretest der DIY-Programmer ist noch offen.
 >
 > [Geführter Abgleich](docs/GEFUEHRTER_ASSISTENT.md) · [DIY-Programmer (ESP32-C3 / Pro Micro)](docs/USB_BRIDGE_GUIDE.md) · [Pinbelegung der zwei Boards](docs/ESP_BOARD_OPTIONS.md) · [DIY-Firmware-Installer](firmware-update.html)
+
+## v0.7.128 – Auto-Connect für E703.11 mit kurzem 1-Wire-Startfenster
+
+Die bisherige automatische Wiedererkennung verwendete bei bereits geöffnetem USB-Port ausschliesslich `PLC ACCESS`. Nach dem 4/10/200-ms-Startfenster antwortet ein nicht für dauerhafte 1-Wire-Kommunikation konfigurierter Sensor nicht mehr zuverlässig. Bei eingeschaltetem Auto-Connect und der bereits aktivierten Einstellung **Sensorversorgung steuern** wird jetzt `PLC START` verwendet. Dies ist nur wirksam, wenn **GPIO10 am ESP32-C3** beziehungsweise **D7 am Pro Micro** einen tatsächlich vorhandenen Lastschalter für die Sensorversorgung ansteuert. Fehlt der Lastschalter, kann das Startfenster nicht automatisch neu geöffnet werden.
+
+Bei deaktivierter Sensor-VDD-Steuerung bleibt es bei `PLC ACCESS`. Unbeaufsichtigte PSSC-RAM-Wiederherstellung und Magic-Cookie-Freigaben bleiben gesperrt. Für I²C wird im automatischen Modus weiterhin `I2C ACCESS` verwendet. Automatische NVM-Programmierung ist ausgeschlossen. Der gelbe Sensorbalken zeigt jetzt an, ob Auto-Connect aktiv ist, wie oft geprüft wurde und welcher letzte Kommunikationsfehler auftrat.
 
 ## v0.7.127 – Auto-Connect nach erneut angeschlossenem Sensor
 

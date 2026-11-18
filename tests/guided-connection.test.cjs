@@ -210,3 +210,21 @@ test('failed bridge auto-connect remains retryable without triggering write oper
  assert.equal(st.chip,false);
  assert.deepEqual(calls,['render','hello','access','log','render','render','retry']);
 });
+
+test('auto PLC reconnect honours configured VDD switch to reopen short startup windows',()=>{
+ const first=app.indexOf(' async function connectBridgeChip(');
+ const end=app.indexOf(' if(st.iface===\'i2c\'){',first);
+ assert.ok(first>0&&end>first);
+ const snippet=app.slice(first,end);
+ assert.match(snippet,/power=!!st\.sensorPowerEnabled&&\(!autoProbe\|\|st\.iface==='plc'\)/);
+ assert.match(app,/await bridgeAccess\(\{power\}\)/);
+ assert.match(app,/if\(autoProbe\|\|!st\.bridgePsscRam/);
+});
+test('sensor banner shows auto-connect enabled state, attempts and last error',()=>{
+ assert.match(html,/id="sensorAutoReconnectStatus"/);
+ assert.match(app,/Auto-Connect: Aus/);
+ assert.match(app,/Auto-Connect: Sensorprüfung läuft/);
+ assert.match(app,/autoReconnectAttempts\+\+/);
+ assert.match(app,/autoReconnectLastError=String\(error\.message\|\|error\)/);
+ assert.match(html,/data-app-version="0\.7\.128"/);
+});

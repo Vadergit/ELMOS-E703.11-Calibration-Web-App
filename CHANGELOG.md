@@ -1,3 +1,10 @@
+## v0.7.128 – Auto-Connect mit PLC START und Statusanzeige
+
+- Auto-Connect nutzt bei aktiviertem PLC-VDD-Schalter jetzt PLC START für ein neues 1-Wire-Startfenster. Externe Sensorversorgungs-Schaltung am GPIO10 (ESP32-C3) bzw. D7 (Pro Micro) erforderlich.
+- Ohne VDD-Schalter bleibt PLC ACCESS; automatische RAM-Recovery wird nicht ausgeführt.
+- Gelber Banner zeigt, ob Auto-Connect aktiviert ist, aktuelle Prüfung, Wiederholungszahl, Uhrzeit und letzten Fehler.
+- Regressionstests, Versionsnummer und Browser-Cache aktualisiert. Hardwaretest ausstehend.
+
 ## v0.7.127 – Sensor am ESP32-C3 automatisch wiedererkennen
 
 - Aktiver Auto-Connect führt bei weiterhin angeschlossener ESP32-C3- beziehungsweise Pro-Micro-Bridge zuerst den Bridge-Handshake und PLC ACCESS / I²C ACCESS aus; erst danach werden Chipregister und UID geprüft.

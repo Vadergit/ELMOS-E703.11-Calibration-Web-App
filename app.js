@@ -90,6 +90,7 @@ if(typeof document!=='undefined') (function UI(){
  const autoReconnectKey='elmos-auto-reconnect-v1';
  let autoReconnectEnabled=lsGet(autoReconnectKey)==='1';
  let autoReconnectTimer=null,autoReconnectBusy=false,autoReconnectSuppressed=false;
+ let autoReconnectAttempts=0,autoReconnectLastAt=0,autoReconnectLastError='';
  let autoPortInfo=null;
  function cancelAutoReconnect(){clearTimeout(autoReconnectTimer);autoReconnectTimer=null}
  function mayAutoReconnect(){
@@ -109,7 +110,8 @@ if(typeof document!=='undefined') (function UI(){
  async function attemptAutoReconnect(){
   if(!mayAutoReconnect()||(st.chip&&st.uid?.hex)||autoReconnectBusy)return;
   if(autoReconnectBlocked()){scheduleAutoReconnect();return}
-  autoReconnectBusy=true;renderStatus();
+  autoReconnectBusy=true;autoReconnectAttempts++;
+  autoReconnectLastAt=Date.now();autoReconnectLastError='';renderStatus();
   try{
    if(st.port&&st.readerAlive){
     // A connected ESP32-C3/Pro Micro bridge requires PLC/I2C ACCESS before
@@ -133,7 +135,8 @@ if(typeof document!=='undefined') (function UI(){
     if(matches.length===1)await connect(matches[0]);
    }
   }catch(error){
-   logging('Auto-Connect: Noch kein Sensor erkannt: '+String(error.message||error));
+   autoReconnectLastError=String(error.message||error);
+   logging('Auto-Connect: Noch kein Sensor erkannt: '+autoReconnectLastError);
    st.chip=false;renderStatus();
   }finally{
    autoReconnectBusy=false;
@@ -153,9 +156,20 @@ if(typeof document!=='undefined') (function UI(){
  function renderSensorReconnect(){
   const banner=$('sensorReconnectBanner'),button=$('sensorReconnectButton'),message=$('sensorReconnectMessage');
   if(!banner||!button||!message)return;
+  const autoInfo=$('sensorAutoReconnectStatus');
   const visible=!demoEnabled&&!!st.port&&!st.chip&&!st.readOnlySensor&&!st.closing;
   banner.hidden=!visible;
   if(!visible)return;
+  if(autoInfo){
+   const active=autoReconnectEnabled&&!autoReconnectSuppressed;
+   autoInfo.textContent=!active?'Auto-Connect: Aus · In Einstellungen → Verbindung aktivieren.':
+    autoReconnectBusy?'Auto-Connect: Sensorprüfung läuft · Versuch '+autoReconnectAttempts:
+    'Auto-Connect: Aktiv · Versuche '+autoReconnectAttempts+
+    (autoReconnectLastAt?' · zuletzt '+new Date(autoReconnectLastAt).toLocaleTimeString('de-CH'):' · noch kein Versuch')+
+    (autoReconnectLastError?' · Fehler: '+autoReconnectLastError.slice(0,110):'')+
+    (st.adapterKind==='bridge'&&st.iface==='plc'&&!st.sensorPowerEnabled?
+    ' · Kurzes 1-Wire-Startfenster erfordert geschaltete Sensor-VDD (GPIO10/D7).':'');
+  }
   const working=autoReconnectBusy||st.reinitRunning||st.powerCycleRunning||st.magicRunning||st.startupRunning||st.diagRunning;
   const adapter=st.adapterKind==='bridge'?(st.bridgeBoard||'DIY-Programmer'):'SSP3';
   message.textContent=working?'Verbindung wird geprüft und initialisiert …':
@@ -1320,7 +1334,12 @@ if(typeof document!=='undefined') (function UI(){
  async function connectBridgeChip({autoProbe=false}={}){
   st.bridgeRxNote='';
   st.bridgeColdStart=null;
-  const port=st.port,session=st.sessionIndex,power=!autoProbe&&st.sensorPowerEnabled;
+  const port=st.port,session=st.sessionIndex;
+  // PLC START opens the short NVM startup window on a physically wired
+  // VDD load switch (ESP32-C3 GPIO10 / Pro Micro D7). The user must have
+  // enabled sensor power control. Do not invoke I2C START on auto-probes.
+  const power=!!st.sensorPowerEnabled&&(!autoProbe||st.iface==='plc');
+  if(autoProbe&&power)logging('Auto-Connect: PLC START über konfigurierte VDD-Schaltung.');
   if(st.iface==='i2c'){
    if(!st.bridgeI2c)throw Error('I²C benötigt ESP32-C3 v0.10 oder Pro Micro v0.27.');
    if(power){
@@ -2832,7 +2851,7 @@ if(typeof document!=='undefined') (function UI(){
  function draw(){const c=$('chart');if(!c||c.closest('[hidden]'))return;const d=window.devicePixelRatio||1,w=Math.round(c.clientWidth*d),h=Math.round(c.clientHeight*d);if(w<20)return;if(c.width!==w||c.height!==h){c.width=w;c.height=h}const g=c.getContext('2d');g.clearRect(0,0,w,h);
  const dark=document.documentElement.dataset.theme==='dark';const x0=55*d,y0=10*d,yh=h-20*d,y=v=>y0+(32768-v)/65536*(yh-y0);g.font=`${11*d}px sans-serif`;for(const v of [25000,0,-25000]){g.beginPath();g.strokeStyle=v?(dark?'#d9ab71':'#e3c9aa'):(dark?'#536e84':'#d7e4ef');g.setLineDash(v?[5*d,4*d]:[]);g.moveTo(x0,y(v));g.lineTo(w-8*d,y(v));g.stroke();g.setLineDash([]);g.fillStyle=dark?'#d7e5f0':'#74849a';g.fillText((v>0?'+':'')+v,5*d,y(v)+4*d)}if(st.trend.length<1)return;const left=Date.now()-60000,x=t=>x0+(w-x0-10*d)*Math.max(0,Math.min(1,(t-left)/60000));g.beginPath();g.strokeStyle=dark?'#9bddff':'#2867a6';g.lineWidth=2*d;st.trend.forEach((p,i)=>i?g.lineTo(x(p.x),y(p.y)):g.moveTo(x(p.x),y(p.y)));g.stroke()}
  function download(name,txt,mime='application/json'){let b=new Blob([txt],{type:mime}),u=URL.createObjectURL(b),a=document.createElement('a');a.href=u;a.download=(demoEnabled?'DEMO_':'')+name;a.click();setTimeout(()=>URL.revokeObjectURL(u),2000)}
- const report=()=>({tool:'ELMOS E703.11 Kalibrierassistent v0.7.126',created:new Date().toISOString(),connection:demoEnabled?'Demo':st.port?'USB':'offline',hardwareValidated:false,unit:pressureUnit(),pointNames:{lower:pointName('lo'),upper:pointName('hi')},interface:st.iface,firmware:st.firmware,bootProtection:'Boot-/Werks-NVM-Schreiben gesperrt; kalibrierungsbezogenes User-NVM mit Bestätigung freigegeben',ramWriteActive:!!st.ramWriteScope,registers:st.regs,bootSnapshot:st.boot,chipUID:st.uid?.hex||null,expertOutput:st.expertOutputPlan,AFE:st.afe,gains:st.staged,low:st.points.lo,high:st.points.hi,verification:st.verify,calibrationPoints:st.calpoints,plannedCalibrationPointCount:calibrationPointCount(),requestedSamplesPerPoint:Number($('calSampleCount').value),requestedDSPOutputLimit:Number($('calDspLimit').value),coefficientFit:st.calfit,calRamVerified:st.calVerified,lastDSP:st.dsp,chipDiagnostic:st.chipDiag,lastPlcReply:st.lastPlcReply,displayRange:getActiveDSPRange(),nvmState:{backupVerified:st.nvmBackupVerified,programmed:st.nvmDone},samples:st.history.slice(-1500),trace:st.log});
+ const report=()=>({tool:'ELMOS E703.11 Kalibrierassistent v0.7.128',created:new Date().toISOString(),connection:demoEnabled?'Demo':st.port?'USB':'offline',hardwareValidated:false,unit:pressureUnit(),pointNames:{lower:pointName('lo'),upper:pointName('hi')},interface:st.iface,firmware:st.firmware,bootProtection:'Boot-/Werks-NVM-Schreiben gesperrt; kalibrierungsbezogenes User-NVM mit Bestätigung freigegeben',ramWriteActive:!!st.ramWriteScope,registers:st.regs,bootSnapshot:st.boot,chipUID:st.uid?.hex||null,expertOutput:st.expertOutputPlan,AFE:st.afe,gains:st.staged,low:st.points.lo,high:st.points.hi,verification:st.verify,calibrationPoints:st.calpoints,plannedCalibrationPointCount:calibrationPointCount(),requestedSamplesPerPoint:Number($('calSampleCount').value),requestedDSPOutputLimit:Number($('calDspLimit').value),coefficientFit:st.calfit,calRamVerified:st.calVerified,lastDSP:st.dsp,chipDiagnostic:st.chipDiag,lastPlcReply:st.lastPlcReply,displayRange:getActiveDSPRange(),nvmState:{backupVerified:st.nvmBackupVerified,programmed:st.nvmDone},samples:st.history.slice(-1500),trace:st.log});
 
  // ============ Kalibrierung + NVM (AN0203 / AN0204 / Datasheet 2023) ============
  const ca=(id,msg,type='')=>show(id,msg,type);
@@ -4340,6 +4359,9 @@ if(typeof document!=='undefined') (function UI(){
  $('demoExit').addEventListener('click',()=>changeDemoMode(false));
 
  $('settingsAutoReconnect').checked=autoReconnectEnabled;
+ $('settingsAutoReconnectInfo').textContent=autoReconnectEnabled?
+  'Aktiv: Automatische Prüfung. Bei kurzen 1-Wire-Fenstern benötigt «Sensorversorgung steuern» einen externen Lastschalter am GPIO10/D7.':
+  'Aus: Sensor manuell neu initialisieren. Keine automatischen NVM-Schreibzugriffe.';
  $('settingsAutoReconnect').addEventListener('change',()=>{
   autoReconnectEnabled=$('settingsAutoReconnect').checked;
   lsSet(autoReconnectKey,autoReconnectEnabled?'1':'0');
@@ -4348,8 +4370,9 @@ if(typeof document!=='undefined') (function UI(){
    if(!st.chip||!st.uid?.hex)scheduleAutoReconnect(1200);
   }else cancelAutoReconnect();
   $('settingsAutoReconnectInfo').textContent=autoReconnectEnabled?
-   'Aktiv: Die USB-Bridge prüft neu angeschlossene Sensoren über PLC/I²C ACCESS. Kein automatisches NVM-Schreiben oder Sensor-Neustart. Bei kurzen 1-Wire-Startfenstern weiterhin manuell initialisieren.':
+   'Aktiv: Die Bridge prüft Sensoren automatisch. Mit «Sensorversorgung steuern» wird bei 1-Wire PLC START verwendet (externer Lastschalter GPIO10/D7 erforderlich). Keine NVM-Programmierung.':
    'Aus: Nach einem Unterbruch bitte den Sensor manuell neu initialisieren.';
+  renderStatus();
  });
  $('settingsSampleCount').addEventListener('change',()=>{
   const n=Number($('settingsSampleCount').value);
