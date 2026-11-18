@@ -226,10 +226,13 @@ test('auto PLC reconnect honours configured VDD switch to reopen short startup w
  assert.match(app,/await bridgeAccess\(\{power\}\)/);
  assert.match(app,/if\(autoProbe\|\|!st\.bridgePsscRam/);
 });
-test('sensor banner shows auto-connect enabled state, attempts and last error',()=>{
+test('sensor banner shows a stable auto-connect state while detailed retries stay in the log',()=>{
  assert.match(html,/id="sensorAutoReconnectStatus"/);
  assert.match(app,/Auto-Connect: Aus/);
- assert.match(app,/Auto-Connect: Sensorprüfung läuft/);
+ assert.match(app,/Auto-Connect: Aktiv · Sensorerkennung läuft im Hintergrund/);
+ const from=app.indexOf(' function renderSensorReconnect(){');
+ const to=app.indexOf(' const runningOperations=',from);
+ assert.doesNotMatch(app.slice(from,to),/autoReconnectAttempts|autoReconnectLastError/);
  assert.match(app,/autoReconnectAttempts\+\+/);
  assert.match(app,/autoReconnectLastError=String\(error\.message\|\|error\)/);
  assert.match(html,/data-app-version="0\.7\.131"/);
@@ -258,7 +261,7 @@ test('manual reconnect is not disabled by an in-flight auto probe and cancels fu
  assert.match(code,/cancelAutoReconnect\(\)/);
  assert.match(code,/if\(autoReconnectPromise\)await Promise\.race/);
  assert.match(code,/await connectBridgeChip\(\)/);
- assert.match(app,/const working=st\.reinitRunning\|\|st\.powerCycleRunning/);
+ assert.match(app,/const working=!autoReconnectBusy&&\(st\.reinitRunning\|\|st\.powerCycleRunning/);
  assert.match(app,/autoReconnectPromise=task/);
 });
 test('the damaged auto-connect state is reset once on upgrading to v0.7.130',()=>{
