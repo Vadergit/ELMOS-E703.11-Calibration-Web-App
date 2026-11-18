@@ -1565,3 +1565,53 @@ test('ESP32-C3 combined DSP/AODO recovery requires generic user NVM and cold-sta
  assert.ok(app.includes('const esp32Ready=bridgeCombinedRecoveryReady()'));
  assert.ok(app.includes('const finalRecoveryBlock=psscNvmBlock('));
 });
+
+
+test('DSP limit and saturation display a prominent, deduplicated accessible dialog',()=>{
+ const app=read('app.js'),html=read('index.html'),guide=read('guided.js');
+ for(const id of ['dspRiskDialog','dspRiskTitle','dspRiskDescription','dspRiskAdvice',
+                   'dspRiskDismiss','dspRiskApplyLimit']){
+  assert.equal(html.split('id="'+id+'"').length-1,1,'dialog element '+id);
+ }
+ assert.ok(html.includes('aria-labelledby="dspRiskTitle"'));
+ assert.ok(html.includes('.dsp-risk-dialog::backdrop'));
+ assert.ok(app.includes('function showDspRiskPopup({key,type,title,description,advice,suggestedLimit})'));
+ assert.ok(app.includes("key:'high-dsp-limit:'+solution.outputLimit"));
+ assert.ok(app.includes("key:'coefficient-overflow:'"));
+ assert.ok(app.includes("key:'ram-saturation:'"));
+ assert.ok(app.includes("key:'verification-saturation:'"));
+ assert.ok(app.includes("if(stat&0x0400)"));
+ assert.ok(app.includes('shownDspRiskWarnings.clear()'));
+ assert.ok(app.includes("dispatchEvent(new Event('change',{bubbles:true}))"));
+ assert.ok(app.includes('window.ELMOS_GUIDED.goToCoefficients?.()'));
+ assert.ok(guide.includes("goToCoefficients:()=>{if(mode&&task==='calibration'&&!nextSensorPending)goto(5)}"));
+ // Verify the popup only acts on local DOM. Showing it cannot alter NVM.
+ const begin=app.indexOf(' const shownDspRiskWarnings=new Set();');
+ const end=app.indexOf(' function calcCoefficients(){',begin);
+ assert.ok(begin>=0&&end>begin);
+ const ui={};
+ for(const id of ['dspRiskDialog','dspRiskType','dspRiskTitle','dspRiskDescription',
+                   'dspRiskAdvice','dspRiskApplyLimit','calDspLimit','operationProgressDialog'])
+  ui[id]={textContent:'',dataset:{},hidden:false,open:false,isConnected:true};
+ let opens=0;
+ ui.dspRiskDialog.showModal=()=>{ui.dspRiskDialog.open=true;opens++};
+ ui.calDspLimit.value='32000';
+ const factory=new Function('$','window','fmt',
+  app.slice(begin,end)+'return showDspRiskPopup;');
+ const popup=factory(id=>ui[id],{setTimeout:fn=>fn()},n=>String(n));
+ const first={key:'high-limit:32000',type:'DSP-Reserve',title:'Wenig Reserve',
+  description:'Nur 767 Digits verbleiben',advice:'DSP-Wert reduzieren',suggestedLimit:30000};
+ popup(first);
+ assert.equal(opens,1,'high DSP fit opens a modal');
+ assert.equal(ui.dspRiskTitle.textContent,'Wenig Reserve');
+ assert.equal(ui.dspRiskApplyLimit.dataset.suggestedLimit,'30000');
+ assert.equal(ui.dspRiskApplyLimit.hidden,false);
+ popup(first);
+ assert.equal(opens,1,'same risk never blinks at every repeated update');
+ popup({...first,key:'saturation:32000',suggestedLimit:29000});
+ assert.equal(ui.dspRiskApplyLimit.dataset.suggestedLimit,'29000','new risk replaces details');
+ ui.dspRiskDialog.open=false;
+ popup({...first,key:'info-only',suggestedLimit:32000});
+ assert.equal(ui.dspRiskApplyLimit.hidden,true,'must not offer a non-reducing limit');
+ assert.equal(opens,2,'a new actionable warning may appear once');
+});
