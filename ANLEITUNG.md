@@ -8,6 +8,16 @@ Diese Anleitung beschreibt die derzeitige Benutzeroberfläche der browserbasiert
 
 > **Laborprototyp, keine Produktionsfreigabe.** Der vollständige Kalibrier- und NVM-Schreibablauf wurde noch nicht am realen E703.11 als Gesamtsystem validiert. Permanente Änderungen zunächst nur an einem entbehrlichen Testchip erproben.
 
+## Verbindung und NVM-Freigabe ohne Neustart erneut prüfen (ab v0.7.136)
+
+Nach einer erfolgreichen unabhängigen DSP-Prüfung steht in **NVM programmieren** der Button **«Verbindung & NVM-Freigabe erneut prüfen (ohne Neustart)»** bereit. Er funktioniert in der klassischen, geführten und kompakten Ansicht.
+
+Er prüft die tatsächlichen DSP-Koeffizienten im RAM, liest das Original-NVM vollständig erneut, kontrolliert UID und CRC und erstellt einen neuen NVM-Schreibplan. Der vorhandene NVM-Leseweg setzt `PLC P/T` erneut ab. Er startet den Sensor **nicht** neu und führt keine NVM-Programmierung durch. Die Kalibrierpunkte bleiben erhalten.
+
+Ein fehlender Nachweis des erforderlichen echten Power-Cycle/Magic-Cookie-Starts wird dadurch **nicht** ersetzt. Bei RAM-Abweichungen ist eine neue DSP-Prüfung erforderlich. Die vollständige NVM-Schreibprüfung inklusive Rücklesung und physischem Neustart bleibt für die endgültige Programmierung vorgeschrieben.
+
+**Wichtig bei offenen Browser-Sitzungen einer älteren Version:** Zum Laden des neuen Buttons ist ein Browser-Reload erforderlich. Die damalige ungespeicherte Kalibriersitzung wird nicht automatisch übernommen. Die Funktion ist keine Backup-/Importfunktion.
+
 ## Magic-Cookie-RAM-Freigabe und AODO bei laufender Kalibrierung (ab v0.7.135)
 
 **Wichtig: Den Sensor bei einem offenen Abgleich nicht neu verbinden und die Browserseite nicht aktualisieren.** Die aktuellen RAM-Kalibrierpunkte werden beim Neuinitialisieren zurückgesetzt. Zuerst das Kalibrierprotokoll als JSON exportieren; dieser Export stellt die laufende Sitzung noch nicht automatisch wieder her.

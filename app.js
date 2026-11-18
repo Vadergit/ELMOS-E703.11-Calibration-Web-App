@@ -77,7 +77,7 @@ if(typeof document!=='undefined') (function UI(){
  const filterRegisters=[0x14,0x16,0x18];
  const filterProfiles=ELMOS_SETTINGS.filterProfiles;
  const REG_NAMES={4:'CFG_EN',6:'CFG_SPI_I2C',8:'CFG_PADS0',10:'CFG_PADS1',12:'CFG_PADS2',16:'CFG_AODO',0x14:'CFG_ADC',0x16:'CFG_LP0',0x18:'CFG_LP1',0x1A:'CFG_AFE0',0x1C:'CFG_AFE1',0x1E:'CFG_AFE2',0x26:'ADC_TC',0x28:'ADC_T',0x2A:'ADC_S'};
- const st={chipDiag:null,diagRunning:false,lastPlcReply:null,mode:'offline',port:null,closing:false,reader:null,readerPromise:null,readerAlive:false,adapterNoReply:false,sessionStartedAt:null,sessionIndex:0,cmdQueue:Promise.resolve(),replyBuffer:'',responseWait:null,iface:'plc',adapterKind:'ssp3',sensorPowerEnabled:false,startupRunning:false,startupAbort:false,startupAttempts:0,magicRunning:false,magicResult:null,powerCycleRunning:false,powerCycleResult:null,startupTrials:[],powerHelp:null,plcHostFormat:'legacy',plcAddress:0x6C,plcAddressVerified:false,plcAddressSource:'',plcAddressProbes:[],firmware:'',chip:false,readOnlySensor:null,sensorLost:false,reinitRunning:false,boot:null,afe:null,afe0:null,bridgeWriteAllowed:false,bridgeReadBusy:false,staged:{pga1:0,pga2:0,offset:0},adc:null,dsp:null,dspError:null,dspT:null,dspTError:null,liveReadPromise:null,trend:[],history:[],log:[],regs:{},points:{lo:null,hi:null},verify:null,live:false,manualLivePause:false,timeout:null,consecutiveErrors:0,liveReadAttempts:0,liveReadSuccesses:0,liveLastError:null,liveLastAttemptAt:null,measurementPeriod:null,measurementStatus:null,measurementError:null,measurementStarts:0,measurementFreshCount:0,measurementLastChangedAt:null,writing:false,pressure:5,calpoints:[],calfit:null,calImage:null,nvmBackup:null,nvmBackupVerified:false,calStaged:false,calVerified:false,calValidation:[],calTask:false,testLogging:false,nvmWorking:false,nvmAttempting:false,nvmDone:false,afeWriteActive:false,ramWriteScope:null,uid:null,expertOutputPlan:null,restorePlan:null,outputOnlyPlan:null,uidShownForInput:null,profilePendingAFE:null,referenceTemplate:null};
+ const st={chipDiag:null,diagRunning:false,lastPlcReply:null,mode:'offline',port:null,closing:false,reader:null,readerPromise:null,readerAlive:false,adapterNoReply:false,sessionStartedAt:null,sessionIndex:0,cmdQueue:Promise.resolve(),replyBuffer:'',responseWait:null,iface:'plc',adapterKind:'ssp3',sensorPowerEnabled:false,startupRunning:false,startupAbort:false,startupAttempts:0,magicRunning:false,magicResult:null,powerCycleRunning:false,powerCycleResult:null,startupTrials:[],powerHelp:null,plcHostFormat:'legacy',plcAddress:0x6C,plcAddressVerified:false,plcAddressSource:'',plcAddressProbes:[],firmware:'',chip:false,readOnlySensor:null,sensorLost:false,reinitRunning:false,boot:null,afe:null,afe0:null,bridgeWriteAllowed:false,bridgeReadBusy:false,staged:{pga1:0,pga2:0,offset:0},adc:null,dsp:null,dspError:null,dspT:null,dspTError:null,liveReadPromise:null,trend:[],history:[],log:[],regs:{},points:{lo:null,hi:null},verify:null,live:false,manualLivePause:false,timeout:null,consecutiveErrors:0,liveReadAttempts:0,liveReadSuccesses:0,liveLastError:null,liveLastAttemptAt:null,measurementPeriod:null,measurementStatus:null,measurementError:null,measurementStarts:0,measurementFreshCount:0,measurementLastChangedAt:null,writing:false,pressure:5,calpoints:[],calfit:null,calImage:null,nvmBackup:null,nvmBackupVerified:false,calStaged:false,calVerified:false,calValidation:[],calTask:false,testLogging:false,nvmWorking:false,nvmAttempting:false,nvmRechecking:false,nvmDone:false,afeWriteActive:false,ramWriteScope:null,uid:null,expertOutputPlan:null,restorePlan:null,outputOnlyPlan:null,uidShownForInput:null,profilePendingAFE:null,referenceTemplate:null};
  let currentStep=0,pendingGain=null,writeTimer=null;
  let homeNavigationAbortRequested=false;let tipEnabled=true,liveIntervalMs=250;
  // Optional faster live mode: serial requests only, with automatic pacing backoff.
@@ -1023,7 +1023,11 @@ if(typeof document!=='undefined') (function UI(){
   $('nvmBackupRead').disabled=!verificationComplete()||!st.port||!st.chip||st.nvmWorking||st.writing||st.calTask;
   $('nvmBackupDownload').disabled=!st.nvmBackupVerified||!st.nvmBackup;
   $('nvmAutoBackup').disabled=st.nvmWorking||st.writing||st.calTask;
-  $('nvmPrepare').disabled=!verificationComplete()||!st.port||!st.chip||st.writing||st.calTask||st.nvmWorking||!!st.restorePlan||!!st.outputOnlyPlan||!!(st.alarmOnlyPlan&&!st.alarmOnlyPlan.duringCalibration);
+  $('nvmPrepare').disabled=!verificationComplete()||!st.port||!st.chip||st.writing||st.calTask||st.nvmWorking||st.nvmRechecking||!!st.restorePlan||!!st.outputOnlyPlan||!!(st.alarmOnlyPlan&&!st.alarmOnlyPlan.duringCalibration);
+  $('nvmRecheck').disabled=!verificationComplete()||!st.port||!st.chip||st.mode!=='usb'||st.iface!=='plc'||
+   st.writing||st.calTask||st.nvmWorking||st.nvmAttempting||st.nvmRechecking||st.closing||
+   st.reinitRunning||st.powerCycleRunning||st.magicRunning||st.startupRunning||st.diagRunning||
+   st.afeWriteActive||!!st.restorePlan||!!st.outputOnlyPlan||!!(st.alarmOnlyPlan&&!st.alarmOnlyPlan.duringCalibration);
   const restoring=expert.restoreReady(),outputOnly=expert.outputReady(),alarmOnly=ELMOS_ALARM_EDITOR.ready();
   $('nvmProgram').textContent=demoEnabled?'NVM-Programmierung simulieren':restoring?'Backup auf diesem Chip wiederherstellen':outputOnly?'AODO-Ausgangseinstellungen im NVM speichern':alarmOnly?'Alarme & Fehler dauerhaft ins NVM speichern':'Kalibrierung dauerhaft ins NVM schreiben';
   const recognizedUid=st.uid?.hex||'';
@@ -1088,7 +1092,7 @@ if(typeof document!=='undefined') (function UI(){
   const approvalGranted=nvmReason==='';
   const experimentalRecoveryOutput=outputOnly&&
    (st.psscRamRecovery||(st.regs[0x06]===0x6C04&&st.nvmBackup?.[17]!==0x6C04));
-  $('nvmProgram').disabled=!approvalGranted||!!st.nvmAttempting||st.nvmWorking||st.writing||st.calTask;
+  $('nvmProgram').disabled=!approvalGranted||!!st.nvmAttempting||st.nvmRechecking||st.nvmWorking||st.writing||st.calTask;
   const bootCheckBusy=st.closing||st.nvmWorking||st.writing||st.calTask;
   $('nvmRestart').hidden=!st.nvmDone||!(st.sensorPowerEnabled||demoEnabled);
   $('nvmRestart').disabled=bootCheckBusy||!st.chip||!st.port;
@@ -3375,6 +3379,97 @@ if(typeof document!=='undefined') (function UI(){
    bar.max=total;bar.value=done;
   }else bar.removeAttribute('value');
  }
+ // Read-only, no-power-cycle recheck for an already completed RAM/DSP
+ // calibration. This must NOT issue a sensor restart, write DSP/AFE/boot
+ // registers, invalidate measured points or silently bypass NVM protection.
+ function activeCalibrationRamWords(){
+  const r=st.calfit?.registers;
+  if(!r||!Array.isArray(r.coeffs)||r.coeffs.length!==16)
+   throw Error('Keine vollständigen DSP-Koeffizienten in der aktiven Kalibrierung.');
+  const words=[[0x70,r.so],[0x72,r.sf],...r.coeffs.map((v,i)=>[0x74+i*2,v])];
+  if(r.tcoeffs){
+   if(!Array.isArray(r.tcoeffs)||r.tcoeffs.length!==4)
+    throw Error('Temperaturkoeffizienten sind unvollständig.');
+   words.push([0x6C,r.to],[0x6E,r.tf],...r.tcoeffs.map((v,i)=>[0x94+i*2,v]));
+  }
+  return words;
+ }
+ async function recheckNvmWithoutRestart(){
+  const status=$('nvmRecheckMsg');
+  if(st.nvmRechecking)return;
+  if(!verificationComplete()||!st.calStaged||!st.calfit)
+   return show('nvmRecheckMsg','Zuerst DSP-RAM-Kalibrierung und unabhängige Prüfung abschliessen. Vorhandene Messpunkte bleiben erhalten.','warn');
+  if(st.mode!=='usb'||!st.port||!st.chip||st.iface!=='plc'||!st.uid?.hex)
+   return show('nvmRecheckMsg','Eine bestätigte aktive 1-Wire-Verbindung mit Chip-UID ist erforderlich. Ein Sensorneustart wird nicht automatisch ausgeführt.','warn');
+  if(st.writing||st.calTask||st.nvmWorking||st.nvmAttempting||st.closing||
+     st.reinitRunning||st.powerCycleRunning||st.magicRunning||st.startupRunning||
+     st.diagRunning||st.afeWriteActive||!!st.restorePlan||!!st.outputOnlyPlan||
+     !!(st.alarmOnlyPlan&&!st.alarmOnlyPlan.duringCalibration))
+   return show('nvmRecheckMsg','Ein anderer Chip- oder NVM-Vorgang läuft. Die Prüfung kann derzeit nicht beginnen.','warn');
+  st.nvmRechecking=true;
+  const currentPort=st.port,currentSession=st.sessionIndex,currentUid=st.uid.hex;
+  const currentFit=st.calfit,currentPoints=st.calpoints,currentChecks=st.calValidation;
+  const resumeLive=st.live&&!st.manualLivePause;
+  let ramIntegrityFailed=false;
+  renderFlowState();
+  show('nvmRecheckMsg','Laufender Sensor wird ohne Neustart erneut geprüft: DSP-RAM, 64-Wort-NVM, UID, CRC und anschliessend NVM-Änderungsplan. Es wird nichts dauerhaft geschrieben.','warn');
+  try{
+   stopLive();
+   if(st.liveReadPromise)await st.liveReadPromise.catch(()=>{});
+   const expected=activeCalibrationRamWords();
+   const confirmSameSession=()=>{
+    if(st.port!==currentPort||st.sessionIndex!==currentSession||st.uid?.hex!==currentUid||
+       st.calfit!==currentFit||st.calpoints!==currentPoints||st.calValidation!==currentChecks||
+       !verificationComplete())
+     throw Error('Chip oder Kalibriersitzung hat sich während der Prüfung verändert. Keine neue NVM-Freigabe.');
+   };
+   const verifyRam=async phase=>{
+    for(const [address,value] of expected){
+     if(!Number.isInteger(value)||value<0||value>0xFFFF)
+      throw Error('Ungültiger DSP-Koeffizient bei 0x'+h(address)+'.');
+     const actual=await readReg(address);
+     if(actual!==value){
+      ramIntegrityFailed=true;
+      throw Error(phase+': DSP-RAM 0x'+h(address)+' ist 0x'+h(actual,2)+
+       ' statt 0x'+h(value,2)+'. Eine erneute DSP-Prüfung ist erforderlich.');
+     }
+    }
+   };
+   confirmSameSession();
+   await verifyRam('Vor NVM-Lesung');
+   // This existing operation reissues PLC P/T and reads each EEPROM word
+   // through CM_CMD read-only commands. It never calls PWR_OFF / PWR_ON.
+   const readOk=await nvmScan({preview:true});
+   if(!readOk)throw Error('Vollständige NVM-Lesung fehlgeschlagen. '+$('backupMsg').textContent);
+   confirmSameSession();
+   stopLive();
+   if(st.liveReadPromise)await st.liveReadPromise.catch(()=>{});
+   await verifyRam('Nach NVM-Lesung');
+   confirmSameSession();
+   if(st.uid.ser0!==st.nvmBackup[0]||st.uid.ser1!==st.nvmBackup[1])
+    throw Error('Die NVM-Seriennummer passt nicht zum verbundenen Sensor.');
+   // No write authorization is inherited. Recreate and revalidate the
+   // complete image using the existing write guards.
+   await prepareNvmOperation();
+   if(!st.calImage)
+    throw Error('Kommunikation und RAM geprüft, aber der NVM-Plan bleibt gesperrt: '+$('nvmMsg').textContent);
+   confirmSameSession();
+   show('nvmRecheckMsg','Erneute Prüfung bestanden: 64-Wort-NVM/CRC und Chip-UID bestätigt, alle DSP-RAM-Koeffizienten unverändert, NVM-Änderungsplan neu erstellt. Kein Sensorneustart und keine NVM-Programmierung. Bitte Änderungsliste und Freigabe kontrollieren.','success');
+  }catch(error){
+   st.calImage=null; // A failed recheck must never leave an old writable plan.
+   if(ramIntegrityFailed){
+    st.calVerified=false; // Keep points and fit, require DSP re-verification.
+    ca('calRamMsg','DSP-RAM hat sich verändert. Die Messpunkte und der Fit bleiben erhalten; DSP erneut prüfen.','warn');
+   }
+   logging('NVM-Neuprüfung ohne Neustart: '+error.message);
+   show('nvmRecheckMsg','Erneute Prüfung nicht bestanden: '+error.message+
+    ' Es wurde kein Power-Cycle und keine NVM-Programmierung ausgeführt. Kalibrierpunkte wurden nicht gelöscht.','error');
+  }finally{
+   st.nvmRechecking=false;
+   renderFlowState();
+   if(resumeLive&&st.chip&&!st.manualLivePause&&!st.writing&&!st.calTask&&!st.nvmWorking)startLive();
+  }
+ }
  async function nvmProgram(){
   if(st.nvmAttempting||st.nvmWorking||st.writing)return;
   st.nvmAttempting=true;
@@ -4279,6 +4374,7 @@ if(typeof document!=='undefined') (function UI(){
  }
   $('nvmBackupDownload').addEventListener('click',downloadNvmBackup);
  $('nvmPrepare').addEventListener('click',prepareNvm);
+ $('nvmRecheck').addEventListener('click',recheckNvmWithoutRestart);
  // Backup ist aus Sicherheitsgründen bei jedem neuen Browserdurchlauf standardmässig aktiviert.
  $('nvmAutoBackup').checked=true;
  $('nvmAutoBackup').addEventListener('change',renderFlowState);
