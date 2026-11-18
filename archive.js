@@ -1772,7 +1772,8 @@ const ELMOS_ARCHIVE=(()=>{
  }
  return {init,open,openVerification:()=>open('verification'),close,begin,ensureCalibration,event,trace,appendTelemetry,streamRows,download,exportLoggingPdf,setPhotos,flush,finalise,interrupted,
   chooseFolder,grantFolderAccess,refreshFolderSettings,saveFolderPathLabel,loadFolderPathLabel,
-  get active(){return !!S.record},get current(){return S.record},get view(){return S.view},refresh};
+  get active(){return !!S.record},get current(){return S.record},get view(){return S.view},
+  get isMeasuring(){return S.measuring},get isFinishing(){return S.finishing},refresh};
 })();
 if(typeof window!=='undefined'){
  window.ELMOS_ARCHIVE=ELMOS_ARCHIVE;
