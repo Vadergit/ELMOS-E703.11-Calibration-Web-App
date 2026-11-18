@@ -369,7 +369,7 @@ const ELMOS_NVM_RECON = (() => {
    const read=dom('button','↻ Sensor-NVM auslesen','nvmrecon-read-sensor');
    read.id='nvmReconReadSensor';read.type='button';
    read.title='Aktuelle 64 NVM-Wörter direkt vom angeschlossenen Sensor lesen und prüfen';
-   const upload=dom('label','NVM-Backup importieren','nvmrecon-upload');upload.htmlFor=file.id;
+   const upload=dom('label','NVM / Komplettabgleich laden','nvmrecon-upload');upload.htmlFor=file.id;
    const clear=dom('button','Datei entfernen','nvmrecon-clear');clear.type='button';clear.disabled=true;
    clear.addEventListener('click',()=>{
     const state=root._nvmState;state.offline=null;state.fileUid=null;state.fileName=null;state.fileError=null;
@@ -382,12 +382,21 @@ const ELMOS_NVM_RECON = (() => {
    file.addEventListener('change',async()=>{
     const f=file.files?.[0];if(!f)return;
     try{
-     if(f.size>512000)throw Error('Datei zu gross');
+     if(f.size>40*1024*1024)throw Error('Datei zu gross (max. 40 MB).');
      const data=JSON.parse(await f.text());
-     const words=Array.isArray(data)?data:data.words;
+     const full=data?.format==='E70311-CALIBRATION-COMPLETE-v1';
+     const words=full?data.nvm?.programmed?.words:Array.isArray(data)?data:data.words;
      if(!validWords(words))throw Error('Kein gültiges 64-Wort-Backup');
+     if(full&&(data.verifiedNvm!==true||data.type!=='calibration'||
+       data.chipUID!==data.nvm?.programmed?.uid||data.nvm.programmed.crc16!==words[63]))
+      throw Error('Komplettabgleich enthält keine bestätigten Sensor-NVM-Daten.');
+     const profile=full&&typeof ELMOS_NVM_PROFILE!=='undefined'?
+      ELMOS_NVM_PROFILE.fromFile(data,f.name):null;
      root._nvmState.offline=words.slice();
-     root._nvmState.fileUid=typeof data?.uid==='string'?data.uid.toUpperCase():null;
+     root._nvmState.fileUid=full?data.chipUID:typeof data?.uid==='string'?data.uid.toUpperCase():null;
+     root._nvmState.profileFile=full?profile:null;
+     root._nvmState.profileKey=null;
+     root._nvmState.profileFileError=null;
      root._nvmState.limitEdited=false;
      root._nvmState.preferred='file';
      root._nvmState.readNotice='';
