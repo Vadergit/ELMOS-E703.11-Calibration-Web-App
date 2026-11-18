@@ -10,7 +10,10 @@ test('NVM calculator is an in-app, independent panel, without a sensor gate',()=
  assert.match(html,/data-panel="10" hidden/);
  assert.match(html,/id="nvmReconstruction"/);
  assert.match(html,/data-step="10"/);
- assert.match(html,/id="nvmCalculatorOpen" data-open-nvm/);
+ assert.doesNotMatch(html,/id="nvmCalculatorOpen"/);
+ assert.match(html,/<button type="button" class="stepBtn viewer-nav" data-step="10">/);
+ assert.match(html,/<button type="button" data-open-nvm class="settings-resource-link">/);
+ assert.doesNotMatch(html,/NVM-Rechner · Offline/);
  assert.match(html,/nvm-reconstruction\.js\?v=/);
  assert.match(app,/if\(n===7\|\|n===10\)return ''/);
  assert.match(app,/Math\.min\(10,Number\(n\)\)/);
@@ -35,7 +38,7 @@ test('Calculator supports local JSON and remains read-only',()=>{
  const calculator=read('nvm-reconstruction.js');
  assert.match(calculator,/file\.addEventListener\('change'/);
  assert.match(calculator,/JSON\.parse\(await f\.text\(\)\)/);
- assert.match(calculator,/chooseSource\(state\.live,state\.offline\)/);
+ assert.match(calculator,/chooseSource\(state\.live,state\.offline,state\.preferred\)/);
  assert.doesNotMatch(calculator,/\b(?:nvmWriteWord|writeReg|ramWrite|serial\.requestPort|exchange)\s*\(/);
 });
 
@@ -55,4 +58,31 @@ test('NVM calculator visual polish is scoped, responsive and keeps all inputs wo
  assert.match(source,/nvmrecon-source-hint/);
  assert.match(source,/nvmrecon-metric-unit/);
  assert.match(source,/Grenzen der Rückrechnung/);
+});
+
+
+test('NVM calculator reads fresh 64-word sensor image with existing UID/CRC verified path',()=>{
+ const html=read('index.html'),app=read('app.js'),expert=read('expert.js'),calc=read('nvm-reconstruction.js');
+ assert.doesNotMatch(html,/id="nvmCalculatorOpen"/);
+ assert.match(html,/NVM-Rechner<\/span><\/button>/);
+ assert.match(calc,/id='nvmReconReadSensor'/);
+ assert.match(calc,/state\.preference|state\.preferred='eeprom'/);
+ assert.match(calc,/AKTUELLER SENSOR · NVM/);
+ assert.match(calc,/LOKALE DATEI · NICHT LIVE/);
+ assert.match(calc,/CRC8 \/ CRC16 geprüft/);
+ assert.match(app,/await expert\.readNvm\(\)/);
+ assert.match(app,/ELMOS_NVM_RECON\.preferLive\(root\)/);
+ assert.match(app,/st\.nvmBackupProof=\{session,uid,words,readAt:new Date\(\)\.toISOString\(\)\}/);
+ assert.match(expert,/nvmScan\(\{expertRead:true\}\)/);
+ assert.match(expert,/return \{onDetect,identify,readNvm,afterNvmScan/);
+ assert.match(expert,/proof\.session===st\.sessionIndex&&proof\.uid===st\.uid\.hex&&proof\.words===st\.nvmBackup/);
+ assert.match(calc,/setup\.append\(heading,detail,actions,feedback,grid,advanced\)/);
+});
+test('File and live sensor can both be present, explicitly selecting sensor overrides file',()=>{
+ const calc=require('../nvm-reconstruction.js'),live=Array(64).fill(0),file=Array(64).fill(1);
+ assert.equal(calc.chooseSource(live,file).kind,'file');
+ assert.equal(calc.chooseSource(live,file,'eeprom').kind,'eeprom');
+ assert.equal(calc.chooseSource(null,file,'eeprom').kind,'file');
+ assert.equal(calc.chooseSource(live,null,'file').kind,'eeprom');
+ assert.equal(calc.chooseSource(null,null,'eeprom').kind,'none');
 });
