@@ -113,9 +113,9 @@ const ELMOS_NVM_PROFILE=(()=>{
     tempModel:data.coefficientFit?.orderT>0?'an0203':undefined,...readings(points)});
    profile={kind:'file',name:filename,uid:data.chipUID||null,crc:null,fields,points,
     recordedAt:data.created||null,verified:false};
-  }else if(data.calibration||data.dsp||data.reference){
+  }else if(data.calibration||data.dsp||data.reference||data.measurement||data.output){
    const c=data.calibration||{},ref=data.reference||c.reference||{},dsp=data.dsp||c;
-   const matrix=dsp.matrix||c.matrix;
+   const matrix=dsp.matrix||data.measurement?.matrix||c.matrix;
    const temps=Array.isArray(matrix?.temperatures)?matrix.temperatures.map(number).filter(finite).sort((a,b)=>a-b):[];
    const fields=normalizeFields({
     pmin:ref.min,pmax:ref.max,pressureUnit:ref.unit,
