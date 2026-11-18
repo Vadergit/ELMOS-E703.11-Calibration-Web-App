@@ -74,3 +74,14 @@ test('PDF print titles use descriptive category and name when the archive core i
  assert.match(ex,/ELMOS_NVM_/);
  assert.match(ex,/ELMOS_NVM_.*stamp/);
 });
+
+test('Filename remains immutable when the test configuration is saved after logging starts',()=>{
+ const active={...base,type:'testlog',label:null};
+ const created=C.filename(active);
+ active.testConfiguration={name:'Long-term Test 6bar'};
+ assert.equal(C.filename(active),created);
+ const named={...base,type:'testlog',label:'Long-term Test 6bar'};
+ const stable=C.filename(named);
+ named.testConfiguration={name:'Changed After Start'};
+ assert.equal(C.filename(named),stable);
+});
