@@ -172,7 +172,7 @@ test('auto-connect uses ESP32-C3 bridge ACCESS for a newly connected chip',async
    connectBridgeChip:async opts=>{assert.deepEqual(opts,{autoProbe:true});calls.push('access');st.chip=true;st.uid={hex:'0020011DBBE7'}},
    detect:async opts=>{assert.deepEqual(opts,{requireUid:true});calls.push('read');st.chip=true;st.uid={hex:'0020011DBBE7'}},
    logging:()=>{},scheduleAutoReconnect:()=>calls.push('retry'),
-   navigator:{serial:{getPorts:async()=>[]}},connect:async()=>{},autoReconnectBusy:false};
+   navigator:{serial:{getPorts:async()=>[]}},connect:async()=>{},autoReconnectBusy:false,autoReconnectAttempts:0,autoReconnectLastAt:0,autoReconnectLastError:''};
   const fn=new Function(...Object.keys(deps),code+';return attemptAutoReconnect;')(...Object.values(deps));
   return {fn,calls,st};
  };
@@ -183,12 +183,12 @@ test('auto-connect uses ESP32-C3 bridge ACCESS for a newly connected chip',async
  await ssp3.fn();
  assert.deepEqual(ssp3.calls,['render','read','render']);
 });
-test('automatic ESP32-C3 access is read-only with no implicit power or RAM recovery',()=>{
+test('automatic ESP32-C3 access honours selected VDD control without implicit RAM recovery',()=>{
  const from=app.indexOf(' async function connectBridgeChip(');
  const to=app.indexOf(' // CRC8 verification follows DS',from);
  assert.ok(from>0&&to>from);
  const implementation=app.slice(from,to);
- assert.match(implementation,/power=!autoProbe&&st\.sensorPowerEnabled/);
+ assert.match(implementation,/power=!!st\.sensorPowerEnabled&&\(!autoProbe\|\|st\.iface==='plc'\)/);
  assert.match(implementation,/if\(autoProbe\|\|!st\.bridgePsscRam/);
  assert.match(implementation,/detect\(\{requireUid:autoProbe\}\)/);
  assert.match(app,/if\(st\.port===port&&!st\.closing&&\(!st\.chip\|\|!st\.uid\?\.hex\)\)scheduleAutoReconnect\(2800\)/);
@@ -204,7 +204,7 @@ test('failed bridge auto-connect remains retryable without triggering write oper
   connectBridgeChip:async()=>{calls.push('access');throw Error('PLC_NO_VALID_FRAME')},
   detect:async()=>{throw Error('Should not read chip registers before ACCESS')},
   logging:()=>calls.push('log'),scheduleAutoReconnect:()=>calls.push('retry'),
-  navigator:{serial:{getPorts:async()=>[]}},connect:async()=>{},autoReconnectBusy:false};
+  navigator:{serial:{getPorts:async()=>[]}},connect:async()=>{},autoReconnectBusy:false,autoReconnectAttempts:0,autoReconnectLastAt:0,autoReconnectLastError:''};
  const attempt=new Function(...Object.keys(deps),app.slice(from,to)+';return attemptAutoReconnect;')(...Object.values(deps));
  await attempt();
  assert.equal(st.chip,false);
