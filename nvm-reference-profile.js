@@ -33,9 +33,9 @@ const ELMOS_NVM_PROFILE=(()=>{
   return {
    ...(temperatures.length?{ta:temperatures[0]}:{}),
    ...(temperatures.length>1?{tb:temperatures[temperatures.length-1]}:{}),
-   ...(temperatures.length&&finite(readingsAt(temperatures[0]))&&Number.isInteger(readingsAt(temperatures[0]))?
+   ...(temperatures.length&&finite(readingsAt(temperatures[0]))&&Number.isFinite(readingsAt(temperatures[0]))?
     {adcT1:readingsAt(temperatures[0])}:{}),
-   ...(temperatures.length>1&&finite(readingsAt(temperatures[temperatures.length-1]))&&Number.isInteger(readingsAt(temperatures[temperatures.length-1]))?
+   ...(temperatures.length>1&&finite(readingsAt(temperatures[temperatures.length-1]))&&Number.isFinite(readingsAt(temperatures[temperatures.length-1]))?
     {adcT2:readingsAt(temperatures[temperatures.length-1])}:{}),
   };
  };
@@ -49,7 +49,7 @@ const ELMOS_NVM_PROFILE=(()=>{
    if((key==='ta'||key==='tb')&&(n < -40||n>125))continue;
    if(key==='vdd'&&(n<2.7||n>5.5))continue;
    if(key==='limit'&&(!Number.isInteger(n)||n<1000||n>32000))continue;
-   if((key==='adcT1'||key==='adcT2')&&(!Number.isInteger(n)||n< -32768||n>32767))continue;
+   if((key==='adcT1'||key==='adcT2')&&(!Number.isInteger(n*2)||n< -32768||n>32767))continue;
    fields[key]=n;
   }
   if(finite(fields.pmin)&&finite(fields.pmax)&&fields.pmax<=fields.pmin){
