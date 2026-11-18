@@ -4190,10 +4190,9 @@ if(typeof document!=='undefined') (function UI(){
   try{ok=await expert.readNvm();}
   catch(error){logging('NVM-Rechner: '+error.message)}
   expert.refreshEEPROMViewer();
-  if(ok){
-   ELMOS_NVM_RECON.preferLive(root);
+  if(ok&&ELMOS_NVM_RECON.preferLive(root)){
    ELMOS_NVM_RECON.setReadFeedback(root,'Aktuelles NVM erfolgreich aus dem Sensor gelesen und geprüft.');
-  }else ELMOS_NVM_RECON.setReadFeedback(root,'NVM-Lesung fehlgeschlagen. Verbindung und Diagnoselog prüfen; kein ungeprüftes Sensor-NVM verwendet.',{error:true});
+  }else ELMOS_NVM_RECON.setReadFeedback(root,'NVM-Lesung oder UID/CRC-Prüfung fehlgeschlagen. Verbindung und Diagnoselog prüfen; kein ungeprüftes Sensor-NVM verwendet.',{error:true});
  });
  $('homeButton').addEventListener('click',()=>{
   toggleSettings(false);
