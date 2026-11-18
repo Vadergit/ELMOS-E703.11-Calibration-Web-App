@@ -88,8 +88,15 @@ if(typeof document!=='undefined') (function UI(){
  // Opt-in reconnect, restricted to previously authorised Web Serial ports.
  // A sensor probe uses register reads only. Never auto-program EEPROM/NVM.
  const autoReconnectKey='elmos-auto-reconnect-v1';
+ // One-time safety reset after v0.7.129 caused live reconnection regressions.
+ // Users can opt back in manually after confirming stable sensor operation.
+ if(lsGet('elmos-auto-reconnect-v130-safety-reset')!=='1'){
+  lsSet(autoReconnectKey,'0');
+  lsSet('elmos-auto-reconnect-v130-safety-reset','1');
+ }
  let autoReconnectEnabled=lsGet(autoReconnectKey)==='1';
  let autoReconnectTimer=null,autoReconnectBusy=false,autoReconnectSuppressed=false;
+ let autoReconnectPromise=null;
  let autoReconnectAttempts=0,autoReconnectLastAt=0,autoReconnectLastError='';
  let autoPortInfo=null;
  function cancelAutoReconnect(){clearTimeout(autoReconnectTimer);autoReconnectTimer=null}
@@ -105,7 +112,12 @@ if(typeof document!=='undefined') (function UI(){
  function scheduleAutoReconnect(ms=5000){
   cancelAutoReconnect();
   if(!mayAutoReconnect()||(st.chip&&st.uid?.hex))return;
-  autoReconnectTimer=setTimeout(()=>{autoReconnectTimer=null;void attemptAutoReconnect()},ms);
+  autoReconnectTimer=setTimeout(()=>{
+   autoReconnectTimer=null;
+   const task=attemptAutoReconnect();
+   autoReconnectPromise=task;
+   void task.finally(()=>{if(autoReconnectPromise===task)autoReconnectPromise=null}).catch(()=>{});
+  },ms);
  }
  async function attemptAutoReconnect(){
   if(!mayAutoReconnect()||(st.chip&&st.uid?.hex)||autoReconnectBusy)return;
@@ -170,7 +182,9 @@ if(typeof document!=='undefined') (function UI(){
     (st.adapterKind==='bridge'&&st.iface==='plc'&&!st.sensorPowerEnabled?
     ' · Kurzes 1-Wire-Startfenster erfordert geschaltete Sensor-VDD (GPIO10/D7).':'');
   }
-  const working=autoReconnectBusy||st.reinitRunning||st.powerCycleRunning||st.magicRunning||st.startupRunning||st.diagRunning;
+  // A user must always be able to request manual initialization even while
+  // a background probe is running. The manual path then waits for its completion.
+  const working=st.reinitRunning||st.powerCycleRunning||st.magicRunning||st.startupRunning||st.diagRunning;
   const adapter=st.adapterKind==='bridge'?(st.bridgeBoard||'DIY-Programmer'):'SSP3';
   message.textContent=working?'Verbindung wird geprüft und initialisiert …':
    st.adapterNoReply?`Der ${adapter} antwortet nicht auf USB-Befehle. USB-Port neu öffnen und prüfen, ob ein anderes Programm den Port verwendet.`:
@@ -2298,7 +2312,19 @@ if(typeof document!=='undefined') (function UI(){
  async function reinitializeSensorOperation(){
   const port=st.port;
   if(!port||st.closing||st.reinitRunning)return;
-  if(autoReconnectBusy){show('connMsg','Auto-Connect prüft gerade die Verbindung. Bitte erneut versuchen.','warn');return;}
+  // Manual recovery has priority over background auto probes. Stop future
+  // retries, allow the active serial exchange to finish, then run the proven
+  // manual reinitialization path on the same port.
+  cancelAutoReconnect();
+  if(autoReconnectBusy){
+   show('connMsg','Automatische Prüfung wird abgeschlossen. Manuelle Neuinitialisierung folgt …','warn');
+   if(autoReconnectPromise)await Promise.race([autoReconnectPromise.catch(()=>{}),sleep(9000)]);
+   if(autoReconnectBusy){
+    show('connMsg','Ein automatischer USB-Zugriff dauert noch an. Bitte den USB-Port prüfen und erneut initialisieren.','warn');
+    return;
+   }
+  }
+  cancelAutoReconnect();
   if(st.calTask||st.writing||st.nvmWorking||st.powerCycleRunning||st.magicRunning||st.startupRunning||st.diagRunning||st.afeWriteActive){
    show('connMsg','Neuinitialisierung erst nach Abschluss des laufenden Chipvorgangs möglich.','warn');return;
   }

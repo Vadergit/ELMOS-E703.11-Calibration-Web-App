@@ -240,7 +240,23 @@ test('manual reinitialization retains bridge recovery and is independent of auto
  const bridgeStart=app.indexOf(' async function connectBridgeChip(');
  const bridgeEnd=app.indexOf(' // CRC8 verification follows DS',bridgeStart);
  const bridge=app.slice(bridgeStart,bridgeEnd);
- assert.match(bridge,/if\(!st\.bridgePsscRam\|\|!e\.message/);
+ assert.match(bridge,/if\(autoProbe\|\|!st\.bridgePsscRam/);
  assert.match(bridge,/await bridgeAccess\(\{power,recover:true\}\)/);
  assert.match(html,/data-app-version="0\.7\.130"/);
+});
+
+test('manual reconnect is not disabled by an in-flight auto probe and cancels future retries',()=>{
+ const begin=app.indexOf(' async function reinitializeSensorOperation(){');
+ const end=app.indexOf(' // Reopen the SAME previously authorised Web Serial port',begin);
+ const code=app.slice(begin,end);
+ assert.match(code,/cancelAutoReconnect\(\)/);
+ assert.match(code,/if\(autoReconnectPromise\)await Promise\.race/);
+ assert.match(code,/await connectBridgeChip\(\)/);
+ assert.match(app,/const working=st\.reinitRunning\|\|st\.powerCycleRunning/);
+ assert.match(app,/autoReconnectPromise=task/);
+});
+test('the damaged auto-connect state is reset once on upgrading to v0.7.130',()=>{
+ assert.match(app,/elmos-auto-reconnect-v130-safety-reset/);
+ assert.match(app,/lsSet\(autoReconnectKey,'0'\)/);
+ assert.match(app,/let autoReconnectEnabled=lsGet\(autoReconnectKey\)==='1'/);
 });

@@ -3,7 +3,9 @@
 - Verbindungslogik und Benutzeroberfläche auf die v0.7.128 zurückgesetzt, bei der die manuelle ESP32-C3-Sensorinitialisierung funktionierte.
 - Der in v0.7.129 neu eingeführte VDD-Schalter in den Einstellungen und die Änderung des Standardverhaltens wurden rückgängig gemacht.
 - Die bereits vorhandene, manuell ausgelöste Bridge-Neuinitialisierung mit optionaler PSSC-RAM-Wiederherstellung bleibt erhalten. Auto-Connect bleibt optional; seine Zuverlässigkeit bei `PLC_NO_VALID_FRAME` ist noch nicht bestätigt.
-- Neue Regressionstest-Prüfung für den unveränderten manuellen Recovery-Pfad. Version und Cache erneuert. Vollständiger Hardwaretest ausstehend.
+- Eine bei vorherigen Versionen aktivierte automatische Wiederverbindung wird bei diesem Upgrade einmalig aus Sicherheitsgründen deaktiviert (anschliessend weiterhin manuell aktivierbar).
+- «Sensor neu initialisieren» bleibt auch während automatischer Leseprüfungen anklickbar, beendet die Wiederholungsplanung und übernimmt nach dem laufenden USB-Zugriff.
+- Neue Regressionstests sichern den unveränderten manuellen Recovery-Pfad und die manuelle Priorität. Version und Cache erneuert. Vollständiger Hardwaretest ausstehend.
 
 ## v0.7.129 – VDD-Steuerung im laufenden Auto-Connect und PLC RX DIAG
 
