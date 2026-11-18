@@ -1033,8 +1033,10 @@ if(typeof document!=='undefined') (function UI(){
   if(!['1','2','3'].includes(mode))return {required:false,reason:''};
   const vdd=Number($('psscVdd').value),s0=Number($('psscS0').value),
    s1=Number($('psscS1').value),limit=st.calfit.outputLimit;
-  const old=CAL.analogOutputStatus(st.nvmBackup,s0,s1,vdd,limit);
-  if(old.ok)return {required:false,reason:''};
+  let old;
+  try{old=CAL.analogOutputStatus(st.nvmBackup,s0,s1,vdd,limit)}
+  catch(error){return {required:true,reason:error.message}}
+  if(old.checked&&old.ok&&old.mode===Number(mode))return {required:false,reason:''};
   const proposed=st.expertOutputPlan;
   if(proposed&&String(proposed.mode)===mode&&proposed.scaleEnabled){
    try{
@@ -1043,7 +1045,9 @@ if(typeof document!=='undefined') (function UI(){
      return {required:false,reason:''};
    }catch(_){/* An invalid or stale plan must be reviewed again. */}
   }
-  return {required:true,reason:old.reason||'AODO stimmt nicht mit den DSP-Endpunkten überein'};
+  return {required:true,reason:old.mode!==Number(mode)?
+   'Ausgangsmodus im EEPROM weicht von der gewählten Ausgangsart ab; bei Magic-Cookie-Recovery darf der Modus nicht geändert werden':
+   old.reason||'AODO stimmt nicht mit den DSP-Endpunkten überein'};
  }
  function renderFlowState(){
   ELMOS_ALARM_EDITOR.refresh();
