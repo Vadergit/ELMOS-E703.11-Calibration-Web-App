@@ -928,10 +928,26 @@ if(typeof document!=='undefined') (function UI(){
   return st.adapterKind==='bridge'&&st.bridgeCalibrationNvm&&!!st.port&&!!st.uid?.hex&&
    proof?.port===st.port&&proof.session===st.sessionIndex&&proof.uid===st.uid.hex;
  }
+ // A verified cold start is the same hardware proof whether performed by
+ // PSSC-RAM-Start or by the bounded AN0204 SSP3 power/cookie startup.
+ // A successful read/Magic Cookie alone must never permit an NVM write.
  function psscRecoveryProven(){
-  return !!st.uid?.hex&&st.plcAddressVerified&&st.plcAddress===0x6C&&
-   st.startupTrials.some(trial=>trial.stage==='PSSC-RAM-Start'&&
-    trial.powerRestored&&trial.readVerified&&trial.verifiedUid===st.uid.hex);
+  const uid=st.uid?.hex;
+  if(st.adapterKind!=='ssp3'||st.iface!=='plc'||!st.port||!st.chip||
+     !uid||!st.plcAddressVerified||st.plcAddress!==0x6C)return false;
+  const sameSession=proof=>proof?.port===st.port&&
+   proof.session===st.sessionIndex&&proof.powerRestored===true&&
+   proof.readVerified===true&&proof.verifiedUid===uid;
+  if(st.startupTrials.some(trial=>trial.stage==='PSSC-RAM-Start'&&sameSession(trial)))
+   return true;
+  const proof=st.powerCycleResult;
+  // Require the actual acknowledged OFF -> ON/PLC T sequence, correct
+  // 1-Wire address and RAM PLC enable, not just a readable chip/ADC.
+  return !!(sameSession(proof)&&proof.stage==='verified'&&
+   proof.plcAddress==='0x6C'&&proof.plcEnabledInRam===true&&
+   proof.steps?.some(step=>step.ok===true&&step.command==='PWR_OFF 03E8')&&
+   proof.steps?.some(step=>step.ok===true&&
+    step.command==='PWR_ON 0C80 00C8 0 -> PLC T'));
  }
  function psscNvmBlock(initial,modified,restoring=false,outputOnly=false,alarmOnly=false,allowCombinedRecovery=false){
   // Unified low-level bridge: no firmware feature-specific NVM address list.
@@ -1062,8 +1078,7 @@ if(typeof document!=='undefined') (function UI(){
   else if(!recognizedUid||st.uid.ser0!==st.nvmBackup[0]||st.uid.ser1!==st.nvmBackup[1])nvmReason='Chip-UID wurde nicht vollständig mit dem NVM-Backup abgeglichen.';
   const outputStatus=$('outputOneWireStatus');
   const startup=st.nvmBackupVerified&&st.nvmBackup?.length===64?CAL.oneWireStartupStatus(st.nvmBackup):null;
-  const cookieVerified=!!(st.powerCycleResult?.readVerified&&st.powerCycleResult.verifiedUid&&
-   st.powerCycleResult.verifiedUid===st.uid?.hex&&st.iface==='plc'&&st.port&&st.chip)||psscRecoveryProven()||bridgeColdStartVerified();
+  const cookieVerified=psscRecoveryProven()||bridgeColdStartVerified();
   if(outputStatus){
    const connected=st.mode==='usb'&&st.iface==='plc'&&st.chip;
    const saved=startup;
@@ -1904,7 +1919,7 @@ if(typeof document!=='undefined') (function UI(){
   if(!['legacy','separate'].includes(st.plcHostFormat))throw Error('Ungültiger SSP3-PLC-Hostformatwert');
   logging('SSP3 PLC-Hostformat beim automatischen Power-Start: '+st.plcHostFormat);
   st.powerCycleRunning=true;
-  st.powerCycleResult={at:new Date().toISOString(),stage:'start',burstMode,
+  st.powerCycleResult={at:new Date().toISOString(),port,session:st.sessionIndex,stage:'start',burstMode,
    plcTestSpeedKhz:speedProfile?.khz??null,plcTestDelay:speedProfile?.delay??null,
    plcHostFormat:st.plcHostFormat,steps:[],readVerified:false,powerRestored:false};
   let powerOffAttempted=false,powerOnAcknowledged=false;
@@ -2206,7 +2221,7 @@ if(typeof document!=='undefined') (function UI(){
   }
   if(boardId.join(',')!=='17,0,7,1')return false;
   const port=st.port;
-  const trial={stage:'PSSC-RAM-Start',readVerified:false,powerRestored:false,steps:[]};
+  const trial={stage:'PSSC-RAM-Start',port,session:st.sessionIndex,readVerified:false,powerRestored:false,steps:[]};
   st.startupTrials.push(trial);
   st.powerCycleRunning=true;
   renderStatus();
@@ -3257,7 +3272,7 @@ if(typeof document!=='undefined') (function UI(){
    if(!hasCurrentNvmBackup())throw Error('Kein vollständig geprüftes NVM für die aktuell verbundene Chip-UID verfügbar');
    const startup=CAL.oneWireStartupStatus(st.nvmBackup);
    if(!startup.ok)throw Error('1-Wire-Startfenster nicht sicher: '+startup.errors.join('; '));
-   if(startup.requiresCookie&&!(st.powerCycleResult?.readVerified&&st.powerCycleResult.verifiedUid===st.uid.hex)&&!psscRecoveryProven()&&!bridgeColdStartVerified())
+   if(startup.requiresCookie&&!psscRecoveryProven()&&!bridgeColdStartVerified())
     throw Error('One-Wire-Startfenster '+startup.windowLabel+' vorhanden, Magic-Cookie-Start am aktuellen Chip nicht bestätigt. Kein NVM-Schreiben.');
    const recovery=st.psscRamRecovery||(st.regs[0x06]===0x6C04&&st.nvmBackup[17]!==0x6C04);
    // A temporary One-Wire RAM recovery may only persist calibration words.
@@ -3514,7 +3529,7 @@ if(typeof document!=='undefined') (function UI(){
     throw Error('Brückenspannung dauerhaft speichern wird derzeit nur mit SSP3 unterstützt.');
    CAL.protectStartupCommunication(initial,modified,{allowSvdd,allowAlarmMask:alarmOnly||alarmIntegrated});
    const startup=CAL.oneWireStartupStatus(initial);
-   if(startup.requiresCookie&&!(st.powerCycleResult?.readVerified&&st.powerCycleResult.verifiedUid===id)&&!psscRecoveryProven()&&!bridgeColdStartVerified())
+   if(startup.requiresCookie&&!psscRecoveryProven()&&!bridgeColdStartVerified())
     throw Error('1-Wire-Startschutz: Cookie-Start für die aktuelle Chip-UID nicht verifiziert. NVM-Schreiben gesperrt.');
    if(CAL.crc16(initial)!==initial[63]||CAL.crc16(modified)!==modified[63])throw Error('CRC16-Prüfung fehlgeschlagen');
    // Repeat the target-voltage check immediately before any NVM write command.

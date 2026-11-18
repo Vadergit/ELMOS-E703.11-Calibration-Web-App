@@ -930,9 +930,9 @@ test('Cookie-only NVM gated by physical SSP3 startup proof and matching UID',()=
  const app=read('app.js'),html=read('index.html');
  assert.ok(app.includes('st.powerCycleResult.verifiedUid=st.uid?.hex||null;'));
  assert.ok(app.includes('st.powerCycleResult=null;st.magicResult=null;'));
- assert.ok(app.includes('startup.requiresCookie&&!(st.powerCycleResult?.readVerified'));
- assert.ok(app.includes('st.powerCycleResult.verifiedUid===st.uid.hex'));
- assert.ok(app.includes('st.powerCycleResult.verifiedUid===id'));
+ assert.ok(app.includes('startup.requiresCookie&&!psscRecoveryProven()&&!bridgeColdStartVerified()'));
+ assert.ok(app.includes('proof.verifiedUid===uid'));
+ assert.ok(app.includes('const cookieVerified=psscRecoveryProven()||bridgeColdStartVerified();'));
  assert.ok(app.includes('CAL.protectStartupCommunication(initial,modified,{allowSvdd})'));
  assert.ok(html.includes('id="plcStartupTools"'));
 });
@@ -1070,7 +1070,7 @@ test('Magic-Cookie auto startup retains protected NVM and does not touch other i
  assert.ok(!connect.includes('P.plcWrite(0xAC'));
  assert.ok(cal.includes('for(const index of [17,18,19])'));
  assert.ok(app.includes('CAL.protectStartupCommunication(initial,modified,{allowSvdd})'));
- assert.ok(app.includes('st.powerCycleResult.verifiedUid===st.uid.hex'));
+ assert.ok(app.includes('proof.verifiedUid===uid'));
 });
 
 test('Live read prioritises ADC_S and tolerates missing temperature while strict path remains strict',()=>{
@@ -1350,4 +1350,50 @@ test('Output-only NVM action displays persistent stages and preserves verified p
  update('Kein Archiv','error');
  assert.equal(elements.nvmWriteStatus.dataset.state,'error');
  assert.equal(elements.nvmWriteBar.hidden,true);
+});
+
+
+test('NVM Magic-Cookie proof: PSSC and genuine AN0204 SSP3 cold starts are equivalent',()=>{
+ const src=read('app.js');
+ const begin=src.indexOf(' function psscRecoveryProven(){');
+ const end=src.indexOf(' function psscNvmBlock(',begin);
+ assert.ok(begin>0&&end>begin,'cold-start proof helper must exist');
+ const make=new Function('st',src.slice(begin,end)+'return psscRecoveryProven;');
+ const port={},uid='0020018A487B';
+ const power={port,session:7,stage:'verified',powerRestored:true,
+  readVerified:true,verifiedUid:uid,plcAddress:'0x6C',plcEnabledInRam:true,
+  steps:[{command:'PWR_OFF 03E8',ok:true},
+         {command:'PWR_ON 0C80 00C8 0 -> PLC T',ok:true}]};
+ const st={adapterKind:'ssp3',iface:'plc',port,chip:true,uid:{hex:uid},
+  sessionIndex:7,plcAddressVerified:true,plcAddress:0x6C,
+  startupTrials:[],powerCycleResult:power};
+ assert.equal(make(st)(),true,'full AN0204 cold start must unlock proof');
+ const pssc={stage:'PSSC-RAM-Start',port,session:7,
+  powerRestored:true,readVerified:true,verifiedUid:uid};
+ assert.equal(make({...st,powerCycleResult:null,startupTrials:[pssc]})(),true,
+  'PSSC cold start remains supported');
+ for(const [name,override] of Object.entries({
+  noOff:{steps:power.steps.slice(1)},
+  noOn:{steps:power.steps.slice(0,1)},
+  wrongUid:{verifiedUid:'DEADBEEF'},
+  staleSession:{session:6},
+  stalePort:{port:{}},
+  notRead:{readVerified:false},
+  powerNotRestored:{powerRestored:false},
+  wrongAddress:{plcAddress:'0x7C'},
+  plcNotEnabled:{plcEnabledInRam:false},
+  noRamConfirmation:{plcEnabledInRam:null},
+  failedStartup:{stage:'failed'}
+ })){
+  assert.equal(make({...st,powerCycleResult:{...power,...override}})(),false,name);
+ }
+ assert.equal(make({...st,plcAddress:0x7C})(),false,'current address mismatch');
+ assert.equal(make({...st,plcAddressVerified:false})(),false,'address not verified');
+ assert.equal(make({...st,chip:false})(),false,'chip missing');
+ assert.equal(make({...st,adapterKind:'bridge'})(),false,'bridge cannot borrow SSP3 proof');
+ assert.equal(make({...st,sessionIndex:8})(),false,'connection session changed');
+ assert.equal(make({...st,powerCycleResult:null,startupTrials:[{...pssc,verifiedUid:'OTHER'}]})(),false,
+  'PSSC proof must match UID');
+ assert.equal(make({...st,powerCycleResult:null,startupTrials:[{...pssc,port:{}}]})(),false,
+  'PSSC proof must match USB port');
 });
