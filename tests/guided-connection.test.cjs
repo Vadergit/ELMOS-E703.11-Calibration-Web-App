@@ -189,7 +189,8 @@ test('automatic ESP32-C3 access honours selected VDD control without implicit RA
  assert.ok(from>0&&to>from);
  const implementation=app.slice(from,to);
  assert.match(implementation,/power=!!st\.sensorPowerEnabled&&\(!autoProbe\|\|st\.iface==='plc'\)/);
- assert.match(implementation,/if\(autoProbe\|\|!st\.bridgePsscRam/);
+ assert.match(implementation,/if\(autoProbe\)\{/);
+ assert.match(implementation,/if\(!st\.bridgePsscRam/);
  assert.match(implementation,/detect\(\{requireUid:autoProbe\}\)/);
  assert.match(app,/if\(st\.port===port&&!st\.closing&&\(!st\.chip\|\|!st\.uid\?\.hex\)\)scheduleAutoReconnect\(2800\)/);
 });
@@ -218,7 +219,8 @@ test('auto PLC reconnect honours configured VDD switch to reopen short startup w
  const snippet=app.slice(first,end);
  assert.match(snippet,/power=!!st\.sensorPowerEnabled&&\(!autoProbe\|\|st\.iface==='plc'\)/);
  assert.match(app,/await bridgeAccess\(\{power\}\)/);
- assert.match(app,/if\(autoProbe\|\|!st\.bridgePsscRam/);
+ assert.match(app,/if\(autoProbe\)\{/);
+ assert.match(app,/if\(!st\.bridgePsscRam/);
 });
 test('sensor banner shows auto-connect enabled state, attempts and last error',()=>{
  assert.match(html,/id="sensorAutoReconnectStatus"/);
