@@ -3398,8 +3398,17 @@ if(typeof document!=='undefined') (function UI(){
     nvm:{words:after.slice(),crc8Validated:CAL.crc8(after)===(after[15]>>>8),crc16Validated:true},
     configuredUserId:'0x'+h(after[30],2),supply:archiveVoltages()
    }};
-   try{await window.ELMOS_ARCHIVE?.event('nvm_after',{uid:id,words:after,crc16:after[63],verified:true,operation:restoring?'restore':outputOnly?'output':alarmOnly?'alarm':'calibration'})}
-   catch(archiveError){logging('KRITISCH: NVM erfolgreich geschrieben, Archiv-Export fehlgeschlagen: '+archiveError.message);ca('backupMsg','NVM erfolgreich verifiziert, aber der Archivordner ist nicht beschreibbar! Bitte unmittelbar NVM-Backup exportieren.','error')}st.calImage=null;st.restorePlan=null;st.outputOnlyPlan=null;st.alarmOnlyPlan=null;st.alarmCalibrationSkipped=true;if(saveOldNvm)expert.afterNvmScan();const previousProgram=storedProgrammedNvm();
+   let completeExportSaved=false;
+   try{
+    const archiveEventSaved=await window.ELMOS_ARCHIVE?.event('nvm_after',{
+     uid:id,words:after,crc16:after[63],verified:true,
+     operation:restoring?'restore':outputOnly?'output':alarmOnly?'alarm':'calibration'
+    });
+    completeExportSaved=!!archiveEventSaved&&!restoring&&!outputOnly&&!alarmOnly;
+   }catch(archiveError){
+    logging('KRITISCH: NVM erfolgreich geschrieben, Archiv-/Komplett-Export fehlgeschlagen: '+archiveError.message);
+    ca('backupMsg','Sensor-NVM erfolgreich verifiziert, aber die vollständige Abgleichdatei konnte nicht gespeichert werden! Archivordner prüfen und Protokoll abschliessen.','error');
+   }st.calImage=null;st.restorePlan=null;st.outputOnlyPlan=null;st.alarmOnlyPlan=null;st.alarmCalibrationSkipped=true;if(saveOldNvm)expert.afterNvmScan();const previousProgram=storedProgrammedNvm();
    const carryTemperatureBasis=!restoring&&CAL.programmedTemperatureProfileMatches(
     previousProgram,id,Object.fromEntries([[31,0x6C],[32,0x6E],[51,0x94],[52,0x96],[53,0x98],[54,0x9A]]
      .map(([word,address])=>[address,after[word]])));
@@ -3412,7 +3421,12 @@ if(typeof document!=='undefined') (function UI(){
     id,words:after,ts:new Date().toISOString(),restore:restoring,temperatureBasis,outputTarget
    }));
    ca('nvmMsg',restoring?'Backup-Wiederherstellung abgeschlossen, NVM rückgelesen und CRC16 bestätigt. Sensor neu starten und erneut prüfen.':outputOnly?'AODO-Ausgangseinstellungen dauerhaft gespeichert, NVM rückgelesen und CRC16 bestätigt. Sensor neu starten und Ausgabefunktion prüfen.':alarmOnly?'Alarm-/EOC- und Fehlerregister dauerhaft gespeichert und 64/64 NVM-Wörter verifiziert. Sensor neu starten, Alarmschwellen elektrisch prüfen.':'NVM-Programmierung und vollständiges Rücklesen/CRC16 erfolgreich. Sensor neu starten und Schnittstelle erneut prüfen.','success');
-   nvmWriteFeedback('NVM erfolgreich programmiert, 64/64 Wörter geprüft. Sensor neu starten und Ausgang messen.','success');
+   if(!restoring&&!outputOnly&&!alarmOnly&&completeExportSaved)
+    ca('backupMsg','Vollständiger Abgleich inklusive Original-NVM, programmiertem NVM und Messdaten als JSON im Archivordner gespeichert.','success');
+   nvmWriteFeedback('NVM erfolgreich programmiert, 64/64 Wörter geprüft.'+
+    (!restoring&&!outputOnly&&!alarmOnly?
+     completeExportSaved?' Komplette Abgleichdatei im Archivordner gespeichert.':' WARNUNG: Komplette Abgleichdatei nicht bestätigt, Archiv prüfen.':'')+
+    ' Sensor neu starten und Ausgang messen.',completeExportSaved||restoring||outputOnly||alarmOnly?'success':'warn');
   }catch(e){
    try{await window.ELMOS_ARCHIVE?.event('error',{stage:'nvm_program',programmingStarted:chipProgrammingStarted,message:e.message})}catch(_){}
    const suffix=chipProgrammingStarted?
