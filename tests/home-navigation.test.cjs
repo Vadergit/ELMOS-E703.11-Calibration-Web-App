@@ -83,6 +83,13 @@ test('confirmed calibration abort archives the session before resetting and goin
   ['abort-capture','finalise-aborted','clear-draft','open-guided','reset-home']);
  assert.equal(m.archive.active,false);
 });
+test('aborting a classic calibration clears its captured points before opening guided home',async()=>{
+ const m=harness({archiveActive:true,unfinished:false});
+ m.code.requestHome();
+ assert.equal(await m.code.abortAndGoHome(),true);
+ assert.ok(m.events.indexOf('finalise-aborted')<m.events.indexOf('clear-draft'));
+ assert.ok(m.events.indexOf('clear-draft')<m.events.indexOf('reset-home'));
+});
 test('long-running test logging must finish and archive its last sample before returning',async()=>{
  const m=harness({archiveActive:true,logging:true});
  m.window.ELMOS_TEST_LOGGER.abortForHome=async()=>{
