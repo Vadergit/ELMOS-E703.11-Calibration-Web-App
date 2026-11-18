@@ -109,7 +109,7 @@ if(typeof document!=='undefined') (function UI(){
  async function attemptAutoReconnect(){
   if(!mayAutoReconnect()||st.chip||autoReconnectBusy)return;
   if(autoReconnectBlocked()){scheduleAutoReconnect();return}
-  autoReconnectBusy=true;
+  autoReconnectBusy=true;renderStatus();
   try{
    if(st.port&&st.readerAlive){
     // No SSP3 power switching, Magic Cookie or calibration writes on this path.
@@ -136,6 +136,7 @@ if(typeof document!=='undefined') (function UI(){
    st.chip=false;renderStatus();
   }finally{
    autoReconnectBusy=false;
+   renderStatus();
    if(!st.chip)scheduleAutoReconnect(6000);
   }
  }
@@ -154,7 +155,7 @@ if(typeof document!=='undefined') (function UI(){
   const visible=!demoEnabled&&!!st.port&&!st.chip&&!st.readOnlySensor&&!st.closing;
   banner.hidden=!visible;
   if(!visible)return;
-  const working=st.reinitRunning||st.powerCycleRunning||st.magicRunning||st.startupRunning||st.diagRunning;
+  const working=autoReconnectBusy||st.reinitRunning||st.powerCycleRunning||st.magicRunning||st.startupRunning||st.diagRunning;
   const adapter=st.adapterKind==='bridge'?(st.bridgeBoard||'DIY-Programmer'):'SSP3';
   message.textContent=working?'Verbindung wird geprüft und initialisiert …':
    st.adapterNoReply?`Der ${adapter} antwortet nicht auf USB-Befehle. USB-Port neu öffnen und prüfen, ob ein anderes Programm den Port verwendet.`:
@@ -2256,6 +2257,7 @@ if(typeof document!=='undefined') (function UI(){
   st.calStaged=false;st.calVerified=false;st.calImage=null;st.calfit=null;st.nvmDone=false;
   st.nvmBackup=null;st.nvmBackupVerified=false;st.restorePlan=null;
   st.expertOutputPlan=null;st.outputOnlyPlan=null;st.profilePendingAFE=null;
+  st.programmedSnapshot=null;
   st.trend=[];erasePoints();
   seriesOfferKey=null;
   window.ELMOS_GUIDED?.onSensorReset?.({portDisconnected:false});
@@ -2271,6 +2273,7 @@ if(typeof document!=='undefined') (function UI(){
  async function reinitializeSensorOperation(){
   const port=st.port;
   if(!port||st.closing||st.reinitRunning)return;
+  if(autoReconnectBusy){show('connMsg','Auto-Connect prüft gerade die Verbindung. Bitte erneut versuchen.','warn');return;}
   if(st.calTask||st.writing||st.nvmWorking||st.powerCycleRunning||st.magicRunning||st.startupRunning||st.diagRunning||st.afeWriteActive){
    show('connMsg','Neuinitialisierung erst nach Abschluss des laufenden Chipvorgangs möglich.','warn');return;
   }
@@ -4469,6 +4472,11 @@ if(typeof document!=='undefined') (function UI(){
    const lostPort=st.port;
    logging('USB-/COM-Port entfernt; alten Sensorstatus und Schreibfreigaben sperren.');
    cancelAutoReconnect();stopLive();
+   st.chip=false;st.uid=null;st.nvmBackup=null;st.nvmBackupVerified=false;
+   st.nvmDone=false;st.calStaged=false;st.calVerified=false;
+   st.calImage=null;st.programmedSnapshot=null;
+   st.expertOutputPlan=null;st.outputOnlyPlan=null;st.restorePlan=null;
+   erasePoints();renderStatus();
    window.ELMOS_GUIDED?.onSensorReset?.({portDisconnected:true});
    window.ELMOS_ARCHIVE?.interrupted('USB-/COM-Port physisch entfernt');
    const closed=await disconnect();

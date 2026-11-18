@@ -34,7 +34,7 @@ test('guided connection is available on any step, including sensor-swap and comm
  assert.match(guided,/connectionOpen=true;render\(\);/);
  assert.match(guided,/if\(swapping\)/);
  assert.match(css,/gw-connection-page/);
- assert.match(html,/guided\.js\?v=0\.7\.124/);
+ assert.match(html,/guided\.js\?v=0\.7\.126/);
 });
 test('switching protocol on same authorised USB port closes old session and rereads a new UID',async()=>{
  const m=makeGuidedConnect();
@@ -107,4 +107,55 @@ test('expert-only diagnostics and SPI are hidden and guarded without enabling ex
  assert.match(guided,/\$\('gwConnectionAdvanced'\)\.open=false/);
  assert.match(app,/if\(action!=='export'&&!\$\('expertMode'\)\.checked\)/);
  assert.match(app,/if\(iface==='spi'&&!\$\('expertMode'\)\.checked\)/);
+});
+
+test('chip loss preserves the active guided page; physical COM loss opens connection diagnostics',()=>{
+ const from=guided.indexOf(' function onSensorReset(');
+ const to=guided.indexOf(' function init(){',from);
+ assert.ok(from>0&&to>from);
+ const source=guided.slice(from,to);
+ const simulate=portDisconnected=>{
+  const js=`
+   let mode=true,nextSensorPending=null,pendingCapture=null,chipResetPending=false,
+    connectionOpen=false,plan={points:[]},signature='old',seriesPointFields=null,
+    selectedPoint=2,latestCapture='old',lastCaptureRenderKey='old',
+    stage=7,visited=new Set([0,7]);
+   let rendered=0,updated=0,notices=[];
+   const render=()=>rendered++,updateUI=()=>updated++,msg=message=>notices.push(message),
+    renderConnectionStatus=()=>{};
+   ${source}
+   onSensorReset({portDisconnected:${portDisconnected}});
+   return {connectionOpen,stage,rendered,updated,chipResetPending,notices,hasPlan:!!plan};
+  `;
+  return new Function('window',js)({clearInterval(){}});
+ };
+ const loss=simulate(false);
+ assert.equal(loss.connectionOpen,false);
+ assert.equal(loss.stage,7);
+ assert.equal(loss.updated,1);
+ assert.equal(loss.rendered,0);
+ assert.equal(loss.chipResetPending,true);
+ const unplug=simulate(true);
+ assert.equal(unplug.connectionOpen,true);
+ assert.equal(unplug.stage,0);
+ assert.equal(unplug.rendered,1);
+ assert.equal(unplug.hasPlan,false);
+});
+test('auto reconnect is opt-in, uses authorised ports, and never auto-programs the NVM',()=>{
+ assert.match(html,/id="settingsAutoReconnect" type="checkbox"/);
+ assert.doesNotMatch(html,/id="settingsAutoReconnect"[^>]+checked/);
+ assert.match(app,/const autoReconnectKey='elmos-auto-reconnect-v1'/);
+ assert.match(app,/autoReconnectEnabled=lsGet\(autoReconnectKey\)==='1'/);
+ assert.match(app,/autoReconnectSuppressed=true;cancelAutoReconnect\(\)/);
+ assert.match(app,/navigator\.serial\.addEventListener\('disconnect'/);
+ assert.match(app,/onSensorReset\?\.\(\{portDisconnected:true\}\)/);
+ assert.match(app,/onSensorReset\?\.\(\{portDisconnected:false\}\)/);
+ const start=app.indexOf(' async function attemptAutoReconnect(){');
+ const end=app.indexOf(' const HELP=',start);
+ const source=app.slice(start,end);
+ assert.ok(start>0&&end>start);
+ assert.match(source,/await detect\(\)/);
+ assert.match(source,/navigator\.serial\.getPorts\(\)/);
+ assert.match(source,/await connect\(matches\[0\]\)/);
+ assert.doesNotMatch(source,/nvmProgram\(|writeReg\(|testPlcMagicCookie\(|startSsp3WithBoundedRetry\(/);
 });
