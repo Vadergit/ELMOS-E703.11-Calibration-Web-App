@@ -256,3 +256,52 @@ test('Temperature polynomial inverse uses T_F and T_O mapped raw ADC limits',()=
  assert.ok(r.rows.every(row=>Number.isFinite(row.adcT)));
  assert.ok(r.rows.some(row=>row.tempNorm>1||row.tempNorm< -1));
 });
+
+
+test('DSP end limit is not inferred from NVM and defaults to clearly labeled 32000',()=>{
+ const words=image();
+ const data=recon.referenceMetadata(words,null,()=>null);
+ assert.equal(data.limit,32000);
+ assert.equal(data.limitSource,'default');
+ assert.equal(data.temperatureSource,'assumed');
+});
+test('Locally saved DSP limit requires matching full UID and NVM CRC',()=>{
+ const words=image();words[0]=0xF7DB;words[1]=0x0109;words[63]=0x6E91;
+ const uid='00200109F7DB';
+ const profile={uid,crc:words[63],limit:28000,min:0,max:6};
+ const getter=k=>k==='elmos-dsp-display-by-uid-v1-'+uid?JSON.stringify(profile):null;
+ const matched=recon.referenceMetadata(words,uid,getter);
+ assert.equal(matched.limit,28000);
+ assert.equal(matched.limitSource,'local');
+ assert.equal(recon.referenceMetadata(words,'00200109F7DC',getter).limitSource,'default');
+ assert.equal(recon.referenceMetadata(words,'',getter).limitSource,'default');
+ assert.equal(recon.referenceMetadata(words,uid,()=>JSON.stringify({...profile,crc:111})).limitSource,'default');
+});
+test('Exact matching local NVM history can confirm AN0203 model and DSP target',()=>{
+ const words=image();words[0]=0xF7DB;words[1]=0x0109;
+ const uid='00200109F7DB',snapshot={
+  id:uid,restore:false,words:words.slice(),
+  temperatureBasis:'an0203-celsius-v1',outputTarget:{limit:30000}
+ };
+ const find=k=>k==='elmos8-last-program'?JSON.stringify(snapshot):null;
+ const matched=recon.referenceMetadata(words,uid,find);
+ assert.equal(matched.limit,30000);
+ assert.equal(matched.limitSource,'local');
+ assert.equal(matched.temperatureSource,'local');
+ const wrong={...snapshot,words:snapshot.words.slice()};
+ wrong.words[12]^=1;
+ const reject=recon.referenceMetadata(words,uid,k=>k==='elmos8-last-program'?JSON.stringify(wrong):null);
+ assert.equal(reject.limitSource,'default');
+ assert.equal(reject.temperatureSource,'assumed');
+});
+test('Factory fingerprint identifies known temperature model, not custom constant T0',()=>{
+ const factory=image();
+ factory[31]=0;factory[32]=0x1000;
+ factory[51]=0x0F4D;factory[52]=0xBC8E;factory[53]=0xFC54;factory[54]=0;
+ assert.equal(recon.referenceMetadata(factory,null,()=>null).temperatureSource,'factory');
+ const custom=image();custom[51]=0xE57C;custom[52]=0;custom[53]=0;custom[54]=0;
+ const actual=recon.referenceMetadata(custom,null,()=>null);
+ assert.equal(actual.temperatureSource,'assumed');
+ assert.equal(actual.constantTemp,true);
+ assert.equal(actual.factoryTemp,false);
+});
