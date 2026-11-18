@@ -82,7 +82,7 @@ test('append-only test log rotates, retains third-party files and exports comple
  const stored=new Map([['other.json','{"hello":"untouched"}']]);
  const dom=new Map();
  function node(id){
-  return {id,style:{},children:[],value:'',hidden:false,disabled:false,checked:false,
+  return {id,parentElement:{hidden:false},style:{},children:[],value:'',hidden:false,disabled:false,checked:false,
    className:'',append(...ns){this.children.push(...ns)},appendChild(n){this.children.push(n)},
    replaceChildren(...ns){this.children=ns},addEventListener(){},click(){},set textContent(v){this._text=v},get textContent(){return this._text}};
  }
@@ -141,7 +141,7 @@ test('DUT product name is captured and included in a full CSV export',()=>{
  const ui=read('test-logger.js'),archive=read('archive.js');
  assert.match(ui,/id="tlDutName"/);
  assert.match(ui,/name:name\|\|null,dutName,description/);
- assert.match(archive,/dutName:record\.testConfiguration\?\.dutName/);
+ assert.match(read('archive-analysis.js'),/dutName:record\.testConfiguration\?\.dutName/);
  const data=C.csvRows([{
   index:1,aggregation:'none',samples:[{at:'2026-11-13T17:00:00Z',adcS:123}]
  }],{name:'Drucktest',dutName:'560/RevB',chipUID:'0020011DBBE7'});
