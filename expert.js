@@ -210,7 +210,7 @@ const ELMOS_EXPERT=(()=>{
       vdd:Number($('psscVdd').value),
       tempModel:st.calfit.orderT>0?'an0203':null,
       points:st.calpoints
-     }):null;
+     }):st.referenceTemplate||null;
     ELMOS_NVM_RECON.render($('nvmReconstruction'),valid?st.nvmBackup:null,{
      connected:!!(st.mode==='usb'&&st.port&&st.chip),
      busy:!!(st.writing||st.calTask||st.nvmWorking||st.closing),
