@@ -359,7 +359,7 @@ const ELMOS_NVM_RECON = (() => {
   if(!styleAdded){const style=dom('style');style.textContent=css;document.head.appendChild(style);styleAdded=true}
   if(!root._nvmInit){
    root._nvmInit=true;
-   root._nvmState={live:null,offline:null,preferred:'file',connected:false,busy:false,liveMeta:null,sourceKey:null,fileUid:null,limitEdited:false,reference:null,readNotice:'',readError:false,reading:false,fileName:null,fileError:null,opts:{pmin:0,pmax:6,ta:25,tb:75,vdd:5,limit:32000,tempModel:'auto'},last:null};
+   root._nvmState={live:null,offline:null,preferred:'file',connected:false,busy:false,liveMeta:null,sourceKey:null,fileUid:null,limitEdited:false,reference:null,profileFile:null,profileFileError:null,profileKey:null,profileLocked:{},profileCurrent:null,profileOverride:false,sessionProfile:null,readNotice:'',readError:false,reading:false,fileName:null,fileError:null,opts:{pmin:0,pmax:6,ta:25,tb:75,vdd:5,limit:32000,tempModel:'auto',pressureUnit:'bar'},last:null};
    const heading=dom('h3','Datenquelle & Referenzen','nvmrecon-section-title');
    const detail=dom('p','NVM-Backup laden und Referenzbedingungen festlegen. Die Rückrechnung erfolgt lokal, ohne Sensorzugriff.','nvmrecon-muted nvmrecon-intro');
    const actions=dom('div',undefined,'nvmrecon-actions');
@@ -395,13 +395,27 @@ const ELMOS_NVM_RECON = (() => {
      draw(root);
     }catch(e){root._nvmState.offline=null;root._nvmState.fileName=null;root._nvmState.fileError='Dateiimport fehlgeschlagen: '+String(e.message);draw(root)}
    });
+   const profileInput=dom('input');profileInput.type='file';profileInput.accept='.json,application/json';
+   profileInput.id='nvmReconProfileFile';profileInput.setAttribute('aria-label','Kalibrierprofil aus JSON laden');
+   const profileUpload=dom('label','Kalibrierprofil laden','nvmrecon-profile-upload');profileUpload.htmlFor=profileInput.id;
+   actions.append(profileUpload,profileInput);
+   profileInput.addEventListener('change',async()=>{
+    const input=profileInput.files?.[0];if(!input)return;
+    try{
+     if(input.size>1024000)throw Error('Datei ist zu gross.');
+     if(typeof ELMOS_NVM_PROFILE==='undefined')throw Error('Profilmodul nicht geladen.');
+     const profile=ELMOS_NVM_PROFILE.fromFile(JSON.parse(await input.text()),input.name);
+     const st=root._nvmState;st.profileFile=profile;st.profileFileError=null;st.profileKey=null;
+     st.profileOverride=false;draw(root);
+    }catch(e){root._nvmState.profileFileError=String(e.message);draw(root)}
+   });
    const grid=dom('div',undefined,'nvmrecon-grid');
    const fields=[['pmin','Druck min. [bar]','0'],['pmax','Druck max. [bar]','6'],
     ['ta','Temperatur 1 [°C]','25'],['tb','Temperatur 2 [°C]','75'],
     ['vdd','VDD [V]','5'],['limit','DSP-Endwert','32000']];
    for(const [key,title,value] of fields){
     const label=dom('label',title),input=dom('input');input.type='number';input.step=key==='limit'?'1':'any';
-    input.value=value;input.dataset.key=key;
+    input.value=value;input.dataset.key=key;label.dataset.profileKey=key;
     input.addEventListener('input',()=>{root._nvmState.opts[key]=Number(input.value);if(key==='limit')root._nvmState.limitEdited=true;draw(root)});
     label.appendChild(input);grid.appendChild(label);
    }
@@ -410,9 +424,38 @@ const ELMOS_NVM_RECON = (() => {
     const option=dom('option',name);option.value=value;modelSelect.appendChild(option);
    }
    modelSelect.addEventListener('change',()=>{root._nvmState.opts.tempModel=modelSelect.value;draw(root)});
+   modelSelect.dataset.key='tempModel';
+   modelLabel.dataset.profileKey='tempModel';
    modelLabel.appendChild(modelSelect);grid.appendChild(modelLabel);
    const origin=dom('p',undefined,'nvmrecon-reference-hint');
    origin.hidden=true;
+   const profileDetails=dom('details',undefined,'nvmrecon-profile-details');
+   profileDetails.appendChild(dom('summary','Kalibrierprofil & ursprüngliche Messpunkte','nvmrecon-profile-summary'));
+   const profileStatus=dom('div',undefined,'nvmrecon-profile-status');
+   const profileToolbar=dom('div',undefined,'nvmrecon-profile-toolbar');
+   const profileRemove=dom('button','Geladenes Profil entfernen','nvmrecon-profile-remove');
+   profileRemove.type='button';
+   profileRemove.addEventListener('click',()=>{
+    const st=root._nvmState;
+    st.profileFile=null;st.profileFileError=null;st.profileOverride=false;st.profileKey=null;
+    profileInput.value='';draw(root);
+   });
+   const unlock=dom('button','Fixwerte manuell ändern','nvmrecon-profile-unlock');
+   unlock.type='button';
+   unlock.addEventListener('click',()=>{
+    const st=root._nvmState;st.profileOverride=!st.profileOverride;
+    if(!st.profileOverride)st.profileKey=null;
+    draw(root);
+   });
+   const sessionButton=dom('button','Aktuellen RAM-Abgleich übernehmen','nvmrecon-session-use');
+   sessionButton.type='button';
+   sessionButton.addEventListener('click',()=>{
+    const st=root._nvmState;
+    if(st.sessionProfile){st.profileFile=st.sessionProfile;st.profileKey=null;st.profileOverride=false;draw(root)}
+   });
+   profileToolbar.append(profileRemove,unlock,sessionButton);
+   const pointList=dom('div',undefined,'nvmrecon-profile-points');
+   profileDetails.append(profileStatus,profileToolbar,pointList);
    const advanced=dom('details',undefined,'nvmrecon-warnings nvmrecon-advanced');
    advanced.appendChild(dom('summary','Erweitert: Gemessene Temperatur-ADC-Werte eingeben (optional)'));
    advanced.appendChild(dom('p','Wenn T0–T3 keine umkehrbare Temperaturkennlinie bilden, lassen sich die normierten Temperaturwerte direkt aus gemessenen ADC_T-Rohwerten berechnen. Für TK0/TKR sind zwei echte ADC_T-Messungen bei den eingetragenen Temperaturen erforderlich.','nvmrecon-muted'));
@@ -420,6 +463,7 @@ const ELMOS_NVM_RECON = (() => {
    for(const [key,labelText] of [['adcT1','ADC_T bei Temperatur 1 [Digits]'],['adcT2','ADC_T bei Temperatur 2 [Digits]']]){
     const label=dom('label',labelText),input=dom('input');input.type='number';input.step='1';
     input.min='-32768';input.max='32767';input.placeholder='Optional, leer = aus NVM';
+    input.dataset.key=key;label.dataset.profileKey=key;
     input.addEventListener('input',()=>{root._nvmState.opts[key]=input.value.trim()===''?null:Number(input.value);draw(root)});
     label.appendChild(input);advancedGrid.appendChild(label);
    }
@@ -431,7 +475,7 @@ const ELMOS_NVM_RECON = (() => {
    explain.append(dom('summary','Grenzen der Rückrechnung'),
     dom('p','Der ursprüngliche Druckbereich in bar, die Prüfpunkte und echte unkalibrierte Messwerte werden durch das NVM allein nicht eindeutig gespeichert. TK0/TKR sind modellbasierte Rückrechnungen, keine unabhängige Sensormessung.','nvmrecon-muted'));
    const setup=dom('section',undefined,'nvmrecon-setup');
-   setup.append(heading,detail,actions,feedback,grid,origin,advanced);
+   setup.append(heading,detail,actions,feedback,grid,origin,profileDetails,advanced);
    const missing=dom('section',undefined,'nvmrecon-missing');
    missing.hidden=true;
    const dialog=dom('dialog',undefined,'nvmrecon-formula-dialog');
@@ -448,6 +492,7 @@ const ELMOS_NVM_RECON = (() => {
   state.connected=!!liveInfo?.connected;
   state.busy=!!liveInfo?.busy;
   state.liveMeta=state.live&&liveInfo?.uid?{uid:liveInfo.uid,readAt:liveInfo.readAt??null}:null;
+  state.sessionProfile=liveInfo?.sessionProfile||null;
   draw(root);
  }
  function draw(root){
