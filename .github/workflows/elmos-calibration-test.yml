@@ -20,6 +20,7 @@ jobs:
           node --check nvm-reconstruction-trace.js
           node --check archive-core.js
           node --check archive.js
+          node --check eeprom-config-overview.js
           node --check calibration-complete.js
           node --check archive-analysis.js
           node --check test-logger.js
@@ -30,4 +31,4 @@ jobs:
           node --check app.js
           node --check guided.js
       - name: Run calibration, NVM reconstruction and offline UI tests
-        run: node --test tests/elmos-calibration.test.cjs tests/nvm-reconstruction.test.cjs tests/nvm-rechner-offline.test.cjs tests/nvm-formula-trace.test.cjs tests/nvm-reference-profile.test.cjs tests/calibration-complete.test.cjs tests/archive-descriptive-filenames.test.cjs tests/verification-reference.test.cjs tests/logging-report.test.cjs tests/archive-photos.test.cjs tests/archive.test.cjs tests/test-logger.test.cjs
+        run: node --test tests/elmos-calibration.test.cjs tests/nvm-reconstruction.test.cjs tests/nvm-rechner-offline.test.cjs tests/nvm-formula-trace.test.cjs tests/nvm-reference-profile.test.cjs tests/calibration-complete.test.cjs tests/archive-descriptive-filenames.test.cjs tests/verification-reference.test.cjs tests/logging-report.test.cjs tests/archive-photos.test.cjs tests/archive.test.cjs tests/test-logger.test.cjs tests/eeprom-config-overview.test.cjs

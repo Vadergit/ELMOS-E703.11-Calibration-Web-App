@@ -118,8 +118,9 @@ test('Rendered RAM differences are marked yellow on values, without marking unre
   const descendants=node=>[node,...(node.children||[]).flatMap(descendants)];
   const marked=descendants(root).filter(n=>n.className==='eeprom-overview-value-diff');
   assert.ok(marked.some(n=>n.textContent==='3.5×'),'Changed PGA1 RAM value should have yellow background');
+  assert.ok(marked.some(n=>n.textContent==='0 (Q0.15)'),'Changed single coefficient should also be yellow');
   assert.ok(!marked.some(n=>n.textContent==='1 (dimensionslos)'),'Unchanged value must not be yellow');
-  assert.equal(marked.length,1,'Unavailable coefficient groups must not be marked');
+  assert.equal(marked.length,2,'Changed PGA1 and the individually read S0 coefficient must both be marked');
   const root2=make('main'),ram2={...ram};
   for(let i=35;i<=54;i++)ram2[i]=saved[i];
   ram2[35]=0;
