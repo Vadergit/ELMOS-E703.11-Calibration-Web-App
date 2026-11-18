@@ -15,6 +15,43 @@ const ELMOS_NVM_RECON = (() => {
   validWords(offline)?{kind:'file',words:offline}:
   validWords(live)?{kind:'eeprom',words:live}:{kind:'none',words:null};
  const hex = v => '0x'+Number(v).toString(16).toUpperCase().padStart(4,'0');
+  // The DSP target limit and physical °C assignment are not independent NVM
+  // registers. Reuse a locally stored profile only after binding it to the
+  // exact chip UID and NVM CRC; otherwise make the assumed defaults explicit.
+  function referenceMetadata(words,uid,readLocal){
+   if(!validWords(words))return null;
+   const factoryTemp=words[31]===0&&words[32]===0x1000&&
+    words[51]===0x0F4D&&words[52]===0xBC8E&&words[53]===0xFC54&&words[54]===0;
+   const constantTemp=words.slice(52,55).every(w=>w===0);
+   const result={limit:32000,limitSource:'default',temperatureSource:factoryTemp?'factory':'assumed',
+    factoryTemp,constantTemp};
+   const serial=hex(words[1]).slice(2)+hex(words[0]).slice(2);
+   if(typeof uid!=='string'||!/^[0-9a-f]{12}$/i.test(uid)||uid.slice(-8).toUpperCase()!==serial||
+      typeof readLocal!=='function')return result;
+   const chipUid=uid.toUpperCase();
+   const safeJSON=key=>{try{const raw=readLocal(key);return raw?JSON.parse(raw):null}catch{return null}};
+   const saved=safeJSON('elmos-dsp-display-by-uid-v1-'+chipUid);
+   if(saved?.uid===chipUid&&saved.crc===words[63]&&
+      Number.isInteger(saved.limit)&&saved.limit>=1000&&saved.limit<=32000){
+    result.limit=saved.limit;
+    result.limitSource='local';
+   }
+   const last=safeJSON('elmos8-last-program');
+   const exact=last&&String(last.id||'').toUpperCase()===chipUid&&last.restore!==true&&
+    Array.isArray(last.words)&&last.words.length===64&&
+    last.words.every((w,i)=>w===words[i]);
+   if(exact){
+    if(result.limitSource==='default'&&Number.isInteger(last.outputTarget?.limit)&&
+       last.outputTarget.limit>=1000&&last.outputTarget.limit<=32000){
+     result.limit=last.outputTarget.limit;
+     result.limitSource='local';
+    }
+    if(!factoryTemp&&!constantTemp&&last.temperatureBasis==='an0203-celsius-v1')
+     result.temperatureSource='local';
+   }
+   return result;
+  }
+
  const fmt = (v, digits = 4) => finite(v)
    ? v.toLocaleString('de-CH', {maximumFractionDigits:digits, minimumFractionDigits:Math.min(2,digits)})
    : '—';
@@ -318,7 +355,7 @@ const ELMOS_NVM_RECON = (() => {
   if(!styleAdded){const style=dom('style');style.textContent=css;document.head.appendChild(style);styleAdded=true}
   if(!root._nvmInit){
    root._nvmInit=true;
-   root._nvmState={live:null,offline:null,preferred:'file',connected:false,busy:false,liveMeta:null,readNotice:'',readError:false,reading:false,fileName:null,fileError:null,opts:{pmin:0,pmax:6,ta:25,tb:75,vdd:5,limit:32000,tempModel:'auto'},last:null};
+   root._nvmState={live:null,offline:null,preferred:'file',connected:false,busy:false,liveMeta:null,sourceKey:null,fileUid:null,limitEdited:false,reference:null,readNotice:'',readError:false,reading:false,fileName:null,fileError:null,opts:{pmin:0,pmax:6,ta:25,tb:75,vdd:5,limit:32000,tempModel:'auto'},last:null};
    const heading=dom('h3','Datenquelle & Referenzen','nvmrecon-section-title');
    const detail=dom('p','NVM-Backup laden und Referenzbedingungen festlegen. Die Rückrechnung erfolgt lokal, ohne Sensorzugriff.','nvmrecon-muted nvmrecon-intro');
    const actions=dom('div',undefined,'nvmrecon-actions');
@@ -330,7 +367,7 @@ const ELMOS_NVM_RECON = (() => {
    const upload=dom('label','NVM-Backup importieren','nvmrecon-upload');upload.htmlFor=file.id;
    const clear=dom('button','Datei entfernen','nvmrecon-clear');clear.type='button';clear.disabled=true;
    clear.addEventListener('click',()=>{
-    const state=root._nvmState;state.offline=null;state.fileName=null;state.fileError=null;
+    const state=root._nvmState;state.offline=null;state.fileUid=null;state.fileName=null;state.fileError=null;
     state.preferred='eeprom';file.value='';draw(root);
    });
    actions.append(read,upload,file,clear,dom('span','64 Wörter · Sensor-NVM oder lokale JSON-Datei','nvmrecon-actions-hint'));
@@ -345,6 +382,8 @@ const ELMOS_NVM_RECON = (() => {
      const words=Array.isArray(data)?data:data.words;
      if(!validWords(words))throw Error('Kein gültiges 64-Wort-Backup');
      root._nvmState.offline=words.slice();
+     root._nvmState.fileUid=typeof data?.uid==='string'?data.uid.toUpperCase():null;
+     root._nvmState.limitEdited=false;
      root._nvmState.preferred='file';
      root._nvmState.readNotice='';
      root._nvmState.fileName=f.name;
@@ -359,7 +398,7 @@ const ELMOS_NVM_RECON = (() => {
    for(const [key,title,value] of fields){
     const label=dom('label',title),input=dom('input');input.type='number';input.step=key==='limit'?'1':'any';
     input.value=value;input.dataset.key=key;
-    input.addEventListener('input',()=>{root._nvmState.opts[key]=Number(input.value);draw(root)});
+    input.addEventListener('input',()=>{root._nvmState.opts[key]=Number(input.value);if(key==='limit')root._nvmState.limitEdited=true;draw(root)});
     label.appendChild(input);grid.appendChild(label);
    }
    const modelLabel=dom('label','Temperaturmodell'),modelSelect=dom('select');
@@ -368,6 +407,8 @@ const ELMOS_NVM_RECON = (() => {
    }
    modelSelect.addEventListener('change',()=>{root._nvmState.opts.tempModel=modelSelect.value;draw(root)});
    modelLabel.appendChild(modelSelect);grid.appendChild(modelLabel);
+   const origin=dom('p',undefined,'nvmrecon-reference-hint');
+   origin.hidden=true;
    const advanced=dom('details',undefined,'nvmrecon-warnings nvmrecon-advanced');
    advanced.appendChild(dom('summary','Erweitert: Gemessene Temperatur-ADC-Werte eingeben (optional)'));
    advanced.appendChild(dom('p','Wenn T0–T3 keine umkehrbare Temperaturkennlinie bilden, lassen sich die normierten Temperaturwerte direkt aus gemessenen ADC_T-Rohwerten berechnen. Für TK0/TKR sind zwei echte ADC_T-Messungen bei den eingetragenen Temperaturen erforderlich.','nvmrecon-muted'));
@@ -386,7 +427,7 @@ const ELMOS_NVM_RECON = (() => {
    explain.append(dom('summary','Grenzen der Rückrechnung'),
     dom('p','Der ursprüngliche Druckbereich in bar, die Prüfpunkte und echte unkalibrierte Messwerte werden durch das NVM allein nicht eindeutig gespeichert. TK0/TKR sind modellbasierte Rückrechnungen, keine unabhängige Sensormessung.','nvmrecon-muted'));
    const setup=dom('section',undefined,'nvmrecon-setup');
-   setup.append(heading,detail,actions,feedback,grid,advanced);
+   setup.append(heading,detail,actions,feedback,grid,origin,advanced);
    const missing=dom('section',undefined,'nvmrecon-missing');
    missing.hidden=true;
    const dialog=dom('dialog',undefined,'nvmrecon-formula-dialog');
@@ -411,6 +452,19 @@ const ELMOS_NVM_RECON = (() => {
   box.replaceChildren();
   if(missing){missing.replaceChildren();missing.hidden=true;}
   const selected=chooseSource(state.live,state.offline,state.preferred),words=selected.words;
+  const sourceUid=selected.kind==='eeprom'?state.liveMeta?.uid:state.fileUid;
+  const readLocal=key=>{try{return localStorage.getItem(key)}catch{return null}};
+  const reference=words?referenceMetadata(words,sourceUid,readLocal):null;
+  const sourceKey=words?[selected.kind,sourceUid||'',words[0],words[1],words[63],selected.kind==='file'?state.fileName||'':''].join('|'):null;
+  if(sourceKey!==state.sourceKey){
+   state.sourceKey=sourceKey;
+   if(reference&&!state.limitEdited){
+    state.opts.limit=reference.limit;
+    const limitInput=root.querySelector('[data-key="limit"]');
+    if(limitInput)limitInput.value=String(reference.limit);
+   }
+  }
+  state.reference=reference;
   const clear=root.querySelector('.nvmrecon-clear');
   if(clear)clear.disabled=!validWords(state.offline);
   const read=root.querySelector('#nvmReconReadSensor');
@@ -429,6 +483,18 @@ const ELMOS_NVM_RECON = (() => {
    const err=dom('p',state.fileError,'nvmrecon-error');
    box.appendChild(err);
   }
+  const origin=root.querySelector('.nvmrecon-reference-hint');
+  if(origin&&reference){
+   const limitText=state.limitEdited?'DSP-Endwert: manuell gewählt':
+    reference.limitSource==='local'?'DSP-Endwert: aus lokalem UID-/NVM-gebundenem Kalibrierprofil':
+    'DSP-Endwert: Standard ±32’000 · nicht im NVM gespeichert';
+   const tempText=state.opts.tempModel!=='auto'?'Temperaturmodell: manuell gewählt':
+    reference.temperatureSource==='factory'?'Temperaturmodell: Werkprofil anhand der Koeffizienten erkannt':
+    reference.temperatureSource==='local'?'Temperaturmodell: AN0203 aus passender lokaler Kalibrierhistorie':
+    'Temperaturmodell: nicht eindeutig im NVM · AN0203 wird angenommen';
+   origin.textContent=limitText+' · '+tempText;
+   origin.hidden=false;
+  }else if(origin)origin.hidden=true;
   if(!words){
    status.className='nvmrecon-status nvmrecon-source-empty';
    status.textContent='Keine NVM-Daten · JSON-Backup importieren oder EEPROM eines Sensors lesen.';
@@ -581,12 +647,13 @@ const ELMOS_NVM_RECON = (() => {
  function preferLive(root){
   if(!root?._nvmState?.live)return false;
   root._nvmState.preferred='eeprom';
+  root._nvmState.limitEdited=false;
   root._nvmState.readNotice='';
   root._nvmState.readError=false;
   root._nvmState.reading=false;
   draw(root);
   return true;
  }
- return {calculate,render,validWords,chooseSource,missingExplanations,setReadFeedback,preferLive};
+ return {calculate,render,validWords,chooseSource,referenceMetadata,missingExplanations,setReadFeedback,preferLive};
 })();
 if(typeof module!=='undefined'&&module.exports)module.exports=ELMOS_NVM_RECON;
