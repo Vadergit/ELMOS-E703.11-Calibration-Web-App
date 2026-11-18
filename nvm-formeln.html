@@ -112,7 +112,7 @@ ADC_S [Digits] = ((S − S_O) / S_F) × 32768</code><p class="muted">S_F und S_O
 <code class="formula">TK0 [bar pro 100 K] =
  (TK0 [mV/V pro K] / Spanne(T1) [mV/V])
  × (pmax − pmin) [bar] × 100</code>
-<div class="note">Hier hängt der Zahlenwert ausdrücklich vom <strong>manuell eingegebenen Druckbereich</strong> ab. Ein anderer Druckbereich ergibt einen anderen Wert in bar.</div></section>
+<div class="note">Hier hängt der Zahlenwert ausdrücklich vom <strong>eingegebenen oder aus dem Profil übernommenen Druckbereich</strong> ab. Bei anderen Druckeinheiten als bar wird das Ergebnis in der jeweiligen Einheit angegeben.</div></section>
 <section class="chapter" id="tkr"><h2>TKR – relativer Spannentemperaturgang</h2><p>Der TKR gibt an, wie stark sich die Druckspanne mit der Temperatur verändert, in Prozent pro 100 K.</p>
 <code class="formula">TKR [% pro 100 K] =
  (Spanne(T2) / Spanne(T1) − 1)
