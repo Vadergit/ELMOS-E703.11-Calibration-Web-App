@@ -324,7 +324,7 @@ const ELMOS_NVM_RECON = (() => {
    actions.append(read,upload,file,clear,dom('span','64 Wörter · Sensor-NVM oder lokale JSON-Datei','nvmrecon-actions-hint'));
    const feedback=dom('p',undefined,'nvmrecon-read-feedback');
    feedback.setAttribute('role','status');feedback.hidden=true;
-   actions.after(feedback);
+
    file.addEventListener('change',async()=>{
     const f=file.files?.[0];if(!f)return;
     try{
@@ -374,7 +374,7 @@ const ELMOS_NVM_RECON = (() => {
    explain.append(dom('summary','Grenzen der Rückrechnung'),
     dom('p','Der ursprüngliche Druckbereich in bar, die Prüfpunkte und echte unkalibrierte Messwerte werden durch das NVM allein nicht eindeutig gespeichert. TK0/TKR sind modellbasierte Rückrechnungen, keine unabhängige Sensormessung.','nvmrecon-muted'));
    const setup=dom('section',undefined,'nvmrecon-setup');
-   setup.append(heading,detail,actions,grid,advanced);
+   setup.append(heading,detail,actions,feedback,grid,advanced);
    const missing=dom('section',undefined,'nvmrecon-missing');
    missing.hidden=true;
    const dialog=dom('dialog',undefined,'nvmrecon-formula-dialog');
