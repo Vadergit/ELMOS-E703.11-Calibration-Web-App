@@ -55,6 +55,9 @@ test('classic navigation uses only the sidebar, guided tasks alone offer task ch
   assert.match(html,new RegExp('id="'+id+'"'));
  assert.match(html,/home-navigation\.js\?v=0\.7\.134/);
  assert.match(read('guided.js'),/window\.ELMOS_HOME_NAVIGATION\?\.requestHome\?\.\(\)/);
+ assert.match(read('guided.js'),/window\.ELMOS_HOME_NAVIGATION\?\.requestClassic\?\.\(\)/);
+ assert.match(read('guided.js'),/classList\.toggle\('guided-task-open',stage!==0\|\|connectionOpen\|\|swapping\)/);
+ assert.match(read('guided.js'),/classList\.remove\('guided-active','guided-task-open'\)/);
 });
 test('idle Home opens the guided task chooser without disconnecting or clearing the sensor',()=>{
  const m=harness();
