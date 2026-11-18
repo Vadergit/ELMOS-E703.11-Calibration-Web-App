@@ -61,7 +61,7 @@ const ELMOS_NVM_TRACE=(()=>{
   result.push(step('Druckpolynom umkehren',
    'DSP_S,vor = K0 + K1 × S + K2 × S² + K3 × S³',
    'Eindeutige Lösung S = '+f(ep.sNorm,9),
-   finite(ep.sNorm)?'Es wird nur eine eindeutige Lösung im gültigen normierten Bereich akzeptiert.':
+   finite(ep.sNorm)?'Es wird nur eine eindeutige Lösung akzeptiert, die zu einem gültigen 16-Bit-ADC_S-Rohwert führt. Der Zwischenwert S darf wegen S_F/S_O ausserhalb ±1 liegen.':
     'Keine eindeutige Lösung: der Rechner zeigt dafür bewusst keinen Zahlenwert.'));
   result.push(step('Normiertes ADC_S zurückrechnen',
    'ADC_S = (S − S_O) / S_F ; ADC_S [Digits] = ADC_S × 32768',
