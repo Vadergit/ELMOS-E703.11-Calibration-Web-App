@@ -762,6 +762,9 @@ const ELMOS_GUIDED=(()=>{
  function render(){
   if(!mode)return;
   const swapping=!!nextSensorPending;
+  // The guided task chooser is the only home screen. Classic panels use
+  // their permanent sidebar instead of showing a second home button.
+  document.documentElement.classList.toggle('guided-task-open',stage!==0||connectionOpen||swapping);
   const loggerPage=stage===11&&!swapping;
   $('gwConnectionPage').hidden=!connectionOpen;
   $('gwSwapPage').hidden=!swapping||connectionOpen;
@@ -981,10 +984,13 @@ const ELMOS_GUIDED=(()=>{
   document.documentElement.classList.toggle('top-guided-active',guided);
  }
  function toggleTopView(){
-  // Top navigation switches views, even if the archive/verification overlay is open.
-  window.ELMOS_ARCHIVE?.close?.();
-  if(mode)close();
-  else open();
+  // The left sidebar already navigates all classic pages. View switching must
+  // use the same archival confirmation as the guided task-chooser shortcut.
+  if(mode){
+   window.ELMOS_HOME_NAVIGATION?.requestClassic?.();
+  }else{
+   window.ELMOS_HOME_NAVIGATION?.requestHome?.();
+  }
  }
  function open(){
   if(mode)return;
@@ -1023,7 +1029,8 @@ const ELMOS_GUIDED=(()=>{
   if(pendingCapture){window.clearInterval(pendingCapture);pendingCapture=null}
   for(const {el,type,handler} of subscriptions)el.removeEventListener(type,handler);
   subscriptions.length=0;
-  restore();root.hidden=true;root.replaceChildren();document.documentElement.classList.remove('guided-active');
+  restore();root.hidden=true;root.replaceChildren();
+  document.documentElement.classList.remove('guided-active','guided-task-open');
   syncTopMode();
   if(!preservePreference)saveView('classic');
   window.ELMOS_GUIDED_API?.refresh?.();

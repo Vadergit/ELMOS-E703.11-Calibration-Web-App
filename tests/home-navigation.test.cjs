@@ -24,6 +24,7 @@ function harness({critical=false,measuring=false,archiveActive=false,logging=fal
    assert.equal(options.snapshot,null);archive.active=false;}};
  const logger={active:logging,isBusy:()=>logging};
  const guided={active:false,isOpen(){return this.active},open(){events.push('open-guided');this.active=true},
+  close(){events.push('close-guided');this.active=false},
   resetForHome(){events.push('reset-home');return true},
   hasUnfinishedTask(){return unfinished}};
  const state={critical,measuring};
@@ -42,16 +43,21 @@ function harness({critical=false,measuring=false,archiveActive=false,logging=fal
  const code=vm.runInNewContext(script+'\nELMOS_HOME_NAVIGATION',context);
  return {events,elements,archive,guided,api,code,window,document};
 }
-test('global home links and confirmation dialog are present on every classic tool',()=>{
- assert.match(html,/id="guidedHomeTop"[^>]*>⌂ Geführte Startseite<\/button>/);
- assert.match(html,/id="homeButton" aria-label="Zur geführten Startseite"/);
+test('classic navigation uses only the sidebar, guided tasks alone offer task chooser',()=>{
+ assert.match(html,/id="guidedHomeTop"[^>]*>↩ Aufgabenauswahl<\/button>/);
+ assert.match(html,/html\.guided-task-open #guidedHomeTop\{display:inline-flex\}/);
+ assert.match(html,/<h1>Kalibrierassistent<\/h1>/);
+ assert.doesNotMatch(html,/id="homeButton"/);
+ assert.doesNotMatch(html,/data-guided-home/);
  assert.match(html,/<h2>Sensorbrücken-Rechner<\/h2>/);
- assert.match(html,/<button type="button" data-guided-home>Zur geführten Startseite<\/button>/);
  assert.doesNotMatch(html,/Zum USB-Start/);
  for(const id of ['guidedHomeConfirm','guidedHomeAbort','guidedHomeStay','guidedHomeConfirmStatus'])
   assert.match(html,new RegExp('id="'+id+'"'));
- assert.match(html,/home-navigation\.js\?v=0\.7\.132/);
- assert.match(app,/window\.ELMOS_HOME_NAVIGATION\?\.requestHome\?\.\(\)/);
+ assert.match(html,/home-navigation\.js\?v=0\.7\.134/);
+ assert.match(read('guided.js'),/window\.ELMOS_HOME_NAVIGATION\?\.requestHome\?\.\(\)/);
+ assert.match(read('guided.js'),/window\.ELMOS_HOME_NAVIGATION\?\.requestClassic\?\.\(\)/);
+ assert.match(read('guided.js'),/classList\.toggle\('guided-task-open',stage!==0\|\|connectionOpen\|\|swapping\)/);
+ assert.match(read('guided.js'),/classList\.remove\('guided-active','guided-task-open'\)/);
 });
 test('idle Home opens the guided task chooser without disconnecting or clearing the sensor',()=>{
  const m=harness();
@@ -101,6 +107,31 @@ test('long-running test logging must finish and archive its last sample before r
  assert.equal(await m.code.abortAndGoHome(),true);
  assert.ok(m.events.indexOf('stop-logging')<m.events.indexOf('open-guided'));
  assert.ok(!m.events.includes('finalise-aborted'));
+});
+test('idle Geführt/Klassisch switch leaves USB connected and closes the guided workspace',()=>{
+ const m=harness();m.guided.active=true;
+ assert.equal(m.code.requestClassic(),true);
+ assert.deepEqual(m.events.filter(x=>['reset-home','close-guided'].includes(x)),
+  ['reset-home','close-guided']);
+ assert.equal(m.guided.active,false);
+ assert.equal(m.events.includes('finalise-aborted'),false);
+});
+test('unfinished guided task prompts before switching to Klassisch',async()=>{
+ const m=harness({archiveActive:true,unfinished:true});m.guided.active=true;
+ assert.equal(m.code.requestClassic(),false);
+ assert.equal(m.elements.guidedHomeConfirm.open,true);
+ assert.equal(m.guided.active,true,'Continue keeps guided page');
+ assert.match(m.elements.guidedHomeConfirmMessage.textContent,/klassischen Ansicht/);
+ assert.match(m.elements.guidedHomeAbort.textContent,/zu Klassisch/);
+ assert.equal(await m.code.abortAndGoHome(),true);
+ assert.ok(m.events.indexOf('finalise-aborted')<m.events.indexOf('close-guided'));
+ assert.equal(m.guided.active,false);
+});
+test('critical RAM/NVM operation cannot be interrupted by the Klassisch switch',()=>{
+ const m=harness({critical:true,archiveActive:true});m.guided.active=true;
+ assert.equal(m.code.requestClassic(),false);
+ assert.equal(m.elements.guidedHomeAbort.hidden,true);
+ assert.equal(m.events.includes('close-guided'),false);
 });
 test('navigation never disconnects USB or calls protected sensor commands',()=>{
  assert.doesNotMatch(script,/disconnect\(|send\(|writeReg\(|maintWrite\(|nvmProgram\(/);
