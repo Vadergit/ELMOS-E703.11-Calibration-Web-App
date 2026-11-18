@@ -1,3 +1,12 @@
+## v0.7.136 – Verbindung und NVM-Freigabe erneut prüfen, ohne Sensorneustart
+
+- Neuer Button **«Verbindung & NVM-Freigabe erneut prüfen (ohne Neustart)»** nach der DSP-Verifikation in klassischer, geführter und kompakter Ansicht.
+- Keine sensorseitige Stromunterbrechung: DSP-Kalibrierregister werden vor und nach einem vollständigen, CRC-geprüften 64-Wort-NVM-Readback verglichen. Der bestehende NVM-Lesepfad wiederholt bei One-Wire die dokumentierten `PLC P` / `PLC T`-Befehle. Es werden keine NVM-Programmierbefehle ausgelöst und keine Druck-/Temperaturmesspunkte gelöscht.
+- Die Chip-UID, dieselbe USB-Sitzung, der Kalibrier-Fit und die unabhängige DSP-Verifikation müssen unverändert sein. Danach wird der normale NVM-Plan erneut erstellt; die bestehenden One-Wire-/Magic-Cookie-/UID-/CRC-/Register-Sperren werden nicht umgangen.
+- Bei geänderten RAM-Koeffizienten bleibt der Datensatz erhalten, aber die DSP-Verifikation wird aus Sicherheitsgründen ungültig. Bei jedem anderen Fehler wird ein älterer NVM-Schreibplan verworfen; eine fehlende Kaltstartfreigabe kann ohne echten Kaltstart nicht ersetzt werden.
+- Die neue Funktion ist keine Wiederherstellung früherer Browser-Sitzungen. Der Button wird erst nach Laden von v0.7.136 sichtbar; bisher nicht persistierte Kalibriersitzungen lassen sich nach einem Reload weiterhin nicht automatisch wiederherstellen.
+- JavaScript-/Offline-Regressionsprüfung ergänzt. Die Funktion muss noch am echten E703.11 mit SSP3 geprüft werden.
+
 ## v0.7.135 – Magic-Cookie: DSP- und AODO-Skalierung im selben NVM-Plan
 
 - Bei bestätigter **PSSC-RAM-Freigabe am originalen SSP3** kann eine ausdrücklich in «Ausgang konfigurieren» vorgemerkte **analoge AODO-Skalierung (S0/S1)** im selben NVM-Abbild wie die DSP-/TK0-Kalibrierung vorbereitet werden. Zuvor wurden diese Register stillschweigend verworfen und die finale Spannungsprüfung blockierte die Kalibrierung.
