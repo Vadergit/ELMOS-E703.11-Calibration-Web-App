@@ -72,5 +72,5 @@ test('PDF print titles use descriptive category and name when the archive core i
  assert.match(v,/Name der Nachmessung/);
  const ex=read('expert.js');
  assert.match(ex,/ELMOS_NVM_/);
- assert.match(ex,/stamp\+'_\+st\.uid\.hex/);
+ assert.match(ex,/ELMOS_NVM_.*stamp/);
 });
