@@ -39,7 +39,7 @@ test('Guided is default; an explicit classic choice survives reload and load cal
   const calls=[],node={addEventListener:type=>calls.push('listen:'+type)};
   let loadCallback=null;
   const context={
-   mode:false,
+   mode:false,location:{hash:''},
    $:()=>node,
    rememberedView:()=>preference,
    open:()=>{calls.push('open');context.mode=true},
@@ -63,7 +63,7 @@ test('Late script load retries a failed guided mounting, but never overrides cho
  let preference='guided',loadCallback,tries=0;
  const el={addEventListener(){}};
  const context={
-  mode:false,$:()=>el,rememberedView:()=>preference,
+  mode:false,location:{hash:''},$:()=>el,rememberedView:()=>preference,
   toggleTopView(){},syncTopMode(){},
   open(){tries++;if(tries===2)context.mode=true},
   window:{addEventListener:(_,fn)=>loadCallback=fn},
@@ -81,7 +81,7 @@ test('Late script load retries a failed guided mounting, but never overrides cho
  assert.equal(tries,2);
 });
 test('A successful guided opening and explicit classic switch update the saved view',()=>{
- const src=section(' function open(){',' function onSensorReset(){');
+ const src=section(' function open(){',' function onSensorReset(');
  const saved=[],classes=new Set();
  let busy=false;
  const root={hidden:true,replaceChildren(){}};
