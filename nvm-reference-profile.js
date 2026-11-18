@@ -24,7 +24,7 @@ const ELMOS_NVM_PROFILE=(()=>{
   const temperatures=[...new Set(points.map(p=>p.temperature))].sort((a,b)=>a-b);
   const readingsAt=t=>{
    const p=points.filter(p=>p.temperature===t&&finite(p.adcT));
-   return p.length&&p.every(p=>Math.abs(p.adcT-p[0].adcT)<=250)?p[0].adcT:null;
+   return p.length&&p.every(x=>Math.abs(x.adcT-p[0].adcT)<=250)?p[0].adcT:null;
   };
   return {
    ...(temperatures.length?{ta:temperatures[0]}:{}),
