@@ -2,7 +2,7 @@
 
 **Ein geführter Kalibrierassistent für den ELMOS E703.11 und das SSP3-Eval-Board.** Ziel ist ein verständlicher Abgleich, der auch ohne tiefere Vorkenntnisse Schritt für Schritt funktioniert. Wer mehr benötigt, kann zusätzliche Messpunkte, DSP-Parameter und einen geschützten Expertenmodus verwenden.
 
-**Version: v0.7.129 · VDD-Schaltung und Empfangsdiagnose bei Auto-Connect** · [Änderungsverlauf](CHANGELOG.md) · **[Geplante Funktionen](ROADMAP.md)**
+**Version: v0.7.130 · Stabile manuelle Chipinitialisierung wiederhergestellt** · [Änderungsverlauf](CHANGELOG.md) · **[Geplante Funktionen](ROADMAP.md)**
 
 Der **Demo-Modus** wird in den Einstellungen erst nach Aktivierung von **Expertenparameter** angezeigt. Er simuliert Sensorwerte und Schreibvorgänge; die echte Hardware wird dabei nicht programmiert.
 
@@ -13,6 +13,12 @@ Der **Demo-Modus** wird in den Einstellungen erst nach Aktivierung von **Experte
 > **Geführter Assistent:** Nach der bestätigten SSP3-Verbindung stehen die neue Schritt-für-Schritt-Führung, die klassische Ansicht und der optionale Kompaktmodus zur Verfügung. Ein E703.11-Chip muss für den Abgleich verbunden sein. Als DIY-Programmer sind ausschliesslich ESP32-C3 SuperMini (v0.12 Labor-Quellcode) und Arduino Pro Micro (v0.28 Labor-Quellcode) vorgesehen. Die originalen ELMOS SSP3-Adapter bleiben separat unterstützt. Der vollständige Hardwaretest der DIY-Programmer ist noch offen.
 >
 > [Geführter Abgleich](docs/GEFUEHRTER_ASSISTENT.md) · [DIY-Programmer (ESP32-C3 / Pro Micro)](docs/USB_BRIDGE_GUIDE.md) · [Pinbelegung der zwei Boards](docs/ESP_BOARD_OPTIONS.md) · [DIY-Firmware-Installer](firmware-update.html)
+
+## v0.7.130 – Rückkehr zum zuletzt funktionierenden manuellen Sensorstart
+
+Die v0.7.129 eingeführte Umstellung der Sensor-VDD-Voreinstellung und der zusätzlichen Verbindungsoption wird rückgängig gemacht. Die manuelle Neuinitialisierung und der bisherige ESP32-C3/Pro-Micro-1-Wire-Ablauf werden technisch wieder auf den Stand der v0.7.128 gesetzt, einschliesslich der bekannten `PLC RECOVER`-Option (nur Sensor-RAM) nach nicht beantwortetem normalem `PLC ACCESS` beziehungsweise `PLC START`. Die neu eingeführten VDD-Schalter in den Einstellungen wurden entfernt.
+
+**Wichtig:** Die bisherige automatische Neuverbindung ist bei `PLC_NO_VALID_FRAME` noch nicht ausreichend mit der erfolgreichen manuellen Neuinitialisierung gleichgesetzt. Auto-Connect bleibt optional und standardmässig ausgeschaltet. Für einen Sensorwechsel bis zur Hardwarebestätigung die manuelle Schaltfläche «Sensor neu initialisieren» verwenden. Auto-Connect bitte in Einstellungen → Verbindung deaktivieren, falls parallele Versuche den Prüfablauf behindern. Die Änderungen sind ein gezielter Rückbau der Regression, keine Bestätigung eines funktionierenden Auto-Connect.
 
 ## v0.7.129 – VDD-Schaltung und PLC_NO_VALID_FRAME verstehen
 

@@ -1,3 +1,10 @@
+## v0.7.130 – Rückbau der Verbindungsregression aus v0.7.129
+
+- Verbindungslogik und Benutzeroberfläche auf die v0.7.128 zurückgesetzt, bei der die manuelle ESP32-C3-Sensorinitialisierung funktionierte.
+- Der in v0.7.129 neu eingeführte VDD-Schalter in den Einstellungen und die Änderung des Standardverhaltens wurden rückgängig gemacht.
+- Die bereits vorhandene, manuell ausgelöste Bridge-Neuinitialisierung mit optionaler PSSC-RAM-Wiederherstellung bleibt erhalten. Auto-Connect bleibt optional; seine Zuverlässigkeit bei `PLC_NO_VALID_FRAME` ist noch nicht bestätigt.
+- Neue Regressionstest-Prüfung für den unveränderten manuellen Recovery-Pfad. Version und Cache erneuert. Vollständiger Hardwaretest ausstehend.
+
 ## v0.7.129 – VDD-Steuerung im laufenden Auto-Connect und PLC RX DIAG
 
 - Sensor-VDD-Steuerung in Einstellungen sichtbar und mit der klassischen Verbindungsoption synchronisiert. Änderungen werden ohne COM-Port-Neustart aktiv; neue Profile starten ohne GPIO10/D7-VDD-Schaltannahme.

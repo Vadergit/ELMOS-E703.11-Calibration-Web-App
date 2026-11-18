@@ -189,8 +189,7 @@ test('automatic ESP32-C3 access honours selected VDD control without implicit RA
  assert.ok(from>0&&to>from);
  const implementation=app.slice(from,to);
  assert.match(implementation,/power=!!st\.sensorPowerEnabled&&\(!autoProbe\|\|st\.iface==='plc'\)/);
- assert.match(implementation,/if\(autoProbe\)\{/);
- assert.match(implementation,/if\(!st\.bridgePsscRam/);
+ assert.match(implementation,/if\(autoProbe\|\|!st\.bridgePsscRam/);
  assert.match(implementation,/detect\(\{requireUid:autoProbe\}\)/);
  assert.match(app,/if\(st\.port===port&&!st\.closing&&\(!st\.chip\|\|!st\.uid\?\.hex\)\)scheduleAutoReconnect\(2800\)/);
 });
@@ -219,8 +218,7 @@ test('auto PLC reconnect honours configured VDD switch to reopen short startup w
  const snippet=app.slice(first,end);
  assert.match(snippet,/power=!!st\.sensorPowerEnabled&&\(!autoProbe\|\|st\.iface==='plc'\)/);
  assert.match(app,/await bridgeAccess\(\{power\}\)/);
- assert.match(app,/if\(autoProbe\)\{/);
- assert.match(app,/if\(!st\.bridgePsscRam/);
+ assert.match(app,/if\(autoProbe\|\|!st\.bridgePsscRam/);
 });
 test('sensor banner shows auto-connect enabled state, attempts and last error',()=>{
  assert.match(html,/id="sensorAutoReconnectStatus"/);
@@ -228,26 +226,21 @@ test('sensor banner shows auto-connect enabled state, attempts and last error',(
  assert.match(app,/Auto-Connect: Sensorprüfung läuft/);
  assert.match(app,/autoReconnectAttempts\+\+/);
  assert.match(app,/autoReconnectLastError=String\(error\.message\|\|error\)/);
- assert.match(html,/data-app-version="0\.7\.129"/);
+ assert.match(html,/data-app-version="0\.7\.130"/);
 });
 
-test('sensor VDD power control persists and syncs live without reconnecting the USB port',()=>{
- assert.match(html,/id="settingsBridgePowerControl"/);
- assert.match(app,/function setBridgePowerControl\(value\)/);
- assert.match(app,/\$\('plcPowerCycle'\)\.checked=lsGet\('elmos-bridge-plcPowerCycle'\)==='1'/);
- assert.match(app,/st\.sensorPowerEnabled=st\.adapterKind==='bridge'&&!demoEnabled&&enabled/);
- assert.match(app,/\$\('plcPowerCycle'\)\.addEventListener\('change',\(\)=>setBridgePowerControl/);
- assert.match(app,/\$\('settingsBridgePowerControl'\)\.addEventListener\('change',\(\)=>setBridgePowerControl/);
-});
-test('every third failed PLC probe runs only available read-only RX diagnostic',()=>{
- const from=app.indexOf(' async function connectBridgeChip(');
- const to=app.indexOf(' // CRC8 verification follows DS',from);
- const body=app.slice(from,to);
- assert.match(body,/if\(autoProbe\)\{/);
- assert.match(body,/autoReconnectAttempts%3===0/);
- assert.match(body,/await noteBridgeRx\(\)/);
- assert.match(body,/if\(!st\.bridgePsscRam\|\|!e\.message/);
- assert.match(app,/const autoMode=bridgePlc\?/);
- assert.match(app,/PLC START · GPIO10\/D7/);
- assert.match(app,/PLC ACCESS · ohne VDD-Neustart/);
+test('manual reinitialization retains bridge recovery and is independent of auto-probe',()=>{
+ const start=app.indexOf(' async function reinitializeSensorOperation(){');
+ const end=app.indexOf(' // Reopen the SAME previously authorised Web Serial port',start);
+ assert.ok(start>0&&end>start);
+ const manual=app.slice(start,end);
+ assert.match(manual,/await bridgeHello\(\)/);
+ assert.match(manual,/await connectBridgeChip\(\)/);
+ assert.doesNotMatch(manual,/connectBridgeChip\(\{autoProbe:true\}\)/);
+ const bridgeStart=app.indexOf(' async function connectBridgeChip(');
+ const bridgeEnd=app.indexOf(' // CRC8 verification follows DS',bridgeStart);
+ const bridge=app.slice(bridgeStart,bridgeEnd);
+ assert.match(bridge,/if\(!st\.bridgePsscRam\|\|!e\.message/);
+ assert.match(bridge,/await bridgeAccess\(\{power,recover:true\}\)/);
+ assert.match(html,/data-app-version="0\.7\.130"/);
 });
