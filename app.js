@@ -933,7 +933,7 @@ if(typeof document!=='undefined') (function UI(){
    st.startupTrials.some(trial=>trial.stage==='PSSC-RAM-Start'&&
     trial.powerRestored&&trial.readVerified&&trial.verifiedUid===st.uid.hex);
  }
- function psscNvmBlock(initial,modified,restoring=false,outputOnly=false,alarmOnly=false){
+ function psscNvmBlock(initial,modified,restoring=false,outputOnly=false,alarmOnly=false,allowCombinedRecovery=false){
   // Unified low-level bridge: no firmware feature-specific NVM address list.
   // Same sensor/boot/UID/CRC checks as SSP3 are performed later in the UI.
   if(st.adapterKind==='bridge'&&st.bridgeUserNvm){
@@ -988,9 +988,17 @@ if(typeof document!=='undefined') (function UI(){
    catch(e){return '1-Wire-Startschutz: '+e.message;}
    return '';
   }
-  const calibrationWords=new Set([CAL.SVDD_INDEX,28,30,31,32,33,34,...Array.from({length:16},(_,i)=>35+i),51,52,53,54,63]);
-  if(modified.some((word,index)=>word!==initial[index]&&!calibrationWords.has(index)))
-   return 'Nach PSSC-RAM-Freigabe sind bei der Kalibrierung ausschliesslich Kalibrierdaten erlaubt. Ausgangs- und Starteinstellungen bleiben unverändert.';
+  if(allowCombinedRecovery){
+   if(st.adapterKind!=='ssp3'||!psscRecoveryProven())
+    return 'Kombinierte Kalibrierung und AODO-Skalierung nach Magic Cookie nur mit originalem SSP3 und bestätigtem Kaltstart derselben Chip-UID.';
+   if(!st.expertOutputPlan||!['1','2','3'].includes(String(st.expertOutputPlan.mode)))
+    return 'Vor der kombinierten NVM-Programmierung die analoge Ausgangskonfiguration ausdrücklich prüfen und vormerken.';
+   if(!$('nvmAutoBackup').checked)
+    return 'Kombinierter NVM-Abgleich nach Magic Cookie benötigt ein automatisches Original-NVM-Backup.';
+  }
+  try{
+   CAL.validateRecoveryCalibrationDiff(initial,modified,{allowAnalogScaling:allowCombinedRecovery});
+  }catch(error){return error.message;}
   return '';
  }
  function hasCurrentNvmBackup(){
@@ -1046,7 +1054,7 @@ if(typeof document!=='undefined') (function UI(){
   if(st.iface!=='plc')nvmReason='1-Wire-Startschutz: Dauerhaftes NVM-Schreiben ausschliesslich über 1-Wire möglich. Bitte per 1-Wire verbinden.';
   else if(!verified||st.mode!=='usb')nvmReason='Zuerst die DSP-Prüfung abschliessen und sicherstellen, dass der echte Chip verbunden ist.';
   else if(!st.nvmBackupVerified||!st.nvmBackup)nvmReason='Zuerst Original-NVM vollständig lesen und prüfen.';
-  else if(!st.calImage)nvmReason='Zuerst die Änderungsliste vorbereiten. Anschliessend kann gespeichert werden.';
+  else if(!st.calImage)nvmReason='Oben auf «Änderungen prüfen» klicken. Damit wird der NVM-Änderungsplan erstellt; es wird noch nichts geschrieben.';
   else if(!recognizedUid||st.uid.ser0!==st.nvmBackup[0]||st.uid.ser1!==st.nvmBackup[1])nvmReason='Chip-UID wurde nicht vollständig mit dem NVM-Backup abgeglichen.';
   const outputStatus=$('outputOneWireStatus');
   const startup=st.nvmBackupVerified&&st.nvmBackup?.length===64?CAL.oneWireStartupStatus(st.nvmBackup):null;
@@ -1076,7 +1084,7 @@ if(typeof document!=='undefined') (function UI(){
   const outputNvmRead=$('outputNvmRead');if(outputNvmRead)outputNvmRead.disabled=!st.port||!st.chip||st.writing||st.calTask||st.nvmWorking;
   if(!nvmReason&&alarmPlanSelected&&!alarmOnly)nvmReason='Alarmänderungen zuerst im RAM übernehmen und erfolgreich rücklesen.';
   if(!nvmReason&&alarmOnly&&!$('nvmAutoBackup').checked)nvmReason='Alarm-NVM: Automatische Sicherung des Original-EEPROM aktivieren.';
-  if(!nvmReason)nvmReason=psscNvmBlock(st.calImage?.before,st.calImage?.after,restoring,outputOnly,alarmOnly);
+  if(!nvmReason)nvmReason=psscNvmBlock(st.calImage?.before,st.calImage?.after,restoring,outputOnly,alarmOnly,!!st.calImage?.recoveryCombined);
   const approvalGranted=nvmReason==='';
   const experimentalRecoveryOutput=outputOnly&&
    (st.psscRamRecovery||(st.regs[0x06]===0x6C04&&st.nvmBackup?.[17]!==0x6C04));
@@ -3251,15 +3259,18 @@ if(typeof document!=='undefined') (function UI(){
    // A temporary One-Wire RAM recovery may only persist calibration words.
    // Ignore any staged output/clipping changes instead of blocking calibration.
    // psscNvmBlock independently verifies the complete before/after NVM diff.
-   const ignoredOutputPlan=recovery&&!!st.expertOutputPlan;
+   const ignoredOutputPlan=recovery&&!!st.expertOutputPlan&&st.expertOutputPlan.mode==='onewire';
    const bridgeSupply=await readNvmBridgeSupply(st.afe0);
    // AN0203: DSP calibration AND AODO scaling must form one coherent NVM image.
    // The original PSSC workflow prepares the complete cfg_t before programming.
    // Auto-stage an unmodified analogue proposal from the visible S0/S1 settings;
    // the explicit NVM diff/confirmation remains required.
    const selectedOutputMode=$('expertOutputMode').value;
-   let outputPlan=st.expertOutputPlan;
-   const autoStageAnalog=!outputPlan&&['1','2','3'].includes(selectedOutputMode);
+   const explicitOutputPlan=st.expertOutputPlan;
+   let outputPlan=explicitOutputPlan;
+   // Never auto-authorize an AODO write after Magic Cookie.
+   // The operator must explicitly confirm the scaling in the output step.
+   const autoStageAnalog=!recovery&&!outputPlan&&['1','2','3'].includes(selectedOutputMode);
    if(autoStageAnalog){
     if(!$('expertScaleEnable').checked)
      throw Error('Analogausgang: Skalierung ist deaktiviert. Vor NVM bitte S0/S1 aktivieren.');
@@ -3271,9 +3282,30 @@ if(typeof document!=='undefined') (function UI(){
       vdd:Number($('psscVdd').value)}
     };
    }
+   const originalMode=(st.nvmBackup[16]>>9)&7;
+   const recoveryCombined=!!(recovery&&explicitOutputPlan&&
+     ['1','2','3'].includes(String(explicitOutputPlan.mode)));
+   if(recoveryCombined){
+    if(st.adapterKind!=='ssp3'||!psscRecoveryProven())
+     throw Error('Magic Cookie: Gemeinsame Kalibrierung und AODO-Skalierung nur mit originalem SSP3 und bestätigtem Kaltstart dieser Chip-UID. Bitte nicht neu verbinden oder den Abgleich zurücksetzen.');
+    if(!$('nvmAutoBackup').checked)
+     throw Error('Magic Cookie: Vor einer kombinierten NVM-Programmierung «Altes NVM automatisch sichern» aktivieren.');
+    if(Number(explicitOutputPlan.mode)!==originalMode)
+     throw Error('Magic Cookie: Der vorhandene AODO-Modus darf nicht geändert werden. Ausgangsart im Schritt «Ausgang konfigurieren» beibehalten.');
+    if(!explicitOutputPlan.scaleEnabled)
+     throw Error('Magic Cookie: Die Ausgangsskalierung muss für S0/S1 ausdrücklich aktiviert sein.');
+   }else if(recovery&&selectedOutputMode!=='onewire'&&originalMode>=1&&originalMode<=3){
+    const oldScaling=CAL.analogOutputStatus(st.nvmBackup,
+      Number($('psscS0').value),Number($('psscS1').value),
+      Number($('psscVdd').value),st.calfit.outputLimit);
+    if(!oldScaling.ok)
+     throw Error('Magic Cookie: Das alte NVM liefert nicht die gewünschten S0/S1-Spannungen. Ohne neue AODO-Koeffizienten darf die Kalibrierung nicht gespeichert werden. In «Ausgang konfigurieren» die Skalierung berechnen, «Ausgangskonfiguration prüfen und vormerken» anklicken und hier erneut «Änderungen prüfen». Die laufende Sitzung nicht neu starten.');
+   }
    let image=CAL.configFrom(st.nvmBackup,st.calfit,st.afe??0x800,{
-    output:recovery?null:outputPlan,bridgeSupply,userId:requestedNvmUserId()
+    output:recovery?(recoveryCombined?explicitOutputPlan:null):outputPlan,
+    bridgeSupply,userId:requestedNvmUserId()
    });
+   image.recoveryCombined=recoveryCombined;
    const includeAlarms=ELMOS_ALARM_EDITOR.pendingForCalibration();
    if(st.alarmOnlyPlan?.duringCalibration&&!includeAlarms)
     throw Error('Alarmänderungen sind nicht erfolgreich im RAM geprüft. Im Schritt «Alarme & Fehler» prüfen oder bewusst auslassen.');
@@ -3306,7 +3338,7 @@ if(typeof document!=='undefined') (function UI(){
    if(autoStageAnalog&&!recovery)st.expertOutputPlan=outputPlan;
    if(st.adapterKind==='bridge'&&!st.bridgeUserNvm&&image.changes.some(c=>c.index===CAL.SVDD_INDEX))
     throw Error('Brückenspannung dauerhaft speichern wird derzeit nur mit SSP3 unterstützt.');
-   const recoveryBlock=psscNvmBlock(image.before,image.after,false,false,false);
+   const recoveryBlock=psscNvmBlock(image.before,image.after,false,false,false,recoveryCombined);
    if(recoveryBlock)throw Error(recoveryBlock);
    if(image.changes.some(c=>(c.index<28&&![16,22,CAL.SVDD_INDEX,...(includeAlarms?[18]:[])].includes(c.index))||c.index===29))throw Error('Unzulässiges NVM-Register im Änderungsplan');
    if(!image.changes.length)throw Error('Keine NVM-Änderungen nötig');
@@ -3320,8 +3352,9 @@ if(typeof document!=='undefined') (function UI(){
    }).join('\n');
    ca('nvmMsg',image.changes.length+' von 64 NVM-Wörtern werden verändert (CRC16 zuletzt). Factory-/Bootschutz geprüft.'+
      (verificationRequiredCount()===1?' Nur ein unabhängiger DSP-Prüfpunkt wurde verifiziert.':'')+
-     (recovery?' Nur Kalibrierdaten werden gespeichert. Ausgangs- und One-Wire-Einstellungen bleiben erhalten.':'')+
-     (ignoredOutputPlan?' Vorgemerkte Ausgangsänderungen inklusive Clipping werden nicht übernommen und können später separat gespeichert werden.':'')+
+     (recoveryCombined?' SSP3-Magic-Cookie-Start bestätigt: Die ausdrücklich vorgemerkte AODO-Skalierung wird zusammen mit den Kalibrierkoeffizienten gespeichert. AODO-Modus und One-Wire-Startregister bleiben unverändert. Original-NVM-Backup ist Pflicht.':
+      recovery?' Nur Kalibrierdaten werden gespeichert. Ausgangs- und One-Wire-Einstellungen bleiben erhalten.':'')+
+     (ignoredOutputPlan?' Permanentes One Wire ist im Original-NVM bestätigt; die AODO-Einstellungen bleiben unverändert.':'')+
      (autoStageAnalog&&!recovery?' Analogskalierung wurde anhand der sichtbaren S0/S1-Werte automatisch in die Änderungsliste aufgenommen.':'')+
      (includeAlarms?' Alarm-/EOC- und Fehlerregister sind in derselben NVM-Änderungsliste enthalten.':''),
      'warn');
@@ -3378,7 +3411,7 @@ if(typeof document!=='undefined') (function UI(){
     if(modified.some((word,i)=>expected.after[i]!==word))
      throw Error('Alarm-NVM-Plan wurde verändert: Bitte erneut prüfen und RAM testen.');
    }
-   const recoveryBlock=psscNvmBlock(initial,modified,restoring,outputOnly,alarmOnly);
+   const recoveryBlock=psscNvmBlock(initial,modified,restoring,outputOnly,alarmOnly,!!st.calImage?.recoveryCombined);
    if(recoveryBlock)throw Error(recoveryBlock);
    const alarmIntegrated=!restoring&&!alarmOnly&&!outputOnly&&st.calImage?.alarmIntegrated===true;
    const allowSvdd=!restoring&&!outputOnly&&!alarmOnly;
@@ -3484,7 +3517,7 @@ if(typeof document!=='undefined') (function UI(){
      throw Error(`Chip-NVM hat sich seit dem Backup verändert (Index ${i}). Änderungsliste erneut vorbereiten.`);
     }
    }
-   const finalRecoveryBlock=psscNvmBlock(initial,modified,restoring,outputOnly);
+   const finalRecoveryBlock=psscNvmBlock(initial,modified,restoring,outputOnly,alarmOnly,!!st.calImage?.recoveryCombined);
    if(finalRecoveryBlock)throw Error(finalRecoveryBlock);
    CAL.protectStartupCommunication(initial,modified,{allowSvdd,allowAlarmMask:alarmOnly||alarmIntegrated});
    for(let i=0;i<28;i++)if(modified[i]!==initial[i]&&(restoring||![16,...((alarmOnly||alarmIntegrated)?[18,22]:[22]),...(allowSvdd?[CAL.SVDD_INDEX]:[])].includes(i)))throw Error('Boot-/Werksbereich verändert');
