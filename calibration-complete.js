@@ -26,8 +26,13 @@ const ELMOS_CALIBRATION_COMPLETE=(()=>{
  function build(record){
   if(!eligible(record))throw Error('Nur ein bestätigter Kalibrier-NVM-Schreibvorgang erhält eine Komplettdatei.');
   const before=eventData(last(record,'nvm_before')),after=eventData(last(record,'nvm_after'));
-  const fit=eventData(last(record,'coefficient_fit')),fitSolution=fit.solution||null;
-  const captures=events(record,'calibration_point').map(e=>({...clone(eventData(e).point||{}),recordedAt:e.at}));
+  const fit=eventData(last(record,'coefficient_fit'));
+  const baseline=eventData(last(record,'nvm_before')).calibrationReport||null;
+  const fitSolution=fit.solution||baseline?.coefficientFit||null;
+  const originalCaptures=events(record,'calibration_point').map(e=>({...clone(eventData(e).point||{}),recordedAt:e.at}));
+  // A direct NVM write may have started the archive after the original
+  // measurements. Preserve the current session's full report as fallback.
+  const captures=originalCaptures.length?originalCaptures:clone(baseline?.calibrationPoints||[]);
   const verifications=events(record,'verification_attempt').map(e=>({...clone(eventData(e)),recordedAt:e.at}));
   const ramWritten=events(record,'calibration_ram_written').map(e=>({...clone(eventData(e)),recordedAt:e.at}));
   const postBoot=last(record,'post_boot_verified');
@@ -70,6 +75,7 @@ const ELMOS_CALIBRATION_COMPLETE=(()=>{
    },
    verification:{dspAttempts:verifications,postBootVerified:!!postBoot,
     errors:events(record,'error').map(e=>({at:e.at,data:clone(eventData(e))}))},
+   calibrationSessionReport:clone(baseline),
    initialSnapshot:clone(record.initial??null),finalSnapshot:clone(record.final??null),
    // Full original archive is included so no recorded detail is silently lost.
    archiveRecord:clone(record)
