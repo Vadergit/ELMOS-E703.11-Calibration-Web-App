@@ -1615,3 +1615,43 @@ test('DSP limit and saturation display a prominent, deduplicated accessible dial
  assert.equal(ui.dspRiskApplyLimit.hidden,true,'must not offer a non-reducing limit');
  assert.equal(opens,2,'a new actionable warning may appear once');
 });
+
+
+test('Sensorbrücken-Rechner loads CM64 and complete calibration JSON without discarding NVM on metadata failure',()=>{
+ const RECON=require('../nvm-reconstruction.js');
+ const words=Array(64).fill(0);
+ Object.assign(words,{0:18555,1:394,2:479,3:56064,4:249,5:1793,6:9250,7:6673,
+  9:3041,10:1026,11:54003,12:10496,13:4035,14:684,15:18176,16:5078,
+  17:27648,18:49152,19:2079,20:15,21:1,22:2176,23:132,24:22947,
+  25:12698,26:500,27:3458,28:6400,29:4436,58:4194,59:36044,
+  60:29488,61:2688,62:32640,63:10518});
+ const nvm={format:'E70311-CM64-v2',uid:'0020018A487B',version:32,words};
+ const parsed=RECON.parseNvmImport(nvm,'ELMOS_NVM_20261118.json');
+ assert.equal(parsed.words.length,64);
+ assert.equal(parsed.uid,'0020018A487B');
+ assert.equal(parsed.noPressureCalibration,true,'raw NVM contains no pressure calibration');
+ assert.equal(parsed.full,false);
+ assert.equal(RECON.calculate(parsed.words).ok,true,'complete EEPROM remains analysable');
+ const complete={format:'E70311-CALIBRATION-COMPLETE-v1',type:'calibration',
+  chipUID:'0020018A487B',verifiedNvm:true,nvm:{
+   programmed:{words,uid:'0020018A487B',crc16:10518}}};
+ const good=RECON.parseNvmImport(complete,'Komplettabgleich.json',()=>({name:'Confirmed references'}));
+ assert.equal(good.full,true);
+ assert.equal(good.profile.name,'Confirmed references');
+ const missingReferences=RECON.parseNvmImport(complete,'Komplettabgleich.json',()=>{
+  throw Error('Reference metadata unavailable');
+ });
+ assert.equal(missingReferences.words.length,64,
+  'invalid optional profile must never discard confirmed EEPROM');
+ assert.match(missingReferences.profileWarning,/Reference metadata unavailable/);
+ assert.throws(()=>RECON.parseNvmImport({...nvm,uid:'0020018A48FF'}),/Chip-UID/);
+ assert.throws(()=>RECON.parseNvmImport({...nvm,words:words.slice(1)}),/64-Wort/);
+ assert.throws(()=>RECON.parseNvmImport({...complete,verifiedNvm:false}),/bestätigten/);
+ const src=read('nvm-reconstruction.js'),style=read('nvm-reconstruction.css');
+ assert.ok(src.includes("upload.addEventListener('click',()=>file.click())"));
+ assert.ok(src.includes("state.preferred='file'"));
+ assert.ok(src.includes("file.value='';"));
+ assert.ok(src.includes('state.fileNotice='));
+ assert.ok(src.includes('state.fileError='));
+ assert.ok(style.includes('.nvmrecon-import-feedback'));
+});
