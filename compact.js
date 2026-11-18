@@ -108,6 +108,8 @@ const ELMOS_COMPACT=(()=>{
   label('nvmAutoBackup','cpNvmTop');
   actions(['nvmPrepare'],'cpNvmPrepare');
   moveId('nvmProgress','cpNvmPrepare');
+  for(const id of ['nvmRecheckActions','nvmRecheckHint'])moveId(id,'cpNvmPrepare');
+  moveId('nvmRecheckMsg','cpNvmStatus');
   moveId('nvmUserIdField','cpNvmUid');
   actions(['nvmProgram'],'cpNvmProgram');
   moveId('nvmWriteStatus','cpNvmProgram');
