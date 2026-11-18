@@ -270,6 +270,10 @@ const ELMOS_ARCHIVE=(()=>{
   if(kind==='nvm_after'&&Array.isArray(data.words)&&Number.isInteger(data.words[30]))
    S.record.customUID='0x'+data.words[30].toString(16).padStart(4,'0').toUpperCase();
   await flush();
+  if(kind==='nvm_after'||kind==='post_boot_verified'){
+   if(await saveCalibrationComplete(S.record))
+    note('Vollständige Abgleichdatei automatisch im Archivordner gespeichert.');
+  }
   renderActive();
   return true;
  }
@@ -355,6 +359,24 @@ const ELMOS_ARCHIVE=(()=>{
     ' Messpunktgruppen gefunden. Fehlende JSONL-Dateien wiederherstellen.');
   return result;
  }
+ async function saveCalibrationComplete(record){
+  if(record?.type!=='calibration'||!window.ELMOS_CALIBRATION_COMPLETE?.eligible(record))return false;
+  const content=window.ELMOS_CALIBRATION_COMPLETE.build(record);
+  const filename=window.ELMOS_CALIBRATION_COMPLETE.filename(record);
+  const folder=S.dir;
+  if(!folder)throw Error('Archivordner fehlt: Komplettdatei konnte nicht gespeichert werden.');
+  S.writeQueue=S.writeQueue.catch(()=>{}).then(async()=>{
+   if(!await permitted(false))throw Error('Archivordner für die Komplettdatei nicht mehr beschreibbar.');
+   const file=await folder.getFileHandle(filename,{create:true});
+   const writer=await file.createWritable();
+   try{await writer.write(JSON.stringify(content,null,2));await writer.close()}
+   catch(error){try{await writer.abort()}catch(_){}throw error}
+   // A successful close means the file has been committed to the selected folder.
+  });
+  try{await S.writeQueue}
+  catch(error){note('Kompletter Abgleich konnte nicht gespeichert werden: '+error.message,true);throw error}
+  return true;
+ }
  async function finalise(status='incomplete',{snapshot}={}){
   if(!S.record)return;
   if(S.measuring)throw Error('Messung läuft');
@@ -381,6 +403,9 @@ const ELMOS_ARCHIVE=(()=>{
   if(S.record.type==='testlog'&&S.debugLines.length)
    S.record.events.push({at:iso(),kind:'debug_tail',data:{lines:S.debugLines.splice(0),dropped:S.debugDropped}});
   await flush();
+  // Rewrite the SAME portable file at completion, now including the final
+  // status, all later events and final NVM/RAM snapshot.
+  if(S.record.type==='calibration')await saveCalibrationComplete(S.record);
   const finished=clone(S.record);
   S.record=null;S.filename=null;S.step=0;
   renderActive();await refresh();return finished;
