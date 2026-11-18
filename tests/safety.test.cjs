@@ -1351,3 +1351,49 @@ test('Output-only NVM action displays persistent stages and preserves verified p
  assert.equal(elements.nvmWriteStatus.dataset.state,'error');
  assert.equal(elements.nvmWriteBar.hidden,true);
 });
+
+
+test('NVM Magic-Cookie proof: PSSC and genuine AN0204 SSP3 cold starts are equivalent',()=>{
+ const src=read('app.js');
+ const begin=src.indexOf(' function psscRecoveryProven(){');
+ const end=src.indexOf(' function psscNvmBlock(',begin);
+ assert.ok(begin>0&&end>begin,'cold-start proof helper must exist');
+ const make=new Function('st',src.slice(begin,end)+'return psscRecoveryProven;');
+ const port={},uid='0020018A487B';
+ const power={port,session:7,stage:'verified',powerRestored:true,
+  readVerified:true,verifiedUid:uid,plcAddress:'0x6C',plcEnabledInRam:true,
+  steps:[{command:'PWR_OFF 03E8',ok:true},
+         {command:'PWR_ON 0C80 00C8 0 -> PLC T',ok:true}]};
+ const st={adapterKind:'ssp3',iface:'plc',port,chip:true,uid:{hex:uid},
+  sessionIndex:7,plcAddressVerified:true,plcAddress:0x6C,
+  startupTrials:[],powerCycleResult:power};
+ assert.equal(make(st)(),true,'full AN0204 cold start must unlock proof');
+ const pssc={stage:'PSSC-RAM-Start',port,session:7,
+  powerRestored:true,readVerified:true,verifiedUid:uid};
+ assert.equal(make({...st,powerCycleResult:null,startupTrials:[pssc]})(),true,
+  'PSSC cold start remains supported');
+ for(const [name,override] of Object.entries({
+  noOff:{steps:power.steps.slice(1)},
+  noOn:{steps:power.steps.slice(0,1)},
+  wrongUid:{verifiedUid:'DEADBEEF'},
+  staleSession:{session:6},
+  stalePort:{port:{}},
+  notRead:{readVerified:false},
+  powerNotRestored:{powerRestored:false},
+  wrongAddress:{plcAddress:'0x7C'},
+  plcNotEnabled:{plcEnabledInRam:false},
+  noRamConfirmation:{plcEnabledInRam:null},
+  failedStartup:{stage:'failed'}
+ })){
+  assert.equal(make({...st,powerCycleResult:{...power,...override}})(),false,name);
+ }
+ assert.equal(make({...st,plcAddress:0x7C})(),false,'current address mismatch');
+ assert.equal(make({...st,plcAddressVerified:false})(),false,'address not verified');
+ assert.equal(make({...st,chip:false})(),false,'chip missing');
+ assert.equal(make({...st,adapterKind:'bridge'})(),false,'bridge cannot borrow SSP3 proof');
+ assert.equal(make({...st,sessionIndex:8})(),false,'connection session changed');
+ assert.equal(make({...st,powerCycleResult:null,startupTrials:[{...pssc,verifiedUid:'OTHER'}]})(),false,
+  'PSSC proof must match UID');
+ assert.equal(make({...st,powerCycleResult:null,startupTrials:[{...pssc,port:{}}]})(),false,
+  'PSSC proof must match USB port');
+});
