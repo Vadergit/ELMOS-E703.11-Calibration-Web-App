@@ -1023,8 +1023,39 @@ if(typeof document!=='undefined') (function UI(){
    proof.uid===st.uid.hex&&proof.words===st.nvmBackup&&st.nvmBackupVerified&&
    st.nvmBackup.length===64&&st.uid.ser0===st.nvmBackup[0]&&st.uid.ser1===st.nvmBackup[1]);
  }
+ // Read-only early warning: an existing analogue NVM image cannot produce
+ // the new DSP endpoint voltages unless a matching AODO plan was confirmed.
+ // This is advisory only; the final NVM diff/UID/CRC/write guards remain authoritative.
+ function outputScalingPreflight(){
+  if(!st.calfit||!st.calStaged||!hasCurrentNvmBackup())
+   return {required:false,reason:''};
+  const mode=String($('expertOutputMode').value);
+  if(!['1','2','3'].includes(mode))return {required:false,reason:''};
+  const vdd=Number($('psscVdd').value),s0=Number($('psscS0').value),
+   s1=Number($('psscS1').value),limit=st.calfit.outputLimit;
+  const old=CAL.analogOutputStatus(st.nvmBackup,s0,s1,vdd,limit);
+  if(old.ok)return {required:false,reason:''};
+  const proposed=st.expertOutputPlan;
+  if(proposed&&String(proposed.mode)===mode&&proposed.scaleEnabled){
+   try{
+    const image=CAL.prepareOutputConfig(st.nvmBackup,proposed,limit);
+    if(CAL.analogOutputStatus(image,s0,s1,vdd,limit).ok)
+     return {required:false,reason:''};
+   }catch(_){/* An invalid or stale plan must be reviewed again. */}
+  }
+  return {required:true,reason:old.reason||'AODO stimmt nicht mit den DSP-Endpunkten überein'};
+ }
  function renderFlowState(){
   ELMOS_ALARM_EDITOR.refresh();
+  const outputPreflight=outputScalingPreflight();
+  for(const id of ['outputScalingAdvisory','nvmOutputAdvisory']){
+   const field=$(id);
+   if(!field)continue;
+   field.hidden=!outputPreflight.required;
+   if(outputPreflight.required)field.textContent=
+    'Ausgangsskalierung für den aktuellen DSP-Bereich fehlt: '+outputPreflight.reason+
+    '. Im Schritt «Ausgang» die Skalierung für S0/S1 neu berechnen und «Ausgangskonfiguration prüfen und vormerken» anklicken. Erst danach zum NVM wechseln. Die aktuellen Messpunkte bleiben erhalten.';
+  }
   updateVerificationProgress();
   const ready=coefficientSettingsCurrent()&&calEndpointsReady();
   const enabled=ready&&!!st.port&&!!st.chip&&st.mode==='usb'&&!st.writing&&!st.calTask&&!st.nvmWorking;
@@ -2985,6 +3016,9 @@ if(typeof document!=='undefined') (function UI(){
    if(fitMode==='tk0'&&(solution.pressureOnly||solution.ignoredTemperaturePoints!==0||
        solution.points!==st.calpoints.length||!Array.isArray(solution.registers.tcoeffs)))
     throw Error('TK0-Berechnung unvollständig: alle gemessenen Druck-/Temperaturpunkte müssen berücksichtigt werden.');
+    // Any new DSP fit invalidates a previous analogue output proposal:
+    // gain/offset must be recalculated against this exact DSP end range.
+    st.expertOutputPlan=null;st.outputOnlyPlan=null;
     st.calfit=solution;st.calImage=null;st.calStaged=false;st.calVerified=false;st.calValidation=[];renderDSPLive();
     if(window.ELMOS_ARCHIVE?.active)void window.ELMOS_ARCHIVE.event('coefficient_fit',{solution,AFE:{...st.staged}}).catch(e=>show('calFitMsg','Archivfehler: '+e.message,'error'));
    const r=solution.registers;
@@ -2992,7 +3026,9 @@ if(typeof document!=='undefined') (function UI(){
    const note='DSP-Ziel ±'+fmt(solution.outputLimit)+' Digits (Reserve bis +32’767: '+fmt(32767-solution.outputLimit)+' Digits). Max. Fitfehler '+solution.stats.maxDigits.toFixed(2)+' Digits · RMS '+solution.stats.rmsDigits.toFixed(2)+' Digits.';
    const noTk=solution.pressureOnly&&solution.ignoredTemperaturePoints>0;
    const scope=noTk?' OHNE TK-Kompensation: Nur '+solution.points+' von '+solution.recordedPoints+' Messpunkten bei '+solution.referenceTemperature+' °C wurden für den Druckfit verwendet. Der Temperatureinfluss ist NICHT kompensiert oder als null nachgewiesen; bisherige T-Register bleiben unverändert.':'';
-   show('calFitMsg','Berechnung erfolgreich ('+solution.points+' verwendete von '+st.calpoints.length+' erfassten Punkten). '+note+scope+' Jetzt RAM-Schreibfreigabe aktivieren, Original-NVM prüfen und dann die berechneten Koeffizienten ins RAM übertragen. Die JavaScript-Berechnung ist noch nicht als identisch mit der Hersteller-DLL bestätigt.',noTk||solution.stats.maxDigits>100?'warn':'success');
+   const tightHeadroom=solution.outputLimit>=31000;
+   const headroomWarning=tightHeadroom?' Achtung: Der DSP-Zielbereich liegt nahe der 16-Bit-Grenze. Auch bei gutem numerischem Fit kann der reale Chip DSP-Sättigung melden. Bei STATUS_SYNC.dsp_sat den DSP-Endwert verkleinern, neu rechnen und RAM/DSP erneut prüfen.':'';
+   show('calFitMsg','Berechnung erfolgreich ('+solution.points+' verwendete von '+st.calpoints.length+' erfassten Punkten). '+note+scope+headroomWarning+' Jetzt RAM-Schreibfreigabe aktivieren, Original-NVM prüfen und dann die berechneten Koeffizienten ins RAM übertragen. Die JavaScript-Berechnung ist noch nicht als identisch mit der Hersteller-DLL bestätigt.',noTk||solution.stats.maxDigits>100||tightHeadroom?'warn':'success');
    show('calRamStageMsg','Koeffizienten berechnet, aber noch nicht ins Chip-RAM übertragen.','warn');
    renderFlowState()
   }catch(e){
@@ -3179,8 +3215,23 @@ if(typeof document!=='undefined') (function UI(){
    if(!sameBoot(before,await bootSnapshot()))throw Error('Bootregister nach Kalibrier-RAM-Schreiben verändert');
    st.calStaged=true;st.calVerified=false;st.calValidation=[];st.calImage=null;st.dsp=null;renderDSPLive();
    await window.ELMOS_ARCHIVE?.event('calibration_ram_written',{registerChanges:changes,verified:true,supply:archiveVoltages()});
-   ca('calRamStageMsg',`${changes.length} DSP-Wörter ins RAM geschrieben und einzeln erfolgreich rückgelesen. Jetzt im nächsten Schritt DSP_S unabhängig prüfen.`,'success');
-   ca('calRamMsg','DSP-Koeffizienten ins RAM übertragen. Bitte Prüfdruck einstellen und DSP_S kontrollieren.','warn');
+   // Diagnostic only: an actual DSP saturation may be visible immediately
+   // after RAM staging. Do not silently treat a successful readback as a
+   // successful DSP fit. STATUS_SYNC can reflect a previous conversion, so
+   // independent measurement in step 7 remains mandatory.
+   let saturationWarning='';
+   try{
+    const status=await readReg(0x32);
+    if(status&0x0400){
+     const dsp=P.sign16(await readReg(0x30));
+     saturationWarning='STATUS_SYNC.dsp_sat gesetzt (0x'+h(status,2)+'), DSP_S aktuell '+
+      fmt(dsp)+' Digits. Mögliche DSP-Sättigung bei den aktuellen Bedingungen. Im nächsten Schritt einen neuen unabhängigen Prüfwert messen. Falls das Bit erneut gesetzt ist, zurück zur Berechnung und den DSP-Zielbereich reduzieren; Messpunkte bleiben erhalten. Keine NVM-Freigabe.';
+    }
+   }catch(error){logging('Optionale STATUS_SYNC-Prüfung nach RAM-Schreiben: '+error.message)}
+   ca('calRamStageMsg',`${changes.length} DSP-Wörter ins RAM geschrieben und einzeln erfolgreich rückgelesen. `+
+    (saturationWarning||'Jetzt im nächsten Schritt DSP_S unabhängig prüfen.'),saturationWarning?'warn':'success');
+   ca('calRamMsg',saturationWarning||
+    'DSP-Koeffizienten ins RAM übertragen. Bitte Prüfdruck einstellen und DSP_S kontrollieren.',saturationWarning?'warn':'warn');
   }catch(e){
    st.calStaged=false;st.calVerified=false;st.calImage=null;
    logging('DSP-RAM-Übernahme: '+e.message);
@@ -3215,7 +3266,15 @@ if(typeof document!=='undefined') (function UI(){
    const got=P.sign16(await readReg(0x30)),target=2*outputLimit*(p-pmin)/(pmax-pmin)-outputLimit;
    updateDSP(got,'usb');
    const stat=await readReg(0x32),delta=got-target,errorBar=delta/(2*outputLimit)*(pmax-pmin);
-   if(stat&(1<<10))throw Error('DSP-Sättigung erkannt (STATUS_SYNC.dsp_sat). Programmierung gesperrt.');
+   if(stat&0x0400){
+    const candidate=Math.max(1000,Math.floor((outputLimit-1500)/500)*500);
+    throw Error('DSP-Sättigung bei der unabhängigen Prüfung: STATUS_SYNC=0x'+h(stat,2)+
+     ' (dsp_sat gesetzt), DSP_S='+fmt(got)+' Digits, Soll='+target.toFixed(0)+
+     ' Digits bei '+p+' '+pressureUnit()+'. Der Chip meldet interne Sättigung, auch wenn der Anzeigewert plausibel aussieht. '+
+     'Prüfe den tatsächlich anliegenden Druck und die Temperatur. Danach zurück zu Schritt 6 «Koeffizienten», '+
+     'DSP-Endwert beispielsweise auf ±'+fmt(candidate)+' Digits reduzieren, neu berechnen und die Koeffizienten erneut ins RAM übertragen. '+
+     'Messpunkte nicht löschen. NVM bleibt bis zu einer bestandenen neuen DSP-Prüfung gesperrt.');
+   }
    await window.ELMOS_ARCHIVE?.event('verification_attempt',{slot,pressure:p,temperature:temp,dspS:got,dspTarget:target,statusSync:stat,pressureDeviation:errorBar,tolerance:tol,pass:Math.abs(errorBar)<=tol,supply:archiveVoltages()});
    if(Math.abs(errorBar)>tol){
     st.calValidation=[];st.calVerified=false;st.calImage=null;
@@ -4992,7 +5051,8 @@ if(typeof document!=='undefined') (function UI(){
    points:st.calpoints.map(x=>({kind:x.kind,slot:x.slot,at:x.at,pressure:x.pressure,temperature:x.temperature,
     adc_s:x.adc_s,adc_t:x.adc_t,adc_tc:x.adc_tc,spread:x.spread,sampleCount:x.sampleCount,temperatureSource:x.temperatureSource})),
    calStaged:!!st.calStaged,calVerified:verificationComplete(),nvmDone:!!st.nvmDone,
-   nvmBackupVerified:!!st.nvmBackupVerified,outputReady:expert.outputReady()
+   nvmBackupVerified:!!st.nvmBackupVerified,outputReady:expert.outputReady(),
+   outputScalingRequired:outputScalingPreflight().required
   }),
   navigate:n=>step(n),
   closeSettings:()=>toggleSettings(false),
