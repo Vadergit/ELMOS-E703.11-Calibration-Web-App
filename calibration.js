@@ -386,6 +386,31 @@ const ELMOS_CAL = (() => {
   protectStartupCommunication(original,out);
   return out;
  }
+  /**
+   * Allowed NVM changes after a temporary PSSC/1-Wire RAM recovery.
+   * Default remains calibration-only. Analogue scaling/clipping may be added
+   * only when the UI has separately verified the same sensor's SSP3 cold start,
+   * the original AODO mode, and a user-approved output plan.
+   * This helper is pure: it cannot grant a hardware writing permission.
+   */
+  function validateRecoveryCalibrationDiff(before,after,{allowAnalogScaling=false}={}){
+   if(!Array.isArray(before)||!Array.isArray(after)||before.length!==64||after.length!==64||
+      [...before,...after].some(w=>!Number.isInteger(w)||w<0||w>0xFFFF))
+    throw Error('Recovery-NVM: ungültiges 64-Wort-Abbild');
+   const calibrationWords=new Set([SVDD_INDEX,28,30,31,32,33,34,...Array.from({length:16},(_,i)=>35+i),51,52,53,54,63]);
+   const outputWords=new Set([16,57,58,59,60]);
+   const changed=after.map((word,index)=>word===before[index]?null:index).filter(index=>index!==null);
+   const outputChanged=changed.some(index=>outputWords.has(index));
+   if(outputChanged&&!allowAnalogScaling)
+    throw Error('Nach PSSC-RAM-Freigabe ist AODO nur mit bestätigter SSP3-Recovery und ausdrücklich vorgemerkter Ausgangsskalierung erlaubt.');
+   if(changed.some(index=>!calibrationWords.has(index)&&!(allowAnalogScaling&&outputWords.has(index))))
+    throw Error('Nach PSSC-RAM-Freigabe sind nur Kalibrierdaten sowie ausdrücklich freigegebene AODO-Skalierung/Clipping erlaubt.');
+   if(allowAnalogScaling&&
+      (before[22]!==after[22]||((before[16]^after[16])&~((1<<6)|(1<<7)))!==0))
+    throw Error('Recovery-NVM: AODO-Modus und CFG_AODO müssen unverändert bleiben. Nur scale_en/limit_en dürfen in CFG_EN wechseln.');
+   protectStartupCommunication(before,after,{allowSvdd:true});
+   return {outputChanged,changes:changed.length};
+  }
   function configFrom(original,solution,afeWord,opts={}){
   // Second line of defence: never persist an old/incomplete TK0 pressure-only fit.
   if(solution?.fitMode==='tk0'&&(solution.orderS!==1||solution.orderT!==1||solution.pressureOnly||
@@ -431,6 +456,6 @@ const ELMOS_CAL = (() => {
   Number.isInteger(required)&&required>=1&&required<=10&&Array.isArray(records)&&
   Array.from({length:required},(_,slot)=>records.some(point=>
    point?.slot===slot&&Number.isFinite(point.errorBar))).every(Boolean);
- return {SVDD_INDEX,SVDD_MASK,fit,suggestDspLimit,solveFit,crc16,crc8,configFrom,prepareOutputConfig,protectStartupCommunication,oneWireStartupStatus,oneWireOnlyStatus,analogScaling,analogOutputStatus,elmosDspTarget,elmosTemperatureTarget,fromQ,q,signed,independentVerificationPoint,verificationPointsSufficient,temperatureSourceFromAfe2,dspTemperatureCelsius,isFactoryTemperatureProfile,factoryInternalTemperatureCelsius,factoryTemperatureAddresses,programmedTemperatureAddresses,programmedTemperatureProfileMatches};
+ return {SVDD_INDEX,SVDD_MASK,fit,suggestDspLimit,solveFit,crc16,crc8,configFrom,prepareOutputConfig,validateRecoveryCalibrationDiff,protectStartupCommunication,oneWireStartupStatus,oneWireOnlyStatus,analogScaling,analogOutputStatus,elmosDspTarget,elmosTemperatureTarget,fromQ,q,signed,independentVerificationPoint,verificationPointsSufficient,temperatureSourceFromAfe2,dspTemperatureCelsius,isFactoryTemperatureProfile,factoryInternalTemperatureCelsius,factoryTemperatureAddresses,programmedTemperatureAddresses,programmedTemperatureProfileMatches};
 })();
 if(typeof module!=='undefined'&&module.exports)module.exports=ELMOS_CAL;
