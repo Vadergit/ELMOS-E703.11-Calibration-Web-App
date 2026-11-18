@@ -1028,6 +1028,19 @@ const ELMOS_GUIDED=(()=>{
   saveView('classic');
   window.ELMOS_GUIDED_API?.refresh?.();
  }
+ // Only called after the central home navigation has safely stopped and archived
+ // an unfinished task. Pure navigation: no sensor writes or USB changes.
+ function resetForHome(){
+  if(!mode)return false;
+  nextSensorPending=null;nextSensorBusy=false;connectionOpen=false;connectionBusy=false;
+  task='calibration';stage=0;visited=new Set([0]);
+  plan=null;signature=null;seriesPointFields=null;selectedPoint=0;
+  latestCapture=null;lastCaptureRenderKey=null;chipResetPending=false;
+  render();
+  window.scrollTo({top:0,behavior:'auto'});
+  return true;
+ }
+ function hasUnfinishedTask(){return !!(mode&&(stage>0||nextSensorPending)&&stage!==10)}
  function onSensorReset({portDisconnected=false}={}){
   if(!mode||nextSensorPending)return;
   if(pendingCapture){window.clearInterval(pendingCapture);pendingCapture=null}
@@ -1089,7 +1102,7 @@ const ELMOS_GUIDED=(()=>{
      $('calUnit').value!==plan.unit)return null;
   return {pCount:plan.pCount,tCount:plan.tCount,fitMode:plan.fitMode};
  }
- return {init,open,close,goToStart:()=>{if(mode&&!nextSensorPending)goto(0)},onConnected,onSensorReset,makePlan,planForPreset:()=>mode&&stage>=1&&stage<=2?makePlan():plan,isOpen:()=>mode,appliedPlanForConfig};
+ return {init,open,close,goToStart:()=>{if(mode&&!nextSensorPending)goto(0)},resetForHome,hasUnfinishedTask,onConnected,onSensorReset,makePlan,planForPreset:()=>mode&&stage>=1&&stage<=2?makePlan():plan,isOpen:()=>mode,appliedPlanForConfig};
 })();
 if(typeof window!=='undefined')window.ELMOS_GUIDED=ELMOS_GUIDED;
 if(typeof document!=='undefined'){
