@@ -64,7 +64,7 @@ test('NVM calculator visual polish is scoped, responsive and keeps all inputs wo
 test('NVM calculator reads fresh 64-word sensor image with existing UID/CRC verified path',()=>{
  const html=read('index.html'),app=read('app.js'),expert=read('expert.js'),calc=read('nvm-reconstruction.js');
  assert.doesNotMatch(html,/id="nvmCalculatorOpen"/);
- assert.match(html,/NVM-Rechner<\/span><\/button>/);
+ assert.match(html,/Sensorbrücken-Rechner<\/span><\/button>/);
  assert.match(calc,/id='nvmReconReadSensor'/);
  assert.match(calc,/state\.preference|state\.preferred='eeprom'/);
  assert.match(calc,/AKTUELLER SENSOR · NVM/);
@@ -94,4 +94,24 @@ test('DSP target source and temperature model are explicitly distinguished from 
  assert.match(app,/Temperaturmodell: nicht eindeutig im NVM · AN0203 wird angenommen/);
  assert.match(app,/nvmrecon-reference-hint/);
  assert.match(html,/nvm-reconstruction\.css\?v=0\.3\.1/);
+});
+
+test('Sensorbrücken-Rechner is named consistently in navigation, tool and page titles',()=>{
+ const html=read('index.html'),app=read('app.js'),guided=read('guided.js');
+ const legacy=read('nvm-rechner.html'),formula=read('nvm-formeln.html');
+ const lang=read('language-pack.js');
+ assert.match(html,/data-step="10"[^>]*><span class="num">▣<\/span><span>Sensorbrücken-Rechner<\/span>/);
+ assert.match(html,/data-open-nvm[^>]*><span>Sensorbrücken-Rechner<\/span>/);
+ assert.match(html,/<h2>Sensorbrücken-Rechner<\/h2>/);
+ assert.match(html,/aria-label="Sensorbrücken-Rechner direkt in der App"/);
+ assert.match(html,/data-next="10">Sensorbrücken-Rechner öffnen/);
+ assert.match(guided,/data-gw-task="nvm"[^>]*>.*?<strong>Sensorbrücken-Rechner<\/strong>/);
+ assert.match(guided,/Für den Sensorbrücken-Rechner und das Archiv/);
+ assert.match(legacy,/<title>Sensorbrücken-Rechner/);
+ assert.match(formula,/<title>Formeln verstehen · ELMOS E703\.11 Sensorbrücken-Rechner<\/title>/);
+ assert.match(app,/document\.title=next===10\?'Sensorbrücken-Rechner · ELMOS E703\.11'/);
+ assert.match(lang,/"Sensorbrücken-Rechner": "Sensor Bridge Calculator"/);
+ assert.doesNotMatch(html,/NVM-Rückrechner|NVM-Rechner<\/span>/);
+ assert.doesNotMatch(guided,/NVM-Rückrechner/);
+ assert.match(legacy,/index\.html#nvm-rechner/,'Existing bookmarks continue to work');
 });

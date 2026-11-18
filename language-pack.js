@@ -1,5 +1,10 @@
 /* Static English text for the E703.11 interface. */
 window.ELMOS_TRANSLATIONS_EN=Object.assign(window.ELMOS_TRANSLATIONS_EN||{}, {
+ "Sensorbrücken-Rechner": "Sensor Bridge Calculator",
+ "Sensorbrücken-Rechner öffnen": "Open Sensor Bridge Calculator",
+ "Sensorbrücken-Rechner direkt in der App": "Sensor Bridge Calculator in the app",
+ "NVM-Daten importieren und Brückennullpunkt, Spanne, TK0 und TKR analysieren.": "Import NVM data and analyse bridge offset, span, TK0 and TKR.",
+ "Brückennullpunkt, Spanne, TK0, TKR und ADC-Werte aus 64 NVM-Wörtern rückrechnen. Modellbasierte Näherung, keine direkte Sensormessung. Auch offline nutzbar, ohne Chipänderungen.": "Reconstruct bridge offset, span, TK0, TKR and ADC values from 64 NVM words. Model-based estimate, not a direct sensor measurement. Works offline and does not modify the chip.",
  "Feedback melden": "Report feedback",
  "Nicht verbunden": "Not connected",
  "Keine Live-Messung": "No live measurement",
