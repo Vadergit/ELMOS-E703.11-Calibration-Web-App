@@ -1118,7 +1118,7 @@ if(typeof document!=='undefined') (function UI(){
   }
   const blocked=workflowGate(next);
   if(blocked){show('flowMsg',blocked,'warn');$('flowMsg').hidden=false;renderFlowState();return}
-  currentStep=next;$('flowMsg').hidden=true;
+  currentStep=next;document.title=next===10?'Sensorbrücken-Rechner · ELMOS E703.11':'ELMOS E703.11 – Kalibrierassistent';$('flowMsg').hidden=true;
   document.querySelectorAll('.panel').forEach(x=>x.hidden=Number(x.dataset.panel)!==next);
   document.querySelectorAll('[data-step]').forEach(button=>{
    const active=Number(button.dataset.step)===next;
