@@ -1,7 +1,7 @@
 ## v0.7.134 – Klassische Ansicht ohne Hauptseite
 
 - Die klassische Oberfläche nutzt nur die bestehende linke Seitenleiste. Ein zusätzlicher Home-Button oben, der klickbare «Kalibrierassistent»-Titel und die Rücksprungschaltflächen zur geführten Startseite in den klassischen Werkzeugseiten wurden entfernt.
-- «Geführt» im Kopfbereich bleibt der eindeutige Einstieg in die geführte Aufgabenauswahl. Ein Wechsel aus der klassischen Ansicht verwendet die bestehende sichere Abbruch-/Bestätigungslogik für offene Aufträge.
+- «Geführt» im Kopfbereich bleibt der eindeutige Einstieg in die geführte Aufgabenauswahl. Beide Ansichtswechsel «Geführt» / «Klassisch» verwenden die bestehende sichere Abbruch-/Bestätigungslogik für offene Aufträge.
 - Innerhalb eines gestarteten geführten Ablaufs erscheint «↩ Aufgabenauswahl»; auf der Aufgabenauswahl selbst und in der klassischen Ansicht wird dieser Button ausgeblendet.
 - Kein automatischer Ansichtswechsel nach Sensor-Reconnect. Sensor-Protokolle und NVM-Schreibschutz unverändert.
 - Regressionstests für die Trennung von klassischer Seitenleiste und geführter Aufgabenauswahl, Browser-Cache aktualisiert.
