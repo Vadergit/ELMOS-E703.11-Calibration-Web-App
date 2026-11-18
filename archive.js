@@ -303,7 +303,14 @@ const ELMOS_ARCHIVE=(()=>{
   const name=S.filename.replace(/\.json$/i,'.part-'+String(part).padStart(4,'0')+'.samples.jsonl');
   if(!record.telemetryFiles.includes(name)){
    record.telemetryFiles.push(name);
-   await flush(); // Save the new part reference before writing it.
+   try {
+    await flush(); // Save the new part reference before writing it.
+   } catch(error) {
+    record.telemetryFiles.pop();
+    if(payload.transport?.length)S.debugLines.unshift(...payload.transport);
+    S.debugDropped+=payload.transportDropped||0;
+    throw error;
+   }
   }
   const folder=S.dir;
   S.writeQueue=S.writeQueue.catch(()=>{}).then(async()=>{
@@ -321,6 +328,7 @@ const ELMOS_ARCHIVE=(()=>{
   catch(e){
    note('Rohdaten konnten nicht gespeichert werden: '+e.message,true);
    if(payload.transport?.length)S.debugLines.unshift(...payload.transport);
+   S.debugDropped+=payload.transportDropped||0;
    throw e;
   }
   record.telemetry.groups++;
@@ -330,7 +338,14 @@ const ELMOS_ARCHIVE=(()=>{
   record.telemetry.readErrors+=(payload.errors?.length||0);
   record.telemetry.lastSampleAt=payload.endedAt||iso();
   if(record.telemetry.groups===1||record.telemetry.groups%10===0||Date.now()-S.lastStreamMetaFlush>5000){
-   await flush();S.lastStreamMetaFlush=Date.now();
+   try {
+    await flush();
+    S.lastStreamMetaFlush=Date.now();
+   } catch(error) {
+    // The JSONL row is already durable. Keep its sequence number and retry
+    // the metadata update with the next point or at the end of the session.
+    note('Messpunkt gespeichert. Archivübersicht konnte noch nicht aktualisiert werden: '+error.message,true);
+   }
   }
   return record.telemetry.groups;
  }
