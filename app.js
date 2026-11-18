@@ -1743,12 +1743,16 @@ if(typeof document!=='undefined') (function UI(){
   renderStatus();
   show('connMsg',demoEnabled?'Demo-Sensor verbunden. Messwerte und Schreibvorgänge sind simuliert.':
    'Chip-Register über '+(st.iface==='plc'?'1-Wire':st.iface.toUpperCase())+' lesbar. ADC_S bestätigt; Live-Werte werden separat aktualisiert.','success');
-  step(1);
+  // Do not jump from EEPROM/NVM tools to classic AFE on reconnect.
+  // Restore a temporarily suspended guided view first; explicit classic users
+  // still get the original USB-start → AFE shortcut when they were on step 0.
+  window.ELMOS_GUIDED?.onConnected?.();
+  if(currentStep===0&&!window.ELMOS_GUIDED?.isOpen?.()&&
+     window.ELMOS_GUIDED?.preferredView?.()==='classic')step(1);
   // During power-start and Magic-Cookie recovery, defer the continuous loop
   // until the entire startup process has completed.
   if(!st.powerCycleRunning&&!st.manualLivePause)startLive();
   cancelAutoReconnect();
-  window.ELMOS_GUIDED?.onConnected?.();
  }
 
  // Repeated, bounded READ-only PLC probes on an ALREADY configured SSP3.
