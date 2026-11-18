@@ -22,6 +22,9 @@ const ELMOS_GUIDED=(()=>{
  let selectedPoint=0,visited=new Set([0]),poll=null,pendingCapture=null,afeStatsStart=0,afeGainSignature='';
  let latestCapture=null,lastCaptureRenderKey=null,nextSensorBusy=false,nextSensorPending=null,seriesPointFields=null;
  let connectionOpen=false,connectionBusy=false,chipResetPending=false;
+ // Opening EEPROM/NVM from the guided chooser is a temporary classic tool,
+ // not an explicit preference change to the classic calibration workflow.
+ let temporaryClassicTool=false;
  const originalCaptureLabels=new Map();
  const subscriptions=[];
  const subscribe=(el,type,handler)=>{el.addEventListener(type,handler);subscriptions.push({el,type,handler})};
@@ -835,11 +838,11 @@ const ELMOS_GUIDED=(()=>{
    window.ELMOS_ARCHIVE.open(task==='verification'?'verification':'archive');
    return;
   }
-  if(stage===0&&task==='nvm'){close();window.ELMOS_GUIDED_API?.navigate?.(10);return}
+  if(stage===0&&task==='nvm'){close({preservePreference:true});window.ELMOS_GUIDED_API?.navigate?.(10);return}
   const s=state();
   if(!s.chip){msg('Zuerst den E703.11 über USB verbinden. Eine reine USB-CDC-Verbindung ohne Chipzugriff genügt nicht.','warn');return}
   if(stage===0){
-   if(task==='inspect'){close();window.ELMOS_GUIDED_API?.navigate?.(7);return}
+   if(task==='inspect'){close({preservePreference:true});window.ELMOS_GUIDED_API?.navigate?.(7);return}
    if(task==='testlog'){goto(11);return}
    if(task==='calibration'&&!seriesSettings){
     try{await window.ELMOS_GUIDED_API?.offerSeriesPreset?.()}
@@ -992,7 +995,7 @@ const ELMOS_GUIDED=(()=>{
   // Measurement and write actions remain guarded by the existing chip checks.
   if(typeof ELMOS_COMPACT!=='undefined')ELMOS_COMPACT.set(false);
   if($('compactMode'))$('compactMode').checked=false;
-  mode=true;connectionOpen=false;connectionBusy=false;chipResetPending=false;
+  mode=true;temporaryClassicTool=false;connectionOpen=false;connectionBusy=false;chipResetPending=false;
   const loggingActive=!!window.ELMOS_TEST_LOGGER?.isBusy();
   stage=loggingActive?11:0;
   task=loggingActive?'testlog':'calibration';
@@ -1012,20 +1015,20 @@ const ELMOS_GUIDED=(()=>{
   saveView('guided');
   window.scrollTo({top:0,behavior:'auto'});
  }
- function close(){
+ function close({preservePreference=false}={}){
   if(!mode||nextSensorPending)return;
   if(window.ELMOS_TEST_LOGGER?.isBusy()){
    msg('Bitte die Testaufzeichnung zuerst beenden, bevor du die Ansicht wechselst.','warn');return;
   }
   window.ELMOS_TEST_LOGGER?.unmount();
-  mode=false;connectionOpen=false;
+  mode=false;temporaryClassicTool=!!preservePreference;connectionOpen=false;
   if(poll){window.clearInterval(poll);poll=null}
   if(pendingCapture){window.clearInterval(pendingCapture);pendingCapture=null}
   for(const {el,type,handler} of subscriptions)el.removeEventListener(type,handler);
   subscriptions.length=0;
   restore();root.hidden=true;root.replaceChildren();document.documentElement.classList.remove('guided-active');
   syncTopMode();
-  saveView('classic');
+  if(!preservePreference)saveView('classic');
   window.ELMOS_GUIDED_API?.refresh?.();
  }
  // Only called after the central home navigation has safely stopped and archived
@@ -1061,7 +1064,17 @@ const ELMOS_GUIDED=(()=>{
   msg('USB-/COM-Port getrennt. Adapter erneut anschliessen oder USB-Port auswählen.','warn');
  }
  function onConnected(){
-  if(!mode||!chipResetPending)return;
+  if(!mode){
+   // A successful sensor reconnect after opening an embedded expert tool
+   // returns to the guided task chooser only when the user had selected guided.
+   // Never override an explicit selection of the classic view.
+   if(temporaryClassicTool&&rememberedView()!=='classic'&&state().uid){
+    temporaryClassicTool=false;
+    open();
+   }
+   return;
+  }
+  if(!chipResetPending)return;
   chipResetPending=false;
   plan=null;signature=null;seriesPointFields=null;selectedPoint=0;
   latestCapture=null;lastCaptureRenderKey=null;stage=0;visited=new Set([0]);
@@ -1072,7 +1085,7 @@ const ELMOS_GUIDED=(()=>{
   $('guidedLaunch')?.addEventListener('click',open);
   $('guidedLaunchTop')?.addEventListener('click',toggleTopView);
   const restorePreferredView=()=>{
-   if(location.hash==='#nvm-rechner'){if(mode)close();else syncTopMode();return}
+   if(location.hash==='#nvm-rechner'){if(mode)close({preservePreference:true});else syncTopMode();return}
    // No saved choice: use the guided start screen. An explicit classic choice
    // always wins, including after a reload and reconnect.
    if(rememberedView()==='classic'){
@@ -1104,7 +1117,7 @@ const ELMOS_GUIDED=(()=>{
      $('calUnit').value!==plan.unit)return null;
   return {pCount:plan.pCount,tCount:plan.tCount,fitMode:plan.fitMode};
  }
- return {init,open,close,goToStart:()=>{if(mode&&!nextSensorPending)goto(0)},resetForHome,hasUnfinishedTask,hasPendingOperation,onConnected,onSensorReset,makePlan,planForPreset:()=>mode&&stage>=1&&stage<=2?makePlan():plan,isOpen:()=>mode,appliedPlanForConfig};
+ return {init,open,close,preferredView:()=>rememberedView()==='classic'?'classic':'guided',goToStart:()=>{if(mode&&!nextSensorPending)goto(0)},resetForHome,hasUnfinishedTask,hasPendingOperation,onConnected,onSensorReset,makePlan,planForPreset:()=>mode&&stage>=1&&stage<=2?makePlan():plan,isOpen:()=>mode,appliedPlanForConfig};
 })();
 if(typeof window!=='undefined')window.ELMOS_GUIDED=ELMOS_GUIDED;
 if(typeof document!=='undefined'){
