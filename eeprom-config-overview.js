@@ -44,8 +44,8 @@ const ELMOS_EEPROM_OVERVIEW=(()=>{
   {group:'Ausgang & Grenzwerte',label:'Ausgangs-Offset AODO_O',index:57,decode:q12},
   {group:'Ausgang & Grenzwerte',label:'Ausgangs-Faktor AODO_F',index:58,decode:q12},
   {group:'Ausgang & Grenzwerte',label:'Ausgangsbegrenzung',indices:[16,59,60],decode:(xs,all)=>SETTINGS.limitText(all)},
-  {group:'Ausgang & Grenzwerte',label:'Alarm unten / DSP-Nachskalierung Offset',index:55,decode:(x,all)=>SETTINGS.alarmText(all,'lower')},
-  {group:'Ausgang & Grenzwerte',label:'Alarm oben / DSP-Nachskalierung Faktor',index:56,decode:(x,all)=>SETTINGS.alarmText(all,'upper')},
+  {group:'Ausgang & Grenzwerte',label:'Alarm unten / DSP-Nachskalierung Offset',index:55,dependencies:[16,55,56],decode:(x,all)=>SETTINGS.alarmText(all,'lower')},
+  {group:'Ausgang & Grenzwerte',label:'Alarm oben / DSP-Nachskalierung Faktor',index:56,dependencies:[16,55,56],decode:(x,all)=>SETTINGS.alarmText(all,'upper')},
   {group:'Ausgang & Grenzwerte',label:'Fehlerreaktionen',index:61,decode:x=>SETTINGS.errorMask(x)},
   {group:'Ausgang & Grenzwerte',label:'Fehler-Ersatzwerte',index:62,decode:x=>SETTINGS.errorValues(x)},
   {group:'Ausgang & Grenzwerte',label:'Benutzerkennung',index:30,decode:x=>String(x)+' (dezimal)'}
@@ -53,8 +53,8 @@ const ELMOS_EEPROM_OVERVIEW=(()=>{
  const groups=[...new Set(entries.map(x=>x.group))];
  const getValue=(source,item)=>{
   const indexes=item.indices||[item.index];
-  if(!source)return null;
-  const values=indexes.map(i=>Array.isArray(source)?source[i]:source[i]);
+  if(!source||item.dependencies?.some(i=>!isWord(source[i])))return null;
+  const values=indexes.map(i=>source[i]);
   if(!values.every(isWord))return null;
   return {values,text:item.decode(item.indices?values:values[0],source),
    raw:values.map(raw).join(' / ')};

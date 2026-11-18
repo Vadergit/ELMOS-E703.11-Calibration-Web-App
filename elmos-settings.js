@@ -48,7 +48,12 @@ const ELMOS_SETTINGS=(()=>{
  ];
  const signed=x=>x&0x8000?x-65536:x;
  const one=(x)=>Number(x).toLocaleString('de-CH',{maximumFractionDigits:3});
- const validate=words=>Array.isArray(words)&&words.length===64&&words.every(w=>Number.isInteger(w)&&w>=0&&w<=65535);
+ const isWord=x=>Number.isInteger(x)&&x>=0&&x<=65535;
+ const validate=words=>Array.isArray(words)&&words.length===64&&words.every(isWord);
+ // Keep complete EEPROM validation strict; sparse read-only RAM snapshots
+ // only need the registers required by this decoder.
+ const validDecodedWords=(words,indices)=>Array.isArray(words)?validate(words):
+  !!words&&typeof words==='object'&&indices.every(i=>isWord(words[i]));
  const filter=values=>{
   if(!Array.isArray(values)||values.length!==3||!values.every(x=>Number.isInteger(x)&&x>=0&&x<=65535))return 'Nicht gelesen';
   const match=filterProfiles.find(([,w])=>w.every((x,i)=>values[i]===x));
@@ -68,7 +73,7 @@ const ELMOS_SETTINGS=(()=>{
  };
  const eocPin=cfgP2=>['EOC-Pin','NCS/SA0-Pin','MOSI-Pin','AODO-Pin'][(cfgP2>>7)&3];
  const alarmValues=words=>{
-  if(!validate(words))return null;
+  if(!validDecodedWords(words,[16,55,56]))return null;
   const scale=!!(words[16]&(1<<14)),flag=!!(words[16]&(1<<5));
   if(scale){
    const denominator=flag?32768:4096;
@@ -110,7 +115,7 @@ const ELMOS_SETTINGS=(()=>{
    one(sign8((word>>>8)&255)/128*100)+' % (signiertes DSP_AODO, keine gemessene Spannung)';
  };
  const limitText=words=>{
-  if(!validate(words))return 'Nicht gelesen';
+  if(!validDecodedWords(words,[16,59,60]))return 'Nicht gelesen';
   if(!(words[16]&(1<<7)))return 'Ausgangsbegrenzung deaktiviert';
   const low=(signed(words[59])>>2)*4,hi=(signed(words[60])>>2)*4;
   const sel=((words[60]&3)<<2)|(words[59]&3);

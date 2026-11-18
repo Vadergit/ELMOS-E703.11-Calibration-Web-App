@@ -129,3 +129,24 @@ test('Rendered RAM differences are marked yellow on values, without marking unre
   assert.ok(marked2.some(n=>n.textContent==='0 (Q0.15)'),'Changed coefficient is marked in expanded table');
  }finally{if(previous===undefined)delete global.document;else global.document=previous}
 });
+
+test('EEPROM overview decodes the two RAM alarms and output limiting from sparse snapshot',()=>{
+ const words=image();words[16]|=(1<<5)|(1<<7);
+ words[55]=0xE000;words[56]=0x2000;words[59]=0;words[60]=0;
+ const ram={16:words[16],55:words[55],56:words[56],59:words[59],60:words[60]};
+ const row=(groups,label)=>groups.flatMap(g=>g.rows).find(r=>r.label===label);
+ const result=overview.summarize(words,ram);
+ for(const label of ['Alarm unten / DSP-Nachskalierung Offset','Alarm oben / DSP-Nachskalierung Faktor']){
+  assert.ok(row(result,label).active);
+  assert.notEqual(row(result,label).active.text,'Nicht gelesen');
+  assert.equal(row(result,label).differs,false);
+ }
+ assert.match(row(result,'Ausgangsbegrenzung').active.text,/Unten 0 %/);
+ assert.equal(row(result,'Ausgangsbegrenzung').differs,false);
+ const changed=overview.summarize(words,{...ram,55:0xD000});
+ assert.equal(row(changed,'Alarm unten / DSP-Nachskalierung Offset').differs,true);
+ assert.equal(row(changed,'Ausgangsbegrenzung').differs,false);
+ const missing=overview.summarize(words,{16:words[16],55:words[55],59:0});
+ assert.equal(row(missing,'Alarm unten / DSP-Nachskalierung Offset').active,null);
+ assert.equal(row(missing,'Ausgangsbegrenzung').active,null);
+});

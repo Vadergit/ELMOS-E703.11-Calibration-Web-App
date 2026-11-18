@@ -46,3 +46,22 @@ test('permanent 1-Wire + EOC routing to AODO reports a conflict, never silently 
  const w=blank();w[17]=1<<2;w[20]=3<<7;
  assert.match(A.summary(w).conflicts.join(' '),/One-Wire überlagert/);
 });
+
+test('sparse RAM maps decode alarms and output limit with strict field guards',()=>{
+ const ram={16:(1<<5)|(1<<7),55:0xE000,56:0x2000,59:0,60:0};
+ assert.match(S.alarmText(ram,'lower'),/Aktiv/);
+ assert.match(S.alarmText(ram,'upper'),/Aktiv/);
+ assert.match(S.limitText(ram),/Unten 0 % des DSP-Vollausschlags/);
+ assert.match(S.alarmText({...ram,16:0},'lower'),/Nicht aktiv/);
+ assert.equal(S.limitText({...ram,16:0}),'Ausgangsbegrenzung deaktiviert');
+ assert.match(S.alarmText({...ram,16:(1<<14)|(1<<5)},'lower'),/DSP-Nachskalierung Offset/);
+ assert.match(S.alarmText({...ram,16:(1<<14)|(1<<5)},'upper'),/DSP-Nachskalierung Faktor/);
+ assert.equal(S.alarmText({16:ram[16],55:ram[55]},'upper'),'Nicht gelesen');
+ assert.equal(S.limitText({16:ram[16],59:ram[59]}),'Nicht gelesen');
+ assert.equal(S.alarmText({16:ram[16],55:65536,56:ram[56]},'lower'),'Nicht gelesen');
+ assert.equal(S.limitText({16:ram[16],59:-1,60:0}),'Nicht gelesen');
+ const truncated=Array(63).fill(0);
+ truncated[16]=ram[16];truncated[55]=ram[55];truncated[56]=ram[56];
+ assert.equal(S.alarmValues(truncated),null);
+ assert.equal(S.limitText(truncated),'Nicht gelesen');
+});
