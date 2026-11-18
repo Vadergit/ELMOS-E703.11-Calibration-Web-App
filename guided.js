@@ -60,7 +60,7 @@ const ELMOS_GUIDED=(()=>{
    '<div id="gwPage0" class="gw-page"><div class="gw-columns gw-six">'+
     '<button class="gw-choice" data-gw-task="calibration"><span class="gw-choice-icon">◉</span><strong>Sensor neu abgleichen</strong><small>Von der Messung über die DSP-Prüfung bis zur sicheren NVM-Programmierung.</small></button>'+
     '<button class="gw-choice" data-gw-task="output"><span class="gw-choice-icon">↗</span><strong>Nur Ausgang ändern</strong><small>Bereits kalibrierten Sensor prüfen und AODO-Ausgang neu konfigurieren.</small></button>'+
-    '<button type="button" class="gw-choice" data-gw-task="nvm"><span class="gw-choice-icon">▣</span><strong>NVM-Rückrechner · Offline</strong><small>Backup importieren und Werte direkt in dieser App berechnen.</small></button>'+
+    '<button type="button" class="gw-choice" data-gw-task="nvm"><span class="gw-choice-icon">▣</span><strong>NVM-Rückrechner</strong><small>Backup importieren und Werte direkt in dieser App berechnen.</small></button>'+
     '<button class="gw-choice" data-gw-task="inspect"><span class="gw-choice-icon">▤</span><strong>EEPROM / Diagnose</strong><small>Die bestehende Register- und EEPROM-Ansicht ohne geführten Abgleich öffnen.</small></button>'+
     '<button class="gw-choice" data-gw-task="testlog"><span class="gw-choice-icon">◷</span><strong>Test / Logging</strong><small>Beliebige Sensortests durchführen, alle Telemetriedaten samt Notizen speichern.</small></button>'+
     '<button class="gw-choice" data-gw-task="verification"><span class="gw-choice-icon">↕</span><strong>Nachmessung</strong><small>Druck- und Temperaturprüfungen mit Hysterese und frei wählbaren Prüfpunkten.</small></button>'+
