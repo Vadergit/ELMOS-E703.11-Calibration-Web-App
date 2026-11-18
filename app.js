@@ -85,6 +85,60 @@ if(typeof document!=='undefined') (function UI(){
   if(!livePacing)liveIntervalMs=400;
  let liveSecondaryIndex=0;
  let reconnectSsp3OnUsb=true;
+ // Opt-in reconnect, restricted to previously authorised Web Serial ports.
+ // A sensor probe uses register reads only. Never auto-program EEPROM/NVM.
+ const autoReconnectKey='elmos-auto-reconnect-v1';
+ let autoReconnectEnabled=lsGet(autoReconnectKey)==='1';
+ let autoReconnectTimer=null,autoReconnectBusy=false,autoReconnectSuppressed=false;
+ let autoPortInfo=null;
+ function cancelAutoReconnect(){clearTimeout(autoReconnectTimer);autoReconnectTimer=null}
+ function mayAutoReconnect(){
+  return autoReconnectEnabled&&!autoReconnectSuppressed&&!demoEnabled&&webSerialAvailable();
+ }
+ function autoReconnectBlocked(){
+  return st.closing||st.reinitRunning||st.startupRunning||st.magicRunning||
+   st.powerCycleRunning||st.diagRunning||st.writing||st.nvmWorking||
+   st.nvmAttempting||st.calTask||st.afeWriteActive||st.ramMeasurementStarting||
+   st.bridgeReadBusy||window.ELMOS_TEST_LOGGER?.isBusy();
+ }
+ function scheduleAutoReconnect(ms=5000){
+  cancelAutoReconnect();
+  if(!mayAutoReconnect()||st.chip)return;
+  autoReconnectTimer=setTimeout(()=>{autoReconnectTimer=null;void attemptAutoReconnect()},ms);
+ }
+ async function attemptAutoReconnect(){
+  if(!mayAutoReconnect()||st.chip||autoReconnectBusy)return;
+  if(autoReconnectBlocked()){scheduleAutoReconnect();return}
+  autoReconnectBusy=true;
+  try{
+   if(st.port&&st.readerAlive){
+    // No SSP3 power switching, Magic Cookie or calibration writes on this path.
+    await detect();
+    if(!st.uid?.hex){
+     st.chip=false;stopLive();
+     throw Error('Chipantwort ohne bestätigte Sensor-UID');
+    }
+    logging('Auto-Connect: Sensor-UID '+st.uid.hex+' über USB bestätigt.');
+   }else if(!st.port){
+    const ports=await navigator.serial.getPorts();
+    const matches=ports.filter(port=>{
+     const info=port.getInfo?.()||{};
+     if(autoPortInfo?.usbVendorId!=null)
+      return info.usbVendorId===autoPortInfo.usbVendorId&&
+       info.usbProductId===autoPortInfo.usbProductId;
+     return st.adapterKind==='ssp3'?info.usbVendorId===0x0403:true;
+    });
+    // Never guess when multiple devices have the same VID/PID.
+    if(matches.length===1)await connect(matches[0]);
+   }
+  }catch(error){
+   logging('Auto-Connect: Noch kein Sensor erkannt: '+String(error.message||error));
+   st.chip=false;renderStatus();
+  }finally{
+   autoReconnectBusy=false;
+   if(!st.chip)scheduleAutoReconnect(6000);
+  }
+ }
  const HELP={interface:'Schnittstelle zwischen Programmieradapter und Sensorchip. 1-Wire nutzt AODO (VDD, GND und AODO). Die Einstellung IF_CFG ändert die Programmer-Pins, nicht die NVM-Konfiguration des Sensors.',baud:'Baudrate des USB-UART zwischen Chrome und dem SSP3. Die Herstellersoftware verwendet 115200 Baud als Standard.',adcs:'ADC_S ist der unkompensierte 16-Bit-Druck-ADC. ±25000 Digits ist ein vorsichtiges Ziel für den manuellen Abgleich, keine garantierte Hardwaregrenze.',dsp_live:'DSP_S (Register 0x30) ist der skalierte DSP-Sensorausgang. Die Anzeige liest den Chipwert wiederholt und rechnet ihn mit dem konfigurierten DSP-Endwert (standardmässig ±32’000 Digits) in den gewählten Anzeigebereich um. Ein DSP-Wert allein belegt keine gültige Kalibrierung.',pga1:'Erste Druckverstärkungsstufe: 3.5×, 6×, 8.5× oder 11× (typische Werte laut Datenblatt 2023). Für gutes SNR möglichst hoch ohne Übersteuerung.',pga2:'Zweite Verstärkungsstufe: typische Faktoren 2× bis 10×. Der Gesamtfaktor ist PGA1 × PGA2.',offset:'17 DAC-Stufen von −400 bis +400 mV/V bezogen auf die Brückenspannung. Die Verschiebung liegt zwischen PGA1 und PGA2.',bridgeSupply:'Interne Brückenversorgung SVDD gemäss E703.11 CFG_AFE0 (0x1A), Bits 1:0: 2,4 V (Standard), 1,6 V oder 2,0 V. Die externe Sensorversorgung VDD muss bei 2,4 V mindestens 3,0 V, sonst mindestens 2,7 V betragen. Beim Wechsel bleiben die übrigen AFE0-Bits inklusive Brückengain unverändert. Nur nach Klick wird ins RAM geschrieben; EEPROM bleibt unverändert.',tempsource:'Die aktive Chipquelle CFG_AFE2.t_adc_src wird vor der Messung geprüft. Die Auswahl verändert keine Sensorregister. Für die Brückentemperatur sind zusätzliche Herstellerkoeffizienten erforderlich.',pressureunit:'Einheit für die Referenz- und Prüfdruckwerte. Für relative Kalibrierungen kann beispielsweise % mit 0 bis 100 gewählt werden. Referenzwerte müssen zum tatsächlichen Prüfstand passen. Einheitenwechsel erfordert neue Messpunkte.',dsp_limit:'Symmetrischer DSP-Endwert für die neue Kalibrierung. Standard ±32’000 Digits. ±30’000 lässt zusätzlich Reserve. Der Wert verändert die berechneten Koeffizienten sowie DSP-Soll und Fehlerumrechnung; er ist keine Hardware-Clipping-Grenze.',ram:'PGA1, Offset und PGA2 werden mit jeder Pfeiltaste sofort ausschliesslich in CFG_AFE1 0x1C im RAM geändert und rückgelesen. Kein NVM-/EEPROM-Schreiben. Boot-/Kommunikationsregister werden kontrolliert.',};
  const h=P.hx;
  const fmt=n=>n===null||n===undefined||!Number.isFinite(n)?'—':Math.round(n).toLocaleString('de-CH');
@@ -1638,6 +1692,7 @@ if(typeof document!=='undefined') (function UI(){
   // During power-start and Magic-Cookie recovery, defer the continuous loop
   // until the entire startup process has completed.
   if(!st.powerCycleRunning&&!st.manualLivePause)startLive();
+  cancelAutoReconnect();
   window.ELMOS_GUIDED?.onConnected?.();
  }
 
@@ -2203,11 +2258,12 @@ if(typeof document!=='undefined') (function UI(){
   st.expertOutputPlan=null;st.outputOnlyPlan=null;st.profilePendingAFE=null;
   st.trend=[];erasePoints();
   seriesOfferKey=null;
-  window.ELMOS_GUIDED?.onSensorReset?.();
+  window.ELMOS_GUIDED?.onSensorReset?.({portDisconnected:false});
   window.ELMOS_ARCHIVE?.interrupted('Sensor-Kommunikation abgebrochen: '+reason);
   show('connMsg','Kommunikation zum E703.11 fehlgeschlagen. Der Sensor ist nicht mehr erreichbar. SSP3 bleibt über USB verbunden. Nach dem Anschliessen «Sensor neu initialisieren» wählen. Frühere Messpunkte und Schreibfreigaben wurden aus Sicherheitsgründen zurückgesetzt.','warn');
   show('adcMsg','Sensor nicht verbunden. Keine aktuellen Messwerte.','warn');
   renderStatus();
+  scheduleAutoReconnect();
  }
  async function reinitializeSensor(){
   return withProgress('Sensor wird initialisiert',()=>reinitializeSensorOperation(),true);
@@ -2218,6 +2274,7 @@ if(typeof document!=='undefined') (function UI(){
   if(st.calTask||st.writing||st.nvmWorking||st.powerCycleRunning||st.magicRunning||st.startupRunning||st.diagRunning||st.afeWriteActive){
    show('connMsg','Neuinitialisierung erst nach Abschluss des laufenden Chipvorgangs möglich.','warn');return;
   }
+  cancelAutoReconnect();
   st.reinitRunning=true;
   st.psscRamRecovery=false;st.coldStartAfeRestored=false;
   st.startupTrials=[];
@@ -2265,6 +2322,7 @@ if(typeof document!=='undefined') (function UI(){
     'Sensor-Kommunikation fehlgeschlagen. Sensor und Verkabelung prüfen und «Sensor neu initialisieren» erneut wählen. Technische Details im USB-Protokoll.','warn');
   }finally{
    st.reinitRunning=false;renderStatus();
+   if(!st.chip)scheduleAutoReconnect();
   }
  }
  // Reopen the SAME previously authorised Web Serial port, without F5
@@ -2294,6 +2352,8 @@ if(typeof document!=='undefined') (function UI(){
   liveSecondaryIndex=0;
   reconnectSsp3OnUsb=true;
   st.port=port;st.mode='usb';st.sensorLost=false;st.adapterNoReply=false;
+  autoReconnectSuppressed=false;cancelAutoReconnect();
+  autoPortInfo=port?.getInfo?.()||null;
   st.sessionIndex++;st.sessionStartedAt=new Date().toISOString();
   st.psscRamRecovery=false;st.coldStartAfeRestored=false;
   st.startupTrials=[];st.chipDiag=null;st.lastPlcReply=null;st.readerAlive=false;
@@ -2760,7 +2820,7 @@ if(typeof document!=='undefined') (function UI(){
  function draw(){const c=$('chart');if(!c||c.closest('[hidden]'))return;const d=window.devicePixelRatio||1,w=Math.round(c.clientWidth*d),h=Math.round(c.clientHeight*d);if(w<20)return;if(c.width!==w||c.height!==h){c.width=w;c.height=h}const g=c.getContext('2d');g.clearRect(0,0,w,h);
  const dark=document.documentElement.dataset.theme==='dark';const x0=55*d,y0=10*d,yh=h-20*d,y=v=>y0+(32768-v)/65536*(yh-y0);g.font=`${11*d}px sans-serif`;for(const v of [25000,0,-25000]){g.beginPath();g.strokeStyle=v?(dark?'#d9ab71':'#e3c9aa'):(dark?'#536e84':'#d7e4ef');g.setLineDash(v?[5*d,4*d]:[]);g.moveTo(x0,y(v));g.lineTo(w-8*d,y(v));g.stroke();g.setLineDash([]);g.fillStyle=dark?'#d7e5f0':'#74849a';g.fillText((v>0?'+':'')+v,5*d,y(v)+4*d)}if(st.trend.length<1)return;const left=Date.now()-60000,x=t=>x0+(w-x0-10*d)*Math.max(0,Math.min(1,(t-left)/60000));g.beginPath();g.strokeStyle=dark?'#9bddff':'#2867a6';g.lineWidth=2*d;st.trend.forEach((p,i)=>i?g.lineTo(x(p.x),y(p.y)):g.moveTo(x(p.x),y(p.y)));g.stroke()}
  function download(name,txt,mime='application/json'){let b=new Blob([txt],{type:mime}),u=URL.createObjectURL(b),a=document.createElement('a');a.href=u;a.download=(demoEnabled?'DEMO_':'')+name;a.click();setTimeout(()=>URL.revokeObjectURL(u),2000)}
- const report=()=>({tool:'ELMOS E703.11 Kalibrierassistent v0.7.125',created:new Date().toISOString(),connection:demoEnabled?'Demo':st.port?'USB':'offline',hardwareValidated:false,unit:pressureUnit(),pointNames:{lower:pointName('lo'),upper:pointName('hi')},interface:st.iface,firmware:st.firmware,bootProtection:'Boot-/Werks-NVM-Schreiben gesperrt; kalibrierungsbezogenes User-NVM mit Bestätigung freigegeben',ramWriteActive:!!st.ramWriteScope,registers:st.regs,bootSnapshot:st.boot,chipUID:st.uid?.hex||null,expertOutput:st.expertOutputPlan,AFE:st.afe,gains:st.staged,low:st.points.lo,high:st.points.hi,verification:st.verify,calibrationPoints:st.calpoints,plannedCalibrationPointCount:calibrationPointCount(),requestedSamplesPerPoint:Number($('calSampleCount').value),requestedDSPOutputLimit:Number($('calDspLimit').value),coefficientFit:st.calfit,calRamVerified:st.calVerified,lastDSP:st.dsp,chipDiagnostic:st.chipDiag,lastPlcReply:st.lastPlcReply,displayRange:getActiveDSPRange(),nvmState:{backupVerified:st.nvmBackupVerified,programmed:st.nvmDone},samples:st.history.slice(-1500),trace:st.log});
+ const report=()=>({tool:'ELMOS E703.11 Kalibrierassistent v0.7.126',created:new Date().toISOString(),connection:demoEnabled?'Demo':st.port?'USB':'offline',hardwareValidated:false,unit:pressureUnit(),pointNames:{lower:pointName('lo'),upper:pointName('hi')},interface:st.iface,firmware:st.firmware,bootProtection:'Boot-/Werks-NVM-Schreiben gesperrt; kalibrierungsbezogenes User-NVM mit Bestätigung freigegeben',ramWriteActive:!!st.ramWriteScope,registers:st.regs,bootSnapshot:st.boot,chipUID:st.uid?.hex||null,expertOutput:st.expertOutputPlan,AFE:st.afe,gains:st.staged,low:st.points.lo,high:st.points.hi,verification:st.verify,calibrationPoints:st.calpoints,plannedCalibrationPointCount:calibrationPointCount(),requestedSamplesPerPoint:Number($('calSampleCount').value),requestedDSPOutputLimit:Number($('calDspLimit').value),coefficientFit:st.calfit,calRamVerified:st.calVerified,lastDSP:st.dsp,chipDiagnostic:st.chipDiag,lastPlcReply:st.lastPlcReply,displayRange:getActiveDSPRange(),nvmState:{backupVerified:st.nvmBackupVerified,programmed:st.nvmDone},samples:st.history.slice(-1500),trace:st.log});
 
  // ============ Kalibrierung + NVM (AN0203 / AN0204 / Datasheet 2023) ============
  const ca=(id,msg,type='')=>show(id,msg,type);
@@ -4267,6 +4327,18 @@ if(typeof document!=='undefined') (function UI(){
  demoMode.addEventListener('change',()=>changeDemoMode(demoMode.checked));
  $('demoExit').addEventListener('click',()=>changeDemoMode(false));
 
+ $('settingsAutoReconnect').checked=autoReconnectEnabled;
+ $('settingsAutoReconnect').addEventListener('change',()=>{
+  autoReconnectEnabled=$('settingsAutoReconnect').checked;
+  lsSet(autoReconnectKey,autoReconnectEnabled?'1':'0');
+  if(autoReconnectEnabled){
+   autoReconnectSuppressed=false;
+   if(!st.chip)scheduleAutoReconnect(1200);
+  }else cancelAutoReconnect();
+  $('settingsAutoReconnectInfo').textContent=autoReconnectEnabled?
+   'Aktiv: Wiedererkennung am offenen Adapter oder einem eindeutig freigegebenen USB-Port. Sehr kurze 1-Wire-Startfenster benötigen eventuell die manuelle Neuinitialisierung.':
+   'Aus: Nach einem Unterbruch bitte den Sensor manuell neu initialisieren.';
+ });
  $('settingsSampleCount').addEventListener('change',()=>{
   const n=Number($('settingsSampleCount').value);
   if(!Number.isInteger(n)||n<1||n>100){
@@ -4326,7 +4398,7 @@ if(typeof document!=='undefined') (function UI(){
     Array.from($('baud').options).some(option=>option.value===confirmedSsp3Baud))
   $('baud').value=confirmedSsp3Baud;
  $('startRamMeasurement').addEventListener('click',()=>startRamMeasurement(true));
- $('choose').addEventListener('click',()=>choose());$('auto').addEventListener('click',()=>auto());$('disconnect').addEventListener('click',()=>{reconnectSsp3OnUsb=false;return disconnect()});$('sensorReconnectButton').addEventListener('click',()=>st.adapterNoReply?reopenSsp3Port():reinitializeSensor());
+ $('choose').addEventListener('click',()=>choose());$('auto').addEventListener('click',()=>auto());$('disconnect').addEventListener('click',()=>{autoReconnectSuppressed=true;cancelAutoReconnect();reconnectSsp3OnUsb=false;return disconnect()});$('sensorReconnectButton').addEventListener('click',()=>st.adapterNoReply?reopenSsp3Port():reinitializeSensor());
  $('sensorReconnectExport').addEventListener('click',()=>$('plcStartupLogExport').click());
  for(const [id,step] of [['brSupplyDown',-1],['brSupplyUp',1]]){
   $(id).addEventListener('click',()=>{
@@ -4392,7 +4464,29 @@ if(typeof document!=='undefined') (function UI(){
   });
   show('connMsg',webSerialMessage(),'warn');
  }else{
+  navigator.serial.addEventListener('disconnect',async event=>{
+   if(!st.port||event.target!==st.port)return;
+   const lostPort=st.port;
+   logging('USB-/COM-Port entfernt; alten Sensorstatus und Schreibfreigaben sperren.');
+   cancelAutoReconnect();stopLive();
+   window.ELMOS_GUIDED?.onSensorReset?.({portDisconnected:true});
+   window.ELMOS_ARCHIVE?.interrupted('USB-/COM-Port physisch entfernt');
+   const closed=await disconnect();
+   if(!closed&&st.port===lostPort){
+    // The OS may refuse port.close after physical removal.
+    st.port=null;st.readerAlive=false;st.chip=false;st.uid=null;st.mode='offline';
+    st.nvmBackup=null;st.nvmBackupVerified=false;st.calStaged=false;
+    st.calVerified=false;st.calImage=null;st.nvmDone=false;
+    st.expertOutputPlan=null;st.outputOnlyPlan=null;st.restorePlan=null;
+    st.readOnlySensor=null;st.reader=null;st.closing=false;renderStatus();
+   }
+   scheduleAutoReconnect(1600);
+  });
   navigator.serial.addEventListener('connect',async event=>{
+   if(autoReconnectEnabled&&!autoReconnectSuppressed){
+    scheduleAutoReconnect(750);
+    return;
+   }
    if(!reconnectSsp3OnUsb||$('adapterType').value!=='ssp3'||event.target.getInfo?.().usbVendorId!==0x0403)return;
    if(st.port){
     if(st.readerAlive||st.closing||!st.adapterNoReply)return;

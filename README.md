@@ -2,7 +2,7 @@
 
 **Ein geführter Kalibrierassistent für den ELMOS E703.11 und das SSP3-Eval-Board.** Ziel ist ein verständlicher Abgleich, der auch ohne tiefere Vorkenntnisse Schritt für Schritt funktioniert. Wer mehr benötigt, kann zusätzliche Messpunkte, DSP-Parameter und einen geschützten Expertenmodus verwenden.
 
-**Version: v0.7.125 · Separate Clipping-Grenzen auch ausserhalb des linearen Messbereichs** · [Änderungsverlauf](CHANGELOG.md) · **[Geplante Funktionen](ROADMAP.md)**
+**Version: v0.7.126 · Sensorverlust ohne Ansichtswechsel und optionaler Auto-Connect** · [Änderungsverlauf](CHANGELOG.md) · **[Geplante Funktionen](ROADMAP.md)**
 
 Der **Demo-Modus** wird in den Einstellungen erst nach Aktivierung von **Expertenparameter** angezeigt. Er simuliert Sensorwerte und Schreibvorgänge; die echte Hardware wird dabei nicht programmiert.
 
@@ -13,6 +13,12 @@ Der **Demo-Modus** wird in den Einstellungen erst nach Aktivierung von **Experte
 > **Geführter Assistent:** Nach der bestätigten SSP3-Verbindung stehen die neue Schritt-für-Schritt-Führung, die klassische Ansicht und der optionale Kompaktmodus zur Verfügung. Ein E703.11-Chip muss für den Abgleich verbunden sein. Als DIY-Programmer sind ausschliesslich ESP32-C3 SuperMini (v0.12 Labor-Quellcode) und Arduino Pro Micro (v0.28 Labor-Quellcode) vorgesehen. Die originalen ELMOS SSP3-Adapter bleiben separat unterstützt. Der vollständige Hardwaretest der DIY-Programmer ist noch offen.
 >
 > [Geführter Abgleich](docs/GEFUEHRTER_ASSISTENT.md) · [DIY-Programmer (ESP32-C3 / Pro Micro)](docs/USB_BRIDGE_GUIDE.md) · [Pinbelegung der zwei Boards](docs/ESP_BOARD_OPTIONS.md) · [DIY-Firmware-Installer](firmware-update.html)
+
+## v0.7.126 – Sensorabbruch und physischer USB-Verlust unterscheiden
+
+Ein Sensor-Kommunikationsfehler bei weiterhin offenem USB-Port lässt die bisherige Ansicht (klassisch oder geführt) unverändert und zeigt den gelben Neuinitialisierungsbalken. **Nur wenn der COM-/USB-Port physisch entfernt wird**, öffnet im geführten Modus die Verbindungsdiagnose. Alte Messpunkte und Schreibfreigaben werden bei Sensorverlust ungültig; nach erneuter UID-Erkennung beginnt ein neuer geführter Abgleich.
+
+**Einstellungen → Verbindung → Sensor automatisch wiederverbinden:** optional, standardmässig ausgeschaltet. Bei aktiviertem Auto-Connect liest die Web-App in Abständen einen noch angeschlossenen Sensor am vorhandenen Adapter. Bei physischem USB-Wechsel öffnet sie nur einen eindeutig passenden und zuvor freigegebenen Port. Bei manueller Trennung werden die Versuche unterdrückt. Keine automatische NVM-Programmierung. Bei sehr kurzem 1-Wire-Startfenster kann eine explizite Neuinitialisierung nötig bleiben.
 
 ## v0.7.125 – Digitales Clipping unabhängig von S0/S1
 

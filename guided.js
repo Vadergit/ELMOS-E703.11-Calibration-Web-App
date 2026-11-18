@@ -21,7 +21,7 @@ const ELMOS_GUIDED=(()=>{
  let stage=0,task='calibration',root=null,original=[],mode=false,plan=null,signature=null,taskOpening=false;
  let selectedPoint=0,visited=new Set([0]),poll=null,pendingCapture=null,afeStatsStart=0,afeGainSignature='';
  let latestCapture=null,lastCaptureRenderKey=null,nextSensorBusy=false,nextSensorPending=null,seriesPointFields=null;
- let connectionOpen=false,connectionBusy=false;
+ let connectionOpen=false,connectionBusy=false,chipResetPending=false;
  const originalCaptureLabels=new Map();
  const subscriptions=[];
  const subscribe=(el,type,handler)=>{el.addEventListener(type,handler);subscriptions.push({el,type,handler})};
@@ -751,7 +751,7 @@ const ELMOS_GUIDED=(()=>{
    setText('gwFooterHint',text);
   }
   const ready=stage===4?!!plan&&plan.points.every(p=>pointRecord(p)):stage===5?!!s.calStaged:stage===6?!!s.calVerified:stage===9?!!s.nvmDone:true;
-  $('gwNext').disabled=stage===10?nextSensorBusy||!s.chip||!s.nvmDone:!ready;
+  $('gwNext').disabled=!s.chip||(stage===10?nextSensorBusy||!s.nvmDone:!ready);
   if(stage===3)updateAfeTelemetry();
   if(stage===10)updateFinishTelemetry();
   if(stage===3||stage===10)apiRedraw();
@@ -992,7 +992,7 @@ const ELMOS_GUIDED=(()=>{
   // Measurement and write actions remain guarded by the existing chip checks.
   if(typeof ELMOS_COMPACT!=='undefined')ELMOS_COMPACT.set(false);
   if($('compactMode'))$('compactMode').checked=false;
-  mode=true;connectionOpen=false;connectionBusy=false;
+  mode=true;connectionOpen=false;connectionBusy=false;chipResetPending=false;
   const loggingActive=!!window.ELMOS_TEST_LOGGER?.isBusy();
   stage=loggingActive?11:0;
   task=loggingActive?'testlog':'calibration';
@@ -1028,19 +1028,30 @@ const ELMOS_GUIDED=(()=>{
   saveView('classic');
   window.ELMOS_GUIDED_API?.refresh?.();
  }
- function onSensorReset(){
+ function onSensorReset({portDisconnected=false}={}){
   if(!mode||nextSensorPending)return;
   if(pendingCapture){window.clearInterval(pendingCapture);pendingCapture=null}
-  if(window.ELMOS_TEST_LOGGER?.isBusy()){
-   msg('Sensor nicht mehr erreichbar. Die Testaufzeichnung wird unterbrochen.','warn');
+  chipResetPending=true;
+  if(!portDisconnected){
+   // Keep guided view at its current stage while the USB adapter is reachable.
+   // All sensor measurements/NVM approvals were invalidated by app.js.
+   updateUI();
+   msg('Sensor nicht erreichbar. Oben «Sensor neu initialisieren» wählen. Nach der UID-Prüfung startet ein neuer Abgleich.','warn');
+   return;
   }
-  plan=null;signature=null;seriesPointFields=null;selectedPoint=0;latestCapture=null;lastCaptureRenderKey=null;stage=0;visited=new Set([0]);
+  // Only an actual COM/USB removal opens the connection and diagnostic tab.
+  plan=null;signature=null;seriesPointFields=null;selectedPoint=0;
+  latestCapture=null;lastCaptureRenderKey=null;stage=0;visited=new Set([0]);
   connectionOpen=true;render();
-  msg('Die Sensorverbindung wurde unterbrochen. Die bisherigen Kalibrierpunkte sind nicht mehr freigegeben. Nach der Neuinitialisierung einen neuen Abgleich starten.','warn');
+  msg('USB-/COM-Port getrennt. Adapter erneut anschliessen oder USB-Port auswählen.','warn');
  }
  function onConnected(){
-  // The guided workflow remains available through its navigation button.
-  // It no longer opens automatically based on a removed settings preference.
+  if(!mode||!chipResetPending)return;
+  chipResetPending=false;
+  plan=null;signature=null;seriesPointFields=null;selectedPoint=0;
+  latestCapture=null;lastCaptureRenderKey=null;stage=0;visited=new Set([0]);
+  if(!connectionOpen)render();
+  else renderConnectionStatus();
  }
  function init(){
   $('guidedLaunch')?.addEventListener('click',open);

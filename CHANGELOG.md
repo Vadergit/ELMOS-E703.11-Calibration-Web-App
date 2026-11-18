@@ -1,3 +1,11 @@
+## v0.7.126 – Unterbruchbehandlung und Auto-Connect
+
+- Sensor abgezogen, USB-Adapter weiter verbunden: kein automatischer Wechsel in «Verbindung & Diagnose». Aktuelle Ansicht bleibt stehen, gelber Balken bietet manuelle Neuinitialisierung.
+- Physischer USB-/COM-Port-Verlust: im geführten Modus automatische Verbindungsansicht. Chipdaten, alte Messpunkte und NVM-Schreibfreigaben ungültig.
+- Neue, standardmässig ausgeschaltete Einstellung für Auto-Connect. Periodische rein lesende Sensorerkennung am bereits offenen Port bzw. Wiederöffnung eines eindeutig erkannten, bereits freigegebenen USB-Ports. Bewusstes manuelles Trennen unterdrückt den Auto-Connect.
+- Neue Chip-UID muss erneut gelesen werden; keine Übernahme früherer Kalibrierpunkte oder automatisches NVM-Schreiben. 1-Wire-Startfenster erfordern gegebenenfalls weiterhin manuelle Initialisierung.
+- Version und Browser-Cache auf v0.7.126 aktualisiert. Hardwaretest offen.
+
 ## v0.7.125 – Clipping ausserhalb des 10–90-%-Ausgangsbereichs
 
 - E703.11-Datenblatt §§6.3.2.7–8: LIMIT_LO/HI begrenzen den digitalen DSP_AODO und sind unabhängig von der Ausgangsskalierung S0/S1; die harte 10–90-%-Grenze wird für Clipping entfernt.
