@@ -2,7 +2,7 @@
 
 **Ein geführter Kalibrierassistent für den ELMOS E703.11 und das SSP3-Eval-Board.** Ziel ist ein verständlicher Abgleich, der auch ohne tiefere Vorkenntnisse Schritt für Schritt funktioniert. Wer mehr benötigt, kann zusätzliche Messpunkte, DSP-Parameter und einen geschützten Expertenmodus verwenden.
 
-**Version: v0.7.138 · Auto-Connect verwendet die bewährte manuelle Chipinitialisierung** · [Änderungsverlauf](CHANGELOG.md) · **[Geplante Funktionen](ROADMAP.md)**
+**Version: v0.7.139 · Auto-Connect verwendet die bewährte manuelle Chipinitialisierung** · [Änderungsverlauf](CHANGELOG.md) · **[Geplante Funktionen](ROADMAP.md)**
 
 Der **Demo-Modus** wird in den Einstellungen erst nach Aktivierung von **Expertenparameter** angezeigt. Er simuliert Sensorwerte und Schreibvorgänge; die echte Hardware wird dabei nicht programmiert.
 
@@ -13,6 +13,10 @@ Der **Demo-Modus** wird in den Einstellungen erst nach Aktivierung von **Experte
 > **Geführter Assistent:** Nach der bestätigten SSP3-Verbindung stehen die neue Schritt-für-Schritt-Führung, die klassische Ansicht und der optionale Kompaktmodus zur Verfügung. Ein E703.11-Chip muss für den Abgleich verbunden sein. Als DIY-Programmer sind ausschliesslich ESP32-C3 SuperMini (v0.12 Labor-Quellcode) und Arduino Pro Micro (v0.28 Labor-Quellcode) vorgesehen. Die originalen ELMOS SSP3-Adapter bleiben separat unterstützt. Der vollständige Hardwaretest der DIY-Programmer ist noch offen.
 >
 > [Geführter Abgleich](docs/GEFUEHRTER_ASSISTENT.md) · [DIY-Programmer (ESP32-C3 / Pro Micro)](docs/USB_BRIDGE_GUIDE.md) · [Pinbelegung der zwei Boards](docs/ESP_BOARD_OPTIONS.md) · [DIY-Firmware-Installer](firmware-update.html)
+
+## v0.7.139 – Kaltstartnachweis beim NVM-Plan sicher nachprüfen
+
+Bei einem bestätigten SSP3-Stromstart kann eine kurzzeitig fehlgeschlagene `CFG_SPI_I2C.plc_en`-RAM-Rücklesung die gemeinsame DSP-/AODO-NVM-Programmierung unnötig blockieren. Der NVM-Plan liest in diesem Fall nur die aktuellen PLC-RAM-Register nochmals und verknüpft das Ergebnis **ausschliesslich** mit dem bereits nachgewiesenen Stromzyklus derselben USB-Sitzung und Chip-UID. Ohne den ursprünglichen Hardwarebeleg bleibt der NVM-Write gesperrt; die Oberfläche zeigt nun genau, welcher Nachweis fehlt. Hardwarevalidierung weiterhin erforderlich. Vor dem Laden einer neuen Softwareversion laufende RAM-Kalibrierungen sichern.
 
 ## v0.7.138 – DSP-Sättigungswarnung und AODO-Prüfung vor NVM
 

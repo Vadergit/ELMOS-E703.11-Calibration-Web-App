@@ -949,6 +949,80 @@ if(typeof document!=='undefined') (function UI(){
    proof.steps?.some(step=>step.ok===true&&
     step.command==='PWR_ON 0C80 00C8 0 -> PLC T'));
  }
+ // Read-only completion of an EXISTING, authenticated AN0204 power-cycle
+ // proof. If the first PLC-enable read timed out, later successful chip RAM
+ // reads can confirm that specific missing bit. Never manufacture an OFF/ON
+ // proof from a merely connected chip or from a manual Magic Cookie.
+ async function refreshPsscRecoveryProofReadOnly(){
+  if(psscRecoveryProven())return true;
+  const proof=st.powerCycleResult,port=st.port,session=st.sessionIndex,uid=st.uid?.hex;
+  if(st.adapterKind!=='ssp3'||st.iface!=='plc'||!st.chip||!port||!uid||
+     !st.plcAddressVerified||st.plcAddress!==0x6C||
+     proof?.port!==port||proof.session!==session||proof.stage!=='verified'||
+     !proof.powerRestored||!proof.readVerified||proof.verifiedUid!==uid||
+     proof.plcAddress!=='0x6C'||!Array.isArray(proof.steps)||
+     !proof.steps.some(step=>step.ok===true&&step.command==='PWR_OFF 03E8')||
+     !proof.steps.some(step=>step.ok===true&&step.command==='PWR_ON 0C80 00C8 0 -> PLC T'))
+   return false;
+  const resumeLive=st.live&&!st.manualLivePause;
+  stopLive();
+  try{
+   if(st.liveReadPromise)await st.liveReadPromise.catch(()=>{});
+   const cfg=await readReg(0x06,1800),pads=await readReg(0x0A,1800);
+   if(st.port!==port||st.sessionIndex!==session||st.uid?.hex!==uid||
+      st.powerCycleResult!==proof)throw Error('USB-Sitzung oder Chip-ID verändert');
+   const address=P.plcAddressFromConfig(cfg,pads);
+   if((cfg&0x0004)===0||address!==0x6C)
+    throw Error('CFG_SPI_I2C.plc_en nicht aktiv oder PLC-Adresse nicht 0x6C');
+   proof.plcConfigRam=cfg;
+   proof.plcEnabledInRam=true;
+   proof.plcEnabledReadback='NVM-Vorprüfung / nur lesen';
+   logging('Kaltstartbeleg ergänzt: SSP3 OFF/ON/UID bereits bestätigt, CFG_SPI_I2C RAM=0x'+
+    h(cfg,2)+' und PLC-Adresse 0x6C nun unabhängig nachgelesen. Kein Power-Cycle und kein Schreibvorgang.');
+  }catch(error){
+   proof.plcReadbackError=String(error.message||error);
+   logging('Kaltstart-Nachprüfung nur lesend: '+proof.plcReadbackError);
+  }finally{
+   if(resumeLive&&st.port===port&&!st.closing&&!st.calTask&&!st.writing&&!st.nvmWorking)
+    startLive();
+  }
+  return psscRecoveryProven();
+ }
+ // Human-readable evidence is diagnostic only. The existing boolean guard
+ // remains authoritative for every final NVM write and diff.
+ function psscRecoveryEvidence(){
+  if(psscRecoveryProven())return 'SSP3-Kaltstart derselben Chip-UID bestätigt.';
+  const failed=[];
+  if(st.adapterKind!=='ssp3')failed.push('Kein originaler SSP3 als Adapter bestätigt');
+  if(st.iface!=='plc')failed.push('1-Wire nicht aktiv');
+  if(!st.port||!st.chip||!st.uid?.hex)failed.push('Aktuelle Chipverbindung oder UID fehlt');
+  if(!st.plcAddressVerified||st.plcAddress!==0x6C)
+   failed.push('PLC-Adresse 0x6C nicht durch Sensorregister bestätigt');
+  const uid=st.uid?.hex,port=st.port,session=st.sessionIndex;
+  const pssc=st.startupTrials.find(t=>t.stage==='PSSC-RAM-Start'&&
+   t.port===port&&t.session===session&&t.powerRestored===true&&
+   t.readVerified===true&&t.verifiedUid===uid);
+  if(!pssc){
+   const proof=st.powerCycleResult;
+   if(!proof)failed.push('Kein protokollierter SSP3-Power-Cycle in dieser Browser-Sitzung');
+   else{
+    if(proof.port!==port||proof.session!==session)
+     failed.push('Power-Cycle gehört nicht zur aktiven USB-Sitzung');
+    if(!proof.powerRestored||!proof.readVerified||proof.stage!=='verified')
+     failed.push('Power-Cycle und anschliessender Chip-Readback nicht vollständig bestätigt');
+    if(proof.verifiedUid!==uid)failed.push('Kaltstart-UID passt nicht zur aktuellen Chip-ID');
+    if(proof.plcAddress!=='0x6C')failed.push('Kaltstart-Adresserkennung nicht auf 0x6C bestätigt');
+    if(!proof.steps?.some(s=>s.ok===true&&s.command==='PWR_OFF 03E8')||
+       !proof.steps?.some(s=>s.ok===true&&s.command==='PWR_ON 0C80 00C8 0 -> PLC T'))
+     failed.push('Quittierte SSP3-Aus- und Einschaltbefehle fehlen');
+    if(proof.plcEnabledInRam!==true)
+     failed.push('PLC-RAM-Freigabe nach Kaltstart nicht nachgewiesen');
+   }
+   if(!st.startupTrials.some(t=>t.stage==='PSSC-RAM-Start'))
+    failed.push('Kein verifizierter PSSC-RAM-Start protokolliert');
+  }
+  return failed.length?failed.join('; ')+'.':'Sicherheitsnachweis nicht vollständig.';
+ }
  function psscNvmBlock(initial,modified,restoring=false,outputOnly=false,alarmOnly=false,allowCombinedRecovery=false){
   // Unified low-level bridge: no firmware feature-specific NVM address list.
   // Same sensor/boot/UID/CRC checks as SSP3 are performed later in the UI.
@@ -3342,8 +3416,12 @@ if(typeof document!=='undefined') (function UI(){
    if(!hasCurrentNvmBackup())throw Error('Kein vollständig geprüftes NVM für die aktuell verbundene Chip-UID verfügbar');
    const startup=CAL.oneWireStartupStatus(st.nvmBackup);
    if(!startup.ok)throw Error('1-Wire-Startfenster nicht sicher: '+startup.errors.join('; '));
+   if(startup.requiresCookie&&!psscRecoveryProven())
+    await refreshPsscRecoveryProofReadOnly();
    if(startup.requiresCookie&&!psscRecoveryProven()&&!bridgeColdStartVerified())
-    throw Error('One-Wire-Startfenster '+startup.windowLabel+' vorhanden, Magic-Cookie-Start am aktuellen Chip nicht bestätigt. Kein NVM-Schreiben.');
+    throw Error('One-Wire-Startfenster '+startup.windowLabel+
+     ': Kein gesicherter Kaltstartnachweis für NVM. '+psscRecoveryEvidence()+
+     ' Die laufende RAM-Kalibrierung bleibt erhalten. Eine echte fehlende Stromstartprüfung kann ohne Neustart nicht nachgeholt werden. Kein NVM-Schreiben.');
    const recovery=st.psscRamRecovery||(st.regs[0x06]===0x6C04&&st.nvmBackup[17]!==0x6C04);
    // A temporary One-Wire RAM recovery may only persist calibration words.
    // Ignore any staged output/clipping changes instead of blocking calibration.
@@ -3376,7 +3454,9 @@ if(typeof document!=='undefined') (function UI(){
      ['1','2','3'].includes(String(explicitOutputPlan.mode)));
    if(recoveryCombined){
     if(st.adapterKind!=='ssp3'||!psscRecoveryProven())
-     throw Error('Magic Cookie: Gemeinsame Kalibrierung und AODO-Skalierung nur mit originalem SSP3 und bestätigtem Kaltstart dieser Chip-UID. Bitte nicht neu verbinden oder den Abgleich zurücksetzen.');
+     throw Error('Magic Cookie: Kombinierte DSP-/AODO-Programmierung nicht freigegeben. '+
+      psscRecoveryEvidence()+
+      ' Bitte weder neu verbinden noch den Abgleich zurücksetzen. Kein NVM-Schreiben.');
     if(!$('nvmAutoBackup').checked)
      throw Error('Magic Cookie: Vor einer kombinierten NVM-Programmierung «Altes NVM automatisch sichern» aktivieren.');
     if(Number(explicitOutputPlan.mode)!==originalMode)

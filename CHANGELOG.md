@@ -1,3 +1,12 @@
+## v0.7.139 – SSP3-Kaltstartfreigabe nachträglich nur lesend bestätigen
+
+- Fehlerfolge: Auch in v0.7.138 konnte ein korrekt berechneter und im RAM verifizierter kombinierter DSP-/AODO-NVM-Plan am Kaltstartnachweis scheitern. Beim ursprünglichen AN0204-SSP3-Power-Cycle wurde die flüchtige PLC-Freigabe (`CFG_SPI_I2C.plc_en`) nur einmal abgefragt. War diese Abfrage vorübergehend nicht verfügbar, blieb der ansonsten gültige physische Kaltstartnachweis auf `unbestätigt`.
+- Vor dem NVM-Plan wird dieser **einzelne noch fehlende Hardwarebeleg** erneut gelesen: `CFG_SPI_I2C` (RAM 0x06) und `CFG_PADS1` (RAM 0x0A). Voraussetzung sind ein in derselben USB-Sitzung bereits vollständig quittierter SSP3-Stromzyklus, passende Chip-UID, bestätigte Adresse `0x6C`, positiver Chip-Rücklesetest und korrekte Befehlsfolge OFF → ON/PLC T.
+- Für diese Prüfung wird Live-Polling kurz angehalten, die letzten Abfragen werden abgewartet und anschliessend der vorherige Livezustand wiederhergestellt. **Keine Sensor-Stromunterbrechung, keine RAM-Konfigurationsänderung, kein NVM-Schreibbefehl.**
+- Wenn der physische Kaltstartnachweis tatsächlich fehlt, bleibt die NVM-Freigabe gesperrt. Die Meldung erklärt nun die konkret fehlenden Bedingungen (USB-Sitzung, UID, PLC-Adresse, quittierte PWR_OFF/PWR_ON, PLC-Freigabe). Ein manueller Magic Cookie oder eine normale Chip-Registerlesung erzeugt keinen falschen Kaltstartbeleg.
+- DSP-RAM-Verifikation, AODO-Spannungsprüfung, 64-Wort-EEPROM-Backup und sämtliche bestehenden Boot-/UID-/CRC-Sicherheitsprüfungen bleiben unverändert. Regressionsprüfungen für gültigen und ungültigen Kaltstart sowie fehlendes PLC-RAM-Enable ergänzt.
+- Noch keine Hardware-NVM-Programmierung validiert. Wichtig: Ein Browser-Reload lädt neue Software, setzt aber laufende Kalibrierzustände zurück; aktive RAM-Kalibrierung vorher sichern.
+
 ## v0.7.138 – DSP-Sättigung früh melden und AODO-Ausgang vor NVM abklären
 
 - In «Koeffizienten berechnen» zeigt die App bei sehr engem DSP-Zielbereich (ab ±31'000 Digits) eine präventive Reservewarnung. Das ist eine Warnung, keine automatische Veränderung des Abgleichs.
