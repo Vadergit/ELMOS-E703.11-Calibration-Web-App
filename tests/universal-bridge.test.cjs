@@ -13,7 +13,8 @@ for(const [board,fw] of [['ESP32-C3',esp],['Pro Micro',avr]]){
   assert.match(fw,/NVM DISARM/);
  });
  test(board+' requires cold-start and chip probe before generic User-NVM',()=>{
-  assert.match(fw,/if \(!coldStartVerified \|\| probe\(activeSlave\)\)/);
+  assert.match(fw,/if \(!coldStartMatches\(\) \|\| probe\(activeSlave\)\)/);
+  assert.match(fw,/memcmp\(uid, coldStartUid, sizeof\(uid\)\) != 0/);
   assert.match(fw,/nvmHostMode = true/);
   assert.match(fw,/20[0]+(?:u|UL)/i);
   assert.match(fw,/180000(?:u|UL)/i);

@@ -33,6 +33,8 @@ static unsigned plcBaud = 100000;
 static uint8_t activeSlave = plc::ReadAddress;
 static bool recoveryUsed = false;
 static bool coldStartVerified = false;
+static uint8_t coldStartAddress = 0;
+static uint16_t coldStartUid[3];
 static bool nvmArmed = false;
 static bool nvmOutputMode = false;
 static bool nvmHostMode = false;
@@ -277,12 +279,38 @@ static const char *openPlcAccess(bool powerCycle, bool recover = false) {
   return error;
 }
 
+static bool readActiveUid(uint16_t (&uid)[3]) {
+  constexpr uint8_t registers[] = {0x38, 0x52, 0x50};
+  for (unsigned i = 0; i < 3; ++i) {
+    if (plc::readWord(registers[i], plcBaud, uid[i], nullptr, activeSlave)) return false;
+  }
+  return (uid[0] & 0xFFF8) == 0x0020 && (uid[1] || uid[2]) &&
+         !(uid[1] == 0xFFFF && uid[2] == 0xFFFF);
+}
+
+static bool coldStartMatches() {
+  uint16_t uid[3];
+  if (!coldStartVerified || coldStartAddress != activeSlave ||
+      !readActiveUid(uid) || memcmp(uid, coldStartUid, sizeof(uid)) != 0) {
+    coldStartVerified = false;
+    return false;
+  }
+  return true;
+}
+
 static void establishAccess(bool powerCycle, bool recover = false) {
   if (const char *error = openPlcAccess(powerCycle, recover)) {
     answer(error);
     return;
   }
-  if (powerCycle) coldStartVerified = true;
+  if (powerCycle) {
+    coldStartAddress = activeSlave;
+    coldStartVerified = readActiveUid(coldStartUid);
+    if (!coldStartVerified) {
+      answer("!BRIDGE PLC_IDENTITY_UNVERIFIED");
+      return;
+    }
+  }
   char response[40];
   snprintf(response, sizeof(response), "# PLC ACCESS ADDR=%02X RAM_RECOVERY=%u",
            unsigned(activeSlave & 0xFE), unsigned(recoveryUsed));
@@ -421,13 +449,13 @@ static void onCommand(const char *command) {
     answer("!BRIDGE I2C_MODE_ACTIVE");
   } else if (strcmp(command, "NVM ARM CALIBRATION") == 0) {
     disarmNvm();
-    if (coldStartVerified && !probe(activeSlave)) armNvmSession();
+    if (coldStartMatches() && !probe(activeSlave)) armNvmSession();
     answer(nvmArmed ? "# NVM CALIBRATION ARMED" : "!BRIDGE NVM_COLD_START_REQUIRED");
   } else if (strcmp(command, "NVM ARM OUTPUT") == 0) {
     disarmNvm();
     // The chip must have been reached after a real power-cycle, not merely
     // through an arbitrary RAM unlock. Also require original NVM identity.
-    if (!coldStartVerified || probe(activeSlave)) {
+    if (!coldStartMatches() || probe(activeSlave)) {
       answer("!BRIDGE NVM_COLD_START_REQUIRED");
     } else {
       uint16_t cfg = 0;
@@ -444,7 +472,7 @@ static void onCommand(const char *command) {
     }
   } else if (strcmp(command, "NVM ARM HOST") == 0) {
     disarmNvm();
-    if (!coldStartVerified || probe(activeSlave)) {
+    if (!coldStartMatches() || probe(activeSlave)) {
       answer("!BRIDGE NVM_COLD_START_REQUIRED");
     } else {
       nvmHostMode = true;
