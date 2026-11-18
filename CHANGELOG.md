@@ -1,3 +1,11 @@
+## v0.7.120 – Automatischer kompletter Sensorabgleich-Export
+
+- Nach erfolgreicher NVM-Programmierung und vollständiger 64-Wort-Rücklesung wird für echte Sensorabgleiche automatisch eine separate JSON-Komplettdatei mit Original-NVM, programmiertem NVM, ADC-Messpunkten, AFE, DSP, Prüfresultaten, Chip-UID und vollständigem Archivprotokoll abgelegt.
+- Die Komplettdatei wird nach der Neustartprüfung sowie beim endgültigen Abschluss aktualisiert und kann im Archiv manuell heruntergeladen werden.
+- Der NVM-Rechner kann die Komplettdatei laden und übernimmt das zugehörige NVM-Abbild und die dokumentierten Kalibrierreferenzen.
+- Sichtbare Web-App-Version, Kalibrierberichtsversion und README auf v0.7.120 angehoben. Cache-Parameter der betroffenen JavaScript-Module erneuert.
+- Die GitHub-Regressionsprüfungen decken den Datenexport und Import ab; der vollständige Praxistest mit einem realen Sensor bleibt offen.
+
 ## Firmware ESP32-C3 v0.14 – USB-Antworten zuverlässig abschliessen
 
 - Der ESP32-C3 schliesst die USB-Antwort samt Prompt mit Serial.flush() ab. Beim wiederholten I²C-Adresswechsel konnten Antworten zuvor bis zum nächsten USB-Befehl zurückgehalten werden.

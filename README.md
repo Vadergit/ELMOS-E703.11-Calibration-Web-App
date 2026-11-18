@@ -2,7 +2,7 @@
 
 **Ein geführter Kalibrierassistent für den ELMOS E703.11 und das SSP3-Eval-Board.** Ziel ist ein verständlicher Abgleich, der auch ohne tiefere Vorkenntnisse Schritt für Schritt funktioniert. Wer mehr benötigt, kann zusätzliche Messpunkte, DSP-Parameter und einen geschützten Expertenmodus verwenden.
 
-**Version: v0.7.119 · TK0 mit 3 Punkten und TK0 + TKE mit 4 Punkten** · [Änderungsverlauf](CHANGELOG.md) · **[Geplante Funktionen](ROADMAP.md)**
+**Version: v0.7.120 · Automatischer Komplett-Export nach Sensorabgleich** · [Änderungsverlauf](CHANGELOG.md) · **[Geplante Funktionen](ROADMAP.md)**
 
 Der **Demo-Modus** wird in den Einstellungen erst nach Aktivierung von **Expertenparameter** angezeigt. Er simuliert Sensorwerte und Schreibvorgänge; die echte Hardware wird dabei nicht programmiert.
 
@@ -13,6 +13,14 @@ Der **Demo-Modus** wird in den Einstellungen erst nach Aktivierung von **Experte
 > **Geführter Assistent:** Nach der bestätigten SSP3-Verbindung stehen die neue Schritt-für-Schritt-Führung, die klassische Ansicht und der optionale Kompaktmodus zur Verfügung. Ein E703.11-Chip muss für den Abgleich verbunden sein. Als DIY-Programmer sind ausschliesslich ESP32-C3 SuperMini (v0.12 Labor-Quellcode) und Arduino Pro Micro (v0.28 Labor-Quellcode) vorgesehen. Die originalen ELMOS SSP3-Adapter bleiben separat unterstützt. Der vollständige Hardwaretest der DIY-Programmer ist noch offen.
 >
 > [Geführter Abgleich](docs/GEFUEHRTER_ASSISTENT.md) · [DIY-Programmer (ESP32-C3 / Pro Micro)](docs/USB_BRIDGE_GUIDE.md) · [Pinbelegung der zwei Boards](docs/ESP_BOARD_OPTIONS.md) · [DIY-Firmware-Installer](firmware-update.html)
+
+## v0.7.120 – Vollständige Kalibrierungsdatei nach NVM-Programmierung
+
+Nach bestätigter 64-Wort-NVM-Rücklesung eines echten Kalibrierabgleichs erstellt die Web-App im gewählten Archivordner automatisch eine eigenständige JSON-Komplettdatei. Sie enthält die Original-NVM-Daten, das fertig programmierte NVM, Messpunkte, AFE-/DSP-Einstellungen, Prüfresultate, Chip-UID und das vollständige ursprüngliche Archivprotokoll.
+
+Die Datei wird bei der Neustartprüfung und beim Abschluss aktualisiert. Sie kann im Archiv heruntergeladen und direkt im NVM-Rechner mitsamt den gespeicherten Referenzen und Messpunkten geöffnet werden. Reine Ausgangs-/Alarmänderungen und NVM-Wiederherstellungen werden nicht als Kalibriererfolg exportiert. Browser-Caches für die beteiligten Module wurden aktualisiert.
+
+**Validierung:** Automatisierte Regressionstests vorhanden; vollständige Hardwareprüfung des Gesamtablaufs noch offen.
 
 ## v0.7.119 – Universelle USB-Bridge für ESP32-C3 und Pro Micro
 
