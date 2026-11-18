@@ -154,7 +154,7 @@ test('auto reconnect is opt-in, uses authorised ports, and never auto-programs t
  const end=app.indexOf(' const HELP=',start);
  const source=app.slice(start,end);
  assert.ok(start>0&&end>start);
- assert.match(source,/await detect\(\)/);
+ assert.match(source,/await detect\(\{requireUid:true\}\)/);
  assert.match(source,/navigator\.serial\.getPorts\(\)/);
  assert.match(source,/await connect\(matches\[0\]\)/);
  assert.doesNotMatch(source,/nvmProgram\(|writeReg\(|testPlcMagicCookie\(|startSsp3WithBoundedRetry\(/);
@@ -191,5 +191,22 @@ test('automatic ESP32-C3 access is read-only with no implicit power or RAM recov
  assert.match(implementation,/power=!autoProbe&&st\.sensorPowerEnabled/);
  assert.match(implementation,/if\(autoProbe\|\|!st\.bridgePsscRam/);
  assert.match(implementation,/detect\(\{requireUid:autoProbe\}\)/);
- assert.match(app,/if\(st\.port===port&&!st\.closing&&!st\.chip\)scheduleAutoReconnect\(2800\)/);
+ assert.match(app,/if\(st\.port===port&&!st\.closing&&\(!st\.chip\|\|!st\.uid\?\.hex\)\)scheduleAutoReconnect\(2800\)/);
+});
+
+test('failed bridge auto-connect remains retryable without triggering write operations',async()=>{
+ const from=app.indexOf(' async function attemptAutoReconnect(){');
+ const to=app.indexOf(' const HELP=',from);
+ assert.ok(from>0&&to>from);
+ const calls=[],st={port:{},readerAlive:true,chip:false,uid:null,adapterKind:'bridge'};
+ const deps={st,mayAutoReconnect:()=>true,autoReconnectBlocked:()=>false,renderStatus:()=>calls.push('render'),
+  bridgeHello:async()=>{calls.push('hello');return true},
+  connectBridgeChip:async()=>{calls.push('access');throw Error('PLC_NO_VALID_FRAME')},
+  detect:async()=>{throw Error('Should not read chip registers before ACCESS')},
+  logging:()=>calls.push('log'),scheduleAutoReconnect:()=>calls.push('retry'),
+  navigator:{serial:{getPorts:async()=>[]}},connect:async()=>{},autoReconnectBusy:false};
+ const attempt=new Function(...Object.keys(deps),app.slice(from,to)+';return attemptAutoReconnect;')(...Object.values(deps));
+ await attempt();
+ assert.equal(st.chip,false);
+ assert.deepEqual(calls,['render','hello','access','log','render','render','retry']);
 });

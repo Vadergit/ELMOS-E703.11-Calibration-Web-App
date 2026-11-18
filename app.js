@@ -2434,7 +2434,7 @@ if(typeof document!=='undefined') (function UI(){
    show('connMsg','USB offen. Initialisierung fehlgeschlagen: '+e.message,'warn');
   }finally{
    // Also recover after the USB bridge connected with no DUT attached yet.
-   if(st.port===port&&!st.closing&&!st.chip)scheduleAutoReconnect(2800);
+   if(st.port===port&&!st.closing&&(!st.chip||!st.uid?.hex))scheduleAutoReconnect(2800);
   }
   renderStatus();
  }

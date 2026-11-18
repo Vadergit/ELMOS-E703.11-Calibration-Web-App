@@ -1,3 +1,11 @@
+## v0.7.127 – Sensor am ESP32-C3 automatisch wiedererkennen
+
+- Aktiver Auto-Connect führt bei weiterhin angeschlossener ESP32-C3- beziehungsweise Pro-Micro-Bridge zuerst den Bridge-Handshake und PLC ACCESS / I²C ACCESS aus; erst danach werden Chipregister und UID geprüft.
+- Beim initialen USB-Verbinden ohne Sensor werden auch nach fehlgeschlagenem Chip-Handschlag automatische Wiederholungen geplant.
+- Auto-Probe führt keine Sensor-Stromversorgungsschaltung, keine Magic-Cookie-Freigabe und keine RAM-/NVM-Recovery aus. Kurze One-Wire-Startfenster benötigen unter Umständen weiterhin die manuelle Neuinitialisierung.
+- Eine fehlende UID gilt nicht als erfolgreich verbundener Sensor. Weitere Tests für Bridge-Erkennung und fehlgeschlagene Versuche.
+- Version v0.7.127, Cache-Parameter aktualisiert. Hardware-Praxistest steht noch aus.
+
 ## v0.7.126 – Unterbruchbehandlung und Auto-Connect
 
 - Sensor abgezogen, USB-Adapter weiter verbunden: kein automatischer Wechsel in «Verbindung & Diagnose». Aktuelle Ansicht bleibt stehen, gelber Balken bietet manuelle Neuinitialisierung.

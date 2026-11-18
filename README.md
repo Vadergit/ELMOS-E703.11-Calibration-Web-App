@@ -2,7 +2,7 @@
 
 **Ein geführter Kalibrierassistent für den ELMOS E703.11 und das SSP3-Eval-Board.** Ziel ist ein verständlicher Abgleich, der auch ohne tiefere Vorkenntnisse Schritt für Schritt funktioniert. Wer mehr benötigt, kann zusätzliche Messpunkte, DSP-Parameter und einen geschützten Expertenmodus verwenden.
 
-**Version: v0.7.126 · Sensorverlust ohne Ansichtswechsel und optionaler Auto-Connect** · [Änderungsverlauf](CHANGELOG.md) · **[Geplante Funktionen](ROADMAP.md)**
+**Version: v0.7.127 · Wiederverbindung am ESP32-C3 SuperMini korrigiert** · [Änderungsverlauf](CHANGELOG.md) · **[Geplante Funktionen](ROADMAP.md)**
 
 Der **Demo-Modus** wird in den Einstellungen erst nach Aktivierung von **Expertenparameter** angezeigt. Er simuliert Sensorwerte und Schreibvorgänge; die echte Hardware wird dabei nicht programmiert.
 
@@ -13,6 +13,12 @@ Der **Demo-Modus** wird in den Einstellungen erst nach Aktivierung von **Experte
 > **Geführter Assistent:** Nach der bestätigten SSP3-Verbindung stehen die neue Schritt-für-Schritt-Führung, die klassische Ansicht und der optionale Kompaktmodus zur Verfügung. Ein E703.11-Chip muss für den Abgleich verbunden sein. Als DIY-Programmer sind ausschliesslich ESP32-C3 SuperMini (v0.12 Labor-Quellcode) und Arduino Pro Micro (v0.28 Labor-Quellcode) vorgesehen. Die originalen ELMOS SSP3-Adapter bleiben separat unterstützt. Der vollständige Hardwaretest der DIY-Programmer ist noch offen.
 >
 > [Geführter Abgleich](docs/GEFUEHRTER_ASSISTENT.md) · [DIY-Programmer (ESP32-C3 / Pro Micro)](docs/USB_BRIDGE_GUIDE.md) · [Pinbelegung der zwei Boards](docs/ESP_BOARD_OPTIONS.md) · [DIY-Firmware-Installer](firmware-update.html)
+
+## v0.7.127 – Auto-Connect nach erneut angeschlossenem Sensor
+
+Der Auto-Connect funktionierte beim ESP32-C3 SuperMini und Arduino Pro Micro bisher nicht zuverlässig, wenn der USB-Adapter angeschlossen blieb, aber der Sensor entfernt und später wieder angeschlossen wurde. Die reine Registerabfrage ohne vorheriges Chip-ACCESS wurde ersetzt: Bei aktivierter Einstellung führt die App nun regelmässig den Bridge-Handshake und PLC ACCESS beziehungsweise I²C ACCESS aus, liest die Sensorregister und bestätigt danach die Chip-UID. Ein USB-Handschlag ohne Chip startet ebenfalls die Wiederholungsversuche.
+
+Der automatische Prüfvorgang führt **kein PLC START, I²C START, keine PSSC-RAM-Wiederherstellung, keine Magic-Cookie-Freigabe und keine NVM-Programmierung** durch. Bei kurzen 1-Wire-Startfenstern kann weiterhin «Sensor neu initialisieren» erforderlich sein. Die Einstellung ist aus Sicherheitsgründen standardmässig ausgeschaltet und unter **Einstellungen → Verbindung** aktivierbar.
 
 ## v0.7.126 – Sensorabbruch und physischer USB-Verlust unterscheiden
 
