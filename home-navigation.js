@@ -108,8 +108,6 @@ const ELMOS_HOME_NAVIGATION=(()=>{
  }
  function init(){
   $('guidedHomeTop')?.addEventListener('click',()=>requestHome());
-  document.querySelectorAll('[data-guided-home]').forEach(button=>
-   button.addEventListener('click',()=>requestHome()));
   $('guidedHomeStay')?.addEventListener('click',closeDialog);
   $('guidedHomeAbort')?.addEventListener('click',()=>{void abortAndGoHome()});
   $('guidedHomeConfirm')?.addEventListener('cancel',event=>{
