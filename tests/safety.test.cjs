@@ -420,7 +420,7 @@ test('NVM write always releases maintenance flags and resumes live ADC/DSP unles
  assert.ok(nvm.lastIndexOf("st.nvmWorking=false;st.calTask=false;st.writing=false")<nvm.lastIndexOf("startLive();"));
  assert.ok(nvm.includes("Live-Messung nach NVM-Vorgang automatisch wieder gestartet"));
  // Sensor NVM write protection, UID checks and CRC must stay intact.
- assert.ok(nvm.includes("if(st.iface!=='plc')throw Error"));
+ assert.ok(nvm.includes("if(!nvmTransportSupported())throw Error"));
  assert.ok(nvm.includes("st.uid.ser0!==st.nvmBackup[0]"));
  assert.ok(nvm.includes("CAL.crc16(after)!==after[63]"));
 });
@@ -1561,7 +1561,7 @@ test('ESP32-C3 combined DSP/AODO recovery requires generic user NVM and cold-sta
  assert.ok(firmware.includes('BRIDGE_USER_NVM_V1'));
  assert.ok(firmware.includes('strcmp(command, "NVM ARM HOST") == 0'));
  assert.ok(firmware.includes('if (!coldStartMatches() || probe(activeSlave))'));
- assert.ok(app.includes("const armCommand=st.bridgeUserNvm?'NVM ARM HOST'"));
+ assert.ok(app.includes("i2cNvmSupported()?'I2C ARM HOST':st.bridgeUserNvm?'NVM ARM HOST'"));
  assert.ok(app.includes('const esp32Ready=bridgeCombinedRecoveryReady()'));
  assert.ok(app.includes('const finalRecoveryBlock=psscNvmBlock('));
 });
@@ -1666,4 +1666,28 @@ test('Sensorbrücken-Rechner loads CM64 and complete calibration JSON without di
  assert.ok(src.includes('state.fileNotice='));
  assert.ok(src.includes('state.fileError='));
  assert.ok(style.includes('.nvmrecon-import-feedback'));
+});
+
+test('I²C NVM requires an I²C cold-start proof for the same port, UID and session',()=>{
+ const app=read('app.js');
+ const start=app.indexOf(' function bridgeColdStartVerified(){');
+ const end=app.indexOf(' function hasCurrentNvmBackup(){',start);
+ const block=new Function('st','CAL','$','hasCurrentNvmBackup',
+  app.slice(start,end)+'return psscNvmBlock;');
+ const port={},uid='0020018A487B';
+ const base={adapterKind:'bridge',bridgeUserNvm:true,bridgeCalibrationNvm:true,
+  bridgeI2cNvm:true,iface:'i2c',port,sessionIndex:42,uid:{hex:uid},
+  bridgeColdStart:{port,session:42,uid,iface:'i2c'},regs:{0x06:0x7C01}};
+ const before=Array(64).fill(0);
+ before[17]=0x7C03;before[18]=1<<14;
+ const after=before.slice();after[33]=0x0200;
+ const check=(state,backup=true,checked=true)=>block(state,CAL,()=>({checked}),()=>backup)(before,after);
+ assert.equal(check(base),'');
+ assert.match(check({...base,bridgeI2cNvm:false}),/unterstützte Verbindung/);
+ assert.match(check({...base,bridgeColdStart:{...base.bridgeColdStart,iface:'plc'}}),/direkt per I²C starten/);
+ assert.match(check({...base,sessionIndex:43}),/direkt per I²C starten/);
+ assert.match(check({...base,uid:{hex:'0020018A487C'}}),/direkt per I²C starten/);
+ assert.match(check({...base,regs:{0x06:0x6C01}}),/passt nicht zum Original-NVM/);
+ assert.match(check(base,false),/64-Wort-EEPROM/);
+ assert.match(check(base,true,false),/automatisch sichern/);
 });

@@ -1294,7 +1294,7 @@ html.guided-task-open #guidedHomeTop{display:inline-flex}
 <section class="card panel" data-panel="5" hidden>
 <div class="eyebrow">Schritt 6 · Ausgabe</div><h2>Ausgang konfigurieren</h2>
 <p class="muted">Erst die DSP-Kennlinie prüfen, dann Ausgangsmodus und Skalierung wählen. Bei bereits kalibrierten Sensoren kann der Ausgang ohne neue Druckkalibrierung geändert werden – nur mit vollständigem Original-NVM und bestätigter Chip-UID.</p>
-<div class="callout warn"><b>1-Wire-Startschutz:</b> Die App programmiert keine Kommunikations- oder Bootregister. NVM-Schreiben ist nur über eine tatsächlich erreichbare 1-Wire-Verbindung zulässig. Eine absolute Freigabe für das Verhalten nach Kaltstart erfordert einen Hardwaretest am Zielchip.</div>
+<div class="callout warn"><b>Startschutz:</b> Die App schützt die Kommunikations- und Boot-Einstellungen. Über I²C brauchen DIY-Programmer eine aktuelle Firmware und einen bestätigten Sensor-Kaltstart.</div>
 <div id="outputOneWireStatus" class="callout">1-Wire-Status wird bei Verbindung geprüft.</div>
 <div id="outputScalingAdvisory" class="callout warn" role="status" aria-live="polite" hidden>Ausgangsskalierung für die aktuellen DSP-Endpunkte prüfen.</div>
 <div class="flex"><button id="outputNvmRead">Original-NVM für Ausgangsänderung lesen (64 Wörter)</button></div>

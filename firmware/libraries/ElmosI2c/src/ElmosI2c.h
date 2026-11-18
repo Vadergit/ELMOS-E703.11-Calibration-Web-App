@@ -1,7 +1,7 @@
 #pragma once
 
 #include <Wire.h>
-
+#include <string.h>
 
 namespace elmosI2c {
 #if !defined(__AVR_ATmega32U4__)
@@ -10,6 +10,12 @@ constexpr int Scl = 7;
 #endif
 constexpr uint8_t DefaultAddress = 0x6D; // 7-bit address for CRC frames
 inline uint8_t slave = 0;
+inline uint8_t coldStartSlave = 0;
+inline uint16_t coldStartUid[3];
+
+constexpr bool userNvmWord(uint8_t index) {
+  return index == 16 || index == 18 || index == 22 || (index >= 27 && index <= 63);
+}
 
 constexpr uint8_t header(uint8_t reg, uint8_t lengthField) {
   using plc::crc;
@@ -77,7 +83,28 @@ inline bool probe(uint8_t device) {
          (ser0 || ser1) && !(ser0 == 0xFFFF && ser1 == 0xFFFF);
 }
 
+inline bool readUid(uint16_t (&uid)[3]) {
+  return slave && !readWord(slave, 0x38, uid[0]) &&
+         !readWord(slave, 0x52, uid[1]) && !readWord(slave, 0x50, uid[2]);
+}
+
+inline bool confirmColdStart() {
+  coldStartSlave = readUid(coldStartUid) ? slave : 0;
+  return coldStartSlave != 0;
+}
+
+inline bool coldStartMatches() {
+  uint16_t uid[3];
+  if (!coldStartSlave || coldStartSlave != slave || !readUid(uid) ||
+      memcmp(uid, coldStartUid, sizeof(uid)) != 0) {
+    coldStartSlave = 0;
+    return false;
+  }
+  return true;
+}
+
 inline const char *connect(bool powerCycle) {
+  coldStartSlave = 0;
   slave = 0;
   Wire.end();
   plc::configurePins();

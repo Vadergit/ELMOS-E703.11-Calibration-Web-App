@@ -363,11 +363,24 @@ static void i2cCommand(const char *command) {
     answer("!BRIDGE I2C_MODE_REQUIRED");
     return;
   }
-  if (!strcmp(command, "ACCESS") || !strcmp(command, "START")) {
-    const bool start = !strcmp(command, "START");
+  if (!strcmp(command, "ARM HOST")) {
+    disarmNvm();
+    if (!elmosI2c::coldStartMatches()) {
+      answer("!BRIDGE NVM_I2C_COLD_START_REQUIRED");
+      return;
+    }
+    nvmHostMode = true;
+    armNvmSession();
+    answer("# NVM HOST ARMED");
+    return;
+  }
+  const bool direct = !strcmp(command, "COLD START");
+  const bool start = direct || !strcmp(command, "START");
+  if (start || !strcmp(command, "ACCESS")) {
+    disarmNvm();
     bool enabledInRam = false;
     const char *error = elmosI2c::connect(start);
-    if (start && error && !strcmp(error, "!BRIDGE I2C_SENSOR_NOT_FOUND")) {
+    if (start && !direct && error && !strcmp(error, "!BRIDGE I2C_SENSOR_NOT_FOUND")) {
       error = activateI2cThroughPlc();
       if (!error) {
         enabledInRam = true;
@@ -378,9 +391,10 @@ static void i2cCommand(const char *command) {
       answer(error);
       return;
     }
-    char reply[48];
-    snprintf(reply, sizeof(reply), "# I2C ACCESS ADDR=%02X RAM_ENABLE=%u",
-             unsigned(elmosI2c::slave), unsigned(enabledInRam));
+    const bool proven = start && !enabledInRam && elmosI2c::confirmColdStart();
+    char reply[54];
+    snprintf(reply, sizeof(reply), "# I2C ACCESS ADDR=%02X RAM_ENABLE=%u COLD_START=%u",
+           unsigned(elmosI2c::slave), unsigned(enabledInRam), unsigned(proven));
     answer(reply);
     return;
   }
@@ -391,7 +405,7 @@ static void i2cCommand(const char *command) {
     return;
   }
   const char *hex = command + (read ? 5 : 6);
-  unsigned data = 0;
+  uint32_t data = 0;
   for (unsigned i = 0; i < (read ? 2u : 6u); ++i) {
     const int digit = hexDigit(hex[i]);
     if (digit < 0) {
@@ -417,11 +431,16 @@ static void i2cCommand(const char *command) {
   } else {
     const bool ramCookie = reg == 0x22 &&
         (word == 0xF75A || word == 0x0CC7 || word == 0xD21E || word == 0x62A2);
-    if (!ramCookie && !allowedWrite(reg, word)) {
+    const bool program = reg == 0x4E && (word & 0xFF81) == 0xA300;
+    const uint8_t index = (word & 0x7F) >> 1;
+    if ((!ramCookie && !allowedWrite(reg, word)) ||
+        (program && !elmosI2c::userNvmWord(index))) {
       answer("!BRIDGE I2C_WRITE_DENIED");
       return;
     }
     const char *error = elmosI2c::writeWord(reg, word);
+    if (!error && nvmHostMode && reg == 0x4A) nvmDataPending = true;
+    if (program) nvmDataPending = false;
     answer(error ? error : "# I2C WRITE");
   }
 }
@@ -437,6 +456,7 @@ static void onCommand(const char *command) {
     if (i2cMode || nextI2cMode) { disarmNvm(); coldStartVerified = false; }
     i2cMode = nextI2cMode;
     elmosI2c::slave = 0;
+    elmosI2c::coldStartSlave = 0;
     answer(i2cMode ? "# I2C" : "# PLC");
   } else if (strncmp(command, "I2C ", 4) == 0) {
     i2cCommand(command + 4);
@@ -484,7 +504,7 @@ static void onCommand(const char *command) {
     answer("# NVM DISARMED");
   } else if (strcmp(command, "BRIDGE_INFO") == 0) {
     disarmNvm();
-    answer("# E70311-BRIDGE V1 CAPS=PLC_UID,PLC_READ,PLC_WRITE,NVM,POWER_GPIO_10,PSSC_RAM,AFE_FILTER,BRIDGE_CAL_NVM,BRIDGE_AODO_OUTPUT_NVM_TEST,BRIDGE_GENERIC_RAM_V1,BRIDGE_USER_NVM_V1,PLC_RX_DIAG,PLC_GPIO4_IO,I2C_CRC");
+    answer("# E70311-BRIDGE V1 CAPS=PLC_UID,PLC_READ,PLC_WRITE,NVM,POWER_GPIO_10,PSSC_RAM,AFE_FILTER,BRIDGE_CAL_NVM,BRIDGE_AODO_OUTPUT_NVM_TEST,BRIDGE_GENERIC_RAM_V1,BRIDGE_USER_NVM_V1,PLC_RX_DIAG,PLC_GPIO4_IO,I2C_CRC,BRIDGE_I2C_NVM_V1");
   } else if (strcmp(command, ".VERSION") == 0) {
     answer("# ESP32-C3 SuperMini ELMOS PLC/I2C bridge v0.14");
   } else if (strcmp(command, "BRIDGE_PING") == 0) {

@@ -317,7 +317,7 @@ const ELMOS_EXPERT=(()=>{
    rows.appendChild(fragment);
    const status=CAL.oneWireStartupStatus(st.nvmBackup);
    $('eepromStatus').textContent='EEPROM: 64 Wörter gelesen, CRC8/CRC16 bestätigt. '+matched+' sichtbar. Chip-ID: '+(st.uid?.hex||'noch nicht bestätigt')+
-    '. 1-Wire-Startbedingungen: '+(status.ok?'softwareseitig plausibel':'nicht erfüllt – NVM-Schreiben wird gesperrt')+'. Alle Wörter bleiben hier nur lesbar.';
+    '. 1-Wire-Startbedingungen: '+(status.ok?'softwareseitig plausibel':'nicht erfüllt')+'. Alle Wörter bleiben hier nur lesbar.';
    $('eepromStatus').className='callout '+(status.ok?'success':'warn');
    $('expertNvmDump').textContent=st.nvmBackup.map((v,i)=>'CM '+(i*2).toString(16).toUpperCase().padStart(2,'0')+'  0x'+hx(v)+'  '+
     (i<16?'FACTORY · NUR LESEN':i<28?'BOOT/KONFIG · GESCHÜTZT':i===63?'CRC16':'USER')+'  '+nvmName(i)).join('\n');
@@ -519,7 +519,7 @@ const ELMOS_EXPERT=(()=>{
     const normalCalibration=verificationComplete();
     if(!normalCalibration&&(!st.nvmBackupVerified||!st.nvmBackup||!st.uid))throw Error('Für Ausgangsänderungen an bereits kalibrierten Sensoren zuerst die aktuelle 64-Wort-NVM-Sicherung mit bestätigter UID lesen');
     const before=st.nvmBackupVerified&&st.nvmBackup?st.nvmBackup:Array(64).fill(0);
-    const after=CAL.prepareOutputConfig(before,values,limit);
+    const after=CAL.prepareOutputConfig(before,values,limit,{interfaceMode:st.iface});
     if(!normalCalibration){
      after[63]=CAL.crc16(after);
      const changes=after.map((v,i)=>v!==before[i]?{index:i,address:i*2,from:before[i],to:v}:null).filter(Boolean);

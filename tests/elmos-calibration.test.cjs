@@ -237,3 +237,25 @@ test('a smaller pressure span can fit a reduced DSP target within Q3.12',()=>{
  assert.equal(result.registers.sf,32767);
  assert.ok(result.stats.maxDigits<1);
 });
+
+test('I²C NVM accepts strapped and fixed startup modes and protects communication words', () => {
+ const words=originalNvm();
+ words[17]=0x7C03;
+ words[18]=1<<14; // NCS/SA0 overrides the stored interface selection.
+ words[19]=0; // One-Wire unavailable.
+ assert.equal(C.i2cBootRegisterMatches(words,0x7C01),true);
+ assert.equal(C.i2cBootRegisterMatches(words,0x7C02),false);
+ assert.equal(C.i2cBootRegisterMatches(words,0x6C01),false);
+ assert.throws(()=>C.protectStartupCommunication(words,words),/1-Wire/);
+ const after=words.slice();
+ after[33]=0x1234;
+ assert.equal(C.protectStartupCommunication(words,after,{interfaceMode:'i2c'}),true);
+ after[17]=0x6C03;
+ assert.throws(()=>C.protectStartupCommunication(words,after,{interfaceMode:'i2c'}),/verändert/);
+ words[18]=3<<14;
+ words[17]=0x6C02;
+ assert.equal(C.i2cBootRegisterMatches(words,0x6C02),true);
+ assert.equal(C.i2cBootRegisterMatches(words,0x6C01),false);
+ words[18]=2<<14;
+ assert.equal(C.i2cBootRegisterMatches(words,0x6C02),false);
+});

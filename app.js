@@ -926,7 +926,8 @@ if(typeof document!=='undefined') (function UI(){
  function bridgeColdStartVerified(){
   const proof=st.bridgeColdStart;
   return st.adapterKind==='bridge'&&st.bridgeCalibrationNvm&&!!st.port&&!!st.uid?.hex&&
-   proof?.port===st.port&&proof.session===st.sessionIndex&&proof.uid===st.uid.hex;
+   proof?.port===st.port&&proof.session===st.sessionIndex&&proof.uid===st.uid.hex&&
+   (st.iface==='i2c'?proof.iface==='i2c':st.iface==='plc'&&proof.iface!=='i2c');
  }
  // A verified cold start is the same hardware proof whether performed by
  // PSSC-RAM-Start or by the bounded AN0204 SSP3 power/cookie startup.
@@ -1033,12 +1034,29 @@ if(typeof document!=='undefined') (function UI(){
   }
   return failed.length?failed.join('; ')+'.':'Sicherheitsnachweis nicht vollständig.';
  }
+ function i2cNvmSupported(){
+  return st.iface==='i2c'&&st.adapterKind==='bridge'&&st.bridgeI2cNvm;
+ }
+ function nvmTransportSupported(){
+  return st.iface==='plc'||i2cNvmSupported();
+ }
+ function i2cNvmStartupBlock(words){
+  if(!i2cNvmSupported())return 'Für NVM über I²C die aktuelle Firmware für ESP32-C3 oder Pro Micro installieren.';
+  if(!bridgeColdStartVerified())return 'Für NVM über I²C den Sensor mit aktivierter Versorgungssteuerung verbinden, bevor du den Abgleich beginnst. Der Sensor muss direkt per I²C starten.';
+  if(words&&!CAL.i2cBootRegisterMatches(words,st.regs[0x06]))
+   return 'Der I²C-Startmodus im RAM passt nicht zum Original-NVM. NVM-Schreiben gesperrt.';
+  return '';
+ }
  function psscNvmBlock(initial,modified,restoring=false,outputOnly=false,alarmOnly=false,allowCombinedRecovery=false){
   // Unified low-level bridge: no firmware feature-specific NVM address list.
   // Same sensor/boot/UID/CRC checks as SSP3 are performed later in the UI.
   if(st.adapterKind==='bridge'&&st.bridgeUserNvm){
-   if(st.bridgeReadOnly||st.iface!=='plc')
-    return 'Generischer User-NVM-Zugriff nur über bestätigte 1-Wire-Kommunikation.';
+   if(st.bridgeReadOnly||!nvmTransportSupported())
+    return 'Generischer User-NVM-Zugriff benötigt eine unterstützte Verbindung.';
+   if(st.iface==='i2c'){
+    const block=i2cNvmStartupBlock(initial);
+    if(block)return block;
+   }
    if(!bridgeColdStartVerified())
     return 'DIY-Programmer: erst einen echten Sensor-Kaltstart mit UID-Prüfung durchführen.';
    if(initial&&modified){
@@ -1140,7 +1158,7 @@ if(typeof document!=='undefined') (function UI(){
   if(old.checked&&old.ok&&old.mode===Number(mode))return {required:false,reason:''};
   if(proposed&&String(proposed.mode)===mode&&proposed.scaleEnabled){
    try{
-    const image=CAL.prepareOutputConfig(st.nvmBackup,proposed,limit);
+    const image=CAL.prepareOutputConfig(st.nvmBackup,proposed,limit,{interfaceMode:st.iface});
     if(CAL.analogOutputStatus(image,s0,s1,vdd,limit).ok)
      return {required:false,reason:''};
    }catch(_){/* An invalid or stale plan must be reviewed again. */}
@@ -1175,7 +1193,7 @@ if(typeof document!=='undefined') (function UI(){
   $('nvmBackupDownload').disabled=!st.nvmBackupVerified||!st.nvmBackup;
   $('nvmAutoBackup').disabled=st.nvmWorking||st.writing||st.calTask;
   $('nvmPrepare').disabled=!verificationComplete()||!st.port||!st.chip||st.writing||st.calTask||st.nvmWorking||st.nvmRechecking||!!st.restorePlan||!!st.outputOnlyPlan||!!(st.alarmOnlyPlan&&!st.alarmOnlyPlan.duringCalibration);
-  $('nvmRecheck').disabled=!verificationComplete()||!st.port||!st.chip||st.mode!=='usb'||st.iface!=='plc'||
+  $('nvmRecheck').disabled=!verificationComplete()||!st.port||!st.chip||st.mode!=='usb'||!nvmTransportSupported()||
    st.writing||st.calTask||st.nvmWorking||st.nvmAttempting||st.nvmRechecking||st.closing||
    st.reinitRunning||st.powerCycleRunning||st.magicRunning||st.startupRunning||st.diagRunning||
    st.afeWriteActive||!!st.restorePlan||!!st.outputOnlyPlan||!!(st.alarmOnlyPlan&&!st.alarmOnlyPlan.duringCalibration);
@@ -1206,7 +1224,9 @@ if(typeof document!=='undefined') (function UI(){
   }
   $('nvmUidHint').textContent=recognizedUid?'Chip-UID: '+recognizedUid:'Chip-UID wird beim Verbinden gelesen.';
   let nvmReason='';
-  if(st.iface!=='plc')nvmReason='1-Wire-Startschutz: Dauerhaftes NVM-Schreiben ausschliesslich über 1-Wire möglich. Bitte per 1-Wire verbinden.';
+  const i2cBlock=st.iface==='i2c'?i2cNvmStartupBlock(st.nvmBackupVerified?st.nvmBackup:null):'';
+  if(i2cBlock)nvmReason=i2cBlock;
+  else if(!nvmTransportSupported())nvmReason='NVM-Schreiben benötigt eine unterstützte 1-Wire- oder I²C-Verbindung.';
   else if(!verified||st.mode!=='usb')nvmReason='Zuerst die DSP-Prüfung abschliessen und sicherstellen, dass der echte Chip verbunden ist.';
   else if(!st.nvmBackupVerified||!st.nvmBackup)nvmReason='Zuerst Original-NVM vollständig lesen und prüfen.';
   else if(!st.calImage)nvmReason='Oben auf «Änderungen prüfen» klicken. Damit wird der NVM-Änderungsplan erstellt; es wird noch nichts geschrieben.';
@@ -1214,7 +1234,10 @@ if(typeof document!=='undefined') (function UI(){
   const outputStatus=$('outputOneWireStatus');
   const startup=st.nvmBackupVerified&&st.nvmBackup?.length===64?CAL.oneWireStartupStatus(st.nvmBackup):null;
   const cookieVerified=psscRecoveryProven()||bridgeColdStartVerified();
-  if(outputStatus){
+  if(outputStatus&&st.iface==='i2c'){
+   outputStatus.textContent=i2cBlock||'I²C-Kaltstart bestätigt. Schnittstellen- und Boot-Einstellungen bleiben erhalten.';
+   outputStatus.className='callout '+(i2cBlock?'warn':'success');
+  }else if(outputStatus){
    const connected=st.mode==='usb'&&st.iface==='plc'&&st.chip;
    const saved=startup;
    const safeSaved=!!(saved?.ok&&(!saved.requiresCookie||cookieVerified));
@@ -1482,6 +1505,7 @@ if(typeof document!=='undefined') (function UI(){
   if(st.bridgeUserNvm)st.bridgeCalibrationNvm=true;
   st.bridgeAfeFilter=caps.includes('AFE_FILTER');
   st.bridgeI2c=caps.includes('I2C_CRC');
+  st.bridgeI2cNvm=st.bridgeI2c&&st.bridgeUserNvm&&caps.includes('BRIDGE_I2C_NVM_V1');
   st.bridgePlcIo=caps.includes('PLC_D4_IO')?'D4':caps.includes('PLC_GPIO4_IO')?'GPIO4':null;
   st.bridgePsscRam=caps.includes('PSSC_RAM');
   st.bridgeReadOnly=caps.includes('PLC_READ_ONLY')&&caps.includes('PLC_READ');
@@ -1522,6 +1546,9 @@ if(typeof document!=='undefined') (function UI(){
    else st.bridgeRxNote=(st.bridgeBoard||'DIY-Programmer')+' erkennt Signalwechsel am AODO-Empfänger, aber keine bestätigte Chipantwort. Details im USB-Protokoll.';
   }catch(e){logging('ESP32 RX-Diagnose: '+e.message)}
  }
+ function i2cColdStartReply(reply){
+  return /^# I2C ACCESS ADDR=[0-9A-F]{2} RAM_ENABLE=0 COLD_START=1$/m.test(reply.trim());
+ }
  async function connectBridgeChip({autoProbe=false}={}){
   st.bridgeRxNote='';
   st.bridgeColdStart=null;
@@ -1540,7 +1567,12 @@ if(typeof document!=='undefined') (function UI(){
    const reply=await exchange(power?'I2C START':'I2C ACCESS',6000);
    if(reply.includes('RAM_ENABLE=1'))logging('I²C für diese Sitzung über One-Wire im RAM aktiviert.');
    st.measurementPeriod=await readReg(0x0E);
-   await detect({requireUid:autoProbe});
+   await detect({requireUid:autoProbe||st.bridgeI2cNvm});
+   if(power&&i2cNvmSupported()&&i2cColdStartReply(reply)&&st.chip&&st.uid?.hex&&
+      st.port===port&&st.sessionIndex===session){
+    st.bridgeColdStart={port,session,uid:st.uid.hex,iface:'i2c'};
+    renderStatus();
+   }
    return;
   }
   st.bridgeSinglePin=!!st.bridgePlcIo&&$('plcGpio4Mode').checked;
@@ -3234,7 +3266,7 @@ if(typeof document!=='undefined') (function UI(){
   if(!plan||!plan.alarmOnly||plan!==st.alarmOnlyPlan||!hasCurrentNvmBackup()||
      st.uid?.hex!==plan.uid||st.sessionIndex!==plan.session)
    throw Error('Alarm: Chip/EEPROM-Änderungsplan nicht mehr gültig.');
-  if(!(st.adapterKind==='ssp3'||(st.adapterKind==='bridge'&&st.bridgeGenericRam))||st.iface!=='plc'||st.mode!=='usb')
+  if(!(st.adapterKind==='ssp3'||(st.adapterKind==='bridge'&&st.bridgeGenericRam))||!nvmTransportSupported()||st.mode!=='usb')
    throw Error('Alarm-RAM-Test benötigt SSP3 oder eine DIY-Bridge mit BRIDGE_GENERIC_RAM_V1 über 1-Wire.');
   if(st.calTask||st.writing||st.nvmWorking||st.reinitRunning||st.powerCycleRunning)
    throw Error('Alarm-RAM-Test: Ein anderer Chipvorgang läuft.');
@@ -3242,7 +3274,7 @@ if(typeof document!=='undefined') (function UI(){
   const recomputed=ELMOS_ALARM_CONFIG.prepare(st.nvmBackup,plan.settings,CAL.crc16);
   if(recomputed.after.some((w,i)=>w!==plan.after[i]))
    throw Error('Alarm-RAM-Test: Berechnung weicht vom bestätigten Plan ab.');
-  CAL.protectStartupCommunication(st.nvmBackup,plan.after,{allowAlarmMask:true});
+  CAL.protectStartupCommunication(st.nvmBackup,plan.after,{allowAlarmMask:true,interfaceMode:st.iface});
   const assignments=[[0x9C,55],[0x9E,56],[0xA8,61],[0xAA,62],[0x08,18],[0x04,16]];
   let writeAttempted=false,oldRam=[],resume=st.live&&!st.manualLivePause;
   st.calTask=true;st.writing=true;st.ramWriteScope='alarm';stopLive();
@@ -3520,14 +3552,19 @@ if(typeof document!=='undefined') (function UI(){
    if(!coefficientSettingsCurrent()||!verificationComplete()||!st.calStaged)throw Error('Zuerst DSP-RAM-Kalibrierung mit allen gewählten Prüfpunkten erfolgreich abschliessen');
    if(!hasCurrentNvmBackup())await nvmScan({preview:true});
    if(!hasCurrentNvmBackup())throw Error('Kein vollständig geprüftes NVM für die aktuell verbundene Chip-UID verfügbar');
-   const startup=CAL.oneWireStartupStatus(st.nvmBackup);
-   if(!startup.ok)throw Error('1-Wire-Startfenster nicht sicher: '+startup.errors.join('; '));
-   if(startup.requiresCookie&&!psscRecoveryProven())
-    await refreshPsscRecoveryProofReadOnly();
-   if(startup.requiresCookie&&!psscRecoveryProven()&&!bridgeColdStartVerified())
-    throw Error('One-Wire-Startfenster '+startup.windowLabel+
-     ': Kein gesicherter Kaltstartnachweis für NVM. '+psscRecoveryEvidence()+
-     ' Die laufende RAM-Kalibrierung bleibt erhalten. Eine echte fehlende Stromstartprüfung kann ohne Neustart nicht nachgeholt werden. Kein NVM-Schreiben.');
+   if(st.iface==='i2c'){
+    const block=i2cNvmStartupBlock(st.nvmBackup);
+    if(block)throw Error(block);
+   }else{
+    const startup=CAL.oneWireStartupStatus(st.nvmBackup);
+    if(!startup.ok)throw Error('1-Wire-Startfenster nicht sicher: '+startup.errors.join('; '));
+    if(startup.requiresCookie&&!psscRecoveryProven())
+     await refreshPsscRecoveryProofReadOnly();
+    if(startup.requiresCookie&&!psscRecoveryProven()&&!bridgeColdStartVerified())
+     throw Error('One-Wire-Startfenster '+startup.windowLabel+
+      ': Kein gesicherter Kaltstartnachweis für NVM. '+psscRecoveryEvidence()+
+      ' Die laufende RAM-Kalibrierung bleibt erhalten. Eine echte fehlende Stromstartprüfung kann ohne Neustart nicht nachgeholt werden. Kein NVM-Schreiben.');
+   }
    const recovery=st.psscRamRecovery||(st.regs[0x06]===0x6C04&&st.nvmBackup[17]!==0x6C04);
    // A temporary One-Wire RAM recovery may only persist calibration words.
    // Ignore any staged output/clipping changes instead of blocking calibration.
@@ -3581,7 +3618,7 @@ if(typeof document!=='undefined') (function UI(){
    }
    let image=CAL.configFrom(st.nvmBackup,st.calfit,st.afe??0x800,{
     output:recovery?(recoveryCombined?explicitOutputPlan:null):outputPlan,
-    bridgeSupply,userId:requestedNvmUserId()
+    bridgeSupply,userId:requestedNvmUserId(),interfaceMode:st.iface
    });
    image.recoveryCombined=recoveryCombined;
    const includeAlarms=ELMOS_ALARM_EDITOR.pendingForCalibration();
@@ -3596,7 +3633,7 @@ if(typeof document!=='undefined') (function UI(){
      throw Error('Bei Alarmänderungen ist das automatische Original-NVM-Backup Pflicht.');
     const normalized=ELMOS_ALARM_CONFIG.prepare(image.after,alarmPlan.settings,CAL.crc16);
     ELMOS_ALARM_CONFIG.validateDiff(image.after,normalized.after,CAL.crc16);
-    CAL.protectStartupCommunication(image.before,normalized.after,{allowSvdd:true,allowAlarmMask:true});
+    CAL.protectStartupCommunication(image.before,normalized.after,{allowSvdd:true,allowAlarmMask:true,interfaceMode:st.iface});
     image={...image,after:normalized.after,
      changes:normalized.after.map((to,index)=>to===image.before[index]?null:
       {index,address:index*2,from:image.before[index],to}).filter(Boolean),
@@ -3674,8 +3711,8 @@ if(typeof document!=='undefined') (function UI(){
   if(st.nvmRechecking)return;
   if(!verificationComplete()||!st.calStaged||!st.calfit)
    return show('nvmRecheckMsg','Zuerst DSP-RAM-Kalibrierung und unabhängige Prüfung abschliessen. Vorhandene Messpunkte bleiben erhalten.','warn');
-  if(st.mode!=='usb'||!st.port||!st.chip||st.iface!=='plc'||!st.uid?.hex)
-   return show('nvmRecheckMsg','Eine bestätigte aktive 1-Wire-Verbindung mit Chip-UID ist erforderlich. Ein Sensorneustart wird nicht automatisch ausgeführt.','warn');
+  if(st.mode!=='usb'||!st.port||!st.chip||!nvmTransportSupported()||!st.uid?.hex)
+   return show('nvmRecheckMsg','Eine bestätigte aktive Sensorverbindung mit Chip-UID ist erforderlich. Ein Sensorneustart wird nicht automatisch ausgeführt.','warn');
   if(st.writing||st.calTask||st.nvmWorking||st.nvmAttempting||st.closing||
      st.reinitRunning||st.powerCycleRunning||st.magicRunning||st.startupRunning||
      st.diagRunning||st.afeWriteActive||!!st.restorePlan||!!st.outputOnlyPlan||
@@ -3766,7 +3803,7 @@ if(typeof document!=='undefined') (function UI(){
   let chipProgrammingStarted=false;
   try{
    const restoring=!!(expert.restoreReady()&&st.calImage===st.restorePlan),outputOnly=!!(expert.outputReady()&&st.calImage===st.outputOnlyPlan),alarmOnly=!!(ELMOS_ALARM_EDITOR.ready()&&st.calImage===st.alarmOnlyPlan);
-   if(st.iface!=='plc')throw Error('1-Wire-Startschutz: NVM darf ausschliesslich über eine bestätigte 1-Wire-Verbindung programmiert werden. Neu über 1-Wire verbinden.');
+   if(!nvmTransportSupported())throw Error('NVM-Schreiben benötigt eine unterstützte 1-Wire- oder I²C-Verbindung.');
    if(st.mode!=='usb'||!st.chip||!st.port||!st.nvmBackupVerified||!st.calImage||(!restoring&&!outputOnly&&!alarmOnly&&!verificationComplete()))throw Error('Hardware, Sicherungen oder Kalibrierverifikation fehlen');
    const id=st.uid?.hex;
    if(!id||st.uid.ser0!==st.nvmBackup[0]||st.uid.ser1!==st.nvmBackup[1])throw Error('48-Bit-Chip-UID muss vor dem Schreiben verifiziert werden');
@@ -3774,7 +3811,7 @@ if(typeof document!=='undefined') (function UI(){
    if(alarmOnly){
     if(!(st.adapterKind==='ssp3'||st.bridgeUserNvm)||st.sessionIndex!==st.alarmOnlyPlan.session||
        st.alarmOnlyPlan.uid!==id||!st.alarmOnlyPlan.ramVerified)
-     throw Error('Alarm-NVM nur nach verifiziertem RAM-Test am selben Chip über Original-SSP3.');
+     throw Error('Alarm-NVM erst nach erfolgreichem RAM-Test am selben Chip freigegeben.');
     if(!$('nvmAutoBackup').checked)throw Error('Alarm-NVM: Original-EEPROM-Sicherung ist Pflicht.');
     ELMOS_ALARM_CONFIG.validateDiff(initial,modified,CAL.crc16);
     const expected=ELMOS_ALARM_CONFIG.prepare(initial,st.alarmOnlyPlan.settings,CAL.crc16);
@@ -3787,9 +3824,9 @@ if(typeof document!=='undefined') (function UI(){
    const allowSvdd=!restoring&&!outputOnly&&!alarmOnly;
    if(st.adapterKind==='bridge'&&!st.bridgeUserNvm&&modified[CAL.SVDD_INDEX]!==initial[CAL.SVDD_INDEX])
     throw Error('Brückenspannung dauerhaft speichern wird derzeit nur mit SSP3 unterstützt.');
-   CAL.protectStartupCommunication(initial,modified,{allowSvdd,allowAlarmMask:alarmOnly||alarmIntegrated});
+   CAL.protectStartupCommunication(initial,modified,{allowSvdd,allowAlarmMask:alarmOnly||alarmIntegrated,interfaceMode:st.iface});
    const startup=CAL.oneWireStartupStatus(initial);
-   if(startup.requiresCookie&&!psscRecoveryProven()&&!bridgeColdStartVerified())
+   if(st.iface==='plc'&&startup.requiresCookie&&!psscRecoveryProven()&&!bridgeColdStartVerified())
     throw Error('1-Wire-Startschutz: Cookie-Start für die aktuelle Chip-UID nicht verifiziert. NVM-Schreiben gesperrt.');
    if(CAL.crc16(initial)!==initial[63]||CAL.crc16(modified)!==modified[63])throw Error('CRC16-Prüfung fehlgeschlagen');
    // Repeat the target-voltage check immediately before any NVM write command.
@@ -3826,7 +3863,7 @@ if(typeof document!=='undefined') (function UI(){
    }else if(outputOnly||[22,57,58,59,60].some(i=>initial[i]!==modified[i])||
       ((initial[16]^modified[16])&((7<<9)|(1<<6)|(1<<7)))!==0){
     if(!st.expertOutputPlan)throw Error('AODO-NVM-Änderung ohne geprüften Expertenvorschlag');
-    const expected=CAL.prepareOutputConfig(initial,st.expertOutputPlan,outputOnly?st.outputOnlyPlan.limit:st.calfit.outputLimit);
+    const expected=CAL.prepareOutputConfig(initial,st.expertOutputPlan,outputOnly?st.outputOnlyPlan.limit:st.calfit.outputLimit,{interfaceMode:st.iface});
     for(const i of [16,22,57,58,59,60]){
      const mismatch=i===16&&alarmIntegrated?
       (((modified[i]^expected[i])&~((1<<5)|(1<<8)))!==0):modified[i]!==expected[i];
@@ -3889,12 +3926,12 @@ if(typeof document!=='undefined') (function UI(){
    }
    const finalRecoveryBlock=psscNvmBlock(initial,modified,restoring,outputOnly,alarmOnly,!!st.calImage?.recoveryCombined);
    if(finalRecoveryBlock)throw Error(finalRecoveryBlock);
-   CAL.protectStartupCommunication(initial,modified,{allowSvdd,allowAlarmMask:alarmOnly||alarmIntegrated});
+   CAL.protectStartupCommunication(initial,modified,{allowSvdd,allowAlarmMask:alarmOnly||alarmIntegrated,interfaceMode:st.iface});
    for(let i=0;i<28;i++)if(modified[i]!==initial[i]&&(restoring||![16,...((alarmOnly||alarmIntegrated)?[18,22]:[22]),...(allowSvdd?[CAL.SVDD_INDEX]:[])].includes(i)))throw Error('Boot-/Werksbereich verändert');
    // Only USER region access is authorized; NEVER unlock factory calibration area.
    nvmWriteFeedback('Chip bestätigt, NVM-Schreibfreigabe wird angefordert …');
    if(st.adapterKind==='bridge'&&st.bridgeCalibrationNvm){
-    const armCommand=st.bridgeUserNvm?'NVM ARM HOST':
+    const armCommand=i2cNvmSupported()?'I2C ARM HOST':st.bridgeUserNvm?'NVM ARM HOST':
      (outputOnly?'NVM ARM OUTPUT':'NVM ARM CALIBRATION');
     const armReply=await exchange(armCommand);
     if(!armReply.includes('# NVM ')||!armReply.includes('ARMED'))
@@ -4028,7 +4065,12 @@ if(typeof document!=='undefined') (function UI(){
      await expert.identify();
      if(st.uid?.hex!==expected.id)throw Error('Anderer Chip angeschlossen');
      if(demoEnabled)demoPort.reboot();
-     else if(st.adapterKind==='bridge'&&st.bridgeCalibrationNvm){
+     else if(i2cNvmSupported()){
+      st.bridgeColdStart=null;
+      const reply=await exchange('I2C COLD START',6000);
+      if(!i2cColdStartReply(reply))throw Error('Sensor antwortet nach dem Kaltstart nicht direkt über I²C');
+      st.measurementPeriod=await readReg(0x0E);
+     }else if(st.adapterKind==='bridge'&&st.bridgeCalibrationNvm){
       st.bridgeColdStart=null;
       try{recoveredAfterBoot=await bridgeAccess({power:true})}
       catch(e){
@@ -4054,13 +4096,15 @@ if(typeof document!=='undefined') (function UI(){
    const boot=await bootSnapshot();
    for(const [index,addr] of [[16,4],[17,6],[18,8],[19,10],[20,12],[22,16]]){
     const expectedWord=recoveredAfterBoot&&addr===6?0x6C04:st.nvmBackup[index];
-    if(boot[addr]!==expectedWord)throw Error('RAM-Bootregister 0x'+h(addr)+' weicht vom NVM-Backup ab');
+    const matches=addr===6&&st.iface==='i2c'?
+     CAL.i2cBootRegisterMatches(st.nvmBackup,boot[addr]):boot[addr]===expectedWord;
+    if(!matches)throw Error('RAM-Bootregister 0x'+h(addr)+' weicht vom NVM-Backup ab');
    }
    const actualSvdd=bridgeSupplyCode(await readReg(R_BRIDGE));
    if(actualSvdd!==bridgeSupplyCode(expected.words[CAL.SVDD_INDEX]))
     throw Error('Brückenspannung im RAM stimmt nach dem Neustart nicht mit dem NVM überein');
    await readADC();
-   if(automatic&&st.adapterKind==='bridge'&&st.bridgeCalibrationNvm)st.bridgeColdStart={port:st.port,session:st.sessionIndex,uid:expected.id};
+   if(automatic&&st.adapterKind==='bridge'&&st.bridgeCalibrationNvm)st.bridgeColdStart={port:st.port,session:st.sessionIndex,uid:expected.id,iface:st.iface};
    const success='NVM nach Neustart vollständig rückgelesen. Chip-ID, CRC8, CRC16, Bootregister und Brückenspannung stimmen.';
    await window.ELMOS_ARCHIVE?.event('post_boot_verified',{uid:st.uid?.hex,nvm:st.nvmBackup?.slice(),boot,svddCode:actualSvdd});
    reportBootCheck(success,'success');
@@ -4986,7 +5030,7 @@ if(typeof document!=='undefined') (function UI(){
   setTimeout(()=>auto().catch(()=>{}),350);
  }
  const expert=ELMOS_EXPERT.init({st,CAL,readReg,nvmScan,download,show,stopLive,startLive,lsGet,lsSet,renderFlowState,verificationComplete,withProgress});
- const alarmEditor=ELMOS_ALARM_EDITOR.init({st,CAL,hasCurrentNvmBackup,applyAlarmRam,renderFlowState,show});
+ const alarmEditor=ELMOS_ALARM_EDITOR.init({st,CAL,hasCurrentNvmBackup,applyAlarmRam,renderFlowState,show,nvmTransportSupported});
  // Read-only guide bridge: uses the same ADC/DSP samples as the classic UI.
  function guidedTelemetry(){
   const online=!!(st.port&&st.chip);
