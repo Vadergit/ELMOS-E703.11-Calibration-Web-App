@@ -56,7 +56,7 @@ const ELMOS_HOME_NAVIGATION=(()=>{
    const kind=s.recording?'Testaufzeichnung':s.archiveType==='verification'?'Nachmessung':
     s.archiveType==='calibration'?'Kalibrierung':s.archiveType==='output'?'Ausgangskonfiguration':
     s.measuring?'Messung':'angefangener Vorgang';
-   displayProblem('Es läuft eine '+kind+'. Möchtest du den Vorgang abbrechen und zur geführten Hauptseite zurückkehren? Bereits gespeicherte Messwerte bleiben im Archiv. Eine laufende Leseantwort wird sicher beendet; der Sensor wird nicht getrennt und es erfolgt kein NVM-Schreiben.'+(api()?.navigationSafety?.()?.nvmDone?' Bereits programmierte NVM-Daten im Sensor bleiben unverändert.':''));
+   displayProblem('Aktive Aufgabe: '+kind+'. Möchtest du den Vorgang abbrechen und zur geführten Hauptseite zurückkehren? Bereits gespeicherte Messwerte bleiben im Archiv. Eine laufende Leseantwort wird sicher beendet; der Sensor wird nicht getrennt. Bereits geänderte RAM-Einstellungen werden nicht zurückgesetzt und es erfolgt kein neues NVM-Schreiben.'+(api()?.navigationSafety?.()?.nvmDone?' Bereits programmierte NVM-Daten im Sensor bleiben unverändert.':''));
   }
   if(!dialog.open)dialog.showModal();
   return false;
