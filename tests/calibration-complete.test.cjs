@@ -82,7 +82,7 @@ test('Restore/output/alarm and unverified writes must never create successful ca
   clone.events.find(e=>e.kind==='nvm_before').data.operation=op;
   clone.events.find(e=>e.kind==='nvm_after').data.operation=op;
   assert.equal(complete.eligible(clone),false);
-  assert.throws(()=>complete.build(clone),/bestätigten Kalibrier/);
+  assert.throws(()=>complete.build(clone),/bestätigter Kalibrier/);
  }
  const bad=structuredClone(r);
  bad.events.at(-1).data.verified=false;
