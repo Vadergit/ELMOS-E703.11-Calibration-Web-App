@@ -176,3 +176,9 @@
 #nvmReconstruction .nvmrecon-pressure-unit-label{display:flex;align-items:center;gap:10px;flex-wrap:wrap;font-size:11.5px;font-weight:700;color:var(--nv-muted);margin:9px 0}
 #nvmReconstruction .nvmrecon-pressure-unit{min-width:90px;min-height:31px;border-radius:7px;border:1px solid var(--nv-edge);padding:5px 7px;font-size:12px;background:var(--paper);color:var(--ink)}
 #nvmReconstruction .nvmrecon-pressure-unit:disabled{background:var(--nv-soft);color:var(--nv-muted);border-style:dashed;opacity:.8;cursor:not-allowed}
+
+
+#nvmReconstruction .nvmrecon-import-feedback{width:100%;flex:1 1 100%;margin:2px 0 0;padding:9px 11px;border-radius:8px;font-size:12px;line-height:1.5;font-weight:600;background:#ebf7ef;border:1px solid #98c9aa;color:#236246;overflow-wrap:anywhere}
+#nvmReconstruction .nvmrecon-import-feedback.is-error{background:#fff0f0;border-color:#dc9ba1;color:#96313c}
+html[data-theme="dark"] #nvmReconstruction .nvmrecon-import-feedback{background:#173c2d;border-color:#3c795d;color:#c0f1d4}
+html[data-theme="dark"] #nvmReconstruction .nvmrecon-import-feedback.is-error{background:#41212b;border-color:#915360;color:#ffced5}
