@@ -214,7 +214,7 @@ test('failed bridge auto-connect remains retryable without triggering write oper
  const attempt=new Function(...Object.keys(deps),app.slice(from,to)+';return attemptAutoReconnect;')(...Object.values(deps));
  await attempt();
  assert.equal(st.chip,false);
- assert.deepEqual(calls,['render','stop-live','firmware','interface','hello','recover-capable','log','render','render','retry']);
+ assert.deepEqual(calls,['render','stop-live','log','firmware','interface','hello','recover-capable','log','stop-live','render','render','retry']);
 });
 
 test('auto PLC reconnect honours configured VDD switch to reopen short startup windows',()=>{
@@ -232,7 +232,7 @@ test('sensor banner shows auto-connect enabled state, attempts and last error',(
  assert.match(app,/Auto-Connect: Sensorprüfung läuft/);
  assert.match(app,/autoReconnectAttempts\+\+/);
  assert.match(app,/autoReconnectLastError=String\(error\.message\|\|error\)/);
- assert.match(html,/data-app-version="0\.7\.130"/);
+ assert.match(html,/data-app-version="0\.7\.131"/);
 });
 
 test('manual reinitialization retains bridge recovery and is independent of auto-probe',()=>{
@@ -248,7 +248,7 @@ test('manual reinitialization retains bridge recovery and is independent of auto
  const bridge=app.slice(bridgeStart,bridgeEnd);
  assert.match(bridge,/if\(autoProbe\|\|!st\.bridgePsscRam/);
  assert.match(bridge,/await bridgeAccess\(\{power,recover:true\}\)/);
- assert.match(html,/data-app-version="0\.7\.130"/);
+ assert.match(html,/data-app-version="0\.7\.131"/);
 });
 
 test('manual reconnect is not disabled by an in-flight auto probe and cancels future retries',()=>{
