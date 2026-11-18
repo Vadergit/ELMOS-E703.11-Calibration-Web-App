@@ -82,7 +82,7 @@ test('append-only test log rotates, retains third-party files and exports comple
  const stored=new Map([['other.json','{"hello":"untouched"}']]);
  const dom=new Map();
  function node(id){
-  return {id,parentElement:{hidden:false},style:{},children:[],value:'',hidden:false,disabled:false,checked:false,
+  return {id,parentElement:{hidden:false},dataset:{},style:{},children:[],value:'',hidden:false,disabled:false,checked:false,
    className:'',append(...ns){this.children.push(...ns)},appendChild(n){this.children.push(n)},
    replaceChildren(...ns){this.children=ns},addEventListener(){},click(){},set textContent(v){this._text=v},get textContent(){return this._text}};
  }
