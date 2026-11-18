@@ -84,7 +84,8 @@ DSP_S,max = +DSP-Endwert / 32768</code><p class="muted">Der DSP-Endwert ist ein 
 K1 = S4  + S5×T  + S6×T²  + S7×T³
 K2 = S8  + S9×T  + S10×T² + S11×T³
 K3 = S12 + S13×T + S14×T² + S15×T³</code><p class="muted">Ohne temperaturabhängige Druckkoeffizienten hat T auf dieses Polynom keinen Einfluss.</p></div>
-<div class="step"><h3>3.4 Druckpolynom umkehren</h3><code class="formula">DSP_S,vor = K0 + K1×S + K2×S² + K3×S³</code><p class="muted">Gesucht ist S. Bei nichtlinearen Kennlinien prüft der Rechner, ob es genau eine zulässige Lösung gibt.</p></div>
+<div class="step"><h3>3.4 Druckpolynom umkehren</h3><code class="formula">DSP_S,vor = K0 + K1×S + K2×S² + K3×S³</code><p class="muted">Gesucht ist S. Bei nichtlinearen Kennlinien prüft der Rechner, ob es genau eine zulässige Lösung im <strong>aus ADC_S abgeleiteten Bereich</strong> gibt. Der Zwischenwert S darf wegen S_F und S_O auch kleiner als −1 oder grösser als +1 sein.</p><code class="formula">ADC_S ∈ [−1, 32767/32768]
+S_min/max = S_F × ADC_S,min/max + S_O</code><p class="muted">Beispiel: Mit S_F = 4,5 und S_O = −2,371 reicht der zulässige S-Suchbereich ungefähr von −6,871 bis +2,129. Eine feste Begrenzung auf ±1 würde eine gültige Kalibrierung fälschlich als nicht berechenbar markieren. Für die Temperaturpolynom-Umkehr wird der Bereich analog aus T_F und T_O gebildet.</p></div>
 <div class="step"><h3>3.5 ADC_S zurückrechnen</h3><code class="formula">S = S_F × ADC_S + S_O
 ADC_S [Digits] = ((S − S_O) / S_F) × 32768</code><p class="muted">S_F und S_O stammen aus NVM-Wort 34 bzw. 33.</p></div></div></section>
 
