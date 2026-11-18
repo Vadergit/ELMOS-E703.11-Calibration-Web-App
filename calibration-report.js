@@ -171,7 +171,7 @@ const ELMOS_CALIBRATION_REPORT=(()=>{
    [tr('Fehlermeldungen','Errors'),errors.length]
   ].map(([label,value])=>'<div class="metric"><strong>'+escape(value)+'</strong><small>'+escape(label)+'</small></div>').join('');
   return '<!doctype html><html lang="'+(en()?'en':'de-CH')+'"><head><meta charset="UTF-8"><title>'+
-   escape('E70311_Calibration_'+(record.chipUID||'Unknown')+'_'+(record.id||''))+
+   escape(typeof ELMOS_ARCHIVE_CORE!=='undefined'?ELMOS_ARCHIVE_CORE.filename(record).replace(/\.json$/i,''):'E70311_Calibration_'+(record.chipUID||'Unknown')+'_'+(record.id||''))+
    '</title><style>'+css+'</style></head><body>'+
    '<div class="toolbar"><span>'+escape(tr('Im Druckdialog «Als PDF speichern» wählen.','Choose Save as PDF in the print dialog.'))+
    '</span><button onclick="window.print()">'+escape(tr('Als PDF speichern / Drucken','Save as PDF / Print'))+'</button></div>'+
