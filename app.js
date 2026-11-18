@@ -411,7 +411,7 @@ if(typeof document!=='undefined') (function UI(){
    ...(Number.isFinite(outputVdd)&&outputVdd>=2.7&&outputVdd<=5.5?{vdd:outputVdd}:{}),
    ...(st.calfit?.orderT>0?{tempModel:'an0203'}:{})
   };
-  return {uid,crc:words[63],min,max,unit,selected,limit,reference,points,
+  return {uid,crc:words[63],nvmWords:words.slice(),min,max,unit,selected,limit,reference,points,
    customUnit:selected==='custom'?$('calUnitOther').value.trim():'',savedAt:new Date().toISOString()};
  }
  function saveCalibrationDisplayProfile(words=st.nvmBackup,uid=st.uid?.hex){
