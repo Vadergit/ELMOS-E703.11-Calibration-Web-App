@@ -159,3 +159,37 @@ test('auto reconnect is opt-in, uses authorised ports, and never auto-programs t
  assert.match(source,/await connect\(matches\[0\]\)/);
  assert.doesNotMatch(source,/nvmProgram\(|writeReg\(|testPlcMagicCookie\(|startSsp3WithBoundedRetry\(/);
 });
+
+test('auto-connect uses ESP32-C3 bridge ACCESS for a newly connected chip',async()=>{
+ const start=app.indexOf(' async function attemptAutoReconnect(){');
+ const end=app.indexOf(' const HELP=',start);
+ assert.ok(start>0&&end>start);
+ const code=app.slice(start,end);
+ const simulate=adapter=>{
+  const calls=[],st={port:{},readerAlive:true,chip:false,uid:null,adapterKind:adapter};
+  const deps={st,mayAutoReconnect:()=>true,autoReconnectBlocked:()=>false,renderStatus:()=>calls.push('render'),
+   bridgeHello:async()=>{calls.push('hello');return true},
+   connectBridgeChip:async opts=>{assert.deepEqual(opts,{autoProbe:true});calls.push('access');st.chip=true;st.uid={hex:'0020011DBBE7'}},
+   detect:async opts=>{assert.deepEqual(opts,{requireUid:true});calls.push('read');st.chip=true;st.uid={hex:'0020011DBBE7'}},
+   logging:()=>{},scheduleAutoReconnect:()=>calls.push('retry'),
+   navigator:{serial:{getPorts:async()=>[]}},connect:async()=>{},autoReconnectBusy:false};
+  const fn=new Function(...Object.keys(deps),code+';return attemptAutoReconnect;')(...Object.values(deps));
+  return {fn,calls,st};
+ };
+ const bridge=simulate('bridge');
+ await bridge.fn();
+ assert.deepEqual(bridge.calls,['render','hello','access','render']);
+ const ssp3=simulate('ssp3');
+ await ssp3.fn();
+ assert.deepEqual(ssp3.calls,['render','read','render']);
+});
+test('automatic ESP32-C3 access is read-only with no implicit power or RAM recovery',()=>{
+ const from=app.indexOf(' async function connectBridgeChip(');
+ const to=app.indexOf(' // CRC8 verification follows DS',from);
+ assert.ok(from>0&&to>from);
+ const implementation=app.slice(from,to);
+ assert.match(implementation,/power=!autoProbe&&st\.sensorPowerEnabled/);
+ assert.match(implementation,/if\(autoProbe\|\|!st\.bridgePsscRam/);
+ assert.match(implementation,/detect\(\{requireUid:autoProbe\}\)/);
+ assert.match(app,/if\(st\.port===port&&!st\.closing&&!st\.chip\)scheduleAutoReconnect\(2800\)/);
+});

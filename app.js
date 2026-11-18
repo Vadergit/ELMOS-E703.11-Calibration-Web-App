@@ -103,21 +103,22 @@ if(typeof document!=='undefined') (function UI(){
  }
  function scheduleAutoReconnect(ms=5000){
   cancelAutoReconnect();
-  if(!mayAutoReconnect()||st.chip)return;
+  if(!mayAutoReconnect()||(st.chip&&st.uid?.hex))return;
   autoReconnectTimer=setTimeout(()=>{autoReconnectTimer=null;void attemptAutoReconnect()},ms);
  }
  async function attemptAutoReconnect(){
-  if(!mayAutoReconnect()||st.chip||autoReconnectBusy)return;
+  if(!mayAutoReconnect()||(st.chip&&st.uid?.hex)||autoReconnectBusy)return;
   if(autoReconnectBlocked()){scheduleAutoReconnect();return}
   autoReconnectBusy=true;renderStatus();
   try{
    if(st.port&&st.readerAlive){
-    // No SSP3 power switching, Magic Cookie or calibration writes on this path.
-    await detect();
-    if(!st.uid?.hex){
-     st.chip=false;stopLive();
-     throw Error('Chipantwort ohne bestätigte Sensor-UID');
-    }
+    // A connected ESP32-C3/Pro Micro bridge requires PLC/I2C ACCESS before
+    // its newly attached DUT can answer. No START, RECOVER or EEPROM writes.
+    if(st.adapterKind==='bridge'){
+     if(!await bridgeHello())throw Error('USB-Bridge unterstützt noch keinen Chipzugriff.');
+     await connectBridgeChip({autoProbe:true});
+    }else await detect({requireUid:true});
+    if(!st.chip||!st.uid?.hex)throw Error('Chipkennung beim Auto-Connect nicht bestätigt.');
     logging('Auto-Connect: Sensor-UID '+st.uid.hex+' über USB bestätigt.');
    }else if(!st.port){
     const ports=await navigator.serial.getPorts();
@@ -137,7 +138,7 @@ if(typeof document!=='undefined') (function UI(){
   }finally{
    autoReconnectBusy=false;
    renderStatus();
-   if(!st.chip)scheduleAutoReconnect(6000);
+   if(!st.chip||!st.uid?.hex)scheduleAutoReconnect(6000);
   }
  }
  const HELP={interface:'Schnittstelle zwischen Programmieradapter und Sensorchip. 1-Wire nutzt AODO (VDD, GND und AODO). Die Einstellung IF_CFG ändert die Programmer-Pins, nicht die NVM-Konfiguration des Sensors.',baud:'Baudrate des USB-UART zwischen Chrome und dem SSP3. Die Herstellersoftware verwendet 115200 Baud als Standard.',adcs:'ADC_S ist der unkompensierte 16-Bit-Druck-ADC. ±25000 Digits ist ein vorsichtiges Ziel für den manuellen Abgleich, keine garantierte Hardwaregrenze.',dsp_live:'DSP_S (Register 0x30) ist der skalierte DSP-Sensorausgang. Die Anzeige liest den Chipwert wiederholt und rechnet ihn mit dem konfigurierten DSP-Endwert (standardmässig ±32’000 Digits) in den gewählten Anzeigebereich um. Ein DSP-Wert allein belegt keine gültige Kalibrierung.',pga1:'Erste Druckverstärkungsstufe: 3.5×, 6×, 8.5× oder 11× (typische Werte laut Datenblatt 2023). Für gutes SNR möglichst hoch ohne Übersteuerung.',pga2:'Zweite Verstärkungsstufe: typische Faktoren 2× bis 10×. Der Gesamtfaktor ist PGA1 × PGA2.',offset:'17 DAC-Stufen von −400 bis +400 mV/V bezogen auf die Brückenspannung. Die Verschiebung liegt zwischen PGA1 und PGA2.',bridgeSupply:'Interne Brückenversorgung SVDD gemäss E703.11 CFG_AFE0 (0x1A), Bits 1:0: 2,4 V (Standard), 1,6 V oder 2,0 V. Die externe Sensorversorgung VDD muss bei 2,4 V mindestens 3,0 V, sonst mindestens 2,7 V betragen. Beim Wechsel bleiben die übrigen AFE0-Bits inklusive Brückengain unverändert. Nur nach Klick wird ins RAM geschrieben; EEPROM bleibt unverändert.',tempsource:'Die aktive Chipquelle CFG_AFE2.t_adc_src wird vor der Messung geprüft. Die Auswahl verändert keine Sensorregister. Für die Brückentemperatur sind zusätzliche Herstellerkoeffizienten erforderlich.',pressureunit:'Einheit für die Referenz- und Prüfdruckwerte. Für relative Kalibrierungen kann beispielsweise % mit 0 bis 100 gewählt werden. Referenzwerte müssen zum tatsächlichen Prüfstand passen. Einheitenwechsel erfordert neue Messpunkte.',dsp_limit:'Symmetrischer DSP-Endwert für die neue Kalibrierung. Standard ±32’000 Digits. ±30’000 lässt zusätzlich Reserve. Der Wert verändert die berechneten Koeffizienten sowie DSP-Soll und Fehlerumrechnung; er ist keine Hardware-Clipping-Grenze.',ram:'PGA1, Offset und PGA2 werden mit jeder Pfeiltaste sofort ausschliesslich in CFG_AFE1 0x1C im RAM geändert und rückgelesen. Kein NVM-/EEPROM-Schreiben. Boot-/Kommunikationsregister werden kontrolliert.',};
@@ -1316,10 +1317,10 @@ if(typeof document!=='undefined') (function UI(){
    else st.bridgeRxNote=(st.bridgeBoard||'DIY-Programmer')+' erkennt Signalwechsel am AODO-Empfänger, aber keine bestätigte Chipantwort. Details im USB-Protokoll.';
   }catch(e){logging('ESP32 RX-Diagnose: '+e.message)}
  }
- async function connectBridgeChip(){
+ async function connectBridgeChip({autoProbe=false}={}){
   st.bridgeRxNote='';
   st.bridgeColdStart=null;
-  const port=st.port,session=st.sessionIndex,power=st.sensorPowerEnabled;
+  const port=st.port,session=st.sessionIndex,power=!autoProbe&&st.sensorPowerEnabled;
   if(st.iface==='i2c'){
    if(!st.bridgeI2c)throw Error('I²C benötigt ESP32-C3 v0.10 oder Pro Micro v0.27.');
    if(power){
@@ -1329,7 +1330,7 @@ if(typeof document!=='undefined') (function UI(){
    const reply=await exchange(power?'I2C START':'I2C ACCESS',6000);
    if(reply.includes('RAM_ENABLE=1'))logging('I²C für diese Sitzung über One-Wire im RAM aktiviert.');
    st.measurementPeriod=await readReg(0x0E);
-   await detect();
+   await detect({requireUid:autoProbe});
    return;
   }
   st.bridgeSinglePin=!!st.bridgePlcIo&&$('plcGpio4Mode').checked;
@@ -1337,7 +1338,7 @@ if(typeof document!=='undefined') (function UI(){
   await exchange('PLC_BAUD '+$('plcBaud').value);
   try{await bridgeAccess({power})}
   catch(e){
-   if(!st.bridgePsscRam||!e.message.includes('PLC_NO_VALID_FRAME')||st.closing||!st.port)throw e;
+   if(autoProbe||!st.bridgePsscRam||!e.message.includes('PLC_NO_VALID_FRAME')||st.closing||!st.port)throw e;
    st.psscRamRecovery=true;
    logging('ESP32: normale PLC-Adressen ohne Antwort; PSSC-Freigabe im Sensor-RAM.');
    try{await bridgeAccess({power,recover:true})}
@@ -1352,7 +1353,7 @@ if(typeof document!=='undefined') (function UI(){
    try{st.measurementPeriod=await readReg(0x0E,1600)}
    catch(e){logging('ESP32: CFG_PERIOD nicht lesbar: '+e.message)}
   }
-  await detect();
+  await detect({requireUid:autoProbe});
   if(st.bridgeCalibrationNvm&&power&&st.chip&&st.uid?.hex&&st.port===port&&st.sessionIndex===session){
    st.bridgeColdStart={port,session,uid:st.uid.hex};
    renderStatus();
@@ -1659,7 +1660,7 @@ if(typeof document!=='undefined') (function UI(){
   }
   st.plcAddress=previous;renderStatus();return false;
  }
- async function detect(){
+ async function detect({requireUid=false}={}){
   // AFE and ADC_S form the minimum real chip-presence proof.
   // Do not make the entire live display dependent on less reliable temperature
   // or DSP registers. A full calibration capture remains strict and separate.
@@ -1686,6 +1687,11 @@ if(typeof document!=='undefined') (function UI(){
   try{st.filterWords=await readFilterProfile()}
   catch(e){logging('ADC-Filter konnte nicht gelesen werden: '+e.message)}
   await expert.onDetect();
+  if(requireUid&&!st.uid?.hex){
+   st.chip=false;st.sensorLost=true;st.adc=null;st.dsp=null;
+   stopLive();
+   throw Error('Sensor-UID nach Registererkennung nicht bestätigt.');
+  }
   renderStatus();
   show('connMsg',demoEnabled?'Demo-Sensor verbunden. Messwerte und Schreibvorgänge sind simuliert.':
    'Chip-Register über '+(st.iface==='plc'?'1-Wire':st.iface.toUpperCase())+' lesbar. ADC_S bestätigt; Live-Werte werden separat aktualisiert.','success');
@@ -2426,6 +2432,9 @@ if(typeof document!=='undefined') (function UI(){
    if(st.closing||st.port!==port)return;
    logging('Handshake: '+e.message);
    show('connMsg','USB offen. Initialisierung fehlgeschlagen: '+e.message,'warn');
+  }finally{
+   // Also recover after the USB bridge connected with no DUT attached yet.
+   if(st.port===port&&!st.closing&&!st.chip)scheduleAutoReconnect(2800);
   }
   renderStatus();
  }
@@ -4336,10 +4345,10 @@ if(typeof document!=='undefined') (function UI(){
   lsSet(autoReconnectKey,autoReconnectEnabled?'1':'0');
   if(autoReconnectEnabled){
    autoReconnectSuppressed=false;
-   if(!st.chip)scheduleAutoReconnect(1200);
+   if(!st.chip||!st.uid?.hex)scheduleAutoReconnect(1200);
   }else cancelAutoReconnect();
   $('settingsAutoReconnectInfo').textContent=autoReconnectEnabled?
-   'Aktiv: Wiedererkennung am offenen Adapter oder einem eindeutig freigegebenen USB-Port. Sehr kurze 1-Wire-Startfenster benötigen eventuell die manuelle Neuinitialisierung.':
+   'Aktiv: Die USB-Bridge prüft neu angeschlossene Sensoren über PLC/I²C ACCESS. Kein automatisches NVM-Schreiben oder Sensor-Neustart. Bei kurzen 1-Wire-Startfenstern weiterhin manuell initialisieren.':
    'Aus: Nach einem Unterbruch bitte den Sensor manuell neu initialisieren.';
  });
  $('settingsSampleCount').addEventListener('change',()=>{
