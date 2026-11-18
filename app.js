@@ -3217,6 +3217,7 @@ if(typeof document!=='undefined') (function UI(){
   if(!Number.isInteger(word)||word<0||word>65535||!Number.isInteger(addr)||addr%2)throw Error('Ungültige Registerdaten');
   const permitted=(st.ramWriteScope==='afe-filter'&&filterRegisters.includes(addr))||
    (st.ramWriteScope==='alarm'&&[0x04,0x08,0x9C,0x9E,0xA8,0xAA].includes(addr))||
+   (st.ramWriteScope==='dsp-verification'&&addr===0x36&&word===0x0408)||
    CAL_REGS.includes(addr)||addr===0x4A||addr===0x4E||addr===0x22;
   if(!permitted)throw Error(`Schreibzugriff 0x${h(addr)} ist gesperrt`);
   if(addr===0x22&&!([0xF75A,0x0CC7,0xD21E,0x62A2].includes(word)))throw Error('Nicht freigegebener RAM-Befehl');
@@ -3426,10 +3427,26 @@ if(typeof document!=='undefined') (function UI(){
    if(st.liveReadPromise)await st.liveReadPromise.catch(()=>{});
    const outputLimit=st.calfit.outputLimit??32000;
    demoPort?.setReference(p,temp);
-   if(st.iface==='i2c'&&st.adapterKind==='bridge')await triggerSingleMeasurement({capture:true});
+   if(!demoEnabled){
+    // Keep the event from the previous conversion separately. Only the DSP
+    // saturation and pressure update bits are acknowledged in this scope.
+    const previousStatus=await readReg(0x36);
+    if(previousStatus&0x0400)logging('DSP-Verifikation: früheres Sättigungsereignis quittiert.');
+    st.ramWriteScope='dsp-verification';
+    try{await maintWrite(0x36,0x0408)}finally{st.ramWriteScope=null}
+    await triggerSingleMeasurement({capture:true});
+    let fresh=false;
+    for(let attempt=0;attempt<15;attempt++){
+     const flags=await readReg(0x36);
+     if(flags&0x0008){fresh=true;break}
+     await sleep(80);
+    }
+    if(!fresh)throw Error('Keine neue DSP_S-Konversion für diesen Prüfpunkt bestätigt.');
+   }
    const got=P.sign16(await readReg(0x30)),target=2*outputLimit*(p-pmin)/(pmax-pmin)-outputLimit;
-   updateDSP(got,'usb');
    const stat=await readReg(0x32),delta=got-target,errorBar=delta/(2*outputLimit)*(pmax-pmin);
+   if(!demoEnabled&&!(stat&0x0008))throw Error('DSP_S und Update-Status gehören nicht zu einer bestätigten neuen Konversion.');
+   updateDSP(got,'usb');
    if(stat&0x0400){
     const candidate=Math.max(1000,Math.floor((outputLimit-1500)/500)*500);
     showDspRiskPopup({
