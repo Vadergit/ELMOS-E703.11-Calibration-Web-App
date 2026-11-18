@@ -1,3 +1,13 @@
+## v0.7.138 – DSP-Sättigung früh melden und AODO-Ausgang vor NVM abklären
+
+- In «Koeffizienten berechnen» zeigt die App bei sehr engem DSP-Zielbereich (ab ±31'000 Digits) eine präventive Reservewarnung. Das ist eine Warnung, keine automatische Veränderung des Abgleichs.
+- Unmittelbar nach dem bestätigten RAM-Koeffizienten-Readback wird `STATUS_SYNC.dsp_sat` optional gelesen. Bei gesetztem Bit erscheint eine deutliche Warnung bereits in der Koeffizientenseite; die unabhängige DSP-Prüfung bleibt zwingend, da der Status auch von einer vorherigen Konversion stammen kann.
+- Beim Verifizieren enthält der Sättigungsfehler nun den tatsächlichen `STATUS_SYNC`-Hexwert, DSP_S, Sollwert, Prüfdruck und eine konkrete Rückkehr-Anleitung zum DSP-Zielbereich. NVM bleibt gesperrt, wenn `dsp_sat` gesetzt ist; keine automatische Umgehung.
+- Eine neue DSP-Berechnung verwirft veraltete vorgemerkte AODO-Koeffizienten, da diese an den alten DSP-Endwert gebunden waren.
+- Mit bereits gelesenem Original-NVM wird frühzeitig überprüft, ob die alte AODO-Skalierung die gewünschten S0/S1-Spannungen mit dem **aktuellen** DSP-Zielbereich liefert. Bei Bedarf erscheint eine Warnung auf der Ausgangs- und NVM-Seite; im geführten Ablauf wird vor dem Alarmschritt die ausdrücklich geprüfte Vormerkung verlangt. Die alten Messpunkte und RAM-Kalibrierung bleiben erhalten.
+- Die eigentliche UID-, CRC-, AODO-, DSP- und Kommunikations-Sicherheitslogik vor dem NVM-Write bleibt unverändert. Neue negative/positive Regressionstests hinzugefügt; Realhardware-Validierung weiterhin offen.
+- **Laufende Browser-Sitzungen:** Ein Reload zum Laden der Version kann die noch nicht dauerhaft gespeicherten RAM-Kalibrierwerte verlieren. In diesem Fall ohne Reload in der aktuellen Version zuerst in «Ausgang» die Skalierung berechnen und vormerken.
+
 ## v0.7.137 – SSP3-Kaltstart-Nachweis für kombinierte NVM-Kalibrierung vereinheitlicht
 
 - Fehler in v0.7.136: Nach bestätigtem SSP3-Power-Cycle mit Magic-Cookie-Fallback und korrekt vorgemerkter AODO-Skalierung zeigte Schritt «Ausgang» eine grüne Startfreigabe, während Schritt «NVM» ausschliesslich den alternativen PSSC-RAM-Startnachweis akzeptierte und deshalb blockierte.
