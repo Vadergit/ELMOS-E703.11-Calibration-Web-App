@@ -2,7 +2,7 @@
 
 **Ein geführter Kalibrierassistent für den ELMOS E703.11 und das SSP3-Eval-Board.** Ziel ist ein verständlicher Abgleich, der auch ohne tiefere Vorkenntnisse Schritt für Schritt funktioniert. Wer mehr benötigt, kann zusätzliche Messpunkte, DSP-Parameter und einen geschützten Expertenmodus verwenden.
 
-**Version: v0.7.120 · Automatischer Komplett-Export nach Sensorabgleich** · [Änderungsverlauf](CHANGELOG.md) · **[Geplante Funktionen](ROADMAP.md)**
+**Version: v0.7.121 · EEPROM-/RAM-Abweichungen gelb markieren** · [Änderungsverlauf](CHANGELOG.md) · **[Geplante Funktionen](ROADMAP.md)**
 
 Der **Demo-Modus** wird in den Einstellungen erst nach Aktivierung von **Expertenparameter** angezeigt. Er simuliert Sensorwerte und Schreibvorgänge; die echte Hardware wird dabei nicht programmiert.
 
@@ -13,6 +13,10 @@ Der **Demo-Modus** wird in den Einstellungen erst nach Aktivierung von **Experte
 > **Geführter Assistent:** Nach der bestätigten SSP3-Verbindung stehen die neue Schritt-für-Schritt-Führung, die klassische Ansicht und der optionale Kompaktmodus zur Verfügung. Ein E703.11-Chip muss für den Abgleich verbunden sein. Als DIY-Programmer sind ausschliesslich ESP32-C3 SuperMini (v0.12 Labor-Quellcode) und Arduino Pro Micro (v0.28 Labor-Quellcode) vorgesehen. Die originalen ELMOS SSP3-Adapter bleiben separat unterstützt. Der vollständige Hardwaretest der DIY-Programmer ist noch offen.
 >
 > [Geführter Abgleich](docs/GEFUEHRTER_ASSISTENT.md) · [DIY-Programmer (ESP32-C3 / Pro Micro)](docs/USB_BRIDGE_GUIDE.md) · [Pinbelegung der zwei Boards](docs/ESP_BOARD_OPTIONS.md) · [DIY-Firmware-Installer](firmware-update.html)
+
+## v0.7.121 – EEPROM-/RAM-Vergleich farblich hervorheben
+
+Im **EEPROM Viewer → Sensoreinstellungen im Überblick** erscheinen abweichende, tatsächlich ausgelesene RAM-Werte mit gelbem Texthintergrund. Gleiche oder nicht gelesene RAM-Werte bleiben neutral; in einzelnen Bitfeldern zählt die dargestellte Einstellung, bei mehrteiligen Registern der zugehörige Rohwertvergleich. Auch die einzelnen S0–S15- und T0–T3-Koeffizienten werden in der aufgeklappten Detailtabelle auf Abweichungen geprüft. Die Markierung ist rein visuell; keine Register werden geschrieben.
 
 ## v0.7.120 – Vollständige Kalibrierungsdatei nach NVM-Programmierung
 

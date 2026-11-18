@@ -1,3 +1,10 @@
+## v0.7.121 – Gelbe Markierung abweichender RAM-Werte im EEPROM Viewer
+
+- «Sensoreinstellungen im Überblick»: Unterschiede zwischen EEPROM und einmalig gelesenem RAM werden mit gelbem Hintergrund direkt hinter dem betroffenen RAM-Wert markiert.
+- Nicht gelesene und identische Werte bleiben unverändert. Bei einzeln dekodierten Einstellungen werden nur tatsächlich unterschiedliche Anzeigewerte markiert; mehrteilige Registerwerte werden anhand der zugehörigen Rohwörter verglichen.
+- Auch die aufklappbaren S0–S15- und T0–T3-Koeffizienten zeigen abweichende RAM-Werte gelb an.
+- Rein lesende Darstellung. App-Version, Cache-Parameter und Regressionstests aktualisiert.
+
 ## v0.7.120 – Automatischer kompletter Sensorabgleich-Export
 
 - Nach erfolgreicher NVM-Programmierung und vollständiger 64-Wort-Rücklesung wird für echte Sensorabgleiche automatisch eine separate JSON-Komplettdatei mit Original-NVM, programmiertem NVM, ADC-Messpunkten, AFE, DSP, Prüfresultaten, Chip-UID und vollständigem Archivprotokoll abgelegt.

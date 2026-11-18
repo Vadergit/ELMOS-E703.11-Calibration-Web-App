@@ -82,3 +82,49 @@ test('Known Elmos ADC filter, EOC OR logic and alarm threshold are shown in plai
  assert.match(by('Alarm unten \/ DSP-Nachskalierung Offset'),/Aktiv/);
  assert.match(by('Fehlerreaktionen'),/Brückenversorgung fehlerhaft.*Unterer Fehlerwert/);
 });
+
+
+test('Only visibly different individual settings are marked; multi-word DSP changes remain detectable',()=>{
+ const saved=image(),active={16:saved[16]^(1<<6),28:saved[28]^(1<<0),35:0,51:saved[51]};
+ const rows=overview.summarize(saved,active).flatMap(group=>group.rows);
+ const by=label=>rows.find(row=>row.label===label);
+ assert.equal(by('Ausgangsmodus').differs,false,'Unrelated bit in shared CFG_EN must not mark output mode');
+ assert.equal(by('DSP-Ausgangsskalierung').differs,true);
+ assert.equal(by('PGA1').differs,true);
+ assert.equal(by('Offset-DAC').differs,false,'Same offset must not be highlighted');
+ assert.equal(by('Druckkoeffizienten S0–S15').differs,false,'Incomplete RAM group has no comparison');
+ const complete={...active};
+ for(let i=35;i<=50;i++)complete[i]=saved[i];
+ complete[35]=0; // One coefficient differs even if the summary still reports only counts.
+ const changed=overview.summarize(saved,complete).flatMap(group=>group.rows);
+ assert.equal(changed.find(x=>x.label==='Druckkoeffizienten S0–S15').differs,true);
+ assert.equal(overview.summarize(saved,null).flatMap(g=>g.rows).some(r=>r.differs),false);
+});
+test('Rendered RAM differences are marked yellow on values, without marking unread or equal RAM entries',()=>{
+ const css=read('eeprom-config-overview.css'),code=read('eeprom-config-overview.js');
+ assert.match(css,/\.eeprom-overview-table \.eeprom-overview-value-diff\{background:#ffe59a/);
+ assert.match(code,/kind==='ram'&&changed&&!!source/);
+ const previous=global.document;
+ const make=tag=>({
+  tagName:tag,children:[],textContent:'',className:'',title:'',
+  appendChild(child){this.children.push(child);return child},
+  replaceChildren(...nodes){this.children=[...nodes]}
+ });
+ try{
+  global.document={createElement:make};
+  const root=make('main'),saved=image(),ram={16:saved[16],28:(saved[28]&~3)|0,33:saved[33]};
+  ram[35]=0;
+  overview.render(root,saved,ram);
+  const descendants=node=>[node,...(node.children||[]).flatMap(descendants)];
+  const marked=descendants(root).filter(n=>n.className==='eeprom-overview-value-diff');
+  assert.ok(marked.some(n=>n.textContent==='3.5×'),'Changed PGA1 RAM value should have yellow background');
+  assert.ok(!marked.some(n=>n.textContent==='1 (dimensionslos)'),'Unchanged value must not be yellow');
+  assert.equal(marked.length,1,'Unavailable coefficient groups must not be marked');
+  const root2=make('main'),ram2={...ram};
+  for(let i=35;i<=54;i++)ram2[i]=saved[i];
+  ram2[35]=0;
+  overview.render(root2,saved,ram2);
+  const marked2=descendants(root2).filter(n=>n.className==='eeprom-overview-value-diff');
+  assert.ok(marked2.some(n=>n.textContent==='0 (Q0.15)'),'Changed coefficient is marked in expanded table');
+ }finally{if(previous===undefined)delete global.document;else global.document=previous}
+});

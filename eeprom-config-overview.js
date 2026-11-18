@@ -68,7 +68,9 @@ const ELMOS_EEPROM_OVERVIEW=(()=>{
     const saved=getValue(words,item),active=getValue(acceptedRam,item),planned=getValue(acceptedStaged,item);
     return {label:item.label,register:(item.indices||[item.index]).map(i=>'CM '+i.toString(16).toUpperCase().padStart(2,'0')).join(', '),
      saved,active,planned,
-     differs:!!active&&active.raw!==saved.raw,
+     // For individual decoded fields, compare the displayed setting rather than unrelated bits in a shared register.
+     // Multi-word rows represent an entire group: any changed constituent word is relevant.
+     differs:!!active&&(item.indices?active.raw!==saved.raw:active.text!==saved.text),
      pending:!!planned&&planned.raw!==saved.raw};
    })
   }));
@@ -101,8 +103,12 @@ const ELMOS_EEPROM_OVERVIEW=(()=>{
     const name=elem('th','eeprom-overview-name',row.label);
     name.title=row.register;name.scope='row';line.appendChild(name);
     for(const [source,kind,changed] of [[row.saved,'saved',false],[row.active,'ram',row.differs],...(hasPlan?[[row.planned,'planned',row.pending]]:[])]){
-     const td=elem('td',changed?'eeprom-overview-changed':'',source?source.text:'—');
-     td.title=source?kind.toUpperCase()+' · '+row.register+' · Rohwert '+source.raw:
+     const ramDifferent=kind==='ram'&&changed&&!!source;
+     const td=elem('td',ramDifferent?'eeprom-overview-ram-different':changed?'eeprom-overview-changed':'');
+     if(ramDifferent)td.appendChild(elem('span','eeprom-overview-value-diff',source.text));
+     else td.textContent=source?source.text:'—';
+     td.title=source?kind.toUpperCase()+' · '+row.register+' · Rohwert '+source.raw+
+      (ramDifferent?' · Abweichung zum EEPROM: '+row.saved.raw:''):
       (kind==='ram'?'RAM noch nicht gelesen':'Keine Werte');
      line.appendChild(td);
     }
@@ -122,10 +128,14 @@ const ELMOS_EEPROM_OVERVIEW=(()=>{
    if(i>=35&&i<=54){
     const row=elem('tr');
     row.appendChild(elem('th','',i<=50?'S'+(i-35):'T'+(i-51)));
-    for(const source of [words,ram,...(hasPlan?[staged]:[])]){
-     const v=source?.[i];
-     const cell=elem('td','',isWord(v)?q15(v):'—');
-     if(isWord(v))cell.title=raw(v);
+    for(const [kind,source] of [['saved',words],['ram',ram],...(hasPlan?[['planned',staged]]:[])]){
+     const v=source?.[i],known=isWord(v);
+     const changed=known&&v!==words[i];
+     const ramDifferent=kind==='ram'&&changed;
+     const cell=elem('td',ramDifferent?'eeprom-overview-ram-different':kind==='planned'&&changed?'eeprom-overview-changed':'');
+     if(ramDifferent)cell.appendChild(elem('span','eeprom-overview-value-diff',q15(v)));
+     else cell.textContent=known?q15(v):'—';
+     if(known)cell.title=raw(v)+(ramDifferent?' · EEPROM '+raw(words[i]):'');
      row.appendChild(cell);
     }
     tb.appendChild(row);
@@ -136,7 +146,7 @@ const ELMOS_EEPROM_OVERVIEW=(()=>{
   container.appendChild(elem('p','muted small',
    'EEPROM = gespeicherter, CRC-geprüfter Stand · RAM = einmalig gelesener Arbeitsstand'+
    (hasPlan?' · Vorgemerkt = noch nicht in EEPROM programmiert':'')+
-   '. Nur eindeutig dokumentierte Werte werden in Klartext aufgelöst; unbekannte Werte werden nicht geschätzt. Kein Schreibvorgang.'));
+   '. Gelb hinterlegt = RAM weicht vom EEPROM ab. Nur eindeutig dokumentierte Werte werden in Klartext aufgelöst; unbekannte Werte werden nicht geschätzt. Kein Schreibvorgang.'));
  }
  return {summarize,render,validWords};
 })();
