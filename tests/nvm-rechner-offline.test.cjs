@@ -45,7 +45,7 @@ test('Calculator supports local JSON and remains read-only',()=>{
 test('NVM calculator visual polish is scoped, responsive and keeps all inputs working',()=>{
  const html=read('index.html'),source=read('nvm-reconstruction.js'),styles=read('nvm-reconstruction.css');
  assert.match(html,/nvm-reconstruction\.css\?v=/);
- assert.match(html,/nvm-reconstruction\.js\?v=0\.4\.0/);
+ assert.match(html,/nvm-reconstruction\.js\?v=0\.4\.1/);
  assert.match(styles,/#nvmReconstruction \.nvmrecon-metrics/);
  assert.match(styles,/@container\(max-width:940px\)/);
  assert.match(styles,/data-panel="10"/);
@@ -93,5 +93,5 @@ test('DSP target source and temperature model are explicitly distinguished from 
  assert.match(app,/DSP-Endwert: aus lokalem UID-\/NVM-gebundenem Kalibrierprofil/);
  assert.match(app,/Temperaturmodell: nicht eindeutig im NVM · AN0203 wird angenommen/);
  assert.match(app,/nvmrecon-reference-hint/);
- assert.match(html,/nvm-reconstruction\.css\?v=0\.3\.0/);
+ assert.match(html,/nvm-reconstruction\.css\?v=0\.3\.1/);
 });
