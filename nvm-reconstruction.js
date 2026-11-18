@@ -116,8 +116,8 @@ const ELMOS_NVM_RECON = (() => {
    vdd=Number(opts.vdd??5),limit=Number(opts.limit??32000),
     pressureUnit=['bar','mbar','kPa','psi','%'].includes(opts.pressureUnit)?opts.pressureUnit:'bar';
   const rawInputs=[opts.adcT1,opts.adcT2].map(v=>v===null||v===undefined||v===''?null:Number(v));
-  if(rawInputs.some(v=>v!==null&&(!Number.isInteger(v)||v< -32768||v>32767)))
-   return {ok:false,error:'Optionale ADC_T-Rohwerte müssen ganze Digits zwischen −32’768 und 32’767 sein.'};
+  if(rawInputs.some(v=>v!==null&&(!Number.isInteger(v*2)||v< -32768||v>32767)))
+   return {ok:false,error:'Optionale ADC_T-Messwerte müssen Digits in Schritten von 0,5 zwischen −32’768 und 32’767 sein.'};
   if(![pmin,pmax,ta,tb,vdd,limit].every(Number.isFinite)||!(pmin<pmax)||
      !(ta<tb)||ta< -40||tb>125||vdd<2.7||vdd>5.5||
      !Number.isInteger(limit)||limit<1000||limit>32000)
@@ -462,7 +462,7 @@ const ELMOS_NVM_RECON = (() => {
    const advancedGrid=dom('div',undefined,'nvmrecon-grid');
    for(const [key,labelText] of [['adcT1','ADC_T bei Temperatur 1 [Digits]'],['adcT2','ADC_T bei Temperatur 2 [Digits]']]){
     const label=dom('label',labelText),input=dom('input');input.type='number';input.step='1';
-    input.min='-32768';input.max='32767';input.placeholder='Optional, leer = aus NVM';
+    input.min='-32768';input.max='32767';input.step='0.5';input.placeholder='Optional, leer = aus NVM';
     input.dataset.key=key;label.dataset.profileKey=key;
     input.addEventListener('input',()=>{root._nvmState.opts[key]=input.value.trim()===''?null:Number(input.value);draw(root)});
     label.appendChild(input);advancedGrid.appendChild(label);
