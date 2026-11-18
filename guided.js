@@ -984,14 +984,13 @@ const ELMOS_GUIDED=(()=>{
   document.documentElement.classList.toggle('top-guided-active',guided);
  }
  function toggleTopView(){
-  // Only an explicit view switch changes Guided/Classic. Classic pages have
-  // no home screen: the Geführt toggle safely opens the task chooser.
+  // The left sidebar already navigates all classic pages. View switching must
+  // use the same archival confirmation as the guided task-chooser shortcut.
   if(mode){
-   window.ELMOS_ARCHIVE?.close?.();
-   close();
-  }else if(window.ELMOS_HOME_NAVIGATION?.requestHome){
-   window.ELMOS_HOME_NAVIGATION.requestHome();
-  }else open();
+   window.ELMOS_HOME_NAVIGATION?.requestClassic?.();
+  }else{
+   window.ELMOS_HOME_NAVIGATION?.requestHome?.();
+  }
  }
  function open(){
   if(mode)return;
