@@ -216,7 +216,7 @@ test('Missing-data summary is always shown below explanation, not in a hidden di
  const source=fs.readFileSync(path.join(__dirname,'..','nvm-reconstruction.js'),'utf8');
  const style=fs.readFileSync(path.join(__dirname,'..','nvm-reconstruction.css'),'utf8');
  const html=fs.readFileSync(path.join(__dirname,'..','index.html'),'utf8');
- assert.match(source,/root\.append\(setup,status,result,explain,missing\)/);
+ assert.match(source,/root\.append\(setup,status,result,explain,missing,dialog\)/);
  assert.match(source,/Nicht berechenbare Werte/);
  assert.match(source,/missing\.hidden=false/);
  assert.match(style,/#nvmReconstruction \.nvmrecon-missing/);
