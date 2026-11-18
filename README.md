@@ -2,7 +2,7 @@
 
 **Ein geführter Kalibrierassistent für den ELMOS E703.11 und das SSP3-Eval-Board.** Ziel ist ein verständlicher Abgleich, der auch ohne tiefere Vorkenntnisse Schritt für Schritt funktioniert. Wer mehr benötigt, kann zusätzliche Messpunkte, DSP-Parameter und einen geschützten Expertenmodus verwenden.
 
-**Version: v0.7.141 · Auto-Connect verwendet die bewährte manuelle Chipinitialisierung** · [Änderungsverlauf](CHANGELOG.md) · **[Geplante Funktionen](ROADMAP.md)**
+**Version: v0.7.142 · Auto-Connect verwendet die bewährte manuelle Chipinitialisierung** · [Änderungsverlauf](CHANGELOG.md) · **[Geplante Funktionen](ROADMAP.md)**
 
 Der **Demo-Modus** wird in den Einstellungen erst nach Aktivierung von **Expertenparameter** angezeigt. Er simuliert Sensorwerte und Schreibvorgänge; die echte Hardware wird dabei nicht programmiert.
 
@@ -13,6 +13,10 @@ Der **Demo-Modus** wird in den Einstellungen erst nach Aktivierung von **Experte
 > **Geführter Assistent:** Nach der bestätigten SSP3-Verbindung stehen die neue Schritt-für-Schritt-Führung, die klassische Ansicht und der optionale Kompaktmodus zur Verfügung. Ein E703.11-Chip muss für den Abgleich verbunden sein. Als DIY-Programmer sind ausschliesslich ESP32-C3 SuperMini (v0.12 Labor-Quellcode) und Arduino Pro Micro (v0.28 Labor-Quellcode) vorgesehen. Die originalen ELMOS SSP3-Adapter bleiben separat unterstützt. Der vollständige Hardwaretest der DIY-Programmer ist noch offen.
 >
 > [Geführter Abgleich](docs/GEFUEHRTER_ASSISTENT.md) · [DIY-Programmer (ESP32-C3 / Pro Micro)](docs/USB_BRIDGE_GUIDE.md) · [Pinbelegung der zwei Boards](docs/ESP_BOARD_OPTIONS.md) · [DIY-Firmware-Installer](firmware-update.html)
+
+## v0.7.142 – Sensorbrücken-Rechner: NVM/Komplettabgleich laden
+
+Der Sensorbrücken-Rechner importiert **`E70311-CM64-v2`** (64 EEPROM-Wörter) und bestätigte **`E70311-CALIBRATION-COMPLETE-v1`**-Dateien mit einem eindeutigen Erfolgs-/Fehlerstatus. Ein ungültiges optionales Kalibrierprofil verwirft nicht mehr die gültigen EEPROM-Daten. Bereits importierte Backups bleiben auch bei einer fehlerhaften nächsten Dateiauswahl aktiv, und dieselbe Datei kann erneut gewählt werden. Dateien mit nicht programmierten Druckkoeffizienten werden als vollständig eingelesen, aber nicht kalibriert gekennzeichnet. Lokaler Import ist nur lesend; der Dateistand ist keine Bestätigung eines aktuellen Sensorabgleichs.
 
 ## v0.7.141 – Auffällige DSP-Grenzwert- und Sättigungswarnung
 
