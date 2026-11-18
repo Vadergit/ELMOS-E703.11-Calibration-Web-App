@@ -201,11 +201,22 @@ const ELMOS_EXPERT=(()=>{
    if(typeof ELMOS_NVM_RECON!=='undefined'){
     const proof=st.nvmBackupProof;
     const trusted=valid&&proof&&proof.session===st.sessionIndex&&proof.uid===st.uid.hex&&proof.words===st.nvmBackup;
+    const sessionProfile=typeof ELMOS_NVM_PROFILE!=='undefined'&&st.calfit&&st.calpoints?.length?
+     ELMOS_NVM_PROFILE.fromCalibration({
+      uid:st.uid?.hex||null,crc:st.nvmDone&&valid?st.nvmBackup[63]:null,
+      verified:!!(st.nvmDone&&valid),
+      pmin:Number($('pmin').value),pmax:Number($('pmax').value),
+      pressureUnit:$('calUnit').value,limit:st.calfit.outputLimit,
+      vdd:Number($('psscVdd').value),
+      tempModel:st.calfit.orderT>0?'an0203':null,
+      points:st.calpoints
+     }):null;
     ELMOS_NVM_RECON.render($('nvmReconstruction'),valid?st.nvmBackup:null,{
      connected:!!(st.mode==='usb'&&st.port&&st.chip),
      busy:!!(st.writing||st.calTask||st.nvmWorking||st.closing),
      uid:valid?st.uid.hex:null,
-     readAt:trusted?proof.readAt:null
+     readAt:trusted?proof.readAt:null,
+     sessionProfile
     });
    }
    if(!valid){
