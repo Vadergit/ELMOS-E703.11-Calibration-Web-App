@@ -6,6 +6,33 @@
 const ELMOS_NVM_RECON = (() => {
  const validWords = a => Array.isArray(a) && a.length === 64 &&
    a.every(v => Number.isInteger(v) && v >= 0 && v <= 65535);
+
+ // Parse first; never let an optional metadata/profile error discard valid
+ // original NVM bytes. No browser, sensor or writing functions here.
+ function parseNvmImport(data,filename='NVM-Backup.json',parseProfile=null){
+  const full=data?.format==='E70311-CALIBRATION-COMPLETE-v1';
+  const raw=Array.isArray(data)?data:
+   full?data.nvm?.programmed?.words:data?.words;
+  if(!validWords(raw))
+   throw Error('Kein gültiger 64-Wort-EEPROM-Datensatz. Bitte ein E70311-CM64-v2-Backup oder einen bestätigten Komplettabgleich wählen. Für reine Referenz-/Config-Dateien «Kalibrierprofil laden» verwenden.');
+  if(full&&(data.verifiedNvm!==true||data.type!=='calibration'||
+      data.chipUID!==data.nvm?.programmed?.uid||
+      data.nvm?.programmed?.crc16!==raw[63]))
+   throw Error('Komplettabgleich enthält keine bestätigten Sensor-NVM-Daten.');
+  const uid=full?data.chipUID:typeof data?.uid==='string'?data.uid:null;
+  if(uid!==null&&(!/^[0-9a-f]{12}$/i.test(uid)||
+     uid.slice(-8).toUpperCase()!==raw[1].toString(16).toUpperCase().padStart(4,'0')+
+       raw[0].toString(16).toUpperCase().padStart(4,'0')))
+   throw Error('Chip-UID passt nicht zur Seriennummer SER0/SER1 im importierten EEPROM.');
+  let profile=null,profileWarning=null;
+  if(full&&typeof parseProfile==='function'){
+   try{profile=parseProfile(data,filename)}
+   catch(error){profileWarning='Kalibrierprofil im Komplettabgleich nicht nutzbar: '+String(error.message||error)}
+  }
+  const noPressureCalibration=raw[34]===0&&raw.slice(35,51).every(word=>word===0);
+  return {words:raw.slice(),uid:uid?.toUpperCase()||null,full,profile,
+    profileWarning,noPressureCalibration};
+ }
  const i16 = v => v & 0x8000 ? v - 65536 : v;
  const q12 = v => i16(v) / 4096;
  const q15 = v => i16(v) / 32768;
@@ -360,7 +387,7 @@ const ELMOS_NVM_RECON = (() => {
   if(!styleAdded){const style=dom('style');style.textContent=css;document.head.appendChild(style);styleAdded=true}
   if(!root._nvmInit){
    root._nvmInit=true;
-   root._nvmState={live:null,offline:null,preferred:'file',connected:false,busy:false,liveMeta:null,sourceKey:null,fileUid:null,limitEdited:false,reference:null,profileFile:null,profileFileError:null,profileKey:null,profileLocked:{},profileCurrent:null,profileOverride:false,sessionProfile:null,readNotice:'',readError:false,reading:false,fileName:null,fileError:null,opts:{pmin:0,pmax:6,ta:25,tb:75,vdd:5,limit:32000,tempModel:'auto',pressureUnit:'bar'},last:null};
+   root._nvmState={live:null,offline:null,preferred:'file',connected:false,busy:false,liveMeta:null,sourceKey:null,fileUid:null,limitEdited:false,reference:null,profileFile:null,profileFileError:null,profileKey:null,profileLocked:{},profileCurrent:null,profileOverride:false,sessionProfile:null,readNotice:'',readError:false,reading:false,fileName:null,fileError:null,fileNotice:'',fileKind:null,opts:{pmin:0,pmax:6,ta:25,tb:75,vdd:5,limit:32000,tempModel:'auto',pressureUnit:'bar'},last:null};
    const heading=dom('h3','Datenquelle & Referenzen','nvmrecon-section-title');
    const detail=dom('p','NVM-Backup laden und Referenzbedingungen festlegen. Die Rückrechnung erfolgt lokal, ohne Sensorzugriff.','nvmrecon-muted nvmrecon-intro');
    const actions=dom('div',undefined,'nvmrecon-actions');
@@ -369,13 +396,19 @@ const ELMOS_NVM_RECON = (() => {
    const read=dom('button','↻ Sensor-NVM auslesen','nvmrecon-read-sensor');
    read.id='nvmReconReadSensor';read.type='button';
    read.title='Aktuelle 64 NVM-Wörter direkt vom angeschlossenen Sensor lesen und prüfen';
-   const upload=dom('label','NVM / Komplettabgleich laden','nvmrecon-upload');upload.htmlFor=file.id;
+   const upload=dom('button','NVM / Komplettabgleich laden','nvmrecon-upload');
+   upload.type='button';upload.setAttribute('aria-controls',file.id);
+   upload.addEventListener('click',()=>file.click());
    const clear=dom('button','Datei entfernen','nvmrecon-clear');clear.type='button';clear.disabled=true;
    clear.addEventListener('click',()=>{
-    const state=root._nvmState;state.offline=null;state.fileUid=null;state.fileName=null;state.fileError=null;
+    const state=root._nvmState;state.offline=null;state.fileUid=null;state.fileName=null;state.fileError=null;state.fileNotice='';state.fileKind=null;
+    state.profileFile=null;state.profileFileError=null;
     state.preferred='eeprom';file.value='';draw(root);
    });
    actions.append(read,upload,file,clear,dom('span','64 Wörter · Sensor-NVM oder lokale JSON-Datei','nvmrecon-actions-hint'));
+   const importFeedback=dom('p',undefined,'nvmrecon-import-feedback');
+   importFeedback.setAttribute('role','status');importFeedback.setAttribute('aria-live','polite');
+   importFeedback.hidden=true;
    const feedback=dom('p',undefined,'nvmrecon-read-feedback');
    feedback.setAttribute('role','status');feedback.hidden=true;
 
@@ -383,27 +416,38 @@ const ELMOS_NVM_RECON = (() => {
     const f=file.files?.[0];if(!f)return;
     try{
      if(f.size>40*1024*1024)throw Error('Datei zu gross (max. 40 MB).');
-     const data=JSON.parse(await f.text());
-     const full=data?.format==='E70311-CALIBRATION-COMPLETE-v1';
-     const words=full?data.nvm?.programmed?.words:Array.isArray(data)?data:data.words;
-     if(!validWords(words))throw Error('Kein gültiges 64-Wort-Backup');
-     if(full&&(data.verifiedNvm!==true||data.type!=='calibration'||
-       data.chipUID!==data.nvm?.programmed?.uid||data.nvm.programmed.crc16!==words[63]))
-      throw Error('Komplettabgleich enthält keine bestätigten Sensor-NVM-Daten.');
-     const profile=full&&typeof ELMOS_NVM_PROFILE!=='undefined'?
-      ELMOS_NVM_PROFILE.fromFile(data,f.name):null;
-     root._nvmState.offline=words.slice();
-     root._nvmState.fileUid=full?data.chipUID:typeof data?.uid==='string'?data.uid.toUpperCase():null;
-     root._nvmState.profileFile=full?profile:null;
-     root._nvmState.profileKey=null;
-     root._nvmState.profileFileError=null;
-     root._nvmState.limitEdited=false;
-     root._nvmState.preferred='file';
-     root._nvmState.readNotice='';
-     root._nvmState.fileName=f.name;
-     root._nvmState.fileError=null;
+     const parseProfile=typeof ELMOS_NVM_PROFILE!=='undefined'?
+      (data,name)=>ELMOS_NVM_PROFILE.fromFile(data,name):null;
+     const imported=parseNvmImport(JSON.parse(await f.text()),f.name,parseProfile);
+     const state=root._nvmState;
+     state.offline=imported.words;
+     state.fileUid=imported.uid;
+     state.profileFile=imported.profile;
+     state.profileKey=null;
+     state.profileFileError=imported.profileWarning;
+     state.limitEdited=false;
+     state.preferred='file';
+     state.readNotice='';
+     state.fileName=f.name;
+     state.fileKind=imported.full?'complete':'nvm';
+     state.fileError=null;
+     state.fileNotice=(imported.full?'Komplettabgleich':'EEPROM-Backup')+
+      ' geladen: 64 von 64 Wörtern'+(imported.uid?' · UID '+imported.uid:'')+
+      '. '+(imported.noPressureCalibration?
+       'Keine gespeicherte Druckkalibrierung erkannt (S_F und S0–S15 sind 0).':
+       'Kalibrierregister vorhanden; Werte werden unten ausgewertet.')+
+      (imported.profileWarning?' '+imported.profileWarning:'');
      draw(root);
-    }catch(e){root._nvmState.offline=null;root._nvmState.fileName=null;root._nvmState.fileError='Dateiimport fehlgeschlagen: '+String(e.message);draw(root)}
+    }catch(e){
+     const state=root._nvmState;
+     // Never destroy the previously imported good backup on a bad selection.
+     state.fileError='Dateiimport fehlgeschlagen: '+String(e.message);
+     state.fileNotice='';
+     draw(root);
+    }finally{
+     // Selecting the same file again must always cause another change event.
+     file.value='';
+    }
    });
    const profileInput=dom('input');profileInput.type='file';profileInput.accept='.json,application/json';
    profileInput.id='nvmReconProfileFile';profileInput.setAttribute('aria-label','Kalibrierprofil aus JSON laden');
@@ -419,6 +463,7 @@ const ELMOS_NVM_RECON = (() => {
      st.profileOverride=false;draw(root);
     }catch(e){root._nvmState.profileFileError=String(e.message);draw(root)}
    });
+   actions.appendChild(importFeedback);
    const grid=dom('div',undefined,'nvmrecon-grid');
    const fields=[['pmin','Druck min. [bar]','0'],['pmax','Druck max. [bar]','6'],
     ['ta','Temperatur 1 [°C]','25'],['tb','Temperatur 2 [°C]','75'],
@@ -649,9 +694,11 @@ const ELMOS_NVM_RECON = (() => {
    feedback.textContent=state.readNotice||'';
    feedback.className='nvmrecon-read-feedback'+(state.readError?' is-error':'');
   }
-  if(state.fileError){
-   const err=dom('p',state.fileError,'nvmrecon-error');
-   box.appendChild(err);
+  const fileFeedback=root.querySelector('.nvmrecon-import-feedback');
+  if(fileFeedback){
+   fileFeedback.hidden=!state.fileNotice&&!state.fileError;
+   fileFeedback.className='nvmrecon-import-feedback'+(state.fileError?' is-error':'');
+   fileFeedback.textContent=state.fileError||state.fileNotice||'';
   }
   const origin=root.querySelector('.nvmrecon-reference-hint');
   if(origin&&reference){
@@ -689,7 +736,8 @@ const ELMOS_NVM_RECON = (() => {
    status.classList.add('nvmrecon-file-current');
    const badge=dom('span','LOKALE DATEI · NICHT LIVE','nvmrecon-source-tag');
    const name=dom('strong',state.fileName||'NVM-Backup','nvmrecon-source-name');
-   const hint=dom('span','64 Wörter · aus JSON importiert · Datei-CRC/UID nicht separat geprüft'+
+   const hint=dom('span','64 Wörter · '+(state.fileKind==='complete'?'bestätigter Komplettabgleich':'aus JSON importiert')+
+    ' · Datei-CRC/UID nicht separat geprüft'+
     (state.connected?' · «Sensor-NVM auslesen» lädt den aktuellen Chipstand':' · ohne Sensorverbindung'),'nvmrecon-source-hint');
    status.replaceChildren(badge,name,hint);
   }
@@ -828,6 +876,6 @@ const ELMOS_NVM_RECON = (() => {
   draw(root);
   return true;
  }
- return {calculate,render,validWords,chooseSource,referenceMetadata,missingExplanations,setReadFeedback,preferLive};
+ return {calculate,render,parseNvmImport,validWords,chooseSource,referenceMetadata,missingExplanations,setReadFeedback,preferLive};
 })();
 if(typeof module!=='undefined'&&module.exports)module.exports=ELMOS_NVM_RECON;
