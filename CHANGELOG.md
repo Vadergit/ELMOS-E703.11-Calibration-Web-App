@@ -1,3 +1,9 @@
+## Firmware ESP32-C3 v0.14 – USB-Antworten zuverlässig abschliessen
+
+- Der ESP32-C3 schliesst die USB-Antwort samt Prompt mit Serial.flush() ab. Beim wiederholten I²C-Adresswechsel konnten Antworten zuvor bis zum nächsten USB-Befehl zurückgehalten werden.
+- Beide Adresspaare 0x6C/0x6D und 0x7C/0x7D am realen Sensor durch vorübergehende Adresswechsel im RAM geprüft. Kaltstart stellt die Originaladresse aus dem NVM wieder her.
+- Pro Micro v0.29 enthält weiterhin dieselbe I²C-Adresskorrektur. Sein USB-Treiber ist separat und bleibt von dieser ESP32-spezifischen Korrektur unberührt.
+
 ## Firmware ESP32-C3 v0.13 / Pro Micro v0.29 – vollständige I²C-Adresssuche
 
 - Gemeinsame I²C-Bibliothek prüft CRC-Adressen bis einschliesslich 0x7F. Bisher endete die Suche vor 0x78 und übersah dadurch einen angeschlossenen Sensor auf 0x7D.

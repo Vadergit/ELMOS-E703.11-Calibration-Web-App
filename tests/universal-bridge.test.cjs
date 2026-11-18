@@ -53,7 +53,7 @@ test('release workflow compiles ESP32-C3 and both Pro Micro frequencies and publ
  const yml=source('.github/workflows/esp32-c3-release.yml');
  for(const needle of ['firmware/esp32c3_supermini','firmware/pro_micro','arduino-cli compile',
   '16MHzatmega32U4','8MHzatmega32U4','github.ref == \'refs/heads/main\'',
-  'firmware/releases/esp32-c3/v0.13','firmware/releases/pro-micro/v0.29']){
+  'firmware/releases/esp32-c3/v0.14','firmware/releases/pro-micro/v0.29']){
   assert.ok(yml.includes(needle),needle);
  }
 });

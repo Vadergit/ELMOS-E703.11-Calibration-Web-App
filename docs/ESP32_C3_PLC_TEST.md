@@ -1,3 +1,7 @@
+## USB-Antworten und beide I²C-Adressen in v0.14
+
+Serial.flush() schliesst jede ESP32-USB-Antwort ab. Beide CRC-Adressen 0x6D und 0x7D wurden am realen Sensor mit identischer Chip-UID und laufenden ADC_S-/ADC_T-/DSP_S-Lesezugriffen getestet. Dazu wurde ausschliesslich das Adressfeld im Sensor-RAM vorübergehend gewechselt. Der anschliessende Kaltstart stellte 0x7D aus dem Original-NVM wieder her.
+
 ## I²C-Adresskorrektur v0.13
 
 Die Firmware sucht CRC-Adressen bis einschliesslich 0x7F. Der bestätigte Testchip antwortet auf 0x7C/0x7D und wurde von der bisherigen Suche bis 0x77 übersehen. I²C auf GPIO6 (SDA), GPIO7 (SCL), GPIO10 (Versorgung) und NCS/SA0 an GND wurde ohne AODO-Verbindung mit fünf Kaltstarts und 450 CRC-geprüften Messwertabfragen getestet. ADC_S, ADC_T und DSP_S änderten sich dabei. Der Test hat das Sensor-NVM nicht programmiert.

@@ -76,6 +76,7 @@ static void answer(const char *message) {
   // Let USB Serial/JTAG service frames after PLC bit timing masked interrupts.
   delay(2);
   Serial.printf("%s\r\n:\r\n", message);
+  Serial.flush(); // Complete the prompt before the next USB request.
 }
 
 static void printUid(unsigned baud) {
@@ -457,7 +458,7 @@ static void onCommand(const char *command) {
     disarmNvm();
     answer("# E70311-BRIDGE V1 CAPS=PLC_UID,PLC_READ,PLC_WRITE,NVM,POWER_GPIO_10,PSSC_RAM,AFE_FILTER,BRIDGE_CAL_NVM,BRIDGE_AODO_OUTPUT_NVM_TEST,BRIDGE_GENERIC_RAM_V1,BRIDGE_USER_NVM_V1,PLC_RX_DIAG,PLC_GPIO4_IO,I2C_CRC");
   } else if (strcmp(command, ".VERSION") == 0) {
-    answer("# ESP32-C3 SuperMini ELMOS PLC/I2C bridge v0.13");
+    answer("# ESP32-C3 SuperMini ELMOS PLC/I2C bridge v0.14");
   } else if (strcmp(command, "BRIDGE_PING") == 0) {
     answer("# PONG ESP32-C3 SUPERMini PLC_UID");
   } else if (strcmp(command, "BRIDGE_STATS") == 0) {

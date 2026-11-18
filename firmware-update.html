@@ -101,11 +101,11 @@
   <div class="boards">
 
   <section class="board" aria-labelledby="esp32">
-    <h2 id="esp32">ESP32-C3 SuperMini <span class="version">v0.13 (Labor)</span></h2>
+    <h2 id="esp32">ESP32-C3 SuperMini <span class="version">v0.14 (Labor)</span></h2>
     <p>One-Wire und I²C. Wähle im USB-Dialog den ESP32-C3 SuperMini.</p>
-    <p class="note"><strong>Neu in v0.13 (Labor):</strong> I²C-Erkennung auch für Sensoradressen 0x79–0x7F, einschliesslich 0x7D. ESP32-C3 am Sensor mit CRC-geprüften Messwerten und wiederholten Kaltstarts getestet. Die installierbare Firmware ist kompiliert. <strong>Der tatsächliche NVM-Schreibvorgang am Sensor ist noch nicht hardwarevalidiert.</strong> Nur mit einem entbehrlichen Testchip testen. Vor dem Firmwareupdate alle noch nicht gespeicherten Kalibrierdaten und das Original-NVM sichern. <a href="docs/ESP32_C3_PLC_TEST.md">Technische Details</a>.</p>
+    <p class="note"><strong>Neu in v0.14 (Labor):</strong> I²C-Erkennung auch für Sensoradressen 0x79–0x7F, einschliesslich 0x7D. Beide Adresspaare 0x6C/0x6D und 0x7C/0x7D am Sensor getestet. USB-Antworten werden vollständig gesendet, bevor der nächste Befehl verarbeitet wird. Die installierbare Firmware ist kompiliert. <strong>Der tatsächliche NVM-Schreibvorgang am Sensor ist noch nicht hardwarevalidiert.</strong> Nur mit einem entbehrlichen Testchip testen. Vor dem Firmwareupdate alle noch nicht gespeicherten Kalibrierdaten und das Original-NVM sichern. <a href="docs/ESP32_C3_PLC_TEST.md">Technische Details</a>.</p>
     <div class="actions">
-    <esp-web-install-button manifest="firmware/releases/esp32-c3/v0.13/manifest.json">
+    <esp-web-install-button manifest="firmware/releases/esp32-c3/v0.14/manifest.json">
       <button type="button" slot="activate" disabled>ESP32 installieren</button>
       <span slot="unsupported">Öffne diese Seite in Chrome oder Edge auf dem Computer.</span>
       <span slot="not-allowed">Öffne diese Seite über HTTPS oder localhost.</span>
