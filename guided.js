@@ -198,6 +198,7 @@ const ELMOS_GUIDED=(()=>{
   moveId('alarmReadEeprom','gwAlarmRead');
   moveLabel('nvmAutoBackup','gwNvmBackup');
   moveId('nvmPrepare','gwNvmPrepare');moveId('nvmProgress','gwNvmPrepare');
+  for(const id of ['nvmRecheckActions','nvmRecheckHint','nvmRecheckMsg'])moveId(id,'gwNvmPrepare');
   for(const id of ['nvmMsg','nvmUidHint','nvmWritePrereq'])moveId(id,'gwNvmMessages');
   moveId('nvmUserIdField','gwNvmBackup');
   moveId('nvmProgram','gwNvmWrite');
