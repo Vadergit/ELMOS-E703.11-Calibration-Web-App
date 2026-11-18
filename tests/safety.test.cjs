@@ -930,9 +930,9 @@ test('Cookie-only NVM gated by physical SSP3 startup proof and matching UID',()=
  const app=read('app.js'),html=read('index.html');
  assert.ok(app.includes('st.powerCycleResult.verifiedUid=st.uid?.hex||null;'));
  assert.ok(app.includes('st.powerCycleResult=null;st.magicResult=null;'));
- assert.ok(app.includes('startup.requiresCookie&&!(st.powerCycleResult?.readVerified'));
- assert.ok(app.includes('st.powerCycleResult.verifiedUid===st.uid.hex'));
- assert.ok(app.includes('st.powerCycleResult.verifiedUid===id'));
+ assert.ok(app.includes('startup.requiresCookie&&!psscRecoveryProven()&&!bridgeColdStartVerified()'));
+ assert.ok(app.includes('proof.verifiedUid===uid'));
+ assert.ok(app.includes('const cookieVerified=psscRecoveryProven()||bridgeColdStartVerified();'));
  assert.ok(app.includes('CAL.protectStartupCommunication(initial,modified,{allowSvdd})'));
  assert.ok(html.includes('id="plcStartupTools"'));
 });
@@ -1070,7 +1070,7 @@ test('Magic-Cookie auto startup retains protected NVM and does not touch other i
  assert.ok(!connect.includes('P.plcWrite(0xAC'));
  assert.ok(cal.includes('for(const index of [17,18,19])'));
  assert.ok(app.includes('CAL.protectStartupCommunication(initial,modified,{allowSvdd})'));
- assert.ok(app.includes('st.powerCycleResult.verifiedUid===st.uid.hex'));
+ assert.ok(app.includes('proof.verifiedUid===uid'));
 });
 
 test('Live read prioritises ADC_S and tolerates missing temperature while strict path remains strict',()=>{
