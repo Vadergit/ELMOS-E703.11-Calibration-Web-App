@@ -1280,7 +1280,7 @@ test('ESP32-C3 output-only NVM is capability-gated and scope-limited',()=>{
  const proMicro=read('firmware/pro_micro/pro_micro.ino');
  assert.ok(fw.includes('BRIDGE_AODO_OUTPUT_NVM_TEST'));
  assert.ok(fw.includes('strcmp(command, "NVM ARM OUTPUT") == 0'));
- assert.ok(fw.includes('if (!coldStartVerified || probe(activeSlave))'));
+ assert.ok(fw.includes('if (!coldStartMatches() || probe(activeSlave))'));
  assert.ok(fw.includes('readOriginalOutputCfgEn(cfg)'));
  assert.ok(fw.includes('~uint16_t(0x00C0)'));
  assert.ok(fw.includes('index == 57 || index == 58 || index == 59 || index == 60 || index == 63'));
@@ -1560,7 +1560,7 @@ test('ESP32-C3 combined DSP/AODO recovery requires generic user NVM and cold-sta
  const firmware=read('firmware/esp32c3_supermini/esp32c3_supermini.ino');
  assert.ok(firmware.includes('BRIDGE_USER_NVM_V1'));
  assert.ok(firmware.includes('strcmp(command, "NVM ARM HOST") == 0'));
- assert.ok(firmware.includes('if (!coldStartVerified || probe(activeSlave))'));
+ assert.ok(firmware.includes('if (!coldStartMatches() || probe(activeSlave))'));
  assert.ok(app.includes("const armCommand=st.bridgeUserNvm?'NVM ARM HOST'"));
  assert.ok(app.includes('const esp32Ready=bridgeCombinedRecoveryReady()'));
  assert.ok(app.includes('const finalRecoveryBlock=psscNvmBlock('));

@@ -4,7 +4,6 @@
    Physikalische Brueckensignale sind NOMINALE AFE-Rueckrechnungen, keine
    rekonstruierten Originalmessungen. Kein NVM/RAM-Zugriff und kein Schreiben. */
 const ELMOS_NVM_RECON = (() => {
- const calibration = typeof module !== 'undefined' && module.exports ? require('./calibration.js') : ELMOS_CAL;
  const validWords = a => Array.isArray(a) && a.length === 64 &&
    a.every(v => Number.isInteger(v) && v >= 0 && v <= 65535);
 
@@ -25,6 +24,7 @@ const ELMOS_NVM_RECON = (() => {
      uid.slice(-8).toUpperCase()!==raw[1].toString(16).toUpperCase().padStart(4,'0')+
        raw[0].toString(16).toUpperCase().padStart(4,'0')))
    throw Error('Chip-UID passt nicht zur Seriennummer SER0/SER1 im importierten EEPROM.');
+  const calibration=typeof require==='function'?require('./calibration.js'):ELMOS_CAL;
   const crc8Valid=calibration.crc8(raw)===(raw[15]>>>8);
   const crc16Valid=calibration.crc16(raw)===raw[63];
   if((full||data?.format==='E70311-CM64-v2')&&(!crc8Valid||!crc16Valid))
