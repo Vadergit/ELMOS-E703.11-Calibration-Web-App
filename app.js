@@ -162,9 +162,12 @@ if(typeof document!=='undefined') (function UI(){
   if(!visible)return;
   if(autoInfo){
    const active=autoReconnectEnabled&&!autoReconnectSuppressed;
+   const bridgePlc=st.adapterKind==='bridge'&&st.iface==='plc';
+   const autoMode=bridgePlc?(st.sensorPowerEnabled?'PLC START · GPIO10/D7':'PLC ACCESS · ohne VDD-Neustart'):
+    st.iface==='i2c'?'I²C ACCESS':'Register-Lesetest';
    autoInfo.textContent=!active?'Auto-Connect: Aus · In Einstellungen → Verbindung aktivieren.':
     autoReconnectBusy?'Auto-Connect: Sensorprüfung läuft · Versuch '+autoReconnectAttempts:
-    'Auto-Connect: Aktiv · Versuche '+autoReconnectAttempts+
+    'Auto-Connect: Aktiv · '+autoMode+' · Versuche '+autoReconnectAttempts+
     (autoReconnectLastAt?' · zuletzt '+new Date(autoReconnectLastAt).toLocaleTimeString('de-CH'):' · noch kein Versuch')+
     (autoReconnectLastError?' · Fehler: '+autoReconnectLastError.slice(0,110):'')+
     (st.adapterKind==='bridge'&&st.iface==='plc'&&!st.sensorPowerEnabled?
@@ -1332,7 +1335,7 @@ if(typeof document!=='undefined') (function UI(){
   }catch(e){logging('ESP32 RX-Diagnose: '+e.message)}
  }
  async function connectBridgeChip({autoProbe=false}={}){
-  st.bridgeRxNote='';
+  if(!autoProbe)st.bridgeRxNote='';
   st.bridgeColdStart=null;
   const port=st.port,session=st.sessionIndex;
   // PLC START opens the short NVM startup window on a physically wired
@@ -1357,7 +1360,14 @@ if(typeof document!=='undefined') (function UI(){
   await exchange('PLC_BAUD '+$('plcBaud').value);
   try{await bridgeAccess({power})}
   catch(e){
-   if(autoProbe||!st.bridgePsscRam||!e.message.includes('PLC_NO_VALID_FRAME')||st.closing||!st.port)throw e;
+   if(autoProbe){
+    // Read-only RX diagnostics on every third failed auto probe. Never run
+    // undocumented startup writes or RAM recovery in unattended reconnect.
+    if(st.bridgeRxDiag&&e.message.includes('PLC_NO_VALID_FRAME')&&autoReconnectAttempts%3===0)
+     await noteBridgeRx();
+    throw e;
+   }
+   if(!st.bridgePsscRam||!e.message.includes('PLC_NO_VALID_FRAME')||st.closing||!st.port)throw e;
    st.psscRamRecovery=true;
    logging('ESP32: normale PLC-Adressen ohne Antwort; PSSC-Freigabe im Sensor-RAM.');
    try{await bridgeAccess({power,recover:true})}
@@ -2851,7 +2861,7 @@ if(typeof document!=='undefined') (function UI(){
  function draw(){const c=$('chart');if(!c||c.closest('[hidden]'))return;const d=window.devicePixelRatio||1,w=Math.round(c.clientWidth*d),h=Math.round(c.clientHeight*d);if(w<20)return;if(c.width!==w||c.height!==h){c.width=w;c.height=h}const g=c.getContext('2d');g.clearRect(0,0,w,h);
  const dark=document.documentElement.dataset.theme==='dark';const x0=55*d,y0=10*d,yh=h-20*d,y=v=>y0+(32768-v)/65536*(yh-y0);g.font=`${11*d}px sans-serif`;for(const v of [25000,0,-25000]){g.beginPath();g.strokeStyle=v?(dark?'#d9ab71':'#e3c9aa'):(dark?'#536e84':'#d7e4ef');g.setLineDash(v?[5*d,4*d]:[]);g.moveTo(x0,y(v));g.lineTo(w-8*d,y(v));g.stroke();g.setLineDash([]);g.fillStyle=dark?'#d7e5f0':'#74849a';g.fillText((v>0?'+':'')+v,5*d,y(v)+4*d)}if(st.trend.length<1)return;const left=Date.now()-60000,x=t=>x0+(w-x0-10*d)*Math.max(0,Math.min(1,(t-left)/60000));g.beginPath();g.strokeStyle=dark?'#9bddff':'#2867a6';g.lineWidth=2*d;st.trend.forEach((p,i)=>i?g.lineTo(x(p.x),y(p.y)):g.moveTo(x(p.x),y(p.y)));g.stroke()}
  function download(name,txt,mime='application/json'){let b=new Blob([txt],{type:mime}),u=URL.createObjectURL(b),a=document.createElement('a');a.href=u;a.download=(demoEnabled?'DEMO_':'')+name;a.click();setTimeout(()=>URL.revokeObjectURL(u),2000)}
- const report=()=>({tool:'ELMOS E703.11 Kalibrierassistent v0.7.128',created:new Date().toISOString(),connection:demoEnabled?'Demo':st.port?'USB':'offline',hardwareValidated:false,unit:pressureUnit(),pointNames:{lower:pointName('lo'),upper:pointName('hi')},interface:st.iface,firmware:st.firmware,bootProtection:'Boot-/Werks-NVM-Schreiben gesperrt; kalibrierungsbezogenes User-NVM mit Bestätigung freigegeben',ramWriteActive:!!st.ramWriteScope,registers:st.regs,bootSnapshot:st.boot,chipUID:st.uid?.hex||null,expertOutput:st.expertOutputPlan,AFE:st.afe,gains:st.staged,low:st.points.lo,high:st.points.hi,verification:st.verify,calibrationPoints:st.calpoints,plannedCalibrationPointCount:calibrationPointCount(),requestedSamplesPerPoint:Number($('calSampleCount').value),requestedDSPOutputLimit:Number($('calDspLimit').value),coefficientFit:st.calfit,calRamVerified:st.calVerified,lastDSP:st.dsp,chipDiagnostic:st.chipDiag,lastPlcReply:st.lastPlcReply,displayRange:getActiveDSPRange(),nvmState:{backupVerified:st.nvmBackupVerified,programmed:st.nvmDone},samples:st.history.slice(-1500),trace:st.log});
+ const report=()=>({tool:'ELMOS E703.11 Kalibrierassistent v0.7.129',created:new Date().toISOString(),connection:demoEnabled?'Demo':st.port?'USB':'offline',hardwareValidated:false,unit:pressureUnit(),pointNames:{lower:pointName('lo'),upper:pointName('hi')},interface:st.iface,firmware:st.firmware,bootProtection:'Boot-/Werks-NVM-Schreiben gesperrt; kalibrierungsbezogenes User-NVM mit Bestätigung freigegeben',ramWriteActive:!!st.ramWriteScope,registers:st.regs,bootSnapshot:st.boot,chipUID:st.uid?.hex||null,expertOutput:st.expertOutputPlan,AFE:st.afe,gains:st.staged,low:st.points.lo,high:st.points.hi,verification:st.verify,calibrationPoints:st.calpoints,plannedCalibrationPointCount:calibrationPointCount(),requestedSamplesPerPoint:Number($('calSampleCount').value),requestedDSPOutputLimit:Number($('calDspLimit').value),coefficientFit:st.calfit,calRamVerified:st.calVerified,lastDSP:st.dsp,chipDiagnostic:st.chipDiag,lastPlcReply:st.lastPlcReply,displayRange:getActiveDSPRange(),nvmState:{backupVerified:st.nvmBackupVerified,programmed:st.nvmDone},samples:st.history.slice(-1500),trace:st.log});
 
  // ============ Kalibrierung + NVM (AN0203 / AN0204 / Datasheet 2023) ============
  const ca=(id,msg,type='')=>show(id,msg,type);
@@ -4231,11 +4241,29 @@ if(typeof document!=='undefined') (function UI(){
  if(!['ssp3','bridge'].includes($('adapterType').value))$('adapterType').value='ssp3';
  st.adapterKind=$('adapterType').value;
  if(st.adapterKind==='bridge'&&st.iface==='spi')st.iface=$('iface').value='plc';
- for(const id of ['plcPowerCycle','plcGpio4Mode']){
-  const option=$(id),key='elmos-bridge-'+id;
-  option.checked=(lsGet(key)??'1')==='1';
-  option.addEventListener('change',()=>lsSet(key,option.checked?'1':'0'));
+ // A VDD switch is a real wiring decision. This UI state must be updated
+ // immediately, not only when connectOperation first opens the COM port.
+ function setBridgePowerControl(value){
+  const enabled=!!value;
+  $('plcPowerCycle').checked=enabled;
+  $('settingsBridgePowerControl').checked=enabled;
+  lsSet('elmos-bridge-plcPowerCycle',enabled?'1':'0');
+  const wasEnabled=st.sensorPowerEnabled;
+  st.sensorPowerEnabled=st.adapterKind==='bridge'&&!demoEnabled&&enabled;
+  if(wasEnabled!==st.sensorPowerEnabled){
+   st.bridgeColdStart=null;st.powerCycleResult=null;
+   logging('VDD-Schalter '+(enabled?'aktiviert':'deaktiviert')+
+    ' · nur mit externem Lastschalter GPIO10/D7 wirksam.');
+  }
+  renderStatus();
  }
+ $('plcPowerCycle').checked=lsGet('elmos-bridge-plcPowerCycle')==='1';
+ $('settingsBridgePowerControl').checked=$('plcPowerCycle').checked;
+ $('plcPowerCycle').addEventListener('change',()=>setBridgePowerControl($('plcPowerCycle').checked));
+ $('settingsBridgePowerControl').addEventListener('change',()=>setBridgePowerControl($('settingsBridgePowerControl').checked));
+ const io=$('plcGpio4Mode'),ioKey='elmos-bridge-plcGpio4Mode';
+ io.checked=(lsGet(ioKey)??'1')==='1';
+ io.addEventListener('change',()=>lsSet(ioKey,io.checked?'1':'0'));
  const plcRate=lsGet('elmos-bridge-plc-baud');
  if(Array.from($('plcBaud').options).some(option=>option.value===plcRate))$('plcBaud').value=plcRate;
  $('plcBaud').addEventListener('change',()=>lsSet('elmos-bridge-plc-baud',$('plcBaud').value));

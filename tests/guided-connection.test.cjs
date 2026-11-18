@@ -226,5 +226,26 @@ test('sensor banner shows auto-connect enabled state, attempts and last error',(
  assert.match(app,/Auto-Connect: Sensorprüfung läuft/);
  assert.match(app,/autoReconnectAttempts\+\+/);
  assert.match(app,/autoReconnectLastError=String\(error\.message\|\|error\)/);
- assert.match(html,/data-app-version="0\.7\.128"/);
+ assert.match(html,/data-app-version="0\.7\.129"/);
+});
+
+test('sensor VDD power control persists and syncs live without reconnecting the USB port',()=>{
+ assert.match(html,/id="settingsBridgePowerControl"/);
+ assert.match(app,/function setBridgePowerControl\(value\)/);
+ assert.match(app,/\$\('plcPowerCycle'\)\.checked=lsGet\('elmos-bridge-plcPowerCycle'\)==='1'/);
+ assert.match(app,/st\.sensorPowerEnabled=st\.adapterKind==='bridge'&&!demoEnabled&&enabled/);
+ assert.match(app,/\$\('plcPowerCycle'\)\.addEventListener\('change',\(\)=>setBridgePowerControl/);
+ assert.match(app,/\$\('settingsBridgePowerControl'\)\.addEventListener\('change',\(\)=>setBridgePowerControl/);
+});
+test('every third failed PLC probe runs only available read-only RX diagnostic',()=>{
+ const from=app.indexOf(' async function connectBridgeChip(');
+ const to=app.indexOf(' // CRC8 verification follows DS',from);
+ const body=app.slice(from,to);
+ assert.match(body,/if\(autoProbe\)\{/);
+ assert.match(body,/autoReconnectAttempts%3===0/);
+ assert.match(body,/await noteBridgeRx\(\)/);
+ assert.match(body,/if\(!st\.bridgePsscRam\|\|!e\.message/);
+ assert.match(app,/const autoMode=bridgePlc\?/);
+ assert.match(app,/PLC START · GPIO10\/D7/);
+ assert.match(app,/PLC ACCESS · ohne VDD-Neustart/);
 });

@@ -2,7 +2,7 @@
 
 **Ein geführter Kalibrierassistent für den ELMOS E703.11 und das SSP3-Eval-Board.** Ziel ist ein verständlicher Abgleich, der auch ohne tiefere Vorkenntnisse Schritt für Schritt funktioniert. Wer mehr benötigt, kann zusätzliche Messpunkte, DSP-Parameter und einen geschützten Expertenmodus verwenden.
 
-**Version: v0.7.128 · Auto-Connect mit VDD-Start und sichtbarem Verbindungsstatus** · [Änderungsverlauf](CHANGELOG.md) · **[Geplante Funktionen](ROADMAP.md)**
+**Version: v0.7.129 · VDD-Schaltung und Empfangsdiagnose bei Auto-Connect** · [Änderungsverlauf](CHANGELOG.md) · **[Geplante Funktionen](ROADMAP.md)**
 
 Der **Demo-Modus** wird in den Einstellungen erst nach Aktivierung von **Expertenparameter** angezeigt. Er simuliert Sensorwerte und Schreibvorgänge; die echte Hardware wird dabei nicht programmiert.
 
@@ -13,6 +13,14 @@ Der **Demo-Modus** wird in den Einstellungen erst nach Aktivierung von **Experte
 > **Geführter Assistent:** Nach der bestätigten SSP3-Verbindung stehen die neue Schritt-für-Schritt-Führung, die klassische Ansicht und der optionale Kompaktmodus zur Verfügung. Ein E703.11-Chip muss für den Abgleich verbunden sein. Als DIY-Programmer sind ausschliesslich ESP32-C3 SuperMini (v0.12 Labor-Quellcode) und Arduino Pro Micro (v0.28 Labor-Quellcode) vorgesehen. Die originalen ELMOS SSP3-Adapter bleiben separat unterstützt. Der vollständige Hardwaretest der DIY-Programmer ist noch offen.
 >
 > [Geführter Abgleich](docs/GEFUEHRTER_ASSISTENT.md) · [DIY-Programmer (ESP32-C3 / Pro Micro)](docs/USB_BRIDGE_GUIDE.md) · [Pinbelegung der zwei Boards](docs/ESP_BOARD_OPTIONS.md) · [DIY-Firmware-Installer](firmware-update.html)
+
+## v0.7.129 – VDD-Schaltung und PLC_NO_VALID_FRAME verstehen
+
+Unter **Einstellungen → Verbindung** gibt es neu **«Sensor-VDD über Adapter schalten (GPIO10 / D7)»**. Sie ist bei neuen Installationen standardmässig ausgeschaltet; gespeicherte Einstellungen bleiben erhalten. Sie ist mit der entsprechenden Option in der klassischen Adapterkonfiguration synchronisiert und wirkt sofort auf den laufenden Auto-Connect, ohne erneutes USB-Verbinden.
+
+Nur mit einem **wirklich angeschlossenen externen Lastschalter** kann der ESP32-C3 (GPIO10) beziehungsweise Pro Micro (D7) den E703.11 versorgungsseitig neu starten. Dann wird bei 1-Wire `PLC START` benutzt; andernfalls `PLC ACCESS`. Der gelbe Verbindungsbalken zeigt den aktiven Weg an. Der Fehler `PLC_NO_VALID_FRAME` bedeutet, dass kein gültiger Sensorframe vorliegt, nicht dass der USB-Adapter ausgefallen ist.
+
+Nach jedem dritten erfolglosen Auto-Connect-Versuch verwendet die App die lesende `PLC RX DIAG`-Funktion, falls die Bridge-Firmware sie unterstützt. Die Ergebnisse (ECHO/EDGES/CRC) erscheinen im Diagnoseprotokoll. **Kein automatisches NVM-Schreiben und keine automatische PSSC-RAM-Recovery.** Die Ursache kann weiterhin in der Hardware, im Startfenster, bei der 25/100-kBd-Konfiguration oder am Sensor liegen.
 
 ## v0.7.128 – Auto-Connect für E703.11 mit kurzem 1-Wire-Startfenster
 

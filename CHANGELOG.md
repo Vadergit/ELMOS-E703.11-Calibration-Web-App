@@ -1,3 +1,10 @@
+## v0.7.129 – VDD-Steuerung im laufenden Auto-Connect und PLC RX DIAG
+
+- Sensor-VDD-Steuerung in Einstellungen sichtbar und mit der klassischen Verbindungsoption synchronisiert. Änderungen werden ohne COM-Port-Neustart aktiv; neue Profile starten ohne GPIO10/D7-VDD-Schaltannahme.
+- Gelber Unterbruchbalken zeigt PLC START (mit VDD-Schaltung) oder PLC ACCESS (ohne VDD-Neustart).
+- Bei jedem dritten fehlgeschlagenen PLC-Auto-Connect lesende Empfangsdiagnose (RX ECHO / EDGES / CRC), sofern die Bridge-Firmware sie unterstützt. Keine automatische RAM-Recovery oder NVM-Programmierung.
+- Regressionstests, Versionsnummer und Browser-Cache aktualisiert. Reale Chipantwort muss weiterhin am Prüfplatz bestätigt werden.
+
 ## v0.7.128 – Auto-Connect mit PLC START und Statusanzeige
 
 - Auto-Connect nutzt bei aktiviertem PLC-VDD-Schalter jetzt PLC START für ein neues 1-Wire-Startfenster. Externe Sensorversorgungs-Schaltung am GPIO10 (ESP32-C3) bzw. D7 (Pro Micro) erforderlich.
