@@ -16,7 +16,8 @@ jobs:
       - name: Check calculator and navigation scripts
         run: |
           node --check nvm-reconstruction.js
+          node --check nvm-reconstruction-trace.js
           node --check app.js
           node --check guided.js
       - name: Run calibration, NVM reconstruction and offline UI tests
-        run: node --test tests/elmos-calibration.test.cjs tests/nvm-reconstruction.test.cjs tests/nvm-rechner-offline.test.cjs
+        run: node --test tests/elmos-calibration.test.cjs tests/nvm-reconstruction.test.cjs tests/nvm-rechner-offline.test.cjs tests/nvm-formula-trace.test.cjs
