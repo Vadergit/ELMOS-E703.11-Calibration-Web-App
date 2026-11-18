@@ -182,7 +182,7 @@ const ELMOS_TEST_LOGGER=(()=>{
  const config=()=>{
   const name=value('tlName').trim(),description=value('tlDescription').trim(),
    dutName=value('tlDutName').trim();
-  if(!name||name.length>120)throw Error('Bitte einen Testnamen mit maximal 120 Zeichen eingeben.');
+  if(name.length>120)throw Error('Testname darf maximal 120 Zeichen lang sein.');
   if(description.length>4000)throw Error('Beschreibung darf maximal 4000 Zeichen lang sein.');
   if(dutName.length>160)throw Error('DUT-Bezeichnung darf maximal 160 Zeichen lang sein.');
   const fields=C.settings({
@@ -197,7 +197,7 @@ const ELMOS_TEST_LOGGER=(()=>{
    throw Error('VDD-Istspannung ist ungültig.');
   return {...fields,durationMs:C.durationMs(value('tlDuration'),value('tlDurationUnit')),
    durationInput:value('tlDuration'),durationUnit:value('tlDurationUnit'),
-   name,dutName,description,category:value('tlCategory'),
+   name:name||null,dutName,description,category:value('tlCategory'),
    operator:value('tlOperator').trim().slice(0,100),
    measuredVdd,measuredVddSource:value('tlVddSource').trim().slice(0,200)};
  };
@@ -209,7 +209,7 @@ const ELMOS_TEST_LOGGER=(()=>{
   if(archive()?.active){announce('Es läuft bereits ein Archivprotokoll. Bitte dieses zuerst abschliessen.',true);return}
   S.starting=true;S.interrupted=false;render();
   try{
-   const record=await archive().begin('testlog');
+   const record=await archive().begin('testlog',null,{label:opts.name});
    S.recordId=record.id;
    if(S.photoDraft.length)await archive().setPhotos(record,S.photoDraft);
    await archive().event('test_configuration',opts);
@@ -408,7 +408,7 @@ const ELMOS_TEST_LOGGER=(()=>{
  function UI(){
   return '<div class="tl-lead"><strong id="tlStatus">Bereit</strong><span>Sensor-Tests und Telemetrie ohne NVM-Schreibvorgänge</span></div>'+
   '<section id="tlConfig" class="tl-box"><h3>Test beschreiben</h3><div class="tl-grid">'+
-   '<label>Testname *<input id="tlName" maxlength="120" placeholder="z. B. Drucksprung 0 auf 10 bar"></label>'+
+   '<label>Testname (optional)<input id="tlName" maxlength="120" placeholder="z. B. Drucksprung 0 auf 10 bar"></label>'+
    '<label>Produkt / DUT-Bezeichnung<input id="tlDutName" maxlength="160" placeholder="z. B. Drucksensor Typ 560 oder Prototyp A"></label>'+
    '<label>Kategorie<select id="tlCategory"><option value="general">Allgemein</option><option value="pressure">Drucktest</option><option value="temperature">Temperaturtest</option><option value="longterm">Langzeitmessung</option><option value="communication">Kommunikation</option><option value="electrical">Elektrik / Versorgung</option><option value="other">Andere</option></select></label>'+
    '<label>Operator / Kürzel (optional)<input id="tlOperator" maxlength="100" placeholder="z. B. DN"></label>'+
