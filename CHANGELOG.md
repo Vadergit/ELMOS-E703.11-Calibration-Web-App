@@ -1,3 +1,10 @@
+## v0.7.125 – Clipping ausserhalb des 10–90-%-Ausgangsbereichs
+
+- E703.11-Datenblatt §§6.3.2.7–8: LIMIT_LO/HI begrenzen den digitalen DSP_AODO und sind unabhängig von der Ausgangsskalierung S0/S1; die harte 10–90-%-Grenze wird für Clipping entfernt.
+- Untere/obere Grenze werden auf aufsteigende Werte in 0–VDD sowie vorzeichenbehaftete 14-Bit-Q0.13-Codierbarkeit geprüft. Beispiel 0,3 / 4,8 V bei VDD = 5 V ist gültig; exakt 100 % VDD ist nicht exakt codierbar.
+- Eingabewarnung bei Clipping ausserhalb des garantierten linearen Analogbereichs von 10–90 % VDD. S0/S1 und die unabhängige NVM-Prüfung bleiben unverändert.
+- Regressionstests für gültige Überbereichs- und ungültige Grenzwerte; Versionsnummer und JavaScript-Cache aktualisiert. Reale Ausgangsspannungen bleiben am Prüfplatz zu bestätigen.
+
 ## v0.7.124 – Zurück-Navigation und Expertenzugriff im geführten Modus
 
 - Zusätzlicher Zurück-Button oben auf der Diagnoseansicht; der obere Navigationsbutton wechselt zu «Zurück zum Assistenten». Beide sowie der untere Zurück-Button bleiben bei laufenden Hardwarevorgängen bedienbar. Navigieren unterbricht keinen Sensorzugriff.

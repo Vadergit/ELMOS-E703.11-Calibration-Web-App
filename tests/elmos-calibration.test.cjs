@@ -94,3 +94,29 @@ test('non-analogue mode is not assigned analogue voltage targets',()=>{
  const res=C.analogOutputStatus(w,0.5,4.5,5,32000);
  assert.equal(res.checked,false);
 });
+
+test('outside-10–90%-VDD clipping uses Q0.13 limits without altering calibrated S0/S1',()=>{
+ const orig=originalNvm(),cfg=plan();
+ cfg.clipping={mode:'on',low:0.3,high:4.8,vdd:5};
+ const words=C.prepareOutputConfig(orig,cfg,32000);
+ assert.equal(!!(words[16]&(1<<7)),true);
+ const lo=(words[59]<<16)>>18,hi=(words[60]<<16)>>18;
+ assert.ok(lo < -6554 && hi > 6553);
+ const actual=C.analogOutputStatus(words,0.5,4.5,5,32000);
+ assert.equal(actual.ok,true);
+ assert.ok(Math.abs(actual.actualVolts[0]-.5)<.025);
+ assert.ok(Math.abs(actual.actualVolts[1]-4.5)<.025);
+ assert.deepEqual(words.slice(0,16),orig.slice(0,16));
+ for(const i of [17,18,19])assert.equal(words[i],orig[i]);
+});
+test('clipping bounds are ordered, inside VDD and representable as signed Q0.13',()=>{
+ const orig=originalNvm(),cfg=plan();
+ const make=(low,high,vdd=5)=>C.prepareOutputConfig(orig,{
+  ...cfg,clipping:{mode:'on',low,high,vdd}
+ },32000);
+ for(const range of [[-.1,4.8],[.3,5.1],[4.8,.3],[.3,.3]])
+  assert.throws(()=>make(...range),/Clipping/);
+ assert.throws(()=>make(.3,5),/Q0.13/);
+ assert.ok(make(0,4.99)[16]&(1<<7));
+ assert.throws(()=>make(.3,4.8,2.6),/Clipping/);
+});

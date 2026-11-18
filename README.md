@@ -2,7 +2,7 @@
 
 **Ein geführter Kalibrierassistent für den ELMOS E703.11 und das SSP3-Eval-Board.** Ziel ist ein verständlicher Abgleich, der auch ohne tiefere Vorkenntnisse Schritt für Schritt funktioniert. Wer mehr benötigt, kann zusätzliche Messpunkte, DSP-Parameter und einen geschützten Expertenmodus verwenden.
 
-**Version: v0.7.124 · Rücknavigation und Expertenanzeige in der geführten Diagnose** · [Änderungsverlauf](CHANGELOG.md) · **[Geplante Funktionen](ROADMAP.md)**
+**Version: v0.7.125 · Separate Clipping-Grenzen auch ausserhalb des linearen Messbereichs** · [Änderungsverlauf](CHANGELOG.md) · **[Geplante Funktionen](ROADMAP.md)**
 
 Der **Demo-Modus** wird in den Einstellungen erst nach Aktivierung von **Expertenparameter** angezeigt. Er simuliert Sensorwerte und Schreibvorgänge; die echte Hardware wird dabei nicht programmiert.
 
@@ -13,6 +13,10 @@ Der **Demo-Modus** wird in den Einstellungen erst nach Aktivierung von **Experte
 > **Geführter Assistent:** Nach der bestätigten SSP3-Verbindung stehen die neue Schritt-für-Schritt-Führung, die klassische Ansicht und der optionale Kompaktmodus zur Verfügung. Ein E703.11-Chip muss für den Abgleich verbunden sein. Als DIY-Programmer sind ausschliesslich ESP32-C3 SuperMini (v0.12 Labor-Quellcode) und Arduino Pro Micro (v0.28 Labor-Quellcode) vorgesehen. Die originalen ELMOS SSP3-Adapter bleiben separat unterstützt. Der vollständige Hardwaretest der DIY-Programmer ist noch offen.
 >
 > [Geführter Abgleich](docs/GEFUEHRTER_ASSISTENT.md) · [DIY-Programmer (ESP32-C3 / Pro Micro)](docs/USB_BRIDGE_GUIDE.md) · [Pinbelegung der zwei Boards](docs/ESP_BOARD_OPTIONS.md) · [DIY-Firmware-Installer](firmware-update.html)
+
+## v0.7.125 – Digitales Clipping unabhängig von S0/S1
+
+Die Zielspannungen **S0/S1 bleiben auf den linearen 10–90-%-VDD-Bereich begrenzt**. Die separaten LIMIT_LO/HI-Grenzen sind nun auch ausserhalb von 10–90 % VDD zulässig (z. B. 0,3 / 4,8 V bei 5 V), sofern die Reihenfolge, 0–VDD und der digital codierbare vorzeichenbehaftete 14-Bit-Q0.13-Bereich eingehalten werden. Exakt 100 % VDD lässt sich nicht codieren. Bei Grenzwerten ausserhalb des linearen Bereichs erscheint eine deutliche Warnung: Das physikalische Analogsignal ist dort **nicht linearitätsgarantiert** und muss am Sensor vermessen werden. Clipping darf keine unpassende AODO-Rohskalierung kaschieren. Keine automatische NVM-Programmierung.
 
 ## v0.7.124 – Geführte Diagnose: Zurück-Navigation und Expertenparameter
 

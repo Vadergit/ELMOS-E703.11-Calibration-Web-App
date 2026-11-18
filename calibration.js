@@ -363,10 +363,15 @@ const ELMOS_CAL = (() => {
    if(clipping.mode==='off')out[16]&=~(1<<7);
    else if(clipping.mode==='on'){
     const {low,high,vdd}=clipping;
-    if(![low,high,vdd].every(Number.isFinite)||vdd<=0||low<vdd*0.1-1e-9||high>vdd*0.9+1e-9||low>=high)
-     throw Error('Clipping-Grenzen müssen aufsteigend und innerhalb 10–90 % VDD liegen');
+    // LIMIT_LO/HI are signed 14-bit Q0.13 thresholds independent of the
+    // 10–90 % VDD range where the analog output's linearity is guaranteed.
+    if(![low,high,vdd].every(Number.isFinite)||vdd<2.7||vdd>5.5||
+       low<0||high>vdd||low>=high)
+     throw Error('Clipping: Unter- und Obergrenze müssen aufsteigend zwischen 0 und VDD liegen');
     const lo=Math.ceil(8192*(2*low/vdd-1)-1e-9);
     const hi=Math.floor(8192*(2*high/vdd-1)+1e-9);
+    if(lo< -8192||hi>8191||lo>8191||hi< -8192)
+     throw Error('Clipping-Grenzen ausserhalb des 14-Bit-Q0.13-Registerbereichs. Die obere Grenze muss knapp unter VDD liegen.');
     if(lo>=hi)throw Error('Abstand zwischen den Clipping-Grenzen zu klein');
     if((out[16]&(1<<8))&&(original[61]&0xF))
      throw Error('Aktive Fehlerreaktionen für AODO-Grenzen können das Clipping übersteuern');

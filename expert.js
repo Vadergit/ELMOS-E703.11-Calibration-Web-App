@@ -639,6 +639,15 @@ const ELMOS_EXPERT=(()=>{
     }
    }
    $('outputClipLow').disabled=$('outputClipHigh').disabled=!clippingEnabled;
+   const clipWarning=$('outputClippingWarning');
+   if(clipWarning){
+    const vdd=Number($('psscVdd').value),low=$('outputClipLow').valueAsNumber,high=$('outputClipHigh').valueAsNumber;
+    const valid=[vdd,low,high].every(Number.isFinite)&&vdd>=2.7&&vdd<=5.5&&low>=0&&high<=vdd&&low<high;
+    const beyondLinear=valid&&(low<vdd*.1-1e-9||high>vdd*.9+1e-9);
+    clipWarning.hidden=!clippingEnabled||!beyondLinear;
+    clipWarning.textContent=beyondLinear?
+     'Hinweis: Clipping ausserhalb 10–90 % VDD ist im LIMIT_LO/HI-Register möglich. Die tatsächliche Analogspannung ist dort nicht linearitätsgarantiert. Am Ausgang nach Kaltstart mit einem Messgerät prüfen. S0/S1 bleiben unverändert.':'';
+   }
    $('expertPwmPeriodField').hidden=mode!=='4';
    $('psscAnalogFields').hidden=!isAnalog(mode);
    $('psscScalingSection').hidden=mode==='onewire';
