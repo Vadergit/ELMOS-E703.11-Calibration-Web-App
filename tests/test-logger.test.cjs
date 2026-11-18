@@ -61,7 +61,7 @@ test('CSV exports each raw sample and an optional aggregate row separately',()=>
 test('guided workflow exposes the fourth logging choice and protects existing wizard',()=>{
  const guided=read('guided.js'),html=read('index.html'),app=read('app.js'),archive=read('archive.js');
  assert.match(guided,/data-gw-task="testlog"/);
- assert.match(guided,/if\(task==='testlog'\)\{goto\(10\);return\}/);
+ assert.match(guided,/if\(task==='testlog'\)\{goto\(11\);return\}/);
  assert.match(guided,/ELMOS_TEST_LOGGER\?\.mount/);
  assert.match(guided,/ELMOS_TEST_LOGGER\?\.isBusy/);
  assert.match(html,/test-logger-core\.js\?v=0\.7\.39/);
@@ -86,7 +86,7 @@ test('append-only test log rotates, retains third-party files and exports comple
    className:'',append(...ns){this.children.push(...ns)},appendChild(n){this.children.push(n)},
    replaceChildren(...ns){this.children=ns},addEventListener(){},click(){},set textContent(v){this._text=v},get textContent(){return this._text}};
  }
- const doc={readyState:'loading',getElementById(id){if(!dom.has(id))dom.set(id,node(id));return dom.get(id)},
+ const doc={readyState:'loading',documentElement:{lang:'de-CH'},getElementById(id){if(!dom.has(id))dom.set(id,node(id));return dom.get(id)},
   createElement(tag){return node(tag)},addEventListener(){}};
  for(const [k,v] of [['archiveSearch',''],['archiveFilterType','all'],['archiveFilterStatus','all']])doc.getElementById(k).value=v;
  const dir={name:'Local archive',queryPermission:async()=> 'granted',requestPermission:async()=> 'granted',
@@ -140,7 +140,7 @@ test('append-only test log rotates, retains third-party files and exports comple
 test('DUT product name is captured and included in a full CSV export',()=>{
  const ui=read('test-logger.js'),archive=read('archive.js');
  assert.match(ui,/id="tlDutName"/);
- assert.match(ui,/name,dutName,description/);
+ assert.match(ui,/name:name\|\|null,dutName,description/);
  assert.match(archive,/dutName:record\.testConfiguration\?\.dutName/);
  const data=C.csvRows([{
   index:1,aggregation:'none',samples:[{at:'2026-11-13T17:00:00Z',adcS:123}]
