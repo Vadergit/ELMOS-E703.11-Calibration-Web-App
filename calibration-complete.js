@@ -13,7 +13,8 @@ const ELMOS_CALIBRATION_COMPLETE=(()=>{
  function eligible(record){
   if(!record||record.type!=='calibration'||!record.chipUID)return false;
   const before=eventData(last(record,'nvm_before')),after=eventData(last(record,'nvm_after'));
-  return words(before.words)&&words(after.words)&&after.verified===true&&
+  return before.operation==='calibration'&&after.operation==='calibration'&&
+   words(before.words)&&words(after.words)&&after.verified===true&&
    after.uid===record.chipUID&&before.uid===record.chipUID&&
    after.words[0]===before.words[0]&&after.words[1]===before.words[1]&&
    after.words[63]===after.crc16;
