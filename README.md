@@ -2,7 +2,7 @@
 
 **Ein geführter Kalibrierassistent für den ELMOS E703.11 und das SSP3-Eval-Board.** Ziel ist ein verständlicher Abgleich, der auch ohne tiefere Vorkenntnisse Schritt für Schritt funktioniert. Wer mehr benötigt, kann zusätzliche Messpunkte, DSP-Parameter und einen geschützten Expertenmodus verwenden.
 
-**Version: v0.7.137 · Auto-Connect verwendet die bewährte manuelle Chipinitialisierung** · [Änderungsverlauf](CHANGELOG.md) · **[Geplante Funktionen](ROADMAP.md)**
+**Version: v0.7.138 · Auto-Connect verwendet die bewährte manuelle Chipinitialisierung** · [Änderungsverlauf](CHANGELOG.md) · **[Geplante Funktionen](ROADMAP.md)**
 
 Der **Demo-Modus** wird in den Einstellungen erst nach Aktivierung von **Expertenparameter** angezeigt. Er simuliert Sensorwerte und Schreibvorgänge; die echte Hardware wird dabei nicht programmiert.
 
@@ -13,6 +13,10 @@ Der **Demo-Modus** wird in den Einstellungen erst nach Aktivierung von **Experte
 > **Geführter Assistent:** Nach der bestätigten SSP3-Verbindung stehen die neue Schritt-für-Schritt-Führung, die klassische Ansicht und der optionale Kompaktmodus zur Verfügung. Ein E703.11-Chip muss für den Abgleich verbunden sein. Als DIY-Programmer sind ausschliesslich ESP32-C3 SuperMini (v0.12 Labor-Quellcode) und Arduino Pro Micro (v0.28 Labor-Quellcode) vorgesehen. Die originalen ELMOS SSP3-Adapter bleiben separat unterstützt. Der vollständige Hardwaretest der DIY-Programmer ist noch offen.
 >
 > [Geführter Abgleich](docs/GEFUEHRTER_ASSISTENT.md) · [DIY-Programmer (ESP32-C3 / Pro Micro)](docs/USB_BRIDGE_GUIDE.md) · [Pinbelegung der zwei Boards](docs/ESP_BOARD_OPTIONS.md) · [DIY-Firmware-Installer](firmware-update.html)
+
+## v0.7.138 – DSP-Sättigungswarnung und AODO-Prüfung vor NVM
+
+Nach der DSP-RAM-Übernahme zeigt die Software ein gesetztes `STATUS_SYNC.dsp_sat` als Warnung, und bei der unabhängigen DSP-Prüfung nennt sie den Status, den aktuellen DSP-Wert und konkrete Korrekturschritte. Ein zu nah an der 16-Bit-Grenze liegender DSP-Zielwert wird bereits bei der Berechnung als Risiko markiert. Nach jeder neuen DSP-Berechnung werden zuvor vorgemerkte AODO-Werte ungültig und müssen für S0/S1 neu berechnet und ausdrücklich bestätigt werden. Liegt das Original-NVM vor, warnt die Software auf der Ausgangsseite vor einer nicht passenden Ausgangsskalierung und verhindert im geführten Ablauf den Weitergang ohne gültige Vormerkung. Kein NVM-Schreibschutz wurde entfernt. Nur für den Labortest; Hardwarefreigabe steht aus.
 
 ## v0.7.137 – SSP3-Kaltstart wird bei NVM-Freigabe korrekt anerkannt
 

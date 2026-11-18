@@ -1397,3 +1397,58 @@ test('NVM Magic-Cookie proof: PSSC and genuine AN0204 SSP3 cold starts are equiv
  assert.equal(make({...st,powerCycleResult:null,startupTrials:[{...pssc,port:{}}]})(),false,
   'PSSC proof must match USB port');
 });
+
+
+test('DSP saturation is visible before NVM and never bypasses DSP verification',()=>{
+ const app=read('app.js'),html=read('index.html');
+ assert.ok(app.includes('const tightHeadroom=solution.outputLimit>=31000'));
+ assert.ok(app.includes('const status=await readReg(0x32)'));
+ assert.ok(app.includes('if(status&0x0400)'));
+ assert.ok(app.includes("saturationWarning='STATUS_SYNC.dsp_sat gesetzt"));
+ assert.ok(app.includes('if(stat&0x0400)'));
+ assert.ok(app.includes('Der Chip meldet interne Sättigung'));
+ assert.ok(app.includes('NVM bleibt bis zu einer bestandenen neuen DSP-Prüfung gesperrt.'));
+ assert.ok(app.includes('st.calVerified=false;st.calImage=null'));
+ assert.ok(html.includes('calRamStageMsg')&&html.includes('calRamMsg'));
+});
+
+test('AODO preflight warns on outdated scaling after recalculating DSP',()=>{
+ const app=read('app.js'),guide=read('guided.js'),html=read('index.html');
+ const start=app.indexOf(' function outputScalingPreflight(){');
+ const end=app.indexOf(' function renderFlowState(){',start);
+ assert.ok(start>0&&end>start);
+ const build=new Function('st','CAL','$','hasCurrentNvmBackup',
+  app.slice(start,end)+'return outputScalingPreflight;');
+ const values={expertOutputMode:'1',psscVdd:'5',psscS0:'0.5',psscS1:'4.5'};
+ const fields=id=>({value:values[id]});
+ const original=safeNvm();
+ // The initial NVM has no AODO scaling, while the new DSP fit is for 30k digits.
+ const st={calfit:{outputLimit:30000},calStaged:true,nvmBackup:original,
+  expertOutputPlan:null};
+ const needed=(state,field=fields,hasBackup=()=>true)=>
+  build(state,CAL,field,hasBackup)().required;
+ assert.equal(needed(st),true,'not-yet-programmed AODO must be detected');
+ const scale=CAL.analogScaling(.5,4.5,5,30000);
+ const plan={mode:'1',scaleEnabled:true,gain:scale.gain,offset:scale.offset,
+  clipping:{mode:'keep'}};
+ assert.equal(needed({...st,expertOutputPlan:plan}),false,
+  'an explicitly verified valid AODO proposal resolves the warning');
+ assert.equal(needed({...st,expertOutputPlan:{...plan,gain:plan.gain*1.15}}),true,
+  'incorrect stale plan must not pass');
+ assert.equal(needed({...st,calfit:null}),false);
+ assert.equal(needed({...st,nvmBackup:CAL.prepareOutputConfig(original,plan,30000)}),false,
+  'correct pre-existing AODO need not be modified');
+ assert.equal(needed(st,id=>({value:id==='psscS0'?'4.8':values[id]})),true,
+  'invalid voltage targets are safely reported');
+ assert.equal(needed({...st,adapterKind:'bridge'},fields,()=>false),true,
+  'an unread original NVM must not silently hide a missing AODO review');
+ assert.equal(needed({...st,expertOutputPlan:plan},fields,()=>false),false,
+  'a deliberately staged plan can continue to the final NVM hardware checks');
+ assert.ok(app.includes('st.expertOutputPlan=null;st.outputOnlyPlan=null;'));
+ assert.ok(app.includes('outputScalingRequired:outputScalingPreflight().required'));
+ assert.ok(guide.includes("if(task==='calibration'&&s.outputScalingRequired)"));
+ assert.ok(guide.includes("'outputScalingAdvisory'"));
+ assert.ok(guide.includes("'nvmOutputAdvisory'"));
+ for(const id of ['outputScalingAdvisory','nvmOutputAdvisory'])
+  assert.ok(html.includes('id="'+id+'"'),id+' present for classic and guided views');
+});
