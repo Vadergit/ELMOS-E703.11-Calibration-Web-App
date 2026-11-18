@@ -1,3 +1,12 @@
+## v0.7.141 – Deutliches DSP-Warnfenster bei Übersteuerung und zu hohem Zielwert
+
+- Der bislang nur in einer kleinen Callout-Zeile sichtbare DSP-Grenzbereich (Zielwert ab ±31'000 Digits) öffnet nach der Koeffizientenberechnung ein auffälliges, zugängliches Dialogfenster mit konkreter Reserve zur 16-Bit-Grenze und einer Empfehlung für einen kleineren DSP-Endwert. Ein hoher Zielwert ist dabei eine **Vorsichtswarnung**, noch kein Nachweis für tatsächliche Sättigung.
+- Das Warnfenster erscheint auch bei einem **nicht darstellbaren DSP-Koeffizienten**, bei `STATUS_SYNC.dsp_sat` nach dem RAM-Readback sowie bei einer echten fehlgeschlagenen unabhängigen DSP-Prüfung. Die bisherigen Detailmeldungen bleiben zusätzlich sichtbar.
+- Im Dialog kann der Anwender direkt einen vorgeschlagenen kleineren DSP-Endwert einsetzen. Dadurch werden die bestehenden Berechnungs-, RAM- und NVM-Freigaben automatisch ungültig; die aufgenommenen Referenzmesspunkte bleiben erhalten. In der geführten Ansicht wird zur Koeffizienten-Seite zurückgekehrt.
+- Das Fenster wird ausschliesslich nach einer ausdrücklichen Berechnung, RAM-Übernahme oder DSP-Prüfung ausgelöst, **niemals bei jeder Live-Abfrage**. Identische Ereignisse werden bis zur nächsten Änderung am DSP-Endwert nur einmal angezeigt.
+- Das Fenster ist per Tastatur/ESC schliessbar und nutzt Text statt HTML für alle Werte. Keine automatische NVM- oder RAM-Programmierung.
+- Software- und UI-Regressionsprüfung ergänzt; Sensor-Hardwaretest bleibt ausstehend. Vor dem Laden neuer Versionen eine ungesicherte RAM-Kalibrierung archivieren.
+
 ## v0.7.140 – Kombinierte DSP-/AODO-NVM-Kalibrierung auf ESP32-C3 mit Bridge-User-NVM
 
 - Ursache: Der Magic-Cookie-/PLC-RAM-Recovery-Zweig von `prepareNvmOperation()` erlaubte eine **gemeinsame Druckkalibrierung und analoge Ausgangsskalierung** nur mit originalem SSP3, obwohl die aktuelle ESP32-C3-Laborfirmware eine generische User-NVM-Capability `BRIDGE_USER_NVM_V1` mit `NVM ARM HOST` bereitstellt.

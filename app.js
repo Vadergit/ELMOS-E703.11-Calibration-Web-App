@@ -3099,6 +3099,36 @@ if(typeof document!=='undefined') (function UI(){
   }catch(e){try{await window.ELMOS_ARCHIVE?.event('error',{stage:'calibration_extra_point',slot,message:e.message,rawSamples:e.rawSamples||null,spread:e.spread??null})}catch(_){}ca('calPointsMsg','Messpunkt '+(slot+1)+': '+e.message,'error')}
  }
  
+ const shownDspRiskWarnings=new Set();
+ // Trigger only after explicit calculation, RAM staging or independent verification.
+ // Never pop up in the 250 ms live loop. Keep existing visible warnings as well.
+ function showDspRiskPopup({key,type,title,description,advice,suggestedLimit}){
+  const dlg=$('dspRiskDialog');
+  if(!dlg||!key||shownDspRiskWarnings.has(key))return;
+  shownDspRiskWarnings.add(key);
+  $('dspRiskType').textContent=type||'DSP-Warnung';
+  $('dspRiskTitle').textContent=title;
+  $('dspRiskDescription').textContent=description;
+  $('dspRiskAdvice').textContent=advice;
+  const apply=$('dspRiskApplyLimit');
+  const candidate=Number(suggestedLimit);
+  const canApply=Number.isInteger(candidate)&&candidate>=1000&&candidate<=32000&&
+   candidate<Number($('calDspLimit').value);
+  apply.hidden=!canApply;
+  apply.dataset.suggestedLimit=canApply?String(candidate):'';
+  if(canApply)apply.textContent='DSP-Endwert ±'+fmt(candidate)+' einsetzen';
+  // RAM staging may still be inside the blocking operation dialog. Show this
+  // modal only after that operation has closed, never behind another dialog.
+  const openWhenReady=()=>{
+   if(!dlg.isConnected)return;
+   if($('operationProgressDialog')?.open){
+    window.setTimeout(openWhenReady,80);
+    return;
+   }
+   if(!dlg.open)dlg.showModal();
+  };
+  window.setTimeout(openWhenReady,0);
+ }
  function calcCoefficients(){
   $('calDspProposal').hidden=true;
   $('calTempFallback').hidden=true;
@@ -3133,6 +3163,18 @@ if(typeof document!=='undefined') (function UI(){
    const tightHeadroom=solution.outputLimit>=31000;
    const headroomWarning=tightHeadroom?' Achtung: Der DSP-Zielbereich liegt nahe der 16-Bit-Grenze. Auch bei gutem numerischem Fit kann der reale Chip DSP-Sättigung melden. Bei STATUS_SYNC.dsp_sat den DSP-Endwert verkleinern, neu rechnen und RAM/DSP erneut prüfen.':'';
    show('calFitMsg','Berechnung erfolgreich ('+solution.points+' verwendete von '+st.calpoints.length+' erfassten Punkten). '+note+scope+headroomWarning+' Jetzt RAM-Schreibfreigabe aktivieren, Original-NVM prüfen und dann die berechneten Koeffizienten ins RAM übertragen. Die JavaScript-Berechnung ist noch nicht als identisch mit der Hersteller-DLL bestätigt.',noTk||solution.stats.maxDigits>100||tightHeadroom?'warn':'success');
+   if(tightHeadroom){
+    showDspRiskPopup({
+     key:'high-dsp-limit:'+solution.outputLimit,
+     type:'Hoher DSP-Zielwert',
+     title:'Wenig Reserve zur DSP-Grenze',
+     description:'Gewählter DSP-Endwert: ±'+fmt(solution.outputLimit)+
+      ' Digits. Bis zur positiven 16-Bit-Grenze bleiben nur '+
+      fmt(32767-solution.outputLimit)+' Digits Reserve.',
+     advice:'Das ist noch keine gemessene Sättigung. Bei Druck- oder Temperaturabweichungen kann der interne DSP dennoch übersteuern. Empfehlung: ±30’000 Digits als Ausgangspunkt verwenden, die Koeffizienten neu berechnen und anschliessend RAM und unabhängige DSP-Prüfung wiederholen.',
+     suggestedLimit:30000
+    });
+   }
    show('calRamStageMsg','Koeffizienten berechnet, aber noch nicht ins Chip-RAM übertragen.','warn');
    renderFlowState()
   }catch(e){
@@ -3155,6 +3197,15 @@ if(typeof document!=='undefined') (function UI(){
       ' Digits ist numerisch möglich (mit Koeffizientenreserve). Die aufgenommenen Messpunkte bleiben erhalten. Anschliessend RAM und DSP prüfen.';
      $('calDspProposalApply').textContent='±'+fmt(proposal.outputLimit)+' Digits übernehmen und neu berechnen';
      $('calDspProposal').hidden=false;
+     showDspRiskPopup({
+      key:'coefficient-overflow:'+e.coefficient.name+':'+fitRequest.outputLimit,
+      type:'Koeffizient ausserhalb des Bereichs',
+      title:'DSP-Koeffizient zu hoch',
+      description:'Der Koeffizient '+e.coefficient.name+' ist mit dem aktuellen DSP-Endwert nicht darstellbar: '+e.coefficient.value.toFixed(8)+
+       ' bei maximal '+e.coefficient.max.toFixed(8)+'.',
+      advice:'Ein kleinerer DSP-Endwert von ±'+fmt(proposal.outputLimit)+' Digits wurde rechnerisch vorgeschlagen. Nach Übernahme neu berechnen und die Kalibrierung im Chip-RAM erneut unabhängig prüfen. Im NVM wurde nichts geändert.',
+      suggestedLimit:proposal.outputLimit
+     });
     }
    }
   }
@@ -3330,6 +3381,15 @@ if(typeof document!=='undefined') (function UI(){
      const dsp=P.sign16(await readReg(0x30));
      saturationWarning='STATUS_SYNC.dsp_sat gesetzt (0x'+h(status,2)+'), DSP_S aktuell '+
       fmt(dsp)+' Digits. Mögliche DSP-Sättigung bei den aktuellen Bedingungen. Im nächsten Schritt einen neuen unabhängigen Prüfwert messen. Falls das Bit erneut gesetzt ist, zurück zur Berechnung und den DSP-Zielbereich reduzieren; Messpunkte bleiben erhalten. Keine NVM-Freigabe.';
+     showDspRiskPopup({
+      key:'ram-saturation:'+st.calfit?.outputLimit+':'+(st.uid?.hex||''),
+      type:'Sättigungssignal im Sensor',
+      title:'DSP meldet Sättigung',
+      description:'STATUS_SYNC.dsp_sat ist gesetzt (0x'+h(status,2)+'). DSP_S beträgt aktuell '+
+       fmt(dsp)+' Digits.',
+      advice:'Der Status kann noch von einer vorherigen Konversion stammen. Bitte einen unabhängigen Prüfpunkt messen. Wird dsp_sat erneut gemeldet, den DSP-Endwert verkleinern, neu berechnen und die Koeffizienten erneut ins RAM übertragen. Bis zur bestandenen Prüfung bleibt NVM gesperrt.',
+      suggestedLimit:Math.max(1000,Math.floor(((st.calfit?.outputLimit??32000)-1500)/500)*500)
+     });
     }
    }catch(error){logging('Optionale STATUS_SYNC-Prüfung nach RAM-Schreiben: '+error.message)}
    ca('calRamStageMsg',`${changes.length} DSP-Wörter ins RAM geschrieben und einzeln erfolgreich rückgelesen. `+
@@ -3372,6 +3432,16 @@ if(typeof document!=='undefined') (function UI(){
    const stat=await readReg(0x32),delta=got-target,errorBar=delta/(2*outputLimit)*(pmax-pmin);
    if(stat&0x0400){
     const candidate=Math.max(1000,Math.floor((outputLimit-1500)/500)*500);
+    showDspRiskPopup({
+     key:'verification-saturation:'+outputLimit+':'+(st.uid?.hex||''),
+     type:'DSP-Prüfung fehlgeschlagen',
+     title:'DSP-Sättigung bestätigt – NVM gesperrt',
+     description:'STATUS_SYNC=0x'+h(stat,2)+' (dsp_sat gesetzt). DSP_S='+fmt(got)+
+      ' Digits, erwartet '+fmt(Math.round(target))+' Digits bei '+p+' '+pressureUnit()+'.',
+     advice:'Prüfe zuerst den tatsächlich anliegenden Druck und die Temperatur. Danach DSP-Zielwert auf beispielsweise ±'+fmt(candidate)+
+      ' Digits reduzieren und die Koeffizienten erneut berechnen, ins RAM schreiben und unabhängig prüfen. Die ursprünglichen Messpunkte bleiben erhalten.',
+     suggestedLimit:candidate
+    });
     throw Error('DSP-Sättigung bei der unabhängigen Prüfung: STATUS_SYNC=0x'+h(stat,2)+
      ' (dsp_sat gesetzt), DSP_S='+fmt(got)+' Digits, Soll='+target.toFixed(0)+
      ' Digits bei '+p+' '+pressureUnit()+'. Der Chip meldet interne Sättigung, auch wenn der Anzeigewert plausibel aussieht. '+
@@ -4052,11 +4122,27 @@ if(typeof document!=='undefined') (function UI(){
    'DSP-Endwert ungültig. Ganze Zahl zwischen 1’000 und 32’000 Digits eingeben.';
  }
  $('calDspLimit').addEventListener('change',()=>{
+  shownDspRiskWarnings.clear();
   $('calDspProposal').hidden=true;
   if(st.calfit)invalidateCalculation('DSP-Endwert geändert. Koeffizienten neu berechnen und erneut ins RAM übertragen.');
   updateDSPOutputLimit();renderDSPLive()
  });
  $('calDspLimit').addEventListener('input',()=>{$('calDspProposal').hidden=true;$('calDspLimit').dataset.userEdited='1';updateDSPOutputLimit();});
+ $('dspRiskDismiss').addEventListener('click',()=>$('dspRiskDialog').close());
+ $('dspRiskApplyLimit').addEventListener('click',()=>{
+  const proposed=Number($('dspRiskApplyLimit').dataset.suggestedLimit);
+  if(!Number.isInteger(proposed)||proposed<1000||proposed>32000||
+     proposed>=Number($('calDspLimit').value))return;
+  $('dspRiskDialog').close();
+  $('calDspLimit').value=String(proposed);
+  $('calDspLimit').dataset.userEdited='1';
+  // Reuse the existing handler: invalidate old fit, RAM validation and NVM
+  // proposal. No chip registers are modified; reference points survive.
+  $('calDspLimit').dispatchEvent(new Event('change',{bubbles:true}));
+  if(window.ELMOS_GUIDED?.isOpen?.())window.ELMOS_GUIDED.goToCoefficients?.();
+  else step(3);
+  $('calDspLimit').focus({preventScroll:true});
+ });
  $('calDspProposalApply').addEventListener('click',()=>{
   const suggested=Number($('calDspProposal').dataset.suggestedLimit);
   if(!Number.isInteger(suggested)||suggested<1000||suggested>32000)return;

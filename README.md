@@ -2,7 +2,7 @@
 
 **Ein geführter Kalibrierassistent für den ELMOS E703.11 und das SSP3-Eval-Board.** Ziel ist ein verständlicher Abgleich, der auch ohne tiefere Vorkenntnisse Schritt für Schritt funktioniert. Wer mehr benötigt, kann zusätzliche Messpunkte, DSP-Parameter und einen geschützten Expertenmodus verwenden.
 
-**Version: v0.7.140 · Auto-Connect verwendet die bewährte manuelle Chipinitialisierung** · [Änderungsverlauf](CHANGELOG.md) · **[Geplante Funktionen](ROADMAP.md)**
+**Version: v0.7.141 · Auto-Connect verwendet die bewährte manuelle Chipinitialisierung** · [Änderungsverlauf](CHANGELOG.md) · **[Geplante Funktionen](ROADMAP.md)**
 
 Der **Demo-Modus** wird in den Einstellungen erst nach Aktivierung von **Expertenparameter** angezeigt. Er simuliert Sensorwerte und Schreibvorgänge; die echte Hardware wird dabei nicht programmiert.
 
@@ -13,6 +13,10 @@ Der **Demo-Modus** wird in den Einstellungen erst nach Aktivierung von **Experte
 > **Geführter Assistent:** Nach der bestätigten SSP3-Verbindung stehen die neue Schritt-für-Schritt-Führung, die klassische Ansicht und der optionale Kompaktmodus zur Verfügung. Ein E703.11-Chip muss für den Abgleich verbunden sein. Als DIY-Programmer sind ausschliesslich ESP32-C3 SuperMini (v0.12 Labor-Quellcode) und Arduino Pro Micro (v0.28 Labor-Quellcode) vorgesehen. Die originalen ELMOS SSP3-Adapter bleiben separat unterstützt. Der vollständige Hardwaretest der DIY-Programmer ist noch offen.
 >
 > [Geführter Abgleich](docs/GEFUEHRTER_ASSISTENT.md) · [DIY-Programmer (ESP32-C3 / Pro Micro)](docs/USB_BRIDGE_GUIDE.md) · [Pinbelegung der zwei Boards](docs/ESP_BOARD_OPTIONS.md) · [DIY-Firmware-Installer](firmware-update.html)
+
+## v0.7.141 – Auffällige DSP-Grenzwert- und Sättigungswarnung
+
+Beim Berechnen mit wenig DSP-Reserve ab ±31'000 Digits, bei nicht darstellbaren Koeffizienten oder bei einem gesetzten `STATUS_SYNC.dsp_sat` im RAM beziehungsweise in der unabhängigen DSP-Prüfung öffnet sich jetzt ein auffälliges Warnfenster mit konkreten Werten. Es erscheint nur einmal pro Ereignis, nicht bei jeder Live-Abfrage. Ein vorgeschlagener kleinerer DSP-Endwert kann direkt eingesetzt werden; die bisherigen Koeffizienten müssen anschliessend neu berechnet und im RAM/mit unabhängiger DSP-Messung wieder geprüft werden. Referenzmesspunkte bleiben erhalten, die NVM-Freigabe bleibt geschützt. Keine Chipprogrammierung durch das Popup.
 
 ## v0.7.140 – DSP und AODO gemeinsam mit ESP32-C3 User-NVM prüfen
 
