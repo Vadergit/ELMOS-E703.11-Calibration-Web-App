@@ -76,7 +76,7 @@ test('Manual ADC_T inputs and cubic curves are traced without extra sensor write
 test('Compact calculator exposes accessible info buttons, closable dialog and complete guide',()=>{
  const ui=read('nvm-reconstruction.js'),html=read('index.html'),css=read('nvm-reconstruction.css'),guide=read('nvm-formeln.html');
  assert.match(html,/nvm-reconstruction-trace\.js\?v=/);
- assert.match(html,/nvm-reconstruction\.js\?v=0\.3\.3/);
+ assert.match(html,/nvm-reconstruction\.js\?v=0\.4\.0/);
  assert.ok(ui.includes("btn.setAttribute('aria-label','Berechnung für '"));
  assert.match(ui,/formulaButton\(root,traceKey,name\)/);
  assert.match(ui,/formulaButton\(root,'analog'/);
