@@ -78,7 +78,8 @@ if(typeof document!=='undefined') (function UI(){
  const filterProfiles=ELMOS_SETTINGS.filterProfiles;
  const REG_NAMES={4:'CFG_EN',6:'CFG_SPI_I2C',8:'CFG_PADS0',10:'CFG_PADS1',12:'CFG_PADS2',16:'CFG_AODO',0x14:'CFG_ADC',0x16:'CFG_LP0',0x18:'CFG_LP1',0x1A:'CFG_AFE0',0x1C:'CFG_AFE1',0x1E:'CFG_AFE2',0x26:'ADC_TC',0x28:'ADC_T',0x2A:'ADC_S'};
  const st={chipDiag:null,diagRunning:false,lastPlcReply:null,mode:'offline',port:null,closing:false,reader:null,readerPromise:null,readerAlive:false,adapterNoReply:false,sessionStartedAt:null,sessionIndex:0,cmdQueue:Promise.resolve(),replyBuffer:'',responseWait:null,iface:'plc',adapterKind:'ssp3',sensorPowerEnabled:false,startupRunning:false,startupAbort:false,startupAttempts:0,magicRunning:false,magicResult:null,powerCycleRunning:false,powerCycleResult:null,startupTrials:[],powerHelp:null,plcHostFormat:'legacy',plcAddress:0x6C,plcAddressVerified:false,plcAddressSource:'',plcAddressProbes:[],firmware:'',chip:false,readOnlySensor:null,sensorLost:false,reinitRunning:false,boot:null,afe:null,afe0:null,bridgeWriteAllowed:false,bridgeReadBusy:false,staged:{pga1:0,pga2:0,offset:0},adc:null,dsp:null,dspError:null,dspT:null,dspTError:null,liveReadPromise:null,trend:[],history:[],log:[],regs:{},points:{lo:null,hi:null},verify:null,live:false,manualLivePause:false,timeout:null,consecutiveErrors:0,liveReadAttempts:0,liveReadSuccesses:0,liveLastError:null,liveLastAttemptAt:null,measurementPeriod:null,measurementStatus:null,measurementError:null,measurementStarts:0,measurementFreshCount:0,measurementLastChangedAt:null,writing:false,pressure:5,calpoints:[],calfit:null,calImage:null,nvmBackup:null,nvmBackupVerified:false,calStaged:false,calVerified:false,calValidation:[],calTask:false,testLogging:false,nvmWorking:false,nvmAttempting:false,nvmDone:false,afeWriteActive:false,ramWriteScope:null,uid:null,expertOutputPlan:null,restorePlan:null,outputOnlyPlan:null,uidShownForInput:null,profilePendingAFE:null,referenceTemplate:null};
- let currentStep=0,pendingGain=null,writeTimer=null;let tipEnabled=true,liveIntervalMs=250;
+ let currentStep=0,pendingGain=null,writeTimer=null;
+ let homeNavigationAbortRequested=false;let tipEnabled=true,liveIntervalMs=250;
  // Optional faster live mode: serial requests only, with automatic pacing backoff.
  const livePacing=typeof ELMOS_LIVE_POLLING!=='undefined'?ELMOS_LIVE_POLLING.create():null;
   // A fast default without the adaptive pacing module would be unsafe.
@@ -779,6 +780,7 @@ if(typeof document!=='undefined') (function UI(){
    const sourceInfo=await checkCalibrationTemperatureSource();
    const values=[];
    for(let i=0;i<required;i++){
+    if(homeNavigationAbortRequested)throw Error('Messpunktaufnahme für die Rückkehr zur Hauptseite abgebrochen.');
     const value={at:new Date().toISOString(),s:null,t:null,tc:null};
     try{
      if(st.iface==='i2c'&&st.adapterKind==='bridge')await triggerSingleMeasurement({capture:true});
@@ -787,6 +789,7 @@ if(typeof document!=='undefined') (function UI(){
      value.tc=P.sign16(await readReg(0x26));
     }catch(e){values.push(value);e.rawSamples=values.slice();throw e}
     values.push(value);
+    if(homeNavigationAbortRequested)throw Error('Messpunktaufnahme für die Rückkehr zur Hauptseite abgebrochen.');
     operation.update(label+' wird aufgenommen',i+1,required);
     progress.textContent=label+': '+(i+1)+' / '+required+' Samples aufgenommen';
     if(i<required-1)await sleep(60)
@@ -4359,20 +4362,7 @@ if(typeof document!=='undefined') (function UI(){
    ELMOS_NVM_RECON.setReadFeedback(root,'Aktuelles NVM erfolgreich aus dem Sensor gelesen und geprüft.');
   }else ELMOS_NVM_RECON.setReadFeedback(root,'NVM-Lesung oder UID/CRC-Prüfung fehlgeschlagen. Verbindung und Diagnoselog prüfen; kein ungeprüftes Sensor-NVM verwendet.',{error:true});
  });
- $('homeButton').addEventListener('click',()=>{
-  toggleSettings(false);
-  window.ELMOS_ARCHIVE?.close();
-  if(window.ELMOS_GUIDED?.isOpen()){
-   window.ELMOS_GUIDED.goToStart();
-   return;
-  }
-  if(!window.ELMOS_TEST_LOGGER?.isBusy()){
-   ELMOS_COMPACT.set(false);
-   $('compactMode').checked=false;
-  }
-  step(0);
-  window.scrollTo({top:0,behavior:'auto'});
- });
+ $('homeButton').addEventListener('click',()=>window.ELMOS_HOME_NAVIGATION?.requestHome?.());
  const demoMode=$('demoMode');
  demoMode.checked=demoEnabled;
  const syncDemoExpertVisibility=()=>{$('settingsDemoSection').hidden=!$('expertMode').checked};
@@ -4707,12 +4697,14 @@ if(typeof document!=='undefined') (function UI(){
   };
   try{
    for(let i=0;i<count;i++){
+    if(homeNavigationAbortRequested){const error=Error('Messung für die Rückkehr zur Hauptseite abgebrochen.');error.rawSamples=samples.slice();throw error}
     // Every actual sample is retained; no averaging before archiving.
     const one={at:new Date().toISOString(),
      adcS:await readOptional(0x2A),adcT:await readOptional(0x28),adcTC:await readOptional(0x26),
      dspS:await readOptional(0x30),dspT:await readOptional(0x2E),
      statusSync:await readOptional(0x32),chipStatus:await readOptional(0x36)};
     samples.push(one);
+    if(homeNavigationAbortRequested){const error=Error('Messung für die Rückkehr zur Hauptseite abgebrochen.');error.rawSamples=samples.slice();throw error}
     if(i<count-1&&spacingMs>0)await sleep(spacingMs);
    }
    const median=key=>{
@@ -4858,6 +4850,22 @@ if(typeof document!=='undefined') (function UI(){
    nvmBackupVerified:!!st.nvmBackupVerified,outputReady:expert.outputReady()
   }),
   navigate:n=>step(n),
+  navigationSafety:()=>({
+   critical:!!(st.closing||st.writing||st.nvmWorking||st.nvmAttempting||
+    st.afeWriteActive||st.powerCycleRunning||st.magicRunning||
+    st.reinitRunning||st.startupRunning||st.diagRunning||
+    st.ramMeasurementStarting||st.bridgeReadBusy),
+   measuring:!!st.calTask,
+   points:st.calpoints.length,calStaged:!!st.calStaged,
+   nvmDone:!!st.nvmDone,calVerified:!!st.calVerified
+  }),
+  abortActiveMeasurementForHome:()=>{homeNavigationAbortRequested=true},
+  clearHomeMeasurementAbort:()=>{homeNavigationAbortRequested=false},
+  clearHomeDraft:()=>{
+   if(st.calTask||st.writing||st.nvmWorking)throw Error('Ein aktiver Chipvorgang darf nicht verworfen werden.');
+   erasePoints();
+   st.calStaged=false;st.calVerified=false;renderFlowState();
+  },
   connectGuided,guidedDiagnostic,
   skipAlarms:()=>ELMOS_ALARM_EDITOR.skipForCalibration(),
   alarmPending:()=>ELMOS_ALARM_EDITOR.pendingForCalibration(),
