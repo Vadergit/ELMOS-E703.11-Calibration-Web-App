@@ -141,7 +141,7 @@ const ELMOS_LOGGING_REPORT=(()=>{
     table thead{display:table-header-group}tr{break-inside:avoid;page-break-inside:avoid}
     .meta,.metrics,.plot{break-inside:avoid;page-break-inside:avoid}h2{break-after:avoid}}`;
   return '<!doctype html><html lang="de-CH"><head><meta charset="UTF-8"><title>'+
-   esc('E70311_Logging_'+(meta.name||record.chipUID||record.id||'Test'))+
+   esc(typeof ELMOS_ARCHIVE_CORE!=='undefined'?ELMOS_ARCHIVE_CORE.filename(record).replace(/\.json$/i,''):'E70311_Logging_'+(meta.name||record.chipUID||record.id||'Test'))+
    '</title><style>'+css+photosCss+'</style></head><body>'+ 
    '<div class="toolbar"><span>PDF-Bericht: Im Druckdialog «Als PDF speichern» auswählen.</span>'+
    '<button onclick="window.print()">Als PDF speichern / Drucken</button></div>'+
