@@ -82,7 +82,7 @@ test('connection helpers reuse read-only diagnostic and protected 1-wire start-t
  assert.match(body,/plcStartupLogExport/);
  assert.doesNotMatch(body,/nvmWriteWord|nvmProgram\(/);
  assert.match(app,/connectGuided,guidedDiagnostic/);
- assert.match(guided,/gwConnectionMagic'\)\.disabled=working\|\|!usb\|\|connected/);
+ assert.match(guided,/gwConnectionMagic'\)\.disabled=!expert\|\|working\|\|!usb\|\|connected/);
 });
 
 test('connection navigation is always available, including during USB recovery',()=>{
