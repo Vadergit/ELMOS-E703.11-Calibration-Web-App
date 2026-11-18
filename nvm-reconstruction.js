@@ -31,10 +31,13 @@ const ELMOS_NVM_RECON = (() => {
    const chipUid=uid.toUpperCase();
    const safeJSON=key=>{try{const raw=readLocal(key);return raw?JSON.parse(raw):null}catch{return null}};
    const saved=safeJSON('elmos-dsp-display-by-uid-v1-'+chipUid);
-   if(saved?.uid===chipUid&&saved.crc===words[63]&&
-      Number.isInteger(saved.limit)&&saved.limit>=1000&&saved.limit<=32000){
-    result.limit=saved.limit;
-    result.limitSource='local';
+   if(saved?.uid===chipUid&&saved.crc===words[63]){
+    if(Number.isInteger(saved.limit)&&saved.limit>=1000&&saved.limit<=32000){
+     result.limit=saved.limit;
+     result.limitSource='local';
+    }
+    if(typeof ELMOS_NVM_PROFILE!=='undefined')
+     result.savedProfile=ELMOS_NVM_PROFILE.fromSaved(saved,chipUid,words[63]);
    }
    const last=safeJSON('elmos8-last-program');
    const exact=last&&String(last.id||'').toUpperCase()===chipUid&&last.restore!==true&&
@@ -110,7 +113,8 @@ const ELMOS_NVM_RECON = (() => {
   if(!validWords(words))return {ok:false, error:'Es werden 64 vollständige NVM-Wörter benötigt.'};
   const pmin=Number(opts.pmin??0),pmax=Number(opts.pmax??6),
    ta=Number(opts.ta??25),tb=Number(opts.tb??75),
-   vdd=Number(opts.vdd??5),limit=Number(opts.limit??32000);
+   vdd=Number(opts.vdd??5),limit=Number(opts.limit??32000),
+    pressureUnit=['bar','mbar','kPa','psi','%'].includes(opts.pressureUnit)?opts.pressureUnit:'bar';
   const rawInputs=[opts.adcT1,opts.adcT2].map(v=>v===null||v===undefined||v===''?null:Number(v));
   if(rawInputs.some(v=>v!==null&&(!Number.isInteger(v)||v< -32768||v>32767)))
    return {ok:false,error:'Optionale ADC_T-Rohwerte müssen ganze Digits zwischen −32’768 und 32’767 sein.'};
@@ -240,7 +244,7 @@ const ELMOS_NVM_RECON = (() => {
   if(scoeff.slice(8).some(v=>v!==0))warnings.push('Druck-Nichtlinearitätsanteile 2./3. Ordnung vorhanden: Angaben gelten für die eingestellten Endpunkte.');
   if(tempCorrectionConstant)warnings.push('DSP_T enthält nur T0 (konstante Temperatur). Absolute Temperaturen lassen sich daraus nicht zurückrechnen.'+
    (manualBoth?' Die manuell angegebenen ADC_T-Werte werden stattdessen für den Druckvergleich verwendet.':' TK0/TKR sind ohne zwei gemessene ADC_T-Werte nicht bestimmbar.'));
-  return {ok:true,settings:{pmin,pmax,ta,tb,vdd,limit,pga1,pga2,supply,offsetSteps,offsetStage,
+  return {ok:true,settings:{pmin,pmax,ta,tb,vdd,limit,pressureUnit,pga1,pga2,supply,offsetSteps,offsetStage,
     sign1,sign2,signAdc,sF,sO,tF,tO,post,postGain,postOffset,
     temperatureActive:!!(cfg&0x1000),temperatureModel:tempModel,factoryTemp,scoeff,tcoeff,
     pressureTempIndependent,tempCorrectionConstant,fixedTemperatureC,manualTemperatureInputs:rawInputs,manualBoth},
