@@ -102,10 +102,7 @@ inline const char *connect(bool powerCycle) {
   if (!Wire.begin(Sda, Scl, 100000)) return "!BRIDGE I2C_INIT_FAILED";
   Wire.setTimeOut(15);
 #endif
-  if (probe(DefaultAddress)) {
-    slave = DefaultAddress;
-    return nullptr;
-  }
+  if (probe(DefaultAddress)) slave = DefaultAddress;
   // E703.11 accepts its configured six address bits across the full range.
   // Bit zero selects CRC, so also probe CRC aliases 0x79..0x7F.
   // In particular 0x7D must remain reachable when the sensor uses base 0x7C.

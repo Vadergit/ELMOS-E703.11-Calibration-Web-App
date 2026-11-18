@@ -75,7 +75,7 @@ int main() {
  assert(elmosI2c::connect(false)!=nullptr && elmosI2c::slave==0);
  Wire.badCrc=false;Wire.devices={{0x7D,0xFFFF}};
  assert(elmosI2c::connect(false)!=nullptr && elmosI2c::slave==0);
- Wire.devices={{0x7B,0x0020},{0x7D,0x0020}};
+ Wire.devices={{0x6D,0x0020},{0x7D,0x0020}};
  assert(std::strcmp(elmosI2c::connect(false),"!BRIDGE I2C_MULTIPLE_SENSORS")==0);
  assert(elmosI2c::slave==0);
 }
