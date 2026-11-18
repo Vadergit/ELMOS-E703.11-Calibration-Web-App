@@ -107,15 +107,15 @@ const ELMOS_NVM_TRACE=(()=>{
      '('+f(b.zero,8)+' − '+f(a.zero,8)+') / '+f(dt,2)+' × 100 = '+f(finite(r.tk0)?r.tk0*100:null,7))
    ];out.result=ending(finite(r.tk0)?r.tk0*100:null,'mV/V / 100 K');
   }else if(key==='tk0bar'){
-   out.summary='Temperaturbedingte Nullpunktänderung als äquivalenter Druckfehler.';
+   out.summary='Temperaturbedingte Nullpunktänderung als äquivalenter Fehler in der eingestellten Druckeinheit.';
    out.steps=[
-    step('Druckspanne festlegen','Δp = pmax − pmin',f(s.pmax,4)+' − '+f(s.pmin,4)+' = '+f(s.pmax-s.pmin,4)+' bar'),
+    step('Druckspanne festlegen','Δp = pmax − pmin',f(s.pmax,4)+' − '+f(s.pmin,4)+' = '+f(s.pmax-s.pmin,4)+' '+(s.pressureUnit||'bar')),
     step('Nullpunktgang und Referenzspanne einsetzen','TK0,p = TK0 / Spanne(T1) × Δp',
-     f(r.tk0,8)+' / '+f(a.span,8)+' × '+f(s.pmax-s.pmin,5)+' = '+f(r.tk0Bar,8)+' bar/K'),
+     f(r.tk0,8)+' / '+f(a.span,8)+' × '+f(s.pmax-s.pmin,5)+' = '+f(r.tk0Bar,8)+' '+(s.pressureUnit||'bar')+'/K'),
     step('Auf 100 K beziehen','TK0,p,100K = TK0,p × 100',
-     f(r.tk0Bar,8)+' × 100 = '+f(finite(r.tk0Bar)?r.tk0Bar*100:null,6)+' bar / 100 K',
+     f(r.tk0Bar,8)+' × 100 = '+f(finite(r.tk0Bar)?r.tk0Bar*100:null,6)+' '+(s.pressureUnit||'bar')+' / 100 K',
      'Der Druckbereich in bar ist eine Benutzereingabe; er wird nicht automatisch aus dem NVM erkannt.')
-   ];out.result=ending(finite(r.tk0Bar)?r.tk0Bar*100:null,'bar / 100 K');
+   ];out.result=ending(finite(r.tk0Bar)?r.tk0Bar*100:null,(s.pressureUnit||'bar')+' / 100 K');
   }else if(key==='tkr'){
    out.summary='Relative Änderung der Druckspanne zwischen zwei Temperaturen.';
    out.steps=[
