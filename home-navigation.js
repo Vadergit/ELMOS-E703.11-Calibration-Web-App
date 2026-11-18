@@ -4,6 +4,7 @@
 const ELMOS_HOME_NAVIGATION=(()=>{
  const $=id=>document.getElementById(id);
  let navigating=false;
+ let targetView='guided';
  const api=()=>window.ELMOS_GUIDED_API;
  const archive=()=>window.ELMOS_ARCHIVE;
  const logger=()=>window.ELMOS_TEST_LOGGER;
@@ -39,28 +40,49 @@ const ELMOS_HOME_NAVIGATION=(()=>{
   closeDialog();
   return true;
  }
- function requestHome(){
+ function classicNow(){
+  api()?.closeSettings?.();
+  archive()?.close?.();
+  const g=guided();
+  if(!g?.isOpen?.())return true;
+  // Pending sensor-swap selection is a UI state, not an active chip command.
+  // Reset only after the existing navigation safety checks have passed.
+  g.resetForHome?.();
+  g.close?.();
+  if(g.isOpen?.())throw Error('Die geführte Aufgabe konnte nicht sicher verlassen werden.');
+  document.title='ELMOS E703.11 – Kalibrierassistent';
+  window.scrollTo({top:0,behavior:'auto'});
+  closeDialog();
+  return true;
+ }
+ function requestTarget(target){
   if(navigating)return false;
+  targetView=target;
   const s=situation(),dialog=$('guidedHomeConfirm');
-  if(!s.critical&&!s.unfinished)return homeNow();
+  if(!s.critical&&!s.unfinished)return target==='classic'?classicNow():homeNow();
   if(!dialog)return false;
   const abort=$('guidedHomeAbort'),stay=$('guidedHomeStay');
+  const destination=target==='classic'?'klassischen Ansicht':'geführten Aufgabenauswahl';
   if(stay)stay.textContent='Vorgang fertig machen';
   if(abort){
    abort.hidden=s.critical;
    abort.disabled=s.critical;
+   abort.textContent=target==='classic'?'Vorgang abbrechen & zu Klassisch':
+    'Vorgang abbrechen & zur Aufgabenauswahl';
   }
   if(s.critical){
-   displayProblem('Ein Sensor- oder Schreibvorgang ist noch aktiv. Dieser darf zum Schutz der NVM-/RAM-Daten und des USB-Protokolls nicht unterbrochen werden. Bitte den Vorgang fertig machen und danach zur geführten Startseite wechseln.');
+   displayProblem('Ein Sensor- oder Schreibvorgang ist noch aktiv. Dieser darf zum Schutz der NVM-/RAM-Daten und des USB-Protokolls nicht unterbrochen werden. Bitte den Vorgang fertig machen und danach zur '+destination+' wechseln.');
   }else{
    const kind=s.recording?'Testaufzeichnung':s.archiveType==='verification'?'Nachmessung':
     s.archiveType==='calibration'?'Kalibrierung':s.archiveType==='output'?'Ausgangskonfiguration':
     s.measuring?'Messung':'angefangener Vorgang';
-   displayProblem('Aktive Aufgabe: '+kind+'. Möchtest du den Vorgang abbrechen und zur geführten Startseite zurückkehren? Bereits gespeicherte Messwerte bleiben im Archiv. Eine laufende Leseantwort wird sicher beendet; der Sensor wird nicht getrennt. Bereits geänderte RAM-Einstellungen werden nicht zurückgesetzt und es erfolgt kein neues NVM-Schreiben.'+(api()?.navigationSafety?.()?.nvmDone?' Bereits programmierte NVM-Daten im Sensor bleiben unverändert.':''));
+   displayProblem('Aktive Aufgabe: '+kind+'. Möchtest du den Vorgang abbrechen und zur '+destination+' wechseln? Bereits gespeicherte Messwerte bleiben im Archiv. Eine laufende Leseantwort wird sicher beendet; der Sensor wird nicht getrennt. Bereits geänderte RAM-Einstellungen werden nicht zurückgesetzt und es erfolgt kein neues NVM-Schreiben.'+(api()?.navigationSafety?.()?.nvmDone?' Bereits programmierte NVM-Daten im Sensor bleiben unverändert.':''));
   }
   if(!dialog.open)dialog.showModal();
   return false;
  }
+ function requestHome(){return requestTarget('guided')}
+ function requestClassic(){return requestTarget('classic')}
  async function waitForMeasurement(){
   // Abort between read operations, never terminate a Web Serial command mid-frame.
   for(let i=0;i<1200;i++){
@@ -95,7 +117,7 @@ const ELMOS_HOME_NAVIGATION=(()=>{
    // been closed while the same sensor's archive session stayed active.
    if(guided()?.hasUnfinishedTask?.()||abortedType==='calibration'||abortedType==='output')
     api()?.clearHomeDraft?.();
-   return homeNow();
+   return targetView==='classic'?classicNow():homeNow();
   }catch(error){
    if(status){status.hidden=false;status.textContent='Rückkehr nicht möglich: '+String(error.message||error)}
    return false;
@@ -114,7 +136,7 @@ const ELMOS_HOME_NAVIGATION=(()=>{
    if(navigating)event.preventDefault();
   });
  }
- return {init,requestHome,situation,abortAndGoHome};
+ return {init,requestHome,requestClassic,situation,abortAndGoHome};
 })();
 if(typeof window!=='undefined')window.ELMOS_HOME_NAVIGATION=ELMOS_HOME_NAVIGATION;
 if(typeof document!=='undefined'){
