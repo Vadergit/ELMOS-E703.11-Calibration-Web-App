@@ -198,7 +198,16 @@ const ELMOS_EXPERT=(()=>{
    rows.replaceChildren();
    $('eepromExport').disabled=!valid||!st.uid;
    refreshOverview();
-   if(typeof ELMOS_NVM_RECON!=='undefined')ELMOS_NVM_RECON.render($('nvmReconstruction'),valid?st.nvmBackup:null);
+   if(typeof ELMOS_NVM_RECON!=='undefined'){
+    const proof=st.nvmBackupProof;
+    const trusted=valid&&proof&&proof.session===st.sessionIndex&&proof.uid===st.uid.hex&&proof.words===st.nvmBackup;
+    ELMOS_NVM_RECON.render($('nvmReconstruction'),valid?st.nvmBackup:null,{
+     connected:!!(st.mode==='usb'&&st.port&&st.chip),
+     busy:!!(st.writing||st.calTask||st.nvmWorking||st.closing),
+     uid:valid?st.uid.hex:null,
+     readAt:trusted?proof.readAt:null
+    });
+   }
    if(!valid){
     expandedEEPROM.clear();eepromViewerUid=null;
     const tr=document.createElement('tr'),td=document.createElement('td');
@@ -316,7 +325,7 @@ const ELMOS_EXPERT=(()=>{
    }else dump()
   }
   async function readNvm(){
-   if(st.calTask||st.writing||st.nvmWorking){show('eepromStatus','Ein anderer Chipvorgang läuft. EEPROM kann gerade nicht gelesen werden.','warn');return}
+   if(st.calTask||st.writing||st.nvmWorking){show('eepromStatus','Ein anderer Chipvorgang läuft. EEPROM kann gerade nicht gelesen werden.','warn');return false}
    try{
     if(!st.uid)await identify();
     $('eepromRead').disabled=true;
@@ -324,7 +333,8 @@ const ELMOS_EXPERT=(()=>{
     const ok=await nvmScan({expertRead:true});
     refreshEEPROMViewer();
     if(!ok)show('eepromStatus','EEPROM-Lesen fehlgeschlagen. Bitte Chipverbindung und Diagnoselog kontrollieren.','error');
-   }catch(e){show('eepromStatus','EEPROM-Lesen fehlgeschlagen: '+e.message,'error');show('expertRestoreMsg','EEPROM-Lesen fehlgeschlagen: '+e.message,'error')}
+    return !!ok;
+   }catch(e){show('eepromStatus','EEPROM-Lesen fehlgeschlagen: '+e.message,'error');show('expertRestoreMsg','EEPROM-Lesen fehlgeschlagen: '+e.message,'error');return false}
    finally{$('eepromRead').disabled=!st.port||!st.chip||st.calTask||st.writing||st.nvmWorking;}
   }
   async function readRegisters(){
@@ -686,7 +696,7 @@ const ELMOS_EXPERT=(()=>{
   $('expertRestorePreview').addEventListener('click',prepareRestore);
   $('expertBackupImport').addEventListener('change',()=>withProgress('Backup-Datei wird geladen',importFile));
   renderBackups();refreshEEPROMViewer();
-  return {onDetect,identify,afterNvmScan,refreshEEPROMViewer,applyOutputProfile,refreshOutputReadOnly,refreshOutputPreview:renderOutputPreview,archiveCurrentNvm,restoreReady,outputReady,prepareRestore,exportCurrent,renderBackups,validBackup:valid}
+  return {onDetect,identify,readNvm,afterNvmScan,refreshEEPROMViewer,applyOutputProfile,refreshOutputReadOnly,refreshOutputPreview:renderOutputPreview,archiveCurrentNvm,restoreReady,outputReady,prepareRestore,exportCurrent,renderBackups,validBackup:valid}
  }
  return {init}
 })();
