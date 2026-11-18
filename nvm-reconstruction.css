@@ -148,3 +148,27 @@
 /* Clearly distinguish true NVM data from assumed or locally remembered references. */
 #nvmReconstruction .nvmrecon-reference-hint{margin:7px 0 1px;font-size:10.5px;line-height:1.45;color:var(--nv-muted);font-weight:600}
 #nvmReconstruction .nvmrecon-reference-hint::before{content:"ⓘ ";color:var(--blue);font-size:13px;vertical-align:baseline}
+
+/* Loaded calibration profiles: unobtrusive controls and recognisable fixed values. */
+#nvmReconstruction .nvmrecon-profile-upload{display:inline-flex;align-items:center;cursor:pointer;border:1px solid var(--nv-edge);border-radius:8px;padding:8px 11px;font-size:12px;font-weight:700;white-space:nowrap;color:var(--blue);background:var(--paper);line-height:1.2}
+#nvmReconstruction .nvmrecon-profile-upload:hover{background:var(--blue-soft)}
+#nvmReconstruction #nvmReconProfileFile{position:absolute;width:1px;height:1px;padding:0;margin:-1px;clip-path:inset(50%);overflow:hidden;border:0}
+#nvmReconstruction .nvmrecon-profile-upload:has(+input:focus-visible){outline:2px solid var(--blue);outline-offset:2px}
+#nvmReconstruction .nvmrecon-profile-fixed input:disabled,
+#nvmReconstruction .nvmrecon-profile-fixed select:disabled{background:var(--nv-soft);color:var(--nv-muted);border-style:dashed;cursor:not-allowed;opacity:.82}
+#nvmReconstruction .nvmrecon-profile-fixed{position:relative}
+#nvmReconstruction .nvmrecon-profile-fixed::after{content:"◈";color:var(--blue);position:absolute;top:0;right:2px;font-size:10px}
+#nvmReconstruction .nvmrecon-profile-details{margin:8px 0 0;border:0;border-top:1px solid var(--nv-edge);padding:7px 0 0}
+#nvmReconstruction .nvmrecon-profile-details>summary{cursor:pointer;color:var(--blue);font-weight:750;font-size:11.5px}
+#nvmReconstruction .nvmrecon-profile-status{font-size:11.5px;line-height:1.45;margin:9px 0 7px;color:var(--ink)}
+#nvmReconstruction .nvmrecon-profile-status.is-error{color:var(--red)}
+#nvmReconstruction .nvmrecon-profile-toolbar{display:flex;flex-wrap:wrap;align-items:center;gap:7px;margin:7px 0 10px}
+#nvmReconstruction .nvmrecon-profile-toolbar button{font-size:11px;min-height:30px;padding:5px 9px}
+#nvmReconstruction .nvmrecon-profile-toolbar [hidden]{display:none}
+#nvmReconstruction .nvmrecon-profile-points{width:100%;overflow-x:auto}
+#nvmReconstruction .nvmrecon-profile-table{border-collapse:collapse;width:100%;font-size:11.5px;min-width:440px}
+#nvmReconstruction .nvmrecon-profile-table th,
+#nvmReconstruction .nvmrecon-profile-table td{padding:7px 8px;border-bottom:1px solid var(--nv-edge);text-align:right;font-variant-numeric:tabular-nums}
+#nvmReconstruction .nvmrecon-profile-table th:first-child,
+#nvmReconstruction .nvmrecon-profile-table td:first-child{text-align:left}
+#nvmReconstruction .nvmrecon-profile-table th{color:var(--nv-muted);font-size:10.5px;background:var(--nv-soft)}
