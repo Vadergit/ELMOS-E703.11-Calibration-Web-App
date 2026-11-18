@@ -222,3 +222,37 @@ test('Missing-data summary is always shown below explanation, not in a hidden di
  assert.match(style,/#nvmReconstruction \.nvmrecon-missing/);
  assert.match(html,/nvm-reconstruction\.js\?v=0\.3\.1/);
 });
+
+
+test('I2C-calibrated E703.11: inverse S range follows raw ADC domain even when S_O is below -1',()=>{
+ // Reproduces the user-reported linear pressure coefficients; factory UID
+ // and the rest of the NVM are deliberately omitted from this test fixture.
+ const w=Array(64).fill(0);
+ w[16]=0x12D6;w[27]=0x0C80;w[28]=0x1C03;
+ w[31]=0xFF6B;w[32]=0x1000;
+ w[33]=0xDA10;w[34]=0x4800;
+ w[35]=0x4BA1;w[39]=0x48E9;w[51]=0xE57C;
+ const calc=recon.calculate(w,{pmin:0,pmax:6,ta:25,tb:75,vdd:5,limit:32000});
+ assert.equal(calc.ok,true);
+ assert.equal(calc.hasPhysical,true,'Valid DSP pressure endpoints must be invertible within the ADC range');
+ assert.ok(Math.abs(calc.rows[0].endpoints[0].adcDigits-(-2771.6928))<0.02);
+ assert.ok(Math.abs(calc.rows[0].endpoints[1].adcDigits-22196.6317)<0.02);
+ assert.ok(calc.rows[0].endpoints[0].sNorm < -1,'Intermediate normalized S may fall below -1');
+ assert.ok(Math.abs(calc.rows[0].zero-0.2242793)<0.001);
+ assert.ok(Math.abs(calc.rows[0].span-(-2.0203824))<0.001);
+ assert.equal(calc.tk0,null);assert.equal(calc.tkr,null);
+ const s=calc.settings.sF*(-271/32768)+calc.settings.sO;
+ const dsp=Math.round((calc.settings.scoeff[0]+calc.settings.scoeff[4]*s)*32768);
+ assert.ok(Math.abs(dsp-(-25563))<40,'Expected DSP_S from observed live ADC_S should be within latency / filter variation');
+ assert.equal(recon.missingExplanations(calc).some(x=>x.name==='Druck-Rohwerte (ADC_S)'),false);
+ assert.equal(recon.missingExplanations(calc).some(x=>x.name==='Nullpunkt / Spanne in mV/V'),false);
+});
+test('Temperature polynomial inverse uses T_F and T_O mapped raw ADC limits',()=>{
+ const w=image();w[31]=0xD000;w[32]=0x4800;
+ // DSP_T = 0.2 * T: T for 25/75 C is outside ±1, but ADC_T remains valid.
+ w[51]=0;w[52]=Math.round(0.2*32768);
+ const r=recon.calculate(w,{limit:24000});
+ assert.equal(r.ok,true);
+ assert.ok(r.rows.every(row=>Number.isFinite(row.adcT)));
+ assert.ok(r.rows.some(row=>row.tempNorm>1||row.tempNorm< -1));
+});
