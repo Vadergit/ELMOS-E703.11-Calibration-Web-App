@@ -4364,7 +4364,6 @@ if(typeof document!=='undefined') (function UI(){
    ELMOS_NVM_RECON.setReadFeedback(root,'Aktuelles NVM erfolgreich aus dem Sensor gelesen und geprüft.');
   }else ELMOS_NVM_RECON.setReadFeedback(root,'NVM-Lesung oder UID/CRC-Prüfung fehlgeschlagen. Verbindung und Diagnoselog prüfen; kein ungeprüftes Sensor-NVM verwendet.',{error:true});
  });
- $('homeButton').addEventListener('click',()=>window.ELMOS_HOME_NAVIGATION?.requestHome?.());
  const demoMode=$('demoMode');
  demoMode.checked=demoEnabled;
  const syncDemoExpertVisibility=()=>{$('settingsDemoSection').hidden=!$('expertMode').checked};
