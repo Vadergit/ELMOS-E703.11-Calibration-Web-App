@@ -431,6 +431,16 @@ const ELMOS_NVM_RECON = (() => {
    origin.hidden=true;
    const profileDetails=dom('details',undefined,'nvmrecon-profile-details');
    profileDetails.appendChild(dom('summary','Kalibrierprofil & ursprüngliche Messpunkte','nvmrecon-profile-summary'));
+   const unitLabel=dom('label','Druckeinheit (nicht im NVM gespeichert)','nvmrecon-pressure-unit-label');
+   const unitSelect=dom('select');
+   unitSelect.className='nvmrecon-pressure-unit';unitSelect.dataset.key='pressureUnit';
+   for(const unit of ['bar','mbar','kPa','psi','%']){
+    const item=dom('option',unit);item.value=unit;unitSelect.appendChild(item);
+   }
+   unitSelect.addEventListener('change',()=>{
+    root._nvmState.opts.pressureUnit=unitSelect.value;draw(root);
+   });
+   unitLabel.appendChild(unitSelect);
    const profileStatus=dom('div',undefined,'nvmrecon-profile-status');
    const profileToolbar=dom('div',undefined,'nvmrecon-profile-toolbar');
    const profileRemove=dom('button','Geladenes Profil entfernen','nvmrecon-profile-remove');
@@ -455,7 +465,7 @@ const ELMOS_NVM_RECON = (() => {
    });
    profileToolbar.append(profileRemove,unlock,sessionButton);
    const pointList=dom('div',undefined,'nvmrecon-profile-points');
-   profileDetails.append(profileStatus,profileToolbar,pointList);
+   profileDetails.append(profileStatus,unitLabel,profileToolbar,pointList);
    const advanced=dom('details',undefined,'nvmrecon-warnings nvmrecon-advanced');
    advanced.appendChild(dom('summary','Erweitert: Gemessene Temperatur-ADC-Werte eingeben (optional)'));
    advanced.appendChild(dom('p','Wenn T0–T3 keine umkehrbare Temperaturkennlinie bilden, lassen sich die normierten Temperaturwerte direkt aus gemessenen ADC_T-Rohwerten berechnen. Für TK0/TKR sind zwei echte ADC_T-Messungen bei den eingetragenen Temperaturen erforderlich.','nvmrecon-muted'));
@@ -562,6 +572,11 @@ const ELMOS_NVM_RECON = (() => {
   const summary=root.querySelector('.nvmrecon-profile-summary');
   const profileStatus=root.querySelector('.nvmrecon-profile-status');
   const pointsContainer=root.querySelector('.nvmrecon-profile-points');
+  const unitControl=root.querySelector('.nvmrecon-pressure-unit');
+  if(unitControl){
+   unitControl.value=state.opts.pressureUnit||'bar';
+   unitControl.disabled=!!(profile&&Object.hasOwn(state.profileLocked,'pressureUnit')&&!state.profileOverride);
+  }
   const profileRemove=root.querySelector('.nvmrecon-profile-remove');
   const profileUnlock=root.querySelector('.nvmrecon-profile-unlock');
   const sessionButton=root.querySelector('.nvmrecon-session-use');
@@ -574,8 +589,8 @@ const ELMOS_NVM_RECON = (() => {
    !!reference?.savedProfile||!!state.sessionProfile?.verified;
   if(summary)summary.textContent=profile?
    'Kalibrierprofil · '+Object.keys(state.profileLocked).filter(k=>k!=='pressureUnit').length+
-   ' Fixwerte · '+(profile.points?.length||0)+' Messpunkte':
-   'Kalibrierprofil laden / ursprüngliche Messpunkte ansehen';
+   ' Fixwerte · '+(profile.points?.length||0)+' Messpunkte · Druckeinheit':
+   'Kalibrierprofil, Messpunkte & Druckeinheit';
   if(profileStatus){
    let text=profile?
     (profile.kind==='saved'?'Bestätigter Abgleich: Chip-UID und NVM-Prüfsumme stimmen überein.':
@@ -584,6 +599,7 @@ const ELMOS_NVM_RECON = (() => {
     (state.profileOverride?' Manuelle Änderungen aktiv.':' Vorhandene Referenzwerte sind gesperrt, fehlende Angaben bleiben frei.'):'';
    if(!profile&&state.sessionProfile?.points?.length)
     text='Ein aktueller Kalibrierablauf ist im Browser vorhanden. Solange dessen NVM nicht bestätigt ist, werden die Werte nicht automatisch dem EEPROM zugeordnet.';
+   if(profile)text+=' Diese Fixwerte stammen aus dem Kalibrierprofil und sind keine separaten NVM-Register.';
    if(profileProblem)text+=' '+profileProblem;
    if(state.profileFileError)text+=' Profilimport fehlgeschlagen: '+state.profileFileError;
    if(!text)text='Du kannst ein Kalibrierprotokoll oder eine Config-Vorlage laden. Ohne Profil bleiben die Referenzen bearbeitbar.';
