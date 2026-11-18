@@ -1,3 +1,10 @@
+## v0.7.124 – Zurück-Navigation und Expertenzugriff im geführten Modus
+
+- Zusätzlicher Zurück-Button oben auf der Diagnoseansicht; der obere Navigationsbutton wechselt zu «Zurück zum Assistenten». Beide sowie der untere Zurück-Button bleiben bei laufenden Hardwarevorgängen bedienbar. Navigieren unterbricht keinen Sensorzugriff.
+- Registerdiagnose, 12-s-1-Wire-Lesetest und experimentelle Magic-Cookie nur bei aktivierten Expertenparametern sichtbar; die Startfunktionen prüfen den Expertenstatus zusätzlich.
+- SPI-Testmodus nur bei eingeschalteten Expertenparametern auswählbar. Standardfunktionen für Protokollwechsel, Neuinitialisierung und USB-Protokollexport bleiben verfügbar.
+- Version und Cache-Parameter aktualisiert, zusätzliche Regressionstests ergänzt. Realen Sensorwechsel separat prüfen.
+
 ## v0.7.123 – Geführte Verbindung und Protokollwechsel
 
 - «Verbindung & Diagnose» ist im geführten Modus unabhängig vom aktuellen Kalibrierschritt erreichbar und öffnet sich nach einem Sensor-Kommunikationsabbruch.

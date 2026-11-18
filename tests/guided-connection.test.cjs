@@ -34,7 +34,7 @@ test('guided connection is available on any step, including sensor-swap and comm
  assert.match(guided,/connectionOpen=true;render\(\);/);
  assert.match(guided,/if\(swapping\)/);
  assert.match(css,/gw-connection-page/);
- assert.match(html,/guided\.js\?v=0\.7\.123/);
+ assert.match(html,/guided\.js\?v=0\.7\.124/);
 });
 test('switching protocol on same authorised USB port closes old session and rereads a new UID',async()=>{
  const m=makeGuidedConnect();
@@ -83,4 +83,28 @@ test('connection helpers reuse read-only diagnostic and protected 1-wire start-t
  assert.doesNotMatch(body,/nvmWriteWord|nvmProgram\(/);
  assert.match(app,/connectGuided,guidedDiagnostic/);
  assert.match(guided,/gwConnectionMagic'\)\.disabled=working\|\|!usb\|\|connected/);
+});
+
+test('connection navigation is always available, including during USB recovery',()=>{
+ const from=guided.indexOf(' function closeConnectionPanel(){');
+ const end=guided.indexOf(' function renderConnectionStatus(){',from);
+ assert.ok(from>0&&end>from);
+ const fn=new Function('render','connectionBusy','connectionOpen',guided.slice(from,end)+';return closeConnectionPanel;');
+ let renderCount=0;
+ const close=fn(()=>renderCount++,true,true);
+ close();
+ assert.equal(renderCount,1,'Returning to the assistant must not depend on USB activity');
+ assert.match(guided,/id="gwConnectionBackTop"/);
+ assert.match(guided,/gwConnectionBackTop'\)\.addEventListener\('click',closeConnectionPanel\)/);
+ assert.match(guided,/connectionOpen\?'← Zurück zum Assistenten'/);
+ assert.doesNotMatch(guided,/gwConnectionLog','gwConnectionMagic','gwConnectionClose'\]/);
+});
+test('expert-only diagnostics and SPI are hidden and guarded without enabling expert settings',()=>{
+ for(const id of ['gwConnectionAdvanced','gwConnectionDiagnose','gwConnectionStartup'])
+  assert.match(guided,new RegExp('id="'+id+'"[^>]*data-gw-expert hidden'));
+ assert.match(guided,/spi\.disabled=adapter==='bridge'\|\|!\$\('expertMode'\)\.checked/);
+ assert.match(guided,/\$\('gwConnectionMagic'\)\.disabled=!expert\|\|working/);
+ assert.match(guided,/\$\('gwConnectionAdvanced'\)\.open=false/);
+ assert.match(app,/if\(action!=='export'&&!\$\('expertMode'\)\.checked\)/);
+ assert.match(app,/if\(iface==='spi'&&!\$\('expertMode'\)\.checked\)/);
 });

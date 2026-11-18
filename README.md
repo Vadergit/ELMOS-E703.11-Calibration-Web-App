@@ -2,7 +2,7 @@
 
 **Ein geführter Kalibrierassistent für den ELMOS E703.11 und das SSP3-Eval-Board.** Ziel ist ein verständlicher Abgleich, der auch ohne tiefere Vorkenntnisse Schritt für Schritt funktioniert. Wer mehr benötigt, kann zusätzliche Messpunkte, DSP-Parameter und einen geschützten Expertenmodus verwenden.
 
-**Version: v0.7.123 · Protokollwechsel und Verbindungsdiagnose im geführten Modus** · [Änderungsverlauf](CHANGELOG.md) · **[Geplante Funktionen](ROADMAP.md)**
+**Version: v0.7.124 · Rücknavigation und Expertenanzeige in der geführten Diagnose** · [Änderungsverlauf](CHANGELOG.md) · **[Geplante Funktionen](ROADMAP.md)**
 
 Der **Demo-Modus** wird in den Einstellungen erst nach Aktivierung von **Expertenparameter** angezeigt. Er simuliert Sensorwerte und Schreibvorgänge; die echte Hardware wird dabei nicht programmiert.
 
@@ -13,6 +13,12 @@ Der **Demo-Modus** wird in den Einstellungen erst nach Aktivierung von **Experte
 > **Geführter Assistent:** Nach der bestätigten SSP3-Verbindung stehen die neue Schritt-für-Schritt-Führung, die klassische Ansicht und der optionale Kompaktmodus zur Verfügung. Ein E703.11-Chip muss für den Abgleich verbunden sein. Als DIY-Programmer sind ausschliesslich ESP32-C3 SuperMini (v0.12 Labor-Quellcode) und Arduino Pro Micro (v0.28 Labor-Quellcode) vorgesehen. Die originalen ELMOS SSP3-Adapter bleiben separat unterstützt. Der vollständige Hardwaretest der DIY-Programmer ist noch offen.
 >
 > [Geführter Abgleich](docs/GEFUEHRTER_ASSISTENT.md) · [DIY-Programmer (ESP32-C3 / Pro Micro)](docs/USB_BRIDGE_GUIDE.md) · [Pinbelegung der zwei Boards](docs/ESP_BOARD_OPTIONS.md) · [DIY-Firmware-Installer](firmware-update.html)
+
+## v0.7.124 – Geführte Diagnose: Zurück-Navigation und Expertenparameter
+
+Die Seite «Verbindung & Diagnose» hat nun oben und unten einen jederzeit erreichbaren Zurück-Button. Beide führen zur zuvor geöffneten Seite des geführten Assistenten, auch wenn die Verbindung noch geprüft wird; die Navigation unterbricht **keine** laufende Hardwareoperation. Der obere Umschalter zeigt während der Diagnose ausdrücklich «Zurück zum Assistenten».
+
+Im normalen geführten Modus erscheinen nur Protokollwechsel, Wiederverbinden und USB-Protokoll-Export. Registerdiagnose, 12-Sekunden-1-Wire-Test und die experimentelle Magic-Cookie-Freigabe werden nur bei **aktivierten Expertenparametern** gezeigt und können ohne sie nicht gestartet werden. Auch der SPI-Testmodus erfordert Expertenparameter. Bei erneutem Öffnen der Diagnose sind experimentelle Freigabe-Checkboxen zurückgesetzt.
 
 ## v0.7.123 – Verbindung und Protokoll direkt im geführten Modus wechseln
 
