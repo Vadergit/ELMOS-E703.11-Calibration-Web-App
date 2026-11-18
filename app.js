@@ -3316,7 +3316,7 @@ if(typeof document!=='undefined') (function UI(){
     throw Error('Das aktive Archivprotokoll gehört nicht zu diesem Sensor oder Vorgang. Bitte das falsche Protokoll zuerst abschliessen.');
    if(st.calImage?.before!==initial||st.calImage?.after!==modified)
     throw Error('Der vorbereitete NVM-Plan wurde beim Start des Archivs verändert. Kein NVM-Schreiben. Änderungsliste erneut prüfen.');
-   if(!await archive.event('nvm_before',{uid:id,words:initial,plannedWords:modified,changes:st.calImage.changes,supply:archiveVoltages()}))
+   if(!await archive.event('nvm_before',{uid:id,words:initial,plannedWords:modified,changes:st.calImage.changes,supply:archiveVoltages(),calibrationReport:!outputOnly&&!alarmOnly?report():null}))
     throw Error('Archivprotokoll konnte nicht geschrieben werden. NVM bleibt unverändert.');
    nvmWriteFeedback('Archivprotokoll bereit. Chip und NVM werden vor dem Schreiben erneut geprüft …');
    const saveOldNvm=$('nvmAutoBackup').checked;
