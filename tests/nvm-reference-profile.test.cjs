@@ -119,3 +119,44 @@ test('Browser wiring retains measured calibration data, locks known fields and p
  assert.match(ui,/nvmrecon-profile-table/);
  assert.match(ui,/st\.sessionProfile\)/);
 });
+
+
+test('Live NVM profile matching uses the entire stored image when available',()=>{
+ const savedWords=nvm();
+ const saved={
+  uid,crc:savedWords[63],nvmWords:savedWords.slice(),
+  min:0,max:6,selected:'bar',unit:'bar',limit:28000,
+  reference:{pressureUnit:'bar',pmin:0,pmax:6,limit:28000},points
+ };
+ const getter=key=>key==='elmos-dsp-display-by-uid-v1-'+uid?JSON.stringify(saved):null;
+ // Use the actual browser module environment, where the profile parser is loaded
+ // before the calculator. This also covers the existing localStorage key.
+ const vm=require('node:vm');
+ const context=vm.createContext({module:{exports:{}},console});
+ vm.runInContext(read('nvm-reference-profile.js'),context);
+ vm.runInContext(read('nvm-reconstruction.js'),context);
+ const recon=context.module.exports;
+ const exact=recon.referenceMetadata(savedWords,uid,getter);
+ assert.equal(exact.savedProfile?.fields.pmin,0);
+ assert.equal(exact.savedProfile?.fields.pmax,6);
+ assert.equal(exact.savedProfile?.fields.limit,28000);
+ const changed=savedWords.slice();changed[43]^=1; // simulates same CRC word but different calibration
+ const stale=recon.referenceMetadata(changed,uid,getter);
+ assert.equal(stale.savedProfile,undefined);
+ assert.equal(stale.limitSource,'default');
+});
+test('Custom saved display units never lock pressure values as bar',()=>{
+ const saved={uid,crc:0x6E91,min:0,max:100,selected:'custom',unit:'N',
+  limit:31000,reference:{pmin:0,pmax:100,pressureUnit:undefined},points};
+ const profile=P.fromSaved(saved,uid,0x6E91);
+ assert.ok(profile);
+ assert.equal(profile.fields.pmin,undefined);
+ assert.equal(profile.fields.pmax,undefined);
+ assert.equal(profile.fields.limit,31000);
+});
+test('Matrix temperatures from applied template are retained even without DSP details',()=>{
+ const loaded=P.fromFile({version:2,measurement:{matrix:{temperatures:[25,85]}},reference:{min:0,max:6,unit:'bar'}});
+ assert.equal(loaded.fields.ta,25);
+ assert.equal(loaded.fields.tb,85);
+ assert.equal(loaded.fields.limit,undefined);
+});
