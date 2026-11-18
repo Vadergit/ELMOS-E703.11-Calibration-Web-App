@@ -45,7 +45,7 @@ test('Calculator supports local JSON and remains read-only',()=>{
 test('NVM calculator visual polish is scoped, responsive and keeps all inputs working',()=>{
  const html=read('index.html'),source=read('nvm-reconstruction.js'),styles=read('nvm-reconstruction.css');
  assert.match(html,/nvm-reconstruction\.css\?v=/);
- assert.match(html,/nvm-reconstruction\.js\?v=0\.3\.2/);
+ assert.match(html,/nvm-reconstruction\.js\?v=0\.3\.3/);
  assert.match(styles,/#nvmReconstruction \.nvmrecon-metrics/);
  assert.match(styles,/@container\(max-width:940px\)/);
  assert.match(styles,/data-panel="10"/);
@@ -76,7 +76,7 @@ test('NVM calculator reads fresh 64-word sensor image with existing UID/CRC veri
  assert.match(expert,/nvmScan\(\{expertRead:true\}\)/);
  assert.match(expert,/return \{onDetect,identify,readNvm,afterNvmScan/);
  assert.match(expert,/proof\.session===st\.sessionIndex&&proof\.uid===st\.uid\.hex&&proof\.words===st\.nvmBackup/);
- assert.match(calc,/setup\.append\(heading,detail,actions,feedback,grid,advanced\)/);
+ assert.match(calc,/setup\.append\(heading,detail,actions,feedback,grid,origin,advanced\)/);
 });
 test('File and live sensor can both be present, explicitly selecting sensor overrides file',()=>{
  const calc=require('../nvm-reconstruction.js'),live=Array(64).fill(0),file=Array(64).fill(1);
@@ -85,4 +85,13 @@ test('File and live sensor can both be present, explicitly selecting sensor over
  assert.equal(calc.chooseSource(null,file,'eeprom').kind,'file');
  assert.equal(calc.chooseSource(live,null,'file').kind,'eeprom');
  assert.equal(calc.chooseSource(null,null,'eeprom').kind,'none');
+});
+
+test('DSP target source and temperature model are explicitly distinguished from NVM registers',()=>{
+ const app=read('nvm-reconstruction.js'),html=read('index.html');
+ assert.match(app,/DSP-Endwert: Standard ±32’000 · nicht im NVM gespeichert/);
+ assert.match(app,/DSP-Endwert: aus lokalem UID-\/NVM-gebundenem Kalibrierprofil/);
+ assert.match(app,/Temperaturmodell: nicht eindeutig im NVM · AN0203 wird angenommen/);
+ assert.match(app,/nvmrecon-reference-hint/);
+ assert.match(html,/nvm-reconstruction\.css\?v=0\.2\.2/);
 });
