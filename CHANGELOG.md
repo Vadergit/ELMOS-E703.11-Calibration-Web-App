@@ -1,3 +1,13 @@
+## v0.7.135 – Magic-Cookie: DSP- und AODO-Skalierung im selben NVM-Plan
+
+- Bei bestätigter **PSSC-RAM-Freigabe am originalen SSP3** kann eine ausdrücklich in «Ausgang konfigurieren» vorgemerkte **analoge AODO-Skalierung (S0/S1)** im selben NVM-Abbild wie die DSP-/TK0-Kalibrierung vorbereitet werden. Zuvor wurden diese Register stillschweigend verworfen und die finale Spannungsprüfung blockierte die Kalibrierung.
+- **Keine automatische AODO-Freigabe:** Der Bediener muss «Ausgangskonfiguration prüfen und vormerken» ausdrücklich ausführen; ohne Vormerkung erklärt die NVM-Vorbereitung den Konflikt und verweist auf Schritt 6. Es ist kein Neuverbinden nötig.
+- **Kombinierter Recovery-Plan nur mit nachgewiesenem SSP3-Kaltstart derselben UID, aktiviertem Original-NVM-Backup und unverändertem AODO-Modus/CFG_AODO.** Die neue pure Differenzprüfung lässt ausschliesslich Kalibrierwörter, AODO-Skalierungs-/Clippingwörter und CRC zu. Factory-, Boot-, One-Wire- und Kommunikationsregister bleiben geschützt.
+- Die bestehenden DSP-Prüfpunkte, CRC-/UID-Vergleiche, Zielspannungsprüfung gegen das vollständige Endbild, NVM-Readback und Kaltstartkontrolle bleiben obligatorisch. DIY-Recovery und nicht bestätigte SSP3-Starts erhalten **keine** kombinierte AODO-NVM-Freigabe.
+- Klassische NVM-Hinweise nennen jetzt «Änderungen prüfen» statt der unklaren «Änderungsliste vorbereiten»-Anweisung; Cache- und Versionsanzeigen aktualisiert.
+- Offline-Regressionsfälle für 3-Punkte-TK0 + 0.5–4.5-V-AODO, Schreibschutz und fehlerhafte AODO-Kennlinie ergänzt.
+- **Laborgrenze:** Die kombinierte NVM-Programmierung nach Magic-Cookie-RAM-Freigabe ist noch nicht am echten Sensor verifiziert. Vor Einsatz bei Jürg zuerst mit einem entbehrlichen Testchip prüfen.
+
 ## v0.7.134 – Klassische Ansicht ohne Hauptseite
 
 - Die klassische Oberfläche nutzt nur die bestehende linke Seitenleiste. Ein zusätzlicher Home-Button oben, der klickbare «Kalibrierassistent»-Titel und die Rücksprungschaltflächen zur geführten Startseite in den klassischen Werkzeugseiten wurden entfernt.

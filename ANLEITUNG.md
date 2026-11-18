@@ -8,6 +8,20 @@ Diese Anleitung beschreibt die derzeitige Benutzeroberfläche der browserbasiert
 
 > **Laborprototyp, keine Produktionsfreigabe.** Der vollständige Kalibrier- und NVM-Schreibablauf wurde noch nicht am realen E703.11 als Gesamtsystem validiert. Permanente Änderungen zunächst nur an einem entbehrlichen Testchip erproben.
 
+## Magic-Cookie-RAM-Freigabe und AODO bei laufender Kalibrierung (ab v0.7.135)
+
+**Wichtig: Den Sensor bei einem offenen Abgleich nicht neu verbinden und die Browserseite nicht aktualisieren.** Die aktuellen RAM-Kalibrierpunkte werden beim Neuinitialisieren zurückgesetzt. Zuerst das Kalibrierprotokoll als JSON exportieren; dieser Export stellt die laufende Sitzung noch nicht automatisch wieder her.
+
+Beim originalen SSP3 kann ein E703.11 über eine bestätigte PSSC-/Magic-Cookie-Startsequenz vorübergehend Zugriff auf Chipregister erhalten. Die temporäre RAM-Kommunikationsfreigabe ist nicht dasselbe wie die dauerhaft im NVM gespeicherte Analogskalierung. Der normale analoge Ausgang benötigt bei 5 V beispielsweise **S0 = 0.5 V und S1 = 4.5 V**.
+
+- Im laufenden Abgleich in der klassischen Ansicht zu **«Ausgang konfigurieren»** wechseln; das ist ein normaler Seitenwechsel, kein Verbindungsreset.
+- Bestehenden **AODO-Ausgangstyp beibehalten**, 5 V / S0 0.5 V / S1 4.5 V prüfen, **«Scaling berechnen und aktivieren»** und dann **«Ausgangskonfiguration prüfen und vormerken»** wählen.
+- Im NVM-Schritt **«Altes NVM automatisch sichern» aktivieren** und **«Änderungen prüfen»** drücken. Die Anwendung kontrolliert die aktiv bestätigte SSP3-Recovery, dieselbe UID, das Original-NVM, den unveränderten AODO-Modus sowie die erforderlichen Ausgangskoeffizienten.
+- Wird der kombinierte Plan verweigert, **nicht durch One Wire only oder einen Neustart umgehen**. Protokoll und NVM-Backup aufbewahren und den Blockiergrund mit dem Entwickler prüfen.
+- **Nur am Testchip erproben.** Ein bestandener Offline-Test ist keine elektrische Freigabe. Nach erfolgreicher NVM-Rücklesung echten Kaltstart und Analogausgang mit DMM prüfen.
+
+«One Wire only» ist keine allgemeine alternative Ausgangsskalierung und aktiviert permanentes One-Wire nicht nachträglich. Diese Option wird nur anerkannt, wenn sie im Original-NVM bereits aktiv ist.
+
 ## Aktuelle Bedienung – v0.7.77
 
 ### Kompakte Einstellungen (v0.7.77)

@@ -207,7 +207,7 @@ test('Guided labels use acquisition indices instead of classic extra-slot number
  assert.ok(gui.includes("setCaptureLabel(row.querySelector('.between h3'),'Messpunkt '+(index+1)"));
  assert.ok(gui.includes("setCaptureLabel(button,'Messpunkt '+(index+1)+' aufnehmen')"));
  assert.ok(gui.includes('originalCaptureLabels.clear()'));
- assert.ok(html.includes('guided.css?v=0.7.92'));
+ assert.match(html,/guided\.css\?v=0\.7\.\d+/);
 });
 test('Capture history separates pressure hub from temperature shift',()=>{
  const plan=PLAN.create({pCount:2,tCount:2,temperatures:[25,75],fitMode:'tk0',pmin:0,pmax:100,orderS:1,orderT:1});

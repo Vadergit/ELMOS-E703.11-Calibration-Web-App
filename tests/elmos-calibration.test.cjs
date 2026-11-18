@@ -120,3 +120,76 @@ test('clipping bounds are ordered, inside VDD and representable as signed Q0.13'
  assert.ok(make(0,4.99)[16]&(1<<7));
  assert.throws(()=>make(.3,4.8,2.6),/Clipping/);
 });
+
+function recoveryNvm(){
+ // 1-Wire is available through a finite startup window and PSSC Magic Cookie,
+ // but normal permanent PLC/upstream access is not enabled in the original NVM.
+ const words=originalNvm();
+ words[17]=0;
+ words[18]=0;
+ words[19]=1<<11; // downstream only
+ words[22]=0x0880; // existing AODO mode/config must NOT change on recovery
+ words[63]=C.crc16(words);
+ return words;
+}
+test('Magic Cookie recovery: 3-point TK0 and explicit 0.5-4.5 V AODO can share a protected NVM image',()=>{
+ const before=recoveryNvm();
+ assert.equal(C.oneWireStartupStatus(before).ok,true);
+ assert.equal(C.oneWireStartupStatus(before).requiresCookie,true);
+ const fit=C.fit(fullFour.slice(0,3),{pmin:0,pmax:100,outputLimit:32000,orderS:1,orderT:1,fitMode:'tk0'});
+ const image=C.configFrom(before,fit,0x800,{output:plan()});
+ const diff=C.validateRecoveryCalibrationDiff(before,image.after,{allowAnalogScaling:true});
+ assert.equal(diff.outputChanged,true);
+ assert.ok(image.changes.some(c=>c.index===58),'AODO gain must be part of the NVM diff');
+ assert.ok(image.changes.some(c=>c.index>=35&&c.index<=54),'DSP coefficients must be part of the same image');
+ assert.equal(image.after[22],before[22]);
+ assert.equal(image.after[17],before[17]);
+ assert.equal(image.after[18],before[18]);
+ assert.equal(image.after[19],before[19]);
+ assert.equal(image.after[63],C.crc16(image.after));
+ assert.equal(C.analogOutputStatus(image.after,.5,4.5,5,32000).ok,true);
+ assert.throws(()=>C.validateRecoveryCalibrationDiff(before,image.after),/AODO nur mit bestätigter SSP3-Recovery/);
+});
+test('Magic Cookie recovery: ordinary calibration-only image stays permitted',()=>{
+ const before=recoveryNvm();
+ const fit=C.fit(fullFour.slice(0,3),{pmin:0,pmax:100,outputLimit:32000,orderS:1,orderT:1,fitMode:'tk0'});
+ const image=C.configFrom(before,fit,0x800);
+ assert.equal(C.validateRecoveryCalibrationDiff(before,image.after).outputChanged,false);
+ assert.equal(C.analogOutputStatus(image.after,.5,4.5,5,32000).ok,false);
+});
+test('Magic Cookie recovery: never change AODO mode, CFG_AODO or communication bits',()=>{
+ const before=recoveryNvm();
+ const fit=C.fit(firstTwo,{pmin:0,pmax:100,outputLimit:32000,orderS:1,orderT:0});
+ const image=C.configFrom(before,fit,0x800,{output:plan()});
+ const copy=()=>image.after.slice();
+ const mode=copy();mode[16]^=1<<9;
+ assert.throws(()=>C.validateRecoveryCalibrationDiff(before,mode,{allowAnalogScaling:true}),/AODO-Modus/);
+ const cfg=copy();cfg[22]^=1;
+ assert.throws(()=>C.validateRecoveryCalibrationDiff(before,cfg,{allowAnalogScaling:true}),/CFG_AODO|nur Kalibrierdaten/);
+ const boot=copy();boot[17]^=4;
+ assert.throws(()=>C.validateRecoveryCalibrationDiff(before,boot,{allowAnalogScaling:true}),/nur Kalibrierdaten/);
+ const factory=copy();factory[0]^=1;
+ assert.throws(()=>C.validateRecoveryCalibrationDiff(before,factory,{allowAnalogScaling:true}),/nur Kalibrierdaten/);
+ const malformed=copy().slice(0,63);
+ assert.throws(()=>C.validateRecoveryCalibrationDiff(before,malformed,{allowAnalogScaling:true}),/64-Wort/);
+});
+test('Magic Cookie recovery: analog target is still checked, clipping cannot disguise wrong gain',()=>{
+ const before=recoveryNvm(),fit=C.fit(firstTwo,{pmin:0,pmax:100,outputLimit:32000});
+ const image=C.configFrom(before,fit,0x800,{output:plan()});
+ const wrong=image.after.slice();
+ wrong[58]=C.q(plan().gain*1.125,12);
+ wrong[63]=C.crc16(wrong);
+ assert.equal(C.validateRecoveryCalibrationDiff(before,wrong,{allowAnalogScaling:true}).outputChanged,true);
+ assert.equal(C.analogOutputStatus(wrong,.5,4.5,5,32000).ok,false);
+});
+test('NVM workflow requires explicitly staged AODO and a verified SSP3 startup after RAM recovery',()=>{
+ const fs=require('node:fs');
+ const src=fs.readFileSync(require('node:path').join(__dirname,'../app.js'),'utf8');
+ assert.match(src,/const explicitOutputPlan=st\.expertOutputPlan/);
+ assert.match(src,/const autoStageAnalog=!recovery/);
+ assert.match(src,/st\.adapterKind!=='ssp3'\|\|!psscRecoveryProven\(\)/);
+ assert.match(src,/image\.recoveryCombined=recoveryCombined/);
+ assert.match(src,/CAL\.validateRecoveryCalibrationDiff\(initial,modified/);
+ assert.match(src,/!!st\.calImage\?\.recoveryCombined/);
+ assert.match(src,/Original-NVM-Backup|automatisches Original-NVM-Backup/);
+});
