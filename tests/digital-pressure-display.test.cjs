@@ -5,7 +5,7 @@ const source=fs.readFileSync(path.join(__dirname,'..','app.js'),'utf8');
 const start=source.indexOf('function standardPressureReference(');
 const end=source.indexOf(' function calibrationDisplayProfile',start);
 assert.ok(start>=0&&end>start);
-const {standardPressureReference,digitalPercent}=new Function(source.slice(start,end)+'\nreturn {standardPressureReference,digitalPercent};')();
+const {standardPressureReference,digitalPercent,chooseDisplayReference}=new Function(source.slice(start,end)+'\nreturn {standardPressureReference,digitalPercent,chooseDisplayReference};')();
 const image=limit=>{const w=Array(64).fill(0);w[16]=0x12D6;w[58]=Math.round(26214.4/limit*4096);return w};
 for(const limit of [25000,30000,32000]){
  test('Round-trip 10–90% VDD with DSP ±'+limit,()=>{
@@ -32,7 +32,8 @@ const restoreEnd=source.indexOf(' function carryCalibrationDisplayProfile',resto
 assert.ok(restoreStart>=0&&restoreEnd>restoreStart);
 const simulate=new Function('words','options',source.slice(start,end)+`
  const uid='0020011DBBE7',port={},st={port,sessionIndex:1,uid:{hex:uid},chip:true,calpoints:[]};
- let sensorDisplayRange=null,standardDisplayRange=null,reads=0;
+ let sensorDisplayRange=null,standardDisplayRange=null,displayReferenceDiagnostic=null,reads=0;
+ const window={ELMOS_ARCHIVE:{findDisplayCalibration:async()=>options.archive||null}},validDisplayProfile=(p,uid)=>p.uid===uid;
  const local=options.local||null;
  const storedDisplayProfile=()=>local,storedStandardReference=()=>null,autoStandardEnabled=()=>options.enabled!==false,demoEnabled=false;
  const ramGrant=async()=>{},ramLock=async()=>{},nvmReadWord=async a=>{reads++;return words[a/2]};
@@ -46,7 +47,7 @@ const simulate=new Function('words','options',source.slice(start,end)+`
  const h=(v,n)=>v.toString(16).toUpperCase().padStart(n*2,'0'),logging=()=>{},renderDSPLive=()=>{},refreshUnitLabels=()=>{},expert={refreshOutputPreview(){}},lsSet=()=>{},displayProfileKey=()=>'', $=()=>({value:''});
  `+source.slice(restoreStart,restoreEnd)+`
  return (async()=>{const ok=await restoreCalibrationDisplayProfile(options.full?words:null);
- return {ok,standard:standardDisplayRange,profile:sensorDisplayRange,reads,percent:digitalPercent(-29966,sensorDisplayRange?.range,standardDisplayRange?.reference)};})();
+ return {ok,standard:standardDisplayRange,profile:sensorDisplayRange,diagnostic:displayReferenceDiagnostic,reads,percent:digitalPercent(-29966,sensorDisplayRange?.range,standardDisplayRange?.reference)};})();
  `);
 const oldSensor=()=>Object.assign(Array(64).fill(0),{0:0xBBE7,1:0x11D,16:0x13D6,34:0x4F1E,35:3,39:0x89A1,57:0,58:0xDFB,63:0x29DA});
 test('Older confirmed chip automatically shows approximate pressure without local profile',async()=>{
@@ -86,4 +87,25 @@ test('Rounded reference stays approximate; existing precise profile is not round
  assert.notEqual(ref.inferredLimit,ref.limit);
  assert.equal(digitalPercent(30123,{limit:30123,kind:'profile'},ref).value,100);
  assert.equal(standardPressureReference(image(32100)),null);
+});
+
+test('Compare profile and AODO endpoints; use AODO for >100 digits discrepancy',async()=>{
+ const w=oldSensor(),local={crc:w[63],nvmWords:w,min:0,max:100,unit:'%',selected:'%',limit:25000};
+ const r=await simulate(w,{local});
+ assert.ok(r.ok&&r.standard&&!r.profile);assert.equal(r.standard.reference.limit,30000);
+ assert.equal(r.diagnostic.delta,5000);assert.equal(r.percent.source,'standard');
+ assert.equal(chooseDisplayReference({limit:29900},{limit:30000}).useStandard,false);
+ assert.equal(chooseDisplayReference({limit:29899},{limit:30000}).useStandard,true);
+});
+test('Matching archive file is preferred and checked against live AODO',async()=>{
+ const w=oldSensor(),archive={uid:'0020011DBBE7',crc:w[63],nvmWords:w,min:0,max:100,unit:'%',selected:'%',limit:30000,sourceFile:'ELMOS_Abgleich_Komplett_test.json'};
+ const r=await simulate(w,{archive});
+ assert.ok(r.ok&&r.profile);assert.equal(r.diagnostic.profileSource,archive.sourceFile);assert.equal(r.diagnostic.comparison.limit,30000);
+ const bad=await simulate(w,{archive:{...archive,limit:25000}});
+ assert.ok(bad.ok&&bad.standard&&!bad.profile);assert.equal(bad.diagnostic.delta,5000);
+});
+test('Stale CRC rejects local profile and uses current AODO',async()=>{
+ const w=oldSensor(),local={crc:0x1234,nvmWords:w,min:0,max:100,unit:'%',selected:'%',limit:25000};
+ const r=await simulate(w,{local});assert.ok(r.ok&&r.standard&&!r.profile);
+ assert.equal(r.diagnostic.profileSource,'Veraltetes Browserprofil');
 });
