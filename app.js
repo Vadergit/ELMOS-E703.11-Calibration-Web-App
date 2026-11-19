@@ -519,6 +519,7 @@ if(typeof document!=='undefined') (function UI(){
  // The pressure normalization and all pressure/temperature coefficients
  // occupy NVM words 31–54 and RAM registers 0x6C–0x9A.
  let sensorDisplayRange=null;
+ let checkingDSPScale=false;
  function storedDisplayProfile(uid){
   try{
    const p=JSON.parse(lsGet(displayProfileKey(uid)));
@@ -589,13 +590,21 @@ if(typeof document!=='undefined') (function UI(){
    return profile.range;
   return null;
  }
+ // DSP_S is a signed Q0.15 value. The full-scale percentage is useful
+ // while the true calibration scale is unknown, for display only.
+ function dspDisplayReading(raw,range,checking){
+  if(!Number.isInteger(raw))return {value:null,unit:'',estimated:false};
+  if(range)return {value:range.min+(raw+range.limit)/(2*range.limit)*(range.max-range.min),unit:range.unit,estimated:false};
+  if(checking)return {value:null,unit:'',estimated:false};
+  return {value:50+50*raw/32768,unit:'%',estimated:true};
+ }
  function dspNumber(n){return Number.isFinite(n)?n.toLocaleString('de-CH',{minimumFractionDigits:2,maximumFractionDigits:2}):'—'}
  function renderLiveOverview(){
   const connected=!!st.port&&confirmedSensorForUi();
   const activeADC=connected&&st.adc&&Number.isFinite(st.adc.s);
   const activeDSP=connected&&st.dsp&&Number.isInteger(st.dsp.raw)&&!st.dspError;
   const range=getActiveDSPRange();
-  const converted=activeDSP&&range?range.min+(st.dsp.raw+range.limit)/(2*range.limit)*(range.max-range.min):NaN;
+  const reading=dspDisplayReading(activeDSP?st.dsp.raw:null,range,checkingDSPScale);
   $('liveAdcS').textContent=activeADC?fmt(st.adc.s):'—';
   $('liveAdcT').textContent=activeADC&&Number.isFinite(st.adc.t)?fmt(st.adc.t):'—';
   const internalSource=connected&&Number.isInteger(st.regs[0x1E])&&CAL.temperatureSourceFromAfe2(st.regs[0x1E])==='internal';
@@ -631,8 +640,9 @@ if(typeof document!=='undefined') (function UI(){
      ' · Aktueller RAM-Temperaturfit nach AN0203; vor Verwendung unabhängig prüfen.'):
     ' · Keine zuverlässige °C-Skalierung bestätigt. Nach einem früheren AN0203-Abgleich müssen die sechs Chipregister zur gespeicherten NVM-Programmierung mit derselben UID passen.');
   $('liveDspS').textContent=activeDSP?fmt(st.dsp.raw):'—';
-  $('livePressure').textContent=Number.isFinite(converted)?dspNumber(converted):'—';
-  $('livePressureUnit').textContent=range?.unit||(activeDSP?'DSP-Endwert offen':'—');
+  $('livePressure').textContent=(reading.estimated?'≈':'')+dspNumber(reading.value);
+  $('livePressureUnit').textContent=reading.estimated?'% · vorläufig':range?.unit||(activeDSP&&checkingDSPScale?'Skala wird geprüft':'—');
+  $('dspDisplayOpen').hidden=!activeDSP||checkingDSPScale||!!(range&&range.kind!=='display')||!st.uid?.hex;
   const highADC=!!activeADC&&Math.abs(st.adc.s)>25000;
   $('liveAdcAlert').hidden=!highADC;
   $('liveAdcS').parentElement?.classList.toggle('live-warning',highADC);
@@ -665,30 +675,31 @@ if(typeof document!=='undefined') (function UI(){
   const measured=activeADC?st.adc.time:activeDSP?st.dsp.time:null;
   $('liveLastRead').textContent=measured?new Date(measured).toLocaleTimeString('de-CH'):'Keine Messwerte';
   $('livePressure').parentElement?.setAttribute('title',range?
-   (range.kind==='ram'?'Neue RAM-Kalibrierung: ':'Manuell eingestellter Anzeigebereich: ')+range.min+'–'+range.max+' '+range.unit+'; DSP-Endwert ±'+range.limit+'. Kein Ersatz für die Prüfpunkt-Verifikation.':
-   'Kein gültiger Anzeigebereich');
+   'Bestätigter Anzeigebereich '+range.min+'–'+range.max+' '+range.unit+' · DSP-Endwert ±'+range.limit:
+   'Vorläufiger Prozentwert aus dem digitalen Vollausschlag. Der kalibrierte Messbereich ist noch offen.');
  }
  function renderDSPLive(){
   const connected=!!st.port&&confirmedSensorForUi();
   const fresh=connected&&st.dsp&&Number.isInteger(st.dsp.raw);
   const range=getActiveDSPRange();
-  const val=fresh&&range?range.min+(st.dsp.raw+range.limit)/(2*range.limit)*(range.max-range.min):NaN;
+  const reading=dspDisplayReading(fresh?st.dsp.raw:null,range,checkingDSPScale);
   const source=st.dspError?'DSP_S-Lesefehler':st.nvmDone?'Neue Kennlinie in NVM, Neustart noch prüfen':st.calStaged?'Neue Koeffizienten im RAM':st.chip?'DSP-Ausgabe des Chips – Kalibrierung nicht automatisch bestätigt':'Kein Chip verbunden';
   const time=st.dspError?'DSP_S (0x30) konnte nicht gelesen werden':fresh?new Date(st.dsp.time).toLocaleTimeString('de-CH'):'Noch keine DSP-Messung';
   for(const prefix of ['afe','verify']){
-   $(prefix+'DspValue').textContent=dspNumber(val);
-   $(prefix+'DspUnit').textContent=range?.unit||'—';
+   $(prefix+'DspValue').textContent=(reading.estimated?'≈':'')+dspNumber(reading.value);
+   $(prefix+'DspUnit').textContent=reading.estimated?'% · vorläufig':range?.unit||'—';
    $(prefix+'DspRaw').textContent=fresh?'DSP_S: '+fmt(st.dsp.raw)+' Digits':'DSP_S: — Digits';
-   $(prefix+'DspSeen').textContent=!range?'Anzeigebereich ungültig':st.dspError?time:'Letzte Messung: '+time;
+   $(prefix+'DspSeen').textContent=st.dspError?time:checkingDSPScale?'Sensorprofil wird geprüft':'Letzte Messung: '+time;
    $(prefix+'DspMode').textContent=source;
   }
   renderLiveOverview();
   const note=$('dspDisplayHint');
+  if(!connected&&$('dspDisplaySettings').open)$('dspDisplaySettings').close();
   $('dspDisplayConfirm').disabled=!connected||!st.uid?.hex||st.calTask||st.nvmWorking||st.writing||st.calStaged;
   note.textContent=range?
    (range.kind==='ram'?'Aktueller RAM-Abgleich':range.kind==='profile'?'Bestätigtes Profil dieses Sensors':'Für diese Verbindung bestätigt')+
     ' · ±'+fmt(range.limit)+' DSP-Digits entsprechen '+range.min+' bis '+range.max+' '+range.unit+'.':
-   'DSP-Rohwert in Digits. Für die Umrechnung den tatsächlichen Endwert, Messbereich und die Einheit dieses Sensors bestätigen.';
+   'Der Prozentwert ist vorläufig. Für den kalibrierten Sensorwert Endwert, Messbereich und Einheit bestätigen.';
  }
  function updateDSP(raw,source){
   if(!Number.isInteger(raw)||raw<-32768||raw>32767)throw Error('Ungültiger DSP_S-Wert');
@@ -702,6 +713,7 @@ if(typeof document!=='undefined') (function UI(){
    return;
   }
   sensorDisplayRange={port:st.port,session:st.sessionIndex,uid:st.uid.hex,range};
+  $('dspDisplaySettings').close();
   if(st.outputOnlyPlan&&st.calImage===st.outputOnlyPlan)st.calImage=null;
   st.outputOnlyPlan=null;st.expertOutputPlan=null;
   renderDSPLive();expert.refreshOutputPreview();renderFlowState();
@@ -1960,24 +1972,27 @@ if(typeof document!=='undefined') (function UI(){
    logging('CFG_AFE0-Brückenspannung noch nicht verfügbar: '+String(e.message||e));
    renderBridgeSupplyState()}
   logging('Chip-Leseantwort: AFE=0x'+h(w,2)+' ADC_S='+s);
-  // Publish the already confirmed ADC_S value immediately, even if subsequent
-  // ADC_T / ADC_TC requests are temporarily unavailable.
-  updateADC({s,t:null,tc:null},'usb');
+  checkingDSPScale=true;
   try{
-   await readADC({allowPartial:true});
-  }catch(e){
-   logging('Erster Live-Messzyklus teilweise fehlgeschlagen: '+e.message);
-   show('adcMsg','ADC_S erkannt; weitere Live-Register sind noch nicht verfügbar: '+e.message,'warn');
-  }
-  try{st.filterWords=await readFilterProfile()}
-  catch(e){logging('ADC-Filter konnte nicht gelesen werden: '+e.message)}
-  await expert.onDetect();
-  if(requireUid&&!st.uid?.hex){
-   st.chip=false;st.sensorLost=true;st.adc=null;st.dsp=null;
-   stopLive();
-   throw Error('Sensor-UID nach Registererkennung nicht bestätigt.');
-  }
-  await restoreCalibrationDisplayProfile();
+   // Publish the already confirmed ADC_S value immediately, even if subsequent
+   // ADC_T / ADC_TC requests are temporarily unavailable.
+   updateADC({s,t:null,tc:null},'usb');
+   try{
+    await readADC({allowPartial:true});
+   }catch(e){
+    logging('Erster Live-Messzyklus teilweise fehlgeschlagen: '+e.message);
+    show('adcMsg','ADC_S erkannt; weitere Live-Register sind noch nicht verfügbar: '+e.message,'warn');
+   }
+   try{st.filterWords=await readFilterProfile()}
+   catch(e){logging('ADC-Filter konnte nicht gelesen werden: '+e.message)}
+   await expert.onDetect();
+   if(requireUid&&!st.uid?.hex){
+    st.chip=false;st.sensorLost=true;st.adc=null;st.dsp=null;
+    stopLive();
+    throw Error('Sensor-UID nach Registererkennung nicht bestätigt.');
+   }
+   await restoreCalibrationDisplayProfile();
+  }finally{checkingDSPScale=false}
   renderStatus();
   show('connMsg',demoEnabled?'Demo-Sensor verbunden. Messwerte und Schreibvorgänge sind simuliert.':
    'Chip-Register über '+(st.iface==='plc'?'1-Wire':st.iface.toUpperCase())+' lesbar. ADC_S bestätigt; Live-Werte werden separat aktualisiert.','success');
@@ -4267,6 +4282,7 @@ if(typeof document!=='undefined') (function UI(){
  updateDSPOutputLimit();
  fillIntermediateReferences();refreshUnitLabels();
  $('dspDisplayConfirm').addEventListener('click',confirmDSPDisplay);
+ $('dspDisplayOpen').addEventListener('click',()=>$('dspDisplaySettings').showModal());
  renderDSPLive();
  // Config-Vorlagen: strikt auf chipunabhängige Zielwerte begrenzt, niemals NVM/Bootdaten.
  let selectedConfig=null;
@@ -5083,13 +5099,14 @@ if(typeof document!=='undefined') (function UI(){
   const nowMs=Date.now();
   const adc=online&&st.adc&&nowMs-st.adc.time<5000?st.adc:null;
   const dsp=online&&st.dsp&&nowMs-st.dsp.time<5000&&!st.dspError?st.dsp:null;
-  const configured=getActiveDSPRange();
-  const range=configured;
+  const range=getActiveDSPRange();
   const sensor=dsp&&range?range.min+(dsp.raw+range.limit)/(2*range.limit)*(range.max-range.min):null;
+  const signal=dspDisplayReading(dsp?.raw,range&&{min:0,max:100,unit:'%',limit:range.limit},checkingDSPScale);
   return {
    online,live:!!st.live,mode:st.mode,adcS:adc?.s??null,adcT:adc?.t??null,adcTC:adc?.tc??null,
    adcTime:adc?.time??null,dspRaw:dsp?.raw??null,dspTime:dsp?.time??null,
    sensorValue:Number.isFinite(sensor)?sensor:null,unit:range?.unit??null,outputLimit:range?.limit??null,
+   signalPercent:signal.value,signalEstimated:signal.estimated,
    range:range?{min:range.min,max:range.max,kind:range.kind}:null,
    gains:{...st.staged},nvmConfirmed:!!st.nvmDone,
    // These are editable desired values, NOT voltages measured on AODO.

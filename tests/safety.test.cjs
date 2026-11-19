@@ -1737,3 +1737,18 @@ test('DSP display restores arbitrary endpoints only for the matching live calibr
   assert.equal(model.calTask,false);
  }
 });
+
+test('Unknown DSP scale produces a visibly provisional full-scale percentage only for display',()=>{
+ const app=read('app.js');
+ const start=app.indexOf(' function dspDisplayReading(');
+ const end=app.indexOf(' function dspNumber(',start);
+ const reading=new Function(app.slice(start,end)+'return dspDisplayReading;')();
+ assert.deepEqual(reading(null,null,false),{value:null,unit:'',estimated:false});
+ assert.deepEqual(reading(23456,null,true),{value:null,unit:'',estimated:false});
+ assert.deepEqual(reading(16384,null,false),{value:75,unit:'%',estimated:true});
+ assert.deepEqual(reading(23456,{min:0,max:6,unit:'bar',limit:23456},true),
+  {value:6,unit:'bar',estimated:false});
+ const expert=read('expert.js');
+ assert.ok(expert.includes('return getActiveDSPRange()?.limit;'));
+ assert.ok(!expert.includes('dspDisplayReading'));
+});

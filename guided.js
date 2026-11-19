@@ -170,7 +170,6 @@ const ELMOS_GUIDED=(()=>{
   moveId('chart','gwAfeChartHost');
   for(const id of ['readNow','live','srcLabel'])moveId(id,'gwAfeLiveActions');
   moveId('adcMsg','gwAfeMessage');
-  moveId('dspDisplaySettings','gwAfeMessage');
   const pointRows=[...document.querySelectorAll('.panel[data-panel="2"] .cal-point-row')];
   if(pointRows.length!==10)throw Error('Messpunktkarten der Originalansicht haben sich geändert');
   pointRows.forEach(el=>move(el,'gwPointHost'));
@@ -624,10 +623,9 @@ const ELMOS_GUIDED=(()=>{
  function updateFinishTelemetry(){
   const api=window.ELMOS_GUIDED_API,t=api?.telemetry?.(),s=state();
   if(!t)return;
-  const good=Number.isFinite(t.dspRaw)&&t.outputLimit>0;
-  const percent=good?50*(1+t.dspRaw/t.outputLimit):null;
-  setText('gwFinishSignalValue',measurementNumber(good?percent:t.dspRaw,good?2:0));
-  setText('gwFinishSignalUnit',good?'%':t.dspRaw!==null?'Digits':'—');
+  const percent=Number.isFinite(t.signalPercent);
+  setText('gwFinishSignalValue',(t.signalEstimated?'≈':'')+measurementNumber(percent?t.signalPercent:t.dspRaw,percent?2:0));
+  setText('gwFinishSignalUnit',t.signalEstimated?'% · vorläufig':percent?'%':t.dspRaw!==null?'Digits':'—');
   setText('gwFinishDsp',measurementNumber(t.dspRaw));
   setText('gwFinishAdc',measurementNumber(t.adcS));
   setText('gwFinishTemp',measurementNumber(t.adcT));
@@ -637,7 +635,8 @@ const ELMOS_GUIDED=(()=>{
   badge.className='gw-live-badge'+(t.dspRaw!==null?' is-live':'');
   const source=$('gwFinishSource');
   source.textContent=t.dspRaw===null?'Kein aktueller DSP_S-Wert verfügbar. Bitte Verbindung und Live-Messung prüfen.':
-   !good?'DSP_S direkt aus Register 0x30.':
+   t.signalEstimated?'Vorläufiger Prozentwert aus dem digitalen Vollausschlag.':
+   !percent?'DSP_S direkt aus Register 0x30.':
    t.range?.kind==='display'?'DSP_S in Prozent anhand des eingestellten DSP-Endwerts.':
    'DSP_S in Prozent anhand des kalibrierten DSP-Endwerts.';
   $('gwFinishBar').style.width=(good?Math.max(0,Math.min(100,percent)):0).toFixed(2)+'%';
