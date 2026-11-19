@@ -1,3 +1,9 @@
+## v0.7.144 – Startfehler nach Update beheben
+
+- Alle JavaScript-Dateien der Hauptseite verwenden einen gemeinsamen Release-Cacheparameter. Ältere Expert-/Alarm-Skripte benötigen das in v0.7.143 entfernte DSP-Eingabefeld; gemischte Versionen konnten den UI-Start abbrechen.
+- USB-Zugriffe und Auto-Connect werden erst nach vollständiger Modulinitialisierung aktiviert. Ein Initialisierungsfehler wird direkt gemeldet, ohne den Port zu öffnen.
+- Die automatische 10–90-%-Erkennung und die USER-ID bleiben unverändert. Softwaretests für Cache-Konsistenz und Startfreigabe, Hardwaretest ausstehend.
+
 ## v0.7.143 – Digitale Prozentanzeige und getesteter Preview-Stand
 
 - DSP-Sensorwert in Prozent aus der verifizierten chipbezogenen Kalibrierreferenz, unabhängig von späteren Eingabefeldern.
