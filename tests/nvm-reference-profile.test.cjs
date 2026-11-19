@@ -143,7 +143,7 @@ test('Live NVM profile matching uses the entire stored image when available',()=
  const changed=savedWords.slice();changed[43]^=1; // simulates same CRC word but different calibration
  const stale=recon.referenceMetadata(changed,uid,getter);
  assert.equal(stale.savedProfile,undefined);
- assert.equal(stale.limitSource,'default');
+ assert.equal(stale.limitSource,'unknown');
 });
 test('Custom saved display units never lock pressure values as bar',()=>{
  const saved={uid,crc:0x6E91,min:0,max:100,selected:'custom',unit:'N',

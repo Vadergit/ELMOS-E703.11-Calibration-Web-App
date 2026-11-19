@@ -1,11 +1,12 @@
 'use strict';
 const test=require('node:test'),assert=require('node:assert/strict');
 const fs=require('node:fs'),path=require('node:path');
+const recon=require('../nvm-reconstruction.js');
 const source=fs.readFileSync(path.join(__dirname,'..','app.js'),'utf8');
 const start=source.indexOf('function standardPressureReference(');
 const end=source.indexOf(' function calibrationDisplayProfile',start);
 assert.ok(start>=0&&end>start);
-const {standardPressureReference,digitalPercent,chooseDisplayReference}=new Function(source.slice(start,end)+'\nreturn {standardPressureReference,digitalPercent,chooseDisplayReference};')();
+const {standardPressureReference,digitalPercent,chooseDisplayReference}=new Function('ELMOS_NVM_RECON',source.slice(start,end)+'\nreturn {standardPressureReference,digitalPercent,chooseDisplayReference};')(recon);
 const image=limit=>{const w=Array(64).fill(0);w[16]=0x12D6;w[58]=Math.round(26214.4/limit*4096);return w};
 for(const limit of [25000,30000,32000]){
  test('Round-trip 10–90% VDD with DSP ±'+limit,()=>{
@@ -30,7 +31,7 @@ test('Unknown reference does not produce percent; known profile takes precedence
 const restoreStart=source.indexOf('async function restoreCalibrationDisplayProfile(');
 const restoreEnd=source.indexOf(' function carryCalibrationDisplayProfile',restoreStart);
 assert.ok(restoreStart>=0&&restoreEnd>restoreStart);
-const simulate=new Function('words','options',source.slice(start,end)+`
+const simulate=new Function('ELMOS_NVM_RECON','words','options',source.slice(start,end)+`
  const uid='0020011DBBE7',port={},st={port,sessionIndex:1,uid:{hex:uid},chip:true,calpoints:[]};
  let sensorDisplayRange=null,standardDisplayRange=null,displayReferenceDiagnostic=null,reads=0;
  const window={ELMOS_ARCHIVE:{findDisplayCalibration:async()=>options.archive||null}},validDisplayProfile=(p,uid)=>p.uid===uid;
@@ -48,7 +49,7 @@ const simulate=new Function('words','options',source.slice(start,end)+`
  `+source.slice(restoreStart,restoreEnd)+`
  return (async()=>{const ok=await restoreCalibrationDisplayProfile(options.full?words:null);
  return {ok,standard:standardDisplayRange,profile:sensorDisplayRange,diagnostic:displayReferenceDiagnostic,reads,percent:digitalPercent(-29966,sensorDisplayRange?.range,standardDisplayRange?.reference)};})();
- `);
+ `).bind(null,recon);
 const oldSensor=()=>Object.assign(Array(64).fill(0),{0:0xBBE7,1:0x11D,16:0x13D6,34:0x4F1E,35:3,39:0x89A1,57:0,58:0xDFB,63:0x29DA});
 test('Older confirmed chip automatically shows approximate pressure without local profile',async()=>{
  const r=await simulate(oldSensor(),{});

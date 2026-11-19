@@ -50,16 +50,51 @@ const ELMOS_NVM_RECON = (() => {
   // The DSP target limit and physical °C assignment are not independent NVM
   // registers. Reuse a locally stored profile only after binding it to the
   // exact chip UID and NVM CRC; otherwise make the assumed defaults explicit.
-  function referenceMetadata(words,uid,readLocal){
+  function standardPressureReference(words){
+ if(!Array.isArray(words)||words.length!==64)return null;
+ const en=words[16],mode=(en>>9)&7;
+ if(mode<1||mode>3||!(en&(1<<6))||(en&(1<<14)))return null;
+ const gain=words[58]/4096;
+ // This app's standard fit is symmetric; reject nonzero offset and signed/invalid gain.
+ if(words[57]!==0||words[58]>=0x8000||!(gain>0))return null;
+ // Reconstruct the intended symmetric DSP target on a 100-digit grid.
+ // Keep the raw estimate for diagnostics; the grid is a project convention,
+ // not a guarantee about calibration targets of third-party sensors.
+ const inferredLimit=26214.4/gain;
+ const limit=Math.round(inferredLimit/100)*100;
+ if(!Number.isFinite(inferredLimit)||limit<1000||limit>32000)return null;
+ return {gain,offset:0,inferredLimit,limit};
+}
+function chooseDisplayReference(profile,standard){
+  if(!profile)return {useStandard:!!standard,reason:standard?'Kein passendes Abgleichprofil':'Keine Referenz'};
+  if(!standard)return {useStandard:false,reason:'Abgleichprofil; AODO-Vergleich nicht möglich'};
+  const delta=Math.abs(profile.limit-standard.limit);
+  // 100 digits tolerance covers the 100-digit reconstruction grid.
+  const useStandard=delta>100;
+  return {useStandard,delta,reason:useStandard?'Profilabweichung > 100 Digits: AODO verwendet':'Abgleichprofil plausibel (Abweichung ≤ 100 Digits)'};
+ }
+
+   const validLimit=n=>Number.isInteger(n)&&n>=1000&&n<=32000;
+   function resolveReference(words,profileLimit,allowAuto=true){
+    const comparison=standardPressureReference(words);
+    const standard=allowAuto?comparison:null;
+    const profile=validLimit(profileLimit)?{limit:profileLimit}:null;
+    const decision=chooseDisplayReference(profile,standard);
+    return {limit:decision.useStandard?standard.limit:profile?.limit??null,
+     limitSource:decision.useStandard?'aodo':profile?'local':'unknown',
+     profileLimit:profile?.limit??null,comparison,decision};
+   }
+   function referenceMetadata(words,uid,readLocal){
    if(!validWords(words))return null;
    const factoryTemp=words[31]===0&&words[32]===0x1000&&
     words[51]===0x0F4D&&words[52]===0xBC8E&&words[53]===0xFC54&&words[54]===0;
    const constantTemp=words.slice(52,55).every(w=>w===0);
-   const result={limit:32000,limitSource:'default',temperatureSource:factoryTemp?'factory':'assumed',
+   const result={limit:null,limitSource:'unknown',temperatureSource:factoryTemp?'factory':'assumed',
     factoryTemp,constantTemp};
-   const serial=hex(words[1]).slice(2)+hex(words[0]).slice(2);
+   const resolved=()=>Object.assign(result,resolveReference(words,result.limit));
+    const serial=hex(words[1]).slice(2)+hex(words[0]).slice(2);
    if(typeof uid!=='string'||!/^[0-9a-f]{12}$/i.test(uid)||uid.slice(-8).toUpperCase()!==serial||
-      typeof readLocal!=='function')return result;
+      typeof readLocal!=='function')return resolved();
    const chipUid=uid.toUpperCase();
    const safeJSON=key=>{try{const raw=readLocal(key);return raw?JSON.parse(raw):null}catch{return null}};
    const saved=safeJSON('elmos-dsp-display-by-uid-v1-'+chipUid);
@@ -77,7 +112,7 @@ const ELMOS_NVM_RECON = (() => {
     Array.isArray(last.words)&&last.words.length===64&&
     last.words.every((w,i)=>w===words[i]);
    if(exact){
-    if(result.limitSource==='default'&&Number.isInteger(last.outputTarget?.limit)&&
+    if(result.limitSource==='unknown'&&Number.isInteger(last.outputTarget?.limit)&&
        last.outputTarget.limit>=1000&&last.outputTarget.limit<=32000){
      result.limit=last.outputTarget.limit;
      result.limitSource='local';
@@ -85,7 +120,7 @@ const ELMOS_NVM_RECON = (() => {
     if(!factoryTemp&&!constantTemp&&last.temperatureBasis==='an0203-celsius-v1')
      result.temperatureSource='local';
    }
-   return result;
+   return resolved();
   }
 
  const fmt = (v, digits = 4) => finite(v)
@@ -146,7 +181,7 @@ const ELMOS_NVM_RECON = (() => {
   if(!validWords(words))return {ok:false, error:'Es werden 64 vollständige NVM-Wörter benötigt.'};
   const pmin=Number(opts.pmin??0),pmax=Number(opts.pmax??6),
    ta=Number(opts.ta??25),tb=Number(opts.tb??75),
-   vdd=Number(opts.vdd??5),limit=Number(opts.limit??32000),
+   vdd=Number(opts.vdd??5),limit=Number(opts.limit??resolveReference(words,null).limit),
     pressureUnit=['bar','mbar','kPa','psi','%'].includes(opts.pressureUnit)?opts.pressureUnit:'bar';
   const rawInputs=[opts.adcT1,opts.adcT2].map(v=>v===null||v===undefined||v===''?null:Number(v));
   if(rawInputs.some(v=>v!==null&&(!Number.isInteger(v*2)||v< -32768||v>32767)))
@@ -392,7 +427,7 @@ const ELMOS_NVM_RECON = (() => {
   if(!styleAdded){const style=dom('style');style.textContent=css;document.head.appendChild(style);styleAdded=true}
   if(!root._nvmInit){
    root._nvmInit=true;
-   root._nvmState={live:null,offline:null,preferred:'file',connected:false,busy:false,liveMeta:null,sourceKey:null,fileUid:null,limitEdited:false,reference:null,profileFile:null,profileFileError:null,profileKey:null,profileLocked:{},profileCurrent:null,profileOverride:false,sessionProfile:null,readNotice:'',readError:false,reading:false,fileName:null,fileError:null,fileNotice:'',fileKind:null,opts:{pmin:0,pmax:6,ta:25,tb:75,vdd:5,limit:32000,tempModel:'auto',pressureUnit:'bar'},last:null};
+   root._nvmState={live:null,offline:null,preferred:'file',connected:false,busy:false,liveMeta:null,sourceKey:null,fileUid:null,limitEdited:false,reference:null,profileFile:null,profileFileError:null,profileKey:null,profileLocked:{},profileCurrent:null,profileOverride:false,sessionProfile:null,readNotice:'',readError:false,reading:false,fileName:null,fileError:null,fileNotice:'',fileKind:null,opts:{pmin:0,pmax:100,ta:25,tb:75,vdd:5,limit:null,tempModel:'auto',pressureUnit:'%'},last:null};
    const heading=dom('h3','Datenquelle & Referenzen','nvmrecon-section-title');
    const detail=dom('p','NVM-Backup laden und Referenzbedingungen festlegen. Die Rückrechnung erfolgt lokal, ohne Sensorzugriff.','nvmrecon-muted nvmrecon-intro');
    const actions=dom('div',undefined,'nvmrecon-actions');
@@ -472,9 +507,9 @@ const ELMOS_NVM_RECON = (() => {
    });
    actions.appendChild(importFeedback);
    const grid=dom('div',undefined,'nvmrecon-grid');
-   const fields=[['pmin','Druck min. [bar]','0'],['pmax','Druck max. [bar]','6'],
+   const fields=[['pmin','Druck min. [%]','0'],['pmax','Druck max. [%]','100'],
     ['ta','Temperatur 1 [°C]','25'],['tb','Temperatur 2 [°C]','75'],
-    ['vdd','VDD [V]','5'],['limit','DSP-Endwert','32000']];
+    ['vdd','VDD [V]','5'],['limit','DSP-Endwert','']];
    for(const [key,title,value] of fields){
     const label=dom('label',title),input=dom('input');input.type='number';input.step=key==='limit'?'1':'any';
     input.value=value;input.dataset.key=key;label.dataset.profileKey=key;
@@ -516,7 +551,7 @@ const ELMOS_NVM_RECON = (() => {
    unlock.type='button';
    unlock.addEventListener('click',()=>{
     const st=root._nvmState;st.profileOverride=!st.profileOverride;
-    if(!st.profileOverride)st.profileKey=null;
+    if(!st.profileOverride){st.profileKey=null;st.limitEdited=false;}
     draw(root);
    });
    const sessionButton=dom('button','Aktuellen RAM-Abgleich übernehmen','nvmrecon-session-use');
@@ -576,42 +611,73 @@ const ELMOS_NVM_RECON = (() => {
   const sourceUid=selected.kind==='eeprom'?state.liveMeta?.uid:state.fileUid;
   const readLocal=key=>{try{return localStorage.getItem(key)}catch{return null}};
   const reference=words?referenceMetadata(words,sourceUid,readLocal):null;
-  const sourceKey=words?[selected.kind,sourceUid||'',words[0],words[1],words[63],selected.kind==='file'?state.fileName||'':''].join('|'):null;
+  const sourceKey=words?[selected.kind,sourceUid||'',words.join(','),selected.kind==='file'?state.fileName||'':''].join('|'):null;
   const profileModule=typeof ELMOS_NVM_PROFILE!=='undefined'?ELMOS_NVM_PROFILE:null;
-  let profile=state.profileFile||reference?.savedProfile||null;
-  if(!profile&&(state.sessionProfile?.verified||state.sessionProfile?.kind==='file'))profile=state.sessionProfile;
-  const compatibility=profile&&profileModule?
-   profileModule.match(profile,words,sourceUid):{ok:!!profile,verified:false};
-  const profileProblem=profile&&!compatibility.ok?compatibility.reason:null;
-  if(profileProblem)profile=null;
-  const profileKey=profile?JSON.stringify([sourceKey,profile.kind,profile.uid,profile.crc,profile.fields,profile.recordedAt]):null;
+  const archiveApi=typeof window!=='undefined'?window.ELMOS_ARCHIVE:null;
+  if(state.archiveKey!==sourceKey){
+   state.archiveKey=sourceKey;state.archiveProfile=null;
+   if(words&&sourceUid&&archiveApi?.findDisplayCalibration){
+    const requestedKey=sourceKey,snapshot=words.slice();
+    Promise.resolve().then(()=>archiveApi.findDisplayCalibration(sourceUid,snapshot[63])).then(saved=>{
+     if(state.archiveKey!==requestedKey||!saved||!Array.isArray(saved.nvmWords)||
+        !saved.nvmWords.every((w,i)=>w===snapshot[i])||saved.nvmWords.length!==64)return;
+     const p=profileModule?.fromSaved(saved,sourceUid,snapshot[63]);
+     if(p){state.archiveProfile={...p,name:saved.sourceFile||p.name};draw(root)}
+    }).catch(()=>{});
+   }
+  }
+  const candidates=[state.profileFile,state.archiveProfile,reference?.savedProfile,
+   selected.kind==='eeprom'&&state.sessionProfile?.verified?state.sessionProfile:null].filter(Boolean);
+  const compatibilityOf=p=>{
+   const check=profileModule?.match(p,words,sourceUid)||{ok:false,verified:false};
+   if(check.ok&&p.nvmWords&&(!words||p.nvmWords.length!==64||!p.nvmWords.every((w,i)=>w===words[i])))
+    return {ok:false,verified:false,reason:'Die 64 NVM-Wörter stimmen nicht mit dem Profil überein.'};
+   return check;
+  };
+  const profile=candidates.find(p=>compatibilityOf(p).ok&&compatibilityOf(p).verified)||
+   (state.profileFile&&compatibilityOf(state.profileFile).ok?state.profileFile:null);
+  const compatibility=profile?compatibilityOf(profile):{ok:false,verified:false};
+  const profileProblem=state.profileFile&&!compatibilityOf(state.profileFile).ok?
+   compatibilityOf(state.profileFile).reason:null;
+  const profileLimit=compatibility.verified&&validLimit(profile?.fields?.limit)?profile.fields.limit:reference?.profileLimit;
+  // Infer from the SELECTED image only; reject automatic targets for bad CRC.
+  const calibration=typeof require==='function'?require('./calibration.js'):ELMOS_CAL;
+  const crcOK=!!words&&calibration.crc8(words)===(words[15]>>>8)&&calibration.crc16(words)===words[63];
+  const canInfer=crcOK&&words[34]!==0&&words.slice(35,51).some(Boolean)&&(readLocal('elmos-dsp-auto-standard-v1')!=='0');
+  const choice=words&&crcOK?resolveReference(words,profileLimit,canInfer):null;
+  const profileKey=JSON.stringify([sourceKey,profile?.kind,profile?.uid,profile?.crc,profile?.fields,profile?.recordedAt,choice?.limit,choice?.limitSource,choice?.profileLimit]);
   if(sourceKey!==state.sourceKey||profileKey!==state.profileKey){
-   const changedSource=sourceKey!==state.sourceKey;
-   if(changedSource){state.profileOverride=false;state.sourceKey=sourceKey}
+   const changedSource=sourceKey!==state.sourceKey,oldLimit=state.opts.limit;
+   if(changedSource){state.profileOverride=false;state.limitEdited=false;state.sourceKey=sourceKey}
    state.profileKey=profileKey;
-   if(profile){
-    state.profileLocked={...profile.fields};
-    state.limitEdited=false;
-    state.profileOverride=false;
-    for(const [key,value] of Object.entries(profile.fields)){
-     if(key==='pressureUnit'){state.opts.pressureUnit=value;continue}
-     if(!['pmin','pmax','ta','tb','vdd','limit','adcT1','adcT2','tempModel'].includes(key))continue;
-     state.opts[key]=value;
-     const control=root.querySelector('[data-key="'+key+'"]');
-     if(control)control.value=String(value);
-    }
-   }else{
+   if(changedSource||!state.profileOverride){
+    // Never inherit pressure, temperature, ADC_T or VDD from another sensor/file.
+    state.opts={pmin:0,pmax:100,ta:25,tb:75,vdd:5,limit:null,tempModel:'auto',pressureUnit:'%',adcT1:null,adcT2:null};
     state.profileLocked={};
-    if(reference&&!state.limitEdited){
-     state.opts.limit=reference.limit;
-     const limitInput=root.querySelector('[data-key="limit"]');
-     if(limitInput)limitInput.value=String(reference.limit);
+    if(profile){
+     state.profileLocked={...profile.fields};
+     delete state.profileLocked.limit;
+     for(const [key,value] of Object.entries(state.profileLocked)){
+      if(!['pmin','pmax','ta','tb','vdd','adcT1','adcT2','tempModel','pressureUnit'].includes(key))continue;
+      state.opts[key]=value;
+     }
     }
-    if(changedSource)state.opts.pressureUnit='bar';
+    // Do not silently map the reconstructed percentage to a conflicting physical range.
+    if(choice?.decision?.useStandard&&choice.profileLimit!==null&&choice.decision.delta>100){
+     state.opts.pmin=0;state.opts.pmax=100;state.opts.pressureUnit='%';
+     for(const key of ['pmin','pmax','pressureUnit'])delete state.profileLocked[key];
+    }
+    state.opts.limit=state.limitEdited?oldLimit:choice?.limit??null;
+    if(!state.limitEdited&&validLimit(choice?.limit))state.profileLocked.limit=choice.limit;
+    for(const key of ['pmin','pmax','ta','tb','vdd','limit','adcT1','adcT2','tempModel']){
+     const control=root.querySelector('[data-key="'+key+'"]');
+     if(control)control.value=state.opts[key]==null?'':String(state.opts[key]);
+    }
    }
   }
   state.profileCurrent=profile;
   state.reference=reference;
+  state.referenceChoice=choice;
   // Only fields explicitly provided by a profile are read-only. All other
   // references (including default end points) remain editable.
   for(const key of ['pmin','pmax','ta','tb','vdd','limit','tempModel','adcT1','adcT2']){
@@ -662,6 +728,8 @@ const ELMOS_NVM_RECON = (() => {
    if(!profile&&state.sessionProfile?.points?.length)
     text='Ein aktueller Kalibrierablauf ist im Browser vorhanden. Solange dessen NVM nicht bestätigt ist, werden die Werte nicht automatisch dem EEPROM zugeordnet.';
    if(profile)text+=' Diese Fixwerte stammen aus dem Kalibrierprofil und sind keine separaten NVM-Register.';
+    if(choice?.decision?.useStandard&&choice.profileLimit!==null&&choice.decision.delta>100)text+=' Achtung: DSP-Profilwert widerspricht AODO. Der korrigierte DSP-Endwert wird verwendet; der physikalische Druckbereich ist erneut zu bestätigen.';
+    if(words&&!crcOK)text+=' CRC ungültig: automatische DSP-Zuordnung gesperrt.';
    if(profileProblem)text+=' '+profileProblem;
    if(state.profileFileError)text+=' Profilimport fehlgeschlagen: '+state.profileFileError;
    if(!text)text='Du kannst ein Kalibrierprotokoll oder eine Config-Vorlage laden. Ohne Profil bleiben die Referenzen bearbeitbar.';
@@ -709,11 +777,12 @@ const ELMOS_NVM_RECON = (() => {
   }
   const origin=root.querySelector('.nvmrecon-reference-hint');
   if(origin&&reference){
-   const limitText=profile&&Object.hasOwn(profile.fields,'limit')&&!state.profileOverride?
-    'DSP-Endwert: Fixwert aus '+(profile.kind==='saved'?'bestätigtem Abgleich':'geladenem Kalibrierprofil'):
-    state.limitEdited?'DSP-Endwert: manuell gewählt':
-    reference.limitSource==='local'?'DSP-Endwert: aus lokalem UID-/NVM-gebundenem Kalibrierprofil':
-    'DSP-Endwert: Standard ±32’000 · nicht im NVM gespeichert';
+   const limitText=state.limitEdited?'DSP-Endwert: manuell gewählt · unabhängig prüfen':
+    choice?.limitSource==='aodo'?'DSP-Endwert: AODO ±'+fmt(choice.comparison.inferredLimit,1)+' → ±'+choice.limit+' Digits (10–90 % VDD angenommen)'+
+     (choice.profileLimit!==null?' · Profil ±'+choice.profileLimit+' · '+choice.decision.reason:''):
+    choice?.limitSource==='local'?'DSP-Endwert: ±'+choice.limit+' Digits aus passendem Profil'+
+     (choice.comparison?' · AODO ±'+choice.comparison.limit:' · AODO-Vergleich nicht verfügbar'):
+    'DSP-Endwert unbekannt · passenden Komplettabgleich laden oder Endwert bewusst manuell eingeben';
    const tempText=profile&&Object.hasOwn(profile.fields,'tempModel')&&!state.profileOverride?
     'Temperaturmodell: aus '+(profile.kind==='saved'?'bestätigtem Abgleich':'geladenem Profil'):
     state.opts.tempModel!=='auto'?'Temperaturmodell: manuell gewählt':
@@ -748,6 +817,7 @@ const ELMOS_NVM_RECON = (() => {
     (state.connected?' · «Sensor-NVM auslesen» lädt den aktuellen Chipstand':' · ohne Sensorverbindung'),'nvmrecon-source-hint');
    status.replaceChildren(badge,name,hint);
   }
+  if(!validLimit(state.opts.limit)){state.last=null;box.appendChild(dom('p','Kein verlässlicher DSP-Endwert verfügbar. Ohne passende Referenz oder ausdrücklich eingegebenen Endwert ist keine Brückenrückrechnung möglich.','nvmrecon-error'));return}
   const r=calculate(words,state.opts);state.last=r;
   if(!r.ok){box.appendChild(dom('p',r.error,'nvmrecon-error'));return}
   const unavailable=[];
@@ -883,6 +953,6 @@ const ELMOS_NVM_RECON = (() => {
   draw(root);
   return true;
  }
- return {calculate,render,parseNvmImport,validWords,chooseSource,referenceMetadata,missingExplanations,setReadFeedback,preferLive};
+ return {calculate,render,parseNvmImport,validWords,chooseSource,referenceMetadata,standardPressureReference,chooseDisplayReference,resolveReference,missingExplanations,setReadFeedback,preferLive};
 })();
 if(typeof module!=='undefined'&&module.exports)module.exports=ELMOS_NVM_RECON;
