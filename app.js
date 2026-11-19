@@ -79,6 +79,8 @@ if(typeof document!=='undefined') (function UI(){
  const REG_NAMES={4:'CFG_EN',6:'CFG_SPI_I2C',8:'CFG_PADS0',10:'CFG_PADS1',12:'CFG_PADS2',16:'CFG_AODO',0x14:'CFG_ADC',0x16:'CFG_LP0',0x18:'CFG_LP1',0x1A:'CFG_AFE0',0x1C:'CFG_AFE1',0x1E:'CFG_AFE2',0x26:'ADC_TC',0x28:'ADC_T',0x2A:'ADC_S'};
  const st={chipDiag:null,diagRunning:false,lastPlcReply:null,mode:'offline',port:null,closing:false,reader:null,readerPromise:null,readerAlive:false,adapterNoReply:false,sessionStartedAt:null,sessionIndex:0,cmdQueue:Promise.resolve(),replyBuffer:'',responseWait:null,iface:'plc',adapterKind:'ssp3',sensorPowerEnabled:false,startupRunning:false,startupAbort:false,startupAttempts:0,magicRunning:false,magicResult:null,powerCycleRunning:false,powerCycleResult:null,startupTrials:[],powerHelp:null,plcHostFormat:'legacy',plcAddress:0x6C,plcAddressVerified:false,plcAddressSource:'',plcAddressProbes:[],firmware:'',chip:false,readOnlySensor:null,sensorLost:false,reinitRunning:false,boot:null,afe:null,afe0:null,bridgeWriteAllowed:false,bridgeReadBusy:false,staged:{pga1:0,pga2:0,offset:0},adc:null,dsp:null,dspError:null,dspT:null,dspTError:null,liveReadPromise:null,trend:[],history:[],log:[],regs:{},points:{lo:null,hi:null},verify:null,live:false,manualLivePause:false,timeout:null,consecutiveErrors:0,liveReadAttempts:0,liveReadSuccesses:0,liveLastError:null,liveLastAttemptAt:null,measurementPeriod:null,measurementStatus:null,measurementError:null,measurementStarts:0,measurementFreshCount:0,measurementLastChangedAt:null,writing:false,pressure:5,calpoints:[],calfit:null,calImage:null,nvmBackup:null,nvmBackupVerified:false,calStaged:false,calVerified:false,calValidation:[],calTask:false,testLogging:false,nvmWorking:false,nvmAttempting:false,nvmRechecking:false,nvmDone:false,afeWriteActive:false,ramWriteScope:null,uid:null,expertOutputPlan:null,restorePlan:null,outputOnlyPlan:null,uidShownForInput:null,profilePendingAFE:null,referenceTemplate:null};
  let currentStep=0,pendingGain=null,writeTimer=null;
+ // USB must never open if a dependent UI module failed during startup.
+ let expert=null,uiReady=false;
  let homeNavigationAbortRequested=false;let tipEnabled=true,liveIntervalMs=250;
  // Optional faster live mode: serial requests only, with automatic pacing backoff.
  const livePacing=typeof ELMOS_LIVE_POLLING!=='undefined'?ELMOS_LIVE_POLLING.create():null;
@@ -102,7 +104,7 @@ if(typeof document!=='undefined') (function UI(){
  let autoPortInfo=null;
  function cancelAutoReconnect(){clearTimeout(autoReconnectTimer);autoReconnectTimer=null}
  function mayAutoReconnect(){
-  return autoReconnectEnabled&&!autoReconnectSuppressed&&!demoEnabled&&webSerialAvailable();
+  return uiReady&&autoReconnectEnabled&&!autoReconnectSuppressed&&!demoEnabled&&webSerialAvailable();
  }
  function autoReconnectBlocked(){
   return st.closing||st.reinitRunning||st.startupRunning||st.magicRunning||
@@ -1343,6 +1345,7 @@ if(typeof document!=='undefined') (function UI(){
    old.reason||'AODO stimmt nicht mit den DSP-Endpunkten überein'};
  }
  function renderFlowState(){
+  if(!expert||!uiReady)return; // initial UI rendering must not use incomplete module APIs
   ELMOS_ALARM_EDITOR.refresh();
   const outputPreflight=outputScalingPreflight();
   for(const id of ['outputScalingAdvisory','nvmOutputAdvisory']){
@@ -2698,6 +2701,7 @@ if(typeof document!=='undefined') (function UI(){
   scheduleAutoReconnect();
  }
  async function reinitializeSensor(){
+  if(!uiReady)return show('connMsg','Softwareinitialisierung nicht abgeschlossen. Seite vollständig neu laden.','error');
   return withProgress('Sensor wird initialisiert',()=>reinitializeSensorOperation(),true);
  }
  async function reinitializeSensorOperation(){
@@ -2787,6 +2791,7 @@ if(typeof document!=='undefined') (function UI(){
   }
  }
  async function connect(port){
+  if(!uiReady)throw Error('Softwareinitialisierung nicht abgeschlossen. Seite vollständig neu laden.');
   return withProgress('Verbindung wird aufgebaut',()=>connectOperation(port),true);
  }
  async function connectOperation(port){
@@ -2932,6 +2937,7 @@ if(typeof document!=='undefined') (function UI(){
   return `USB-Verbindung nicht hergestellt (${serialPortInfo(port)}): ${original}`;
  }
  async function choose(){
+  if(!uiReady)return show('connMsg','Softwareinitialisierung nicht abgeschlossen. Seite vollständig neu laden.','error');
   if(demoEnabled)return;
   if(!webSerialAvailable())return show('connMsg',webSerialMessage(),'warn');
   let port;
@@ -2940,6 +2946,7 @@ if(typeof document!=='undefined') (function UI(){
   try{await connect(port)}catch(e){logging('USB öffnen: '+String(e));show('connMsg',serialOpenError(e,port),'error')}
  }
  async function auto(){
+  if(!uiReady)return;
   if(demoEnabled)return;
   if(!webSerialAvailable())return show('connMsg',webSerialMessage(),'warn');
   let port;
@@ -5211,10 +5218,16 @@ if(typeof document!=='undefined') (function UI(){
    }
    if(!st.port&&reconnectSsp3OnUsb)await auto();
   });
-  setTimeout(()=>auto().catch(()=>{}),350);
  }
- const expert=ELMOS_EXPERT.init({st,CAL,readReg,nvmScan,download,show,stopLive,startLive,lsGet,lsSet,renderFlowState,verificationComplete,withProgress,getActiveDSPRange});
- const alarmEditor=ELMOS_ALARM_EDITOR.init({st,CAL,hasCurrentNvmBackup,applyAlarmRam,renderFlowState,show,nvmTransportSupported,getActiveDSPRange});
+ try{
+  expert=ELMOS_EXPERT.init({st,CAL,readReg,nvmScan,download,show,stopLive,startLive,lsGet,lsSet,renderFlowState,verificationComplete,withProgress,getActiveDSPRange});
+  ELMOS_ALARM_EDITOR.init({st,CAL,hasCurrentNvmBackup,applyAlarmRam,renderFlowState,show,nvmTransportSupported,getActiveDSPRange});
+ }catch(error){
+  show('connMsg','Softwareinitialisierung fehlgeschlagen: '+error.message+' · Bitte Seite vollständig neu laden (Ctrl+F5). USB wurde nicht geöffnet.','error');
+  for(const id of ['choose','auto','sensorReconnectButton','nvmProgram'])$(id).disabled=true;
+  console.error('ELMOS UI initialization:',error);
+  return;
+ }
  // Read-only guide bridge: uses the same ADC/DSP samples as the classic UI.
  function guidedTelemetry(){
   const online=!!(st.port&&st.chip);
@@ -5564,5 +5577,17 @@ if(typeof document!=='undefined') (function UI(){
 
  });
  $('operationProgressDialog').addEventListener('cancel',event=>event.preventDefault());
- gainSummary();renderStatus();step(location.hash==='#nvm-rechner'?10:0);window.addEventListener('resize',draw);
+ try{
+  gainSummary();
+  uiReady=true;
+  renderStatus();step(location.hash==='#nvm-rechner'?10:0);window.addEventListener('resize',draw);
+ }catch(error){
+  uiReady=false;
+  show('connMsg','Softwareinitialisierung fehlgeschlagen: '+error.message+' · Bitte Seite vollständig neu laden (Ctrl+F5). USB wurde nicht geöffnet.','error');
+  for(const id of ['choose','auto','sensorReconnectButton','nvmProgram'])$(id).disabled=true;
+  console.error('ELMOS UI initialization:',error);
+  return;
+ }
+ // Start automatic USB access only after all modules and the initial UI are ready.
+ if(!demoEnabled&&webSerialAvailable())setTimeout(()=>auto().catch(()=>{}),350);
 })();
