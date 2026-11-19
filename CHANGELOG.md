@@ -1,3 +1,8 @@
+## v0.7.150 – DSP-Warnung mit direkter Neuberechnung
+
+- Der Button übernimmt den vorgeschlagenen DSP-Endwert und berechnet die Koeffizienten unmittelbar anhand der bereits erfassten Messpunkte neu. Geführter und klassischer Modus werden unterstützt.
+- RAM-Übertragung, unabhängige DSP-Prüfung und NVM-Programmierung bleiben separate Schritte. Fünf simulierte Prüfungen des Button-Ablaufs bestanden; Browser-/Hardwaretest ausstehend.
+
 ## v0.7.149 – DSP-Referenz im Sensorbrücken-Rechner korrigiert
 
 - Live-Anzeige und Sensorbrücken-Rechner verwenden dieselbe DSP-Endwert-Erkennung und dieselbe 100-Digit-Plausibilitätsgrenze. Bei bekannter 10–90-%-VDD-Kennlinie erfolgt die Rückrechnung aus AODO_F auf das 100-Digit-Raster.
