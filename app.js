@@ -3396,7 +3396,7 @@ if(typeof document!=='undefined') (function UI(){
    candidate<Number($('calDspLimit').value);
   apply.hidden=!canApply;
   apply.dataset.suggestedLimit=canApply?String(candidate):'';
-  if(canApply)apply.textContent='DSP-Endwert ±'+fmt(candidate)+' einsetzen';
+  if(canApply)apply.textContent='DSP-Endwert ±'+fmt(candidate)+' einsetzen und Koeffizienten berechnen';
   // RAM staging may still be inside the blocking operation dialog. Show this
   // modal only after that operation has closed, never behind another dialog.
   const openWhenReady=()=>{
@@ -4449,6 +4449,7 @@ if(typeof document!=='undefined') (function UI(){
  $('calDspLimit').addEventListener('input',()=>{$('calDspProposal').hidden=true;$('calDspLimit').dataset.userEdited='1';updateDSPOutputLimit();});
  $('dspRiskDismiss').addEventListener('click',()=>$('dspRiskDialog').close());
  $('dspRiskApplyLimit').addEventListener('click',()=>{
+  if(st.calTask||st.writing||st.nvmWorking)return;
   const proposed=Number($('dspRiskApplyLimit').dataset.suggestedLimit);
   if(!Number.isInteger(proposed)||proposed<1000||proposed>32000||
      proposed>=Number($('calDspLimit').value))return;
@@ -4460,6 +4461,7 @@ if(typeof document!=='undefined') (function UI(){
   $('calDspLimit').dispatchEvent(new Event('change',{bubbles:true}));
   if(window.ELMOS_GUIDED?.isOpen?.())window.ELMOS_GUIDED.goToCoefficients?.();
   else step(3);
+  calcCoefficients();
   $('calDspLimit').focus({preventScroll:true});
  });
  $('calDspProposalApply').addEventListener('click',()=>{
