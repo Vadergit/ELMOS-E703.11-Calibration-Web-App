@@ -427,7 +427,7 @@ function chooseDisplayReference(profile,standard){
   if(!styleAdded){const style=dom('style');style.textContent=css;document.head.appendChild(style);styleAdded=true}
   if(!root._nvmInit){
    root._nvmInit=true;
-   root._nvmState={live:null,offline:null,preferred:'file',connected:false,busy:false,liveMeta:null,sourceKey:null,fileUid:null,limitEdited:false,reference:null,profileFile:null,profileFileError:null,profileKey:null,profileLocked:{},profileCurrent:null,profileOverride:false,sessionProfile:null,readNotice:'',readError:false,reading:false,fileName:null,fileError:null,fileNotice:'',fileKind:null,opts:{pmin:0,pmax:6,ta:25,tb:75,vdd:5,limit:32000,tempModel:'auto',pressureUnit:'bar'},last:null};
+   root._nvmState={live:null,offline:null,preferred:'file',connected:false,busy:false,liveMeta:null,sourceKey:null,fileUid:null,limitEdited:false,reference:null,profileFile:null,profileFileError:null,profileKey:null,profileLocked:{},profileCurrent:null,profileOverride:false,sessionProfile:null,readNotice:'',readError:false,reading:false,fileName:null,fileError:null,fileNotice:'',fileKind:null,opts:{pmin:0,pmax:100,ta:25,tb:75,vdd:5,limit:null,tempModel:'auto',pressureUnit:'%'},last:null};
    const heading=dom('h3','Datenquelle & Referenzen','nvmrecon-section-title');
    const detail=dom('p','NVM-Backup laden und Referenzbedingungen festlegen. Die Rückrechnung erfolgt lokal, ohne Sensorzugriff.','nvmrecon-muted nvmrecon-intro');
    const actions=dom('div',undefined,'nvmrecon-actions');
@@ -507,9 +507,9 @@ function chooseDisplayReference(profile,standard){
    });
    actions.appendChild(importFeedback);
    const grid=dom('div',undefined,'nvmrecon-grid');
-   const fields=[['pmin','Druck min. [bar]','0'],['pmax','Druck max. [bar]','6'],
+   const fields=[['pmin','Druck min. [%]','0'],['pmax','Druck max. [%]','100'],
     ['ta','Temperatur 1 [°C]','25'],['tb','Temperatur 2 [°C]','75'],
-    ['vdd','VDD [V]','5'],['limit','DSP-Endwert','32000']];
+    ['vdd','VDD [V]','5'],['limit','DSP-Endwert','']];
    for(const [key,title,value] of fields){
     const label=dom('label',title),input=dom('input');input.type='number';input.step=key==='limit'?'1':'any';
     input.value=value;input.dataset.key=key;label.dataset.profileKey=key;
@@ -611,42 +611,73 @@ function chooseDisplayReference(profile,standard){
   const sourceUid=selected.kind==='eeprom'?state.liveMeta?.uid:state.fileUid;
   const readLocal=key=>{try{return localStorage.getItem(key)}catch{return null}};
   const reference=words?referenceMetadata(words,sourceUid,readLocal):null;
-  const sourceKey=words?[selected.kind,sourceUid||'',words[0],words[1],words[63],selected.kind==='file'?state.fileName||'':''].join('|'):null;
+  const sourceKey=words?[selected.kind,sourceUid||'',words.join(','),selected.kind==='file'?state.fileName||'':''].join('|'):null;
   const profileModule=typeof ELMOS_NVM_PROFILE!=='undefined'?ELMOS_NVM_PROFILE:null;
-  let profile=state.profileFile||reference?.savedProfile||null;
-  if(!profile&&(state.sessionProfile?.verified||state.sessionProfile?.kind==='file'))profile=state.sessionProfile;
-  const compatibility=profile&&profileModule?
-   profileModule.match(profile,words,sourceUid):{ok:!!profile,verified:false};
-  const profileProblem=profile&&!compatibility.ok?compatibility.reason:null;
-  if(profileProblem)profile=null;
-  const profileKey=profile?JSON.stringify([sourceKey,profile.kind,profile.uid,profile.crc,profile.fields,profile.recordedAt]):null;
+  const archiveApi=typeof window!=='undefined'?window.ELMOS_ARCHIVE:null;
+  if(state.archiveKey!==sourceKey){
+   state.archiveKey=sourceKey;state.archiveProfile=null;
+   if(words&&sourceUid&&archiveApi?.findDisplayCalibration){
+    const requestedKey=sourceKey,snapshot=words.slice();
+    Promise.resolve().then(()=>archiveApi.findDisplayCalibration(sourceUid,snapshot[63])).then(saved=>{
+     if(state.archiveKey!==requestedKey||!saved||!Array.isArray(saved.nvmWords)||
+        !saved.nvmWords.every((w,i)=>w===snapshot[i])||saved.nvmWords.length!==64)return;
+     const p=profileModule?.fromSaved(saved,sourceUid,snapshot[63]);
+     if(p){state.archiveProfile={...p,name:saved.sourceFile||p.name};draw(root)}
+    }).catch(()=>{});
+   }
+  }
+  const candidates=[state.profileFile,state.archiveProfile,reference?.savedProfile,
+   selected.kind==='eeprom'&&state.sessionProfile?.verified?state.sessionProfile:null].filter(Boolean);
+  const compatibilityOf=p=>{
+   const check=profileModule?.match(p,words,sourceUid)||{ok:false,verified:false};
+   if(check.ok&&p.nvmWords&&(!words||p.nvmWords.length!==64||!p.nvmWords.every((w,i)=>w===words[i])))
+    return {ok:false,verified:false,reason:'Die 64 NVM-Wörter stimmen nicht mit dem Profil überein.'};
+   return check;
+  };
+  const profile=candidates.find(p=>compatibilityOf(p).ok&&compatibilityOf(p).verified)||
+   (state.profileFile&&compatibilityOf(state.profileFile).ok?state.profileFile:null);
+  const compatibility=profile?compatibilityOf(profile):{ok:false,verified:false};
+  const profileProblem=state.profileFile&&!compatibilityOf(state.profileFile).ok?
+   compatibilityOf(state.profileFile).reason:null;
+  const profileLimit=compatibility.verified&&validLimit(profile?.fields?.limit)?profile.fields.limit:reference?.profileLimit;
+  // Infer from the SELECTED image only; reject automatic targets for bad CRC.
+  const calibration=typeof require==='function'?require('./calibration.js'):ELMOS_CAL;
+  const crcOK=!!words&&calibration.crc8(words)===(words[15]>>>8)&&calibration.crc16(words)===words[63];
+  const canInfer=crcOK&&(readLocal('elmos-dsp-auto-standard-v1')!=='0');
+  const choice=words&&crcOK?resolveReference(words,profileLimit,canInfer):null;
+  const profileKey=JSON.stringify([sourceKey,profile?.kind,profile?.uid,profile?.crc,profile?.fields,profile?.recordedAt,choice?.limit,choice?.limitSource]);
   if(sourceKey!==state.sourceKey||profileKey!==state.profileKey){
-   const changedSource=sourceKey!==state.sourceKey;
-   if(changedSource){state.profileOverride=false;state.sourceKey=sourceKey}
+   const changedSource=sourceKey!==state.sourceKey,oldLimit=state.opts.limit;
+   if(changedSource){state.profileOverride=false;state.limitEdited=false;state.sourceKey=sourceKey}
    state.profileKey=profileKey;
-   if(profile){
-    state.profileLocked={...profile.fields};
-    state.limitEdited=false;
-    state.profileOverride=false;
-    for(const [key,value] of Object.entries(profile.fields)){
-     if(key==='pressureUnit'){state.opts.pressureUnit=value;continue}
-     if(!['pmin','pmax','ta','tb','vdd','limit','adcT1','adcT2','tempModel'].includes(key))continue;
-     state.opts[key]=value;
-     const control=root.querySelector('[data-key="'+key+'"]');
-     if(control)control.value=String(value);
-    }
-   }else{
+   if(changedSource||!state.profileOverride){
+    // Never inherit pressure, temperature, ADC_T or VDD from another sensor/file.
+    state.opts={pmin:0,pmax:100,ta:25,tb:75,vdd:5,limit:null,tempModel:'auto',pressureUnit:'%',adcT1:null,adcT2:null};
     state.profileLocked={};
-    if(reference&&!state.limitEdited){
-     state.opts.limit=reference.limit;
-     const limitInput=root.querySelector('[data-key="limit"]');
-     if(limitInput)limitInput.value=String(reference.limit);
+    if(profile){
+     state.profileLocked={...profile.fields};
+     delete state.profileLocked.limit;
+     for(const [key,value] of Object.entries(state.profileLocked)){
+      if(!['pmin','pmax','ta','tb','vdd','adcT1','adcT2','tempModel','pressureUnit'].includes(key))continue;
+      state.opts[key]=value;
+     }
     }
-    if(changedSource)state.opts.pressureUnit='bar';
+    // Do not silently map the reconstructed percentage to a conflicting physical range.
+    if(choice?.decision?.useStandard&&choice.profileLimit!==null&&choice.decision.delta>100){
+     state.opts.pmin=0;state.opts.pmax=100;state.opts.pressureUnit='%';
+     for(const key of ['pmin','pmax','pressureUnit'])delete state.profileLocked[key];
+    }
+    state.opts.limit=state.limitEdited?oldLimit:choice?.limit??null;
+    if(!state.limitEdited&&validLimit(choice?.limit))state.profileLocked.limit=choice.limit;
+    for(const key of ['pmin','pmax','ta','tb','vdd','limit','adcT1','adcT2','tempModel']){
+     const control=root.querySelector('[data-key="'+key+'"]');
+     if(control)control.value=state.opts[key]==null?'':String(state.opts[key]);
+    }
    }
   }
   state.profileCurrent=profile;
   state.reference=reference;
+  state.referenceChoice=choice;
   // Only fields explicitly provided by a profile are read-only. All other
   // references (including default end points) remain editable.
   for(const key of ['pmin','pmax','ta','tb','vdd','limit','tempModel','adcT1','adcT2']){
@@ -744,11 +775,12 @@ function chooseDisplayReference(profile,standard){
   }
   const origin=root.querySelector('.nvmrecon-reference-hint');
   if(origin&&reference){
-   const limitText=profile&&Object.hasOwn(profile.fields,'limit')&&!state.profileOverride?
-    'DSP-Endwert: Fixwert aus '+(profile.kind==='saved'?'bestätigtem Abgleich':'geladenem Kalibrierprofil'):
-    state.limitEdited?'DSP-Endwert: manuell gewählt':
-    reference.limitSource==='local'?'DSP-Endwert: aus lokalem UID-/NVM-gebundenem Kalibrierprofil':
-    'DSP-Endwert: Standard ±32’000 · nicht im NVM gespeichert';
+   const limitText=state.limitEdited?'DSP-Endwert: manuell gewählt · unabhängig prüfen':
+    choice?.limitSource==='aodo'?'DSP-Endwert: AODO ±'+fmt(choice.comparison.inferredLimit,1)+' → ±'+choice.limit+' Digits (10–90 % VDD angenommen)'+
+     (choice.profileLimit!==null?' · Profil ±'+choice.profileLimit+' · '+choice.decision.reason:''):
+    choice?.limitSource==='local'?'DSP-Endwert: ±'+choice.limit+' Digits aus passendem Profil'+
+     (choice.comparison?' · AODO ±'+choice.comparison.limit:' · AODO-Vergleich nicht verfügbar'):
+    'DSP-Endwert unbekannt · passenden Komplettabgleich laden oder Endwert bewusst manuell eingeben';
    const tempText=profile&&Object.hasOwn(profile.fields,'tempModel')&&!state.profileOverride?
     'Temperaturmodell: aus '+(profile.kind==='saved'?'bestätigtem Abgleich':'geladenem Profil'):
     state.opts.tempModel!=='auto'?'Temperaturmodell: manuell gewählt':
@@ -783,6 +815,7 @@ function chooseDisplayReference(profile,standard){
     (state.connected?' · «Sensor-NVM auslesen» lädt den aktuellen Chipstand':' · ohne Sensorverbindung'),'nvmrecon-source-hint');
    status.replaceChildren(badge,name,hint);
   }
+  if(!validLimit(state.opts.limit)){state.last=null;box.appendChild(dom('p','Kein verlässlicher DSP-Endwert verfügbar. Ohne passende Referenz oder ausdrücklich eingegebenen Endwert ist keine Brückenrückrechnung möglich.','nvmrecon-error'));return}
   const r=calculate(words,state.opts);state.last=r;
   if(!r.ok){box.appendChild(dom('p',r.error,'nvmrecon-error'));return}
   const unavailable=[];
