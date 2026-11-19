@@ -163,6 +163,7 @@ const ELMOS_TEST_LOGGER=(()=>{
    'ADC_S '+number(last.aggregated?.channels?.adcS??last.samples?.at(-1)?.adcS)+
     ' · ADC_T '+number(last.aggregated?.channels?.adcT??last.samples?.at(-1)?.adcT)+
     ' · DSP_S '+number(last.aggregated?.channels?.dspS??last.samples?.at(-1)?.dspS)+
+    ' · Sensor '+(Number.isFinite(last.aggregated?.channels?.sensorPercent??last.samples?.at(-1)?.sensorPercent)?number(last.aggregated?.channels?.sensorPercent??last.samples?.at(-1)?.sensorPercent)+' %':'—')+
     ' · '+Math.round(last.durationMs)+' ms Messdauer':'Noch kein Messpunkt aufgenommen');
   text('tlPause',S.paused?'Aufzeichnung fortsetzen':'Pausieren');
   drawRecentPoints();
@@ -271,11 +272,11 @@ const ELMOS_TEST_LOGGER=(()=>{
     intervalMs:S.settings.intervalMs,sampleSpacingMs:S.settings.sampleSpacingMs,
     aggregation:S.settings.aggregation,
     samples:raw.samples,errors:raw.errors,
-    aggregated:C.aggregate(raw.samples,S.settings.aggregation),
+    aggregated:C.aggregate(raw.samples,S.settings.aggregation),dspReference:raw.dspReference,
     // Raw readout and provenance from the bridge are preserved alongside the individual samples.
     sensorSnapshot:{adcS:raw.adcS,adcT:raw.adcT,adcTC:raw.adcTC,dspS:raw.dspS,dspT:raw.dspT,
-     statusSync:raw.statusSync,sensorPressure:raw.sensorPressure,
-     pressureUnit:raw.pressureUnit,pressureConversion:raw.pressureConversion,
+     statusSync:raw.statusSync,sensorPercent:raw.sensorPercent,sensorValue:raw.sensorValue,sensorUnit:raw.sensorUnit,
+     sensorPressure:raw.sensorPressure,pressureUnit:raw.pressureUnit,pressureConversion:raw.pressureConversion,pressureConversionKind:raw.pressureConversionKind,
      temperatureConversion:raw.temperatureConversion,
      AFE:raw.AFE,ramAFE0:raw.ramAFE0,ramAFE1:raw.ramAFE1,nvmCrc:raw.currentNvmCrc},
     supply:raw.supply,reference:{...S.reference}};

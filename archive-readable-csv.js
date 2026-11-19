@@ -116,12 +116,14 @@ const ELMOS_READABLE_CSV=(()=>{
   const showSamples=sampleCounts.length>1;
   const showReview=cfg.toleranceEnabled===true||entries.some(x=>x.event?.data?.toleranceApplied===true);
   const showPending=entries.some(x=>!x.event);
+  const showDigital=entries.some(x=>x.event?.data?.sample?.dspReference||finite(x.event?.data?.sample?.sensorPercent));
   const headers=['Nr.'];
   if(pMode){
    headers.push(hasDifferentTargets?'Soll ['+unit+']':'Referenz ['+unit+']');
    if(hasDifferentTargets)headers.push('Referenz ['+unit+']');
    if(hasPressureCorrection)headers.push('Sensorbezug ['+unit+']');
    headers.push('Sensor ['+unit+']','Abw. ['+unit+']','Abw. [% FS]');
+   if(showDigital)headers.push('Sensor [%]','DSP_S [Digits]','DSP-Endwert [Digits]','DSP-Quelle','NVM CRC');
   }
   if(tMode)headers.push('Ref. Temp. [°C]','Sensor Temp. [°C]','Abw. Temp. [°C]');
   else if(hasTemp)headers.push('Temperatur [°C]');
@@ -138,7 +140,7 @@ const ELMOS_READABLE_CSV=(()=>{
    const ref=pressureTarget(x);
    const observed=physical(s,unit);
    const saved=finite(d.pressureError)?d.pressureError:null;
-   const diff=saved!==null?saved:finite(ref)&&finite(observed)?observed-ref:null;
+   const diff=saved!==null?saved:!s.dspReference&&finite(ref)&&finite(observed)?observed-ref:null;
    const fs=finite(diff)&&finite(span)&&span>0?diff/span*100:null;
    const row=[x.index+1];
    if(pMode){
@@ -146,6 +148,7 @@ const ELMOS_READABLE_CSV=(()=>{
     if(hasDifferentTargets)row.push(number(ref));
     if(hasPressureCorrection)row.push(number(finite(d.referencePressure)?d.referencePressure:ref));
     row.push(number(observed),number(diff),number(fs,5));
+    if(showDigital)row.push(number(s.sensorPercent),number(s.dspS),number(s.dspReference?.limit,0),s.dspReference?.source||'',s.dspReference?.crc??'');
    }
    const temp=finite(d.referenceTemperature)?d.referenceTemperature:x.step?.temperature;
    if(tMode){
@@ -193,17 +196,20 @@ const ELMOS_READABLE_CSV=(()=>{
   const channels=['adcS','adcT','adcTC','dspS','dspT'];
   const selected=channels.filter(key=>rows.some(row=>finite(pointChannel(row,key))||
    row.samples?.some(s=>finite(s[key]))));
-  const hasPressure=rows.some(p=>finite(p.sensorSnapshot?.sensorPressure));
+  const hasPressure=rows.some(p=>finite(pointChannel(p,'sensorPressure')));
+  const hasDigital=rows.some(p=>p.dspReference||finite(pointChannel(p,'sensorPercent')));
   const hasReference=rows.some(p=>finite(p.reference?.pressure));
   const unit=rows.find(p=>p.sensorSnapshot?.pressureUnit)?.sensorSnapshot?.pressureUnit||'';
   const channelLabel={adcS:'ADC_S',adcT:'ADC_T',adcTC:'ADC_TC',dspS:'DSP_S',dspT:'DSP_T'};
   const headings=['Nr.','Zeit','Samples',...selected.map(key=>channelLabel[key]+' [Digits]')];
   if(hasPressure)headings.push('Sensordruck'+(unit?' ['+unit+']':''));
+  if(hasDigital)headings.push('Sensor [%]','DSP-Endwert [Digits]','DSP-Quelle','AODO_F','AODO_O','NVM CRC');
   if(hasReference)headings.push('Referenzdruck'+(unit?' ['+unit+']':''));
   const data=rows.map((p,i)=>{
    const row=[p.index??i+1,clock(p.endedAt||p.startedAt),p.samples?.length||0,
     ...selected.map(key=>number(pointChannel(p,key),3))];
-   if(hasPressure)row.push(number(p.sensorSnapshot?.sensorPressure));
+   if(hasPressure)row.push(number(pointChannel(p,'sensorPressure')));
+   if(hasDigital)row.push(number(pointChannel(p,'sensorPercent')),number(p.dspReference?.limit,0),p.dspReference?.source||'',number(p.dspReference?.aodo?.gain,9),number(p.dspReference?.aodo?.offset,9),p.dspReference?.crc??'');
    if(hasReference)row.push(number(p.reference?.pressure));
    return row;
   });

@@ -515,7 +515,7 @@ if(typeof document!=='undefined') (function UI(){
  return {gain,offset:0,inferredLimit,limit};
 }
  function digitalPercent(raw,range,standard){
- if(!Number.isInteger(raw)||raw< -32768||raw>32767)return null;
+ if(!Number.isFinite(raw)||raw< -32768||raw>32767)return null; // medians/means may contain fractional digits
  if(range&&Number.isFinite(range.limit)&&range.limit>0)
   return {value:(raw+range.limit)/(2*range.limit)*100,source:range.kind};
  if(standard&&Number.isInteger(standard.limit)&&standard.limit>=1000&&standard.limit<=32000)
@@ -605,9 +605,9 @@ if(typeof document!=='undefined') (function UI(){
   const ownsTask=!verifiedWords;
   if(ownsTask&&(st.calTask||st.writing||st.nvmWorking))return false;
   if(st.port!==port||st.sessionIndex!==session||st.uid?.hex!==uid||!st.chip||st.closing)return false;
-  let p,isStandard=false,automatic=false,partialAuto=false,comparison=null,decision=null,profileCandidate=null;
+  let p,isStandard=false,automatic=false,partialAuto=false,comparison=null,decision=null,profileCandidate=null,crc;
   try{
-   let crc=verifiedWords?.[63];
+   crc=verifiedWords?.[63];
    if(ownsTask){
     // CM_CMD.0x4C only reads NVM. Use the same scoped access as a backup.
     st.calTask=true;st.ramWriteScope='display-profile';
@@ -687,7 +687,7 @@ if(typeof document!=='undefined') (function UI(){
    }
   }
   if(st.port!==port||st.sessionIndex!==session||st.uid?.hex!==uid||!st.chip||st.closing)return false;
-  displayReferenceDiagnostic={port,session,uid,profileLimit:profileCandidate?.limit??local?.limit??null,
+  displayReferenceDiagnostic={port,session,uid,crc,profileLimit:profileCandidate?.limit??local?.limit??null,
    profileSource:profileCandidate?.sourceFile||(profileCandidate?'Browserprofil':local?'Veraltetes Browserprofil':null),
    comparison,decision:decision?.reason||'',delta:decision?.delta??null};
   if(isStandard){
@@ -720,6 +720,31 @@ if(typeof document!=='undefined') (function UI(){
   if(st.chip&&st.uid?.hex&&profile?.port===st.port&&profile.session===st.sessionIndex&&profile.uid===st.uid.hex)
    return profile.range;
   return null;
+ }
+ // One measurement reference for all consumers. Keep getActiveDSPRange restricted
+ // to verified calibration profiles for write gates and physical-unit inference.
+ function effectiveMeasurementReference(){
+  const range=getActiveDSPRange(),standard=activeStandardReference();
+  const d=displayReferenceDiagnostic;
+  const diagnostic=d?.port===st.port&&d?.session===st.sessionIndex&&d?.uid===st.uid?.hex&&!st.calStaged?d:null;
+  const aodo=diagnostic?.comparison||standard;
+  const source=range?.kind||(standard?'standard':null);
+  return {source,limit:range?.limit??standard?.limit??null,
+   physicalRange:range&&range.unit!=='%'?{min:range.min,max:range.max,unit:range.unit}:null,
+   range:range?{...range}:null,standard:standard?{...standard}:null,
+   aodo:aodo?{gain:aodo.gain,offset:aodo.offset,inferredLimit:aodo.inferredLimit,limit:aodo.limit}:null,
+   uid:st.uid?.hex??null,session:st.sessionIndex,
+   crc:source==='ram'?null:diagnostic?.crc??(hasCurrentNvmBackup()?st.nvmBackup[63]:null),
+   profileSource:diagnostic?.profileSource??null,profileLimit:diagnostic?.profileLimit??null,
+   assumedStandard:source==='standard'};
+ }
+ function measurementValue(raw,ref){
+  const percent=digitalPercent(raw,ref.range,ref.standard);
+  const p=percent?.value??null,r=ref.physicalRange;
+  const physical=Number.isFinite(p)&&r?r.min+(r.max-r.min)*p/100:null;
+  return {sensorPercent:p,sensorValue:p,sensorUnit:p===null?null:'%',
+   sensorPressure:physical,pressureUnit:Number.isFinite(physical)?r.unit:null,
+   pressureConversionKind:percent?.source??null};
  }
  function dspDisplayReading(raw,range){
   if(!Number.isInteger(raw))return {value:null,unit:''};
@@ -780,7 +805,8 @@ if(typeof document!=='undefined') (function UI(){
   const activeADC=connected&&st.adc&&Number.isFinite(st.adc.s);
   const activeDSP=connected&&st.dsp&&Number.isInteger(st.dsp.raw)&&!st.dspError;
   const range=getActiveDSPRange();
-  const percent=digitalPercent(activeDSP?st.dsp.raw:null,range,activeStandardReference());
+  const ref=effectiveMeasurementReference();
+  const percent=digitalPercent(activeDSP?st.dsp.raw:null,ref.range,ref.standard);
   $('liveAdcS').textContent=activeADC?fmt(st.adc.s):'—';
   $('liveAdcT').textContent=activeADC&&Number.isFinite(st.adc.t)?fmt(st.adc.t):'—';
   const internalSource=connected&&Number.isInteger(st.regs[0x1E])&&CAL.temperatureSourceFromAfe2(st.regs[0x1E])==='internal';
@@ -881,7 +907,8 @@ if(typeof document!=='undefined') (function UI(){
   const connected=!!st.port&&confirmedSensorForUi();
   const fresh=connected&&st.dsp&&Number.isInteger(st.dsp.raw);
   const range=getActiveDSPRange();
-  const reading=dspDisplayReading(fresh?st.dsp.raw:null,range);
+  const effective=measurementValue(fresh?st.dsp.raw:null,effectiveMeasurementReference());
+  const reading=effective.sensorPercent===null?dspDisplayReading(fresh?st.dsp.raw:null,range):{value:effective.sensorPercent,unit:'%'};
   const source=st.dspError?'DSP_S-Lesefehler':st.nvmDone?'Neue Kennlinie in NVM, Neustart noch prüfen':st.calStaged?'Neue Koeffizienten im RAM':st.chip?'DSP-Ausgabe des Chips – Kalibrierung nicht automatisch bestätigt':'Kein Chip verbunden';
   const time=st.dspError?'DSP_S (0x30) konnte nicht gelesen werden':fresh?new Date(st.dsp.time).toLocaleTimeString('de-CH'):'Noch keine DSP-Messung';
   for(const prefix of ['afe','verify']){
@@ -5289,13 +5316,12 @@ if(typeof document!=='undefined') (function UI(){
   const nowMs=Date.now();
   const adc=online&&st.adc&&nowMs-st.adc.time<5000?st.adc:null;
   const dsp=online&&st.dsp&&nowMs-st.dsp.time<5000&&!st.dspError?st.dsp:null;
-  const range=getActiveDSPRange();
-  const sensor=dsp&&range?range.min+(dsp.raw+range.limit)/(2*range.limit)*(range.max-range.min):null;
+  const ref=effectiveMeasurementReference(), sensor=measurementValue(dsp?.raw??null,ref).sensorPercent;
   return {
    online,live:!!st.live,mode:st.mode,adcS:adc?.s??null,adcT:adc?.t??null,adcTC:adc?.tc??null,
    adcTime:adc?.time??null,dspRaw:dsp?.raw??null,dspTime:dsp?.time??null,
-   sensorValue:Number.isFinite(sensor)?sensor:null,unit:range?.unit??null,outputLimit:range?.limit??null,
-   range:range?{min:range.min,max:range.max,kind:range.kind}:null,
+   sensorValue:sensor,unit:sensor===null?null:'%',outputLimit:ref.limit,
+   range:ref.source?{min:0,max:100,kind:ref.source}:null,
    gains:{...st.staged},nvmConfirmed:!!st.nvmDone,
    // These are editable desired values, NOT voltages measured on AODO.
    voltageTargets:{vdd:Number($('psscVdd').value),s0:Number($('psscS0').value),s1:Number($('psscS1').value)}
@@ -5407,6 +5433,7 @@ if(typeof document!=='undefined') (function UI(){
   if(!loggerOwner){st.calTask=true;stopLive()}
   if(st.liveReadPromise)await st.liveReadPromise.catch(()=>{});
   const samples=[],errors=[];
+  const ref=effectiveMeasurementReference(),refSignature=JSON.stringify(ref);
   const readOptional=async(address)=>{
    try{return P.sign16(await readReg(address))}
    catch(e){errors.push({at:new Date().toISOString(),register:'0x'+h(address),message:e.message});return null}
@@ -5419,6 +5446,7 @@ if(typeof document!=='undefined') (function UI(){
      adcS:await readOptional(0x2A),adcT:await readOptional(0x28),adcTC:await readOptional(0x26),
      dspS:await readOptional(0x30),dspT:await readOptional(0x2E),
      statusSync:await readOptional(0x32),chipStatus:await readOptional(0x36)};
+    Object.assign(one,measurementValue(one.dspS,ref));
     samples.push(one);
     if(homeNavigationAbortRequested){const error=Error('Messung für die Rückkehr zur Hauptseite abgebrochen.');error.rawSamples=samples.slice();throw error}
     if(i<count-1&&spacingMs>0)await sleep(spacingMs);
@@ -5434,16 +5462,17 @@ if(typeof document!=='undefined') (function UI(){
     const error=Error('Druck-ADC oder DSP_S nicht lesbar');
     error.rawSamples=samples.slice();error.partialReadErrors=errors.slice();throw error;
    }
-   const range=getActiveDSPRange();
-   const sensorPressure=range?range.min+(dspS+range.limit)/(2*range.limit)*(range.max-range.min):null;
+   if(JSON.stringify(effectiveMeasurementReference())!==refSignature){
+    const error=Error('Sensor oder DSP-Referenz während der Messung geändert. Messung erneut starten.');
+    error.rawSamples=samples.slice();throw error;
+   }
+   const measured=measurementValue(dspS,ref);
    return {at:new Date().toISOString(),samples,errors,count,
-    adcS,adcT,adcTC,dspS,dspT,sensorPressure,
-    // Canonical digital sensor display value for verification. No secondary DSP-limit conversion.
-    sensorValue:Number.isFinite(sensorPressure)?sensorPressure:null,
-    sensorUnit:Number.isFinite(sensorPressure)?range.unit:null,
-    pressureUnit:Number.isFinite(sensorPressure)?range.unit:null,pressureConversionKind:range?.kind||null,
-    pressureConversion:range?.kind==='ram'?'Aktuelle RAM-Zuordnung (DSP-Verifikation separat beachten)':
-     range?.kind==='profile'?'Gespeichertes, bestätigtes Sensorprofil':null,
+    adcS,adcT,adcTC,dspS,dspT,...measured,
+    dspReference:ref,
+    pressureConversion:ref.source==='ram'?'Aktuelle RAM-Zuordnung (DSP-Verifikation separat beachten)':
+     ref.source==='profile'?'Gespeichertes, bestätigtes Sensorprofil':
+     ref.source==='standard'?'AODO-Rekonstruktion: 10–90 % VDD, DSP-Endwert auf 100 Digits gerundet':null,
     temperatureConversion:'Keine validierte Umrechnung von DSP_T auf °C',
     supply:archiveVoltages(),AFE:{...st.staged},ramAFE0:st.afe0,ramAFE1:st.afe,
     currentNvmCrc:st.nvmBackup?.[63]??null};
@@ -5454,7 +5483,7 @@ if(typeof document!=='undefined') (function UI(){
   }
  }
  window.ELMOS_ARCHIVE_BRIDGE=Object.freeze({
-  meta:archiveMeta,digitalRange:getActiveDSPRange,initial:archiveCaptureConfig,final:archiveCaptureConfig,measure:archiveMeasure,
+  meta:archiveMeta,digitalRange:getActiveDSPRange,measurementReference:effectiveMeasurementReference,initial:archiveCaptureConfig,final:archiveCaptureConfig,measure:archiveMeasure,
   startTelemetry:archiveStartTelemetry,stopTelemetry:archiveStopTelemetry
  });
 

@@ -110,7 +110,7 @@ const ELMOS_LOGGING_REPORT=(()=>{
    return '<tr><td>'+esc(p.index??(i+1))+'</td><td>'+esc(date(p.endedAt||p.startedAt))+
     '</td><td>'+esc(p.samples?.length||0)+'</td><td>'+esc(num(adcS,2))+'</td><td>'+
     esc(num(adcT,2))+'</td><td>'+esc(num(dspS,2))+'</td><td>'+esc(num(dspT,2))+
-    '</td><td>'+esc(num(p.lagMs,1))+'</td><td>'+esc(p.skippedIntervals??0)+'</td>'+
+    '</td><td>'+esc(num(pointValue(p,'sensorPercent'),5))+'</td><td>'+esc(num(p.dspReference?.limit,0))+'</td><td>'+esc(p.dspReference?.source||'–')+'</td><td>'+esc(num(p.lagMs,1))+'</td><td>'+esc(p.skippedIntervals??0)+'</td>'+
     '<td>'+esc(p.reference?.pressure??'–')+'</td><td>'+esc(p.reference?.temperature??'–')+'</td></tr>';
   }).join('');
   const eventRows=events.map((e,i)=>
@@ -155,9 +155,9 @@ const ELMOS_LOGGING_REPORT=(()=>{
    '<h2>Aufnahmeeinstellungen</h2><div class="meta">'+details(settings)+details(otherSettings)+'</div>'+
    '<h2>Verlauf ADC_S / DSP_S</h2><div class="plot">'+chart(rows)+'</div>'+
    '<h2>Alle aufgenommenen Messpunkte ('+rows.length+')</h2>'+
-   '<p class="caption">Kanäle in Digits. Bei aktiver Mittelung wird der Mittelwert/Median angezeigt, ansonsten der letzte Einzelwert. Alle Rohsamples, Register, Fehlerdetails und Metadaten sind im vollständigen CSV-Export enthalten.</p>'+
+   '<p class="caption">Rohkanäle in Digits, Sensorwert in %. Bei aktiver Mittelung wird der Mittelwert/Median angezeigt, sonst der gespeicherte Messgruppen-Snapshot. AODO setzt 10–90 % VDD voraus. Rohsamples und vollständige Referenzen befinden sich in JSON/JSONL.</p>'+
    '<table><thead><tr><th>#</th><th>Zeitpunkt</th><th>Samples</th><th>ADC_S</th>'+
-   '<th>ADC_T</th><th>DSP_S</th><th>DSP_T</th><th>Versatz ms</th><th>Ausfälle</th>'+
+   '<th>ADC_T</th><th>DSP_S</th><th>DSP_T</th><th>Sensor %</th><th>DSP-Endwert</th><th>Quelle</th><th>Versatz ms</th><th>Ausfälle</th>'+
    '<th>Ref. Druck</th><th>Ref. Temp.</th></tr></thead><tbody>'+tableRows+'</tbody></table>'+
    '<h2>Ereignisse und Marker ('+events.length+')</h2>'+
    '<table><thead><tr><th>#</th><th>Zeit</th><th>Ereignis</th><th>Details</th></tr></thead><tbody>'+

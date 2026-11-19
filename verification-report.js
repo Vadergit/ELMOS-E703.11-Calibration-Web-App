@@ -24,6 +24,9 @@ const ELMOS_VERIFICATION_REPORT=(()=>{
    return Number.isFinite(x.sensorTempC)?n(x.sensorTempC,4)+' °C':
     Number.isFinite(x.dspT)?'DSP_T '+n(x.dspT,0)+' Digits':'–';
   }
+  if(Number.isFinite(x.sensorPercent))return n(x.sensorPercent,5)+' %'+
+   (Number.isFinite(x.sensorPressure)&&x.pressureConfidence==='confirmed'?' / '+n(x.sensorPressure,5)+' '+(x.pressureUnit||''):'')+
+   (x.dspReference?.source==='standard'?' (AODO)':'');
   return Number.isFinite(x.sensorPressure)?n(x.sensorPressure,5)+' '+(x.pressureUnit||''):
    Number.isFinite(x.dspS)?'DSP_S '+n(x.dspS,0)+' Digits':'–';
  };

@@ -1,3 +1,10 @@
+## v0.7.148 – Einheitliche digitale Prozentwerte
+
+- Live-Anzeige, DSP-Messwertkarten, geführter Modus, Test/Logging und Nachmessung nutzen dieselbe DSP-Endwertreferenz und die ungerundete Prozentumrechnung. Kein zusätzlicher manueller DSP-Endwert für Messungen.
+- Einzelmessungen und aggregierte Messwerte enthalten Prozentwerte und die referenzierte DSP-Skalierung; vollständige JSON/JSONL-Protokolle speichern Quelle, Chip-UID, gegebenenfalls EEPROM-CRC und AODO-Parameter. CSV- und druckbare Prüfprotokolle zeigen die Prozentwerte an.
+- Fehlende DSP-Werte werden nicht als null Prozent interpretiert. Eine geänderte Sensorreferenz während einer Messgruppe verhindert die Annahme der Messung. Ein widersprüchlicher physikalischer Prüfbereich sperrt die Toleranzbewertung. Bei AODO bleibt die Annahme einer 10–90-%-VDD-Kennlinie bestehen; physikalische Druckwerte und Toleranzfreigabe erfordern einen bekannten bzw. bestätigten Druckbereich.
+- Softwareprüfungen mit simuliertem Sensor und Exporten bestanden; reale Hardwareprüfung steht aus. Sensorprogrammierung bleibt unverändert.
+
 ## v0.7.147 – Sensorwert-Infobox ohne Flackern
 
 - Native Browser-Tooltips am Sensorwert durch eine dauerhaft vorhandene, per Hover oder Tastaturfokus sichtbare Infobox ersetzt. Live-Abfragen aktualisieren nur den Text bei tatsächlichen Änderungen, ohne die Box neu zu öffnen.

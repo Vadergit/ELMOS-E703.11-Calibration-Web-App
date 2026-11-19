@@ -1,8 +1,8 @@
 'use strict';
 /* Pure, hardware-independent sensor test logger rules. */
 const ELMOS_TEST_LOGGER_CORE=(()=>{
- const FIELDS=['adcS','adcT','adcTC','dspS','dspT','statusSync','chipStatus'];
- const NUMERIC_CHANNELS=['adcS','adcT','adcTC','dspS','dspT'];
+ const FIELDS=['adcS','adcT','adcTC','dspS','dspT','statusSync','chipStatus','sensorPercent','sensorPressure'];
+ const NUMERIC_CHANNELS=['adcS','adcT','adcTC','dspS','dspT','sensorPercent','sensorPressure'];
  const MODES=['none','mean','median'];
  function durationMs(value,unit='s'){
   const factors={s:1000,min:60000,h:3600000};
@@ -59,7 +59,7 @@ const ELMOS_TEST_LOGGER_CORE=(()=>{
  function csvRows(points,metadata={}){
   const cols=['kind','pointIndex','sampleIndex','sampleAt','scheduledAt','startedAt','endedAt',
    'durationMs','lagMs','skippedIntervals','sampleCount','aggregation',
-   ...FIELDS,'configuredVdd','measuredVdd','testName','dutName','chipUID'];
+   ...FIELDS,'pressureUnit','dspEndValue','dspReferenceSource','aodoGain','aodoOffset','aodoInferredLimit','aodoRoundedLimit','nvmCrc','configuredVdd','measuredVdd','testName','dutName','chipUID'];
   const quote=x=>{
    let s=x==null?'':typeof x==='object'?JSON.stringify(x):String(x);
    // Prevent formula execution if CSV data are opened in a spreadsheet.
@@ -71,15 +71,17 @@ const ELMOS_TEST_LOGGER_CORE=(()=>{
    const common=[p.index,null,null,p.scheduledAt,p.startedAt,p.endedAt,p.durationMs,
     p.lagMs,p.skippedIntervals,p.samples?.length,p.aggregation];
    const voltage=[p.supply?.externalVdd?.configuredV??null,p.supply?.externalVdd?.measuredV??null];
-   const identity=[metadata.name||null,metadata.dutName||null,metadata.chipUID||null];
+   const ref=p.dspReference;
+   const provenance=[ref?.physicalRange?.unit??null,ref?.limit??null,ref?.source??null,ref?.aodo?.gain??null,ref?.aodo?.offset??null,ref?.aodo?.inferredLimit??null,ref?.aodo?.limit??null,ref?.crc??null];
+   const identity=[metadata.name||null,metadata.dutName||null,ref?.uid??metadata.chipUID??null];
    if(p.aggregation!=='none'){
     rows.push(['aggregate',p.index,null,null,...common.slice(3),
-     ...FIELDS.map(k=>p.aggregated?.channels?.[k]??null),...voltage,...identity].map(quote).join(','));
+     ...FIELDS.map(k=>p.aggregated?.channels?.[k]??null),...provenance,...voltage,...identity].map(quote).join(','));
    }
    for(let i=0;i<(p.samples?.length||0);i++){
     const sample=p.samples[i];
     rows.push(['raw',p.index,i+1,sample.at,...common.slice(3),
-     ...FIELDS.map(k=>sample[k]??null),...voltage,...identity].map(quote).join(','));
+     ...FIELDS.map(k=>sample[k]??null),...provenance,...voltage,...identity].map(quote).join(','));
    }
   }
   return rows.join('\n');
