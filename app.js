@@ -522,6 +522,14 @@ if(typeof document!=='undefined') (function UI(){
   return {value:(raw+standard.limit)/(2*standard.limit)*100,source:'standard'};
  return null;
 }
+ function chooseDisplayReference(profile,standard){
+  if(!profile)return {useStandard:!!standard,reason:standard?'Kein passendes Abgleichprofil':'Keine Referenz'};
+  if(!standard)return {useStandard:false,reason:'Abgleichprofil; AODO-Vergleich nicht möglich'};
+  const delta=Math.abs(profile.limit-standard.limit);
+  // 100 digits tolerance covers the 100-digit reconstruction grid.
+  const useStandard=delta>100;
+  return {useStandard,delta,reason:useStandard?'Profilabweichung > 100 Digits: AODO verwendet':'Abgleichprofil plausibel (Abweichung ≤ 100 Digits)'};
+ }
  function calibrationDisplayProfile(words=st.nvmBackup,uid=st.uid?.hex){
   if(!uid||!CAL.crc16||!Array.isArray(words)||words.length!==64||CAL.crc16(words)!==words[63])return null;
   const frozen=st.calfit?.displayReference;
@@ -552,6 +560,7 @@ if(typeof document!=='undefined') (function UI(){
  // occupy NVM words 31–54 and RAM registers 0x6C–0x9A.
  let sensorDisplayRange=null;
  let standardDisplayRange=null;
+ let displayReferenceDiagnostic=null;
  let checkingDSPScale=false;
  function validDisplayProfile(p,uid){
   return !!(p?.uid===uid&&Array.isArray(p.nvmWords)&&p.nvmWords.length===64&&
@@ -588,15 +597,15 @@ if(typeof document!=='undefined') (function UI(){
  async function restoreCalibrationDisplayProfile(verifiedWords=null){
   const port=st.port,session=st.sessionIndex,uid=st.uid?.hex;
   if(!uid||st.calStaged||st.calpoints?.length)return false;
-  sensorDisplayRange=null;standardDisplayRange=null;
+  sensorDisplayRange=null;standardDisplayRange=null;displayReferenceDiagnostic=null;
   const local=storedDisplayProfile(uid);
   const standard=storedStandardReference(uid);
   const allowAuto=autoStandardEnabled()&&!demoEnabled;
-  if(!local&&!standard&&!allowAuto)return false;
+  if(!local&&!standard&&!allowAuto&&!window.ELMOS_ARCHIVE?.findDisplayCalibration)return false;
   const ownsTask=!verifiedWords;
   if(ownsTask&&(st.calTask||st.writing||st.nvmWorking))return false;
   if(st.port!==port||st.sessionIndex!==session||st.uid?.hex!==uid||!st.chip||st.closing)return false;
-  let p,isStandard=false,automatic=false,partialAuto=false;
+  let p,isStandard=false,automatic=false,partialAuto=false,comparison=null,decision=null,profileCandidate=null;
   try{
    let crc=verifiedWords?.[63];
    if(ownsTask){
@@ -606,7 +615,10 @@ if(typeof document!=='undefined') (function UI(){
     crc=await nvmReadWord(0x7E);
     if((await readReg(0x46))&0x40)return false;
    }
-   p=local?.crc===crc?local:standard?.crc===crc?standard:null;
+   const archive=await window.ELMOS_ARCHIVE?.findDisplayCalibration?.(uid,crc);
+   const fileProfile=archive&&validDisplayProfile(archive,uid)&&archive.crc===crc?archive:null;
+   profileCandidate=fileProfile||(local?.crc===crc?local:null);
+   p=profileCandidate||(standard?.crc===crc?standard:null);
    if(!p&&allowAuto){
     // At connection, read only the relevant saved words first (avoid a full 64-word scan).
     // On an explicit EEPROM scan use its entire CRC-verified image instead.
@@ -644,10 +656,27 @@ if(typeof document!=='undefined') (function UI(){
    if(p.nvmWords[16]&postScaling){
     if(await readReg(0x9C)!==p.nvmWords[55]||await readReg(0x9E)!==p.nvmWords[56])return false;
    }
-   if(isStandard){
-    const mask=(7<<9)|(1<<6)|(1<<14);
-    if(((await readReg(0x04))^p.nvmWords[16])&mask)return false;
-    if(await readReg(0xA0)!==p.nvmWords[57]||await readReg(0xA2)!==p.nvmWords[58])return false;
+   const mask=(7<<9)|(1<<6)|(1<<14);
+   // Compare actual saved and active AODO registers even when a profile exists.
+   const savedAodo=verifiedWords?verifiedWords:p.nvmWords;
+   const aodoWords=savedAodo.slice();
+   if(ownsTask&&!partialAuto){
+    for(const i of [16,57,58])aodoWords[i]=await nvmReadWord(i*2);
+    if(await nvmReadWord(0x7E)!==crc||((await readReg(0x46))&0x40))return false;
+   }
+   const candidate=standardPressureReference(aodoWords);
+   if(candidate){
+    try{
+     const cfg=await readReg(0x04),offset=await readReg(0xA0),gain=await readReg(0xA2);
+     const aodoMatches=!((cfg^aodoWords[16])&mask)&&offset===aodoWords[57]&&gain===aodoWords[58];
+     comparison=aodoMatches?candidate:null;
+    }catch(error){logging('DSP-Anzeigeprofil: AODO-Vergleich nicht verfügbar: '+error.message)}
+   }
+   if(isStandard&&!comparison)return false;
+   decision=chooseDisplayReference(profileCandidate,comparison);
+   if(!isStandard&&decision.useStandard){
+    if(allowAuto||standard?.crc===crc){isStandard=true;automatic=allowAuto;}
+    else decision={...decision,reason:'Profilabweichung > 100 Digits; AODO-Automatik ausgeschaltet, Profil beibehalten'};
    }
    const version=await readReg(0x38),ser0=await readReg(0x50),ser1=await readReg(0x52);
    if(h(version,2)+h(ser1,2)+h(ser0,2)!==uid)return false;
@@ -658,8 +687,11 @@ if(typeof document!=='undefined') (function UI(){
    }
   }
   if(st.port!==port||st.sessionIndex!==session||st.uid?.hex!==uid||!st.chip||st.closing)return false;
+  displayReferenceDiagnostic={port,session,uid,profileLimit:profileCandidate?.limit??local?.limit??null,
+   profileSource:profileCandidate?.sourceFile||(profileCandidate?'Browserprofil':local?'Veraltetes Browserprofil':null),
+   comparison,decision:decision?.reason||'',delta:decision?.delta??null};
   if(isStandard){
-   standardDisplayRange={port,session,uid,automatic,reference:standardPressureReference(p.nvmWords)};
+   standardDisplayRange={port,session,uid,automatic,reference:comparison};
    renderDSPLive();return true;
   }
   const unit=p.selected==='custom'?(String(p.customUnit||'').slice(0,14)||'Einheit'):p.selected;
@@ -785,9 +817,29 @@ if(typeof document!=='undefined') (function UI(){
      ' · Aktueller RAM-Temperaturfit nach AN0203; vor Verwendung unabhängig prüfen.'):
     ' · Keine zuverlässige °C-Skalierung bestätigt. Nach einem früheren AN0203-Abgleich müssen die sechs Chipregister zur gespeicherten NVM-Programmierung mit derselben UID passen.');
   $('liveDspS').textContent=activeDSP?fmt(st.dsp.raw):'—';
-  $('livePressure').textContent=percent?(percent.source==='standard'?'≈':'')+dspNumber(percent.value):activeDSP?fmt(st.dsp.raw):'—';
-  $('livePressureUnit').textContent=percent?(percent.source==='standard'?'% · AODO-Näherung':percent.source==='ram'?'% · RAM-Abgleich':'% · Abgleichprofil'):
+  $('livePressure').textContent=percent?dspNumber(percent.value):activeDSP?fmt(st.dsp.raw):'—';
+  $('livePressureUnit').textContent=percent?'% · Effektivwert':
    (checkingDSPScale?'Digits · Profilprüfung':'Digits · kein Abgleichprofil');
+  const info=$('livePressureInfo');
+  if(info){
+   const d=displayReferenceDiagnostic;
+   const diagnostic=d?.port===st.port&&d?.session===st.sessionIndex&&d?.uid===st.uid?.hex&&!st.calStaged?d:null;
+   const aodo=diagnostic?.comparison||activeStandardReference();
+   const limit=percent?.source==='standard'?activeStandardReference()?.limit:range?.limit;
+   const lines=[
+    'Digitaler Sensorwert (keine Analogmessung)',
+    'DSP_S: '+(activeDSP?fmt(st.dsp.raw)+' Digits':'—'),
+    'Verwendeter DSP-Endwert: '+(limit?'±'+fmt(limit)+' Digits':'—'),
+    'Profil: '+(diagnostic?.profileLimit?'±'+fmt(diagnostic.profileLimit)+' Digits · '+diagnostic.profileSource:range?'±'+fmt(range.limit)+' Digits':'nicht vorhanden'),
+    'AODO_F: '+(aodo?aodo.gain.toFixed(6):'nicht verfügbar'),
+    'AODO-Endwert: '+(aodo?'±'+aodo.inferredLimit.toFixed(1)+' → ±'+fmt(aodo.limit)+' Digits':'nicht verfügbar'),
+    ...(diagnostic?.delta!=null?['Abweichung: '+fmt(diagnostic.delta)+' Digits (Toleranz 100)']:[]),
+    ...(diagnostic?.decision?[diagnostic.decision]:[]),
+    ...(aodo?['AODO setzt 10–90 % VDD und ein 100-Digit-Raster voraus.']:[]),
+    ...(percent?.source==='standard'?['Verwendet: rekonstruierter DSP-Endwert (Annahme, nicht unabhängig verifiziert).']:[])
+   ];
+   info.title=lines.join('\n');info.setAttribute('aria-label',lines.join('. '));info.hidden=!activeDSP;
+  }
   renderStandardReferenceUi();
   const highADC=!!activeADC&&Math.abs(st.adc.s)>25000;
   $('liveAdcAlert').hidden=!highADC;
@@ -2090,7 +2142,7 @@ if(typeof document!=='undefined') (function UI(){
   // AFE and ADC_S form the minimum real chip-presence proof.
   // Do not make the entire live display dependent on less reliable temperature
   // or DSP registers. A full calibration capture remains strict and separate.
-  sensorDisplayRange=null;standardDisplayRange=null;
+  sensorDisplayRange=null;standardDisplayRange=null;displayReferenceDiagnostic=null;
   const w=await readReg(R_AFE),g=decodeSafeAFE(w);
   const rawS=await readReg(0x2A),s=P.sign16(rawS);
   st.filterWords=null;
@@ -3586,7 +3638,7 @@ if(typeof document!=='undefined') (function UI(){
    if(!coefficientSettingsCurrent())throw Error('Zuerst Koeffizienten für den aktuellen DSP-Endwert berechnen');
    if(!st.port||!st.chip)throw Error('USB-Verbindung zum Chip fehlt');
    if(st.writing||st.calTask||st.nvmWorking)throw Error('Ein anderer Vorgang läuft');
-   sensorDisplayRange=null;standardDisplayRange=null;
+   sensorDisplayRange=null;standardDisplayRange=null;displayReferenceDiagnostic=null;
    st.calTask=true;st.writing=true;st.ramWriteScope='calibration';stopLive();
    ca('calRamStageMsg','Berechnete DSP-Koeffizienten werden ins RAM übertragen und rückgelesen …','warn');
    const activeTemp=await checkCalibrationTemperatureSource();
