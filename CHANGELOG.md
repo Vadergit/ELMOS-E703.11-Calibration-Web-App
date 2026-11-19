@@ -1,3 +1,9 @@
+## v0.7.147 – Sensorwert-Infobox ohne Flackern
+
+- Native Browser-Tooltips am Sensorwert durch eine dauerhaft vorhandene, per Hover oder Tastaturfokus sichtbare Infobox ersetzt. Live-Abfragen aktualisieren nur den Text bei tatsächlichen Änderungen, ohne die Box neu zu öffnen.
+- Das Fragezeichen bleibt bei vorübergehenden DSP-Lesefehlern sichtbar, solange der Sensor verbunden ist. Berechnung und Profilauswahl bleiben unverändert.
+- Simulierte Live-Aktualisierungen geprüft; visueller Browser- und Hardwaretest ausstehend.
+
 ## v0.7.146 – Digitaler Effektivwert mit Profilvergleich
 
 - Beim Verbinden wird im bereits freigegebenen lokalen Archiv nach einem passenden Komplettabgleich gesucht (Chip-UID, aktuelle EEPROM-CRC und gültige 64 Wort). Andernfalls wird das vorhandene Browserprofil geprüft.
