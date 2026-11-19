@@ -780,7 +780,6 @@ if(typeof document!=='undefined') (function UI(){
   const activeADC=connected&&st.adc&&Number.isFinite(st.adc.s);
   const activeDSP=connected&&st.dsp&&Number.isInteger(st.dsp.raw)&&!st.dspError;
   const range=getActiveDSPRange();
-  const reading=dspDisplayReading(activeDSP?st.dsp.raw:null,range);
   const percent=digitalPercent(activeDSP?st.dsp.raw:null,range,activeStandardReference());
   $('liveAdcS').textContent=activeADC?fmt(st.adc.s):'—';
   $('liveAdcT').textContent=activeADC&&Number.isFinite(st.adc.t)?fmt(st.adc.t):'—';
@@ -838,7 +837,11 @@ if(typeof document!=='undefined') (function UI(){
     ...(aodo?['AODO setzt 10–90 % VDD und ein 100-Digit-Raster voraus.']:[]),
     ...(percent?.source==='standard'?['Verwendet: rekonstruierter DSP-Endwert (Annahme, nicht unabhängig verifiziert).']:[])
    ];
-   info.title=lines.join('\n');info.setAttribute('aria-label',lines.join('. '));info.hidden=!activeDSP;
+   // A persistent DOM tooltip avoids native title popups restarting at each live sample.
+   const tooltip=$('livePressureTooltip'),details=lines.join('\n');
+   if(tooltip&&tooltip.textContent!==details)tooltip.textContent=details;
+   // Keep the trigger visible during transient DSP read failures.
+   if(info.hidden===connected)info.hidden=!connected;
   }
   renderStandardReferenceUi();
   const highADC=!!activeADC&&Math.abs(st.adc.s)>25000;
@@ -872,13 +875,7 @@ if(typeof document!=='undefined') (function UI(){
   $('liveStateDot').className='live-meta-dot'+(ongoing?' is-working':st.live&&!staleLive?' is-live':'');
   const measured=activeADC?st.adc.time:activeDSP?st.dsp.time:null;
   $('liveLastRead').textContent=measured?new Date(measured).toLocaleTimeString('de-CH'):'Keine Messwerte';
-  $('livePressure').parentElement?.setAttribute('title',range?
-   'Digitaler Prozentwert aus festem DSP-Endwert ±'+range.limit+' · Referenz '+range.min+'–'+range.max+' '+range.unit+
-    (reading.unit!=='%'&&activeDSP?' · '+dspNumber(reading.value)+' '+reading.unit:''):
-   percent?.source==='standard'?'DSP-Endwert aus AODO: ±'+activeStandardReference().inferredLimit.toFixed(1)+
-    ' → ±'+activeStandardReference().limit+' Digits (auf 100 gerundet). '+(standardDisplayRange?.automatic?'Angenommenes':'Bestätigtes')+
-    ' Ziel 10–90 % VDD; keine Analogmessung.':
-   'Digitaler Sensorwert direkt aus DSP_S. Kein bestätigtes Abgleichprofil; keine Prozentumrechnung.');
+
  }
  function renderDSPLive(){
   const connected=!!st.port&&confirmedSensorForUi();
