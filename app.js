@@ -664,13 +664,19 @@ if(typeof document!=='undefined') (function UI(){
     for(const i of [16,57,58])aodoWords[i]=await nvmReadWord(i*2);
     if(await nvmReadWord(0x7E)!==crc||((await readReg(0x46))&0x40))return false;
    }
-   const cfg=await readReg(0x04),offset=await readReg(0xA0),gain=await readReg(0xA2);
-   const aodoMatches=!(((cfg^aodoWords[16])&mask))&&offset===aodoWords[57]&&gain===aodoWords[58];
-   comparison=aodoMatches?standardPressureReference(aodoWords):null;
+   const candidate=standardPressureReference(aodoWords);
+   if(candidate){
+    try{
+     const cfg=await readReg(0x04),offset=await readReg(0xA0),gain=await readReg(0xA2);
+     const aodoMatches=!((cfg^aodoWords[16])&mask)&&offset===aodoWords[57]&&gain===aodoWords[58];
+     comparison=aodoMatches?candidate:null;
+    }catch(error){logging('DSP-Anzeigeprofil: AODO-Vergleich nicht verfügbar: '+error.message)}
+   }
    if(isStandard&&!comparison)return false;
    decision=chooseDisplayReference(profileCandidate,comparison);
-   if(!isStandard&&decision.useStandard&&(allowAuto||standard?.crc===crc)){
-    isStandard=true;automatic=allowAuto;
+   if(!isStandard&&decision.useStandard){
+    if(allowAuto||standard?.crc===crc){isStandard=true;automatic=allowAuto;}
+    else decision={...decision,reason:'Profilabweichung > 100 Digits; AODO-Automatik ausgeschaltet, Profil beibehalten'};
    }
    const version=await readReg(0x38),ser0=await readReg(0x50),ser1=await readReg(0x52);
    if(h(version,2)+h(ser1,2)+h(ser0,2)!==uid)return false;
