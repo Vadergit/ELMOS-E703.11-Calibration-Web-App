@@ -258,27 +258,30 @@ test('Temperature polynomial inverse uses T_F and T_O mapped raw ADC limits',()=
 });
 
 
-test('DSP end limit is not inferred from NVM and defaults to clearly labeled 32000',()=>{
+test('DSP end limit is inferred from supported AODO; unknown reference has no default',()=>{
  const words=image();
  const data=recon.referenceMetadata(words,null,()=>null);
  assert.equal(data.limit,32000);
- assert.equal(data.limitSource,'default');
+ assert.equal(data.limitSource,'aodo');
+ words[16]&=~64;
+ const unknown=recon.referenceMetadata(words,null,()=>null);
+ assert.equal(unknown.limit,null);assert.equal(unknown.limitSource,'unknown');assert.equal(recon.calculate(words).ok,false);
  assert.equal(data.temperatureSource,'assumed');
 });
 test('Locally saved DSP limit requires matching full UID and NVM CRC',()=>{
- const words=image();words[0]=0xF7DB;words[1]=0x0109;words[63]=0x6E91;
+ const words=image();words[16]&=~64;words[0]=0xF7DB;words[1]=0x0109;words[63]=0x6E91;
  const uid='00200109F7DB';
  const profile={uid,crc:words[63],limit:28000,min:0,max:6};
  const getter=k=>k==='elmos-dsp-display-by-uid-v1-'+uid?JSON.stringify(profile):null;
  const matched=recon.referenceMetadata(words,uid,getter);
  assert.equal(matched.limit,28000);
  assert.equal(matched.limitSource,'local');
- assert.equal(recon.referenceMetadata(words,'00200109F7DC',getter).limitSource,'default');
- assert.equal(recon.referenceMetadata(words,'',getter).limitSource,'default');
- assert.equal(recon.referenceMetadata(words,uid,()=>JSON.stringify({...profile,crc:111})).limitSource,'default');
+ assert.equal(recon.referenceMetadata(words,'00200109F7DC',getter).limitSource,'unknown');
+ assert.equal(recon.referenceMetadata(words,'',getter).limitSource,'unknown');
+ assert.equal(recon.referenceMetadata(words,uid,()=>JSON.stringify({...profile,crc:111})).limitSource,'unknown');
 });
 test('Exact matching local NVM history can confirm AN0203 model and DSP target',()=>{
- const words=image();words[0]=0xF7DB;words[1]=0x0109;
+ const words=image();words[16]&=~64;words[0]=0xF7DB;words[1]=0x0109;
  const uid='00200109F7DB',snapshot={
   id:uid,restore:false,words:words.slice(),
   temperatureBasis:'an0203-celsius-v1',outputTarget:{limit:30000}
@@ -291,7 +294,7 @@ test('Exact matching local NVM history can confirm AN0203 model and DSP target',
  const wrong={...snapshot,words:snapshot.words.slice()};
  wrong.words[12]^=1;
  const reject=recon.referenceMetadata(words,uid,k=>k==='elmos8-last-program'?JSON.stringify(wrong):null);
- assert.equal(reject.limitSource,'default');
+ assert.equal(reject.limitSource,'unknown');
  assert.equal(reject.temperatureSource,'assumed');
 });
 test('Factory fingerprint identifies known temperature model, not custom constant T0',()=>{
@@ -304,4 +307,21 @@ test('Factory fingerprint identifies known temperature model, not custom constan
  assert.equal(actual.temperatureSource,'assumed');
  assert.equal(actual.constantTemp,true);
  assert.equal(actual.factoryTemp,false);
+});
+
+test('Historical sensor: inferred DSP endpoint is 30000; conflicting profile rejected',()=>{
+ const w=image();w[58]=0x0DFB;w[16]=0x13D6;
+ const a=recon.resolveReference(w,null);
+ assert.equal(a.limit,30000);assert.equal(a.limitSource,'aodo');
+ assert.equal(recon.resolveReference(w,32000).limit,30000);
+ assert.equal(recon.resolveReference(w,29900).limit,29900);
+ assert.equal(recon.resolveReference(w,32000,false).limit,32000);
+ assert.equal(recon.resolveReference(w,null,false).limit,null);
+});
+test('File images infer independently; no cross-sensor endpoint reuse',()=>{
+ const a=image(),b=image();
+ a[58]=Math.round(26214.4/25000*4096);b[58]=Math.round(26214.4/30000*4096);
+ assert.equal(recon.resolveReference(a,null).limit,25000);
+ assert.equal(recon.resolveReference(b,null).limit,30000);
+ assert.equal(recon.resolveReference(a,null).limit,25000);
 });
