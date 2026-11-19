@@ -464,6 +464,37 @@ const ELMOS_ARCHIVE=(()=>{
   const link=el('a');link.href=url;link.download=name;link.click();
   setTimeout(()=>URL.revokeObjectURL(url),3000);
  }
+ // Read only from the user-selected archive; never trigger a permission request on connect.
+ async function findDisplayCalibration(uid,crc){
+  let dir=S.dir;
+  if(!dir){try{dir=await remembered('read')}catch(_){}}
+  if(!dir)return null;
+  try{
+   if(await dir.queryPermission({mode:'read'})!=='granted')return null;
+   const matches=[];
+   for await(const [name,handle] of dir.entries()){
+    if(handle.kind!=='file'||!/^ELMOS_Abgleich_Komplett_.*\.json$/i.test(name)||
+       !name.toUpperCase().includes(uid.toUpperCase()))continue;
+    try{
+     const file=await handle.getFile();if(file.size>40*1024*1024)continue;
+     const data=JSON.parse(await file.text()),nvm=data.nvm?.programmed;
+     if(data.format!=='E70311-CALIBRATION-COMPLETE-v1'||data.chipUID!==uid||
+        data.verifiedNvm!==true||nvm?.uid!==uid||nvm.crc16!==crc||
+        !Array.isArray(nvm.words)||nvm.words.length!==64||nvm.words[63]!==crc||
+        nvm.words.some(w=>!Number.isInteger(w)||w<0||w>65535)||
+        ELMOS_CAL.crc16(nvm.words)!==crc||ELMOS_CAL.crc8(nvm.words)!==(nvm.words[15]>>>8))continue;
+     const p=ELMOS_NVM_PROFILE.fromFile(data,name),fields=p.fields;
+     if(!Number.isInteger(fields.limit)||!Number.isFinite(fields.pmin)||!Number.isFinite(fields.pmax)||
+        fields.pmax<=fields.pmin||!fields.pressureUnit)continue;
+     matches.push({uid,crc,nvmWords:nvm.words.slice(),min:fields.pmin,max:fields.pmax,
+      unit:fields.pressureUnit,selected:fields.pressureUnit,limit:fields.limit,
+      reference:fields,points:p.points,savedAt:p.recordedAt,sourceFile:name});
+    }catch(_){/* Ignore unrelated, corrupt or incomplete files. */}
+   }
+   matches.sort((a,b)=>String(b.savedAt||'').localeCompare(String(a.savedAt||'')));
+   return matches[0]||null;
+  }catch(_){return null}
+ }
  async function refresh(){
   if(!S.dir){renderList();return}
   try{
@@ -1786,7 +1817,7 @@ const ELMOS_ARCHIVE=(()=>{
   S.finishedReview=null;
  }
  return {init,open,openVerification:()=>open('verification'),close,begin,ensureCalibration,event,trace,appendTelemetry,streamRows,download,exportLoggingPdf,setPhotos,flush,finalise,interrupted,
-  chooseFolder,grantFolderAccess,refreshFolderSettings,saveFolderPathLabel,loadFolderPathLabel,
+  chooseFolder,grantFolderAccess,refreshFolderSettings,saveFolderPathLabel,loadFolderPathLabel,findDisplayCalibration,
   get active(){return !!S.record},get current(){return S.record},get view(){return S.view},
   get isMeasuring(){return S.measuring},get isFinishing(){return S.finishing},refresh};
 })();
