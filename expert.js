@@ -204,9 +204,9 @@ const ELMOS_EXPERT=(()=>{
     const sessionProfile=typeof ELMOS_NVM_PROFILE!=='undefined'&&st.calfit&&st.calpoints?.length?
      ELMOS_NVM_PROFILE.fromCalibration({
       uid:st.uid?.hex||null,crc:st.nvmDone&&valid?st.nvmBackup[63]:null,
-      verified:!!(st.nvmDone&&valid),
-      pmin:Number($('pmin').value),pmax:Number($('pmax').value),
-      pressureUnit:$('calUnit').value,limit:st.calfit.outputLimit,
+      verified:!!(st.nvmDone&&trusted&&st.calfit.displayReference),
+      pmin:st.calfit.displayReference?.min,pmax:st.calfit.displayReference?.max,
+      pressureUnit:st.calfit.displayReference?.unit,limit:st.calfit.outputLimit,
       vdd:Number($('psscVdd').value),
       tempModel:st.calfit.orderT>0?'an0203':null,
       points:st.calpoints
