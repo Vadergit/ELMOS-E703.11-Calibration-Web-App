@@ -1756,3 +1756,23 @@ test('Unknown DSP scale displays exact chip digits without a manual setting or a
  assert.ok(expert.includes('return getActiveDSPRange()?.limit;'));
  assert.ok(!expert.includes('dspDisplayReading'));
 });
+
+
+test('Bridge polarity uses only CFG_AFE1 bit 12, preserves diagnostic bits and legacy profiles',()=>{
+ const P=require('../app.js');
+ const original=0xE800;
+ const gains={pga1:2,pga2:3,offset:1};
+ const normal=P.encAFE(original,{...gains,bridgeInvert:0});
+ const inverted=P.encAFE(normal,{...gains,bridgeInvert:1});
+ assert.equal(normal^inverted,0x1000);
+ assert.equal(inverted&0xE800,0xE800);
+ assert.equal(P.decAFE(inverted).bridgeInvert,1);
+ assert.equal(P.decAFE(normal).bridgeInvert,0);
+ assert.equal(P.encAFE(inverted,gains)&0x1000,0x1000);
+ assert.throws(()=>P.encAFE(normal,{...gains,bridgeInvert:2}));
+ const profile=CFG.createSelective({label:'Invertiert',afe:{...gains,bridgeInvert:1}},['afe'],CAL);
+ assert.equal(CFG.validate(JSON.parse(JSON.stringify(profile)),CAL).afe.bridgeInvert,1);
+ assert.throws(()=>CFG.validate({...profile,afe:{...profile.afe,bridgeInvert:2}},CAL));
+ const legacy=CFG.createSelective({label:'Alt',afe:gains},['afe'],CAL);
+ assert.equal(legacy.afe.bridgeInvert,undefined);
+});

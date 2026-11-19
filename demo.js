@@ -37,7 +37,7 @@ const ELMOS_DEMO = {
     case 0x26:
     case 0x28:
     case 0x2E: return word(387.88 * temperature - 16485);
-    case 0x2A: return word((fraction - 0.5) * 20000 * (1 + gain.pga1 * 0.25 + gain.pga2 * 0.12) + gain.offset * 750);
+    case 0x2A: return word((gain.bridgeInvert?-1:1) * (fraction - 0.5) * 20000 * (1 + gain.pga1 * 0.25 + gain.pga2 * 0.12) + gain.offset * 750);
     case 0x30: return word((2 * fraction - 1) * limit);
     case 0x46: return writeEnabled ? 8 : 0;
     case 0x48: return readback;

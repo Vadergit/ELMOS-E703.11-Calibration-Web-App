@@ -1,3 +1,9 @@
+## v0.7.151 – Brückenpolarität im AFE
+
+- CFG_AFE1 Bit 12 (s_pga1_inv) vertauscht SIP und SIN vor PGA1. Klassische und geführte Ansicht verwenden dieselbe Einstellung. RAM-Änderung nach Bestätigung und Rücklesen, alte Messpunkte werden verworfen. NVM erst nach vollständigem Abgleich.
+- Presets, Config-Import/-Export, Serienabgleich, ADC-CSV und Archivdaten übernehmen die Polarität. Alte Profile ohne Polaritätsfeld belassen die aktuelle Chip-Einstellung.
+- EEPROM-Viewer und Sensorbrückenrechner zeigen die Polarität an; bestehende Rückrechnungsformel berücksichtigt bereits die drei Invertierungsstufen. Neuer Regressionstest für Bit-Schutz und Konfigurationskompatibilität. Hardwarevalidierung ausstehend.
+
 ## v0.7.150 – DSP-Warnung mit direkter Neuberechnung
 
 - Der Button übernimmt den vorgeschlagenen DSP-Endwert und berechnet die Koeffizienten unmittelbar anhand der bereits erfassten Messpunkte neu. Geführter und klassischer Modus werden unterstützt.

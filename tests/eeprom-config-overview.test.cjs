@@ -150,3 +150,10 @@ test('EEPROM overview decodes the two RAM alarms and output limiting from sparse
  assert.equal(row(missing,'Alarm unten / DSP-Nachskalierung Offset').active,null);
  assert.equal(row(missing,'Ausgangsbegrenzung').active,null);
 });
+
+
+test('EEPROM and RAM polarity are shown separately',()=>{
+ const stored=image(),active={28:stored[28]|0x1000};
+ const row=overview.summarize(stored,active,stored).flatMap(g=>g.rows).find(r=>r.label==='Brückenpolarität (SIP / SIN)');
+ assert.equal(row.saved.text,'Normal');assert.equal(row.active.text,'Invertiert');assert.equal(row.differs,true);
+});
