@@ -228,10 +228,13 @@ static const char *startContinuousAfterCookie() {
 }
 
 static const char *probeAddresses() {
-  const char *error = probe(activeSlave);
-  if (error && strcmp(error, "!BRIDGE PLC_NO_VALID_FRAME") == 0)
-    error = probe(activeSlave == 0x6D ? 0x7D : 0x6D);
-  return error;
+  const uint8_t first = activeSlave;
+  const char *error = probe(first);
+  if (!error) return nullptr;
+  const char *other = probe(first == 0x6D ? 0x7D : 0x6D);
+  if (!other) return nullptr;
+  // Preserve the actionable first error if the second address has no frame.
+  return strcmp(other, "!BRIDGE PLC_NO_VALID_FRAME") == 0 ? error : other;
 }
 
 static const char *openPlcAccess(bool powerCycle, bool recover = false) {
@@ -311,9 +314,9 @@ static void establishAccess(bool powerCycle, bool recover = false) {
       return;
     }
   }
-  char response[40];
-  snprintf(response, sizeof(response), "# PLC ACCESS ADDR=%02X RAM_RECOVERY=%u",
-           unsigned(activeSlave & 0xFE), unsigned(recoveryUsed));
+  char response[64];
+  snprintf(response, sizeof(response), "# PLC ACCESS ADDR=%02X RAM_RECOVERY=%u BAUD=%u",
+           unsigned(activeSlave & 0xFE), unsigned(recoveryUsed), plcBaud);
   answer(response);
 }
 
@@ -329,8 +332,36 @@ static void diagnoseRx() {
     Serial.printf("# RX %u kBd ADDR=%02X GPIO%u=%u ECHO=%s EDGES=%u RESULT=%s WORD=%04X\r\n",
                   plcBaud / 1000, unsigned(slave & 0xFE), unsigned(plc::singlePin ? plc::Tx : plc::Rx), unsigned(initial),
                   echo == 3 ? "BOTH" : echo == 2 ? "HIGH" : "LOW", unsigned(edges), error ? error + 8 : "CRC_OK", unsigned(word));
+    // Do not alter activeSlave, power, RAM or NVM in diagnostics.
+    // AFE=0 can be a genuine response but cannot authorize calibration.
+    if (!error) {
+      const uint8_t regs[] = {0x2A, 0x06, 0x0A, 0x38, 0x50, 0x52};
+      const char *names[] = {"ADC_S", "CFG_SPI_I2C", "CFG_PADS1", "VERSION", "SER0", "SER1"};
+      uint16_t values[6] = {};
+      bool valid[6] = {};
+      for (unsigned i = 0; i < 6; ++i) {
+        const char *e = plc::readWord(regs[i], plcBaud, values[i], nullptr, slave);
+        valid[i] = !e;
+        Serial.printf("# RXREG ADDR=%02X REG=%02X NAME=%s RESULT=%s WORD=%04X\r\n",
+                      unsigned(slave & 0xFE), unsigned(regs[i]), names[i], e ? e + 8 : "CRC_OK", unsigned(values[i]));
+      }
+      const bool uid = valid[3] && valid[4] && valid[5] &&
+          (values[3] & 0xFFF8) == 0x0020 && (values[4] || values[5]) &&
+          !(values[4] == 0xFFFF && values[5] == 0xFFFF);
+      const uint8_t configured = ((values[1] >> 8) & 0x7E) | ((values[2] & 0x1000) ? 0x80 : 0) | 1;
+      const char *reason = !word ? "AFE_ZERO_MANDATORY_BIT11_MISSING" :
+          !(word & 0x0800) ? "AFE_MANDATORY_BIT11_MISSING" :
+          !(valid[0] && valid[1] && valid[2]) ? "REGISTER_READ_FAILED" :
+          configured != slave ? "ADDRESS_MISMATCH" :
+          !uid ? "IDENTITY_UNVERIFIED" : "REGISTER_PROBE_PLAUSIBLE";
+      Serial.printf("# RXCHECK ADDR=%02X REASON=%s UID=%s\r\n",
+                    unsigned(slave & 0xFE), reason, uid ? "VALID" : "UNVERIFIED");
+    }
   }
+  Serial.printf("# POWER GPIO=%u LEVEL=%u VDD=UNMEASURED START_WINDOW=UNVERIFIED\r\n",
+                unsigned(plc::Power), unsigned(gpio_get_level(plc::Power)));
   Serial.print(":\r\n");
+  Serial.flush();
 }
 
 // Some AODO sensors boot with SPI/I2C disabled. Only change the interface
@@ -504,9 +535,9 @@ static void onCommand(const char *command) {
     answer("# NVM DISARMED");
   } else if (strcmp(command, "BRIDGE_INFO") == 0) {
     disarmNvm();
-    answer("# E70311-BRIDGE V1 CAPS=PLC_UID,PLC_READ,PLC_WRITE,NVM,POWER_GPIO_10,PSSC_RAM,AFE_FILTER,BRIDGE_CAL_NVM,BRIDGE_AODO_OUTPUT_NVM_TEST,BRIDGE_GENERIC_RAM_V1,BRIDGE_USER_NVM_V1,PLC_RX_DIAG,PLC_GPIO4_IO,I2C_CRC,BRIDGE_I2C_NVM_V1");
+    answer("# E70311-BRIDGE V1 CAPS=PLC_UID,PLC_READ,PLC_WRITE,NVM,POWER_GPIO_10,PSSC_RAM,AFE_FILTER,BRIDGE_CAL_NVM,BRIDGE_AODO_OUTPUT_NVM_TEST,BRIDGE_GENERIC_RAM_V1,BRIDGE_USER_NVM_V1,PLC_RX_DIAG,PLC_GPIO4_IO,I2C_CRC,BRIDGE_I2C_NVM_V1,PLC_RX_DIAG_DETAIL_V1");
   } else if (strcmp(command, ".VERSION") == 0) {
-    answer("# ESP32-C3 SuperMini ELMOS PLC/I2C bridge v0.14");
+    answer("# ESP32-C3 SuperMini ELMOS PLC/I2C bridge v0.15");
   } else if (strcmp(command, "BRIDGE_PING") == 0) {
     answer("# PONG ESP32-C3 SUPERMini PLC_UID");
   } else if (strcmp(command, "BRIDGE_STATS") == 0) {
