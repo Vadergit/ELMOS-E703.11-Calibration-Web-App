@@ -1,3 +1,9 @@
+## v0.7.145 – Digitalen DSP-Endwert rekonstruieren
+
+- Für die AODO-Näherung wird der berechnete DSP-Endwert auf die nächsten 100 Digits gerundet (z. B. 30’001.2 → 30’000) und erst danach der digitale Prozentwert aus DSP_S berechnet.
+- Die Annahme einer 10–90-%-VDD-Kennlinie und eines 100-Digit-Rasters bleibt als Näherung gekennzeichnet. Bestätigte Abgleichprofile behalten unverändert Vorrang. Keine Änderung an EEPROM, USER-ID oder Kalibrieralgorithmus.
+- Rohwert und gerundeter Endwert werden in der Diagnose angezeigt. Softwaretests mit der tatsächlichen AODO-Gain-Quantisierung für 288 darstellbare Zielwerte bestanden; Hardwaretest ausstehend.
+
 ## v0.7.144 – Startfehler nach Update beheben
 
 - Alle JavaScript-Dateien der Hauptseite verwenden einen gemeinsamen Release-Cacheparameter. Ältere Expert-/Alarm-Skripte benötigen das in v0.7.143 entfernte DSP-Eingabefeld; gemischte Versionen konnten den UI-Start abbrechen.
