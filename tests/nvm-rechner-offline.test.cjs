@@ -89,8 +89,9 @@ test('File and live sensor can both be present, explicitly selecting sensor over
 
 test('DSP target source and temperature model are explicitly distinguished from NVM registers',()=>{
  const app=read('nvm-reconstruction.js'),html=read('index.html');
- assert.match(app,/DSP-Endwert: Standard ±32’000 · nicht im NVM gespeichert/);
- assert.match(app,/DSP-Endwert: aus lokalem UID-\/NVM-gebundenem Kalibrierprofil/);
+ assert.match(app,/DSP-Endwert unbekannt · passenden Komplettabgleich laden oder Endwert bewusst manuell eingeben/);
+ assert.match(app,/Digits aus passendem Profil/);
+ assert.doesNotMatch(app,/DSP-Endwert: Standard ±32’000 · nicht im NVM gespeichert/);
  assert.match(app,/Temperaturmodell: nicht eindeutig im NVM · AN0203 wird angenommen/);
  assert.match(app,/nvmrecon-reference-hint/);
  assert.match(html,/href="nvm-reconstruction\.css\?v=\d+\.\d+\.\d+"/);

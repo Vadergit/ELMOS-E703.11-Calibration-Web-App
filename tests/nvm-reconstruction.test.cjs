@@ -325,3 +325,16 @@ test('File images infer independently; no cross-sensor endpoint reuse',()=>{
  assert.equal(recon.resolveReference(b,null).limit,30000);
  assert.equal(recon.resolveReference(a,null).limit,25000);
 });
+
+
+test('Physical bridge polarity is reconstructed before subtracting the PGA offset',()=>{
+ const w=image();w[28]|=1<<2; // nonzero offset DAC
+ const opts={pmin:0,pmax:6,ta:25,tb:75,vdd:5,limit:24000};
+ const normal=recon.calculate(w,opts);w[28]|=0x1000;
+ const inverted=recon.calculate(w,opts);
+ assert.equal(normal.settings.sign1,1);assert.equal(inverted.settings.sign1,-1);
+ for(let i=0;i<normal.rows.length;i++){
+  assert.ok(Math.abs(normal.rows[i].zero+inverted.rows[i].zero)<1e-8);
+  assert.ok(Math.abs(normal.rows[i].span+inverted.rows[i].span)<1e-8);
+ }
+});

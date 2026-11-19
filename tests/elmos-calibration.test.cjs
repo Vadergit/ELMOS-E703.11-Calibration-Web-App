@@ -259,3 +259,29 @@ test('I²C NVM accepts strapped and fixed startup modes and protects communicati
  words[18]=2<<14;
  assert.equal(C.i2cBootRegisterMatches(words,0x6C02),false);
 });
+
+
+test('Bridge inversion persists in the calibrated NVM and preserves unrelated bits',()=>{
+ const P=require('../app.js'), CFG=require('../config.js');
+ const orig=originalNvm();orig[28]=0xE800;orig[63]=C.crc16(orig);
+ const normal=P.encAFE(orig[28],{pga1:0,pga2:0,offset:0,bridgeInvert:0});
+ const inverted=P.encAFE(normal,{pga1:0,pga2:0,offset:0,bridgeInvert:1});
+ assert.equal(normal^inverted,0x1000);
+ assert.equal(inverted&0xE800,orig[28]&0xE800);
+ assert.equal(P.decAFE(inverted).bridgeInvert,1);
+ assert.equal(P.encAFE(inverted,{pga1:0,pga2:0,offset:1})&0x1000,0x1000);
+ assert.throws(()=>P.encAFE(inverted,{pga1:0,pga2:0,offset:1,bridgeInvert:2}));
+ for(const word of [normal,inverted]){
+  const samples=word&0x1000?firstTwo.map(p=>({...p,adc_s:-p.adc_s})):firstTwo;
+  const fit=C.fit(samples,{pmin:0,pmax:100,outputLimit:32000,orderS:1,orderT:0});
+  assert.ok(fit.stats.maxDigits<5);
+  const result=C.configFrom(orig,fit,word,{output:plan()});
+  assert.equal(result.after[28],word);
+  assert.equal(result.after[63],C.crc16(result.after));
+  const profile=CFG.createSelective({label:'AFE',afe:P.decAFE(word)},['afe'],C);
+  assert.equal(CFG.validate(JSON.parse(JSON.stringify(profile)),C).afe.bridgeInvert,(word>>12)&1);
+  assert.throws(()=>CFG.validate({...profile,afe:{...profile.afe,bridgeInvert:2}},C));
+ }
+ const old=CFG.createSelective({label:'Alt',afe:{pga1:0,pga2:0,offset:0}},['afe'],C);
+ assert.equal(old.afe.bridgeInvert,undefined);
+});
