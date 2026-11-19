@@ -1795,7 +1795,11 @@ if(typeof document!=='undefined') (function UI(){
     logging('PLC-Diagnose '+rate+' kBd / 0x'+address+': '+reason);
     return {rateKbd:Number(rate),address:'0x'+address,gpio:Number(gpio),level:Number(level),echo,edges:Number(edges),result,word:'0x'+word,reason};
    });
-   if(attempt)attempt.addressProbes=probes;
+   const details=reply.split(/\r?\n/).filter(l=>/^# (RXREG|RXCHECK|POWER) /.test(l));
+   for(const row of details)logging(row);
+   if(attempt){attempt.addressProbes=probes;attempt.firmwareDetails=details;}
+   const zero=probes.some(p=>p.result==='CRC_OK'&&p.word==='0x0000');
+   if(zero)logging('AFE-Nullantwort: niemals automatisch mit einem Standardwert überschreiben; erst Identität und Original-NVM prüfen.');
    const readings=[...reply.matchAll(/ECHO=(BOTH|LOW|HIGH) EDGES=(\d+)/g)];
    if(readings.length!==2)return;
    if(probes.some(p=>p.result==='CRC_OK'&&p.word==='0x0000')){
@@ -1856,8 +1860,8 @@ if(typeof document!=='undefined') (function UI(){
    try{
     await bridgeAccess({power,recover});
     attempt.result='access-confirmed';attempt.address='0x'+h(st.plcAddress);
+    if(!st.bridgeEffectiveBaud&&!recover)st.bridgeEffectiveBaud=rate;
     attempt.effectiveBaud=st.bridgeEffectiveBaud;
-    if(!st.bridgeEffectiveBaud&&!recover)attempt.effectiveBaud=rate;
     if(!st.bridgeEffectiveBaud&&recover)logging('Recovery kann intern eine andere Baudrate verwenden; alte Firmware meldet diese nicht zurück.');
     st.bridgeRxNote='';
     return true;
@@ -1874,7 +1878,7 @@ if(typeof document!=='undefined') (function UI(){
   // restriction and try both ordinary rates before any recovery.
   if(!found&&!autoProbe&&st.bridgePsscRam&&st.bridgePlcAttempts.some(a=>a.error?.includes('PLC_NO_VALID_FRAME'))){
    st.psscRamRecovery=true;
-   logging('PLC: beide normalen Baudraten erfolglos; PSSC-Freigabe nur im Sensor-RAM.');
+   logging('PLC: normale Baudraten erfolglos; PSSC-Freigabe nur im Sensor-RAM.');
    for(const rate of rates){if(await attemptAccess(rate,true)){found=true;break}}
   }
   if(!found){
@@ -1891,7 +1895,7 @@ if(typeof document!=='undefined') (function UI(){
    try{st.measurementPeriod=await readReg(0x0E,1600)}
    catch(e){logging('ESP32: CFG_PERIOD nicht lesbar: '+e.message)}
   }
-  await detect({requireUid:autoProbe});
+  await detect({requireUid:autoProbe||st.bridgeBoard==='ESP32-C3 SuperMini'});
   if(st.bridgeCalibrationNvm&&power&&st.chip&&st.uid?.hex&&st.port===port&&st.sessionIndex===session){
    st.bridgeColdStart={port,session,uid:st.uid.hex};
    renderStatus();
