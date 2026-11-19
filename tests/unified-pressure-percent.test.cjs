@@ -1,10 +1,11 @@
 'use strict';
 const test=require('node:test'),assert=require('node:assert/strict'),fs=require('node:fs'),path=require('node:path');
+const recon=require('../nvm-reconstruction.js');
 const app=fs.readFileSync(path.join(__dirname,'..','app.js'),'utf8');
 const C=require('../test-logger-core.js'),R=require('../archive-readable-csv.js');
 const slice=(a,b)=>app.slice(app.indexOf(a),app.indexOf(b,app.indexOf(a)));
 const helpers=slice(' function standardPressureReference(',' function calibrationDisplayProfile(')+slice(' function measurementValue(',' function dspDisplayReading(');
-const {standardPressureReference,digitalPercent,measurementValue}=new Function(helpers+'\nreturn {standardPressureReference,digitalPercent,measurementValue}')();
+const {standardPressureReference,digitalPercent,measurementValue}=new Function('ELMOS_NVM_RECON',helpers+'\nreturn {standardPressureReference,digitalPercent,measurementValue}')(recon);
 const near=(a,b)=>assert.ok(Number.isFinite(a)&&Math.abs(a-b)<1e-10,a+' != '+b);
 for(const source of ['ram','profile','standard'])test('Canonical pressure percent: '+source,()=>{
  for(const limit of [25000,30000,32000]){
@@ -20,14 +21,14 @@ for(const source of ['ram','profile','standard'])test('Canonical pressure percen
   assert.equal(measurementValue(null,ref).sensorPercent,null);
  }
 });
-const simulate=new Function('ref','raws','changed',helpers+`
+const simulate=new Function('ELMOS_NVM_RECON','ref','raws','changed',helpers+`
  const st={chip:true,port:{},testLogging:false,calTask:false,writing:false,nvmWorking:false,live:false,staged:{}};
  let calls=0,readIndex=0;
  const effectiveMeasurementReference=()=>changed&&calls++>0?{...ref,limit:9999}:ref;
  const stopLive=()=>{},startLive=()=>{},renderStatus=()=>{},sleep=async()=>{},archiveVoltages=()=>({});
  const homeNavigationAbortRequested=false,h=x=>x.toString(16),P={sign16:x=>x};
  const readReg=async addr=>{if(addr===0x30){const v=raws[readIndex++];if(v===null)throw Error('DSP read error');return v}return 123};
- `+slice(' async function archiveMeasure(',' window.ELMOS_ARCHIVE_BRIDGE=')+`return archiveMeasure(raws.length,{sampleSpacingMs:0});`);
+ `+slice(' async function archiveMeasure(',' window.ELMOS_ARCHIVE_BRIDGE=')+`return archiveMeasure(raws.length,{sampleSpacingMs:0});`).bind(null,recon);
 const ref={source:'standard',limit:30000,range:null,standard:{limit:30000},physicalRange:null,uid:'0020011DBBE7',crc:0x29DA};
 test('Real archive bridge: fractional median, raw readings, null on missing DSP',async()=>{
  const actual=await simulate(ref,[-29966,-29965],false);
