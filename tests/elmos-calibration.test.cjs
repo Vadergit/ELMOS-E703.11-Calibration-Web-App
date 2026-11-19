@@ -285,3 +285,24 @@ test('Bridge inversion persists in the calibrated NVM and preserves unrelated bi
  const old=CFG.createSelective({label:'Alt',afe:{pga1:0,pga2:0,offset:0}},['afe'],C);
  assert.equal(old.afe.bridgeInvert,undefined);
 });
+
+
+test('Bridge polarity has a two-column shared AFE control and reflects only confirmed RAM',()=>{
+ const fs=require('node:fs'),path=require('node:path');
+ const read=name=>fs.readFileSync(path.join(__dirname,'..',name),'utf8');
+ const html=read('index.html'),app=read('app.js'),guide=read('guided.js');
+ const control=html.match(/<div class="afe-polarity-control"[^>]*>[\s\S]*?<\/div>/)?.[0];
+ assert.ok(control);assert.match(control,/id="bridgePolarityNormal"/);assert.match(control,/id="bridgePolarityInverted"/);
+ assert.doesNotMatch(control,/afe-stepper|bridgePolarityToggle/);
+ assert.match(html,/\.afe-polarity-control\{display:grid;grid-template-columns:repeat\(2,minmax\(0,1fr\)\)/);
+ assert.match(guide,/move\(stepper,'gwAFEPanel'\)/);
+ const source=app.split(' function renderAFEStepperState(){')[1].split(' function stepAFE(')[0];
+ const render=new Function('st','$','function renderAFEStepperState(){'+source+'renderAFEStepperState();');
+ const elements=new Map(),get=id=>{if(!elements.has(id))elements.set(id,{setAttribute(k,v){this[k]=v}});return elements.get(id)};
+ const state={chip:true,port:{},afe:0x1800,staged:{pga1:0,pga2:0,offset:0,bridgeInvert:0}};
+ render(state,get);assert.equal(get('bridgePolarityInverted')['aria-pressed'],'true');
+ assert.equal(get('bridgePolarityNormal')['aria-pressed'],'false');assert.equal(get('bridgePolarityInverted').disabled,false);
+ state.writing=true;render(state,get);assert.equal(get('bridgePolarityInverted').disabled,true);
+ state.writing=false;state.afe=0x0800;render(state,get);assert.equal(get('bridgePolarityNormal')['aria-pressed'],'true');
+ state.chip=false;render(state,get);assert.equal(get('bridgePolarityNormal')['aria-pressed'],'false');assert.equal(get('bridgePolarityInverted').disabled,true);
+});

@@ -1,3 +1,9 @@
+## v0.7.153 – Brückenpolarität sauber ins AFE-Layout integriert
+
+- Eigener zweispaltiger Umschalter Normal / Invertiert statt dreispaltigem Gain-Stepper. Kompakter, bündiger Aufbau in geführter, klassischer und kompakter Ansicht, inklusive Darkmode.
+- Aktive Auswahl folgt ausschliesslich dem bestätigten CFG_AFE1-RAM-Wert; ohne Verbindung keine markierte Auswahl. Während Schreib-/Abgleichvorgängen gesperrt; Klick auf den aktiven Zustand verändert nichts. Bestätigung und Kalibrier-Schutz unverändert.
+- Regressionstest für Layoutstruktur und bestätigte/gesperrte Auswahl ergänzt. Hardwaretest ausstehend.
+
 ## v0.7.152 – ESP32-C3 One-Wire-Verbindung und Startdiagnose
 
 - ESP32-C3: bevorzugte 100/25 kBd zuerst, bei PLC-Fehler alternative Rate automatisch; erfolgreiche Verbindung wird nicht durch unnötige weitere Zugriffe unterbrochen. Manuelle RAM-Recovery erst nach den normalen Versuchen. Automatische Hintergrundabfrage bleibt ohne neue RAM-Recovery.

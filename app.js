@@ -168,7 +168,7 @@ if(typeof document!=='undefined') (function UI(){
    if(!st.chip||!st.uid?.hex)scheduleAutoReconnect(6000);
   }
  }
- const HELP={interface:'Schnittstelle zwischen Programmieradapter und Sensorchip. 1-Wire nutzt AODO (VDD, GND und AODO). Die Einstellung IF_CFG ändert die Programmer-Pins, nicht die NVM-Konfiguration des Sensors.',baud:'Baudrate des USB-UART zwischen Chrome und dem SSP3. Die Herstellersoftware verwendet 115200 Baud als Standard.',adcs:'ADC_S ist der unkompensierte 16-Bit-Druck-ADC. ±25000 Digits ist ein vorsichtiges Ziel für den manuellen Abgleich, keine garantierte Hardwaregrenze.',dsp_live:'DSP_S (Register 0x30) ist der skalierte DSP-Sensorausgang. Die Anzeige liest den Chipwert wiederholt und rechnet ihn mit dem konfigurierten DSP-Endwert (standardmässig ±32’000 Digits) in den gewählten Anzeigebereich um. Ein DSP-Wert allein belegt keine gültige Kalibrierung.',pga1:'Erste Druckverstärkungsstufe: 3.5×, 6×, 8.5× oder 11× (typische Werte laut Datenblatt 2023). Für gutes SNR möglichst hoch ohne Übersteuerung.',pga2:'Zweite Verstärkungsstufe: typische Faktoren 2× bis 10×. Der Gesamtfaktor ist PGA1 × PGA2.',offset:'17 DAC-Stufen von −400 bis +400 mV/V bezogen auf die Brückenspannung. Die Verschiebung liegt zwischen PGA1 und PGA2.',bridgeSupply:'Interne Brückenversorgung SVDD gemäss E703.11 CFG_AFE0 (0x1A), Bits 1:0: 2,4 V (Standard), 1,6 V oder 2,0 V. Die externe Sensorversorgung VDD muss bei 2,4 V mindestens 3,0 V, sonst mindestens 2,7 V betragen. Beim Wechsel bleiben die übrigen AFE0-Bits inklusive Brückengain unverändert. Nur nach Klick wird ins RAM geschrieben; EEPROM bleibt unverändert.',tempsource:'Die aktive Chipquelle CFG_AFE2.t_adc_src wird vor der Messung geprüft. Die Auswahl verändert keine Sensorregister. Für die Brückentemperatur sind zusätzliche Herstellerkoeffizienten erforderlich.',pressureunit:'Einheit für die Referenz- und Prüfdruckwerte. Für relative Kalibrierungen kann beispielsweise % mit 0 bis 100 gewählt werden. Referenzwerte müssen zum tatsächlichen Prüfstand passen. Einheitenwechsel erfordert neue Messpunkte.',dsp_limit:'Symmetrischer DSP-Endwert für die neue Kalibrierung. Standard ±32’000 Digits. ±30’000 lässt zusätzlich Reserve. Der Wert verändert die berechneten Koeffizienten sowie DSP-Soll und Fehlerumrechnung; er ist keine Hardware-Clipping-Grenze.',ram:'PGA1, Offset und PGA2 werden mit jeder Pfeiltaste sofort ausschliesslich in CFG_AFE1 0x1C im RAM geändert und rückgelesen. Kein NVM-/EEPROM-Schreiben. Boot-/Kommunikationsregister werden kontrolliert.',};
+ const HELP={interface:'Schnittstelle zwischen Programmieradapter und Sensorchip. 1-Wire nutzt AODO (VDD, GND und AODO). Die Einstellung IF_CFG ändert die Programmer-Pins, nicht die NVM-Konfiguration des Sensors.',baud:'Baudrate des USB-UART zwischen Chrome und dem SSP3. Die Herstellersoftware verwendet 115200 Baud als Standard.',adcs:'ADC_S ist der unkompensierte 16-Bit-Druck-ADC. ±25000 Digits ist ein vorsichtiges Ziel für den manuellen Abgleich, keine garantierte Hardwaregrenze.',dsp_live:'DSP_S (Register 0x30) ist der skalierte DSP-Sensorausgang. Die Anzeige liest den Chipwert wiederholt und rechnet ihn mit dem konfigurierten DSP-Endwert (standardmässig ±32’000 Digits) in den gewählten Anzeigebereich um. Ein DSP-Wert allein belegt keine gültige Kalibrierung.',pga1:'Erste Druckverstärkungsstufe: 3.5×, 6×, 8.5× oder 11× (typische Werte laut Datenblatt 2023). Für gutes SNR möglichst hoch ohne Übersteuerung.',pga2:'Zweite Verstärkungsstufe: typische Faktoren 2× bis 10×. Der Gesamtfaktor ist PGA1 × PGA2.',offset:'17 DAC-Stufen von −400 bis +400 mV/V bezogen auf die Brückenspannung. Die Verschiebung liegt zwischen PGA1 und PGA2.',bridgePolarity:'Normal: SIP/SIN unverändert. Invertiert: SIP und SIN werden vor PGA1 intern vertauscht (CFG_AFE1 Bit 12). Änderungen werden erst nach bestätigter RAM-Rücklesung angezeigt und erfordern einen neuen Abgleich.',bridgeSupply:'Interne Brückenversorgung SVDD gemäss E703.11 CFG_AFE0 (0x1A), Bits 1:0: 2,4 V (Standard), 1,6 V oder 2,0 V. Die externe Sensorversorgung VDD muss bei 2,4 V mindestens 3,0 V, sonst mindestens 2,7 V betragen. Beim Wechsel bleiben die übrigen AFE0-Bits inklusive Brückengain unverändert. Nur nach Klick wird ins RAM geschrieben; EEPROM bleibt unverändert.',tempsource:'Die aktive Chipquelle CFG_AFE2.t_adc_src wird vor der Messung geprüft. Die Auswahl verändert keine Sensorregister. Für die Brückentemperatur sind zusätzliche Herstellerkoeffizienten erforderlich.',pressureunit:'Einheit für die Referenz- und Prüfdruckwerte. Für relative Kalibrierungen kann beispielsweise % mit 0 bis 100 gewählt werden. Referenzwerte müssen zum tatsächlichen Prüfstand passen. Einheitenwechsel erfordert neue Messpunkte.',dsp_limit:'Symmetrischer DSP-Endwert für die neue Kalibrierung. Standard ±32’000 Digits. ±30’000 lässt zusätzlich Reserve. Der Wert verändert die berechneten Koeffizienten sowie DSP-Soll und Fehlerumrechnung; er ist keine Hardware-Clipping-Grenze.',ram:'PGA1, Offset und PGA2 werden mit jeder Pfeiltaste sofort ausschliesslich in CFG_AFE1 0x1C im RAM geändert und rückgelesen. Kein NVM-/EEPROM-Schreiben. Boot-/Kommunikationsregister werden kontrolliert.',};
  const h=P.hx;
  const fmt=n=>n===null||n===undefined||!Number.isFinite(n)?'—':Math.round(n).toLocaleString('de-CH');
  const now=()=>new Date().toLocaleTimeString('de-CH',{hour12:false});
@@ -456,8 +456,6 @@ if(typeof document!=='undefined') (function UI(){
  function gainSummary(){
   const g=st.staged;
   for(const k of ['pga1','pga2','offset'])$(k).value=String(g[k]);
-  $('bridgePolarityValue').textContent=Number.isInteger(st.afe)?(g.bridgeInvert?'Invertiert':'Normal'):'—';
-  $('bridgePolarityToggle').textContent=g.bridgeInvert?'Normal einstellen':'Invertieren';
   $('pga1val').textContent=GAINS1[g.pga1]+'×';
   $('offsetval').textContent=(g.offset*50>0?'+':'')+(g.offset*50)+' mV/V';
   $('pga2val').textContent=GAINS2[g.pga2]+'×';
@@ -466,8 +464,13 @@ if(typeof document!=='undefined') (function UI(){
  }
  function renderAFEStepperState(){
   const busy=st.calTask||st.writing||st.nvmWorking;
-  $('bridgePolarityToggle').disabled=busy||!st.port||!st.chip||!Number.isInteger(st.afe)||st.testLogging;
-  if(!st.chip||!Number.isInteger(st.afe))$('bridgePolarityValue').textContent='—';
+  const known=!!st.chip&&Number.isInteger(st.afe);
+  const blocked=busy||!st.port||!known||st.testLogging;
+  for(const [id,value] of [['bridgePolarityNormal',0],['bridgePolarityInverted',1]]){
+   const button=$(id),selected=known&&((st.afe>>>12)&1)===value;
+   button.setAttribute('aria-pressed',String(selected));
+   button.disabled=!!blocked;
+  }
   for(const [k,min,max] of [['pga1',0,3],['pga2',0,8],['offset',-8,8]]){
    $(k+'Down').disabled=busy||st.staged[k]<=min;
    $(k+'Up').disabled=busy||st.staged[k]>=max
@@ -5268,11 +5271,13 @@ if(typeof document!=='undefined') (function UI(){
  $('afeFilterProfile').addEventListener('change',event=>{
   if(event.target.value!=='')void applyFilterProfile(Number(event.target.value));
  });
- $('bridgePolarityToggle').addEventListener('click',()=>{
-  if($('bridgePolarityToggle').disabled)return;
-  if(!window.confirm('Brückenpolarität ändern? SIP und SIN werden vor PGA1 vertauscht. Neue Kalibrierung erforderlich; bisherige Messpunkte und DSP-Prüfung werden verworfen. Nur RAM, kein EEPROM-Schreiben.'))return;
-  void commitGain({...st.staged,bridgeInvert:1-st.staged.bridgeInvert}).catch(e=>show('writeMsg',e.message,'error'));
- });
+ for(const [id,value] of [['bridgePolarityNormal',0],['bridgePolarityInverted',1]]){
+  $(id).addEventListener('click',()=>{
+   if($(id).disabled||!Number.isInteger(st.afe)||((st.afe>>>12)&1)===value)return;
+   if(!window.confirm('Brückenpolarität ändern? SIP und SIN werden vor PGA1 vertauscht. Neue Kalibrierung erforderlich; bisherige Messpunkte und DSP-Prüfung werden verworfen. Nur RAM, kein EEPROM-Schreiben.'))return;
+   void commitGain({...st.staged,bridgeInvert:value}).catch(e=>show('writeMsg',e.message,'error'));
+  });
+ }
  $('brSupplyRead').addEventListener('click',()=>refreshBridgeSupply());
  $('readNow').addEventListener('click',()=>withProgress('ADC-Werte werden gelesen',()=>readADC()).catch(e=>show('adcMsg','ADC: '+e.message,'error')));$('live').addEventListener('click',()=>{if(st.live){st.manualLivePause=true;stopLive()}else{st.manualLivePause=false;startLive()}});
  for(const k of ['pga1','pga2','offset']){
