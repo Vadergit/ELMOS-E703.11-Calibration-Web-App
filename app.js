@@ -506,17 +506,20 @@ if(typeof document!=='undefined') (function UI(){
  const gain=words[58]/4096;
  // This app's standard fit is symmetric; reject nonzero offset and signed/invalid gain.
  if(words[57]!==0||words[58]>=0x8000||!(gain>0))return null;
- const limit=26214.4/gain;
- // Allow at most half an AODO gain LSB at the upper supported DSP endpoint.
- if(limit<1000||gain+0.5/4096<26214.4/32000)return null;
- return {gain,offset:0,limit};
+ // Reconstruct the intended symmetric DSP target on a 100-digit grid.
+ // Keep the raw estimate for diagnostics; the grid is a project convention,
+ // not a guarantee about calibration targets of third-party sensors.
+ const inferredLimit=26214.4/gain;
+ const limit=Math.round(inferredLimit/100)*100;
+ if(!Number.isFinite(inferredLimit)||limit<1000||limit>32000)return null;
+ return {gain,offset:0,inferredLimit,limit};
 }
  function digitalPercent(raw,range,standard){
  if(!Number.isInteger(raw)||raw< -32768||raw>32767)return null;
  if(range&&Number.isFinite(range.limit)&&range.limit>0)
   return {value:(raw+range.limit)/(2*range.limit)*100,source:range.kind};
- if(standard&&Number.isFinite(standard.gain)&&standard.gain>0)
-  return {value:(raw*standard.gain+standard.offset*32768+26214.4)/52428.8*100,source:'standard'};
+ if(standard&&Number.isInteger(standard.limit)&&standard.limit>=1000&&standard.limit<=32000)
+  return {value:(raw+standard.limit)/(2*standard.limit)*100,source:'standard'};
  return null;
 }
  function calibrationDisplayProfile(words=st.nvmBackup,uid=st.uid?.hex){
@@ -700,7 +703,8 @@ if(typeof document!=='undefined') (function UI(){
   button.disabled=!eligible||!!getActiveDSPRange()||!!activeStandardReference();
   reset.disabled=busy||!st.uid?.hex||!storedStandardReference(st.uid.hex);
   note.textContent=getActiveDSPRange()?'Bestätigtes Abgleichprofil aktiv.':
-   activeStandardReference()?(standardDisplayRange.automatic?'10–90 % VDD angenommen · AODO-Näherung aktiv.':'10–90 % VDD bestätigt · AODO-Näherung aktiv.'):
+   activeStandardReference()?(standardDisplayRange.automatic?'10–90 % VDD angenommen':'10–90 % VDD bestätigt')+
+    ' · DSP-Endwert rechnerisch ±'+activeStandardReference().inferredLimit.toFixed(1)+' · auf ±'+activeStandardReference().limit+' Digits gerundet.':
    autoStandardEnabled()?'Automatik aktiv. Ohne plausiblen, übereinstimmenden RAM-/EEPROM-Abgleich werden Digits angezeigt. Bei Bedarf EEPROM erneut lesen.':
    'Automatik aus. Ohne bekanntes Kalibrierziel werden Digits angezeigt. Bestätigung nur bei nachweislich 10–90 % VDD verwenden.';
  }
@@ -819,7 +823,9 @@ if(typeof document!=='undefined') (function UI(){
   $('livePressure').parentElement?.setAttribute('title',range?
    'Digitaler Prozentwert aus festem DSP-Endwert ±'+range.limit+' · Referenz '+range.min+'–'+range.max+' '+range.unit+
     (reading.unit!=='%'&&activeDSP?' · '+dspNumber(reading.value)+' '+reading.unit:''):
-   percent?.source==='standard'?'Näherung aus DSP_S und rückgelesener AODO-Skalierung; '+(standardDisplayRange?.automatic?'angenommenes':'bestätigtes')+' Ziel 10–90 % VDD, keine Analogmessung.':
+   percent?.source==='standard'?'DSP-Endwert aus AODO: ±'+activeStandardReference().inferredLimit.toFixed(1)+
+    ' → ±'+activeStandardReference().limit+' Digits (auf 100 gerundet). '+(standardDisplayRange?.automatic?'Angenommenes':'Bestätigtes')+
+    ' Ziel 10–90 % VDD; keine Analogmessung.':
    'Digitaler Sensorwert direkt aus DSP_S. Kein bestätigtes Abgleichprofil; keine Prozentumrechnung.');
  }
  function renderDSPLive(){

@@ -10,9 +10,9 @@ const image=limit=>{const w=Array(64).fill(0);w[16]=0x12D6;w[58]=Math.round(2621
 for(const limit of [25000,30000,32000]){
  test('Round-trip 10–90% VDD with DSP ±'+limit,()=>{
   const p=standardPressureReference(image(limit));
-  assert.ok(p&&Math.abs(p.limit-limit)<6);
+  assert.ok(p);assert.equal(p.limit,limit);
   for(const [raw,pct] of [[-limit,0],[-limit/2,25],[0,50],[limit/2,75],[limit,100]])
-   assert.ok(Math.abs(digitalPercent(raw,null,p).value-pct)<0.01);
+   assert.equal(digitalPercent(raw,null,p).value,pct);
  });
  test('Reject unsupported AODO configuration '+limit,()=>{
   const w=image(limit);w[16]&=~64;assert.equal(standardPressureReference(w),null);
@@ -52,7 +52,8 @@ const oldSensor=()=>Object.assign(Array(64).fill(0),{0:0xBBE7,1:0x11D,16:0x13D6,
 test('Older confirmed chip automatically shows approximate pressure without local profile',async()=>{
  const r=await simulate(oldSensor(),{});
  assert.ok(r.ok&&r.standard.automatic);
- assert.ok(Math.abs(r.percent.value-0.058612)<0.00001);
+ assert.equal(r.standard.reference.limit,30000);
+ assert.ok(Math.abs(r.percent.value-0.056666666666666666)<1e-10);
  const full=await simulate(oldSensor(),{full:true});
  assert.ok(full.ok);assert.equal(full.reads,0);
 });
@@ -65,4 +66,24 @@ test('Matching saved profile wins over automatic legacy assumption',async()=>{
  const w=oldSensor(),local={crc:w[63],nvmWords:w,min:0,max:6,unit:'bar',selected:'bar',limit:30000};
  const r=await simulate(w,{local});
  assert.ok(r.ok&&r.profile);assert.equal(r.percent.source,'profile');
+});
+
+test('Every representable 100-digit standard target survives actual calibration gain quantization',()=>{
+ const CAL=require('../calibration.js');
+ for(let limit=3300;limit<=32000;limit+=100){
+  const gain=CAL.analogScaling(0.5,4.5,5,limit).gain;
+  const w=image(limit);w[58]=Math.round(gain*4096);
+  const ref=standardPressureReference(w);
+  assert.ok(ref,'Missing reference for '+limit);
+  assert.equal(ref.limit,limit);
+  assert.equal(digitalPercent(-limit,null,ref).value,0);
+  assert.equal(digitalPercent(limit,null,ref).value,100);
+ }
+});
+test('Rounded reference stays approximate; existing precise profile is not rounded',()=>{
+ const ref=standardPressureReference(image(30000));
+ assert.equal(ref.limit,30000);
+ assert.notEqual(ref.inferredLimit,ref.limit);
+ assert.equal(digitalPercent(30123,{limit:30123,kind:'profile'},ref).value,100);
+ assert.equal(standardPressureReference(image(32100)),null);
 });
