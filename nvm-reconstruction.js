@@ -551,7 +551,7 @@ function chooseDisplayReference(profile,standard){
    unlock.type='button';
    unlock.addEventListener('click',()=>{
     const st=root._nvmState;st.profileOverride=!st.profileOverride;
-    if(!st.profileOverride)st.profileKey=null;
+    if(!st.profileOverride){st.profileKey=null;st.limitEdited=false;}
     draw(root);
    });
    const sessionButton=dom('button','Aktuellen RAM-Abgleich übernehmen','nvmrecon-session-use');
@@ -643,9 +643,9 @@ function chooseDisplayReference(profile,standard){
   // Infer from the SELECTED image only; reject automatic targets for bad CRC.
   const calibration=typeof require==='function'?require('./calibration.js'):ELMOS_CAL;
   const crcOK=!!words&&calibration.crc8(words)===(words[15]>>>8)&&calibration.crc16(words)===words[63];
-  const canInfer=crcOK&&(readLocal('elmos-dsp-auto-standard-v1')!=='0');
+  const canInfer=crcOK&&words[34]!==0&&words.slice(35,51).some(Boolean)&&(readLocal('elmos-dsp-auto-standard-v1')!=='0');
   const choice=words&&crcOK?resolveReference(words,profileLimit,canInfer):null;
-  const profileKey=JSON.stringify([sourceKey,profile?.kind,profile?.uid,profile?.crc,profile?.fields,profile?.recordedAt,choice?.limit,choice?.limitSource]);
+  const profileKey=JSON.stringify([sourceKey,profile?.kind,profile?.uid,profile?.crc,profile?.fields,profile?.recordedAt,choice?.limit,choice?.limitSource,choice?.profileLimit]);
   if(sourceKey!==state.sourceKey||profileKey!==state.profileKey){
    const changedSource=sourceKey!==state.sourceKey,oldLimit=state.opts.limit;
    if(changedSource){state.profileOverride=false;state.limitEdited=false;state.sourceKey=sourceKey}
@@ -728,6 +728,8 @@ function chooseDisplayReference(profile,standard){
    if(!profile&&state.sessionProfile?.points?.length)
     text='Ein aktueller Kalibrierablauf ist im Browser vorhanden. Solange dessen NVM nicht bestätigt ist, werden die Werte nicht automatisch dem EEPROM zugeordnet.';
    if(profile)text+=' Diese Fixwerte stammen aus dem Kalibrierprofil und sind keine separaten NVM-Register.';
+    if(choice?.decision?.useStandard&&choice.profileLimit!==null&&choice.decision.delta>100)text+=' Achtung: DSP-Profilwert widerspricht AODO. Der korrigierte DSP-Endwert wird verwendet; der physikalische Druckbereich ist erneut zu bestätigen.';
+    if(words&&!crcOK)text+=' CRC ungültig: automatische DSP-Zuordnung gesperrt.';
    if(profileProblem)text+=' '+profileProblem;
    if(state.profileFileError)text+=' Profilimport fehlgeschlagen: '+state.profileFileError;
    if(!text)text='Du kannst ein Kalibrierprotokoll oder eine Config-Vorlage laden. Ohne Profil bleiben die Referenzen bearbeitbar.';
