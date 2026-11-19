@@ -499,21 +499,7 @@ if(typeof document!=='undefined') (function UI(){
  // AODO coefficients do NOT prove the original calibration voltage endpoints.
  // Default product policy assumes 10–90 % VDD for legacy sensors; label the result as an approximation.
  // Users can disable this assumption without altering any sensor register.
- function standardPressureReference(words){
- if(!Array.isArray(words)||words.length!==64)return null;
- const en=words[16],mode=(en>>9)&7;
- if(mode<1||mode>3||!(en&(1<<6))||(en&(1<<14)))return null;
- const gain=words[58]/4096;
- // This app's standard fit is symmetric; reject nonzero offset and signed/invalid gain.
- if(words[57]!==0||words[58]>=0x8000||!(gain>0))return null;
- // Reconstruct the intended symmetric DSP target on a 100-digit grid.
- // Keep the raw estimate for diagnostics; the grid is a project convention,
- // not a guarantee about calibration targets of third-party sensors.
- const inferredLimit=26214.4/gain;
- const limit=Math.round(inferredLimit/100)*100;
- if(!Number.isFinite(inferredLimit)||limit<1000||limit>32000)return null;
- return {gain,offset:0,inferredLimit,limit};
-}
+ function standardPressureReference(words){return ELMOS_NVM_RECON.standardPressureReference(words);}
  function digitalPercent(raw,range,standard){
  if(!Number.isFinite(raw)||raw< -32768||raw>32767)return null; // medians/means may contain fractional digits
  if(range&&Number.isFinite(range.limit)&&range.limit>0)
@@ -522,14 +508,7 @@ if(typeof document!=='undefined') (function UI(){
   return {value:(raw+standard.limit)/(2*standard.limit)*100,source:'standard'};
  return null;
 }
- function chooseDisplayReference(profile,standard){
-  if(!profile)return {useStandard:!!standard,reason:standard?'Kein passendes Abgleichprofil':'Keine Referenz'};
-  if(!standard)return {useStandard:false,reason:'Abgleichprofil; AODO-Vergleich nicht möglich'};
-  const delta=Math.abs(profile.limit-standard.limit);
-  // 100 digits tolerance covers the 100-digit reconstruction grid.
-  const useStandard=delta>100;
-  return {useStandard,delta,reason:useStandard?'Profilabweichung > 100 Digits: AODO verwendet':'Abgleichprofil plausibel (Abweichung ≤ 100 Digits)'};
- }
+ function chooseDisplayReference(profile,standard){return ELMOS_NVM_RECON.chooseDisplayReference(profile,standard);}
  function calibrationDisplayProfile(words=st.nvmBackup,uid=st.uid?.hex){
   if(!uid||!CAL.crc16||!Array.isArray(words)||words.length!==64||CAL.crc16(words)!==words[63])return null;
   const frozen=st.calfit?.displayReference;
