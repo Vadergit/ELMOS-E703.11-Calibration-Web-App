@@ -50,16 +50,51 @@ const ELMOS_NVM_RECON = (() => {
   // The DSP target limit and physical °C assignment are not independent NVM
   // registers. Reuse a locally stored profile only after binding it to the
   // exact chip UID and NVM CRC; otherwise make the assumed defaults explicit.
-  function referenceMetadata(words,uid,readLocal){
+  function standardPressureReference(words){
+ if(!Array.isArray(words)||words.length!==64)return null;
+ const en=words[16],mode=(en>>9)&7;
+ if(mode<1||mode>3||!(en&(1<<6))||(en&(1<<14)))return null;
+ const gain=words[58]/4096;
+ // This app's standard fit is symmetric; reject nonzero offset and signed/invalid gain.
+ if(words[57]!==0||words[58]>=0x8000||!(gain>0))return null;
+ // Reconstruct the intended symmetric DSP target on a 100-digit grid.
+ // Keep the raw estimate for diagnostics; the grid is a project convention,
+ // not a guarantee about calibration targets of third-party sensors.
+ const inferredLimit=26214.4/gain;
+ const limit=Math.round(inferredLimit/100)*100;
+ if(!Number.isFinite(inferredLimit)||limit<1000||limit>32000)return null;
+ return {gain,offset:0,inferredLimit,limit};
+}
+function chooseDisplayReference(profile,standard){
+  if(!profile)return {useStandard:!!standard,reason:standard?'Kein passendes Abgleichprofil':'Keine Referenz'};
+  if(!standard)return {useStandard:false,reason:'Abgleichprofil; AODO-Vergleich nicht möglich'};
+  const delta=Math.abs(profile.limit-standard.limit);
+  // 100 digits tolerance covers the 100-digit reconstruction grid.
+  const useStandard=delta>100;
+  return {useStandard,delta,reason:useStandard?'Profilabweichung > 100 Digits: AODO verwendet':'Abgleichprofil plausibel (Abweichung ≤ 100 Digits)'};
+ }
+
+   const validLimit=n=>Number.isInteger(n)&&n>=1000&&n<=32000;
+   function resolveReference(words,profileLimit,allowAuto=true){
+    const comparison=standardPressureReference(words);
+    const standard=allowAuto?comparison:null;
+    const profile=validLimit(profileLimit)?{limit:profileLimit}:null;
+    const decision=chooseDisplayReference(profile,standard);
+    return {limit:decision.useStandard?standard.limit:profile?.limit??null,
+     limitSource:decision.useStandard?'aodo':profile?'local':'unknown',
+     profileLimit:profile?.limit??null,comparison,decision};
+   }
+   function referenceMetadata(words,uid,readLocal){
    if(!validWords(words))return null;
    const factoryTemp=words[31]===0&&words[32]===0x1000&&
     words[51]===0x0F4D&&words[52]===0xBC8E&&words[53]===0xFC54&&words[54]===0;
    const constantTemp=words.slice(52,55).every(w=>w===0);
-   const result={limit:32000,limitSource:'default',temperatureSource:factoryTemp?'factory':'assumed',
+   const result={limit:null,limitSource:'unknown',temperatureSource:factoryTemp?'factory':'assumed',
     factoryTemp,constantTemp};
-   const serial=hex(words[1]).slice(2)+hex(words[0]).slice(2);
+   const resolved=()=>Object.assign(result,resolveReference(words,result.limit));
+    const serial=hex(words[1]).slice(2)+hex(words[0]).slice(2);
    if(typeof uid!=='string'||!/^[0-9a-f]{12}$/i.test(uid)||uid.slice(-8).toUpperCase()!==serial||
-      typeof readLocal!=='function')return result;
+      typeof readLocal!=='function')return resolved();
    const chipUid=uid.toUpperCase();
    const safeJSON=key=>{try{const raw=readLocal(key);return raw?JSON.parse(raw):null}catch{return null}};
    const saved=safeJSON('elmos-dsp-display-by-uid-v1-'+chipUid);
@@ -77,7 +112,7 @@ const ELMOS_NVM_RECON = (() => {
     Array.isArray(last.words)&&last.words.length===64&&
     last.words.every((w,i)=>w===words[i]);
    if(exact){
-    if(result.limitSource==='default'&&Number.isInteger(last.outputTarget?.limit)&&
+    if(result.limitSource==='unknown'&&Number.isInteger(last.outputTarget?.limit)&&
        last.outputTarget.limit>=1000&&last.outputTarget.limit<=32000){
      result.limit=last.outputTarget.limit;
      result.limitSource='local';
@@ -85,7 +120,7 @@ const ELMOS_NVM_RECON = (() => {
     if(!factoryTemp&&!constantTemp&&last.temperatureBasis==='an0203-celsius-v1')
      result.temperatureSource='local';
    }
-   return result;
+   return resolved();
   }
 
  const fmt = (v, digits = 4) => finite(v)
@@ -146,7 +181,7 @@ const ELMOS_NVM_RECON = (() => {
   if(!validWords(words))return {ok:false, error:'Es werden 64 vollständige NVM-Wörter benötigt.'};
   const pmin=Number(opts.pmin??0),pmax=Number(opts.pmax??6),
    ta=Number(opts.ta??25),tb=Number(opts.tb??75),
-   vdd=Number(opts.vdd??5),limit=Number(opts.limit??32000),
+   vdd=Number(opts.vdd??5),limit=Number(opts.limit??resolveReference(words,null).limit),
     pressureUnit=['bar','mbar','kPa','psi','%'].includes(opts.pressureUnit)?opts.pressureUnit:'bar';
   const rawInputs=[opts.adcT1,opts.adcT2].map(v=>v===null||v===undefined||v===''?null:Number(v));
   if(rawInputs.some(v=>v!==null&&(!Number.isInteger(v*2)||v< -32768||v>32767)))
@@ -883,6 +918,6 @@ const ELMOS_NVM_RECON = (() => {
   draw(root);
   return true;
  }
- return {calculate,render,parseNvmImport,validWords,chooseSource,referenceMetadata,missingExplanations,setReadFeedback,preferLive};
+ return {calculate,render,parseNvmImport,validWords,chooseSource,referenceMetadata,standardPressureReference,chooseDisplayReference,resolveReference,missingExplanations,setReadFeedback,preferLive};
 })();
 if(typeof module!=='undefined'&&module.exports)module.exports=ELMOS_NVM_RECON;
