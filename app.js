@@ -492,8 +492,11 @@ if(typeof document!=='undefined') (function UI(){
  // Profiles are never written to sensor NVM and are never shared across chips.
  const displayProfileKey=uid=>'elmos-dsp-display-by-uid-v1-'+uid;
  const standardDisplayKey=uid=>'elmos-dsp-standard-target-v1-'+uid;
+ const autoStandardKey='elmos-dsp-auto-standard-v1';
+ const autoStandardEnabled=()=>lsGet(autoStandardKey)!=='0';
  // AODO coefficients do NOT prove the original calibration voltage endpoints.
- // Only use the standard formula after a UID/CRC-bound, explicit reference confirmation.
+ // Default product policy assumes 10–90 % VDD for legacy sensors; label the result as an approximation.
+ // Users can disable this assumption without altering any sensor register.
  function standardPressureReference(words){
  if(!Array.isArray(words)||words.length!==64)return null;
  const en=words[16],mode=(en>>9)&7;
@@ -575,7 +578,7 @@ if(typeof document!=='undefined') (function UI(){
  function activeStandardReference(){
   const r=standardDisplayRange;
   return st.chip&&r?.port===st.port&&r.session===st.sessionIndex&&r.uid===st.uid?.hex&&
-   !st.calStaged?r.reference:null;
+   !st.calStaged&&(!r.automatic||autoStandardEnabled())?r.reference:null;
  }
  async function restoreCalibrationDisplayProfile(verifiedWords=null){
   const port=st.port,session=st.sessionIndex,uid=st.uid?.hex;
@@ -583,11 +586,12 @@ if(typeof document!=='undefined') (function UI(){
   sensorDisplayRange=null;standardDisplayRange=null;
   const local=storedDisplayProfile(uid);
   const standard=storedStandardReference(uid);
-  if(!local&&!standard)return false;
+  const allowAuto=autoStandardEnabled()&&!demoEnabled;
+  if(!local&&!standard&&!allowAuto)return false;
   const ownsTask=!verifiedWords;
   if(ownsTask&&(st.calTask||st.writing||st.nvmWorking))return false;
   if(st.port!==port||st.sessionIndex!==session||st.uid?.hex!==uid||!st.chip||st.closing)return false;
-  let p,isStandard=false;
+  let p,isStandard=false,automatic=false,partialAuto=false;
   try{
    let crc=verifiedWords?.[63];
    if(ownsTask){
@@ -598,10 +602,38 @@ if(typeof document!=='undefined') (function UI(){
     if((await readReg(0x46))&0x40)return false;
    }
    p=local?.crc===crc?local:standard?.crc===crc?standard:null;
+   if(!p&&allowAuto){
+    // At connection, read only the relevant saved words first (avoid a full 64-word scan).
+    // On an explicit EEPROM scan use its entire CRC-verified image instead.
+    const words=verifiedWords?verifiedWords.slice():Array(64).fill(0);
+    if(!verifiedWords){
+     for(const i of [16,57,58])words[i]=await nvmReadWord(i*2);
+     partialAuto=true;
+    }
+    if(!standardPressureReference(words))return false;
+    p={nvmWords:words};automatic=true;
+   }
    if(!p)return false;
-   isStandard=p===standard;
+   isStandard=automatic||p===standard;
    if(verifiedWords&&p.nvmWords.some((w,i)=>w!==verifiedWords[i]))return false;
-   for(let i=31;i<=54;i++)if(await readReg(0x6C+2*(i-31))!==p.nvmWords[i])return false;
+   if(partialAuto){
+    // A gain in the output stage alone is not proof of a pressure calibration.
+    // Confirm a nonzero pressure normalization and at least one pressure coefficient,
+    // and verify the active pressure calibration words against their saved values.
+    let calibrated=false;
+    for(let i=31;i<=54;i++){
+     const active=await readReg(0x6C+2*(i-31));
+     const saved=await nvmReadWord(i*2);
+     if(active!==saved)return false;
+     p.nvmWords[i]=saved;
+     if(i>=35&&i<=50&&saved!==0)calibrated=true;
+    }
+    if(!p.nvmWords[34]||!calibrated)return false;
+    if(await nvmReadWord(0x7E)!==crc||((await readReg(0x46))&0x40))return false;
+   }else{
+    if(automatic&&(!p.nvmWords[34]||!p.nvmWords.slice(35,51).some(Boolean)))return false;
+    for(let i=31;i<=54;i++)if(await readReg(0x6C+2*(i-31))!==p.nvmWords[i])return false;
+   }
    const postScaling=1<<14;
    if(((await readReg(0x04))^p.nvmWords[16])&postScaling)return false;
    if(p.nvmWords[16]&postScaling){
@@ -622,7 +654,7 @@ if(typeof document!=='undefined') (function UI(){
   }
   if(st.port!==port||st.sessionIndex!==session||st.uid?.hex!==uid||!st.chip||st.closing)return false;
   if(isStandard){
-   standardDisplayRange={port,session,uid,reference:standardPressureReference(p.nvmWords)};
+   standardDisplayRange={port,session,uid,automatic,reference:standardPressureReference(p.nvmWords)};
    renderDSPLive();return true;
   }
   const unit=p.selected==='custom'?(String(p.customUnit||'').slice(0,14)||'Einheit'):p.selected;
@@ -658,15 +690,17 @@ if(typeof document!=='undefined') (function UI(){
   return {value:raw,unit:'Digits'};
  }
  function renderStandardReferenceUi(){
-  const button=$('digitalStandardConfirm'),reset=$('digitalStandardForget'),note=$('digitalStandardStatus');
+  const button=$('digitalStandardConfirm'),reset=$('digitalStandardForget'),note=$('digitalStandardStatus'),auto=$('digitalStandardAuto');
   if(!button||!reset||!note)return;
   const busy=!!(st.calStaged||st.calpoints?.length||st.calTask||st.writing||st.nvmWorking||st.testLogging);
   const eligible=!busy&&hasCurrentNvmBackup()&&!!standardPressureReference(st.nvmBackup)&&!demoEnabled;
+  if(auto){auto.checked=autoStandardEnabled();auto.disabled=busy;}
   button.disabled=!eligible||!!getActiveDSPRange()||!!activeStandardReference();
   reset.disabled=busy||!st.uid?.hex||!storedStandardReference(st.uid.hex);
   note.textContent=getActiveDSPRange()?'Bestätigtes Abgleichprofil aktiv.':
-   activeStandardReference()?'10–90 % VDD bestätigt · AODO-Näherung aktiv.':
-   'Ohne bekanntes Kalibrierziel werden Digits angezeigt. Zuerst EEPROM lesen. Bestätigung nur verwenden, wenn die ursprüngliche Kennlinie nachweislich 10–90 % VDD war.';
+   activeStandardReference()?(standardDisplayRange.automatic?'10–90 % VDD angenommen · AODO-Näherung aktiv.':'10–90 % VDD bestätigt · AODO-Näherung aktiv.'):
+   autoStandardEnabled()?'Automatik aktiv. Ohne plausiblen, übereinstimmenden RAM-/EEPROM-Abgleich werden Digits angezeigt. Bei Bedarf EEPROM erneut lesen.':
+   'Automatik aus. Ohne bekanntes Kalibrierziel werden Digits angezeigt. Bestätigung nur bei nachweislich 10–90 % VDD verwenden.';
  }
  async function confirmStandardReference(){
   if(!hasCurrentNvmBackup()||demoEnabled||st.calTask||st.writing||st.nvmWorking||st.calStaged||st.calpoints?.length||st.testLogging)return;
@@ -688,6 +722,14 @@ if(typeof document!=='undefined') (function UI(){
    if(!ok&&$('digitalStandardStatus'))$('digitalStandardStatus').textContent='Referenz nicht übernommen: EEPROM/RAM, Chip-ID oder Ausgangsskalierung konnten nicht übereinstimmend bestätigt werden.';
   }
  }
+ $('digitalStandardAuto')?.addEventListener('change',async()=>{
+  lsSet(autoStandardKey,$('digitalStandardAuto').checked?'1':'0');
+  if(!autoStandardEnabled()&&standardDisplayRange?.automatic)standardDisplayRange=null;
+  renderDSPLive();
+  if(autoStandardEnabled()&&st.chip&&st.uid?.hex&&!getActiveDSPRange()&&!activeStandardReference()&&
+     !st.calTask&&!st.writing&&!st.nvmWorking&&!st.calStaged&&!st.calpoints?.length&&!st.testLogging&&!demoEnabled)
+   await nvmScan({expertRead:true});
+ });
  $('digitalStandardConfirm')?.addEventListener('click',()=>void confirmStandardReference());
  $('digitalStandardForget')?.addEventListener('click',()=>{
   if(st.uid?.hex&&!st.calTask&&!st.writing&&!st.nvmWorking){
@@ -775,7 +817,7 @@ if(typeof document!=='undefined') (function UI(){
   $('livePressure').parentElement?.setAttribute('title',range?
    'Digitaler Prozentwert aus festem DSP-Endwert ±'+range.limit+' · Referenz '+range.min+'–'+range.max+' '+range.unit+
     (reading.unit!=='%'&&activeDSP?' · '+dspNumber(reading.value)+' '+reading.unit:''):
-   percent?.source==='standard'?'Näherung aus DSP_S und rückgelesener AODO-Skalierung; dokumentiertes Ziel 10–90 % VDD, keine Analogmessung.':
+   percent?.source==='standard'?'Näherung aus DSP_S und rückgelesener AODO-Skalierung; '+(standardDisplayRange?.automatic?'angenommenes':'bestätigtes')+' Ziel 10–90 % VDD, keine Analogmessung.':
    'Digitaler Sensorwert direkt aus DSP_S. Kein bestätigtes Abgleichprofil; keine Prozentumrechnung.');
  }
  function renderDSPLive(){
