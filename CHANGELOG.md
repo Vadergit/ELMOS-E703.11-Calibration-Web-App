@@ -1,3 +1,10 @@
+## v0.7.146 – Digitaler Effektivwert mit Profilvergleich
+
+- Beim Verbinden wird im bereits freigegebenen lokalen Archiv nach einem passenden Komplettabgleich gesucht (Chip-UID, aktuelle EEPROM-CRC und gültige 64 Wort). Andernfalls wird das vorhandene Browserprofil geprüft.
+- Auch bei einem passenden Abgleichprofil wird AODO mit den aktuellen EEPROM- und RAM-Registern verglichen. Bei aktiver Automatik und einer Abweichung über 100 Digits wird der aus AODO rekonstruierte, auf 100 Digits gerundete DSP-Endwert verwendet. Ohne gültige AODO-Referenz bleibt das verifizierte Profil erhalten. Die AODO-Umrechnung setzt eine 10–90-%-VDD-Kennlinie voraus.
+- Kompakte Anzeige «% · Effektivwert» mit Fragezeichen: Quelle, DSP_S, Profil-Endwert, AODO_F, berechneter/gerundeter Endwert, Abweichung und Annahmen beim Überfahren sichtbar. Keine Änderung an EEPROM oder USER-ID.
+- Softwaretests für Rundung, Profilauswahl, Archivdatei und CRC-Prüfung; realer Hardware- und Browser-Hovertest ausstehend.
+
 ## v0.7.145 – Digitalen DSP-Endwert rekonstruieren
 
 - Für die AODO-Näherung wird der berechnete DSP-Endwert auf die nächsten 100 Digits gerundet (z. B. 30’001.2 → 30’000) und erst danach der digitale Prozentwert aus DSP_S berechnet.
