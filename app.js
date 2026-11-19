@@ -1771,15 +1771,37 @@ if(typeof document!=='undefined') (function UI(){
   if(!status)throw Error((st.bridgeBoard||'DIY-Programmer')+' hat die One-Wire-Adresse nicht bestätigt');
   st.plcAddress=parseInt(status[1],16);
   if(status[2]==='1')st.psscRamRecovery=true;
+  const rate=response.match(/\bBAUD=(\d+)\b/);
+  st.bridgeEffectiveBaud=rate?Number(rate[1]):null;
   return status[2]==='1';
  }
- async function noteBridgeRx(){
+ async function noteBridgeRx(attempt=null){
   if(!st.bridgeRxDiag||!st.port||st.closing)return;
   try{
    const reply=await exchange('PLC RX DIAG');
-   for(const row of reply.split(/\r?\n/).filter(l=>l.includes('# RX ')))logging(row);
+   const rows=reply.split(/\r?\n/).filter(l=>l.includes('# RX '));
+   const probes=rows.map(row=>{
+    logging(row);
+    const m=row.match(/RX (\d+) kBd ADDR=([0-9A-F]+) GPIO(\d+)=(\d) ECHO=(\w+) EDGES=(\d+) RESULT=(\S+) WORD=([0-9A-F]+)/);
+    if(!m)return {raw:row};
+    const [,rate,address,gpio,level,echo,edges,result,word]=m;
+    const reason=result==='CRC_OK'?
+     (word==='0000'?'CFG_AFE1=0x0000: Pflichtbit 11 fehlt; CRC gültig, aber kein kalibrierbereiter AFE. Chipidentität nicht bewiesen.':
+      !(parseInt(word,16)&0x0800)?'CFG_AFE1: Pflichtbit 11 fehlt; keine Schreibfreigabe.':
+      'AFE-Antwort CRC-gültig; ADC, Konfigurationsadresse, weitere Register oder UID können die Erkennung dennoch verhindern.'):
+     result==='PLC_BAD_CRC'?'Antworttelegramm mit CRC-Fehler':
+     Number(edges)===0?'Keine Flanken nach Freigabe: Versorgung, Startfenster, Verdrahtung oder Baudrate prüfen.':
+     'Signalflanken vorhanden, aber kein decodierbares Antworttelegramm.';
+    logging('PLC-Diagnose '+rate+' kBd / 0x'+address+': '+reason);
+    return {rateKbd:Number(rate),address:'0x'+address,gpio:Number(gpio),level:Number(level),echo,edges:Number(edges),result,word:'0x'+word,reason};
+   });
+   if(attempt)attempt.addressProbes=probes;
    const readings=[...reply.matchAll(/ECHO=(BOTH|LOW|HIGH) EDGES=(\d+)/g)];
    if(readings.length!==2)return;
+   if(probes.some(p=>p.result==='CRC_OK'&&p.word==='0x0000')){
+    st.bridgeRxNote='CRC-gültige Antwort auf CFG_AFE1=0x0000, aber Pflichtbit 11 fehlt. Sensorversorgung/Startfenster und AFE-RAM-Initialisierung prüfen; keine Schreibfreigabe.';
+    return;
+   }
    if(st.bridgeSinglePin&&readings.every(m=>Number(m[2])===0))
     st.bridgeRxNote=(st.bridgeBoard||'DIY-Programmer')+' per USB erreichbar. Nach dem Senden auf AODO wurde keine Sensorantwort erkannt.';
    else if(readings.every(m=>m[1]!=='BOTH'&&Number(m[2])===0))
@@ -1787,7 +1809,7 @@ if(typeof document!=='undefined') (function UI(){
    else if(readings.every(m=>Number(m[2])===0))
     st.bridgeRxNote=(st.bridgeBoard||'DIY-Programmer')+' empfängt sein eigenes Sendesignal, aber keine Sensorantwort auf AODO. Startfenster und Sensorversorgung prüfen.';
    else st.bridgeRxNote=(st.bridgeBoard||'DIY-Programmer')+' erkennt Signalwechsel am AODO-Empfänger, aber keine bestätigte Chipantwort. Details im USB-Protokoll.';
-  }catch(e){logging('ESP32 RX-Diagnose: '+e.message)}
+  }catch(e){if(attempt)attempt.diagnosticError=e.message;logging('ESP32 RX-Diagnose: '+e.message)}
  }
  function i2cColdStartReply(reply){
   return /^# I2C ACCESS ADDR=[0-9A-F]{2} RAM_ENABLE=0 COLD_START=1$/m.test(reply.trim());
@@ -1795,6 +1817,7 @@ if(typeof document!=='undefined') (function UI(){
  async function connectBridgeChip({autoProbe=false}={}){
   st.bridgeRxNote='';
   st.bridgeColdStart=null;
+  st.bridgePlcAttempts=[];st.bridgeEffectiveBaud=null;
   const port=st.port,session=st.sessionIndex;
   // PLC START opens the short NVM startup window on a physically wired
   // VDD load switch (ESP32-C3 GPIO10 / Pro Micro D7). The user must have
@@ -1820,17 +1843,47 @@ if(typeof document!=='undefined') (function UI(){
   }
   st.bridgeSinglePin=!!st.bridgePlcIo&&$('plcGpio4Mode').checked;
   if(st.bridgePlcIo)await exchange('PLC IO '+(st.bridgeSinglePin?st.bridgePlcIo:'SPLIT'));
-  await exchange('PLC_BAUD '+$('plcBaud').value);
-  try{await bridgeAccess({power})}
-  catch(e){
-   if(autoProbe||!st.bridgePsscRam||!e.message.includes('PLC_NO_VALID_FRAME')||st.closing||!st.port)throw e;
-   st.psscRamRecovery=true;
-   logging('ESP32: normale PLC-Adressen ohne Antwort; PSSC-Freigabe im Sensor-RAM.');
-   try{await bridgeAccess({power,recover:true})}
-   catch(recoveryError){
-    if(recoveryError.message.includes('PLC_NO_VALID_FRAME'))await noteBridgeRx();
-    throw recoveryError;
+  const preferred=$('plcBaud').value==='25000'?25000:100000;
+  const rates=st.bridgeBoard==='ESP32-C3 SuperMini'?[preferred,preferred===100000?25000:100000]:[preferred];
+  const retryable=e=>/PLC_(NO_VALID_FRAME|BAD_CRC|ADDRESS_MISMATCH|IDENTITY_UNVERIFIED)/.test(e.message);
+  const attemptAccess=async(rate,recover)=>{
+   if(st.port!==port||st.sessionIndex!==session||st.closing)throw Error('USB-Verbindung während PLC-Erkennung geändert');
+   const attempt={at:new Date().toISOString(),requestedBaud:rate,recover,command:recover?(power?'PLC RECOVER START':'PLC RECOVER'):(power?'PLC START':'PLC ACCESS'),
+    vddSwitchConfigured:power,vddPhysicalMeasurement:null,startupWindowMs:null,addressProbes:[]};
+   st.bridgePlcAttempts.push(attempt);
+   logging('PLC-Erkennung: '+rate/1000+' kBd, '+attempt.command+', GPIO'+(st.bridgeSinglePin?'4':'4/5/6')+', '+(power?'GPIO10-Lastschalter angefordert (VDD nicht gemessen)':'keine automatische VDD-Unterbrechung'));
+   await exchange('PLC_BAUD '+rate);
+   try{
+    await bridgeAccess({power,recover});
+    attempt.result='access-confirmed';attempt.address='0x'+h(st.plcAddress);
+    attempt.effectiveBaud=st.bridgeEffectiveBaud;
+    if(!st.bridgeEffectiveBaud&&!recover)attempt.effectiveBaud=rate;
+    if(!st.bridgeEffectiveBaud&&recover)logging('Recovery kann intern eine andere Baudrate verwenden; alte Firmware meldet diese nicht zurück.');
+    st.bridgeRxNote='';
+    return true;
+   }catch(e){
+    attempt.result='failed';attempt.error=e.message;
+    if(!retryable(e)||st.closing||st.port!==port)throw e;
+    await noteBridgeRx(attempt);
+    return false;
    }
+  };
+  let found=false;
+  for(const rate of rates){if(await attemptAccess(rate,false)){found=true;break}}
+  // Recovery changes volatile sensor RAM. Keep the current opt-in/manual
+  // restriction and try both ordinary rates before any recovery.
+  if(!found&&!autoProbe&&st.bridgePsscRam&&st.bridgePlcAttempts.some(a=>a.error?.includes('PLC_NO_VALID_FRAME'))){
+   st.psscRamRecovery=true;
+   logging('PLC: beide normalen Baudraten erfolglos; PSSC-Freigabe nur im Sensor-RAM.');
+   for(const rate of rates){if(await attemptAccess(rate,true)){found=true;break}}
+  }
+  if(!found){
+   const attempts=st.bridgePlcAttempts;
+   const zero=attempts.some(a=>a.addressProbes.some(p=>p.result==='CRC_OK'&&p.word==='0x0000'));
+   const hint=zero?'CFG_AFE1=0x0000 mit gültiger CRC; Pflichtbit 11 fehlt. Keine Schreibfreigabe.':
+     'Keine bestätigte Chipantwort. Baudrate, AODO, GPIO10-Lastschalter und One-Wire-Startfenster prüfen.';
+   st.bridgeRxNote=hint+' Details für jede Baudrate/Adresse im USB-Protokoll.';
+   throw Error('PLC-Erkennung fehlgeschlagen: '+hint+' '+(attempts.at(-1)?.error||''));
   }
   if(st.bridgePsscRam){
    // The bridge has already verified address and CRC on AFE, ADC and CFG.
@@ -4817,7 +4870,16 @@ if(typeof document!=='undefined') (function UI(){
 
  $('plcStartupLogExport').addEventListener('click',()=>{
   const log={
-   tool:'ELMOS E703.11 – SSP3 Startdiagnose',version:'v0.7.13',at:new Date().toISOString(),
+   tool:'ELMOS E703.11 – USB/PLC Startdiagnose',version:document.body.dataset.appVersion||'unbekannt',at:new Date().toISOString(),
+   connectionSettings:{adapter:st.adapterKind,interface:st.iface,usbBaud:Number($('baud').value),preferredPlcBaud:Number($('plcBaud').value),
+    effectivePlcBaud:st.bridgeEffectiveBaud??null,automaticPlcFallback:st.bridgeBoard==='ESP32-C3 SuperMini'&&st.iface==='plc',
+    powerSwitchCheckbox:$('plcPowerCycle').checked,powerSwitchActive:!!st.sensorPowerEnabled,
+    powerPin:st.bridgeBoard==='ESP32-C3 SuperMini'?'GPIO10':st.bridgeBoard==='Arduino Pro Micro'?'D7':null,
+    physicalVddVerified:null,oneWireSinglePin:$('plcGpio4Mode').checked,oneWirePinMode:st.bridgeSinglePin?'GPIO4':'SPLIT',
+    autoReconnect:autoReconnectEnabled,hostFormat:st.plcHostFormat,expertMode:$('expertMode').checked,
+    startupWindowMs:null,bridgeColdStartUidConfirmed:!!st.bridgeColdStart,
+    startupWindowNote:'Startfenster und reale VDD-Flanke ohne Messung nicht verifiziert; GPIO-Schaltbefehl ist kein Spannungsnachweis.'},
+   bridgePlcAttempts:st.bridgePlcAttempts||[],
    source:'Web-App (NICHT PSSC Originalsoftware)',interface:st.iface,adapter:st.adapterKind,
     plcAddress:'0x'+h(st.plcAddress),plcAddressVerified:st.plcAddressVerified,
     plcAddressSource:st.plcAddressSource,plcAddressProbes:st.plcAddressProbes,psscRamRecovery:!!st.psscRamRecovery,
@@ -4834,7 +4896,7 @@ if(typeof document!=='undefined') (function UI(){
      cookiePeriodBefore:st.powerCycleResult?.livePeriodBefore??null,
      lastADCChangedAt:st.measurementLastChangedAt,measurementError:st.measurementError},
     log:st.log.slice(-500),
-   note:'Der Export enthält nur die Web-App-Befehle. Für einen Vergleich wird zusätzlich ein originaler PSSC-SSP3-Trace benötigt. Keine Sensorregister werden durch den Export verändert.'
+   note:'Web-App-Befehle und PLC-Verbindungsdiagnose. Export ist rein lesend; vorausgegangene Start-/Recovery-Befehle können temporäres RAM verändert haben. VDD und Startfenster nötigenfalls mit Oszilloskop oder gesichertem Original-NVM prüfen.'
   };
   download('E70311_SSP3_Web_Log_'+Date.now()+'.json',JSON.stringify(log,null,2));
   $('plcStartupState').textContent='Web-App-Protokoll gespeichert. Für die fehlende Initialisierung wird auch die Befehlsfolge der Originalsoftware benötigt.';
