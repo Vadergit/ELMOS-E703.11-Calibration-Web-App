@@ -120,8 +120,8 @@ const ELMOS_CAL = (() => {
   if(!Number.isFinite(pmin)||!Number.isFinite(pmax)||pmax<=pmin)throw Error('Druckbereich ungültig');
   if(!Number.isInteger(outputLimit)||outputLimit<1000||outputLimit>32000)throw Error('DSP-Endwert muss zwischen 1’000 und 32’000 Digits liegen');
   if(!Number.isInteger(orderS)||orderS<1||orderS>3||!Number.isInteger(orderT)||orderT<0||orderT>3)throw Error('Polynomordnung ungültig');
-  const allPoints=points.map(r=>({...r,s:Number(r.adc_s),t:Number(r.adc_t),p:Number(r.pressure),temp:Number(r.temperature)}));
-  for(const p of allPoints){if(!Number.isFinite(p.s)||Math.abs(p.s)>32767||!Number.isFinite(p.p)||p.p<pmin-1e-8||p.p>pmax+1e-8)throw Error('Ungültiger Messpunkt');if(orderT>0&&(!Number.isFinite(p.t)||!Number.isFinite(p.temp)||p.temp< -40||p.temp>125))throw Error('Temperaturwerte fehlen oder sind ausserhalb -40..125 °C')}
+  const allPoints=points.map(r=>({...r,s:r.adc_s,t:r.adc_t,p:r.pressure,temp:r.temperature}));
+  for(const p of allPoints){if(!Number.isFinite(p.s)||(p.s< -32768||p.s>32767)||!Number.isFinite(p.p)||p.p<pmin-1e-8||p.p>pmax+1e-8)throw Error('Ungültiger Messpunkt');if(orderT>0&&(!Number.isFinite(p.t)||p.t< -32768||p.t>32767||!Number.isFinite(p.temp)||p.temp< -40||p.temp>125))throw Error('Temperaturwerte fehlen oder sind ausserhalb -40..125 °C')}
   // A pressure-only fit must not silently use hot/cold pressure readings together.
   // Keep all measured references, but fit only a full pressure series at one temperature.
   let ps=allPoints;
@@ -140,8 +140,10 @@ const ELMOS_CAL = (() => {
   const smin=Math.min(...ps.map(p=>p.s)),smax=Math.max(...ps.map(p=>p.s));
   if(smax-smin<4000)throw Error('ADC-Signalhub zu klein für eine numerisch stabile Kalibrierung. AFE anpassen.');
   // AN0203 and 25DS0170E.04 §6.3: ADC_S and DSP_S are Q0.15; S_F / S_O are Q3.12.
-  // S pre-scaling uses ±0.99 at the observed end points (beware of limited headroom).
-  const sf=q(1.98*32768/(smax-smin),12,'S_F');
+  // Use ±0.99 where representable. For smaller spans let the coefficient
+  // range and fit error checks determine whether the requested target fits.
+  const maxQ3Gain=32767/4096;
+  const sf=q(Math.min(1.98*32768/(smax-smin),maxQ3Gain),12,'S_F');
   const so=q(-fromQ(sf,12)*((smax+smin)/2)/32768,12,'S_O');
   const normS=raw=>fromQ(sf,12)*raw/32768+fromQ(so,12);
   if(ps.some(p=>Math.abs(normS(p.s))>0.999))throw Error('S-Normalisierung nach Quantisierung übersteuert.');
@@ -227,7 +229,13 @@ const ELMOS_CAL = (() => {
   return {...startup,ok:errors.length===0,errors};
  }
  const SVDD_INDEX=0x36/2, SVDD_MASK=0x0003;
- function protectStartupCommunication(before,after,{allowSvdd=false,allowAlarmMask=false}={}){
+ // CFG_PADS0.startup_com selects EOC or NCS/SA0, or keeps the stored mode.
+ function i2cBootRegisterMatches(words,actual){
+  const stored=words[17],selection=words[18]>>>14;
+  if(selection<2)return actual===((stored&~3)|1);
+  return selection===3&&(stored&3)>=1&&(stored&3)<=2&&actual===stored;
+ }
+ function protectStartupCommunication(before,after,{allowSvdd=false,allowAlarmMask=false,interfaceMode='plc'}={}){
   if(!Array.isArray(before)||!Array.isArray(after)||before.length!==64||after.length!==64||
    [...before,...after].some(v=>!Number.isInteger(v)||v<0||v>65535))
    throw Error('1-Wire-Startschutz: Ungültiges 64-Wort-NVM-Abbild');
@@ -246,8 +254,8 @@ const ELMOS_CAL = (() => {
    }
   }
   const initial=oneWireStartupStatus(before),final=oneWireStartupStatus(after);
-  if(!initial.ok)throw Error('1-Wire-Startschutz: Original-NVM erfüllt die Voraussetzungen für den 1-Wire-Start nicht: '+initial.errors.join('; ')+'. NVM-Schreiben gesperrt.');
-  if(!final.ok)throw Error('1-Wire-Startschutz: Geplantes NVM würde den 1-Wire-Start gefährden: '+final.errors.join('; '));
+  if(interfaceMode!=='i2c'&&!initial.ok)throw Error('1-Wire-Startschutz: Original-NVM erfüllt die Voraussetzungen für den 1-Wire-Start nicht: '+initial.errors.join('; ')+'. NVM-Schreiben gesperrt.');
+  if((interfaceMode!=='i2c'||initial.ok)&&!final.ok)throw Error('1-Wire-Startschutz: Geplantes NVM würde den 1-Wire-Start gefährden: '+final.errors.join('; '));
   // Always preserve the original PLC window, interface flags and bitrate.
   for(const index of [17,...(allowAlarmMask?[]:[18]),19])if(before[index]!==after[index])
    throw Error('1-Wire-Startschutz: Geschützte PLC-Startkonfiguration NVM '+index+' verändert');
@@ -323,7 +331,7 @@ const ELMOS_CAL = (() => {
     'AODO-NVM-Rohskalierung ergibt '+unClippedVolts.map(v=>v.toFixed(4)+' V').join(' / ')+
     ' statt '+s0.toFixed(4)+' / '+s1.toFixed(4)+' V (Clipping ersetzt keine Skalierung)'};
  }
- function prepareOutputConfig(original,settings,outputLimit=32000){
+ function prepareOutputConfig(original,settings,outputLimit=32000,{interfaceMode}={}){
   if(!Array.isArray(original)||original.length!==64)throw Error('Vollständiges NVM-Abbild erforderlich');
   const out=original.slice();
   if(!settings||settings.mode==='keep')return out;
@@ -383,7 +391,7 @@ const ELMOS_CAL = (() => {
   }
   if(original.slice(0,16).some((v,i)=>v!==out[i]))throw Error('Factory-Bereich darf nicht verändert werden');
   for(let i=17;i<28;i++)if(i!==22&&out[i]!==original[i])throw Error('Geschützte Kommunikation verändert');
-  protectStartupCommunication(original,out);
+  protectStartupCommunication(original,out,{interfaceMode});
   return out;
  }
   /**
@@ -417,7 +425,7 @@ const ELMOS_CAL = (() => {
      solution.points<3||solution.ignoredTemperaturePoints!==0||!Array.isArray(solution.registers?.tcoeffs)))
    throw Error('NVM gesperrt: TK0 wurde nicht vollständig aus allen Temperaturmesspunkten berechnet. TK0 mit Temperaturordnung 1 neu berechnen.');
   if(!Array.isArray(original)||original.length!==64||original.some(v=>!Number.isInteger(v)||v<0||v>65535))throw Error('NVM-Abbild muss exakt 64 gültige 16-Bit-Wörter enthalten');
-  const cfg=prepareOutputConfig(original,opts.output,solution.outputLimit??32000),r=solution.registers;
+  const cfg=prepareOutputConfig(original,opts.output,solution.outputLimit??32000,{interfaceMode:opts.interfaceMode}),r=solution.registers;
   if(opts.bridgeSupply!==undefined){
    if(![0,1,2].includes(opts.bridgeSupply))throw Error('Ungültige SVDD-Einstellung');
    cfg[SVDD_INDEX]=(cfg[SVDD_INDEX]&~SVDD_MASK)|opts.bridgeSupply;
@@ -434,7 +442,7 @@ const ELMOS_CAL = (() => {
   for(let i=0;i<=27;i++)if(cfg[i]!==original[i]&&![16,22,SVDD_INDEX].includes(i))throw Error('Sicherheitsfehler: schreibgeschützter NVM-Bereich verändert');
   if(cfg[16]!==original[16]&&(((cfg[16]^original[16])&~((7<<9)|(1<<6)|(1<<7)))!==0))throw Error('CFG_EN: fremde Bits dürfen nicht verändert werden');
   if(cfg.slice(0,16).some((v,i)=>v!==original[i]))throw Error('Werkskalibrierung verändert');
-  protectStartupCommunication(original,cfg,{allowSvdd:opts.bridgeSupply!==undefined});
+  protectStartupCommunication(original,cfg,{allowSvdd:opts.bridgeSupply!==undefined,interfaceMode:opts.interfaceMode});
   return {before:original.slice(),after:cfg,changes:cfg.map((v,i)=>v!==original[i]?{index:i,address:i*2,from:original[i],to:v}:null).filter(Boolean)};
  }
  // A temperature-compensated verification may repeat a reference pressure at a
@@ -456,6 +464,6 @@ const ELMOS_CAL = (() => {
   Number.isInteger(required)&&required>=1&&required<=10&&Array.isArray(records)&&
   Array.from({length:required},(_,slot)=>records.some(point=>
    point?.slot===slot&&Number.isFinite(point.errorBar))).every(Boolean);
- return {SVDD_INDEX,SVDD_MASK,fit,suggestDspLimit,solveFit,crc16,crc8,configFrom,prepareOutputConfig,validateRecoveryCalibrationDiff,protectStartupCommunication,oneWireStartupStatus,oneWireOnlyStatus,analogScaling,analogOutputStatus,elmosDspTarget,elmosTemperatureTarget,fromQ,q,signed,independentVerificationPoint,verificationPointsSufficient,temperatureSourceFromAfe2,dspTemperatureCelsius,isFactoryTemperatureProfile,factoryInternalTemperatureCelsius,factoryTemperatureAddresses,programmedTemperatureAddresses,programmedTemperatureProfileMatches};
+ return {SVDD_INDEX,SVDD_MASK,fit,suggestDspLimit,solveFit,crc16,crc8,configFrom,prepareOutputConfig,validateRecoveryCalibrationDiff,protectStartupCommunication,i2cBootRegisterMatches,oneWireStartupStatus,oneWireOnlyStatus,analogScaling,analogOutputStatus,elmosDspTarget,elmosTemperatureTarget,fromQ,q,signed,independentVerificationPoint,verificationPointsSufficient,temperatureSourceFromAfe2,dspTemperatureCelsius,isFactoryTemperatureProfile,factoryInternalTemperatureCelsius,factoryTemperatureAddresses,programmedTemperatureAddresses,programmedTemperatureProfileMatches};
 })();
 if(typeof module!=='undefined'&&module.exports)module.exports=ELMOS_CAL;

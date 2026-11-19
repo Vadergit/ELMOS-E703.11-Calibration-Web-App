@@ -1,3 +1,11 @@
+## v0.7.143 – Digitale Prozentanzeige und getesteter Preview-Stand
+
+- DSP-Sensorwert in Prozent aus der verifizierten chipbezogenen Kalibrierreferenz, unabhängig von späteren Eingabefeldern.
+- Automatische Legacy-Erkennung mit standardmässiger Annahme 10–90 % VDD; AODO-Näherung bleibt sichtbar gekennzeichnet, im EEPROM Viewer abschaltbar. Kein Schreiben in USER-ID oder EEPROM.
+- Bei fehlendem Abgleich, nicht passender Ausgangsskalierung oder abweichenden relevanten RAM-/NVM-Werten weiterhin Digits statt falscher Prozentzahl.
+- Übernahme des Preview-Stands 522d94d einschliesslich der darin enthaltenen Alarm-, I²C-/Bridge- und Kalibrieränderungen.
+- Softwaretests der Rückrechnung und simulierten Erkennung; reale Hardwareprüfung der neuen Automatik noch ausstehend.
+
 ## v0.7.142 – Sensorbrücken-Rechner: Komplettabgleich und NVM-Backup zuverlässig laden
 
 - Der lokale Import im Sensorbrücken-Rechner nimmt weiterhin reine **64-Wort-NVM-Backups** (`E70311-CM64-v2`) und bestätigt deren erfolgreiche Übernahme nun deutlich mit Datei, Chip-UID und Kalibrierzustand. Die vom Benutzer geprüfte Beispieldatei `ELMOS_NVM_20261118_171706468_0020018A487B_2916.json` wird erkannt; S_F und S0–S15 sind darin 0, also kein gespeicherter Druckabgleich.

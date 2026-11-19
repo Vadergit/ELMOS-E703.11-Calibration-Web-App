@@ -23,6 +23,7 @@ constexpr int LOW=0,HIGH=1;
 struct FakeWire {
   std::map<uint8_t,uint16_t> devices;
   bool badCrc=false;
+  uint16_t serial=0x1234;
   uint8_t address=0,reg=0,control=0;
   std::vector<uint8_t> tx,rx;
   void end() {}
@@ -37,7 +38,7 @@ struct FakeWire {
     reg=tx.at(0);control=tx.at(1);return 0;
   }
   uint8_t requestFrom(uint8_t a,uint8_t,uint8_t) {
-    uint16_t word=reg==0x38?devices[a]:reg==0x06?uint16_t(((a&0x7E)<<8)|2):0x1234;
+    uint16_t word=reg==0x38?devices[a]:reg==0x06?uint16_t(((a&0x7E)<<8)|2):serial;
     uint8_t low=word,high=word>>8,crc=0xFF;
     for(uint8_t b:std::vector<uint8_t>{uint8_t(a<<1),reg,control,uint8_t((a<<1)|1),low,high}) {
       crc^=b;
@@ -71,11 +72,25 @@ int main() {
    assert(elmosI2c::connect(false)==nullptr);
    assert(elmosI2c::slave==address);
  }
+ for(uint8_t address:{0x6D,0x7D}) {
+   Wire.devices={{address,0x0020}};
+   assert(elmosI2c::connect(true)==nullptr);
+   assert(!elmosI2c::coldStartMatches());
+   assert(elmosI2c::confirmColdStart());
+   assert(elmosI2c::coldStartMatches());
+   ++Wire.serial;
+   assert(!elmosI2c::coldStartMatches());
+   assert(elmosI2c::confirmColdStart());
+   assert(elmosI2c::connect(false)==nullptr);
+   assert(!elmosI2c::coldStartMatches());
+ }
+ static_assert(elmosI2c::userNvmWord(16) && elmosI2c::userNvmWord(63));
+ static_assert(!elmosI2c::userNvmWord(1) && !elmosI2c::userNvmWord(17) && !elmosI2c::userNvmWord(19));
  Wire.devices={{0x7D,0x0020}};Wire.badCrc=true;
  assert(elmosI2c::connect(false)!=nullptr && elmosI2c::slave==0);
  Wire.badCrc=false;Wire.devices={{0x7D,0xFFFF}};
  assert(elmosI2c::connect(false)!=nullptr && elmosI2c::slave==0);
- Wire.devices={{0x7B,0x0020},{0x7D,0x0020}};
+ Wire.devices={{0x6D,0x0020},{0x7D,0x0020}};
  assert(std::strcmp(elmosI2c::connect(false),"!BRIDGE I2C_MULTIPLE_SENSORS")==0);
  assert(elmosI2c::slave==0);
 }

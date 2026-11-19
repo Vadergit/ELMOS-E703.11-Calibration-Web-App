@@ -220,3 +220,42 @@ test('Live NVM recheck is a read-only same-session operation without power cycle
  assert.ok(compact.includes("'nvmRecheckActions','nvmRecheckHint'"));
  assert.ok(compact.includes("moveId('nvmRecheckMsg','cpNvmStatus')"));
 });
+
+test('fit distinguishes missing ADC samples from numeric zero and the signed minimum',()=>{
+ const options={pmin:0,pmax:100,outputLimit:16000};
+ for(const missing of [null,undefined,'']){
+  assert.throws(()=>C.fit(points([[missing,1000,0,25],[24000,1000,100,25]]),options),/Ungültiger Messpunkt/);
+ }
+ const result=C.fit(points([[-32768,1000,0,25],[0,1000,100,25]]),options);
+ assert.equal(result.stats.rangeDigits,32768);
+});
+
+test('a smaller pressure span can fit a reduced DSP target within Q3.12',()=>{
+ const result=C.fit(points([[-3000,1000,0,25],[3000,1000,100,25]]),{
+  pmin:0,pmax:100,outputLimit:16000
+ });
+ assert.equal(result.registers.sf,32767);
+ assert.ok(result.stats.maxDigits<1);
+});
+
+test('I²C NVM accepts strapped and fixed startup modes and protects communication words', () => {
+ const words=originalNvm();
+ words[17]=0x7C03;
+ words[18]=1<<14; // NCS/SA0 overrides the stored interface selection.
+ words[19]=0; // One-Wire unavailable.
+ assert.equal(C.i2cBootRegisterMatches(words,0x7C01),true);
+ assert.equal(C.i2cBootRegisterMatches(words,0x7C02),false);
+ assert.equal(C.i2cBootRegisterMatches(words,0x6C01),false);
+ assert.throws(()=>C.protectStartupCommunication(words,words),/1-Wire/);
+ const after=words.slice();
+ after[33]=0x1234;
+ assert.equal(C.protectStartupCommunication(words,after,{interfaceMode:'i2c'}),true);
+ after[17]=0x6C03;
+ assert.throws(()=>C.protectStartupCommunication(words,after,{interfaceMode:'i2c'}),/verändert/);
+ words[18]=3<<14;
+ words[17]=0x6C02;
+ assert.equal(C.i2cBootRegisterMatches(words,0x6C02),true);
+ assert.equal(C.i2cBootRegisterMatches(words,0x6C01),false);
+ words[18]=2<<14;
+ assert.equal(C.i2cBootRegisterMatches(words,0x6C02),false);
+});

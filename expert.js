@@ -2,7 +2,7 @@
 /* E703.11 Expert tools: read-only factory/boot inspection and chip-bound backups.
    No unrestricted raw writes. Permanent changes remain in the main NVM transaction. */
 const ELMOS_EXPERT=(()=>{
- function init({st,CAL,readReg,nvmScan,download,show,stopLive,startLive,lsGet,lsSet,renderFlowState,verificationComplete,withProgress}){
+ function init({st,CAL,readReg,nvmScan,download,show,stopLive,startLive,lsGet,lsSet,renderFlowState,verificationComplete,withProgress,getActiveDSPRange}){
   const $=id=>document.getElementById(id),hx=v=>Number(v).toString(16).toUpperCase().padStart(4,'0');
   const names={0:'SER0',1:'SER1',2:'RATIO_DAC01',3:'RATIO_DAC23',4:'RATIO_DAC45',15:'CRC8 factory',
    16:'CFG_EN',17:'CFG_SPI_I2C',18:'CFG_PADS0',19:'CFG_PADS1',20:'CFG_PADS2',21:'CFG_PERIOD',22:'CFG_AODO',
@@ -317,7 +317,7 @@ const ELMOS_EXPERT=(()=>{
    rows.appendChild(fragment);
    const status=CAL.oneWireStartupStatus(st.nvmBackup);
    $('eepromStatus').textContent='EEPROM: 64 Wörter gelesen, CRC8/CRC16 bestätigt. '+matched+' sichtbar. Chip-ID: '+(st.uid?.hex||'noch nicht bestätigt')+
-    '. 1-Wire-Startbedingungen: '+(status.ok?'softwareseitig plausibel':'nicht erfüllt – NVM-Schreiben wird gesperrt')+'. Alle Wörter bleiben hier nur lesbar.';
+    '. 1-Wire-Startbedingungen: '+(status.ok?'softwareseitig plausibel':'nicht erfüllt')+'. Alle Wörter bleiben hier nur lesbar.';
    $('eepromStatus').className='callout '+(status.ok?'success':'warn');
    $('expertNvmDump').textContent=st.nvmBackup.map((v,i)=>'CM '+(i*2).toString(16).toUpperCase().padStart(2,'0')+'  0x'+hx(v)+'  '+
     (i<16?'FACTORY · NUR LESEN':i<28?'BOOT/KONFIG · GESCHÜTZT':i===63?'CRC16':'USER')+'  '+nvmName(i)).join('\n');
@@ -368,13 +368,8 @@ const ELMOS_EXPERT=(()=>{
   let manualScaling=false,modeChoiceEdited=false;
   const isAnalog=mode=>['1','2','3'].includes(String(mode));
   function currentLimit(){
-   // A new calibration owns its DSP endpoint range; an already-calibrated sensor
-   // without captured points uses its explicit read-only display range instead.
-   // Never confuse ADC_S's recommended ±25k window with the DSP_S range.
-   const selected=Number($('calDspLimit').value);
-   if(st.calfit)return st.calfit.outputLimit;
-   if(st.calpoints?.length||$('calDspLimit').dataset.userEdited==='1')return selected;
-   return Number($('dspDisplayLimit').value);
+   if(st.calStaged&&st.calfit)return st.calfit.outputLimit;
+   return getActiveDSPRange()?.limit;
   }
   function invalidateOutputPlan(){
    // Any output edit invalidates ALL previously prepared NVM images, including normal calibration and restore plans.
@@ -407,8 +402,9 @@ const ELMOS_EXPERT=(()=>{
    $('psscOutputLimit').value=Number.isInteger(limit)?'±'+limit.toLocaleString('de-CH'):'Ungültig';
    const label=$('psscScalingSource');
    if(label){
-    const fresh=!!st.calfit||!!st.calpoints?.length||$('calDspLimit').dataset.userEdited==='1';
-    label.textContent=fresh?'DSP-Bereich aus der aktuellen Kalibrierung. ADC_S ist davon unabhängig.':'DSP-Bereich aus der Anzeigeeinstellung übernommen; bei einem bestehenden Sensor den tatsächlichen DSP-Bereich prüfen.';
+    label.textContent=Number.isInteger(limit)?
+     'DSP-Endwert aus dem aktuellen Abgleich oder dem bestätigten Profil dieses Sensors. ADC_S ist davon unabhängig.':
+     'DSP-Endwert unbekannt. Ein passender gespeicherter Abgleich oder eine neue RAM-Kalibrierung ist erforderlich.';
    }
    $('psscDspS0').textContent=Number.isInteger(limit)?'−'+limit.toLocaleString('de-CH'):'—';
    $('psscDspS1').textContent=Number.isInteger(limit)?'+'+limit.toLocaleString('de-CH'):'—';
@@ -465,7 +461,9 @@ const ELMOS_EXPERT=(()=>{
   function calculateAnalogScaling(){
    if(!isAnalog($('expertOutputMode').value))throw Error('S0/S1 in Volt nur für Analog Ratiometric verfügbar');
    for(const id of ['psscVdd','psscS0','psscS1'])if($(id).value.trim()==='')throw Error('Bitte S0, S1 und VDD vollständig eingeben');
-   const result=CAL.analogScaling(Number($('psscS0').value),Number($('psscS1').value),Number($('psscVdd').value),currentLimit());
+   const limit=currentLimit();
+   if(!Number.isInteger(limit))throw Error('Kein bestätigter Abgleich mit bekanntem DSP-Endwert vorhanden.');
+   const result=CAL.analogScaling(Number($('psscS0').value),Number($('psscS1').value),Number($('psscVdd').value),limit);
    $('expertScaleEnable').checked=true;
    $('expertScaleGain').value=String(result.gain);$('expertScaleOffset').value=String(result.offset);
    manualScaling=false;renderOutputPreview();return result;
@@ -477,6 +475,7 @@ const ELMOS_EXPERT=(()=>{
      const result=calculateAnalogScaling();invalidateOutputPlan();
      show('expertOutputMsg','Scaling: S0 = '+result.actualVolts[0].toFixed(5)+' V, S1 = '+result.actualVolts[1].toFixed(5)+' V. Bitte prüfen und vormerken.','success');return;
     }
+    if(!Number.isInteger(lim))throw Error('Kein bestätigter Abgleich mit bekanntem DSP-Endwert vorhanden.');
     let gain,offset;
     if(mode===4){if(!Number.isInteger(period)||period<2||period>32767)throw Error('PWM-Periode für Vorschlag zwischen 2 und 32’767 wählen');gain=0.32*period/lim;offset=period*0.5/32768;}
     else if(mode===5){gain=11000/lim;offset=14500/32768}
@@ -519,7 +518,7 @@ const ELMOS_EXPERT=(()=>{
     const normalCalibration=verificationComplete();
     if(!normalCalibration&&(!st.nvmBackupVerified||!st.nvmBackup||!st.uid))throw Error('Für Ausgangsänderungen an bereits kalibrierten Sensoren zuerst die aktuelle 64-Wort-NVM-Sicherung mit bestätigter UID lesen');
     const before=st.nvmBackupVerified&&st.nvmBackup?st.nvmBackup:Array(64).fill(0);
-    const after=CAL.prepareOutputConfig(before,values,limit);
+    const after=CAL.prepareOutputConfig(before,values,limit,{interfaceMode:st.iface});
     if(!normalCalibration){
      after[63]=CAL.crc16(after);
      const changes=after.map((v,i)=>v!==before[i]?{index:i,address:i*2,from:before[i],to:v}:null).filter(Boolean);

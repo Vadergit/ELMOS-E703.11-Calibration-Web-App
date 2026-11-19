@@ -2,7 +2,7 @@
 /* E703.11 alarm editor: preview -> verified RAM -> existing protected NVM workflow. */
 const ELMOS_ALARM_EDITOR=(()=>{
  const A=ELMOS_ALARM_CONFIG;let api=null;
- function init({st,CAL,hasCurrentNvmBackup,applyAlarmRam,renderFlowState,show}){
+ function init({st,CAL,hasCurrentNvmBackup,applyAlarmRam,renderFlowState,show,nvmTransportSupported=()=>st.iface==='plc',getActiveDSPRange=()=>null}){
   const $=id=>document.getElementById(id);
   for(const bit of A.statusBits){
    const label=document.createElement('label'),input=document.createElement('input');
@@ -54,7 +54,7 @@ const ELMOS_ALARM_EDITOR=(()=>{
   function updateRules(){
    const valid=proven(),busy=st.writing||st.calTask||st.nvmWorking;
    const check=valid?A.checkDependencies(st.nvmBackup,selection()):
-    {ok:false,errors:['Original-SSP3 verbinden und EEPROM des aktuellen Chips auslesen.'],warnings:[],facts:[]};
+    {ok:false,errors:['Unterstützten Programmieradapter verbinden und EEPROM des aktuellen Chips auslesen.'],warnings:[],facts:[]};
    const list=$('alarmRuleList');
    list.replaceChildren();
    const append=(label,message,kind)=>{
@@ -88,7 +88,7 @@ const ELMOS_ALARM_EDITOR=(()=>{
     $('nvmDiff').textContent='Kein vorgemerkter Alarmänderungsplan.';delete $('nvmDiff').dataset.scope;
    }
   }
-  const proven=()=>!!(hasCurrentNvmBackup()&&st.mode==='usb'&&st.iface==='plc'&&
+  const proven=()=>!!(hasCurrentNvmBackup()&&st.mode==='usb'&&nvmTransportSupported()&&
    (st.adapterKind==='ssp3'||(st.adapterKind==='bridge'&&st.bridgeGenericRam&&st.bridgeUserNvm)));
   function fill(config){
    loading=true;
@@ -123,10 +123,10 @@ const ELMOS_ALARM_EDITOR=(()=>{
       status('Alarmprofil geladen. Mit der aktuellen Chipkonfiguration und DSP-Spanne überprüfen.');
      }else if(profilePending?.mode==='skip'){
       // Do not use old EEPROM alarm flags as an implicit instruction to enable alarms.
-      fill(A.read(st.nvmBackup,(st.calfit?.outputLimit ?? Number($('dspDisplayLimit').value)) || 32000));
+      fill(A.read(st.nvmBackup,getActiveDSPRange()?.limit??32000));
       status('Keine Alarmänderungen aus dem Profil gewünscht. Chip-Alarme bleiben unverändert.','warn');
      }else{
-      const limit=(st.calfit?.outputLimit ?? Number($('dspDisplayLimit').value)) || 32000;
+      const limit=getActiveDSPRange()?.limit??32000;
       fill(A.read(st.nvmBackup,Math.max(1000,Math.min(32000,limit))));
       status('Alarmwerte aus dem aktuellen EEPROM gelesen. DSP-Skala prüfen und bestätigen.');
      }
@@ -134,7 +134,7 @@ const ELMOS_ALARM_EDITOR=(()=>{
    }
    updateRules();
    $('alarmEditorStatus').textContent=!valid?
-    'Vorbereitung: SSP3 oder DIY-Bridge mit generischem Register-/User-NVM-Protokoll über One-Wire verbinden und geprüftes EEPROM lesen.':
+    'Sensor über einen unterstützten Programmieradapter verbinden und das EEPROM auslesen.':
     postScaling?'DSP-Post-Scaling ist aktiv und belegt die Alarmregister. Alarmänderung gesperrt.':
     'Startfenster und physische Pinbelegung bleiben unverändert. Zuerst RAM prüfen; NVM ausschliesslich nach expliziter Bestätigung.';
   }
@@ -161,7 +161,7 @@ const ELMOS_ALARM_EDITOR=(()=>{
     const rules=A.checkDependencies(st.nvmBackup,selection());
     if(!rules.ok)throw Error(rules.errors.join(' '));
     const img=A.prepare(st.nvmBackup,selection(),CAL.crc16);
-    CAL.protectStartupCommunication(img.before,img.after,{allowAlarmMask:true});
+    CAL.protectStartupCommunication(img.before,img.after,{allowAlarmMask:true,interfaceMode:st.iface});
     if(!img.changes.length)throw Error('Keine Änderungen notwendig.');
     const duringCalibration=calibrationActive();
     const p={...img,uid:st.uid.hex,session:st.sessionIndex,
@@ -201,7 +201,7 @@ const ELMOS_ALARM_EDITOR=(()=>{
    updateRules();
   });
   $('alarmReadEeprom').addEventListener('click',()=>{
-   const btn=$('eepromRead');if(!btn||btn.disabled){status('Erst einen echten Sensor über SSP3 verbinden.','warn');return}
+   const btn=$('eepromRead');if(!btn||btn.disabled){status('Zuerst einen Sensor verbinden.','warn');return}
    btn.click();
   });
   $('alarmSkipNvm').addEventListener('click',()=>{
@@ -210,6 +210,21 @@ const ELMOS_ALARM_EDITOR=(()=>{
   $('alarmGoNvm').addEventListener('click',()=>{
    if(!ready()&&!pendingForCalibration())return;
    const btn=document.querySelector('.stepBtn[data-step="6"]');if(btn)btn.click();
+  });
+  $('alarmReactivateAll').addEventListener('click',()=>{
+   if($('alarmEditorFields').disabled)return;
+   if(st.alarmOnlyPlan)clearPlan();
+   profilePending=null;exportMode='edit';dirty=true;
+   $('alarmErrorEnable').checked=true;
+   A.errors.forEach((_,i)=>{
+    const field=$('alarmErrAction'+i);
+    if(field.value==='0'){
+     const previous=(st.nvmBackup[61]>>(i*2))&3;
+     field.value=String(previous||1);
+    }
+   });
+   status('Alle sechs Fehlerreaktionen aktiviert. Bestehende Aktionen beibehalten; bisher deaktivierte Fehler verwenden den unteren Ersatzwert. Aktionen einzeln prüfen, im RAM testen und anschliessend separat speichern.','warn');
+   updateRules();renderFlowState();
   });
   $('alarmDisableAll').addEventListener('click',()=>{
    if($('alarmEditorFields').disabled)return;

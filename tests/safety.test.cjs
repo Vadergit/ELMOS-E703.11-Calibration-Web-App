@@ -120,8 +120,8 @@ test('Scaling UI shows automatically chosen DSP range and ADC distinction',()=>{
  const html=read('index.html'),expert=read('expert.js'),app=read('app.js');
  assert.ok(html.includes('id="psscScalingSource"'));
  assert.ok(expert.includes("st.calfit.outputLimit"));
- assert.ok(expert.includes("$('calDspLimit').dataset.userEdited"));
- assert.ok(expert.includes("$('dspDisplayLimit').value"));
+ assert.ok(expert.includes("return getActiveDSPRange()?.limit;"));
+ assert.ok(app.includes("await restoreCalibrationDisplayProfile();"));
  assert.ok(app.includes("$('calDspLimit').dataset.userEdited='1'"));
 });
 
@@ -420,7 +420,7 @@ test('NVM write always releases maintenance flags and resumes live ADC/DSP unles
  assert.ok(nvm.lastIndexOf("st.nvmWorking=false;st.calTask=false;st.writing=false")<nvm.lastIndexOf("startLive();"));
  assert.ok(nvm.includes("Live-Messung nach NVM-Vorgang automatisch wieder gestartet"));
  // Sensor NVM write protection, UID checks and CRC must stay intact.
- assert.ok(nvm.includes("if(st.iface!=='plc')throw Error"));
+ assert.ok(nvm.includes("if(!nvmTransportSupported())throw Error"));
  assert.ok(nvm.includes("st.uid.ser0!==st.nvmBackup[0]"));
  assert.ok(nvm.includes("CAL.crc16(after)!==after[63]"));
 });
@@ -589,7 +589,7 @@ test('Guided finish distinguishes measured DSP from requested output-voltage set
  for(const id of ['gwFinishSignalValue','gwFinishSignalUnit','gwFinishDsp','gwFinishAdc','gwFinishTemp','gwFinishTime','gwFinishBar','gwFinishStatus','gwFinishConfig'])
   assert.equal(guide.split('id="'+id+'"').length-1,1);
  assert.ok(guide.includes('function updateFinishTelemetry()'));
- assert.ok(guide.includes("t.range?.kind==='display'"));
+ assert.ok(guide.includes("scaled?t.sensorValue:t.dspRaw"));
  assert.ok(guide.includes('t.dspRaw===null'));
  assert.ok(guide.includes('Diese Spannungen wurden nicht am Pin gemessen.'));
  assert.ok(guide.includes('Kaltstart und Ausgangsmessung stehen noch aus.'));
@@ -1280,7 +1280,7 @@ test('ESP32-C3 output-only NVM is capability-gated and scope-limited',()=>{
  const proMicro=read('firmware/pro_micro/pro_micro.ino');
  assert.ok(fw.includes('BRIDGE_AODO_OUTPUT_NVM_TEST'));
  assert.ok(fw.includes('strcmp(command, "NVM ARM OUTPUT") == 0'));
- assert.ok(fw.includes('if (!coldStartVerified || probe(activeSlave))'));
+ assert.ok(fw.includes('if (!coldStartMatches() || probe(activeSlave))'));
  assert.ok(fw.includes('readOriginalOutputCfgEn(cfg)'));
  assert.ok(fw.includes('~uint16_t(0x00C0)'));
  assert.ok(fw.includes('index == 57 || index == 58 || index == 59 || index == 60 || index == 63'));
@@ -1560,8 +1560,8 @@ test('ESP32-C3 combined DSP/AODO recovery requires generic user NVM and cold-sta
  const firmware=read('firmware/esp32c3_supermini/esp32c3_supermini.ino');
  assert.ok(firmware.includes('BRIDGE_USER_NVM_V1'));
  assert.ok(firmware.includes('strcmp(command, "NVM ARM HOST") == 0'));
- assert.ok(firmware.includes('if (!coldStartVerified || probe(activeSlave))'));
- assert.ok(app.includes("const armCommand=st.bridgeUserNvm?'NVM ARM HOST'"));
+ assert.ok(firmware.includes('if (!coldStartMatches() || probe(activeSlave))'));
+ assert.ok(app.includes("i2cNvmSupported()?'I2C ARM HOST':st.bridgeUserNvm?'NVM ARM HOST'"));
  assert.ok(app.includes('const esp32Ready=bridgeCombinedRecoveryReady()'));
  assert.ok(app.includes('const finalRecoveryBlock=psscNvmBlock('));
 });
@@ -1638,6 +1638,18 @@ test('Sensorbrücken-Rechner loads CM64 and complete calibration JSON without di
  const good=RECON.parseNvmImport(complete,'Komplettabgleich.json',()=>({name:'Confirmed references'}));
  assert.equal(good.full,true);
  assert.equal(good.profile.name,'Confirmed references');
+ assert.equal(good.crc8Valid,true);
+ assert.equal(good.crc16Valid,true);
+ const damaged=words.slice();
+ damaged[35]^=1;
+ assert.throws(()=>RECON.parseNvmImport({...nvm,words:damaged}),/CRC16/);
+ assert.throws(()=>RECON.parseNvmImport({...complete,nvm:{programmed:{
+  ...complete.nvm.programmed,words:damaged}}}),/CRC16/);
+ assert.equal(RECON.parseNvmImport(damaged).crc16Valid,false);
+ const factoryDamaged=words.slice();
+ factoryDamaged[2]^=1;
+ factoryDamaged[63]=require('../calibration.js').crc16(factoryDamaged);
+ assert.throws(()=>RECON.parseNvmImport({...nvm,words:factoryDamaged}),/CRC8/);
  const missingReferences=RECON.parseNvmImport(complete,'Komplettabgleich.json',()=>{
   throw Error('Reference metadata unavailable');
  });
@@ -1654,4 +1666,93 @@ test('Sensorbrücken-Rechner loads CM64 and complete calibration JSON without di
  assert.ok(src.includes('state.fileNotice='));
  assert.ok(src.includes('state.fileError='));
  assert.ok(style.includes('.nvmrecon-import-feedback'));
+});
+
+test('I²C NVM requires an I²C cold-start proof for the same port, UID and session',()=>{
+ const app=read('app.js');
+ const start=app.indexOf(' function bridgeColdStartVerified(){');
+ const end=app.indexOf(' function hasCurrentNvmBackup(){',start);
+ const block=new Function('st','CAL','$','hasCurrentNvmBackup',
+  app.slice(start,end)+'return psscNvmBlock;');
+ const port={},uid='0020018A487B';
+ const base={adapterKind:'bridge',bridgeUserNvm:true,bridgeCalibrationNvm:true,
+  bridgeI2cNvm:true,iface:'i2c',port,sessionIndex:42,uid:{hex:uid},
+  bridgeColdStart:{port,session:42,uid,iface:'i2c'},regs:{0x06:0x7C01}};
+ const before=Array(64).fill(0);
+ before[17]=0x7C03;before[18]=1<<14;
+ const after=before.slice();after[33]=0x0200;
+ const check=(state,backup=true,checked=true)=>block(state,CAL,()=>({checked}),()=>backup)(before,after);
+ assert.equal(check(base),'');
+ assert.match(check({...base,bridgeI2cNvm:false}),/unterstützte Verbindung/);
+ assert.match(check({...base,bridgeColdStart:{...base.bridgeColdStart,iface:'plc'}}),/direkt per I²C starten/);
+ assert.match(check({...base,sessionIndex:43}),/direkt per I²C starten/);
+ assert.match(check({...base,uid:{hex:'0020018A487C'}}),/direkt per I²C starten/);
+ assert.match(check({...base,regs:{0x06:0x6C01}}),/passt nicht zum Original-NVM/);
+ assert.match(check(base,false),/64-Wort-EEPROM/);
+ assert.match(check(base,true,false),/automatisch sichern/);
+});
+
+test('DSP display restores arbitrary endpoints only for the matching live calibration',async()=>{
+ const app=read('app.js');
+ const start=app.indexOf(' let sensorDisplayRange=null;');
+ const end=app.indexOf(' function dspNumber(',start);
+ const inputs=new Map();
+ const $=id=>{if(!inputs.has(id))inputs.set(id,{value:''});return inputs.get(id)};
+ const port={},uid='002000010002';
+ const words=Array(64).fill(0);words[0]=2;words[1]=1;
+ for(let i=31;i<=54;i++)words[i]=0x1000+i;
+ words[63]=CAL.crc16(words);
+ const create=(limit,options={})=>{
+  const model={port,sessionIndex:5,uid:{hex:uid},chip:true,
+   calStaged:true,calfit:{outputLimit:limit}};
+  $('pmin').value='0';$('pmax').value='10';
+  const profile={uid,crc:words[63],nvmWords:words,min:0,max:10,selected:'bar',limit};
+  const f=new Function('st','CAL','$','displayProfileKey','lsGet','lsSet','ramGrant','nvmReadWord',
+   'readReg','ramLock','h','pressureUnit','logging','refreshUnitLabels','renderDSPLive','expert','window',
+   app.slice(start,end)+'return {getActiveDSPRange,restoreCalibrationDisplayProfile};');
+  const file={format:'E70311-CALIBRATION-COMPLETE-v1',type:'calibration',verifiedNvm:true,chipUID:uid,
+   nvm:{programmed:{words,uid,verified:true,crc16:words[63]}},dsp:{outputLimit:limit},
+   reference:{min:0,max:10,unit:'bar'}};
+  const handles=(options.archive==='conflict'?[file,{...file,dsp:{outputLimit:limit+1}}]:
+   options.archive?[file]:[]).map(data=>({getFile:async()=>({text:async()=>JSON.stringify(data)})}));
+  const api=f(model,CAL,$,id=>id,id=>id===uid&&!options.archive?JSON.stringify(profile):null,()=>{},
+   async()=>{},async()=>options.crc??words[63],
+   async address=>address===0x38?0x20:address===0x50?2:address===0x52?options.serial??1:
+    address===0x04?options.cfgEn??0:address===0x46?options.status??0:address===0x70&&options.changed?0:words[31+(address-0x6C)/2],
+   async()=>{},(word,bytes)=>word.toString(16).toUpperCase().padStart(bytes*2,'0'),
+   ()=>'bar',()=>{},()=>{},()=>{},{refreshOutputPreview(){}},{ELMOS_ARCHIVE:{calibrationFilesForSensor:async()=>handles}});
+  return {api,model};
+ };
+ for(const limit of [23456,30000,31550]){
+  const {api,model}=create(limit);
+  assert.equal(api.getActiveDSPRange().limit,limit);
+  model.calStaged=false;
+  assert.equal(api.getActiveDSPRange(),null);
+  assert.equal(await api.restoreCalibrationDisplayProfile(),true);
+  assert.deepEqual(api.getActiveDSPRange(),{min:0,max:10,unit:'bar',limit,kind:'profile'});
+  model.sessionIndex++;
+  assert.equal(api.getActiveDSPRange(),null);
+ }
+ for(const options of [{crc:0},{status:0x40},{changed:true},{serial:7},{cfgEn:0x4000},
+  {archive:true},{archive:true,crc:0}]){
+  const {api,model}=create(23500,options);
+  model.calStaged=false;
+  assert.equal(await api.restoreCalibrationDisplayProfile(),false);
+  assert.equal(api.getActiveDSPRange(),null);
+  assert.ok(!model.calTask);
+ }
+});
+
+test('Unknown DSP scale displays exact chip digits without a manual setting or a guessed percentage',()=>{
+ const app=read('app.js');
+ const start=app.indexOf(' function dspDisplayReading(');
+ const end=app.indexOf(' function dspNumber(',start);
+ const reading=new Function(app.slice(start,end)+'return dspDisplayReading;')();
+ assert.deepEqual(reading(null,null),{value:null,unit:''});
+ assert.deepEqual(reading(-30014,null),{value:-30014,unit:'Digits'});
+ assert.deepEqual(reading(23456,{min:0,max:6,unit:'bar',limit:23456}),{value:6,unit:'bar'});
+ assert.doesNotMatch(read('index.html'),/dspDisplayOpen|dspDisplayLimit/);
+ const expert=read('expert.js');
+ assert.ok(expert.includes('return getActiveDSPRange()?.limit;'));
+ assert.ok(!expert.includes('dspDisplayReading'));
 });

@@ -93,7 +93,7 @@ test('DSP target source and temperature model are explicitly distinguished from 
  assert.match(app,/DSP-Endwert: aus lokalem UID-\/NVM-gebundenem Kalibrierprofil/);
  assert.match(app,/Temperaturmodell: nicht eindeutig im NVM · AN0203 wird angenommen/);
  assert.match(app,/nvmrecon-reference-hint/);
- assert.match(html,/nvm-reconstruction\.css\?v=0\.3\.1/);
+ assert.match(html,/href="nvm-reconstruction\.css\?v=\d+\.\d+\.\d+"/);
 });
 
 test('Sensorbrücken-Rechner is named consistently in navigation, tool and page titles',()=>{
