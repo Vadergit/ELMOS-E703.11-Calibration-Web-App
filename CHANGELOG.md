@@ -1,3 +1,11 @@
+## v0.7.149 – DSP-Referenz im Sensorbrücken-Rechner korrigiert
+
+- Live-Anzeige und Sensorbrücken-Rechner verwenden dieselbe DSP-Endwert-Erkennung und dieselbe 100-Digit-Plausibilitätsgrenze. Bei bekannter 10–90-%-VDD-Kennlinie erfolgt die Rückrechnung aus AODO_F auf das 100-Digit-Raster.
+- Passende Komplettabgleich-Dateien und gespeicherte Profile werden anhand der ausgewählten NVM-Daten geprüft. Das gilt auch für offline importierte Dateien. Keine Übernahme der DSP-, Druck- oder Temperaturreferenzen eines anderen Sensors.
+- Unbekannter DSP-Endwert: kein stillschweigender Standard ±32’000. Eine Rückrechnung erfordert eine passende Referenz oder einen ausdrücklich manuell angegebenen Endwert. Bei widersprüchlichem Profil wird der angenommene physikalische Druckbereich nicht automatisch übernommen. Bei ungültiger CRC wird die automatische DSP-Zuordnung gesperrt.
+- Ohne bekannten physikalischen Druckbereich sind die Referenzbedingungen in Prozent voreingestellt. TK0/TKR bleiben modellbasierte Rückrechnungen; echte Temperatur-ADC-Messdaten sind separat zu bestätigen. Keine Änderungen an Sensorregistern oder EEPROM.
+- 47 Software-Regressionsprüfungen für DSP-Anzeige, Logging und NVM-Rückrechnung bestanden; Hardware- und visueller Browsertest ausstehend.
+
 ## v0.7.148 – Einheitliche digitale Prozentwerte
 
 - Live-Anzeige, DSP-Messwertkarten, geführter Modus, Test/Logging und Nachmessung nutzen dieselbe DSP-Endwertreferenz und die ungerundete Prozentumrechnung. Kein zusätzlicher manueller DSP-Endwert für Messungen.
