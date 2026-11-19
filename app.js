@@ -491,10 +491,34 @@ if(typeof document!=='undefined') (function UI(){
  // Bind a local display profile to BOTH chip UID and the verified NVM CRC.
  // Profiles are never written to sensor NVM and are never shared across chips.
  const displayProfileKey=uid=>'elmos-dsp-display-by-uid-v1-'+uid;
+ const standardDisplayKey=uid=>'elmos-dsp-standard-target-v1-'+uid;
+ // AODO coefficients do NOT prove the original calibration voltage endpoints.
+ // Only use the standard formula after a UID/CRC-bound, explicit reference confirmation.
+ function standardPressureReference(words){
+ if(!Array.isArray(words)||words.length!==64)return null;
+ const en=words[16],mode=(en>>9)&7;
+ if(mode<1||mode>3||!(en&(1<<6))||(en&(1<<14)))return null;
+ const gain=words[58]/4096;
+ // This app's standard fit is symmetric; reject nonzero offset and signed/invalid gain.
+ if(words[57]!==0||words[58]>=0x8000||!(gain>0))return null;
+ const limit=26214.4/gain;
+ // Allow at most half an AODO gain LSB at the upper supported DSP endpoint.
+ if(limit<1000||gain+0.5/4096<26214.4/32000)return null;
+ return {gain,offset:0,limit};
+}
+ function digitalPercent(raw,range,standard){
+ if(!Number.isInteger(raw)||raw< -32768||raw>32767)return null;
+ if(range&&Number.isFinite(range.limit)&&range.limit>0)
+  return {value:(raw+range.limit)/(2*range.limit)*100,source:range.kind};
+ if(standard&&Number.isFinite(standard.gain)&&standard.gain>0)
+  return {value:(raw*standard.gain+standard.offset*32768+26214.4)/52428.8*100,source:'standard'};
+ return null;
+}
  function calibrationDisplayProfile(words=st.nvmBackup,uid=st.uid?.hex){
   if(!uid||!CAL.crc16||!Array.isArray(words)||words.length!==64||CAL.crc16(words)!==words[63])return null;
-  const min=Number($('pmin').value),max=Number($('pmax').value);
-  const selected=$('calUnit').value,unit=pressureUnit();
+  const frozen=st.calfit?.displayReference;
+  if(!frozen)return null;
+  const {min,max,selected,unit,customUnit}=frozen;
   const limit=st.calfit?.outputLimit;
   if(!Number.isFinite(min)||!Number.isFinite(max)||max<=min||
      !['%','bar','mbar','kPa','psi','custom'].includes(selected)||
@@ -509,7 +533,7 @@ if(typeof document!=='undefined') (function UI(){
    ...(st.calfit?.orderT>0?{tempModel:'an0203'}:{})
   };
   return {uid,crc:words[63],nvmWords:words.slice(),min,max,unit,selected,limit,reference,points,
-   customUnit:selected==='custom'?$('calUnitOther').value.trim():'',savedAt:new Date().toISOString()};
+   customUnit:selected==='custom'?customUnit:'',savedAt:new Date().toISOString()};
  }
  function saveCalibrationDisplayProfile(words=st.nvmBackup,uid=st.uid?.hex){
   const profile=calibrationDisplayProfile(words,uid);
@@ -519,6 +543,7 @@ if(typeof document!=='undefined') (function UI(){
  // The pressure normalization and all pressure/temperature coefficients
  // occupy NVM words 31–54 and RAM registers 0x6C–0x9A.
  let sensorDisplayRange=null;
+ let standardDisplayRange=null;
  let checkingDSPScale=false;
  function validDisplayProfile(p,uid){
   return !!(p?.uid===uid&&Array.isArray(p.nvmWords)&&p.nvmWords.length===64&&
@@ -536,15 +561,33 @@ if(typeof document!=='undefined') (function UI(){
   }catch(_){}
   return null;
  }
+ function storedStandardReference(uid){
+  try{
+   const p=JSON.parse(lsGet(standardDisplayKey(uid)));
+   if(p?.target!=='ratiometric-10-90-v1'||p.uid!==uid||!Array.isArray(p.nvmWords)||
+      p.nvmWords.length!==64||p.nvmWords.some(w=>!Number.isInteger(w)||w<0||w>65535)||
+      h(p.nvmWords[1],2)+h(p.nvmWords[0],2)!==uid.slice(-8)||
+      p.crc!==p.nvmWords[63]||CAL.crc16(p.nvmWords)!==p.crc||
+      !standardPressureReference(p.nvmWords))return null;
+   return p;
+  }catch(_){return null}
+ }
+ function activeStandardReference(){
+  const r=standardDisplayRange;
+  return st.chip&&r?.port===st.port&&r.session===st.sessionIndex&&r.uid===st.uid?.hex&&
+   !st.calStaged?r.reference:null;
+ }
  async function restoreCalibrationDisplayProfile(verifiedWords=null){
   const port=st.port,session=st.sessionIndex,uid=st.uid?.hex;
   if(!uid||st.calStaged||st.calpoints?.length)return false;
+  sensorDisplayRange=null;standardDisplayRange=null;
   const local=storedDisplayProfile(uid);
-  if(!local)return false;
+  const standard=storedStandardReference(uid);
+  if(!local&&!standard)return false;
   const ownsTask=!verifiedWords;
   if(ownsTask&&(st.calTask||st.writing||st.nvmWorking))return false;
   if(st.port!==port||st.sessionIndex!==session||st.uid?.hex!==uid||!st.chip||st.closing)return false;
-  let p;
+  let p,isStandard=false;
   try{
    let crc=verifiedWords?.[63];
    if(ownsTask){
@@ -554,13 +597,20 @@ if(typeof document!=='undefined') (function UI(){
     crc=await nvmReadWord(0x7E);
     if((await readReg(0x46))&0x40)return false;
    }
-   p=local.crc===crc?local:null;
+   p=local?.crc===crc?local:standard?.crc===crc?standard:null;
    if(!p)return false;
+   isStandard=p===standard;
+   if(verifiedWords&&p.nvmWords.some((w,i)=>w!==verifiedWords[i]))return false;
    for(let i=31;i<=54;i++)if(await readReg(0x6C+2*(i-31))!==p.nvmWords[i])return false;
    const postScaling=1<<14;
    if(((await readReg(0x04))^p.nvmWords[16])&postScaling)return false;
    if(p.nvmWords[16]&postScaling){
     if(await readReg(0x9C)!==p.nvmWords[55]||await readReg(0x9E)!==p.nvmWords[56])return false;
+   }
+   if(isStandard){
+    const mask=(7<<9)|(1<<6)|(1<<14);
+    if(((await readReg(0x04))^p.nvmWords[16])&mask)return false;
+    if(await readReg(0xA0)!==p.nvmWords[57]||await readReg(0xA2)!==p.nvmWords[58])return false;
    }
    const version=await readReg(0x38),ser0=await readReg(0x50),ser1=await readReg(0x52);
    if(h(version,2)+h(ser1,2)+h(ser0,2)!==uid)return false;
@@ -571,6 +621,10 @@ if(typeof document!=='undefined') (function UI(){
    }
   }
   if(st.port!==port||st.sessionIndex!==session||st.uid?.hex!==uid||!st.chip||st.closing)return false;
+  if(isStandard){
+   standardDisplayRange={port,session,uid,reference:standardPressureReference(p.nvmWords)};
+   renderDSPLive();return true;
+  }
   const unit=p.selected==='custom'?(String(p.customUnit||'').slice(0,14)||'Einheit'):p.selected;
   sensorDisplayRange={port,session,uid,range:{min:p.min,max:p.max,unit,limit:p.limit,kind:'profile'}};
   if(p!==local)lsSet(displayProfileKey(uid),JSON.stringify({...p,unit}));
@@ -588,8 +642,10 @@ if(typeof document!=='undefined') (function UI(){
  }
  function getActiveDSPRange(){
   if(st.calStaged&&st.calfit){
-   const min=Number($('pmin').value),max=Number($('pmax').value);
-   if(Number.isFinite(min)&&Number.isFinite(max)&&max>min&&Number.isInteger(st.calfit.outputLimit))return {min,max,unit:pressureUnit(),limit:st.calfit.outputLimit,kind:'ram'}
+   const r=st.calfit.displayReference;
+   if(r&&Number.isFinite(r.min)&&Number.isFinite(r.max)&&r.max>r.min&&Number.isInteger(st.calfit.outputLimit))
+    return {min:r.min,max:r.max,unit:r.unit,limit:st.calfit.outputLimit,kind:'ram'};
+   return null;
   }
   const profile=sensorDisplayRange;
   if(st.chip&&st.uid?.hex&&profile?.port===st.port&&profile.session===st.sessionIndex&&profile.uid===st.uid.hex)
@@ -601,6 +657,43 @@ if(typeof document!=='undefined') (function UI(){
   if(range)return {value:range.min+(raw+range.limit)/(2*range.limit)*(range.max-range.min),unit:range.unit};
   return {value:raw,unit:'Digits'};
  }
+ function renderStandardReferenceUi(){
+  const button=$('digitalStandardConfirm'),reset=$('digitalStandardForget'),note=$('digitalStandardStatus');
+  if(!button||!reset||!note)return;
+  const busy=!!(st.calStaged||st.calpoints?.length||st.calTask||st.writing||st.nvmWorking||st.testLogging);
+  const eligible=!busy&&hasCurrentNvmBackup()&&!!standardPressureReference(st.nvmBackup)&&!demoEnabled;
+  button.disabled=!eligible||!!getActiveDSPRange()||!!activeStandardReference();
+  reset.disabled=busy||!st.uid?.hex||!storedStandardReference(st.uid.hex);
+  note.textContent=getActiveDSPRange()?'Bestätigtes Abgleichprofil aktiv.':
+   activeStandardReference()?'10–90 % VDD bestätigt · AODO-Näherung aktiv.':
+   'Ohne bekanntes Kalibrierziel werden Digits angezeigt. Zuerst EEPROM lesen. Bestätigung nur verwenden, wenn die ursprüngliche Kennlinie nachweislich 10–90 % VDD war.';
+ }
+ async function confirmStandardReference(){
+  if(!hasCurrentNvmBackup()||demoEnabled||st.calTask||st.writing||st.nvmWorking||st.calStaged||st.calpoints?.length||st.testLogging)return;
+  const words=st.nvmBackup.slice(),uid=st.uid.hex,session=st.sessionIndex;
+  if(!standardPressureReference(words)||getActiveDSPRange())return;
+  if(!window.confirm('Nur bestätigen, wenn das ursprüngliche Kalibrierziel dieses Sensors nachweislich 10–90 % VDD (z. B. 0.5–4.5 V bei 5 V) war. Die Prozentanzeige ist eine digitale Näherung, keine Druckprüfung. USER-ID und EEPROM bleiben unverändert.'))return;
+  const old=lsGet(standardDisplayKey(uid));
+  lsSet(standardDisplayKey(uid),JSON.stringify({target:'ratiometric-10-90-v1',uid,crc:words[63],nvmWords:words}));
+  let ok=false;
+  try{
+   await nvmScan({expertRead:true});
+   ok=st.sessionIndex===session&&st.uid?.hex===uid&&!!activeStandardReference();
+  }finally{
+   if(!ok){
+    if(old)lsSet(standardDisplayKey(uid),old);else lsSet(standardDisplayKey(uid),'');
+    standardDisplayRange=null;
+   }
+   renderDSPLive();
+   if(!ok&&$('digitalStandardStatus'))$('digitalStandardStatus').textContent='Referenz nicht übernommen: EEPROM/RAM, Chip-ID oder Ausgangsskalierung konnten nicht übereinstimmend bestätigt werden.';
+  }
+ }
+ $('digitalStandardConfirm')?.addEventListener('click',()=>void confirmStandardReference());
+ $('digitalStandardForget')?.addEventListener('click',()=>{
+  if(st.uid?.hex&&!st.calTask&&!st.writing&&!st.nvmWorking){
+   lsSet(standardDisplayKey(st.uid.hex),'');standardDisplayRange=null;renderDSPLive();
+  }
+ });
  function dspNumber(n){return Number.isFinite(n)?n.toLocaleString('de-CH',{minimumFractionDigits:2,maximumFractionDigits:2}):'—'}
  function renderLiveOverview(){
   const connected=!!st.port&&confirmedSensorForUi();
@@ -608,6 +701,7 @@ if(typeof document!=='undefined') (function UI(){
   const activeDSP=connected&&st.dsp&&Number.isInteger(st.dsp.raw)&&!st.dspError;
   const range=getActiveDSPRange();
   const reading=dspDisplayReading(activeDSP?st.dsp.raw:null,range);
+  const percent=digitalPercent(activeDSP?st.dsp.raw:null,range,activeStandardReference());
   $('liveAdcS').textContent=activeADC?fmt(st.adc.s):'—';
   $('liveAdcT').textContent=activeADC&&Number.isFinite(st.adc.t)?fmt(st.adc.t):'—';
   const internalSource=connected&&Number.isInteger(st.regs[0x1E])&&CAL.temperatureSourceFromAfe2(st.regs[0x1E])==='internal';
@@ -643,9 +737,10 @@ if(typeof document!=='undefined') (function UI(){
      ' · Aktueller RAM-Temperaturfit nach AN0203; vor Verwendung unabhängig prüfen.'):
     ' · Keine zuverlässige °C-Skalierung bestätigt. Nach einem früheren AN0203-Abgleich müssen die sechs Chipregister zur gespeicherten NVM-Programmierung mit derselben UID passen.');
   $('liveDspS').textContent=activeDSP?fmt(st.dsp.raw):'—';
-  $('livePressure').textContent=reading.unit==='Digits'?fmt(reading.value):dspNumber(reading.value);
-  $('livePressureUnit').textContent=reading.unit==='Digits'?
-   (checkingDSPScale?'Digits · Profilprüfung':'Digits · kein Abgleichprofil'):reading.unit||'—';
+  $('livePressure').textContent=percent?(percent.source==='standard'?'≈':'')+dspNumber(percent.value):activeDSP?fmt(st.dsp.raw):'—';
+  $('livePressureUnit').textContent=percent?(percent.source==='standard'?'% · AODO-Näherung':percent.source==='ram'?'% · RAM-Abgleich':'% · Abgleichprofil'):
+   (checkingDSPScale?'Digits · Profilprüfung':'Digits · kein Abgleichprofil');
+  renderStandardReferenceUi();
   const highADC=!!activeADC&&Math.abs(st.adc.s)>25000;
   $('liveAdcAlert').hidden=!highADC;
   $('liveAdcS').parentElement?.classList.toggle('live-warning',highADC);
@@ -678,8 +773,10 @@ if(typeof document!=='undefined') (function UI(){
   const measured=activeADC?st.adc.time:activeDSP?st.dsp.time:null;
   $('liveLastRead').textContent=measured?new Date(measured).toLocaleTimeString('de-CH'):'Keine Messwerte';
   $('livePressure').parentElement?.setAttribute('title',range?
-   'Bestätigter Anzeigebereich '+range.min+'–'+range.max+' '+range.unit+' · DSP-Endwert ±'+range.limit:
-   'Digitaler Sensorwert direkt aus DSP_S. Für die Umrechnung in eine physikalische Einheit fehlt ein verifiziertes Abgleichprofil.');
+   'Digitaler Prozentwert aus festem DSP-Endwert ±'+range.limit+' · Referenz '+range.min+'–'+range.max+' '+range.unit+
+    (reading.unit!=='%'&&activeDSP?' · '+dspNumber(reading.value)+' '+reading.unit:''):
+   percent?.source==='standard'?'Näherung aus DSP_S und rückgelesener AODO-Skalierung; dokumentiertes Ziel 10–90 % VDD, keine Analogmessung.':
+   'Digitaler Sensorwert direkt aus DSP_S. Kein bestätigtes Abgleichprofil; keine Prozentumrechnung.');
  }
  function renderDSPLive(){
   const connected=!!st.port&&confirmedSensorForUi();
@@ -1942,7 +2039,7 @@ if(typeof document!=='undefined') (function UI(){
   // AFE and ADC_S form the minimum real chip-presence proof.
   // Do not make the entire live display dependent on less reliable temperature
   // or DSP registers. A full calibration capture remains strict and separate.
-  sensorDisplayRange=null;
+  sensorDisplayRange=null;standardDisplayRange=null;
   const w=await readReg(R_AFE),g=decodeSafeAFE(w);
   const rawS=await readReg(0x2A),s=P.sign16(rawS);
   st.filterWords=null;
@@ -3220,6 +3317,8 @@ if(typeof document!=='undefined') (function UI(){
     const required=fitMode==='tk0'?3:(orderS+1)*(orderT+1);
     if(st.calpoints.length<required)throw Error('Für diese Polynom- und Temperaturordnung sind mindestens '+required+' unabhängige Messpunkte nötig. Anzahl in Schritt 3 erhöhen.');
    const solution=CAL.fit(st.calpoints,{pmin,pmax,orderS,orderT,fitMode,outputLimit});
+   solution.displayReference=Object.freeze({min:pmin,max:pmax,unit:pressureUnit(),
+    selected:$('calUnit').value,customUnit:$('calUnitOther').value.trim()});
    if(fitMode==='tk0'&&(solution.pressureOnly||solution.ignoredTemperaturePoints!==0||
        solution.points!==st.calpoints.length||!Array.isArray(solution.registers.tcoeffs)))
     throw Error('TK0-Berechnung unvollständig: alle gemessenen Druck-/Temperaturpunkte müssen berücksichtigt werden.');
@@ -3406,7 +3505,7 @@ if(typeof document!=='undefined') (function UI(){
    const after=await bootSnapshot();if(!sameBoot(before,after))throw Error('Bootregister haben sich beim NVM-Lesen verändert');
    st.nvmBackup=words;st.nvmBackupVerified=true;st.nvmBackupProof={session,uid,words,readAt:new Date().toISOString()};st.calImage=null;
    if((postBoot||expertRead)&&await restoreCalibrationDisplayProfile(words))
-    logging('Anzeigebereich aus UID-/NVM-gebundenem Profil wiederhergestellt.');
+    logging('Anzeigebereich aus UID-/NVM-gebundener Referenz wiederhergestellt.');
    expert.refreshOutputReadOnly();expert.refreshEEPROMViewer();
    const shouldArchive=expertRead||(!preview&&$('nvmAutoBackup').checked);
    if(shouldArchive)expert.afterNvmScan();
@@ -3417,7 +3516,7 @@ if(typeof document!=='undefined') (function UI(){
    ca('nvmMsg',`Aktuelles NVM gelesen und CRC8/CRC16 geprüft. Chipkennung SER1/SER0: ${h(words[1],2)}${h(words[0],2)}. ${preview?'Änderungsplan wird berechnet.':'NVM-Lesung erfolgreich.'}`,'success');
   }catch(e){
    logging('NVM-Backup: '+e.message);
-   st.nvmBackup=null;st.nvmBackupVerified=false;expert.refreshEEPROMViewer();
+   standardDisplayRange=null;st.nvmBackup=null;st.nvmBackupVerified=false;expert.refreshEEPROMViewer();
    ca('nvmMsg','NVM-Backup fehlgeschlagen: '+e.message,'error');
    ca('backupMsg','NVM-Backup fehlgeschlagen: '+e.message,'error');
   }
@@ -3432,7 +3531,7 @@ if(typeof document!=='undefined') (function UI(){
    if(!coefficientSettingsCurrent())throw Error('Zuerst Koeffizienten für den aktuellen DSP-Endwert berechnen');
    if(!st.port||!st.chip)throw Error('USB-Verbindung zum Chip fehlt');
    if(st.writing||st.calTask||st.nvmWorking)throw Error('Ein anderer Vorgang läuft');
-   sensorDisplayRange=null;
+   sensorDisplayRange=null;standardDisplayRange=null;
    st.calTask=true;st.writing=true;st.ramWriteScope='calibration';stopLive();
    ca('calRamStageMsg','Berechnete DSP-Koeffizienten werden ins RAM übertragen und rückgelesen …','warn');
    const activeTemp=await checkCalibrationTemperatureSource();
@@ -3952,6 +4051,7 @@ if(typeof document!=='undefined') (function UI(){
    st.nvmDone=false;
    $('nvmRestartStatus').hidden=true;
    $('nvmRebootConfirm').checked=false;
+   standardDisplayRange=null;
    st.nvmWorking=true;st.calTask=true;st.writing=true;st.ramWriteScope='nvm';stopLive();
    ca('nvmMsg','Sicherheitsprüfung läuft. USB-Verbindung nicht trennen, Versorgung stabil halten.','warn');
    nvmWriteFeedback('Chip-UID und bestehendes NVM werden vor dem Schreiben geprüft …');
