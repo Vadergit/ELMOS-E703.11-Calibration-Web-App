@@ -536,32 +536,11 @@ if(typeof document!=='undefined') (function UI(){
   }catch(_){}
   return null;
  }
- async function archivedDisplayProfile(files,uid,crc){
-  let found=null;
-  for(const handle of files){
-   try{
-    const data=JSON.parse(await (await handle.getFile()).text());
-    const nvm=data.nvm?.programmed;
-    if(data.format!=='E70311-CALIBRATION-COMPLETE-v1'||data.type!=='calibration'||
-       data.verifiedNvm!==true||nvm?.verified!==true||nvm.uid!==uid||data.chipUID!==uid||nvm.crc16!==crc)continue;
-    const reference=data.reference,unit=reference?.unit?.trim?.();
-    if(!unit||unit.length>14)continue;
-    const selected=['%','bar','mbar','kPa','psi'].includes(unit)?unit:'custom';
-    const p={uid,crc,nvmWords:nvm.words,min:reference.min,max:reference.max,limit:data.dsp?.outputLimit,
-     selected,customUnit:selected==='custom'?unit:'',points:data.calibrationPoints,savedAt:data.nvmProgrammedAt};
-    if(!validDisplayProfile(p,uid))continue;
-    if(found&&['min','max','limit','selected','customUnit'].some(key=>found[key]!==p[key]))return null;
-    found=p;
-   }catch(_){/* An unreadable export cannot establish the sensor scale. */}
-  }
-  return found;
- }
  async function restoreCalibrationDisplayProfile(verifiedWords=null){
   const port=st.port,session=st.sessionIndex,uid=st.uid?.hex;
   if(!uid||st.calStaged||st.calpoints?.length)return false;
   const local=storedDisplayProfile(uid);
-  const files=local?null:(await window.ELMOS_ARCHIVE?.calibrationFilesForSensor?.(uid)??[]);
-  if(!local&&!files.length)return false;
+  if(!local)return false;
   const ownsTask=!verifiedWords;
   if(ownsTask&&(st.calTask||st.writing||st.nvmWorking))return false;
   if(st.port!==port||st.sessionIndex!==session||st.uid?.hex!==uid||!st.chip||st.closing)return false;
@@ -575,8 +554,7 @@ if(typeof document!=='undefined') (function UI(){
     crc=await nvmReadWord(0x7E);
     if((await readReg(0x46))&0x40)return false;
    }
-   p=local?.crc===crc?local:await archivedDisplayProfile(
-    files??await window.ELMOS_ARCHIVE?.calibrationFilesForSensor?.(uid)??[],uid,crc);
+   p=local.crc===crc?local:null;
    if(!p)return false;
    for(let i=31;i<=54;i++)if(await readReg(0x6C+2*(i-31))!==p.nvmWords[i])return false;
    const postScaling=1<<14;

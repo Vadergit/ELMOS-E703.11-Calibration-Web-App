@@ -38,21 +38,6 @@ const ELMOS_ARCHIVE=(()=>{
    t.onerror=()=>{d.close();reject(t.error)};
   });
  }
- // Only inspect completed exports in the archive the user already opened.
- // Reading this list must never request permissions or show a file picker.
- async function calibrationFilesForSensor(uid){
-  if(!/^[0-9a-f]{12}$/i.test(uid))return [];
-  try{
-   const dir=S.dir||await remembered('read');
-   if(!dir||await dir.queryPermission({mode:'read'})!=='granted')return [];
-   const files=[];
-   for await(const [name,handle] of dir.entries()){
-    if(handle.kind==='file'&&name.startsWith('ELMOS_Abgleich_Komplett_')&&
-       name.toUpperCase().includes('_'+uid.toUpperCase()+'_')&&name.endsWith('.json'))files.push(handle);
-   }
-   return files;
-  }catch(_){return []}
- }
  async function permitted(ask=false){
   if(!S.dir)return false;
   try{
@@ -1801,7 +1786,7 @@ const ELMOS_ARCHIVE=(()=>{
   S.finishedReview=null;
  }
  return {init,open,openVerification:()=>open('verification'),close,begin,ensureCalibration,event,trace,appendTelemetry,streamRows,download,exportLoggingPdf,setPhotos,flush,finalise,interrupted,
-  chooseFolder,grantFolderAccess,refreshFolderSettings,calibrationFilesForSensor,saveFolderPathLabel,loadFolderPathLabel,
+  chooseFolder,grantFolderAccess,refreshFolderSettings,saveFolderPathLabel,loadFolderPathLabel,
   get active(){return !!S.record},get current(){return S.record},get view(){return S.view},
   get isMeasuring(){return S.measuring},get isFinishing(){return S.finishing},refresh};
 })();

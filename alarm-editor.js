@@ -161,7 +161,7 @@ const ELMOS_ALARM_EDITOR=(()=>{
     const rules=A.checkDependencies(st.nvmBackup,selection());
     if(!rules.ok)throw Error(rules.errors.join(' '));
     const img=A.prepare(st.nvmBackup,selection(),CAL.crc16);
-    CAL.protectStartupCommunication(img.before,img.after,{allowAlarmMask:true});
+    CAL.protectStartupCommunication(img.before,img.after,{allowAlarmMask:true,interfaceMode:st.iface});
     if(!img.changes.length)throw Error('Keine Änderungen notwendig.');
     const duringCalibration=calibrationActive();
     const p={...img,uid:st.uid.hex,session:st.sessionIndex,
@@ -210,6 +210,21 @@ const ELMOS_ALARM_EDITOR=(()=>{
   $('alarmGoNvm').addEventListener('click',()=>{
    if(!ready()&&!pendingForCalibration())return;
    const btn=document.querySelector('.stepBtn[data-step="6"]');if(btn)btn.click();
+  });
+  $('alarmReactivateAll').addEventListener('click',()=>{
+   if($('alarmEditorFields').disabled)return;
+   if(st.alarmOnlyPlan)clearPlan();
+   profilePending=null;exportMode='edit';dirty=true;
+   $('alarmErrorEnable').checked=true;
+   A.errors.forEach((_,i)=>{
+    const field=$('alarmErrAction'+i);
+    if(field.value==='0'){
+     const previous=(st.nvmBackup[61]>>(i*2))&3;
+     field.value=String(previous||1);
+    }
+   });
+   status('Alle sechs Fehlerreaktionen aktiviert. Bestehende Aktionen beibehalten; bisher deaktivierte Fehler verwenden den unteren Ersatzwert. Aktionen einzeln prüfen, im RAM testen und anschliessend separat speichern.','warn');
+   updateRules();renderFlowState();
   });
   $('alarmDisableAll').addEventListener('click',()=>{
    if($('alarmEditorFields').disabled)return;

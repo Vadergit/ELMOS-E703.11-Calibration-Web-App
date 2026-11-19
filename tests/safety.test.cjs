@@ -1733,17 +1733,13 @@ test('DSP display restores arbitrary endpoints only for the matching live calibr
   model.sessionIndex++;
   assert.equal(api.getActiveDSPRange(),null);
  }
- const archived=create(25257,{archive:true});
- archived.model.calStaged=false;
- assert.equal(await archived.api.restoreCalibrationDisplayProfile(),true);
- assert.equal(archived.api.getActiveDSPRange().limit,25257);
  for(const options of [{crc:0},{status:0x40},{changed:true},{serial:7},{cfgEn:0x4000},
-  {archive:'conflict'},{archive:true,crc:0}]){
+  {archive:true},{archive:true,crc:0}]){
   const {api,model}=create(23500,options);
   model.calStaged=false;
   assert.equal(await api.restoreCalibrationDisplayProfile(),false);
   assert.equal(api.getActiveDSPRange(),null);
-  assert.equal(model.calTask,false);
+  assert.ok(!model.calTask);
  }
 });
 

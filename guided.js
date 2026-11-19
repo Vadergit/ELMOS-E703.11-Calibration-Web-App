@@ -60,6 +60,7 @@ const ELMOS_GUIDED=(()=>{
   return '<div class="gw-shell"><aside class="gw-sidebar"><div class="gw-backlogo"><span>◆</span> E703.11 · Geführter Abgleich</div><nav class="gw-sideitems">'+sides+'</nav><div class="gw-sidebar-footer">Die Originalsoftware bleibt jederzeit über «Klassisch» erreichbar.<div style="margin-top:9px">Laborversion · keine Hardwarefreigabe für NVM</div></div></aside><main class="gw-main"><div class="gw-topline"><span id="gwKicker" class="gw-kicker">Schritt 1</span><div class="gw-connection-top-actions"><span id="gwChipStatus" class="gw-chipstatus"></span><button type="button" id="gwConnectionToggle" class="gw-connection-link">Verbindung &amp; Diagnose</button></div></div><div class="gw-progressbar"><span id="gwProgress"></span></div><div class="gw-heading-row"><div><h2 class="gw-title" id="gwTitle"></h2><p class="gw-desc" id="gwDesc"></p></div><button class="gw-preset gw-preset-launch" id="gwPresetLaunch" type="button" aria-haspopup="dialog" aria-controls="gwPresetDialog" hidden><strong>Preset laden</strong></button></div>'+
    '<div id="gwPage0" class="gw-page"><div class="gw-columns gw-six">'+
     '<button class="gw-choice" data-gw-task="calibration"><span class="gw-choice-icon">◉</span><strong>Sensor neu abgleichen</strong><small>Von der Messung über die DSP-Prüfung bis zur sicheren NVM-Programmierung.</small></button>'+
+    '<button class="gw-choice" data-gw-task="alarms"><span class="gw-choice-icon">⚑</span><strong>Alarme und Fehler ändern</strong><small>Bestehenden Sensor auslesen, Fehlerreaktionen einzeln anpassen und separat speichern.</small></button>'+
     '<button class="gw-choice" data-gw-task="output"><span class="gw-choice-icon">↗</span><strong>Nur Ausgang ändern</strong><small>Bereits kalibrierten Sensor prüfen und AODO-Ausgang neu konfigurieren.</small></button>'+
     '<button type="button" class="gw-choice" data-gw-task="nvm"><span class="gw-choice-icon">▣</span><strong>Sensorbrücken-Rechner</strong><small>NVM-Daten importieren und Brückennullpunkt, Spanne, TK0 und TKR analysieren.</small></button>'+
     '<button class="gw-choice" data-gw-task="inspect"><span class="gw-choice-icon">▤</span><strong>EEPROM / Diagnose</strong><small>Die bestehende Register- und EEPROM-Ansicht ohne geführten Abgleich öffnen.</small></button>'+
@@ -813,7 +814,7 @@ const ELMOS_GUIDED=(()=>{
   if(stage===7)renderOutputOptions();
   if(stage===8){
    const imported=window.ELMOS_GUIDED_API?.alarmProfile?.();
-   $('gwUseAlarms').checked=imported?.mode==='edit'||!!window.ELMOS_GUIDED_API?.alarmPending?.();
+   $('gwUseAlarms').checked=task==='alarms'||imported?.mode==='edit'||!!window.ELMOS_GUIDED_API?.alarmPending?.();
    $('gwAlarmConfigArea').hidden=!$('gwUseAlarms').checked;
   }
   msg('');
@@ -851,7 +852,7 @@ const ELMOS_GUIDED=(()=>{
    }
    msg('Ausgangskonfiguration wird gesichert: RAM und alle 64 NVM-Wörter lesen. Das kann einen Moment dauern.','warn');
    try{
-    if(task==='output'){
+    if(task==='output'||task==='alarms'){
      if(!window.ELMOS_ARCHIVE?.active)await window.ELMOS_ARCHIVE?.begin('output');
      else if(window.ELMOS_ARCHIVE.current?.type!=='output')throw Error('Ein anderes Prüfprotokoll läuft. Bitte zuerst abschliessen.');
     }else await window.ELMOS_ARCHIVE?.ensureCalibration();
@@ -862,6 +863,7 @@ const ELMOS_GUIDED=(()=>{
     await window.ELMOS_GUIDED_API.applySeriesSettings(seriesSettings);
    }
    msg('');
+   if(task==='alarms'){goto(8);return}
    if(task==='output'){goto(7);return}
    goto(1);return;
   }
@@ -887,7 +889,7 @@ const ELMOS_GUIDED=(()=>{
    goto(8);return
   }
   if(stage===8){
-   if(!$('gwUseAlarms').checked){window.ELMOS_GUIDED_API?.skipAlarms?.();goto(9);return}
+   if(task!=='alarms'&&!$('gwUseAlarms').checked){window.ELMOS_GUIDED_API?.skipAlarms?.();goto(9);return}
    if(!window.ELMOS_GUIDED_API?.alarmPending?.()&&!window.ELMOS_GUIDED_API?.alarmStandaloneReady?.()){
     msg('Alarmkonfiguration zuerst im RAM rücklesen oder den optionalen Schritt überspringen. Bei bereits vorgemerktem Ausgang zuerst diesen speichern und den Alarm anschliessend separat bearbeiten.','warn');return;
    }
@@ -975,7 +977,7 @@ const ELMOS_GUIDED=(()=>{
  function previous(){
   if(stage===0)return;
   if(stage===11){goto(0);return}
-  if(task==='output'&&stage===7){goto(0);return}
+  if((task==='output'&&stage===7)||(task==='alarms'&&stage===8)){goto(0);return}
   goto(stage-1);
  }
  function syncTopMode(){
