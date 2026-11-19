@@ -1,3 +1,11 @@
+## v0.7.152 – ESP32-C3 One-Wire-Verbindung und Startdiagnose
+
+- ESP32-C3: bevorzugte 100/25 kBd zuerst, bei PLC-Fehler alternative Rate automatisch; erfolgreiche Verbindung wird nicht durch unnötige weitere Zugriffe unterbrochen. Manuelle RAM-Recovery erst nach den normalen Versuchen. Automatische Hintergrundabfrage bleibt ohne neue RAM-Recovery.
+- Bei Fehlern lesende Diagnose beider Adressen 0x6C und 0x7C je getesteter Rate; CRC, Flanken, AFE-Pflichtbit 11, Fehlerursache und aktive USB-/PLC-Einstellungen im JSON. Die Exportversion entspricht der App.
+- GPIO10-Schaltbefehl/Startversuch werden protokolliert; physische VDD-Unterbrechung und Startfenster bleiben ohne Messung unverifiziert. UID-Prüfung und AFE-/NVM-Sperren bleiben bestehen.
+- Mit vorhandener ESP32-Firmware v0.14 nutzbar. Firmware-Quellcode v0.15 ergänzt beide Adressen bei unterschiedlichen Probe-Fehlern, tatsächliche Baudrate sowie lesende Register-/UID-Diagnose; bereitgestelltes Installer-Image bleibt bis zum bestätigten Build v0.14.
+- Sechs simulierte Verbindungsszenarien und JavaScript-Syntaxprüfung bestanden. Realer Hardwaretest und Firmware-Build ausstehend.
+
 ## v0.7.151 – Brückenpolarität im AFE
 
 - CFG_AFE1 Bit 12 (s_pga1_inv) vertauscht SIP und SIN vor PGA1. Klassische und geführte Ansicht verwenden dieselbe Einstellung. RAM-Änderung nach Bestätigung und Rücklesen, alte Messpunkte werden verworfen. NVM erst nach vollständigem Abgleich.
