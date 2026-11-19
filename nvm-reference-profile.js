@@ -81,7 +81,7 @@ const ELMOS_NVM_PROFILE=(()=>{
   }
   if(!Object.keys(fields).length)return null;
   return {kind:'saved',name:'Bestätigter Abgleich aus diesem Browser',uid,crc,
-   fields,points,recordedAt:saved.savedAt||null,verified:true};
+   fields,points,nvmWords:Array.isArray(saved.nvmWords)?saved.nvmWords.slice():null,recordedAt:saved.savedAt||null,verified:true};
  };
  const fromCalibration=(c)=>{
   if(!c||typeof c!=='object')return null;
@@ -118,7 +118,7 @@ const ELMOS_NVM_PROFILE=(()=>{
     ...readings(points)
    });
    profile={kind:'file',name:filename,uid:data.chipUID,crc:nvm.crc16,
-    fields,points,recordedAt:data.endedAt||data.nvmProgrammedAt,verified:false};
+    fields,points,nvmWords:nvm.words.slice(),recordedAt:data.endedAt||data.nvmProgrammedAt,verified:false};
   }else if(data.format==='E70311-Reference-Profile-v1'){
    profile={kind:'file',name:filename,uid:data.uid||null,crc:data.crc??null,
     fields:normalizeFields(data.fields),points:cleanPoints(data.points),
