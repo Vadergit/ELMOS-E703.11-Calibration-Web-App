@@ -159,6 +159,8 @@ window.ELMOS_TRANSLATIONS_EN=Object.assign(window.ELMOS_TRANSLATIONS_EN||{}, {
  "AFE speichert die bestätigten Einstellungen des verbundenen Sensors (PGA1, Offset, PGA2 und die Brückenspannung, sofern ausgelesen). Referenz, Messung, DSP und Ausgang übernehmen die aktuellen Vorgaben aus der App. Wähle die Gruppen, die du als Vorlage speichern möchtest. Messwerte, Chip-ID und der EEPROM-Inhalt werden nicht gespeichert.": "AFE saves confirmed settings from the connected sensor (PGA1, Offset, PGA2 and bridge voltage if read). Reference, measurement, DSP and output use the current app defaults. Select the groups to save as a template. Measurements, chip ID and EEPROM contents are not saved.",
  "PGA1, Offset, PGA2": "PGA1, Offset, PGA2",
  "Brückenpolarität": "Bridge polarity",
+ "Brückenpolarität auswählen oder PGA1, Offset und PGA2 mit − / + ändern. Jede Änderung wird direkt ins RAM übernommen.": "Select bridge polarity or adjust PGA1, offset and PGA2 using − / +. Each change is applied directly to RAM.",
+ "Normal: SIP/SIN unverändert. Invertiert: SIP und SIN werden vor PGA1 intern vertauscht (CFG_AFE1 Bit 12). Änderungen werden erst nach bestätigter RAM-Rücklesung angezeigt und erfordern einen neuen Abgleich.": "Normal: SIP/SIN unchanged. Inverted: SIP and SIN are internally swapped before PGA1 (CFG_AFE1 bit 12). Changes are displayed after confirmed RAM readback and require recalibration.",
  "Invertiert": "Inverted",
  "Invertieren": "Invert",
  "Normal einstellen": "Set normal",
