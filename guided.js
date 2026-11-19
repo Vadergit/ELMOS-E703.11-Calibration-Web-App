@@ -623,9 +623,9 @@ const ELMOS_GUIDED=(()=>{
  function updateFinishTelemetry(){
   const api=window.ELMOS_GUIDED_API,t=api?.telemetry?.(),s=state();
   if(!t)return;
-  const percent=Number.isFinite(t.signalPercent);
-  setText('gwFinishSignalValue',(t.signalEstimated?'≈':'')+measurementNumber(percent?t.signalPercent:t.dspRaw,percent?2:0));
-  setText('gwFinishSignalUnit',t.signalEstimated?'% · vorläufig':percent?'%':t.dspRaw!==null?'Digits':'—');
+  const scaled=Number.isFinite(t.sensorValue);
+  setText('gwFinishSignalValue',measurementNumber(scaled?t.sensorValue:t.dspRaw,scaled?2:0));
+  setText('gwFinishSignalUnit',scaled?t.unit:t.dspRaw!==null?'Digits':'—');
   setText('gwFinishDsp',measurementNumber(t.dspRaw));
   setText('gwFinishAdc',measurementNumber(t.adcS));
   setText('gwFinishTemp',measurementNumber(t.adcT));
@@ -635,13 +635,13 @@ const ELMOS_GUIDED=(()=>{
   badge.className='gw-live-badge'+(t.dspRaw!==null?' is-live':'');
   const source=$('gwFinishSource');
   source.textContent=t.dspRaw===null?'Kein aktueller DSP_S-Wert verfügbar. Bitte Verbindung und Live-Messung prüfen.':
-   t.signalEstimated?'Vorläufiger Prozentwert aus dem digitalen Vollausschlag.':
-   !percent?'DSP_S direkt aus Register 0x30.':
-   t.range?.kind==='display'?'DSP_S in Prozent anhand des eingestellten DSP-Endwerts.':
-   'DSP_S in Prozent anhand des kalibrierten DSP-Endwerts.';
-  $('gwFinishBar').style.width=(good?Math.max(0,Math.min(100,percent)):0).toFixed(2)+'%';
-  setText('gwFinishRangeMin',good?'0 %':'—');
-  setText('gwFinishRangeMax',good?'100 %':'—');
+   !scaled?'DSP_S direkt aus Register 0x30. Es fehlt ein bestätigtes Abgleichprofil.':
+   'DSP_S umgerechnet mit dem bestätigten Messbereich des Sensors.';
+  const {min,max}=t.range||{};
+  const progress=scaled&&max>min?100*(t.sensorValue-min)/(max-min):0;
+  $('gwFinishBar').style.width=Math.max(0,Math.min(100,progress)).toFixed(2)+'%';
+  setText('gwFinishRangeMin',scaled?measurementNumber(min,2)+' '+t.unit:'—');
+  setText('gwFinishRangeMax',scaled?measurementNumber(max,2)+' '+t.unit:'—');
   const v=t.voltageTargets;
   setText('gwFinishConfig',v?
    'Ausgangs-Sollwerte: S0 '+measurementNumber(v.s0,3)+' V · S1 '+measurementNumber(v.s1,3)+' V · VDD '+measurementNumber(v.vdd,2)+' V. Diese Spannungen wurden nicht am Pin gemessen.':

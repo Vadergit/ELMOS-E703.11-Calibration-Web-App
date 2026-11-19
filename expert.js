@@ -404,7 +404,7 @@ const ELMOS_EXPERT=(()=>{
    if(label){
     label.textContent=Number.isInteger(limit)?
      'DSP-Endwert aus dem aktuellen Abgleich oder dem bestätigten Profil dieses Sensors. ADC_S ist davon unabhängig.':
-     'DSP-Endwert offen. Zuerst den DSP-Endwert des bestehenden Sensors bestätigen oder eine neue Kalibrierung ins RAM übertragen.';
+     'DSP-Endwert unbekannt. Ein passender gespeicherter Abgleich oder eine neue RAM-Kalibrierung ist erforderlich.';
    }
    $('psscDspS0').textContent=Number.isInteger(limit)?'−'+limit.toLocaleString('de-CH'):'—';
    $('psscDspS1').textContent=Number.isInteger(limit)?'+'+limit.toLocaleString('de-CH'):'—';
@@ -462,7 +462,7 @@ const ELMOS_EXPERT=(()=>{
    if(!isAnalog($('expertOutputMode').value))throw Error('S0/S1 in Volt nur für Analog Ratiometric verfügbar');
    for(const id of ['psscVdd','psscS0','psscS1'])if($(id).value.trim()==='')throw Error('Bitte S0, S1 und VDD vollständig eingeben');
    const limit=currentLimit();
-   if(!Number.isInteger(limit))throw Error('Zuerst den DSP-Endwert dieses Sensors bestätigen.');
+   if(!Number.isInteger(limit))throw Error('Kein bestätigter Abgleich mit bekanntem DSP-Endwert vorhanden.');
    const result=CAL.analogScaling(Number($('psscS0').value),Number($('psscS1').value),Number($('psscVdd').value),limit);
    $('expertScaleEnable').checked=true;
    $('expertScaleGain').value=String(result.gain);$('expertScaleOffset').value=String(result.offset);
@@ -475,7 +475,7 @@ const ELMOS_EXPERT=(()=>{
      const result=calculateAnalogScaling();invalidateOutputPlan();
      show('expertOutputMsg','Scaling: S0 = '+result.actualVolts[0].toFixed(5)+' V, S1 = '+result.actualVolts[1].toFixed(5)+' V. Bitte prüfen und vormerken.','success');return;
     }
-    if(!Number.isInteger(lim))throw Error('Zuerst den DSP-Endwert dieses Sensors bestätigen.');
+    if(!Number.isInteger(lim))throw Error('Kein bestätigter Abgleich mit bekanntem DSP-Endwert vorhanden.');
     let gain,offset;
     if(mode===4){if(!Number.isInteger(period)||period<2||period>32767)throw Error('PWM-Periode für Vorschlag zwischen 2 und 32’767 wählen');gain=0.32*period/lim;offset=period*0.5/32768;}
     else if(mode===5){gain=11000/lim;offset=14500/32768}

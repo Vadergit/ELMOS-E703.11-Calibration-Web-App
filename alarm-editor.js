@@ -2,7 +2,7 @@
 /* E703.11 alarm editor: preview -> verified RAM -> existing protected NVM workflow. */
 const ELMOS_ALARM_EDITOR=(()=>{
  const A=ELMOS_ALARM_CONFIG;let api=null;
- function init({st,CAL,hasCurrentNvmBackup,applyAlarmRam,renderFlowState,show,nvmTransportSupported=()=>st.iface==='plc'}){
+ function init({st,CAL,hasCurrentNvmBackup,applyAlarmRam,renderFlowState,show,nvmTransportSupported=()=>st.iface==='plc',getActiveDSPRange=()=>null}){
   const $=id=>document.getElementById(id);
   for(const bit of A.statusBits){
    const label=document.createElement('label'),input=document.createElement('input');
@@ -123,10 +123,10 @@ const ELMOS_ALARM_EDITOR=(()=>{
       status('Alarmprofil geladen. Mit der aktuellen Chipkonfiguration und DSP-Spanne überprüfen.');
      }else if(profilePending?.mode==='skip'){
       // Do not use old EEPROM alarm flags as an implicit instruction to enable alarms.
-      fill(A.read(st.nvmBackup,(st.calfit?.outputLimit ?? Number($('dspDisplayLimit').value)) || 32000));
+      fill(A.read(st.nvmBackup,getActiveDSPRange()?.limit??32000));
       status('Keine Alarmänderungen aus dem Profil gewünscht. Chip-Alarme bleiben unverändert.','warn');
      }else{
-      const limit=(st.calfit?.outputLimit ?? Number($('dspDisplayLimit').value)) || 32000;
+      const limit=getActiveDSPRange()?.limit??32000;
       fill(A.read(st.nvmBackup,Math.max(1000,Math.min(32000,limit))));
       status('Alarmwerte aus dem aktuellen EEPROM gelesen. DSP-Skala prüfen und bestätigen.');
      }

@@ -589,7 +589,7 @@ test('Guided finish distinguishes measured DSP from requested output-voltage set
  for(const id of ['gwFinishSignalValue','gwFinishSignalUnit','gwFinishDsp','gwFinishAdc','gwFinishTemp','gwFinishTime','gwFinishBar','gwFinishStatus','gwFinishConfig'])
   assert.equal(guide.split('id="'+id+'"').length-1,1);
  assert.ok(guide.includes('function updateFinishTelemetry()'));
- assert.ok(guide.includes("t.range?.kind==='display'"));
+ assert.ok(guide.includes("scaled?t.sensorValue:t.dspRaw"));
  assert.ok(guide.includes('t.dspRaw===null'));
  assert.ok(guide.includes('Diese Spannungen wurden nicht am Pin gemessen.'));
  assert.ok(guide.includes('Kaltstart und Ausgangsmessung stehen noch aus.'));
@@ -1706,17 +1706,21 @@ test('DSP display restores arbitrary endpoints only for the matching live calibr
   const model={port,sessionIndex:5,uid:{hex:uid},chip:true,
    calStaged:true,calfit:{outputLimit:limit}};
   $('pmin').value='0';$('pmax').value='10';
-  $('dspDisplayLimit').value='32000';
   const profile={uid,crc:words[63],nvmWords:words,min:0,max:10,selected:'bar',limit};
-  const f=new Function('st','CAL','$','displayProfileKey','lsGet','ramGrant','nvmReadWord',
-   'readReg','ramLock','h','pressureUnit','logging','refreshUnitLabels','renderDSPLive','expert',
+  const f=new Function('st','CAL','$','displayProfileKey','lsGet','lsSet','ramGrant','nvmReadWord',
+   'readReg','ramLock','h','pressureUnit','logging','refreshUnitLabels','renderDSPLive','expert','window',
    app.slice(start,end)+'return {getActiveDSPRange,restoreCalibrationDisplayProfile};');
-  const api=f(model,CAL,$,id=>id,id=>id===uid?JSON.stringify(profile):null,
+  const file={format:'E70311-CALIBRATION-COMPLETE-v1',type:'calibration',verifiedNvm:true,chipUID:uid,
+   nvm:{programmed:{words,uid,verified:true,crc16:words[63]}},dsp:{outputLimit:limit},
+   reference:{min:0,max:10,unit:'bar'}};
+  const handles=(options.archive==='conflict'?[file,{...file,dsp:{outputLimit:limit+1}}]:
+   options.archive?[file]:[]).map(data=>({getFile:async()=>({text:async()=>JSON.stringify(data)})}));
+  const api=f(model,CAL,$,id=>id,id=>id===uid&&!options.archive?JSON.stringify(profile):null,()=>{},
    async()=>{},async()=>options.crc??words[63],
    async address=>address===0x38?0x20:address===0x50?2:address===0x52?options.serial??1:
-    address===0x46?options.status??0:address===0x70&&options.changed?0:words[31+(address-0x6C)/2],
-   async()=>{},(word,bytes)=>word.toString(16).padStart(bytes*2,'0'),
-   ()=>'bar',()=>{},()=>{},()=>{},{refreshOutputPreview(){}});
+    address===0x04?options.cfgEn??0:address===0x46?options.status??0:address===0x70&&options.changed?0:words[31+(address-0x6C)/2],
+   async()=>{},(word,bytes)=>word.toString(16).toUpperCase().padStart(bytes*2,'0'),
+   ()=>'bar',()=>{},()=>{},()=>{},{refreshOutputPreview(){}},{ELMOS_ARCHIVE:{calibrationFilesForSensor:async()=>handles}});
   return {api,model};
  };
  for(const limit of [23456,30000,31550]){
@@ -1729,7 +1733,12 @@ test('DSP display restores arbitrary endpoints only for the matching live calibr
   model.sessionIndex++;
   assert.equal(api.getActiveDSPRange(),null);
  }
- for(const options of [{crc:0},{status:0x40},{changed:true},{serial:7}]){
+ const archived=create(25257,{archive:true});
+ archived.model.calStaged=false;
+ assert.equal(await archived.api.restoreCalibrationDisplayProfile(),true);
+ assert.equal(archived.api.getActiveDSPRange().limit,25257);
+ for(const options of [{crc:0},{status:0x40},{changed:true},{serial:7},{cfgEn:0x4000},
+  {archive:'conflict'},{archive:true,crc:0}]){
   const {api,model}=create(23500,options);
   model.calStaged=false;
   assert.equal(await api.restoreCalibrationDisplayProfile(),false);
@@ -1738,16 +1747,15 @@ test('DSP display restores arbitrary endpoints only for the matching live calibr
  }
 });
 
-test('Unknown DSP scale produces a visibly provisional full-scale percentage only for display',()=>{
+test('Unknown DSP scale displays exact chip digits without a manual setting or a guessed percentage',()=>{
  const app=read('app.js');
  const start=app.indexOf(' function dspDisplayReading(');
  const end=app.indexOf(' function dspNumber(',start);
  const reading=new Function(app.slice(start,end)+'return dspDisplayReading;')();
- assert.deepEqual(reading(null,null,false),{value:null,unit:'',estimated:false});
- assert.deepEqual(reading(23456,null,true),{value:null,unit:'',estimated:false});
- assert.deepEqual(reading(16384,null,false),{value:75,unit:'%',estimated:true});
- assert.deepEqual(reading(23456,{min:0,max:6,unit:'bar',limit:23456},true),
-  {value:6,unit:'bar',estimated:false});
+ assert.deepEqual(reading(null,null),{value:null,unit:''});
+ assert.deepEqual(reading(-30014,null),{value:-30014,unit:'Digits'});
+ assert.deepEqual(reading(23456,{min:0,max:6,unit:'bar',limit:23456}),{value:6,unit:'bar'});
+ assert.doesNotMatch(read('index.html'),/dspDisplayOpen|dspDisplayLimit/);
  const expert=read('expert.js');
  assert.ok(expert.includes('return getActiveDSPRange()?.limit;'));
  assert.ok(!expert.includes('dspDisplayReading'));
