@@ -339,6 +339,8 @@ if(typeof document!=='undefined') (function UI(){
   if(select.options[0].textContent!==placeholder)select.options[0].textContent=placeholder;
   const activeValue=match<0?'':String(match);
   if(select.value!==activeValue)select.value=activeValue;
+  const fullFilterLabel=match<0?placeholder:filterProfiles[match][0];
+  if(select.title!==fullFilterLabel)select.title=fullFilterLabel;
   const needsFirmware=st.chip&&st.adapterKind==='bridge'&&!st.bridgeAfeFilter;
   const hint=$('afeFilterFirmwareHint');
   if(hint.hidden===needsFirmware)hint.hidden=!needsFirmware;

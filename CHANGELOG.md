@@ -1,3 +1,7 @@
+## v0.7.154 – ADC-Tiefpass kompakter anzeigen
+
+- Kleinere Schrift und weniger Innenabstand im ADC-Filter-Dropdown; geführte Ansicht räumt der Filterbezeichnung mehr Breite ein. Vollständige Bezeichnung zusätzlich als Tooltip. Filterprofile und RAM-Schreiblogik bleiben unverändert.
+
 ## v0.7.153 – Brückenpolarität sauber ins AFE-Layout integriert
 
 - Eigener zweispaltiger Umschalter Normal / Invertiert statt dreispaltigem Gain-Stepper. Kompakter, bündiger Aufbau in geführter, klassischer und kompakter Ansicht, inklusive Darkmode.
