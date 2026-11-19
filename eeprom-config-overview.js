@@ -30,6 +30,7 @@ const ELMOS_EEPROM_OVERVIEW=(()=>{
   {group:'Betrieb & Kommunikation',label:'EOC-Signal auf Pin',index:20,decode:x=>SETTINGS.eocPin(x)},
   {group:'Betrieb & Kommunikation',label:'I²C-Signalfilter',index:20,decode:x=>((x>>12)&1)?'Deaktiviert':'Aktiv (Störimpulse unterdrücken)'},
   {group:'Analog-Frontend (AFE)',label:'Brückenspannung SVDD',index:27,decode:x=>['2,4 V','1,6 V','2,0 V','Reservierter Code'][(x&3)]},
+  {group:'Analog-Frontend (AFE)',label:'Brückenpolarität (SIP / SIN)',index:28,decode:x=>(x&0x1000)?'Invertiert':'Normal'},
   {group:'Analog-Frontend (AFE)',label:'PGA1',index:28,decode:x=>formatNumber(pga1[x&3])+'×'},
   {group:'Analog-Frontend (AFE)',label:'Offset-DAC',index:28,decode:offset},
   {group:'Analog-Frontend (AFE)',label:'PGA2',index:28,decode:x=>pga2[(x>>>7)&15]===undefined?'Undokumentierter Code':formatNumber(pga2[(x>>>7)&15])+'×'},

@@ -42,10 +42,10 @@ const PROTOCOL = (() => {
  const sign16=n=>(n&0x8000)?n-65536:n;
  const offsetEncode=o=>o<0?0x10-o:o;
  const offsetDecode=v=>v===0?0:v>=1&&v<=8?v:v>=17&&v<=24?16-v:null;
- const decAFE=w=>({pga1:w&3,pga2:(w>>7)&15,offset:offsetDecode((w>>2)&31)});
- const goodG=g=>Number.isInteger(g.pga1)&&g.pga1>=0&&g.pga1<=3&&Number.isInteger(g.pga2)&&g.pga2>=0&&g.pga2<=8&&Number.isInteger(g.offset)&&g.offset>=-8&&g.offset<=8;
- const AFE_BITS=0x7FF;
- const encAFE=(old,g)=>{if(!goodG(g))throw Error('Ungültiger Gain/Offset');if(!(old&0x800))throw Error('Pflichtbit 11 fehlt. Schreiben gesperrt.');let n=((old&(~AFE_BITS))|(g.pga1&3)|(offsetEncode(g.offset)<<2)|((g.pga2&15)<<7))&0xffff;if(((n^old)&~AFE_BITS)!==0)throw Error('Fremde AFE-Bits betroffen');return n};
+ const decAFE=w=>({pga1:w&3,pga2:(w>>7)&15,offset:offsetDecode((w>>2)&31),bridgeInvert:(w>>12)&1});
+ const goodG=g=>Number.isInteger(g.pga1)&&g.pga1>=0&&g.pga1<=3&&Number.isInteger(g.pga2)&&g.pga2>=0&&g.pga2<=8&&Number.isInteger(g.offset)&&g.offset>=-8&&g.offset<=8&&(g.bridgeInvert===undefined||g.bridgeInvert===0||g.bridgeInvert===1);
+ const AFE_BITS=0x17FF; // DS 25DS0170E.04 §6.2.1.4: bit 12 s_pga1_inv; preserve 13–15 and mandatory bit 11.
+ const encAFE=(old,g)=>{if(!goodG(g))throw Error('Ungültiger Gain/Offset');if(!(old&0x800))throw Error('Pflichtbit 11 fehlt. Schreiben gesperrt.');let n=((old&(~AFE_BITS))|(g.pga1&3)|(offsetEncode(g.offset)<<2)|((g.pga2&15)<<7)|((g.bridgeInvert===undefined?((old>>12)&1):g.bridgeInvert)<<12))&0xffff;if(((n^old)&~AFE_BITS)!==0)throw Error('Fremde AFE-Bits betroffen');return n};
  return {hx,crc,crc4,crc8PLC,plcRead,plcWrite,plcAddressFromConfig,plcProbeOrder,plcHostCommand,ssp3PromptCount,ssp3StartupAcks,periodMode,i2cRead,i2cWrite,spiRead,spiWrite,readData,sign16,decAFE,encAFE,goodG};
 })();
 if(typeof module!=='undefined'&&module.exports)module.exports=PROTOCOL;
@@ -77,7 +77,7 @@ if(typeof document!=='undefined') (function UI(){
  const filterRegisters=[0x14,0x16,0x18];
  const filterProfiles=ELMOS_SETTINGS.filterProfiles;
  const REG_NAMES={4:'CFG_EN',6:'CFG_SPI_I2C',8:'CFG_PADS0',10:'CFG_PADS1',12:'CFG_PADS2',16:'CFG_AODO',0x14:'CFG_ADC',0x16:'CFG_LP0',0x18:'CFG_LP1',0x1A:'CFG_AFE0',0x1C:'CFG_AFE1',0x1E:'CFG_AFE2',0x26:'ADC_TC',0x28:'ADC_T',0x2A:'ADC_S'};
- const st={chipDiag:null,diagRunning:false,lastPlcReply:null,mode:'offline',port:null,closing:false,reader:null,readerPromise:null,readerAlive:false,adapterNoReply:false,sessionStartedAt:null,sessionIndex:0,cmdQueue:Promise.resolve(),replyBuffer:'',responseWait:null,iface:'plc',adapterKind:'ssp3',sensorPowerEnabled:false,startupRunning:false,startupAbort:false,startupAttempts:0,magicRunning:false,magicResult:null,powerCycleRunning:false,powerCycleResult:null,startupTrials:[],powerHelp:null,plcHostFormat:'legacy',plcAddress:0x6C,plcAddressVerified:false,plcAddressSource:'',plcAddressProbes:[],firmware:'',chip:false,readOnlySensor:null,sensorLost:false,reinitRunning:false,boot:null,afe:null,afe0:null,bridgeWriteAllowed:false,bridgeReadBusy:false,staged:{pga1:0,pga2:0,offset:0},adc:null,dsp:null,dspError:null,dspT:null,dspTError:null,liveReadPromise:null,trend:[],history:[],log:[],regs:{},points:{lo:null,hi:null},verify:null,live:false,manualLivePause:false,timeout:null,consecutiveErrors:0,liveReadAttempts:0,liveReadSuccesses:0,liveLastError:null,liveLastAttemptAt:null,measurementPeriod:null,measurementStatus:null,measurementError:null,measurementStarts:0,measurementFreshCount:0,measurementLastChangedAt:null,writing:false,pressure:5,calpoints:[],calfit:null,calImage:null,nvmBackup:null,nvmBackupVerified:false,calStaged:false,calVerified:false,calValidation:[],calTask:false,testLogging:false,nvmWorking:false,nvmAttempting:false,nvmRechecking:false,nvmDone:false,afeWriteActive:false,ramWriteScope:null,uid:null,expertOutputPlan:null,restorePlan:null,outputOnlyPlan:null,uidShownForInput:null,profilePendingAFE:null,referenceTemplate:null};
+ const st={chipDiag:null,diagRunning:false,lastPlcReply:null,mode:'offline',port:null,closing:false,reader:null,readerPromise:null,readerAlive:false,adapterNoReply:false,sessionStartedAt:null,sessionIndex:0,cmdQueue:Promise.resolve(),replyBuffer:'',responseWait:null,iface:'plc',adapterKind:'ssp3',sensorPowerEnabled:false,startupRunning:false,startupAbort:false,startupAttempts:0,magicRunning:false,magicResult:null,powerCycleRunning:false,powerCycleResult:null,startupTrials:[],powerHelp:null,plcHostFormat:'legacy',plcAddress:0x6C,plcAddressVerified:false,plcAddressSource:'',plcAddressProbes:[],firmware:'',chip:false,readOnlySensor:null,sensorLost:false,reinitRunning:false,boot:null,afe:null,afe0:null,bridgeWriteAllowed:false,bridgeReadBusy:false,staged:{pga1:0,pga2:0,offset:0,bridgeInvert:0},adc:null,dsp:null,dspError:null,dspT:null,dspTError:null,liveReadPromise:null,trend:[],history:[],log:[],regs:{},points:{lo:null,hi:null},verify:null,live:false,manualLivePause:false,timeout:null,consecutiveErrors:0,liveReadAttempts:0,liveReadSuccesses:0,liveLastError:null,liveLastAttemptAt:null,measurementPeriod:null,measurementStatus:null,measurementError:null,measurementStarts:0,measurementFreshCount:0,measurementLastChangedAt:null,writing:false,pressure:5,calpoints:[],calfit:null,calImage:null,nvmBackup:null,nvmBackupVerified:false,calStaged:false,calVerified:false,calValidation:[],calTask:false,testLogging:false,nvmWorking:false,nvmAttempting:false,nvmRechecking:false,nvmDone:false,afeWriteActive:false,ramWriteScope:null,uid:null,expertOutputPlan:null,restorePlan:null,outputOnlyPlan:null,uidShownForInput:null,profilePendingAFE:null,referenceTemplate:null};
  let currentStep=0,pendingGain=null,writeTimer=null;
  // USB must never open if a dependent UI module failed during startup.
  let expert=null,uiReady=false;
@@ -456,14 +456,18 @@ if(typeof document!=='undefined') (function UI(){
  function gainSummary(){
   const g=st.staged;
   for(const k of ['pga1','pga2','offset'])$(k).value=String(g[k]);
+  $('bridgePolarityValue').textContent=Number.isInteger(st.afe)?(g.bridgeInvert?'Invertiert':'Normal'):'—';
+  $('bridgePolarityToggle').textContent=g.bridgeInvert?'Normal einstellen':'Invertieren';
   $('pga1val').textContent=GAINS1[g.pga1]+'×';
   $('offsetval').textContent=(g.offset*50>0?'+':'')+(g.offset*50)+' mV/V';
   $('pga2val').textContent=GAINS2[g.pga2]+'×';
-  $('gainInfo').textContent=`PGA1 ${GAINS1[g.pga1]}× · Offset ${g.offset*50} mV/V · PGA2 ${GAINS2[g.pga2]}× · Gesamt ${(GAINS1[g.pga1]*GAINS2[g.pga2]).toFixed(2)}×`;
+  $('gainInfo').textContent=`PGA1 ${GAINS1[g.pga1]}× · Offset ${g.offset*50} mV/V · PGA2 ${GAINS2[g.pga2]}× · Gesamt ${(GAINS1[g.pga1]*GAINS2[g.pga2]).toFixed(2)}× · Brücke ${g.bridgeInvert?'invertiert':'normal'}`;
   renderStatus()
  }
  function renderAFEStepperState(){
   const busy=st.calTask||st.writing||st.nvmWorking;
+  $('bridgePolarityToggle').disabled=busy||!st.port||!st.chip||!Number.isInteger(st.afe)||st.testLogging;
+  if(!st.chip||!Number.isInteger(st.afe))$('bridgePolarityValue').textContent='—';
   for(const [k,min,max] of [['pga1',0,3],['pga2',0,8],['offset',-8,8]]){
    $(k+'Down').disabled=busy||st.staged[k]<=min;
    $(k+'Up').disabled=busy||st.staged[k]>=max
@@ -920,7 +924,7 @@ if(typeof document!=='undefined') (function UI(){
    ' Digits. Druckbeaufschlagung prüfen und die Druckreferenzpunkte neu aufnehmen.';
   const gains=JSON.stringify(st.staged);
   if(st.calpoints.some(x=>JSON.stringify(x.gains)!==gains))
-   return 'Messpunkte wurden mit unterschiedlichen AFE-Gains aufgenommen. PGA1/PGA2/Offset prüfen und betroffene Punkte erneut aufnehmen.';
+   return 'Messpunkte wurden mit unterschiedlichen AFE-Gains aufgenommen. PGA1/PGA2/Offset/Brückenpolarität prüfen und betroffene Punkte erneut aufnehmen.';
   if(st.calpoints.some(x=>x.temperatureSource!==selectedTemperatureSource()))
    return 'Messpunkte wurden mit unterschiedlicher Temperaturmessquelle aufgenommen. Quelle kontrollieren und Messpunkte neu erfassen.';
   if(st.calpoints.some(x=>!capturedReferenceMatches(x)))
@@ -1920,7 +1924,7 @@ if(typeof document!=='undefined') (function UI(){
     lines.push('  Binär: '+a.binary+' · Bit11='+a.bit11+' · PGA1-Code='+a.pga1+
       ' · Offset-Code='+a.offset+' · PGA2-Code='+a.pga2+
       (a.pga2>=8?' (10×-Codierungsfamilie)':'')+' · Bits15:12='+a.reservedHigh);
-    lines.push('  UI-Decodierung: PGA1='+g.pga1+', PGA2='+g.pga2+', Offset='+g.offset);
+    lines.push('  UI-Decodierung: PGA1='+g.pga1+', PGA2='+g.pga2+', Offset='+g.offset+', s_pga1_inv='+g.bridgeInvert);
    }
    if(frame?.crc8IndependentCheck)lines.push('  CRC8: '+frame.crc8IndependentCheck+' · erwartet 0x'+h(frame.crc8Expected??0));
    if(frame?.rawReply)lines.push('  Rohantwort: '+frame.rawReply.replace(/[\r\n]+/g,' / ').slice(0,240))
@@ -3248,9 +3252,10 @@ if(typeof document!=='undefined') (function UI(){
    if(actual!==next)throw Error('AFE-Rücklesefehler: Soll 0x'+h(next,2)+' Ist 0x'+h(actual,2));
    if(!sameBoot(beforeBoot,await bootSnapshot()))throw Error('Bootregister nach AFE-Übernahme verändert');
    st.afe=actual;
-   st.staged={...target};
-   await window.ELMOS_ARCHIVE?.event('afe_ram_changed',{before:originalWord,after:actual,AFE:{...target},supply:archiveVoltages()});
+   st.staged=decodeSafeAFE(actual);
    erasePoints();
+   st.trend=[];
+   await window.ELMOS_ARCHIVE?.event('afe_ram_changed',{before:originalWord,after:actual,AFE:{...st.staged},supply:archiveVoltages()});
    gainSummary();
    let adcAfter=null;
    try{adcAfter=await readADC()}catch(e){logging('ADC-Lesung nach AFE-RAM-Änderung: '+e.message)}
@@ -3914,6 +3919,7 @@ if(typeof document!=='undefined') (function UI(){
    $('nvmDiff').textContent=image.changes.map(c=>{
     const raw=`NVM 0x${h(c.address)} [${c.index}] 0x${h(c.from,2)} → 0x${h(c.to,2)}`;
     if(c.index===30)return 'USER-ID · '+raw;
+    if(c.index===28&&((c.from^c.to)&0x1000))return 'Brückenpolarität: '+((c.from&0x1000)?'invertiert':'normal')+' → '+((c.to&0x1000)?'invertiert':'normal')+' · '+raw;
     if(c.index!==CAL.SVDD_INDEX)return raw;
     const voltages=['2,4 V','1,6 V','2,0 V','reserviert'];
     return 'Brückenspannung: '+voltages[bridgeSupplyCode(c.from)]+' → '+voltages[bridgeSupplyCode(c.to)]+' · '+raw;
@@ -4361,6 +4367,7 @@ if(typeof document!=='undefined') (function UI(){
    const actualSvdd=bridgeSupplyCode(await readReg(R_BRIDGE));
    if(actualSvdd!==bridgeSupplyCode(expected.words[CAL.SVDD_INDEX]))
     throw Error('Brückenspannung im RAM stimmt nach dem Neustart nicht mit dem NVM überein');
+   if(((await readReg(R_AFE))^expected.words[28])&0x1000)throw Error('Brückenpolarität im RAM stimmt nach Neustart nicht mit dem NVM überein');
    await readADC();
    if(automatic&&st.adapterKind==='bridge'&&st.bridgeCalibrationNvm)st.bridgeColdStart={port:st.port,session:st.sessionIndex,uid:expected.id,iface:st.iface};
    const success='NVM nach Neustart vollständig rückgelesen. Chip-ID, CRC8, CRC16, Bootregister und Brückenspannung stimmen.';
@@ -4485,6 +4492,7 @@ if(typeof document!=='undefined') (function UI(){
    $('configAfeSummary').textContent='PGA1 '+GAINS1[proposed.pga1]+'× · Offset '+(proposed.offset*50)+' mV/V · PGA2 '+
     GAINS2[proposed.pga2]+'×. Aktuell im Chip: PGA1 '+GAINS1[st.staged.pga1]+'×, Offset '+(st.staged.offset*50)+
     ' mV/V, PGA2 '+GAINS2[st.staged.pga2]+'×.'+
+    (proposed.bridgeInvert!==undefined?' Brückenpolarität '+(proposed.bridgeInvert?'invertiert':'normal')+'.':' Brückenpolarität bleibt unverändert.')+
     (Number.isInteger(proposed.bridgeSupply)?' Brückenspannung SVDD '+BRIDGE_VOLTAGES[proposed.bridgeSupply].toFixed(1)+' V.':'')+
     ' Erst nach bestätigter RAM-Rücklesung werden die Vorgaben aktiv.';
   }
@@ -4494,7 +4502,7 @@ if(typeof document!=='undefined') (function UI(){
   const p=st.staged;
   const cf=ELMOS_CONFIG.createSelective({
    label:$('configLabel').value.trim()||'Standardprofil',
-   afe:{pga1:p.pga1,pga2:p.pga2,offset:p.offset,
+   afe:{pga1:p.pga1,pga2:p.pga2,offset:p.offset,bridgeInvert:p.bridgeInvert,
     ...(Number.isInteger(st.afe0)&&bridgeSupplyCode(st.afe0)<3?
       {bridgeSupply:bridgeSupplyCode(st.afe0)}:{})},
    calibration:{
@@ -4686,9 +4694,9 @@ if(typeof document!=='undefined') (function UI(){
    // Existing commitGain checks the boot state and reads the written register back.
    if(target){
     show('configPreview','AFE-Übernahme läuft: PGA1/Offset/PGA2 und gegebenenfalls SVDD werden im RAM rückgelesen. Kein EEPROM-Schreiben.','warn');
-    const gains={pga1:target.pga1,pga2:target.pga2,offset:target.offset};
+    const gains={pga1:target.pga1,pga2:target.pga2,offset:target.offset,...(target.bridgeInvert!==undefined?{bridgeInvert:target.bridgeInvert}:{})};
     const ok=await commitGain(gains);
-    if(!ok||!st.chip||!['pga1','pga2','offset'].every(k=>st.staged[k]===target[k])){
+    if(!ok||!st.chip||!['pga1','pga2','offset'].every(k=>st.staged[k]===target[k])||(target.bridgeInvert!==undefined&&st.staged.bridgeInvert!==target.bridgeInvert)){
      st.profilePendingAFE={...target};profileSummary();
      throw Error('AFE-RAM-Übernahme nicht bestätigt. Chip prüfen und Config erneut übernehmen. Die anderen Einstellungen wurden nicht verändert.');
     }
@@ -5194,6 +5202,11 @@ if(typeof document!=='undefined') (function UI(){
  $('afeFilterProfile').addEventListener('change',event=>{
   if(event.target.value!=='')void applyFilterProfile(Number(event.target.value));
  });
+ $('bridgePolarityToggle').addEventListener('click',()=>{
+  if($('bridgePolarityToggle').disabled)return;
+  if(!window.confirm('Brückenpolarität ändern? SIP und SIN werden vor PGA1 vertauscht. Neue Kalibrierung erforderlich; bisherige Messpunkte und DSP-Prüfung werden verworfen. Nur RAM, kein EEPROM-Schreiben.'))return;
+  void commitGain({...st.staged,bridgeInvert:1-st.staged.bridgeInvert}).catch(e=>show('writeMsg',e.message,'error'));
+ });
  $('brSupplyRead').addEventListener('click',()=>refreshBridgeSupply());
  $('readNow').addEventListener('click',()=>withProgress('ADC-Werte werden gelesen',()=>readADC()).catch(e=>show('adcMsg','ADC: '+e.message,'error')));$('live').addEventListener('click',()=>{if(st.live){st.manualLivePause=true;stopLive()}else{st.manualLivePause=false;startLive()}});
  for(const k of ['pga1','pga2','offset']){
@@ -5212,7 +5225,7 @@ if(typeof document!=='undefined') (function UI(){
  $('capLo').addEventListener('click',()=>capture('lo'));$('capHi').addEventListener('click',()=>capture('hi'));$('verify').addEventListener('click',()=>verify());
  $('exportJSON').addEventListener('click',()=>download('ELMOS_Kalibrierprotokoll_'+Date.now()+'.json',JSON.stringify(report(),null,2)));
  $('exportDiag').addEventListener('click',()=>download('ELMOS_USB_Diagnose_'+Date.now()+'.json',JSON.stringify(report(),null,2)));
- $('exportCSV').addEventListener('click',()=>download('ELMOS_ADC_'+Date.now()+'.csv','\uFEFFZeit;ADC_S;ADC_T;ADC_TC;Quelle;PGA1;PGA2;Offset\n'+st.history.map(v=>[v.time,v.adc_s,v.adc_t,v.adc_tc,v.source,v.gains.pga1,v.gains.pga2,v.gains.offset].join(';')).join('\n'),'text/csv;charset=utf-8'));
+ $('exportCSV').addEventListener('click',()=>download('ELMOS_ADC_'+Date.now()+'.csv','\uFEFFZeit;ADC_S;ADC_T;ADC_TC;Quelle;PGA1;PGA2;Offset;Brueckenpolaritaet\n'+st.history.map(v=>[v.time,v.adc_s,v.adc_t,v.adc_tc,v.source,v.gains.pga1,v.gains.pga2,v.gains.offset,v.gains.bridgeInvert===undefined?'':v.gains.bridgeInvert?'invertiert':'normal'].join(';')).join('\n'),'text/csv;charset=utf-8'));
  Object.assign(HELP,{sorder:'Polynomgrad für die Druck-Kennlinie. Höhere Grade brauchen mehr unabhängige Messpunkte und bergen ein erhöhtes Überanpassungsrisiko.',torder:'Temperaturkompensation. Bei Ordnung 0 wird der bestehende Temperaturpfad im Chip beibehalten. Für Ordnung 1–3 sind Messpunkte bei verschiedenen Temperaturen nötig.',nvm:'Permanenter NVM-Speicher. Ein Stromausfall während der Programmierung kann trotz Schutz der Schnittstellenregister einen CRC-Fehler erzeugen. Vorher Backup und RAM-Test durchführen.'});
  // A native browser dialog runs BEFORE a pending Back/Reload/Close navigation.
  // Only protect unfinished work; no custom toast after the page is gone.
@@ -5312,7 +5325,7 @@ if(typeof document!=='undefined') (function UI(){
   const start=Number.isFinite(since)?since:Date.now();
   const selected=st.history.filter(item=>Date.parse(item.time)>=start&&
    item.source==='usb'&&Number.isFinite(item.adc_s)&&
-   item.gains?.pga1===st.staged.pga1&&item.gains?.pga2===st.staged.pga2&&item.gains?.offset===st.staged.offset);
+   item.gains?.pga1===st.staged.pga1&&item.gains?.pga2===st.staged.pga2&&item.gains?.offset===st.staged.offset&&item.gains?.bridgeInvert===st.staged.bridgeInvert);
   if(!selected.length)return {count:0,min:null,max:null,hub:null,limitExceeded:false};
   const readings=selected.map(item=>item.adc_s);
   const min=Math.min(...readings),max=Math.max(...readings);

@@ -431,7 +431,7 @@ const ELMOS_CAL = (() => {
    cfg[SVDD_INDEX]=(cfg[SVDD_INDEX]&~SVDD_MASK)|opts.bridgeSupply;
   }
   // Preserve factory and communication settings outside validated fields.
-  cfg[28]=(cfg[28]&~0x7FF)|(afeWord&0x7FF); // only AFE gain/offset bits
+  cfg[28]=(cfg[28]&~0x17FF)|(afeWord&0x17FF); // gain/offset and documented s_pga1_inv; preserve bits 11,13–15
   cfg[33]=r.so;cfg[34]=r.sf;for(let i=0;i<16;i++)cfg[35+i]=r.coeffs[i];
   if(r.tcoeffs){cfg[31]=r.to;cfg[32]=r.tf;for(let i=0;i<4;i++)cfg[51+i]=r.tcoeffs[i]}
   if(opts.userId!==undefined){

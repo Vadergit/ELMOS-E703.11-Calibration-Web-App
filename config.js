@@ -19,8 +19,9 @@ const ELMOS_CONFIG=(()=>{
   if(obj.format!==FORMAT||obj.version!==VERSION)throw Error('Nur E703.11 Config-Dateien im Format '+FORMAT+' v1 werden akzeptiert (keine EEPROM-Backups)');
   const label=text(obj.label,80,'Profilname');
   if(typeof obj.createdAt!=='string'||obj.createdAt.length>40||!Number.isFinite(Date.parse(obj.createdAt)))throw Error('Erstellungsdatum fehlt');
-  exact(obj.afe,['pga1','pga2','offset'],'AFE');
+  exact(obj.afe,['pga1','pga2','offset','bridgeInvert'],'AFE');
   const afe={pga1:integer(obj.afe.pga1,0,3,'PGA1'),pga2:integer(obj.afe.pga2,0,8,'PGA2'),offset:integer(obj.afe.offset,-8,8,'AFE-Offset')};
+  if(Object.hasOwn(obj.afe,'bridgeInvert'))afe.bridgeInvert=integer(obj.afe.bridgeInvert,0,1,'Brückenpolarität');
   exact(obj.calibration,['sOrder','tOrder','dspLimit','pointCount','samples','reference'],'Kalibriereinstellungen');
   const c=obj.calibration;
   const calSettings={sOrder:integer(c.sOrder,1,3,'Druck-Polynomgrad'),tOrder:integer(c.tOrder,0,3,'Temperatur-Polynomgrad'),
@@ -68,9 +69,10 @@ const ELMOS_CONFIG=(()=>{
    throw Error('Config v2: Feld '+g+' stimmt nicht mit der Gruppenauswahl überein');
   const out={format:FORMAT,version:2,label,createdAt:obj.createdAt,include:obj.include.slice()};
   if(obj.include.includes('afe')){
-   const a=obj.afe;exact(a,['pga1','pga2','offset','bridgeSupply'],'AFE');
+   const a=obj.afe;exact(a,['pga1','pga2','offset','bridgeSupply','bridgeInvert'],'AFE');
    out.afe={pga1:integer(a.pga1,0,3,'PGA1'),pga2:integer(a.pga2,0,8,'PGA2'),
     offset:integer(a.offset,-8,8,'AFE-Offset')};
+   if(Object.hasOwn(a,'bridgeInvert'))out.afe.bridgeInvert=integer(a.bridgeInvert,0,1,'Brückenpolarität');
    // Optional field: old v2 files remain valid. Code 3 is reserved.
    if(Object.hasOwn(a,'bridgeSupply'))
     out.afe.bridgeSupply=integer(a.bridgeSupply,0,2,'Brückenspannung SVDD');
@@ -247,6 +249,7 @@ const ELMOS_CONFIG=(()=>{
    const names={afe:'AFE (PGA1 / Offset / PGA2 / Brückenspannung)',reference:'Druckbereich / Einheit',
     measurement:'Messpunkte / Samples',dsp:'DSP-Ordnung / Endwert',output:'Ausgang / S0 / S1',alarm:'Alarme / EOC / Fehlerreaktionen'};
    return p.include.map(g=>names[g]+(g==='afe'?': '+p.afe.pga1+' / '+p.afe.offset*50+' mV/V / '+p.afe.pga2+
+     (p.afe.bridgeInvert!==undefined?' / Brücke '+(p.afe.bridgeInvert?'invertiert':'normal'):' / Polarität unverändert')+
      (Number.isInteger(p.afe.bridgeSupply)?' / SVDD '+[2.4,1.6,2.0][p.afe.bridgeSupply]+' V':''):
     g==='reference'?': '+p.reference.min+'–'+p.reference.max+' '+p.reference.unit:
     g==='measurement'?': '+p.measurement.pointCount+' Punkte, '+p.measurement.samples+' Samples':
@@ -254,7 +257,7 @@ const ELMOS_CONFIG=(()=>{
     g==='alarm'?': '+(p.alarm.mode==='skip'?'Keine Alarmänderung':'Grenzen und Statusverknüpfungen') :'' )).join('\n');
   }
   const c=p.calibration,o=p.output;return [
-  'AFE: PGA1 Stufe '+p.afe.pga1+', Offset '+(p.afe.offset*50)+' mV/V, PGA2 Stufe '+p.afe.pga2,
+  'AFE: PGA1 Stufe '+p.afe.pga1+', Offset '+(p.afe.offset*50)+' mV/V, PGA2 Stufe '+p.afe.pga2+(p.afe.bridgeInvert!==undefined?', Brücke '+(p.afe.bridgeInvert?'invertiert':'normal'):'; Polarität unverändert'),
   'DSP: ±'+c.dspLimit+' Digits; Druckgrad '+c.sOrder+', Temperaturgrad '+c.tOrder,
   'Referenz: '+c.reference.min+' bis '+c.reference.max+' '+(c.reference.unit==='custom'?c.reference.customUnit:c.reference.unit),
   'Messpunkte: '+c.pointCount+', Samples: '+c.samples,

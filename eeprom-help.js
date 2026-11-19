@@ -91,6 +91,9 @@ const ELMOS_EEPROM_HELP=(()=>{
    const p1=value&3,p2=(value>>>7)&15,c=(value>>>2)&31,offset=c===0?0:c>=1&&c<=8?c:c>=17&&c<=24?16-c:null;
    const pga1=[3.5,6,8.5,11],pga2=[2,2.22,2.5,2.86,3.33,4,5,6.67,10];
    return [
+    item('12','s_pga1_inv',(value>>>12)&1,(value&0x1000)?'SIP/SIN vertauscht':'Normal'),
+    item('14','s_pga2_inv',(value>>>14)&1,(value&0x4000)?'PGA2-Eingang invertiert':'Normal'),
+    item('15','s_adc_inv',(value>>>15)&1,(value&0x8000)?'ADC-Ausgang invertiert':'Normal'),
     item('1:0','PGA1',p1,pga1[p1]+'×'),
     item('6:2','Offset-DAC',c,offset===null?'Ungültiger/undokumentierter Code':'Offset-Stufe '+offset),
     item('10:7','PGA2',p2,pga2[p2]===undefined?'Ungültiger/undokumentierter Code':pga2[p2]+'×'),

@@ -887,7 +887,7 @@ function chooseDisplayReference(profile,standard){
    body.appendChild(row);
   }
   table.appendChild(body);const wrap=dom('div',undefined,'nvmrecon-table-scroll');wrap.style.overflowX='auto';wrap.appendChild(table);box.appendChild(wrap);
-  const e=dom('p','Temperaturmodell: '+(r.settings.temperatureModel==='factory'?'Werkprofil (100 Digits/°C)':'AN0203 (387,88 × °C − 16’485)')+' · AFE: SVDD '+fmt(r.settings.supply,2)+' V · PGA1 '+fmt(r.settings.pga1,2)+'× · PGA2 '+fmt(r.settings.pga2,2)+'× · Offset-DAC '+r.settings.offsetSteps+' Stufen · S_F '+fmt(r.settings.sF,5)+' · S_O '+fmt(r.settings.sO,5),'nvmrecon-muted');
+  const e=dom('p','Temperaturmodell: '+(r.settings.temperatureModel==='factory'?'Werkprofil (100 Digits/°C)':'AN0203 (387,88 × °C − 16’485)')+' · AFE: SVDD '+fmt(r.settings.supply,2)+' V · PGA1 '+fmt(r.settings.pga1,2)+'× · PGA2 '+fmt(r.settings.pga2,2)+'× · Brückenpolarität '+(r.settings.sign1<0?'invertiert':'normal')+' · Offset-DAC '+r.settings.offsetSteps+' Stufen · S_F '+fmt(r.settings.sF,5)+' · S_O '+fmt(r.settings.sO,5),'nvmrecon-muted');
   const technical=dom('details',undefined,'nvmrecon-technical');
   technical.appendChild(dom('summary','AFE- und Registerdetails'));
   technical.appendChild(e);
