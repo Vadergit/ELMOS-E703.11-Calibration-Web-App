@@ -637,7 +637,7 @@ const ELMOS_GUIDED=(()=>{
   const source=$('gwFinishSource');
   source.textContent=t.dspRaw===null?'Kein aktueller DSP_S-Wert verfügbar. Bitte Verbindung und Live-Messung prüfen.':
    !scaled?'DSP_S direkt aus Register 0x30. Es fehlt ein bestätigtes Abgleichprofil.':
-   'DSP_S umgerechnet mit dem bestätigten Messbereich des Sensors.';
+   t.range?.kind==='standard'?'DSP_S in % mit rekonstruiertem DSP-Endwert (10–90 % VDD angenommen).':'DSP_S in % mit bestätigtem DSP-Endwert.';
   const {min,max}=t.range||{};
   const progress=scaled&&max>min?100*(t.sensorValue-min)/(max-min):0;
   $('gwFinishBar').style.width=Math.max(0,Math.min(100,progress)).toFixed(2)+'%';
