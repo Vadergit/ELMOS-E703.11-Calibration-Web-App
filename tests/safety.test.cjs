@@ -120,8 +120,8 @@ test('Scaling UI shows automatically chosen DSP range and ADC distinction',()=>{
  const html=read('index.html'),expert=read('expert.js'),app=read('app.js');
  assert.ok(html.includes('id="psscScalingSource"'));
  assert.ok(expert.includes("st.calfit.outputLimit"));
- assert.ok(expert.includes("$('calDspLimit').dataset.userEdited"));
- assert.ok(expert.includes("$('dspDisplayLimit').value"));
+ assert.ok(expert.includes("return getActiveDSPRange()?.limit;"));
+ assert.ok(app.includes("await restoreCalibrationDisplayProfile();"));
  assert.ok(app.includes("$('calDspLimit').dataset.userEdited='1'"));
 });
 
@@ -1690,4 +1690,50 @@ test('I²C NVM requires an I²C cold-start proof for the same port, UID and sess
  assert.match(check({...base,regs:{0x06:0x6C01}}),/passt nicht zum Original-NVM/);
  assert.match(check(base,false),/64-Wort-EEPROM/);
  assert.match(check(base,true,false),/automatisch sichern/);
+});
+
+test('DSP display restores arbitrary endpoints only for the matching live calibration',async()=>{
+ const app=read('app.js');
+ const start=app.indexOf(' let sensorDisplayRange=null;');
+ const end=app.indexOf(' function dspNumber(',start);
+ const inputs=new Map();
+ const $=id=>{if(!inputs.has(id))inputs.set(id,{value:''});return inputs.get(id)};
+ const port={},uid='002000010002';
+ const words=Array(64).fill(0);words[0]=2;words[1]=1;
+ for(let i=31;i<=54;i++)words[i]=0x1000+i;
+ words[63]=CAL.crc16(words);
+ const create=(limit,options={})=>{
+  const model={port,sessionIndex:5,uid:{hex:uid},chip:true,
+   calStaged:true,calfit:{outputLimit:limit}};
+  $('pmin').value='0';$('pmax').value='10';
+  $('dspDisplayLimit').value='32000';
+  const profile={uid,crc:words[63],nvmWords:words,min:0,max:10,selected:'bar',limit};
+  const f=new Function('st','CAL','$','displayProfileKey','lsGet','ramGrant','nvmReadWord',
+   'readReg','ramLock','h','pressureUnit','logging','refreshUnitLabels','renderDSPLive','expert',
+   app.slice(start,end)+'return {getActiveDSPRange,restoreCalibrationDisplayProfile};');
+  const api=f(model,CAL,$,id=>id,id=>id===uid?JSON.stringify(profile):null,
+   async()=>{},async()=>options.crc??words[63],
+   async address=>address===0x38?0x20:address===0x50?2:address===0x52?options.serial??1:
+    address===0x46?options.status??0:address===0x70&&options.changed?0:words[31+(address-0x6C)/2],
+   async()=>{},(word,bytes)=>word.toString(16).padStart(bytes*2,'0'),
+   ()=>'bar',()=>{},()=>{},()=>{},{refreshOutputPreview(){}});
+  return {api,model};
+ };
+ for(const limit of [23456,30000,31550]){
+  const {api,model}=create(limit);
+  assert.equal(api.getActiveDSPRange().limit,limit);
+  model.calStaged=false;
+  assert.equal(api.getActiveDSPRange(),null);
+  assert.equal(await api.restoreCalibrationDisplayProfile(),true);
+  assert.deepEqual(api.getActiveDSPRange(),{min:0,max:10,unit:'bar',limit,kind:'profile'});
+  model.sessionIndex++;
+  assert.equal(api.getActiveDSPRange(),null);
+ }
+ for(const options of [{crc:0},{status:0x40},{changed:true},{serial:7}]){
+  const {api,model}=create(23500,options);
+  model.calStaged=false;
+  assert.equal(await api.restoreCalibrationDisplayProfile(),false);
+  assert.equal(api.getActiveDSPRange(),null);
+  assert.equal(model.calTask,false);
+ }
 });

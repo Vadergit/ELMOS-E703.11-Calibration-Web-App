@@ -170,6 +170,7 @@ const ELMOS_GUIDED=(()=>{
   moveId('chart','gwAfeChartHost');
   for(const id of ['readNow','live','srcLabel'])moveId(id,'gwAfeLiveActions');
   moveId('adcMsg','gwAfeMessage');
+  moveId('dspDisplaySettings','gwAfeMessage');
   const pointRows=[...document.querySelectorAll('.panel[data-panel="2"] .cal-point-row')];
   if(pointRows.length!==10)throw Error('Messpunktkarten der Originalansicht haben sich geändert');
   pointRows.forEach(el=>move(el,'gwPointHost'));

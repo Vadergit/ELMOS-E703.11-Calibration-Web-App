@@ -1016,15 +1016,16 @@ html.guided-task-open #guidedHomeTop{display:inline-flex}
 <div class="dsp-main"><span class="dsp-number" id="afeDspValue">—</span><span class="dsp-unit" id="afeDspUnit">%</span></div>
 <div class="dsp-sub"><span id="afeDspRaw">DSP_S: — Digits</span> · <span id="afeDspSeen">Noch keine DSP-Messung</span></div>
 </div>
-<details data-expert-area hidden><summary>Anzeigebereich für bereits kalibrierten Sensor einstellen</summary><div class="inner">
-<p class="muted small">Bei einem früher kalibrierten Sensor liest die App direkt DSP_S. Den tatsächlichen Druckbereich kann sie nicht zuverlässig automatisch erkennen. Diese Einstellungen ändern <b>nur die Anzeige</b>, nicht den Chip. Sie werden lokal im Browser gespeichert.</p>
+<details id="dspDisplaySettings"><summary>DSP-Endwert und Messbereich bestätigen</summary><div class="inner">
+<p class="muted small">Wenn kein gespeichertes Profil erkannt wird, gib den tatsächlichen DSP-Endwert und Messbereich dieses Sensors ein. Die Bestätigung gilt für diese Verbindung und schreibt keine Sensorregister.</p>
 <div class="fieldrow">
-<label>Anzeige Minimum<input id="dspDisplayMin" type="number" step="any" value="0"></label>
-<label>Anzeige Maximum<input id="dspDisplayMax" type="number" step="any" value="100"></label>
-<label>Anzeige Einheit<select id="dspDisplayUnit"><option value="%">%</option><option value="bar">bar</option><option value="mbar">mbar</option><option value="kPa">kPa</option><option value="psi">psi</option></select></label>
-<label>DSP-Endwert bestehender Sensor (± Digits)<input id="dspDisplayLimit" type="number" min="1000" max="32000" step="100" value="32000"></label>
+<label>Anzeige Minimum<input id="dspDisplayMin" type="number" step="any"></label>
+<label>Anzeige Maximum<input id="dspDisplayMax" type="number" step="any"></label>
+<label>Anzeige Einheit<select id="dspDisplayUnit"><option value="">Einheit wählen</option><option value="%">%</option><option value="bar">bar</option><option value="mbar">mbar</option><option value="kPa">kPa</option><option value="psi">psi</option></select></label>
+<label>DSP-Endwert bestehender Sensor (± Digits)<input id="dspDisplayLimit" type="number" min="1000" max="32000" step="1"></label>
 </div>
-<div class="small muted" id="dspDisplayHint">Standard 0–100 %. Nach einer neuen RAM-Kalibrierung wird stattdessen deren gewählter Referenzbereich verwendet.</div>
+<button id="dspDisplayConfirm" type="button" disabled>DSP-Endwert und Messbereich bestätigen</button>
+<div class="small muted" id="dspDisplayHint" aria-live="polite"></div>
 </div></details>
 <canvas id="chart" width="1000" height="230" aria-label="ADC-Verlauf"></canvas><div class="flex" style="margin:13px 0"><button id="readNow">ADC jetzt lesen</button><button id="live">Live-Messung starten</button><span class="pill" id="srcLabel">Keine Messdaten</span></div><div class="mutedline"></div><div class="between"><h3>Verstärkung und Offset</h3><span class="pill" id="afeWord">CFG_AFE1: —</span></div><div class="afe-step-panel" aria-label="Brückenspannung und diskrete AFE-Verstärkungs- und Offseteinstellung">
 <div class="afe-step-row afe-bridge-row">
