@@ -32,6 +32,16 @@ main{max-width:1140px}
 .math-expression{font-size:clamp(1rem,1.8vw,1.28rem)}
 @media(max-width:760px){.math-pair{grid-template-columns:1fr;gap:7px}.math-example{border-left:0;border-top:1px dashed var(--line);padding:8px 0 0}.math-expression{text-align:left}}
 @media print{.math-pair{grid-template-columns:1fr 1fr}}
+
+.calc-fields{display:grid;grid-template-columns:repeat(auto-fit,minmax(205px,1fr));gap:12px 16px}
+.calc-fields label{display:flex;flex-direction:column;gap:4px;font-size:.84rem;font-weight:650}.calc-fields small{font-weight:400;line-height:1.4}
+.calc-fields input,.calc-fields select{background:var(--paper);color:var(--text);font:inherit;font-size:1rem;border:1px solid var(--line);border-radius:6px;padding:8px 10px;width:100%;min-width:0}
+.calc-group{border:1px solid var(--line);padding:12px 16px 16px;border-radius:8px;margin:16px 0;min-width:0}.calc-group legend{font-weight:650;padding:0 6px}
+.calc-actions{display:flex;flex-wrap:wrap;gap:10px;margin:12px 0}.calc-actions button{font:inherit;color:var(--accent);background:var(--paper);border:1px solid var(--line);border-radius:6px;padding:7px 12px;cursor:pointer}
+.calc-status{font-weight:650;color:var(--accent)}.calc-status[data-state="bad"],.calc-error{color:var(--warntext);background:var(--warn);padding:8px;border-radius:5px}.calc-error:empty{display:none}
+.calc-range{height:18px;border-radius:4px;background:var(--soft);position:relative;overflow:hidden;border:1px solid var(--line);margin:5px 0}.calc-range:after{content:"";position:absolute;left:50%;top:0;bottom:0;border-left:1px solid var(--muted)}.calc-range span{position:absolute;top:2px;bottom:2px;background:#2876a3;border-radius:2px}.calc-range[data-state="bad"] span{background:#b36b31}
+.calc-results th[scope="row"]{background:transparent}.calc-results td{font-variant-numeric:tabular-nums}.calc-results{font-size:.88rem}
+@media print{.calc-actions{display:none}}
 </style>
 </head>
 <body><main>
@@ -41,7 +51,7 @@ main{max-width:1140px}
 <p>Der DSP-Endwert bestimmt, auf welchen digitalen Wertebereich der nominale Druckmessbereich abgebildet wird. Ein grösserer Endwert verbessert die digitale Schrittweite, ein kleinerer Endwert schafft mehr Reserve für Unter- und Übersteuerung.</p>
 <div class="metrics"><div class="metric"><small>Auslegungsvorschlag</small><b>±25’000</b>50’000 Digits Spanne</div><div class="metric"><small>Digitale Schrittweite</small><b>0,002 % FS</b>pro Digit</div><div class="metric"><small>Reserve je Seite</small><b>15,53 % FS</b>bis zur 16-Bit-Grenze</div><div class="metric"><small>Davon zusätzlich</small><b>3,03 % FS</b>nach 12,5 % FS Übersteuerung</div></div>
 <small>FS = Full Scale: nominaler Druck- beziehungsweise Brückensignalhub. ±25’000 ist ein Auslegungsvorschlag; der aktuelle Standardwert der Anwendung bleibt ±32’000.</small></header>
-<nav aria-label="Inhalt"><ol><li><a href="#skalierung">Digitale Skalierung</a></li><li><a href="#reserve">10–90 % und Reserve</a></li><li><a href="#aufloesung">Auflösung und Rundung</a></li><li><a href="#temperatur">Temperaturkompensation</a></li><li><a href="#beispiel">Worst Case: Metallux ME910</a></li></ol></nav>
+<nav aria-label="Inhalt"><ol><li><a href="#skalierung">Digitale Skalierung</a></li><li><a href="#reserve">10–90 % und Reserve</a></li><li><a href="#aufloesung">Auflösung und Rundung</a></li><li><a href="#temperatur">Temperaturkompensation</a></li><li><a href="#beispiel">Worst Case: Metallux ME910</a></li><li><a href="#rechner">Signal- und Reserverechner</a></li></ol></nav>
 <section id="skalierung"><h2>1. Digitale Skalierung</h2>
 <p>Ein vorzeichenbehaftetes 16-Bit-Signal reicht von −32’768 bis +32’767 Digits. Der gewählte Endwert L definiert die beiden nominalen Druckendpunkte.</p>
 <div class="formula"><div class="math-step"><div class="math-label">Druck → Digitalwert</div><div class="math-pair"><div class="math-expression"><span class="math-symbol">DSP<sub>S</sub></span> = <i>L</i> · (2<i>p</i> − 1)</div><div class="math-example"><span class="math-example-title">Rechnung mit Zahlen</span><div class="math-plain">25’000 × (2 × 0,75 − 1) = 12’500 Digits</div><small>L = 25’000; p = 0,75 (75 % FS). DSP_S = korrigierter Digitalwert.</small></div></div></div>
@@ -121,5 +131,100 @@ Ganzzahlig abgerundet: 25’012</div><small>0,125 = 12,5 % FS; 0,03 = 3 % FS.</s
 <p><strong>Ergebnis:</strong> ±25’000 Digits sind als Ausgangsskalierung ein begründeter Kompromiss zwischen Auflösung und Reserve. Der nominale Metallux-Fall ist im vereinfachten Modell plausibel; ein universeller Nachweis für alle Sensoren und Temperaturen folgt daraus nicht.</p>
 <p class="muted">[1] Metallux: <a href="https://www.metallux.ch/pdf/products/Catalog%20-%20Pressure%20Sensor%20-%20ME910.pdf" target="_blank" rel="noopener noreferrer">Öffentliches ME910-Datenblatt, Rev. B (2022), Seite 2</a>. Alle übrigen Formeln und Reservewerte sind eigene mathematische Herleitungen beziehungsweise ausdrücklich gekennzeichnete Auslegungsannahmen.</p>
 </section>
+<section id="rechner"><h2>6. Signal- und Reserverechner</h2>
+<p>Eigene Messzelle eingeben und die Rohsignalbereiche sowie die korrigierte DSP-Aussteuerung vergleichen. Die Ergebnisse werden bei jeder Eingabe neu berechnet.</p>
+<form id="reserveCalc" novalidate>
+<fieldset class="calc-group"><legend>Messzelle und Temperatur</legend><div class="calc-fields">
+<label>Brückensignal bei 0 % (mV/V)<input id="rc-zero" type="number" step="any" value="0" required><small>Nullpunkt bei Referenztemperatur.</small></label>
+<label>Brückensignal bei 100 % (mV/V)<input id="rc-full" type="number" step="any" value="2" required><small>Endsignal, nicht die Differenz zum Nullpunkt.</small></label>
+<label>TK0 (% FS/K)<input id="rc-tk0" type="number" step="any" value="0.1" required><small>Temperaturkoeffizient des Nullpunkts.</small></label>
+<label>TKE (%/K)<input id="rc-tke" type="number" step="any" value="0.03" required><small>Temperaturkoeffizient der Empfindlichkeit.</small></label>
+<label>Temperaturdifferenz ΔT (K)<input id="rc-dt" type="number" step="any" value="100" required><small>Abstand zur Referenztemperatur.</small></label>
+<label>Berechnungsart<select id="rc-mode"><option value="worst">Worst Case · beide Vorzeichen</option><option value="signed">Mit Vorzeichen · von Referenz bis ΔT</option></select><small>Worst Case kombiniert maximale Beträge konservativ.</small></label>
+</div></fieldset>
+<fieldset class="calc-group"><legend>ADC, Normalisierung und DSP</legend><div class="calc-fields">
+<label>ADC_S bei 0 % (Digits)<input id="rc-adc0" type="number" step="any" value="-25000" required><small>Gemessener oder angenommener ADC-Endpunkt bei Referenztemperatur.</small></label>
+<label>ADC_S bei 100 % (Digits)<input id="rc-adc100" type="number" step="any" value="25000" required><small>Gemessener oder angenommener ADC-Endpunkt; Vorgabe ist ein Beispiel.</small></label>
+<label>Normalisierung ±H (Digits)<input id="rc-h" type="number" step="any" value="25000" required><small>Halber zentrierter Eingangssignalhub, unabhängig vom DSP-Endwert.</small></label>
+<label>DSP-Endwert ±L (Digits)<input id="rc-l" type="number" step="1" value="25000" required><small>Korrigierter nominaler Druckbereich.</small></label>
+<label>Unter-/Übersteuerung je Seite (% FS)<input id="rc-over" type="number" step="any" value="12.5" required><small>12,5 % FS entsprechen der idealen 10–90-%-Kennlinie.</small></label>
+</div></fieldset>
+<div class="calc-actions"><button type="button" id="rc-reset">Metallux-Beispiel laden</button><button type="button" id="rc-clearTemp">Ohne Temperaturdrift</button></div></form>
+<p id="rc-error" class="calc-error" role="alert"></p>
+<div id="rc-results" aria-live="polite">
+<div class="metrics">
+<div class="metric"><small>Nominaler Brückenhub</small><b id="rc-span">–</b><small id="rc-bridgeDrift"></small></div>
+<div class="metric"><small>Max. Drift bei 100 % Druck</small><b id="rc-drift">–</b><small id="rc-driftParts"></small></div>
+<div class="metric"><small>Zusätzliche DSP-Reserve</small><b id="rc-dspPct">–</b><small>Bei gewählter Übersteuerung</small></div>
+</div>
+<div class="tablewrap"><table class="calc-results"><thead><tr><th>Signalstufe</th><th>0–100 % Druck</th><th>Mit Übersteuerung</th><th>Reserve nominal</th><th>Reserve mit Übersteuerung</th></tr></thead><tbody id="rc-rows"></tbody></table></div>
+<div id="rc-chart"></div>
+<p id="rc-status" class="calc-status"></p><p id="rc-gain"></p><p id="rc-summary" class="muted small"></p>
+</div>
+<p class="muted small">Vereinfachtes lineares Modell mit konstanter AFE-Verstärkung und fester Normalisierung. Die ADC-Endpunkte sind erforderlich, weil aus mV/V allein keine ADC-Digits folgen. Analoge PGA-Grenzen, interne Rechenstufen, Koeffizientenquantisierung und mechanischer Überdruck sind nicht geprüft. Die korrigierte DSP-Kennlinie setzt ideale Kompensation voraus. Die maximale Halbspanne H und die lineare Korrekturverstärkung sind Modellwerte, kein garantierter Abgleichnachweis.</p>
+</section>
 <footer>Technische Erklärung · <a href="../index.html">Zurück zum Kalibrierassistenten</a></footer>
-</main></body></html>
+</main><script>
+"use strict";
+const calcModel=function model(z){
+ const {zero,full,tk0,tke,dt,adc0,adc100,h,l,over,mode}=z;
+ if(![zero,full,tk0,tke,dt,adc0,adc100,h,l,over].every(Number.isFinite))throw Error("Bitte alle Zahlenfelder vollständig ausfüllen.");
+ if(zero===full||adc0===adc100)throw Error("Die beiden nominalen Brücken- und ADC-Endpunkte müssen jeweils verschieden sein.");
+ if(h<=0||h>32767||l<1000||l>32000||!Number.isInteger(l)||over<0||over>100||[adc0,adc100].some(v=>v< -32768||v>32767))throw Error("Zulässig: ADC −32’768…32’767, H > 0 bis 32’767, L ganzzahlig 1’000…32’000, Übersteuerung 0…100 % FS.");
+ const da=tk0*dt/100,db=tke*dt/100,pad=over/100;
+ const A=mode==="worst"?[-Math.abs(da),0,Math.abs(da)]:[0,da];
+ const B=mode==="worst"?[-Math.abs(db),0,Math.abs(db)]:[0,db];
+ if(Math.min(...B)<=-1)throw Error("Die verbleibende Empfindlichkeit muss positiv sein (Spannenänderung > −100 %).");
+ const combos=mode==="worst"?A.flatMap(a=>B.map(b=>[a,b])):[[0,0],[da,db]];
+ // Linear pressure and temperature model; extremes at the corners.
+ const range=(ps,fn)=>{const values=combos.flatMap(([a,b])=>ps.map(p=>fn(a+(1+b)*p)));return [Math.min(...values),Math.max(...values)]};
+ const make=fn=>({nom:range([0,1],fn),ext:range([-pad,1+pad],fn)});
+ const span=full-zero,adcSpan=adc100-adc0;
+ const bridge=make(q=>zero+span*q),adc=make(q=>adc0+adcSpan*q),norm=make(q=>h*(2*q-1));
+ const dsp={nom:[-l,l],ext:[-l*(1+2*pad),l*(1+2*pad)]};
+ const margin=r=>Math.min(r[0]+32768,32767-r[1]);
+ const shape=range([-pad,1+pad],q=>2*q-1);
+ const hmax=Math.floor(Math.min(shape[0]<0?32768/-shape[0]:Infinity,shape[1]>0?32767/shape[1]:Infinity));
+ const kmax=l/(h*(1+Math.min(...B)));
+ const drift=Math.max(...combos.map(([a,b])=>Math.abs(a+b)));
+ const out={bridge,adc,norm,dsp,span,drift,bridgeDrift:Math.abs(span)*drift,hmax,kmax,step:100/(2*l),aMax:Math.max(...A.map(Math.abs)),bMax:Math.max(...B.map(Math.abs)),margins:[adc,norm,dsp].map(s=>[margin(s.nom),margin(s.ext)])};
+ if([...Object.values(out).filter(x=>typeof x==="number"),...out.margins.flat(),...([bridge,adc,norm,dsp].flatMap(s=>[...s.nom,...s.ext]))].some(v=>!Number.isFinite(v)))throw Error("Zahlenbereich zu gross.");
+ return out;
+};
+const calcDefaults={"zero":0,"full":2,"tk0":0.1,"tke":0.03,"dt":100,"adc0":-25000,"adc100":25000,"h":25000,"l":25000,"over":12.5,"mode":"worst"};
+const rc=id=>document.getElementById("rc-"+id);
+const fmt=(v,d=2)=>v.toLocaleString("de-CH",{maximumFractionDigits:d});
+const rangeText=(r,u,d=2)=>fmt(r[0],d)+" … "+fmt(r[1],d)+" "+u;
+const digitMargin=v=>fmt(v)+" Digits";
+function updateCalc(){
+ try{
+ const z={};for(const key of Object.keys(calcDefaults))z[key]=key==="mode"?rc(key).value:rc(key).valueAsNumber;
+ const r=calcModel(z);rc("error").textContent="";rc("results").hidden=false;
+ rc("span").textContent=fmt(Math.abs(r.span),5)+" mV/V";
+ rc("bridgeDrift").textContent="Enddruckdrift: "+fmt(r.bridgeDrift,5)+" mV/V";
+ rc("drift").textContent=fmt(r.drift*100,3)+" % FS";
+ rc("driftParts").textContent="TK0: "+fmt(r.aMax*100,3)+" % FS · TKE: "+fmt(r.bMax*100,3)+" %";
+ rc("dspPct").textContent=fmt(r.margins[2][1]/(2*z.l)*100,3)+" % FS";
+ const rows=[["Sensorbrücke",rangeText(r.bridge.nom,"mV/V",5),rangeText(r.bridge.ext,"mV/V",5),"–","–"]];
+ const stages=[["ADC_S",r.adc],["Normalisierung S",r.norm],["DSP_S (ideal kompensiert)",r.dsp]];
+ stages.forEach(([name,s],i)=>rows.push([name,rangeText(s.nom,"Digits"),rangeText(s.ext,"Digits"),digitMargin(r.margins[i][0]),digitMargin(r.margins[i][1])]));
+ rc("rows").replaceChildren(...rows.map(cells=>{const tr=document.createElement("tr");cells.forEach((v,i)=>{const td=document.createElement(i===0?"th":"td");if(i===0)td.scope="row";td.textContent=v;tr.append(td)});return tr}));
+ rc("chart").replaceChildren(...stages.map(([name,s],i)=>{
+ const wrap=document.createElement("div"),label=document.createElement("small"),bar=document.createElement("div"),fill=document.createElement("span");
+ const margin=r.margins[i][1];label.textContent=name+" · "+rangeText(s.ext,"Digits")+" · "+(margin<0?"Grenze überschritten":"Reserve "+digitMargin(margin));
+ bar.className="calc-range";bar.dataset.state=margin<0?"bad":"ok";bar.setAttribute("role","img");bar.setAttribute("aria-label",label.textContent);
+ const position=v=>Math.max(0,Math.min(100,(v+32768)/65535*100));fill.style.left=position(s.ext[0])+"%";fill.style.width=Math.max(0,position(s.ext[1])-position(s.ext[0]))+"%";bar.append(fill);wrap.append(label,bar);return wrap;
+ }));
+ const nominalBad=r.margins.some(m=>m[0]<-1e-8),overBad=r.margins.some(m=>m[1]<-1e-8);
+ rc("status").dataset.state=nominalBad||overBad?"bad":"ok";
+ rc("status").textContent=nominalBad?"Grenzwert bereits im nominalen Druckbereich überschritten.":overBad?"Nominaler Druckbereich passt rechnerisch; mit Übersteuerung wird mindestens eine 16-Bit-Grenze überschritten.":"Alle dargestellten Bereiche passen rechnerisch in 16 Bit.";
+ rc("gain").textContent="Maximale zentrierte Halbspanne H bei gewählter Übersteuerung: ±"+fmt(r.hmax,0)+" Digits. Grösste erforderliche lineare Korrekturverstärkung K: "+fmt(r.kmax,5)+(r.kmax>=1?" (Darstellbarkeit des einfachen Gewinnkoeffizienten prüfen).":".");
+ rc("summary").textContent="Digitale DSP-Schrittweite: "+fmt(r.step,6)+" % FS pro Digit. Negative Reserven zeigen die Überschreitung der digitalen Grenze.";
+ }catch(err){rc("error").textContent=err.message;rc("results").hidden=true;}
+}
+const form=document.getElementById("reserveCalc");
+form.addEventListener("submit",e=>e.preventDefault());form.addEventListener("input",updateCalc);form.addEventListener("change",updateCalc);
+rc("reset").addEventListener("click",()=>{for(const [k,v] of Object.entries(calcDefaults))rc(k).value=v;updateCalc()});
+rc("clearTemp").addEventListener("click",()=>{rc("tk0").value=0;rc("tke").value=0;updateCalc()});
+updateCalc();
+</script></body></html>
