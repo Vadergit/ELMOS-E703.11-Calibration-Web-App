@@ -62,18 +62,18 @@ Idealer Quantisierungsfehler = ±0,5 Digit</div>
 <p>Weitere Fehler können durch quantisierte Koeffizienten und interne Rechenschritte entstehen. Beispielsweise entsprechen fünf Fehler-Digits bei ±25’000 einem Fehler von 0,01 % FS. Das ist ein Rechenbeispiel, kein gemessener Fehlerwert. Ob eine kleinere Skalierung praktisch gleich genau ist, muss anhand der konkreten Sensordaten beurteilt werden.</p></section>
 <section id="temperatur"><h2>4. Temperaturkompensation und Rohsignalreserve</h2>
 <div class="flow" aria-label="Signalfluss"><span>Sensorbrücke</span> → <span>AFE / ADC</span> → <span>Normalisierung</span> → <span>Temperaturkorrektur</span> → <span>DSP_S</span></div>
-<p>TK0 verschiebt den Nullpunkt, TKS (auch TKE) verändert die Spanne. Nichtlinearität verändert die Kennlinienform. Diese Abweichungen wirken bereits auf das Rohsignal, bevor der korrigierte DSP-Ausgang entsteht.</p>
+<p>TK0 verschiebt den Nullpunkt, TKE (Temperaturkoeffizient der Empfindlichkeit) verändert die Spanne. Nichtlinearität verändert die Kennlinienform. Diese Abweichungen wirken bereits auf das Rohsignal, bevor der korrigierte DSP-Ausgang entsteht.</p>
 <div class="tablewrap"><table><thead><tr><th>Einfluss</th><th>Bezugsgrösse</th></tr></thead><tbody>
-<tr><td>TK0</td><td>Nullpunktverschiebung in % FS/K</td></tr><tr><td>TKS / TKE</td><td>Relative Spannenänderung in %/K</td></tr><tr><td>Nichtlinearität, Hysterese, Montageversatz</td><td>Abweichung in % des nominalen Signalhubs</td></tr></tbody></table></div>
+<tr><td>TK0</td><td>Nullpunktverschiebung in % FS/K</td></tr><tr><td>TKE</td><td>Relative Spannenänderung in %/K</td></tr><tr><td>Nichtlinearität, Hysterese, Montageversatz</td><td>Abweichung in % des nominalen Signalhubs</td></tr></tbody></table></div>
 <p>Bei funktionierender Kompensation bleibt der DSP-Endwert unabhängig vom Roh-TK0 am nominalen Druckendpunkt gleich. Deshalb sind die 3,03 % FS zusätzliche Ausgangsreserve nicht die maximal zulässige Rohbrückendrift. AFE, ADC, Normalisierung und Korrekturkoeffizienten benötigen jeweils eigenen Spielraum. Ein bereits begrenztes Rohsignal kann nachträglich nicht vollständig korrigiert werden.</p></section>
 <section id="beispiel"><h2>5. Worst Case: Metallux ME910</h2>
 <p>Beispiel einer unkompensierten keramischen 10-bar-Dickschichtmesszelle. Öffentlich verfügbare Herstellerwerte, [1]:</p>
 <div class="tablewrap"><table><thead><tr><th>Eigenschaft</th><th>Wert</th></tr></thead><tbody>
-<tr><td>TK0 typisch / maximal</td><td>±0,04 / ±0,10 % FS/K</td></tr><tr><td>TKS</td><td>−0,03 bis 0 %/K</td></tr></tbody></table></div>
+<tr><td>TK0 typisch / maximal</td><td>±0,04 / ±0,10 % FS/K</td></tr><tr><td>TKE</td><td>−0,03 bis 0 %/K</td></tr></tbody></table></div>
 
 <h3>Temperaturabhängige Abweichungen</h3>
-<p>Für die Auslegung werden ausschliesslich TK0 und TKS betrachtet. Bei 100 % Druck werden ihre maximalen Beträge konservativ addiert. Die tatsächliche Abweichung hängt von den Vorzeichen und der Referenztemperatur ab.</p>
-<div class="tablewrap"><table><thead><tr><th>Temperaturdifferenz</th><th>TK0</th><th>TKS</th><th>Max. Drift bei 100 % Druck</th></tr></thead><tbody>
+<p>Für die Auslegung werden ausschliesslich TK0 und TKE betrachtet. Bei 100 % Druck werden ihre maximalen Beträge konservativ addiert. Die tatsächliche Abweichung hängt von den Vorzeichen und der Referenztemperatur ab.</p>
+<div class="tablewrap"><table><thead><tr><th>Temperaturdifferenz</th><th>TK0</th><th>TKE</th><th>Max. Drift bei 100 % Druck</th></tr></thead><tbody>
 <tr><td>50 K</td><td>5 % FS</td><td>1,5 %</td><td>6,5 % FS</td></tr>
 <tr><td>100 K</td><td>10 % FS</td><td>3 %</td><td>13 % FS</td></tr></tbody></table></div>
 <p>Für eine Brückenspanne von 2 mV/V entsprechen 13 % FS einer Abweichung von 0,26 mV/V. Das Beispiel ist unabhängig vom gewählten absoluten Temperaturniveau.</p>
