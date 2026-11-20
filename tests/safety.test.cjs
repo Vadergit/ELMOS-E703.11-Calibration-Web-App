@@ -839,25 +839,21 @@ test('PLC Magic Cookie encoder uses datasheet CRC write example',()=>{
  assert.equal(P.plcWrite(0x0E,0x5CFD),'PLC 026C0E095CFDCA');
 });
 test('Explicit Magic Cookie test performs exactly two documented PLC writes then reads',()=>{
- const app=read('app.js'),html=read('index.html');
- const routine=app.split('async function testPlcMagicCookie(){')[1]?.split('async function connect(port){')[0];
- assert.ok(routine);
- assert.ok(routine.includes("if(!$('plcMagicConfirm').checked)"));
- assert.ok(routine.includes("st.adapterKind!=='ssp3'||st.iface!=='plc'"));
- assert.ok(routine.includes('P.plcHostCommand(P.plcWrite(0xAC,0x2B42),st.plcHostFormat),P.plcHostCommand(P.plcWrite(0x0E,0x5CFD),st.plcHostFormat)'));
- assert.ok(routine.includes('await exchange(commands[i],2000)'));
- assert.ok(routine.includes('await detect()'));
- for(const forbidden of ['nvmProgram(', 'nvmWrite(', 'maintWrite(', 'port.close(', 'port.open('])assert.ok(!routine.includes(forbidden));
- assert.ok(html.includes('id="plcMagicRun" disabled'));
- assert.ok(html.includes('id="plcMagicConfirm"'));
+ const app=read('app.js'),html=read('index.html'),code=routine(app,'testPlcMagicCookie');
+ assert.ok(code.includes("if(!$('plcMagicConfirm').checked)"));
+ assert.ok(code.includes("st.adapterKind!=='ssp3'||st.iface!=='plc'"));
+ assert.ok(code.includes('P.plcHostCommand(P.plcWrite(0xAC,0x2B42,st.plcAddress),st.plcHostFormat),P.plcHostCommand(P.plcWrite(0x0E,0x5CFD,st.plcAddress),st.plcHostFormat)'));
+ assert.ok(code.includes('await exchange(commands[i],2000)'));
+ assert.ok(code.indexOf('await exchange(commands[i],2000)')<code.indexOf("await probePlcAddresses('Manueller Magic-Cookie-Test')"));
+ assert.ok(code.includes('st.magicResult.readVerified=true'));
+ for(const forbidden of ['nvmProgram(', 'nvmWrite(', 'maintWrite(', 'port.close(', 'port.open('])assert.ok(!code.includes(forbidden));
+ for(const id of ['plcMagicRun','plcMagicConfirm'])assert.ok(html.includes('id="'+id+'"'));
  assert.ok(app.includes('magicCookie:st.magicResult'));
 });
 
-
-
 test('AN0204 SSP3 power test is opt-in, ordered, recoverable and never programs NVM',()=>{
  const app=read('app.js'),html=read('index.html');
- const code=app.split('async function testSsp3PowerStartup(){')[1]?.split('async function connect(port){')[0];
+ const code=routine(app,'testSsp3PowerStartup');
  assert.ok(code);
  assert.ok(code.includes("if(!$('plcPowerConfirm').checked)"));
  assert.ok(code.includes("const help=await readSsp3PowerHelp()"));
@@ -868,12 +864,12 @@ test('AN0204 SSP3 power test is opt-in, ordered, recoverable and never programs 
  const commands=["PWR_OFF 03E8","PLC P"];
  for(const cmd of commands)assert.ok(code.includes("await send('"+cmd+"'"));
  assert.ok(code.indexOf("await send('PWR_OFF 03E8'")<code.indexOf("await send('PLC P'"));
- assert.ok(code.indexOf("await send('PLC P'")<code.indexOf("await exchangeSsp3StartupBurst()"));
- assert.ok(code.includes("await exchangeSsp3StartupBurst()"));
+ assert.ok(code.indexOf("await send('PLC P'")<code.indexOf("await exchangeSsp3StartupBurst(burstMode)"));
+ assert.ok(code.includes("await exchangeSsp3StartupBurst(burstMode)"));
  assert.ok(!code.includes("await send('PWR_ON 0C80 00C8 0'"));
  assert.ok(!code.includes("await send('PLC T'"));
  assert.ok(code.includes("await send('PWR_ON 0 0 0',4000)"));
- assert.ok(code.includes('await detect();'));
+ assert.ok(code.includes('await probePlcAddresses('));
  for(const bad of ['nvmWrite(', 'nvmProgram(', 'maintWrite(', 'port.open(', 'port.close('])assert.ok(!code.includes(bad));
  for(const id of ['plcPowerConfirm','plcPowerRun','plcPowerState'])assert.ok(html.includes('id="'+id+'"'));
  assert.ok(app.includes('powerCycle:st.powerCycleResult'));
@@ -882,7 +878,7 @@ test('AN0204 SSP3 power test is opt-in, ordered, recoverable and never programs 
 
 test('SSP3 help ? is read-only, exported and prevents unlisted power-off alias',()=>{
  const src=read('app.js'),html=read('index.html');
- const help=src.split('async function readSsp3PowerHelp(){')[1]?.split('async function testSsp3PowerStartup(){')[0];
+ const help=routine(src,'readSsp3PowerHelp');
  assert.ok(help);
  assert.ok(help.includes("exchange('?',5500)"));
  assert.ok(help.includes("PWR_OFF(?:[^A-Z0-9_]|$)"));
@@ -910,12 +906,12 @@ test('PLC host format can only be manually selected and applies to post-power re
  assert.ok(html.includes('<option value="legacy">'));
  assert.ok(html.includes('<option value="separate" disabled>'));
  assert.ok(src.includes("st.plcHostFormat=$('plcHostFormat').value;"));
- assert.ok(src.includes("P.plcHostCommand(P.plcRead(addr,1),st.plcHostFormat)"));
- assert.ok(src.includes("P.plcHostCommand(P.plcWrite(addr,word),st.plcHostFormat)"));
- const power=src.split('async function testSsp3PowerStartup(){')[1]?.split('async function connect(port){')[0];
- assert.ok(power?.includes("st.powerCycleResult={at:new Date().toISOString(),stage:'start',plcHostFormat:st.plcHostFormat"));
- assert.ok(power?.includes("await exchangeSsp3StartupBurst()"));
- assert.ok(power?.includes('await detect()'));
+ assert.ok(src.includes("P.plcHostCommand(P.plcRead(addr,1,st.plcAddress),st.plcHostFormat)"));
+ assert.ok(src.includes("P.plcHostCommand(P.plcWrite(addr,word,st.plcAddress),st.plcHostFormat)"));
+ const power=routine(src,'testSsp3PowerStartup');
+ assert.ok(power?.includes("plcHostFormat:st.plcHostFormat,steps:[],readVerified:false,powerRestored:false"));
+ assert.ok(power?.includes("await exchangeSsp3StartupBurst(burstMode)"));
+ assert.ok(power?.includes('await probePlcAddresses('));
  assert.ok(!power.includes("plcHostFormat='separate'"));
 });
 
@@ -970,20 +966,20 @@ test('SSP3 02.08.02.04 uses hardware-proven legacy PLC host frame; split format 
  assert.ok(fw.includes("$('plcHostFormat').value='legacy'"));
  assert.ok(!fw.includes("st.plcHostFormat='separate'"));
  assert.ok(html.includes('<option value="separate" disabled>'));
- assert.ok(html.includes('<script src="app.js?v=0.6.30"'));
- assert.ok(html.includes('guided.css?v=0.6.30'));
- const p=app.split('async function testSsp3PowerStartup(){')[1]?.split('async function connect(port){')[0];
+ assert.match(html,/<script src="app\.js\?v=0\.7\.\d+/);
+ assert.match(html,/guided\.css\?v=0\.7\.\d+/);
+ const p=routine(app,'testSsp3PowerStartup');
  assert.ok(p.includes("if(st.firmware==='02.08.02.04')"));
  assert.ok(p.includes("st.plcHostFormat='legacy'"));
- assert.ok(p.includes('await detect();'));
+ assert.ok(p.includes('await probePlcAddresses('));
 });
 test('SSP3+PLC always power-starts before register reads without user checkbox',()=>{
  const app=read('app.js'),html=read('index.html');
  const connect=app.split('async function connect(port){')[1]?.split('async function disconnect()')[0];
  assert.ok(connect.includes("if(!demoEnabled&&st.adapterKind==='ssp3'&&st.iface==='plc')"));
- assert.ok(connect.includes('await testSsp3PowerStartup();'));
+ assert.ok(connect.includes('await startSsp3WithBoundedRetry();'));
  assert.ok(connect.includes("$('plcPowerConfirm').checked=true;"));
- assert.ok(connect.indexOf('await testSsp3PowerStartup()')<connect.indexOf('await detect();'));
+ assert.match(connect,/if\(!await probePlcAddresses\('Erstverbindung ohne Power-Cycle',true\)\)\s*await startSsp3WithBoundedRetry\(\)/);
  assert.ok(!connect.includes("ssp3AutoStart"));
  assert.ok(!html.includes('id="ssp3AutoStart"'));
  assert.ok(!app.includes("elmos-ssp3-auto-start-v1"));
@@ -992,7 +988,7 @@ test('SSP3+PLC always power-starts before register reads without user checkbox',
  // Remains conditional: I2C/SPI/bridge must not power-cycle.
  assert.ok(connect.includes("st.adapterKind==='ssp3'&&st.iface==='plc'"));
  assert.ok(app.includes('powerCycle:st.powerCycleResult'));
- assert.ok(app.includes('CAL.protectStartupCommunication(initial,modified,{allowSvdd})'));
+ assert.match(routine(app,'nvmProgramOperation'),/CAL\.protectStartupCommunication\(initial,modified,\{allowSvdd,allowAlarmMask:.*operatingProfile,interfaceMode:st\.iface\}\)/);
 });
 
 test('SSP3 prompt counter correctly counts independent command acknowledgements',()=>{
@@ -1011,35 +1007,37 @@ test('SSP3 prompt counter correctly counts independent command acknowledgements'
 });
 test('Short-window power-on and PLC transmit are distinct serial writes without waiting for response',()=>{
  const app=read('app.js');
- const routine=app.split('async function exchangeSsp3StartupBurst(){')[1]?.split('async function firmware(){')[0];
- assert.ok(routine);
- assert.ok(routine.includes("const commands=['PWR_ON 0C80 00C8 0','PLC T']"));
- assert.ok(routine.includes("writer.write(new TextEncoder().encode(commands[0]+'\\r'))"));
- assert.ok(routine.includes("writer.write(new TextEncoder().encode(commands[1]+'\\r'))"));
- assert.ok(routine.indexOf("commands[0]+'\\r'")<routine.indexOf("commands[1]+'\\r'"));
- assert.ok(routine.includes("prompts:2"));
- assert.ok(routine.includes("P.ssp3PromptCount(response)<2"));
- assert.ok(routine.includes("P.ssp3StartupAcks(response)"));
- assert.ok(routine.includes("if(!acks.power||!acks.plc)"));
- assert.ok(!routine.includes('await exchange('));
- assert.ok(!routine.includes('nvm'));
- const power=app.split('async function testSsp3PowerStartup(){')[1]?.split('async function connect(port){')[0];
- assert.ok(power.indexOf("await send('PLC P'")<power.indexOf('await exchangeSsp3StartupBurst()'));
+ const code=routine(app,'exchangeSsp3StartupBurst');
+ assert.ok(code);
+ assert.ok(code.includes("const commands=[pssc?'PWR_ON FFFF 0 0':'PWR_ON 0C80 00C8 0','PLC T']"));
+ assert.ok(code.includes("if(mode==='combined')"));
+ assert.ok(code.includes("commands.join('\\r')+'\\r'"));
+ assert.ok(code.includes("writer.write(new TextEncoder().encode(commands[0]+'\\r'))"));
+ assert.ok(code.includes("writer.write(new TextEncoder().encode(commands[1]+'\\r'))"));
+ assert.ok(code.indexOf("commands[0]+'\\r'")<code.indexOf("commands[1]+'\\r'"));
+ assert.ok(code.includes("prompts:2"));
+ assert.ok(code.includes("P.ssp3PromptCount(response)<2"));
+ assert.ok(code.includes("P.ssp3StartupAcks(response)"));
+ assert.ok(code.includes("if(!acks.power||!acks.plc)"));
+ assert.ok(!code.includes('await exchange('));
+ assert.ok(!code.includes('nvm'));
+ const power=routine(app,'testSsp3PowerStartup');
+ assert.ok(power.indexOf("await send('PLC P'")<power.indexOf('await exchangeSsp3StartupBurst(burstMode)'));
  assert.ok(power.includes("powerOnAcknowledged=true"));
  assert.ok(power.includes("await send('PWR_ON 0 0 0',4000)"));
- assert.ok(power.includes('await detect()'));
+ assert.ok(power.includes('await probePlcAddresses('));
 });
 
 test('Partial SSP3 startup response retained for diagnosing one-command firmware parser',()=>{
  const app=read('app.js');
- const routine=app.split('async function exchangeSsp3StartupBurst(){')[1]?.split('async function firmware(){')[0];
- assert.ok(routine.includes('st.powerCycleResult.burstPartialReply=partial'));
- assert.ok(routine.includes('st.powerCycleResult.burstPromptCount=received'));
- assert.ok(routine.includes('st.powerCycleResult.burstSendDurationMs=sendDuration'));
- assert.ok(routine.includes('st.powerCycleResult.burstSecondQueued=secondQueued'));
- assert.ok(routine.includes("future.catch(()=>{})"));
- assert.ok(routine.includes("if(st.responseWait===ticket)"));
- assert.ok(!routine.includes("commands.join("));
+ const code=routine(app,'exchangeSsp3StartupBurst');
+ assert.ok(code.includes('st.powerCycleResult.burstPartialReply=partial'));
+ assert.ok(code.includes('st.powerCycleResult.burstPromptCount=received'));
+ assert.ok(code.includes('st.powerCycleResult.burstSendDurationMs=sendDuration'));
+ assert.ok(code.includes('st.powerCycleResult.burstSecondQueued=secondQueued'));
+ assert.ok(code.includes("future.catch(()=>{})"));
+ assert.ok(code.includes("if(st.responseWait===ticket)"));
+ assert.ok(code.includes("if(mode==='combined')"));
 });
 
 test('SSP3 PWR_ON and PLC T echoes recognised when concatenated without CR',()=>{
@@ -1059,32 +1057,29 @@ test('SSP3 PWR_ON and PLC T echoes recognised when concatenated without CR',()=>
 });
 
 test('SSP3 auto startup retries documented Magic Cookie once only for missing PLC RX',()=>{
- const app=read('app.js');
- const startup=app.split('async function testSsp3PowerStartup(){')[1]?.split('async function connect(port){')[0];
- assert.ok(startup);
- assert.ok(startup.includes('await detect(); // First try the documented PLC P/T access'));
- assert.ok(startup.includes("if(!/\\bPLC nothing received\\b/i.test(String(firstReadError.message||firstReadError)))"));
- assert.ok(startup.includes("P.plcHostCommand(P.plcWrite(0xAC,0x2B42),st.plcHostFormat)"));
- assert.ok(startup.includes("P.plcHostCommand(P.plcWrite(0x0E,0x5CFD),st.plcHostFormat)"));
+ const app=read('app.js'),startup=routine(app,'testSsp3PowerStartup');
+ assert.ok(startup.includes("if(!await probePlcAddresses('Nach SSP3 PLC P/T'))"));
+ assert.ok(startup.includes('if(!missingReply&&!zeroAFE)throw firstReadError;'));
+ assert.ok(startup.includes("firstReadError?.code==='AFE_ZERO_READBACK'"));
+ assert.ok(startup.includes('for(const address of P.plcProbeOrder(st.plcAddress))'));
+ assert.ok(startup.includes("P.plcHostCommand(P.plcWrite(0xAC,0x2B42,st.plcAddress),st.plcHostFormat)"));
+ assert.ok(startup.includes("P.plcHostCommand(P.plcWrite(0x0E,0x5CFD,st.plcAddress),st.plcHostFormat)"));
  assert.ok(startup.includes("const reply=await exchange(frame,2000)"));
- assert.ok(startup.includes('await detect(); // This is the only success proof'));
- assert.ok(startup.includes('st.magicResult.readVerified=true;'));
- assert.ok(startup.includes('st.magicResult.verifiedUid=st.uid?.hex||null;'));
- assert.ok(startup.includes('st.powerCycleResult.magicCookieUsed=true;'));
- assert.ok(startup.includes('st.powerCycleResult.readVerified=true;'));
- assert.ok(startup.includes('st.powerCycleResult.verifiedUid=st.uid?.hex||null;'));
+ assert.ok(startup.includes("await probePlcAddresses('Nach Magic Cookie '+trial.address)"));
+ for(const proof of ['st.magicResult.readVerified=true;','st.magicResult.verifiedUid=st.uid?.hex||null;','st.powerCycleResult.magicCookieUsed=true;','st.powerCycleResult.readVerified=true;','st.powerCycleResult.verifiedUid=st.uid?.hex||null;'])assert.ok(startup.includes(proof),proof);
  assert.ok(startup.includes("if(st.closing||st.port!==port)"));
+ assert.ok(startup.indexOf('await exchangeSsp3StartupBurst(burstMode)')<startup.indexOf("st.powerCycleResult.stage='magic-cookie-fallback'"));
  for(const forbidden of ['nvmWrite(', 'nvmProgram(', 'maintWrite(', 'port.open(', 'port.close('])assert.ok(!startup.includes(forbidden));
- assert.ok(startup.indexOf('await exchangeSsp3StartupBurst()')<startup.indexOf('st.powerCycleResult.stage=\'magic-cookie-fallback\''));
 });
+
 test('Magic-Cookie auto startup retains protected NVM and does not touch other interfaces',()=>{
  const app=read('app.js'),cal=read('calibration.js');
  const connect=app.split('async function connect(port){')[1]?.split('async function disconnect()')[0];
  assert.ok(connect.includes("st.adapterKind==='ssp3'&&st.iface==='plc'"));
- assert.ok(connect.includes("await testSsp3PowerStartup()"));
+ assert.ok(connect.includes("await startSsp3WithBoundedRetry()"));
  assert.ok(!connect.includes('P.plcWrite(0xAC'));
- assert.ok(cal.includes('for(const index of [17,18,19])'));
- assert.ok(app.includes('CAL.protectStartupCommunication(initial,modified,{allowSvdd})'));
+ assert.ok(cal.includes('for(const index of [17,...(allowAlarmMask?[]:[18]),19])'));
+ assert.match(routine(app,'nvmProgramOperation'),/CAL\.protectStartupCommunication\(initial,modified,\{allowSvdd,allowAlarmMask:.*operatingProfile,interfaceMode:st\.iface\}\)/);
  assert.ok(app.includes('proof.verifiedUid===uid'));
 });
 
@@ -1102,11 +1097,12 @@ test('Live read prioritises ADC_S and tolerates missing temperature while strict
  assert.ok(liveRead.includes("tc=P.sign16(await readReg(0x26));"));
  // The capture function still reads all three registers without partial mode.
  const capture=app.split('async function measureCalibrationSamples(label){')[1]?.split('function renderCalibrationPlan(){')[0];
- assert.ok(capture?.includes("value={s:P.sign16(await readReg(0x2A)),t:P.sign16(await readReg(0x28)),tc:P.sign16(await readReg(0x26))}"));
+ for(const [key,address] of [['s','0x2A'],['t','0x28'],['tc','0x26']])assert.ok(capture.includes('value.'+key+'=P.sign16(await readReg('+address+'))'));
+ assert.ok(capture.includes('e.rawSamples=values.slice();throw e'));
 });
 test('Chip detect publishes first ADC_S even if secondary registers fail',()=>{
  const app=read('app.js');
- const detect=app.split('async function detect(){')[1]?.split('async function recoverOneWireStartup(){')[0];
+ const detect=routine(app,'detect');
  assert.ok(detect);
  assert.ok(detect.indexOf("const rawS=await readReg(0x2A)")<detect.indexOf('updateADC({s,t:null,tc:null},\'usb\')'));
  assert.ok(detect.includes('await readADC({allowPartial:true})'));
@@ -1116,14 +1112,14 @@ test('Chip detect publishes first ADC_S even if secondary registers fail',()=>{
 });
 test('Live acquisition resumes after protected SSP3 power-cookie sequence and retries transient PLC failures',()=>{
  const app=read('app.js');
- const power=app.split('async function testSsp3PowerStartup(){')[1]?.split('async function connect(port){')[0];
+ const power=routine(app,'testSsp3PowerStartup');
  assert.ok(power.includes('st.powerCycleRunning=false;renderStatus();'));
  assert.ok(power.includes('if(st.port===port&&!st.closing&&st.chip&&Number.isFinite(st.adc?.s)&&!st.manualLivePause)'));
  assert.ok(power.includes('startLive();'));
  const loop=app.split('function startLive(){')[1]?.split('function stopLive(){')[0];
  assert.ok(loop.includes('readLiveSample()'));
  assert.ok(loop.includes('st.powerCycleRunning||st.closing'));
- assert.ok(loop.includes('st.consecutiveErrors?2000:liveIntervalMs'));
+ assert.ok(loop.includes('st.consecutiveErrors?2000:'));
  assert.ok(!loop.includes('st.consecutiveErrors>=10'));
  assert.ok(!loop.includes('nvmWrite('));
 });
@@ -1136,7 +1132,7 @@ test('Live pipeline publishes ADC_S before one staggered secondary register read
  assert.ok(live.indexOf('updateADC({s,t:previous?.t??null,tc:previous?.tc??null}')<live.indexOf('readReg(0x28,1100)'));
  assert.ok(live.indexOf('updateADC({s,t:previous?.t??null,tc:previous?.tc??null}')<live.indexOf('readReg(0x26,1100)'));
  assert.ok(live.indexOf('updateADC({s,t:previous?.t??null,tc:previous?.tc??null}')<live.indexOf('readReg(0x30,1100)'));
- assert.ok(live.includes('liveSecondaryIndex++%4'));
+ assert.ok(live.includes('liveSecondaryIndex++%5'));
  assert.ok(live.includes('if(channel===0)'));
  assert.ok(live.includes('}else if(channel===1)'));
  assert.ok(live.includes('}else if(channel===2)'));
@@ -1149,11 +1145,13 @@ test('Live loop does not stop silently after 10 missing ADC samples',()=>{
  assert.ok(loop);
  assert.ok(loop.includes('const p=readLiveSample();'));
  assert.ok(loop.includes("st.timeout=setTimeout(loop,interval)"));
- assert.ok(loop.includes('st.consecutiveErrors?2000:liveIntervalMs'));
+ assert.ok(loop.includes('st.consecutiveErrors?2000:'));
  assert.ok(loop.includes('if(st.live&&st.port&&!st.closing)'));
  assert.ok(!loop.includes('stopLive()'));
  assert.ok(!loop.includes('st.consecutiveErrors>=10'));
- assert.ok(loop.includes("show('adcMsg','Live-ADC_S momentan nicht lesbar"));
+ assert.ok(loop.includes('markSensorUnavailable(st.liveLastError)'));
+ assert.ok(loop.includes("st.consecutiveErrors>=2||e.code==='RAM_PROFILE_LOST'"));
+ assert.ok(loop.includes("show('adcMsg','Kommunikation zum Sensor wird überprüft."));
 });
 
 test('Runtime live sampler publishes four fresh ADC_S readings despite secondary timeouts',async()=>{
@@ -1175,14 +1173,14 @@ test('Runtime live sampler publishes four fresh ADC_S readings despite secondary
  const fn=reader(st,protocol,readReg,updateADC,updateDSP,()=>{},()=>{},v=>log.push(v),String,()=>{});
  for(let i=0;i<4;i++)assert.equal(await fn(),[101,105,112,118][i]);
  assert.deepEqual(samples,[101,105,112,118]);
- assert.deepEqual(regCalls,[0x2A,0x28,0x2A,0x26,0x2A,0x30,0x2A]);
+ assert.deepEqual(regCalls,[0x2A,0x28,0x2A,0x26,0x2A,0x30,0x2A,0x2E]);
  assert.equal(st.adc.s,118);
  assert.ok(log.some(x=>x.includes('ADC_S wird weiterhin aktualisiert')));
 });
 
 test('After successful PLC startup read the volatile PLC enable bit without writing NVM',()=>{
  const app=read('app.js');
- const startup=app.split('async function testSsp3PowerStartup(){')[1]?.split('async function connect(port){')[0];
+ const startup=routine(app,'testSsp3PowerStartup');
  assert.ok(startup.includes("const cfg=await readReg(0x06,1800)"));
  assert.ok(startup.includes('st.powerCycleResult.plcEnabledInRam=!!(cfg&0x0004)'));
  assert.ok(startup.includes('st.powerCycleResult.plcEnabledInRam=null'));
@@ -1196,12 +1194,12 @@ test('After successful PLC startup read the volatile PLC enable bit without writ
 
 test('After SSP3 detection read-only live polling starts even if full NVM boot proof pending',()=>{
  const app=read('app.js');
- const power=app.split('async function testSsp3PowerStartup(){')[1]?.split('async function connect(port){')[0];
+ const power=routine(app,'testSsp3PowerStartup');
  assert.ok(power.includes("st.chip&&Number.isFinite(st.adc?.s)&&!st.manualLivePause"));
  assert.ok(power.includes("startLive();"));
  assert.ok(!power.includes("if(st.powerCycleResult?.readVerified&&st.port===port"));
  assert.ok(power.includes("st.powerCycleResult.readVerified=true;"));
- assert.ok(app.includes("CAL.protectStartupCommunication(initial,modified,{allowSvdd})"));
+ assert.match(routine(app,'nvmProgramOperation'),/CAL\.protectStartupCommunication\(initial,modified,\{allowSvdd,allowAlarmMask:.*operatingProfile,interfaceMode:st\.iface\}\)/);
 });
 test('Live ADC attempts and successes visible and exported without new chip writes',()=>{
  const app=read('app.js'),html=read('index.html');
@@ -1223,26 +1221,28 @@ test('E703.11 CFG_PERIOD maps to documented conversion modes',()=>{
 });
 test('SSP3 startup reads CFG_PERIOD and STATUS without changing communication config',()=>{
  const app=read('app.js');
- const power=app.split('async function testSsp3PowerStartup(){')[1]?.split('async function connect(port){')[0];
+ const power=routine(app,'testSsp3PowerStartup');
  assert.ok(power.includes('st.measurementPeriod=await readReg(0x0E,1800)'));
  assert.ok(power.includes('st.measurementStatus=await readReg(0x36,1800)'));
  // The *existing* documented Magic Cookie deliberately uses address 0x0E
  // with data 0x5CFD; never reject that sequence as a CFG_PERIOD rewrite.
- assert.ok(power.includes('P.plcWrite(0x0E,0x5CFD)'));
+ assert.ok(power.includes('P.plcWrite(0x0E,0x5CFD,st.plcAddress)'));
  // The new write is RAM-only and permitted solely to undo the cookie-induced period.
  assert.ok(power.includes("st.powerCycleResult.magicCookieUsed===true&&st.measurementPeriod===0x5CFD"));
- assert.ok(power.includes('P.plcWrite(0x0E,0x0001)'));
+ assert.ok(power.includes('P.plcWrite(0x0E,0x0001,st.plcAddress)'));
  assert.ok(!power.includes('P.plcWrite(0x06'));
 });
 test('Single mode triggers documented CMD.start with fresh ADC flag confirmation',()=>{
- const app=read('app.js'),live=app.split('async function readLiveSample(){')[1]?.split('function startLive(){')[0];
- assert.ok(live.includes("st.adapterKind==='ssp3'&&st.iface==='plc'&&st.measurementPeriod===2"));
- assert.ok(live.includes('P.plcWrite(0x22,0x8B93)'));
- assert.ok(live.includes('const flags=await readReg(0x36,1600)'));
- assert.ok(live.includes('if(flags&0x0002){fresh=true;break}'));
- assert.ok(live.indexOf('if(!fresh)throw Error(')<live.indexOf('readReg(0x2A,1600)'));
- for(const forbidden of ['P.plcWrite(0x0E','P.plcWrite(0x06','nvmWrite(','nvmProgram(','PWR_OFF'])assert.ok(!live.includes(forbidden));
+ const app=read('app.js'),live=routine(app,'readLiveSample'),trigger=routine(app,'triggerSingleMeasurement');
+ assert.match(trigger,/if\(st\.measurementPeriod!==2\)return/);
+ assert.match(trigger,/P\.plcWrite\(0x22,0x8B93,st\.plcAddress\)/);
+ assert.match(trigger,/i2cWriteCommand\(0x22,0x8B93\)/);
+ assert.match(trigger,/const flags=await readReg\(0x36,1600\)/);
+ assert.match(trigger,/if\(flags&0x0002\)\{fresh=true;break\}/);
+ assert.ok(live.indexOf('await triggerSingleMeasurement()')<live.indexOf('readReg(0x2A,1600)'));
+ for(const forbidden of ['P.plcWrite(0x0E','P.plcWrite(0x06','nvmWrite(','nvmProgram(','PWR_OFF'])assert.ok(!(live+trigger).includes(forbidden));
 });
+
 test('Period mode, single-shot starts and actual ADC changes exported for diagnosis',()=>{
  const app=read('app.js');
  assert.ok(app.includes("CFG_PERIOD '+(st.measurementPeriod==null"));
@@ -1252,12 +1252,12 @@ test('Period mode, single-shot starts and actual ADC changes exported for diagno
 
 test('Cookie-only SSP3 live setup repairs CFG_PERIOD only in RAM with readback',()=>{
  const app=read('app.js');
- const power=app.split('async function testSsp3PowerStartup(){')[1]?.split('async function connect(port){')[0];
+ const power=routine(app,'testSsp3PowerStartup');
  assert.ok(power.includes("st.powerCycleResult.magicCookieUsed===true&&st.measurementPeriod===0x5CFD"));
- assert.ok(power.includes('P.plcHostCommand(P.plcWrite(0x0E,0x0001),st.plcHostFormat)'));
+ assert.ok(power.includes('P.plcHostCommand(P.plcWrite(0x0E,0x0001,st.plcAddress),st.plcHostFormat)'));
  assert.ok(power.includes('const check=await readReg(0x0E,1800)'));
  assert.ok(power.includes('if(check!==0x0001)throw Error('));
- assert.ok(power.includes('P.plcHostCommand(P.plcWrite(0x22,0x8B93),st.plcHostFormat)'));
+ assert.ok(power.includes('P.plcHostCommand(P.plcWrite(0x22,0x8B93,st.plcAddress),st.plcHostFormat)'));
  assert.ok(power.includes('st.powerCycleResult.livePeriodAdjustedInRam=true'));
  assert.ok(power.includes('st.powerCycleResult.livePeriodAdjustmentError=st.measurementError'));
  const block=power.split('// Magic Cookie writes its second frame to 0x0E')[1]?.split("st.powerCycleResult.stage='verified'")[0];
@@ -1269,7 +1269,7 @@ test('Manual pause respected, RAM-only live correction exported and NVM gates un
  assert.ok(app.includes('st.manualLivePause=false;startLive()'));
  assert.ok(app.includes("st.powerCycleResult?.livePeriodAdjustedInRam?' (RAM-Live-Modus)'"));
  assert.ok(app.includes('cookiePeriodAdjusted:st.powerCycleResult?.livePeriodAdjustedInRam??false'));
- assert.ok(cal.includes('for(const index of [17,18,19])'));
+ assert.ok(cal.includes('for(const index of [17,...(allowAlarmMask?[]:[18]),19])'));
 });
 
 test('analog clipping rounds voltage limits inward and preserves One Wire settings',()=>{
@@ -1827,52 +1827,37 @@ test('I²C NVM requires an I²C cold-start proof for the same port, UID and sess
 
 test('DSP display restores arbitrary endpoints only for the matching live calibration',async()=>{
  const app=read('app.js');
- const start=app.indexOf(' let sensorDisplayRange=null;');
- const end=app.indexOf(' function dspNumber(',start);
- const inputs=new Map();
- const $=id=>{if(!inputs.has(id))inputs.set(id,{value:''});return inputs.get(id)};
- const port={},uid='002000010002';
- const words=Array(64).fill(0);words[0]=2;words[1]=1;
- for(let i=31;i<=54;i++)words[i]=0x1000+i;
- words[63]=CAL.crc16(words);
+ const start=app.indexOf(' let sensorDisplayRange=null;'),end=app.indexOf(' function effectiveMeasurementReference(',start);
+ const inputs=new Map(),$=id=>{if(!inputs.has(id))inputs.set(id,{value:''});return inputs.get(id)};
+ const port={},uid='002000010002',words=Array(64).fill(0);words[0]=2;words[1]=1;
+ for(let i=31;i<=54;i++)words[i]=0x1000+i;words[63]=CAL.crc16(words);
  const create=(limit,options={})=>{
-  const model={port,sessionIndex:5,uid:{hex:uid},chip:true,
-   calStaged:true,calfit:{outputLimit:limit}};
-  $('pmin').value='0';$('pmax').value='10';
+  const st={port,sessionIndex:5,uid:{hex:uid},chip:true,calStaged:true,calfit:{outputLimit:limit,displayReference:{min:0,max:10,unit:'bar'}}};
   const profile={uid,crc:words[63],nvmWords:words,min:0,max:10,selected:'bar',limit};
-  const f=new Function('st','CAL','$','displayProfileKey','lsGet','lsSet','ramGrant','nvmReadWord',
-   'readReg','ramLock','h','pressureUnit','logging','refreshUnitLabels','renderDSPLive','expert','window',
-   app.slice(start,end)+'return {getActiveDSPRange,restoreCalibrationDisplayProfile};');
-  const file={format:'E70311-CALIBRATION-COMPLETE-v1',type:'calibration',verifiedNvm:true,chipUID:uid,
-   nvm:{programmed:{words,uid,verified:true,crc16:words[63]}},dsp:{outputLimit:limit},
-   reference:{min:0,max:10,unit:'bar'}};
-  const handles=(options.archive==='conflict'?[file,{...file,dsp:{outputLimit:limit+1}}]:
-   options.archive?[file]:[]).map(data=>({getFile:async()=>({text:async()=>JSON.stringify(data)})}));
-  const api=f(model,CAL,$,id=>id,id=>id===uid&&!options.archive?JSON.stringify(profile):null,()=>{},
-   async()=>{},async()=>options.crc??words[63],
-   async address=>address===0x38?0x20:address===0x50?2:address===0x52?options.serial??1:
-    address===0x04?options.cfgEn??0:address===0x46?options.status??0:address===0x70&&options.changed?0:words[31+(address-0x6C)/2],
-   async()=>{},(word,bytes)=>word.toString(16).toUpperCase().padStart(bytes*2,'0'),
-   ()=>'bar',()=>{},()=>{},()=>{},{refreshOutputPreview(){}},{ELMOS_ARCHIVE:{calibrationFilesForSensor:async()=>handles}});
-  return {api,model};
+  const deps={st,CAL,$,displayProfileKey:id=>id,standardDisplayKey:id=>'standard-'+id,
+   autoStandardEnabled:()=>false,demoEnabled:false,standardPressureReference:()=>null,chooseDisplayReference:()=>({useStandard:false,reason:'keep'}),
+   lsGet:id=>id===uid&&!options.archive?JSON.stringify(profile):null,lsSet:()=>{},ramGrant:async()=>{},
+   nvmReadWord:async addr=>addr===0x7E?(options.crc??words[63]):words[addr/2],
+   readReg:async addr=>addr===0x38?0x20:addr===0x50?2:addr===0x52?options.serial??1:addr===0x04?options.cfgEn??0:addr===0x46?options.status??0:addr===0x70&&options.changed?0:words[31+(addr-0x6C)/2],
+   ramLock:async()=>{},h:(word,bytes)=>word.toString(16).toUpperCase().padStart(bytes*2,'0'),pressureUnit:()=>'bar',logging:()=>{},refreshUnitLabels:()=>{},renderDSPLive:()=>{},expert:{refreshOutputPreview(){}},
+   window:{ELMOS_ARCHIVE:{findDisplayCalibration:async()=>options.archive==='matching'?profile:null}}};
+  const api=new Function(...Object.keys(deps),app.slice(start,end)+'return {getActiveDSPRange,restoreCalibrationDisplayProfile};')(...Object.values(deps));
+  return {api,st};
  };
  for(const limit of [23456,30000,31550]){
-  const {api,model}=create(limit);
-  assert.equal(api.getActiveDSPRange().limit,limit);
-  model.calStaged=false;
-  assert.equal(api.getActiveDSPRange(),null);
-  assert.equal(await api.restoreCalibrationDisplayProfile(),true);
-  assert.deepEqual(api.getActiveDSPRange(),{min:0,max:10,unit:'bar',limit,kind:'profile'});
-  model.sessionIndex++;
-  assert.equal(api.getActiveDSPRange(),null);
+  for(const archive of [false,'matching']){
+   const {api,st}=create(limit,{archive});
+   assert.equal(api.getActiveDSPRange().limit,limit);
+   st.calStaged=false;assert.equal(api.getActiveDSPRange(),null);
+   assert.equal(await api.restoreCalibrationDisplayProfile(),true);
+   assert.deepEqual(api.getActiveDSPRange(),{min:0,max:10,unit:'bar',limit,kind:'profile'});
+   st.sessionIndex++;assert.equal(api.getActiveDSPRange(),null);
+  }
  }
- for(const options of [{crc:0},{status:0x40},{changed:true},{serial:7},{cfgEn:0x4000},
-  {archive:true},{archive:true,crc:0}]){
-  const {api,model}=create(23500,options);
-  model.calStaged=false;
+ for(const options of [{crc:0},{status:0x40},{changed:true},{serial:7},{cfgEn:0x4000},{archive:'conflict'},{archive:'matching',crc:0}]){
+  const {api,st}=create(23500,options);st.calStaged=false;
   assert.equal(await api.restoreCalibrationDisplayProfile(),false);
-  assert.equal(api.getActiveDSPRange(),null);
-  assert.ok(!model.calTask);
+  assert.equal(api.getActiveDSPRange(),null);assert.ok(!st.calTask);
  }
 });
 
