@@ -1,3 +1,9 @@
+## v0.7.159 – Automatischer SSP3-RAM-Wiederanlauf
+
+- Bei bestätigter UID und CFG_AFE1=0 wird der Wiederanlauf beim Verbinden und Neuinitialisieren automatisch versucht, ohne zuvor gespeicherte UID oder Wechsel in die klassische Ansicht.
+- Individuelle AFE-Konfiguration nur aus CRC8-/CRC16-geprüftem EEPROM übernehmen. Bestehende DSP-Koeffizienten und Temperaturkonfiguration prüfen und unverändert lassen. Bei inaktivem Messzyklus kontrolliert RAM-Messung starten. Keine NVM-Programmierung und keine pauschalen Standardwerte.
+- Freigabe erst nach RAM-Rücklesung, ADC-Status und UID-Prüfung. Bei ungültigem EEPROM oder fehlender Bestätigung Diagnosezustand beibehalten. Hardwaretest ausstehend.
+
 ## v0.7.158 – Testkandidat: NVM-Vorabprüfung und Messpunktentwurf
 
 - Original-NVM, UID, CRC, Programmer, Startmodi und Messprofil vor der ersten Messung prüfen. SSP3-Filter-/Messzyklusänderungen nur nach ausdrücklicher Bestätigung übernehmen.

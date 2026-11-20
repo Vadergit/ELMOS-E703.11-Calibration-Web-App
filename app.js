@@ -114,7 +114,7 @@ if(typeof document!=='undefined') (function UI(){
  }
  function scheduleAutoReconnect(ms=5000){
   cancelAutoReconnect();
-  if(!mayAutoReconnect()||(st.chip&&st.uid?.hex))return;
+  if(!mayAutoReconnect()||(st.chip&&st.uid?.hex)||st.readOnlySensor)return;
   autoReconnectTimer=setTimeout(()=>{
    autoReconnectTimer=null;
    const task=attemptAutoReconnect();
@@ -123,7 +123,7 @@ if(typeof document!=='undefined') (function UI(){
   },ms);
  }
  async function attemptAutoReconnect(){
-  if(!mayAutoReconnect()||(st.chip&&st.uid?.hex)||autoReconnectBusy)return;
+  if(!mayAutoReconnect()||(st.chip&&st.uid?.hex)||st.readOnlySensor||autoReconnectBusy)return;
   if(autoReconnectBlocked()){scheduleAutoReconnect();return}
   autoReconnectBusy=true;autoReconnectAttempts++;
   autoReconnectLastAt=Date.now();autoReconnectLastError='';renderStatus();
@@ -2218,117 +2218,120 @@ if(typeof document!=='undefined') (function UI(){
    if(previousLive&&!st.manualLivePause&&st.chip&&st.port&&!st.closing)startLive()
   }
  }
- // A cold-started chip can answer PLC while its AFE working register is zero.
- // Recover from this chip's own verified EEPROM, never from a template.
- async function restoreColdStartAfe(port){
-  const assertConnection=()=>{
-   if(st.port!==port||st.closing||st.plcAddress!==0x6C)
-    throw Error('USB-Verbindung während AFE-Wiederanlauf beendet');
-  };
-  const send=async(addr,word)=>{
-   assertConnection();
-   return exchange(P.plcWrite(addr,word,st.plcAddress));
-  };
-  if(await readReg(R_AFE)!==0)return false;
-  if(await readReg(0x06)!==0x6C04||P.plcAddressFromConfig(0x6C04,await readReg(0x0A))!==0x6C)
-   return false;
-  const version=await readReg(0x38);
-  const ser0=await readReg(0x50),ser1=await readReg(0x52);
-  if((version&0xFFF8)!==0x0020||!(ser0||ser1))throw Error('E703.11-Kennung für AFE-Wiederanlauf nicht bestätigt');
-  const words=[];
-  for(let i=0;i<64;i++){
-   await send(0x4E,0x4C00|i*2);
-   await nvmWaitIdle(1200,12,15);
-   words.push(await readReg(0x48));
-  }
-  if(words[0]!==ser0||words[1]!==ser1||CAL.crc16(words)!==words[63]||CAL.crc8(words)!==(words[15]>>>8))
-   throw Error('Chipkennung oder EEPROM-Prüfsumme beim AFE-Wiederanlauf ungültig');
-  const afe=words[0x38/2];
-  try{decodeSafeAFE(afe)}catch(e){
-   // A CRC-valid image can still contain an unusable AFE setting.
-   // Let the next cold-start delay try to initialize the chip naturally.
-   logging('SSP3-Kaltstart: EEPROM-CFG_AFE1=0x'+h(afe,2)+' nicht für RAM-Übernahme geeignet: '+e.message);
-   return false;
-  }
-  if(await readReg(R_AFE)!==0)throw Error('CFG_AFE1 hat sich während der Diagnose geändert');
-  st.coldStartAfeRestored=true;
-  await send(R_AFE,afe);
-  if(await readReg(R_AFE)!==afe)throw Error('CFG_AFE1 konnte im RAM nicht bestätigt werden');
-  logging('SSP3-Kaltstart: CFG_AFE1 aus CRC-geprüftem EEPROM ins RAM übernommen: 0x'+h(afe,2));
-  return true;
- }
-
+ // Diagnostic UID is not measurement readiness. Only restore this chip's
+ // verified EEPROM settings; never substitute a generic AFE configuration.
  function showReadOnlySensor(){
-  show('connMsg','E703.11 '+st.readOnlySensor+' verbunden. Register sind lesbar. CFG_AFE1 = 0x0000: Das Analog-Frontend ist nicht kalibrierbereit.','warn');
+  show('connMsg','E703.11 '+st.readOnlySensor+' antwortet. CFG_AFE1 = 0x0000: RAM-Initialisierung erforderlich.','warn');
   show('adcMsg','Live-Messung erst mit gültiger AFE-Konfiguration verfügbar.','warn');
  }
-
- // Elmos 70311_gui_default.xml: measurement enable, default AFE and continuous period.
- // Match the observed inactive profile before applying those three RAM values.
- async function startRamMeasurement(remember=false){
-  return withProgress('Live-Messung wird vorbereitet',()=>startRamMeasurementOperation(remember),true);
+ async function startRamMeasurement(){
+  return withProgress('Live-Messung wird vorbereitet',()=>startRamMeasurementOperation(),true);
  }
- async function startRamMeasurementOperation(remember){
-  if(!st.port||!st.readOnlySensor||st.chip||st.closing||st.ramMeasurementStarting)return;
-  const port=st.port,address=st.plcAddress,uid=st.readOnlySensor;
-  const profile=[
-   {address:0x04,before:0x1214,after:0x12D6},
-   {address:R_AFE,before:0,after:0x0800},
-   {address:0x0E,before:0,after:1}
-  ];
-  const send=(register,value)=>{
-   if(st.port!==port||st.closing||st.plcAddress!==address)
-    throw Error('Sensorverbindung unterbrochen');
-   return exchange(P.plcHostCommand(P.plcWrite(register,value,st.plcAddress),st.plcHostFormat));
+ async function startRamMeasurementOperation(){
+  if(!st.port||!st.readOnlySensor||st.chip||st.closing||st.ramMeasurementStarting||
+     st.adapterKind!=='ssp3'||st.iface!=='plc'||!st.plcAddressVerified||
+     st.calTask||st.writing||st.nvmWorking||st.calStaged||st.calpoints.length)return false;
+  const port=st.port,address=st.plcAddress,uid=st.readOnlySensor,session=st.sessionIndex;
+  const sameConnection=()=>{
+   if(st.port!==port||st.closing||st.plcAddress!==address||st.sessionIndex!==session)
+    throw Error('Sensorverbindung während RAM-Wiederanlauf unterbrochen');
+  };
+  const assertUid=async()=>{
+   sameConnection();
+   if(await readCalibrationUid()!==uid)throw Error('Chip-UID während RAM-Wiederanlauf geändert');
+   sameConnection();
+  };
+  const send=async(register,value)=>{
+   sameConnection();
+   return exchange(P.plcHostCommand(P.plcWrite(register,value,address),st.plcHostFormat));
+  };
+  const readWord=async i=>{
+   await send(0x4E,0x4C00|i*2);
+   await nvmWaitIdle(1200,12,15);
+   return readReg(0x48);
   };
   const changed=[];
+  let restored=false;
   st.ramMeasurementStarting=true;
-  renderStatus();
+  stopLive();renderStatus();
   try{
-   const version=await readReg(0x38),ser0=await readReg(0x50),ser1=await readReg(0x52);
-   if(h(version,2)+h(ser1,2)+h(ser0,2)!==uid)throw Error('Chipkennung hat sich geändert');
-   for(const entry of profile){
-    if(await readReg(entry.address)!==entry.before)
-     throw Error('RAM-Profil weicht ab bei Register 0x'+h(entry.address));
+   // One additional read on missing response; no repeated RAM writes.
+   for(let attempt=0;;attempt++){
+    try{await assertUid();break}
+    catch(e){if(attempt||!/PLC nothing received|Timeout/i.test(e.message))throw e;await sleep(100)}
    }
+   const afeBefore=await readReg(R_AFE);
+   if(afeBefore!==0)decodeSafeAFE(afeBefore);
+   const words=[];
+   for(let i=0;i<64;i++)words.push(await readWord(i));
+   if(h(words[1],2)+h(words[0],2)!==uid.slice(4)||
+      CAL.crc16(words)!==words[63]||CAL.crc8(words)!==(words[15]>>>8))
+    throw Error('EEPROM-UID oder CRC8/CRC16 ungültig. Keine RAM-Übernahme.');
+   for(const i of [0,1,15,16,21,28,63])
+    if(await readWord(i)!==words[i])throw Error('EEPROM-Wiederholungslesung unstabil');
+   const afe=words[28];
+   decodeSafeAFE(afe);
+   if(afeBefore!==0&&afeBefore!==afe)throw Error('AFE im RAM weicht vom bestätigten EEPROM ab');
+   const live=await readCalibrationProfile();
+   if(live[R_AFE]!==afeBefore)throw Error('AFE während Diagnose geändert');
+   if(![0,2].includes(words[16]&3)||![0,2].includes(live[4]&3))
+    throw Error('Reservierte DSP-Druckkorrektur');
+   if((live[4]&12)!==(words[16]&12))throw Error('Temperaturkorrektur im RAM weicht vom EEPROM ab');
+   if((words[16]&3)===2||(words[16]&12)!==0){
+    for(let i=31;i<=54;i++)
+     if(await readReg(0x6C+(i-31)*2)!==words[i])
+      throw Error('Bestehende DSP-Koeffizienten stimmen nicht mit dem EEPROM überein');
+   }
+   const period=words[21]||1;
+   if(period===2)throw Error('Einzelmessungsprofil am SSP3 benötigt separate Freigabe');
+   const en=(live[4]&~3)|(words[16]&3);
+   const target={...live,[R_AFE]:afe,4:en,14:period};
+   CAL.planCalibrationProfile(words,target,{recovery:true,allowOperatingChanges:true,filterCatalog:filterProfiles.map(f=>f[1])});
+   const profile=[{address:R_AFE,before:afeBefore,after:afe},
+    {address:0x04,before:live[4],after:en},{address:0x0E,before:live[14],after:period}];
+   await assertUid();
    for(const entry of profile){
-    changed.push(entry);
+    if(await readReg(entry.address)!==entry.before)throw Error('RAM-Profil während Diagnose geändert');
+    if(entry.before===entry.after)continue;
+    await assertUid();changed.push(entry);
     await send(entry.address,entry.after);
-    if(await readReg(entry.address)!==entry.after)
-     throw Error('RAM-Rücklesen fehlgeschlagen bei Register 0x'+h(entry.address));
+    if(await readReg(entry.address)!==entry.after)throw Error('RAM-Rücklesen fehlgeschlagen bei Register 0x'+h(entry.address));
    }
+   if(!CAL.sameMeasurementProfile(target,await readCalibrationProfile()))throw Error('RAM-Messprofil nach Wiederanlauf verändert');
+   await assertUid();
+   await readReg(0x2A);
    await send(0x22,0x8B93);
    const deadline=Date.now()+1600;
    let status;
-   do{
-    await sleep(30);
-    status=await readReg(0x36,500);
-   }while(!(status&2)&&Date.now()<deadline);
+   do{await sleep(30);status=await readReg(0x36,500)}
+   while(!(status&2)&&Date.now()<deadline);
    if(!(status&2))throw Error('Der Sensor meldet keine neue ADC_S-Messung');
-   st.measurementPeriod=1;
-   st.measurementStatus=status;
-   st.coldStartAfeRestored=true;
-   await detect();
-   st.readOnlySensor=null;
-   if(remember)lsSet('ssp3-auto-ram-uid',uid);
-   show('connMsg','Live-Messung im RAM gestartet. Vor dem Speichern prüft die App die aktiven Messregister gegen den NVM-Plan.','success');
+   await readReg(0x2A);await assertUid();
+   st.measurementPeriod=period;st.measurementStatus=status;
+   st.coldStartAfeRestored=changed.length>0;
+   await detect({requireUid:true});
+   if(st.uid?.hex!==uid)throw Error('Chip-UID nach RAM-Wiederanlauf nicht bestätigt');
+   st.readOnlySensor=null;restored=true;
+   show('connMsg','Live-Messung automatisch aus dem geprüften EEPROM-Profil gestartet. Keine NVM-Programmierung.','success');
+   return true;
   }catch(error){
-   st.chip=false;
-   stopLive();
+   st.chip=false;stopLive();st.uid=null;st.adc=null;st.dsp=null;st.boot=null;st.coldStartAfeRestored=false;
    let restoreError=false;
    for(const entry of changed.reverse()){
     try{
-     await send(entry.address,entry.before);
+     await assertUid();await send(entry.address,entry.before);
      if(await readReg(entry.address)!==entry.before)restoreError=true;
     }catch(_){restoreError=true;}
    }
-   st.measurementPeriod=null;
-   st.measurementStatus=null;
-   show('connMsg','RAM-Messstart fehlgeschlagen: '+error.message+
-    (restoreError?' Die ursprünglichen RAM-Werte konnten nicht vollständig bestätigt werden.':''),
-    'warn');
+   st.measurementPeriod=null;st.measurementStatus=null;
+   const msg='Automatischer RAM-Wiederanlauf nicht bestätigt: '+error.message+
+    (restoreError?' Ursprüngliche RAM-Werte nicht vollständig bestätigt. Sensor am Prüfplatz sicher neu starten.':'')+
+    '. Keine NVM-Programmierung. USB-Protokoll exportieren.';
+   logging(msg);show('connMsg',msg,'warn');
+   return false;
   }finally{
    st.ramMeasurementStarting=false;
+   if(restored&&!st.manualLivePause&&!st.powerCycleRunning)startLive();
    renderStatus();
   }
  }
@@ -2437,7 +2440,7 @@ if(typeof document!=='undefined') (function UI(){
   window.ELMOS_GUIDED?.onConnected?.();
   // During power-start and Magic-Cookie recovery, defer the continuous loop
   // until the entire startup process has completed.
-  if(!st.powerCycleRunning&&!st.manualLivePause)startLive();
+  if(!st.powerCycleRunning&&!st.ramMeasurementStarting&&!st.manualLivePause)startLive();
   cancelAutoReconnect();
  }
 
@@ -2919,11 +2922,7 @@ if(typeof document!=='undefined') (function UI(){
      if(!/PLC nothing received/i.test(e.message))throw e;
      continue;
     }
-    ready=await probePlcAddresses('PSSC-RAM-Freigabe (Delay '+delay+')',false,false);
-    if(!ready&&await restoreColdStartAfe(port))
-     ready=await probePlcAddresses('PSSC-RAM-Freigabe nach AFE-Wiederanlauf',false,false);
-    if(!ready&&delay==='10')
-     ready=await probePlcAddresses('PSSC-RAM-Freigabe für Diagnose');
+    ready=await probePlcAddresses('PSSC-RAM-Freigabe (Delay '+delay+')');
     if(ready)break;
     trial.steps.push({delay,error:'Keine bestätigte AFE-Konfiguration; nächstes Startprofil prüfen'});
    }
@@ -3067,7 +3066,7 @@ if(typeof document!=='undefined') (function UI(){
    }
    if(st.readOnlySensor){
     showReadOnlySensor();
-    if(st.readOnlySensor===lsGet('ssp3-auto-ram-uid'))await startRamMeasurement();
+    await startRamMeasurementOperation();
     return;
    }
    if(!st.chip)throw Error('Keine gültige Registerantwort vom E703.11 erhalten');
@@ -3150,7 +3149,7 @@ if(typeof document!=='undefined') (function UI(){
      logging('SSP3 + One Wire: automatischer Sensorstart über VSUPPLY; PLC-Format '+st.plcHostFormat+'.');
      if(!await probePlcAddresses('Erstverbindung ohne Power-Cycle',true))
       await startSsp3WithBoundedRetry();
-     if(st.readOnlySensor&&st.readOnlySensor===lsGet('ssp3-auto-ram-uid'))await startRamMeasurement();
+     if(st.readOnlySensor)await startRamMeasurementOperation();
      return;
     }
     await detect();
@@ -5523,7 +5522,7 @@ if(typeof document!=='undefined') (function UI(){
  if(!demoEnabled&&$('adapterType').value==='ssp3'&&
     Array.from($('baud').options).some(option=>option.value===confirmedSsp3Baud))
   $('baud').value=confirmedSsp3Baud;
- $('startRamMeasurement').addEventListener('click',()=>startRamMeasurement(true));
+ $('startRamMeasurement').addEventListener('click',()=>startRamMeasurement());
  $('choose').addEventListener('click',()=>choose());$('auto').addEventListener('click',()=>auto());$('disconnect').addEventListener('click',()=>{autoReconnectSuppressed=true;cancelAutoReconnect();reconnectSsp3OnUsb=false;return disconnect()});$('sensorReconnectButton').addEventListener('click',()=>st.adapterNoReply?reopenSsp3Port():reinitializeSensor());
  $('sensorReconnectExport').addEventListener('click',()=>$('plcStartupLogExport').click());
  for(const [id,step] of [['brSupplyDown',-1],['brSupplyUp',1]]){
