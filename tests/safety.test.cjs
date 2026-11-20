@@ -926,14 +926,14 @@ test('Disabled or altered PLC window cannot be programmed as safe',()=>{
  }
  assert.equal(CAL.oneWireOnlyStatus(b).ok,false);
 });
-test('Cookie-only NVM gated by physical SSP3 startup proof and matching UID',()=>{
+test('Cookie-only NVM requires startup proof outside verified live SSP3 calibration',()=>{
  const app=read('app.js'),html=read('index.html');
  assert.ok(app.includes('st.powerCycleResult.verifiedUid=st.uid?.hex||null;'));
  assert.ok(app.includes('st.powerCycleResult=null;st.magicResult=null;'));
- assert.ok(app.includes('startup.requiresCookie&&!psscRecoveryProven()&&!bridgeColdStartVerified()'));
+ assert.ok(app.includes('startup.requiresCookie&&!psscRecoveryProven()&&!bridgeColdStartVerified()&&!liveSsp3Calibration'));
  assert.ok(app.includes('proof.verifiedUid===uid'));
  assert.ok(app.includes('const cookieVerified=psscRecoveryProven()||bridgeColdStartVerified();'));
- assert.ok(app.includes('CAL.protectStartupCommunication(initial,modified,{allowSvdd})'));
+ assert.ok(app.includes('CAL.protectStartupCommunication(initial,modified,{allowSvdd,allowAlarmMask:'));
  assert.ok(html.includes('id="plcStartupTools"'));
 });
 test('Troubleshooting tools hidden by default; recoverable in expert mode',()=>{
@@ -1511,6 +1511,83 @@ test('AN0204 proof: recover failed initial PLC-RAM read only after authenticated
 });
 
 
+test('SSP3 prepares a combined calibration in the verified live session without changing startup settings',async()=>{
+ const app=read('app.js');
+ const start=app.indexOf(' function bridgeColdStartVerified(){');
+ const end=app.indexOf(' // Read-only early warning:',start);
+ const build=new Function('st','CAL','P','$','verificationComplete',
+  app.slice(start,end)+'return {allowed:ssp3CalibrationWithoutRestart,block:psscNvmBlock};');
+ const before=safeNvm();
+ before[17]=0x6C00;
+ before[19]&=~(1<<8);
+ before[22]=0x0880;
+ before[63]=CAL.crc16(before);
+ assert.equal(CAL.oneWireStartupStatus(before).requiresCookie,true);
+ const after=before.slice();
+ after[16]|=1<<6;
+ after[33]=0xEC95;
+ after[58]=0x0DFA;
+ after[63]=CAL.crc16(after);
+ const uid={hex:'0020018A487B',ser0:before[0],ser1:before[1]};
+ const state={
+  adapterKind:'ssp3',iface:'plc',mode:'usb',port:{},chip:true,uid,sessionIndex:7,
+  plcAddress:0x6C,plcAddressVerified:true,regs:{0x06:0x6C04},calStaged:true,
+  nvmBackup:before,nvmBackupVerified:true,nvmBackupProof:{session:7,uid:uid.hex,words:before},
+  expertOutputPlan:{mode:'1',scaleEnabled:true},startupTrials:[],powerCycleResult:null
+ };
+ const api=(overrides={},backup=true,verified=true)=>build({...state,...overrides},CAL,
+  require('../app.js'),()=>({checked:backup}),()=>verified);
+ assert.equal(api().allowed(before,after,true),true);
+ assert.equal(api().block(before,after,false,false,false,true),'');
+ const calibrationFit={outputLimit:30000,registers:{so:0xEC95,sf:0x4C07,coeffs:Array(16).fill(0)}};
+ const liveState={...state,calfit:calibrationFit,afe:0x0800,afe0:0,
+  expertOutputPlan:{...state.expertOutputPlan,...CAL.analogScaling(0.5,4.5,5,30000),clipping:{mode:'keep'}}};
+ const fields={
+  nvmAutoBackup:{checked:true},expertOutputMode:{value:'1'},psscS0:{value:'0.5'},
+  psscS1:{value:'4.5'},psscVdd:{value:'5'},nvmDiff:{},nvmProgress:{}
+ };
+ const prepareStart=app.indexOf(' async function prepareNvmOperation(){');
+ const prepareEnd=app.indexOf(' function nvmWriteFeedback(',prepareStart);
+ const messages=[];
+ const prepare=new Function('st','CAL','P','$','verificationComplete','coefficientSettingsCurrent',
+  'requestedNvmUserId','readNvmBridgeSupply','ELMOS_ALARM_EDITOR','h','ca','renderFlowState',
+  'verificationRequiredCount','stopLive','startLive','logging',
+  app.slice(start,end)+app.slice(prepareStart,prepareEnd)+'return prepareNvmOperation;')(
+  liveState,CAL,require('../app.js'),id=>fields[id],()=>true,()=>true,
+  ()=>undefined,async()=>0,{pendingForCalibration:()=>false},v=>v.toString(16),
+  (...args)=>messages.push(args),()=>{},()=>1,()=>{},()=>{},()=>{});
+ await prepare();
+ assert.equal(messages.at(-1)?.[2],'warn',messages.at(-1)?.[1]);
+ assert.equal(liveState.calImage.recoveryCombined,true);
+ assert.equal(CAL.analogOutputStatus(liveState.calImage.after,0.5,4.5,5,30000).ok,true);
+ assert.deepEqual(liveState.calImage.after.slice(17,28),before.slice(17,28));
+ for(const [index,mask] of [[0,1],[16,1<<9],[17,4],[18,1<<12],[19,1<<8],[22,1],[CAL.SVDD_INDEX,1]]){
+  const changed=after.slice();
+  changed[index]^=mask;
+  changed[63]=CAL.crc16(changed);
+  assert.equal(api().allowed(before,changed,true),false,'protected word '+index);
+  assert.notEqual(api().block(before,changed,false,false,false,true),'');
+ }
+ for(const overrides of [
+  {sessionIndex:8},{uid:{...uid,hex:'other'}},{plcAddress:0x7C},
+  {plcAddressVerified:false},{coldStartAfeRestored:true},{adapterKind:'bridge'},
+  {calStaged:false},{expertOutputPlan:null},{sensorLost:true},
+ ]){
+  assert.equal(api(overrides).allowed(before,after,true),false);
+ }
+ assert.equal(api({},false).allowed(before,after,true),false);
+ assert.equal(api({},true,false).allowed(before,after,true),false);
+ for(const operation of [[true,false,false],[false,true,false],[false,false,true]])
+  assert.notEqual(api().block(before,after,...operation,true),'');
+ assert.equal(api().allowed(before,after,false),false);
+ const write=app.slice(app.indexOf(' async function nvmProgramOperation('));
+ assert.ok(write.includes('const verifyWords=(liveSsp3Calibration||'));
+ const fullRead=write.indexOf('const verifyWords=');
+ const ramCheck=write.indexOf('of activeCalibrationRamWords()',fullRead);
+ const enable=write.indexOf('for(const x of [0x98BD',fullRead);
+ assert.ok(fullRead<ramCheck&&ramCheck<enable,'verify 64 words and active DSP before enabling writes');
+});
+
 test('ESP32-C3 combined DSP/AODO recovery requires generic user NVM and cold-start UID proof',()=>{
  const app=read('app.js');
  const start=app.indexOf(' function bridgeColdStartVerified(){');
@@ -1562,7 +1639,7 @@ test('ESP32-C3 combined DSP/AODO recovery requires generic user NVM and cold-sta
  assert.ok(firmware.includes('strcmp(command, "NVM ARM HOST") == 0'));
  assert.ok(firmware.includes('if (!coldStartMatches() || probe(activeSlave))'));
  assert.ok(app.includes("i2cNvmSupported()?'I2C ARM HOST':st.bridgeUserNvm?'NVM ARM HOST'"));
- assert.ok(app.includes('const esp32Ready=bridgeCombinedRecoveryReady()'));
+ assert.ok(app.includes('if(!bridgeCombinedRecoveryReady())'));
  assert.ok(app.includes('const finalRecoveryBlock=psscNvmBlock('));
 });
 

@@ -1168,8 +1168,7 @@ if(typeof document!=='undefined') (function UI(){
   if(n>=6&&!verificationComplete()&&!expert.restoreReady()&&!expert.outputReady())return 'NVM bleibt gesperrt: Zuerst '+(Number.isFinite(verificationRequiredCount())?verificationRequiredCount()+' Prüfpunkte':'eine gültige Anzahl Prüfpunkte')+' über DSP_S im RAM erfolgreich verifizieren.';
   return ''
  }
- // A temporary 1-Wire RAM recovery requires a cold-start proof. For safety,
- // output-only recovery updates may change scaling/clipping, never AODO mode or boot words.
+ // DIY firmware and operations outside the SSP3 calibration scope require a cold-start proof.
  function bridgeColdStartVerified(){
   const proof=st.bridgeColdStart;
   return st.adapterKind==='bridge'&&st.bridgeCalibrationNvm&&!!st.port&&!!st.uid?.hex&&
@@ -1246,8 +1245,7 @@ if(typeof document!=='undefined') (function UI(){
   }
   return psscRecoveryProven();
  }
- // Human-readable evidence is diagnostic only. The existing boolean guard
- // remains authoritative for every final NVM write and diff.
+ // Describe missing physical proof when the planned operation requires it.
  function psscRecoveryEvidence(){
   if(psscRecoveryProven())return 'SSP3-Kaltstart derselben Chip-UID bestätigt.';
   const failed=[];
@@ -1294,6 +1292,25 @@ if(typeof document!=='undefined') (function UI(){
    return 'Der I²C-Startmodus im RAM passt nicht zum Original-NVM. NVM-Schreiben gesperrt.';
   return '';
  }
+ // An active SSP3 can update calibration and analog scaling without repeating
+ // the startup sequence if the original image already supports 1-Wire startup
+ // and the diff leaves all startup settings and bridge supply intact.
+ function ssp3CalibrationWithoutRestart(before,after,recoveryCombined){
+  if(!recoveryCombined||st.adapterKind!=='ssp3'||st.iface!=='plc'||
+     st.mode!=='usb'||!st.chip||st.closing||st.sensorLost||st.coldStartAfeRestored||
+     !st.plcAddressVerified||!hasCurrentNvmBackup()||!st.calStaged||!verificationComplete()||
+     !st.expertOutputPlan?.scaleEnabled||!$('nvmAutoBackup').checked)
+   return false;
+  if(!CAL.oneWireStartupStatus(before).ok||before.some((word,index)=>word!==st.nvmBackup[index])||
+     P.plcAddressFromConfig(before[17],before[19])!==st.plcAddress||
+     before[CAL.SVDD_INDEX]!==after?.[CAL.SVDD_INDEX])
+   return false;
+  const mode=(before[16]>>9)&7;
+  if(mode<1||mode>3||Number(st.expertOutputPlan.mode)!==mode)return false;
+  try{CAL.validateRecoveryCalibrationDiff(before,after,{allowAnalogScaling:true})}
+  catch(_){return false}
+  return true;
+ }
  function psscNvmBlock(initial,modified,restoring=false,outputOnly=false,alarmOnly=false,allowCombinedRecovery=false){
   // Unified low-level bridge: no firmware feature-specific NVM address list.
   // Same sensor/boot/UID/CRC checks as SSP3 are performed later in the UI.
@@ -1330,8 +1347,10 @@ if(typeof document!=='undefined') (function UI(){
   if(!recovered&&!(st.adapterKind==='bridge'&&st.bridgeCalibrationNvm))return '';
   if(st.adapterKind==='bridge'&&!st.bridgeCalibrationNvm)
    return 'Nach temporärer ESP32-RAM-Freigabe ist NVM-Schreiben gesperrt. Live-Messung, RAM-Kalibrierung und NVM-Lesen sind verfügbar.';
-  if(!psscRecoveryProven()&&!bridgeColdStartVerified())
-   return 'Für die PSSC-RAM-Verbindung fehlt der bestätigte Neustart dieses Chips. Sensor neu initialisieren und erneut prüfen.';
+  const liveCalibration=!restoring&&!outputOnly&&!alarmOnly&&
+   ssp3CalibrationWithoutRestart(initial,modified,allowCombinedRecovery);
+  if(!psscRecoveryProven()&&!bridgeColdStartVerified()&&!liveCalibration)
+   return 'Für diesen NVM-Plan fehlt der bestätigte Kaltstart. '+psscRecoveryEvidence();
   if(!initial||!modified)return '';
   if(restoring)return 'Backup-Wiederherstellung nach temporärer PSSC-RAM-Freigabe gesperrt.';
   if(alarmOnly){
@@ -1363,7 +1382,7 @@ if(typeof document!=='undefined') (function UI(){
    return '';
   }
   if(allowCombinedRecovery){
-   if(st.adapterKind!=='ssp3'||!psscRecoveryProven())
+   if(st.adapterKind!=='ssp3'||(!psscRecoveryProven()&&!liveCalibration))
     return 'Kombinierte Kalibrierung und AODO-Skalierung nach Magic Cookie nur mit originalem SSP3 und bestätigtem Kaltstart derselben Chip-UID.';
    if(!st.expertOutputPlan||!['1','2','3'].includes(String(st.expertOutputPlan.mode)))
     return 'Vor der kombinierten NVM-Programmierung die analoge Ausgangskonfiguration ausdrücklich prüfen und vormerken.';
@@ -1482,21 +1501,24 @@ if(typeof document!=='undefined') (function UI(){
   const outputStatus=$('outputOneWireStatus');
   const startup=st.nvmBackupVerified&&st.nvmBackup?.length===64?CAL.oneWireStartupStatus(st.nvmBackup):null;
   const cookieVerified=psscRecoveryProven()||bridgeColdStartVerified();
+  const liveSsp3Calibration=!restoring&&!outputOnly&&!alarmOnly&&
+   ssp3CalibrationWithoutRestart(st.calImage?.before,st.calImage?.after,st.calImage?.recoveryCombined);
   if(outputStatus&&st.iface==='i2c'){
    outputStatus.textContent=i2cBlock||'I²C-Kaltstart bestätigt. Schnittstellen- und Boot-Einstellungen bleiben erhalten.';
    outputStatus.className='callout '+(i2cBlock?'warn':'success');
   }else if(outputStatus){
    const connected=st.mode==='usb'&&st.iface==='plc'&&st.chip;
    const saved=startup;
-   const safeSaved=!!(saved?.ok&&(!saved.requiresCookie||cookieVerified));
+   const safeSaved=!!(saved?.ok&&(!saved.requiresCookie||cookieVerified||liveSsp3Calibration));
    outputStatus.textContent=!connected?
     '1-Wire-Verbindung zum Chip nicht bestätigt. Dauerhaftes NVM-Schreiben gesperrt.':
     saved?
      safeSaved?'One-Wire-Startfenster '+saved.windowLabel+' bleibt im NVM erhalten (AODO-Modus '+saved.mode+'). '+
-       (saved.requiresCookie?'Magic-Cookie-Start am aktuellen Chip bestätigt.':'Direkter Registerzugriff aktiv.')+
+       (saved.requiresCookie?(cookieVerified?'Magic-Cookie-Start am aktuellen Chip bestätigt.':
+        'Laufender SSP3-Zugriff bestätigt.'):'Direkter Registerzugriff aktiv.')+
        ' Boot-/Interface-Register bleiben unverändert. Nach dem Schreiben Kaltstart prüfen.':
       saved.ok&&saved.requiresCookie?
-       'One Wire ist bei jedem Einschalten '+saved.windowLabel+' aktiv. Danach ist für RAM-Zugriff die Magic Cookie erforderlich. NVM-Schreiben nur nach erfolgreichem SSP3-Starttest am aktuellen Chip freigegeben.':
+       'One Wire ist beim Einschalten '+saved.windowLabel+' aktiv. In diesem Fenster kann der Magic Cookie den laufenden Registerzugriff freigeben. Ob ein Kaltstartnachweis nötig ist, hängt vom NVM-Änderungsplan ab.':
        '1-Wire-Startschutz: '+saved.errors.join('; ')+'. NVM-Schreiben gesperrt.':
      '1-Wire aktuell verbunden. Für die Startschutz-Prüfung zuerst das Original-NVM vollständig auslesen. Das momentane Erreichen des Chips garantiert keinen Zugriff nach Neustart.';
    outputStatus.className='callout '+(connected&&safeSaved?'success':'warn');
@@ -3878,15 +3900,10 @@ if(typeof document!=='undefined') (function UI(){
     if(!startup.ok)throw Error('1-Wire-Startfenster nicht sicher: '+startup.errors.join('; '));
     if(startup.requiresCookie&&!psscRecoveryProven())
      await refreshPsscRecoveryProofReadOnly();
-    if(startup.requiresCookie&&!psscRecoveryProven()&&!bridgeColdStartVerified())
-     throw Error('One-Wire-Startfenster '+startup.windowLabel+
-      ': Kein gesicherter Kaltstartnachweis für NVM. '+psscRecoveryEvidence()+
-      ' Die laufende RAM-Kalibrierung bleibt erhalten. Eine echte fehlende Stromstartprüfung kann ohne Neustart nicht nachgeholt werden. Kein NVM-Schreiben.');
    }
    const recovery=st.psscRamRecovery||(st.regs[0x06]===0x6C04&&st.nvmBackup[17]!==0x6C04);
-   // A temporary One-Wire RAM recovery may only persist calibration words.
-   // Ignore any staged output/clipping changes instead of blocking calibration.
-   // psscNvmBlock independently verifies the complete before/after NVM diff.
+   // With temporary One-Wire RAM access, include analog scaling only when
+   // explicitly staged. The recovery guard checks the complete NVM diff.
    const ignoredOutputPlan=recovery&&!!st.expertOutputPlan&&st.expertOutputPlan.mode==='onewire';
    const bridgeSupply=await readNvmBridgeSupply(st.afe0);
    // AN0203: DSP calibration AND AODO scaling must form one coherent NVM image.
@@ -3916,13 +3933,6 @@ if(typeof document!=='undefined') (function UI(){
    const recoveryCombined=!!(recovery&&explicitOutputPlan&&
      ['1','2','3'].includes(String(explicitOutputPlan.mode)));
    if(recoveryCombined){
-    const ssp3Ready=st.adapterKind==='ssp3'&&psscRecoveryProven();
-    const esp32Ready=bridgeCombinedRecoveryReady();
-    if(!ssp3Ready&&!esp32Ready)
-     throw Error(st.adapterKind==='bridge'?
-      'ESP32-C3: Kombinierte DSP-/AODO-Programmierung braucht die generische BRIDGE_USER_NVM_V1-Firmware und einen durch GPIO10-Lastschalter bestätigten Sensor-Kaltstart derselben USB-Sitzung und Chip-UID. Ein blosses PLC RECOVER oder ein verbundener Sensor genügt nicht. Kein NVM-Schreiben und kein automatischer Neustart.':
-      'Magic Cookie: Kombinierte DSP-/AODO-Programmierung nicht freigegeben. '+
-       psscRecoveryEvidence()+' Kein NVM-Schreiben.');
     if(!$('nvmAutoBackup').checked)
      throw Error('Magic Cookie: Vor einer kombinierten NVM-Programmierung «Altes NVM automatisch sichern» aktivieren.');
     if(Number(explicitOutputPlan.mode)!==originalMode)
@@ -3967,12 +3977,15 @@ if(typeof document!=='undefined') (function UI(){
      Number($('psscVdd').value),st.calfit.outputLimit);
     if(!out.checked||!out.ok)
      throw Error('AODO-Skalierung im endgültigen NVM stimmt nicht mit S0/S1 überein: '+
-      out.reason+(recovery?' Temporärer One-Wire-RAM-Zugang: AODO darf hier nicht geschrieben werden.':
-      ' Bitte Ausgang konfigurieren und NVM-Änderungsliste erneut vorbereiten.'));
+      out.reason+'. Bitte Ausgang konfigurieren und NVM-Änderungsliste erneut vorbereiten.');
    }
    if(autoStageAnalog&&!recovery)st.expertOutputPlan=outputPlan;
    if(st.adapterKind==='bridge'&&!st.bridgeUserNvm&&image.changes.some(c=>c.index===CAL.SVDD_INDEX))
     throw Error('Brückenspannung dauerhaft speichern wird derzeit nur mit SSP3 unterstützt.');
+   const liveSsp3Calibration=ssp3CalibrationWithoutRestart(image.before,image.after,recoveryCombined);
+   if(st.iface==='plc'&&CAL.oneWireStartupStatus(image.before).requiresCookie&&
+      !psscRecoveryProven()&&!bridgeColdStartVerified()&&!liveSsp3Calibration)
+    throw Error('Für diesen NVM-Plan fehlt der bestätigte Kaltstart. '+psscRecoveryEvidence());
    const recoveryBlock=psscNvmBlock(image.before,image.after,false,false,false,recoveryCombined);
    if(recoveryBlock)throw Error(recoveryBlock);
    if(image.changes.some(c=>(c.index<28&&![16,22,CAL.SVDD_INDEX,...(includeAlarms?[18]:[])].includes(c.index))||c.index===29))throw Error('Unzulässiges NVM-Register im Änderungsplan');
@@ -3988,7 +4001,8 @@ if(typeof document!=='undefined') (function UI(){
    }).join('\n');
    ca('nvmMsg',image.changes.length+' von 64 NVM-Wörtern werden verändert (CRC16 zuletzt). Factory-/Bootschutz geprüft.'+
      (verificationRequiredCount()===1?' Nur ein unabhängiger DSP-Prüfpunkt wurde verifiziert.':'')+
-     (recoveryCombined?' '+(st.adapterKind==='bridge'?'ESP32-C3 Kaltstart und generische User-NVM-Capability bestätigt':'SSP3-Magic-Cookie-Start bestätigt')+
+     (recoveryCombined?' '+(st.adapterKind==='bridge'?'ESP32-C3 Kaltstart und generische User-NVM-Capability bestätigt':psscRecoveryProven()?'SSP3-Magic-Cookie-Start bestätigt':
+       'SSP3-Zugriff und Original-NVM bestätigt')+
       ': Die ausdrücklich vorgemerkte AODO-Skalierung wird zusammen mit den Kalibrierkoeffizienten gespeichert. AODO-Modus und One-Wire-Startregister bleiben unverändert. Original-NVM-Backup ist Pflicht.':
       recovery?' Nur Kalibrierdaten werden gespeichert. Ausgangs- und One-Wire-Einstellungen bleiben erhalten.':'')+
      (ignoredOutputPlan?' Permanentes One Wire ist im Original-NVM bestätigt; die AODO-Einstellungen bleiben unverändert.':'')+
@@ -4149,8 +4163,10 @@ if(typeof document!=='undefined') (function UI(){
     throw Error('Brückenspannung dauerhaft speichern wird derzeit nur mit SSP3 unterstützt.');
    CAL.protectStartupCommunication(initial,modified,{allowSvdd,allowAlarmMask:alarmOnly||alarmIntegrated,interfaceMode:st.iface});
    const startup=CAL.oneWireStartupStatus(initial);
-   if(st.iface==='plc'&&startup.requiresCookie&&!psscRecoveryProven()&&!bridgeColdStartVerified())
-    throw Error('1-Wire-Startschutz: Cookie-Start für die aktuelle Chip-UID nicht verifiziert. NVM-Schreiben gesperrt.');
+   const liveSsp3Calibration=!restoring&&!outputOnly&&!alarmOnly&&!psscRecoveryProven()&&
+    ssp3CalibrationWithoutRestart(initial,modified,!!st.calImage.recoveryCombined);
+   if(st.iface==='plc'&&startup.requiresCookie&&!psscRecoveryProven()&&!bridgeColdStartVerified()&&!liveSsp3Calibration)
+    throw Error('1-Wire-Startschutz: Für diesen NVM-Plan fehlt der Kaltstartnachweis.');
    if(CAL.crc16(initial)!==initial[63]||CAL.crc16(modified)!==modified[63])throw Error('CRC16-Prüfung fehlgeschlagen');
    // Repeat the target-voltage check immediately before any NVM write command.
    // A valid DSP fit alone is not proof of a correctly scaled AODO pin.
@@ -4240,7 +4256,7 @@ if(typeof document!=='undefined') (function UI(){
    const beforeBoot=await bootSnapshot();
    if(allowSvdd)await readNvmBridgeSupply(modified[CAL.SVDD_INDEX]);
    await ramGrant();
-   const verifyWords=(st.psscRamRecovery||alarmOnly||st.bridgeUserNvm)?Array.from({length:64},(_,i)=>i):[0,1,16,17,18,19,20,21,22,23,CAL.SVDD_INDEX,28,63];
+   const verifyWords=(liveSsp3Calibration||st.psscRamRecovery||alarmOnly||st.bridgeUserNvm)?Array.from({length:64},(_,i)=>i):[0,1,16,17,18,19,20,21,22,23,CAL.SVDD_INDEX,28,63];
    for(const i of verifyWords){
     const check=await nvmReadWord(i*2);
     if(check!==initial[i]){
@@ -4252,6 +4268,17 @@ if(typeof document!=='undefined') (function UI(){
    if(finalRecoveryBlock)throw Error(finalRecoveryBlock);
    CAL.protectStartupCommunication(initial,modified,{allowSvdd,allowAlarmMask:alarmOnly||alarmIntegrated,interfaceMode:st.iface});
    for(let i=0;i<28;i++)if(modified[i]!==initial[i]&&(restoring||![16,...((alarmOnly||alarmIntegrated)?[18,22]:[22]),...(allowSvdd?[CAL.SVDD_INDEX]:[])].includes(i)))throw Error('Boot-/Werksbereich verändert');
+   if(liveSsp3Calibration){
+    for(const [address,value] of activeCalibrationRamWords()){
+     if(await readReg(address)!==value){
+      st.calVerified=false;st.calImage=null;
+      throw Error('DSP-RAM 0x'+h(address)+' stimmt nicht mit der geprüften Kalibrierung überein. DSP erneut prüfen.');
+     }
+    }
+    if(st.calImage?.before!==initial||st.calImage?.after!==modified||
+       !ssp3CalibrationWithoutRestart(initial,modified,st.calImage.recoveryCombined))
+     throw Error('SSP3-Sitzung oder NVM-Plan hat sich verändert. Änderungen erneut prüfen.');
+   }
    // Only USER region access is authorized; NEVER unlock factory calibration area.
    nvmWriteFeedback('Chip bestätigt, NVM-Schreibfreigabe wird angefordert …');
    if(st.adapterKind==='bridge'&&st.bridgeCalibrationNvm){

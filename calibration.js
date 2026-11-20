@@ -397,7 +397,7 @@ const ELMOS_CAL = (() => {
   /**
    * Allowed NVM changes after a temporary PSSC/1-Wire RAM recovery.
    * Default remains calibration-only. Analogue scaling/clipping may be added
-   * only when the UI has separately verified the same sensor's SSP3 cold start,
+   * only when the UI has separately verified the programming prerequisites,
    * the original AODO mode, and a user-approved output plan.
    * This helper is pure: it cannot grant a hardware writing permission.
    */
@@ -410,7 +410,7 @@ const ELMOS_CAL = (() => {
    const changed=after.map((word,index)=>word===before[index]?null:index).filter(index=>index!==null);
    const outputChanged=changed.some(index=>outputWords.has(index));
    if(outputChanged&&!allowAnalogScaling)
-    throw Error('Nach PSSC-RAM-Freigabe ist AODO nur mit bestätigter SSP3-Recovery und ausdrücklich vorgemerkter Ausgangsskalierung erlaubt.');
+    throw Error('Nach PSSC-RAM-Freigabe ist AODO nur mit NVM-Freigabe und ausdrücklich vorgemerkter Ausgangsskalierung erlaubt.');
    if(changed.some(index=>!calibrationWords.has(index)&&!(allowAnalogScaling&&outputWords.has(index))))
     throw Error('Nach PSSC-RAM-Freigabe sind nur Kalibrierdaten sowie ausdrücklich freigegebene AODO-Skalierung/Clipping erlaubt.');
    if(allowAnalogScaling&&

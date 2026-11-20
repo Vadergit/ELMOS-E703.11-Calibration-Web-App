@@ -148,7 +148,7 @@ test('Magic Cookie recovery: 3-point TK0 and explicit 0.5-4.5 V AODO can share a
  assert.equal(image.after[19],before[19]);
  assert.equal(image.after[63],C.crc16(image.after));
  assert.equal(C.analogOutputStatus(image.after,.5,4.5,5,32000).ok,true);
- assert.throws(()=>C.validateRecoveryCalibrationDiff(before,image.after),/AODO nur mit bestätigter SSP3-Recovery/);
+ assert.throws(()=>C.validateRecoveryCalibrationDiff(before,image.after),/AODO nur mit NVM-Freigabe/);
 });
 test('Magic Cookie recovery: ordinary calibration-only image stays permitted',()=>{
  const before=recoveryNvm();
@@ -182,12 +182,12 @@ test('Magic Cookie recovery: analog target is still checked, clipping cannot dis
  assert.equal(C.validateRecoveryCalibrationDiff(before,wrong,{allowAnalogScaling:true}).outputChanged,true);
  assert.equal(C.analogOutputStatus(wrong,.5,4.5,5,32000).ok,false);
 });
-test('NVM workflow requires explicitly staged AODO and a verified SSP3 startup after RAM recovery',()=>{
+test('NVM workflow requires explicitly staged AODO and validates SSP3 authorization after RAM recovery',()=>{
  const fs=require('node:fs');
  const src=fs.readFileSync(require('node:path').join(__dirname,'../app.js'),'utf8');
  assert.match(src,/const explicitOutputPlan=st\.expertOutputPlan/);
  assert.match(src,/const autoStageAnalog=!recovery/);
- assert.match(src,/st\.adapterKind!=='ssp3'\|\|!psscRecoveryProven\(\)/);
+ assert.match(src,/st\.adapterKind!=='ssp3'\|\|\(!psscRecoveryProven\(\)&&!liveCalibration\)/);
  assert.match(src,/image\.recoveryCombined=recoveryCombined/);
  assert.match(src,/CAL\.validateRecoveryCalibrationDiff\(initial,modified/);
  assert.match(src,/!!st\.calImage\?\.recoveryCombined/);

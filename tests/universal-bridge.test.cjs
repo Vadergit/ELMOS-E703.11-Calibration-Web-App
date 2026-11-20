@@ -39,7 +39,7 @@ test('webapp grants generic NVM only to boards advertising both capabilities',()
 test('webapp keeps chip identity, boot protection, backup and full post-write CRC check',()=>{
  for(const term of [
   "st.uid.ser0!==st.nvmBackup[0]",'CAL.protectStartupCommunication(initial,modified',
-  'const verifyWords=(st.psscRamRecovery||alarmOnly||st.bridgeUserNvm)?Array.from({length:64}',
+  'const verifyWords=(liveSsp3Calibration||st.psscRamRecovery||alarmOnly||st.bridgeUserNvm)?Array.from({length:64}',
   "if(!$('nvmAutoBackup').checked)",'NVM wird rückgelesen','CAL.crc16(after)!==after[63]',
   "if(c.index<16||c.index>63)",'await exchange(\'NVM DISARM\')'
  ])assert.ok(app.includes(term),term);

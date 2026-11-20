@@ -1,3 +1,9 @@
+## v0.7.155 – SSP3-Kalibrierung ohne erneuten Kaltstart speichern
+
+- Beim originalen SSP3 lässt sich ein geprüfter DSP-Abgleich mit vorgemerkter Analogskalierung in der laufenden Sitzung speichern, wenn Startkonfiguration, Ausgangsart und Brückenspannung unverändert bleiben.
+- Vor dem Schreiben werden Chip-UID, alle 64 bisherigen NVM-Wörter und die aktiven DSP-Koeffizienten geprüft. Original-Backup und Schreibbestätigung sind erforderlich.
+- Der Ablauf ist durch Softwaretests geprüft. Der Test mit einem angeschlossenen SSP3 steht aus.
+
 ## v0.7.154 – ADC-Tiefpass kompakter anzeigen
 
 - Kleinere Schrift und weniger Innenabstand im ADC-Filter-Dropdown; geführte Ansicht räumt der Filterbezeichnung mehr Breite ein. Vollständige Bezeichnung zusätzlich als Tooltip. Filterprofile und RAM-Schreiblogik bleiben unverändert.
