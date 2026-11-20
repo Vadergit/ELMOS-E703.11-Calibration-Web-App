@@ -580,7 +580,7 @@ const ELMOS_GUIDED=(()=>{
  }
  function statusText(){
   const s=state();
-  if(!s.chip)return 'Kein E703.11 erkannt';
+  if(!s.chip)return s.diagnosticUid?'E703.11 erkannt · Diagnose':'Kein E703.11 erkannt';
   return 'E703.11 verbunden · '+(s.uid||'Chip gelesen');
  }
 
@@ -691,7 +691,7 @@ const ELMOS_GUIDED=(()=>{
   const current=s.iface==='plc'?'1-Wire':s.iface==='i2c'?'I²C':s.iface==='spi'?'SPI':'unbekannt';
   const status=$('gwConnectionStatus');
   status.className='gw-alert '+(connected?'success':usb?'warn':'');
-  status.textContent=(connected?'Sensor erkannt, UID '+(s.uid||'nicht bekannt')+'. ':usb?'USB-Adapter verbunden, Sensor nicht erkannt. ':'Noch kein USB-Adapter verbunden. ')+
+  status.textContent=(connected?'Sensor erkannt, UID '+(s.uid||'nicht bekannt')+'. ':s.diagnosticUid?'Sensor erkannt, UID '+s.diagnosticUid+' · noch nicht messbereit. ':usb?'USB-Adapter verbunden, Sensor nicht erkannt. ':'Noch kein USB-Adapter verbunden. ')+
    'Aktives Protokoll: '+current+'.'+(s.connectionMessage?' '+s.connectionMessage:'');
   for(const id of ['gwConnectionApply','gwConnectionChoose','gwConnectionReinit','gwConnectionDiagnose','gwConnectionStartup','gwConnectionLog','gwConnectionMagic'])
    $(id).disabled=working;

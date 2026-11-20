@@ -1106,7 +1106,7 @@ test('Chip detect publishes first ADC_S even if secondary registers fail',()=>{
  assert.ok(detect);
  assert.ok(detect.indexOf("const rawS=await readReg(0x2A)")<detect.indexOf('updateADC({s,t:null,tc:null},\'usb\')'));
  assert.ok(detect.includes('await readADC({allowPartial:true})'));
- assert.ok(detect.includes("if(!st.powerCycleRunning&&!st.manualLivePause)startLive();"));
+ assert.ok(detect.includes("if(!st.powerCycleRunning&&!st.ramMeasurementStarting&&!st.manualLivePause)startLive();"));
  assert.ok(detect.includes('await expert.onDetect();'));
  assert.ok(!detect.includes('nvmProgram('));
 });

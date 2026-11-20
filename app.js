@@ -3030,7 +3030,7 @@ if(typeof document!=='undefined') (function UI(){
    }
   }
   cancelAutoReconnect();
-  if(st.calTask||st.writing||st.nvmWorking||st.powerCycleRunning||st.magicRunning||st.startupRunning||st.diagRunning||st.afeWriteActive){
+  if(st.calTask||st.writing||st.nvmWorking||st.powerCycleRunning||st.magicRunning||st.startupRunning||st.diagRunning||st.afeWriteActive||st.ramMeasurementStarting){
    show('connMsg','Neuinitialisierung erst nach Abschluss des laufenden Chipvorgangs möglich.','warn');return;
   }
   cancelAutoReconnect();
@@ -5916,8 +5916,8 @@ if(typeof document!=='undefined') (function UI(){
  }
  window.ELMOS_GUIDED_API=Object.freeze({
   state:()=>({
-   chip:!!st.chip,usbReady:!!(st.port&&st.readerAlive),usbConnected:!!st.port,demo:demoEnabled,mode:st.mode,adapter:st.adapterKind,iface:st.iface,uid:st.uid?.hex||null,
-   connectionBusy:!!(st.closing||st.reinitRunning||st.powerCycleRunning||st.magicRunning||st.startupRunning||st.diagRunning||st.writing||st.nvmWorking||st.calTask||st.afeWriteActive),
+   chip:!!st.chip,diagnosticUid:st.readOnlySensor||null,usbReady:!!(st.port&&st.readerAlive),usbConnected:!!st.port,demo:demoEnabled,mode:st.mode,adapter:st.adapterKind,iface:st.iface,uid:st.uid?.hex||null,
+   connectionBusy:!!(st.closing||st.reinitRunning||st.powerCycleRunning||st.magicRunning||st.startupRunning||st.diagRunning||st.writing||st.nvmWorking||st.calTask||st.afeWriteActive||st.ramMeasurementStarting),
    connectionMessage:$('connMsg')?.textContent||'',activeArchive:!!window.ELMOS_ARCHIVE?.active,
    // Read-only summary for the guided completion cards; measurements remain owned by the classic workflow.
    points:st.calpoints.map(x=>({kind:x.kind,slot:x.slot,at:x.at,pressure:x.pressure,temperature:x.temperature,
