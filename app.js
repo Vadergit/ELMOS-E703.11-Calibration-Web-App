@@ -1014,6 +1014,13 @@ if(typeof document!=='undefined') (function UI(){
   box.appendChild(note)
  }
 
+ // A reference for a not-yet-captured or explicitly invalidated point may be
+ // corrected without discarding valid points from the same measurement plan.
+ function retainedCalibrationReferencesMatch(previous,current,points){
+  if(!previous||!current||!Array.isArray(points))return false;
+  const stable=['pmin','pmax','calUnit','calUnitOther','calPointCount','calTempSource','calTOrder','calSOrder','calFitMode'];
+  return stable.every(id=>previous[id]===current[id])&&points.every(point=>capturedReferenceMatches(point));
+ }
  function calibrationReferenceSnapshot(){
   const ids=['pmin','pmax','calUnit','calUnitOther','calPointCount','calTempSource','calTOrder','calSOrder','calFitMode','calLoTemp','calHiTemp'];
   for(let k=1;k<=8;k++)ids.push('calExtra'+k+'Pressure','calExtra'+k+'Temp');
@@ -1067,6 +1074,10 @@ if(typeof document!=='undefined') (function UI(){
   const recovery=!!(st.coldStartAfeRestored||st.psscRamRecovery||(st.regs[0x06]===0x6C04&&words[17]!==0x6C04));
   const allowOperatingChanges=st.adapterKind==='ssp3'&&st.iface==='plc';
   const mode=(words[16]>>9)&7;
+  // The final NVM gate also demands a verified cold start when a cookie is
+  // required but no eligible recovery/live-calibration path is active.
+  if(st.iface==='plc'&&CAL.oneWireStartupStatus(words).requiresCookie&&!recovery&&!psscRecoveryProven()&&!bridgeColdStartVerified())
+   throw Error('NVM-Vorabprüfung: bestätigter Sensor-Kaltstart für Magic-Cookie-Startmodus fehlt. Sensor vor der Messung neu verbinden und prüfen.');
   if(st.adapterKind==='bridge'&&((!st.bridgeUserNvm&&!st.bridgeCalibrationNvm)||st.bridgeReadOnly||!bridgeColdStartVerified()))
    throw Error('DIY-Programmer: NVM-fähige Firmware und bestätigten Sensor-Kaltstart vor Abgleich sicherstellen.');
   if(st.coldStartAfeRestored&&(!allowOperatingChanges||mode<1||mode>3))throw Error('AFE-Wiederanlauf: nur kombinierter SSP3-Analogabgleich für NVM freigegeben.');
@@ -1083,7 +1094,9 @@ if(typeof document!=='undefined') (function UI(){
    if(st.port!==port||st.sessionIndex!==session||st.uid?.hex!==uid||!hasCurrentNvmBackup()||!CAL.sameNvmImage(words,st.nvmBackup))throw Error('Sensor oder Original-NVM während Vorabprüfung geändert.');
    const plan=CAL.planCalibrationProfile(words,ram,{orderT:Number($('calTOrder').value),recovery,allowOperatingChanges,allowSingleMeasurement:st.iface==='i2c'&&st.adapterKind==='bridge',filterCatalog:filterProfiles.map(f=>f[1])});
    const previous=activePreflight();
-   const same=previous&&CAL.sameMeasurementProfile(previous.ram,ram)&&JSON.stringify(previous.reference)===JSON.stringify(reference);
+   const same=previous&&CAL.sameMeasurementProfile(previous.ram,ram)&&
+    previous.allowOperatingChanges===allowOperatingChanges&&JSON.stringify(previous.plan)===JSON.stringify(plan)&&
+    retainedCalibrationReferencesMatch(previous.reference,reference,st.calpoints);
    if(st.calpoints.length&&!same&&!restoringDraft)throw Error('Messprofil oder Abgleichplan seit erster Aufnahme verändert. Messpunkte sichern und bewusst neu aufnehmen.');
    const saved=storedCalibrationCheckpoint(uid);
    if(saved&&!st.calpoints.length&&!restoringDraft)throw Error('Gesicherte Messpunkte vorhanden. «Messpunkte wiederherstellen» wählen oder Entwurf ausdrücklich verwerfen.');
@@ -1156,7 +1169,7 @@ if(typeof document!=='undefined') (function UI(){
     progress.textContent=label+': '+(i+1)+' / '+required+' Samples aufgenommen';
     if(i<required-1)await sleep(60)
    }
-   if(proof&&(activePreflight()!==proof||await readCalibrationUid()!==proof.uid||!CAL.sameMeasurementProfile(proof.ram,await readCalibrationProfile())))throw Error('Chip oder Messprofil während Messpunktaufnahme geändert. Punkt nicht übernommen.');
+   if(proof&&(activePreflight()!==proof||await readCalibrationUid()!==proof.uid||!CAL.sameMeasurementProfile(proof.ram,await readCalibrationProfile())||JSON.stringify(proof.reference)!==JSON.stringify(calibrationReferenceSnapshot())))throw Error('Chip, Messprofil oder Referenzplan während Messpunktaufnahme geändert. Punkt nicht übernommen.');
    const ordered=k=>values.map(x=>x[k]).sort((a,b)=>a-b);
    const median=x=>required%2?x[Math.floor(required/2)]:(x[required/2-1]+x[required/2])/2;
    const pressure=ordered('s'),temperature=ordered('t'),compensated=ordered('tc');

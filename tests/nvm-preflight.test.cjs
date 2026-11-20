@@ -48,3 +48,47 @@ test('checkpoint rejects different chip, any NVM word, AFE, filter or references
 test('unsafe starting states fail before calibration',()=>{
  const a=w();for(const [addr,value] of [[14,0],[4,0x1215],[30,3],[26,4]])assert.throws(()=>C.planCalibrationProfile(a,{...ram(a),[addr]:value},{allowOperatingChanges:true,filterCatalog:cat}));
 });
+
+const preflightApp=require('node:fs').readFileSync(require('node:path').join(__dirname,'../app.js'),'utf8');
+function simulatePreflight({cookie=false,cold=false}={}){
+ const words=w();
+ if(cookie){words[17]=0;words[19]&=~(1<<7);words[63]=C.crc16(words);}
+ const active=ram(words),fields={pmin:'0',pmax:'6',calUnit:'bar',calUnitOther:'',calPointCount:'3',calTempSource:'internal',calTOrder:'0',calSOrder:'1',calFitMode:'pressure',calLoTemp:'25',calHiTemp:'25',calExtra1Pressure:'0',calExtra1Temp:'75',expertOutputMode:'1'};
+ const st={iface:'plc',adapterKind:'ssp3',port:{},chip:true,uid:{hex:'002000123456'},sessionIndex:1,nvmBackup:words,regs:{6:words[17]},calpoints:[]};
+ const $=id=>({value:fields[id]??'',checked:true});
+ const section=(a,b)=>preflightApp.slice(preflightApp.indexOf(a),preflightApp.indexOf(b,preflightApp.indexOf(a)));
+ const code=section('function capturedReferenceMatches(','function calEndpointsReady(')+
+  section('function retainedCalibrationReferencesMatch(','const checkpointKey=')+
+  section('function activePreflight(','function confirmedOperatingProfile(')+
+  section('async function calibrationPreflight(','async function restoreCalibrationCheckpoint(')+'\nreturn calibrationPreflight;';
+ const run=new Function('st','CAL','$','demoEnabled','nvmTransportSupported','hasCurrentNvmBackup','psscRecoveryProven','refreshPsscRecoveryProofReadOnly','bridgeColdStartVerified','stopLive','startLive','readCalibrationUid','readCalibrationProfile','filterProfiles','storedCalibrationCheckpoint','show','renderStatus','pressureUnit','window','h',code)(
+  st,C,$,false,()=>true,()=>true,()=>cold,async()=>{},()=>false,()=>{},()=>{},async()=>st.uid.hex,async()=>({...active}),cat.map(p=>['test',p]),()=>null,()=>{},()=>{},()=>fields.calUnit,{confirm:()=>true},v=>v.toString(16));
+ return {run,st,active,fields};
+}
+test('preflight keeps valid points when only an uncaptured or removed reference is corrected',async()=>{
+ const {run,st,fields,active}=simulatePreflight();
+ await run();
+ st.calpoints=[{kind:'lo',pressure:0,temperature:25,unit:'bar'},{kind:'hi',pressure:6,temperature:25,unit:'bar'}];
+ fields.calExtra1Temp='80';
+ await run();
+ assert.equal(st.calpoints.length,2);
+ assert.equal(st.calibrationPreflight.reference.calExtra1Temp,'80');
+ fields.calHiTemp='26';
+ await assert.rejects(run(),/Messprofil oder Abgleichplan/);
+ st.calpoints.pop();
+ await run();
+ assert.equal(st.calpoints.length,1);
+ fields.calTOrder='1';
+ await assert.rejects(run(),/Messprofil oder Abgleichplan/);
+ fields.calTOrder='0';fields.pmax='7';
+ await assert.rejects(run(),/Messprofil oder Abgleichplan/);
+ fields.pmax='6';active[20]=cat[1][0];active[22]=cat[1][1];active[24]=cat[1][2];
+ await assert.rejects(run(),/Messprofil oder Abgleichplan/);
+});
+test('preflight catches missing cookie cold-start proof before the first measurement',async()=>{
+ const blocked=simulatePreflight({cookie:true});
+ await assert.rejects(blocked.run(),/Kaltstart.*fehlt/);
+ assert.equal(blocked.st.calibrationPreflight,undefined);
+ const ready=simulatePreflight({cookie:true,cold:true});
+ assert.ok(await ready.run());
+});
