@@ -1570,6 +1570,19 @@ test('SSP3 prepares a combined calibration in the verified live session without 
  await prepare();
  assert.equal(messages.at(-1)?.[2],'warn',messages.at(-1)?.[1]);
  assert.equal(liveState.calImage.recoveryCombined,true,'AFE recovery can prepare a matching profile');
+  const savedEn=before[16];
+  before[16]&=~3;before[63]=CAL.crc16(before);
+  await prepare();
+  assert.equal(messages.at(-1)?.[2],'warn',messages.at(-1)?.[1]);
+  assert.equal(liveState.calImage.activatePressureCorrection,true);
+  assert.equal(liveState.calImage.after[16]&3,2);
+  assert.equal(CAL.crc16(liveState.calImage.after),liveState.calImage.after[63]);
+  assert.deepEqual(liveState.calImage.after.slice(17,28),before.slice(17,28));
+  ram.set(0x04,savedEn&~3);
+  await prepare();
+  assert.equal(liveState.calImage,null);
+  assert.match(messages.at(-1)?.[1],/DSP-Druckkorrektur im RAM nicht aktiv/);
+  ram.set(0x04,savedEn);before[16]=savedEn;before[63]=CAL.crc16(before);
  for(const [address,name] of [[0x04,'CFG_EN'],[0x0E,'CFG_PERIOD'],[0x18,'CFG_LP1'],[0x1C,'CFG_AFE1'],[0x1E,'CFG_AFE2']]){
   const saved=ram.get(address);
   ram.set(address,saved^1);
@@ -1873,3 +1886,21 @@ test('Bridge polarity uses only CFG_AFE1 bit 12, preserves diagnostic bits and l
  const legacy=CFG.createSelective({label:'Alt',afe:gains},['afe'],CAL);
  assert.equal(legacy.afe.bridgeInvert,undefined);
 });
+
+ test('Verified pressure opt-in only permits 00 to 10',()=>{
+  const before=safeNvm();before[16]=0x1214;before[21]=1;before[63]=CAL.crc16(before);
+  const fit={registers:{so:0,sf:0,coeffs:Array(16).fill(0)}};
+  const after=CAL.configFrom(before,fit,0,{activatePressureCorrection:true}).after;
+  assert.equal(after[16],0x1216);
+  assert.equal(CAL.crc16(after),after[63]);
+  assert.equal(CAL.validateRecoveryCalibrationDiff(before,after,{allowPressureCorrection:true}).outputChanged,false);
+  assert.throws(()=>CAL.protectStartupCommunication(before,after),/Startschutz/);
+  assert.throws(()=>CAL.validateRecoveryCalibrationDiff(before,after),/AODO/);
+  for(const mask of [1,4,8,16,1<<9]){
+   const wrong=after.slice();wrong[16]^=mask;
+   assert.throws(()=>CAL.validateRecoveryCalibrationDiff(before,wrong,{allowPressureCorrection:true}));
+  }
+  const other=after.slice();other[21]=0;
+  assert.throws(()=>CAL.validateRecoveryCalibrationDiff(before,other,{allowPressureCorrection:true}));
+  assert.throws(()=>CAL.configFrom(after,fit,0,{activatePressureCorrection:true}));
+ });

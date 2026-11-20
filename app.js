@@ -1307,7 +1307,7 @@ if(typeof document!=='undefined') (function UI(){
    return false;
   const mode=(before[16]>>9)&7;
   if(mode<1||mode>3||Number(st.expertOutputPlan.mode)!==mode)return false;
-  try{CAL.validateRecoveryCalibrationDiff(before,after,{allowAnalogScaling:true})}
+  try{CAL.validateRecoveryCalibrationDiff(before,after,{allowAnalogScaling:true,allowPressureCorrection:true})}
   catch(_){return false}
   return true;
  }
@@ -1321,9 +1321,9 @@ if(typeof document!=='undefined') (function UI(){
   ];
   if(words[16]&0x4000)checks.push([0x9C,55,'ALARM_LO'],[0x9E,56,'ALARM_HI']);
   if((words[16]&3)!==2)
-   throw Error('AFE-Wiederanlauf: DSP-Druckkorrektur im Original-NVM deaktiviert.');
+   throw Error('AFE-Wiederanlauf: DSP-Druckkorrektur im geplanten NVM nicht aktiviert (CFG_EN.s_cor_en muss 0b10 sein).');
   if(words[21]===0)
-   throw Error('AFE-Wiederanlauf: Messzyklus im Original-NVM deaktiviert (CFG_PERIOD = 0x0000).');
+   throw Error('AFE-Wiederanlauf: Messzyklus im geplanten NVM deaktiviert (CFG_PERIOD = 0x0000). Original-Betriebsmodus nicht automatisch ändern.');
   for(const [address,index,name,mask=0xFFFF] of checks){
    const actual=await readReg(address);
    const expected=words[index];
@@ -1413,7 +1413,8 @@ if(typeof document!=='undefined') (function UI(){
     return 'Kombinierter NVM-Abgleich nach Magic Cookie benötigt ein automatisches Original-NVM-Backup.';
   }
   try{
-   CAL.validateRecoveryCalibrationDiff(initial,modified,{allowAnalogScaling:allowCombinedRecovery});
+   CAL.validateRecoveryCalibrationDiff(initial,modified,{allowAnalogScaling:allowCombinedRecovery,
+     allowPressureCorrection:!restoring&&!outputOnly&&!alarmOnly&&st.adapterKind==='ssp3'&&st.iface==='plc'&&st.calStaged&&verificationComplete()});
   }catch(error){return error.message;}
   return '';
  }
@@ -3609,7 +3610,12 @@ if(typeof document!=='undefined') (function UI(){
   // Restricted, never public raw-register interface. Only for controlled calibration/NVM transaction.
   if(!st.calTask||!st.port||!st.chip||!st.ramWriteScope)throw Error('Technischer Wartungszugriff nur während gewählter Schreib-/Backup-Aktion erlaubt');
   if(!Number.isInteger(word)||word<0||word>65535||!Number.isInteger(addr)||addr%2)throw Error('Ungültige Registerdaten');
-  const permitted=(st.ramWriteScope==='afe-filter'&&filterRegisters.includes(addr))||
+  const calibrationPressureWrite=st.ramWriteScope==='calibration'&&st.adapterKind==='ssp3'&&st.iface==='plc'&&addr===0x04;
+   if(calibrationPressureWrite){
+    const previous=await readReg(0x04);
+    if((previous&3)!==0||word!==((previous&~3)|2))throw Error('CFG_EN: nur s_cor_en 00 -> 10 während SSP3-Kalibrierung erlaubt');
+   }
+   const permitted=calibrationPressureWrite||(st.ramWriteScope==='afe-filter'&&filterRegisters.includes(addr))||
    (st.ramWriteScope==='alarm'&&[0x04,0x08,0x9C,0x9E,0xA8,0xAA].includes(addr))||
    (st.ramWriteScope==='dsp-verification'&&addr===0x36&&word===0x0408)||
    CAL_REGS.includes(addr)||addr===0x4A||addr===0x4E||addr===0x22;
@@ -3763,7 +3769,17 @@ if(typeof document!=='undefined') (function UI(){
    const changes=[[0x70,r.so],[0x72,r.sf],...r.coeffs.map((v,i)=>[0x74+2*i,v])];
    if(r.tcoeffs)changes.push([0x6C,r.to],[0x6E,r.tf],...r.tcoeffs.map((v,i)=>[0x94+2*i,v]));
    for(const [addr,value] of changes){await maintWrite(addr,value);const actual=await readReg(addr);if(actual!==value)throw Error(`DSP-RAM Rücklesefehler 0x${h(addr)}: 0x${h(actual,2)} statt 0x${h(value,2)}`)}
-   if(!sameBoot(before,await bootSnapshot()))throw Error('Bootregister nach Kalibrier-RAM-Schreiben verändert');
+   if(!demoEnabled&&st.adapterKind==='ssp3'&&st.iface==='plc'&&(before[4]&3)!==2){
+     if((before[4]&3)!==0)throw Error('CFG_EN.s_cor_en reserviert. Sensorprofil prüfen.');
+     const expected=(before[4]&~3)|2;
+     await maintWrite(0x04,expected);
+     const activated={...before,4:expected};
+     if(!sameBoot(activated,await bootSnapshot()))throw Error('CFG_EN oder Bootregister nach DSP-Aktivierung nicht bestätigt');
+     if(sameBoot(st.boot,before))st.boot=activated;
+     before[4]=expected;
+     changes.push([0x04,expected]);
+    }
+    if(!sameBoot(before,await bootSnapshot()))throw Error('Bootregister nach Kalibrier-RAM-Schreiben verändert');
    st.calStaged=true;st.calVerified=false;st.calValidation=[];st.calImage=null;st.dsp=null;renderDSPLive();
    await window.ELMOS_ARCHIVE?.event('calibration_ram_written',{registerChanges:changes,verified:true,supply:archiveVoltages()});
    // Diagnostic only: an actual DSP saturation may be visible immediately
@@ -3969,11 +3985,20 @@ if(typeof document!=='undefined') (function UI(){
     if(!oldScaling.ok)
      throw Error('Magic Cookie: Das alte NVM liefert nicht die gewünschten S0/S1-Spannungen. Ohne neue AODO-Koeffizienten darf die Kalibrierung nicht gespeichert werden. In «Ausgang konfigurieren» die Skalierung berechnen, «Ausgangskonfiguration prüfen und vormerken» anklicken und hier erneut «Änderungen prüfen». Die laufende Sitzung nicht neu starten.');
    }
-   let image=CAL.configFrom(st.nvmBackup,st.calfit,st.afe??0x800,{
+   let activatePressureCorrection=false;
+    if(st.adapterKind==='ssp3'&&st.iface==='plc'&&(st.nvmBackup[16]&3)!==2){
+     if((st.nvmBackup[16]&3)!==0)throw Error('Original-NVM: reservierter CFG_EN.s_cor_en Wert. Sensorprofil prüfen.');
+     const active=await readReg(0x04);
+     if((active&3)!==2)throw Error('DSP-Druckkorrektur im RAM nicht aktiv. Koeffizienten erneut ins RAM schreiben und DSP unabhängig prüfen.');
+     activatePressureCorrection=true;
+    }
+    let image=CAL.configFrom(st.nvmBackup,st.calfit,st.afe??0x800,{
+     activatePressureCorrection,
     output:recovery?(recoveryCombined?explicitOutputPlan:null):outputPlan,
     bridgeSupply,userId:requestedNvmUserId(),interfaceMode:st.iface
    });
    image.recoveryCombined=recoveryCombined;
+    image.activatePressureCorrection=activatePressureCorrection;
    const includeAlarms=ELMOS_ALARM_EDITOR.pendingForCalibration();
    if(st.alarmOnlyPlan?.duringCalibration&&!includeAlarms)
     throw Error('Alarmänderungen sind nicht erfolgreich im RAM geprüft. Im Schritt «Alarme & Fehler» prüfen oder bewusst auslassen.');
@@ -3986,7 +4011,7 @@ if(typeof document!=='undefined') (function UI(){
      throw Error('Bei Alarmänderungen ist das automatische Original-NVM-Backup Pflicht.');
     const normalized=ELMOS_ALARM_CONFIG.prepare(image.after,alarmPlan.settings,CAL.crc16);
     ELMOS_ALARM_CONFIG.validateDiff(image.after,normalized.after,CAL.crc16);
-    CAL.protectStartupCommunication(image.before,normalized.after,{allowSvdd:true,allowAlarmMask:true,interfaceMode:st.iface});
+    CAL.protectStartupCommunication(image.before,normalized.after,{allowSvdd:true,allowAlarmMask:true,allowPressureCorrection:activatePressureCorrection,interfaceMode:st.iface});
     image={...image,after:normalized.after,
      changes:normalized.after.map((to,index)=>to===image.before[index]?null:
       {index,address:index*2,from:image.before[index],to}).filter(Boolean),
@@ -4023,7 +4048,8 @@ if(typeof document!=='undefined') (function UI(){
    st.calImage=image;
    $('nvmDiff').textContent=image.changes.map(c=>{
     const raw=`NVM 0x${h(c.address)} [${c.index}] 0x${h(c.from,2)} → 0x${h(c.to,2)}`;
-    if(c.index===30)return 'USER-ID · '+raw;
+    if(c.index===16&&activatePressureCorrection)return 'DSP-Druckkorrektur: deaktiviert → aktiviert · '+raw;
+     if(c.index===30)return 'USER-ID · '+raw;
     if(c.index===28&&((c.from^c.to)&0x1000))return 'Brückenpolarität: '+((c.from&0x1000)?'invertiert':'normal')+' → '+((c.to&0x1000)?'invertiert':'normal')+' · '+raw;
     if(c.index!==CAL.SVDD_INDEX)return raw;
     const voltages=['2,4 V','1,6 V','2,0 V','reserviert'];
@@ -4189,9 +4215,13 @@ if(typeof document!=='undefined') (function UI(){
    if(recoveryBlock)throw Error(recoveryBlock);
    const alarmIntegrated=!restoring&&!alarmOnly&&!outputOnly&&st.calImage?.alarmIntegrated===true;
    const allowSvdd=!restoring&&!outputOnly&&!alarmOnly;
+    const allowPressureCorrection=allowSvdd&&st.adapterKind==='ssp3'&&st.iface==='plc'&&
+     st.calStaged&&verificationComplete()&&st.calImage.activatePressureCorrection===true;
+    if(allowPressureCorrection&&((initial[16]&3)!==0||(modified[16]&3)!==2))
+     throw Error('DSP-Druckkorrektur: unzulässiger NVM-Übergang');
    if(st.adapterKind==='bridge'&&!st.bridgeUserNvm&&modified[CAL.SVDD_INDEX]!==initial[CAL.SVDD_INDEX])
     throw Error('Brückenspannung dauerhaft speichern wird derzeit nur mit SSP3 unterstützt.');
-   CAL.protectStartupCommunication(initial,modified,{allowSvdd,allowAlarmMask:alarmOnly||alarmIntegrated,interfaceMode:st.iface});
+   CAL.protectStartupCommunication(initial,modified,{allowSvdd,allowAlarmMask:alarmOnly||alarmIntegrated,allowPressureCorrection,interfaceMode:st.iface});
    const startup=CAL.oneWireStartupStatus(initial);
    const liveSsp3Calibration=!restoring&&!outputOnly&&!alarmOnly&&(st.coldStartAfeRestored||!psscRecoveryProven())&&
     ssp3CalibrationWithoutRestart(initial,modified,!!st.calImage.recoveryCombined);
@@ -4234,8 +4264,8 @@ if(typeof document!=='undefined') (function UI(){
     if(!st.expertOutputPlan)throw Error('AODO-NVM-Änderung ohne geprüften Expertenvorschlag');
     const expected=CAL.prepareOutputConfig(initial,st.expertOutputPlan,outputOnly?st.outputOnlyPlan.limit:st.calfit.outputLimit,{interfaceMode:st.iface});
     for(const i of [16,22,57,58,59,60]){
-     const mismatch=i===16&&alarmIntegrated?
-      (((modified[i]^expected[i])&~((1<<5)|(1<<8)))!==0):modified[i]!==expected[i];
+     const ignoreMask=i===16?((alarmIntegrated?((1<<5)|(1<<8)):0)|(allowPressureCorrection?3:0)):0;
+      const mismatch=((modified[i]^expected[i])&~ignoreMask)!==0;
      if(mismatch)throw Error('Ausgangsregister entspricht nicht dem geprüften Vorschlag');
     }
    }
@@ -4286,7 +4316,7 @@ if(typeof document!=='undefined') (function UI(){
    const beforeBoot=await bootSnapshot();
    if(allowSvdd)await readNvmBridgeSupply(modified[CAL.SVDD_INDEX]);
    await ramGrant();
-   const verifyWords=(liveSsp3Calibration||st.psscRamRecovery||alarmOnly||st.bridgeUserNvm)?Array.from({length:64},(_,i)=>i):[0,1,16,17,18,19,20,21,22,23,CAL.SVDD_INDEX,28,63];
+   const verifyWords=(liveSsp3Calibration||allowPressureCorrection||st.psscRamRecovery||alarmOnly||st.bridgeUserNvm)?Array.from({length:64},(_,i)=>i):[0,1,16,17,18,19,20,21,22,23,CAL.SVDD_INDEX,28,63];
    for(const i of verifyWords){
     const check=await nvmReadWord(i*2);
     if(check!==initial[i]){
@@ -4296,7 +4326,7 @@ if(typeof document!=='undefined') (function UI(){
    }
    const finalRecoveryBlock=psscNvmBlock(initial,modified,restoring,outputOnly,alarmOnly,!!st.calImage?.recoveryCombined);
    if(finalRecoveryBlock)throw Error(finalRecoveryBlock);
-   CAL.protectStartupCommunication(initial,modified,{allowSvdd,allowAlarmMask:alarmOnly||alarmIntegrated,interfaceMode:st.iface});
+   CAL.protectStartupCommunication(initial,modified,{allowSvdd,allowAlarmMask:alarmOnly||alarmIntegrated,allowPressureCorrection,interfaceMode:st.iface});
    for(let i=0;i<28;i++)if(modified[i]!==initial[i]&&(restoring||![16,...((alarmOnly||alarmIntegrated)?[18,22]:[22]),...(allowSvdd?[CAL.SVDD_INDEX]:[])].includes(i)))throw Error('Boot-/Werksbereich verändert');
    if(liveSsp3Calibration){
     if(st.coldStartAfeRestored)await verifyRecoveredCalibrationProfile(modified);
@@ -4310,7 +4340,15 @@ if(typeof document!=='undefined') (function UI(){
        !ssp3CalibrationWithoutRestart(initial,modified,st.calImage.recoveryCombined))
      throw Error('SSP3-Sitzung oder NVM-Plan hat sich verändert. Änderungen erneut prüfen.');
    }
-   // Only USER region access is authorized; NEVER unlock factory calibration area.
+   if(allowPressureCorrection){
+     if((await readReg(0x04)&3)!==2){st.calVerified=false;st.calImage=null;throw Error('DSP-Druckkorrektur im RAM nicht mehr aktiviert. DSP erneut prüfen.');}
+     if(!liveSsp3Calibration){
+      for(const [address,value] of activeCalibrationRamWords()){
+       if(await readReg(address)!==value){st.calVerified=false;st.calImage=null;throw Error('DSP-RAM verändert. DSP erneut prüfen.');}
+      }
+     }
+    }
+    // Only USER region access is authorized; NEVER unlock factory calibration area.
    nvmWriteFeedback('Chip bestätigt, NVM-Schreibfreigabe wird angefordert …');
    if(st.adapterKind==='bridge'&&st.bridgeCalibrationNvm){
     const armCommand=i2cNvmSupported()?'I2C ARM HOST':st.bridgeUserNvm?'NVM ARM HOST':

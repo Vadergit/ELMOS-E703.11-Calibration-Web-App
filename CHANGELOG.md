@@ -1,3 +1,10 @@
+## v0.7.157 – DSP-Druckkorrektur beim SSP3-Abgleich dauerhaft übernehmen
+
+- SSP3-Druckabgleich: CFG_EN.s_cor_en gezielt von 00 auf 10 aktivieren; alle anderen Bits bleiben unverändert. Reservierte Werte bleiben gesperrt.
+- NVM übernimmt die Aktivierung nur nach bestandener DSP-Verifikation und bestätigtem RAM. Vorschau und Schreibprüfung behandeln Kalibrierbits getrennt von AODO. Backup, UID, CRC, Bootschutz und Rücklesung bleiben erforderlich.
+- Messprofilprüfung beim AFE-Wiederanlauf bleibt bestehen. CFG_PERIOD und ADC-/Filterkonfiguration werden nicht stillschweigend dauerhaft verändert. Hardwaretest steht aus.
+- Regressionstest für ursprünglich deaktivierte Druckkorrektur ergänzt.
+
 ## v0.7.156 – NVM-Freigabe nach SSP3-AFE-Wiederanlauf
 
 - Ein geprüfter SSP3-Abgleich mit vorgemerkter Analogskalierung kann nach einem AFE-Wiederanlauf gespeichert werden, wenn die aktiven Messregister mit dem geplanten NVM-Abbild übereinstimmen.

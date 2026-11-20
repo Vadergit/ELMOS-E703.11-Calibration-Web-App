@@ -235,13 +235,15 @@ const ELMOS_CAL = (() => {
   if(selection<2)return actual===((stored&~3)|1);
   return selection===3&&(stored&3)>=1&&(stored&3)<=2&&actual===stored;
  }
- function protectStartupCommunication(before,after,{allowSvdd=false,allowAlarmMask=false,interfaceMode='plc'}={}){
+ function validPressureActivation(before,after){return (before&3)===0&&(after&3)===2;}
+ function protectStartupCommunication(before,after,{allowSvdd=false,allowAlarmMask=false,allowPressureCorrection=false,interfaceMode='plc'}={}){
   if(!Array.isArray(before)||!Array.isArray(after)||before.length!==64||after.length!==64||
    [...before,...after].some(v=>!Number.isInteger(v)||v<0||v>65535))
    throw Error('1-Wire-Startschutz: Ungültiges 64-Wort-NVM-Abbild');
   for(let i=0;i<28;i++){
    if(i===16){
-    const allowed=((7<<9)|(1<<6)|(1<<7))|(allowAlarmMask?((1<<5)|(1<<8)):0);
+    const pressureMask=allowPressureCorrection&&validPressureActivation(before[i],after[i])?3:0;
+     const allowed=((7<<9)|(1<<6)|(1<<7))|(allowAlarmMask?((1<<5)|(1<<8)):0)|pressureMask;
     if(((before[i]^after[i])&~allowed)!==0)throw Error('1-Wire-Startschutz: Nicht erlaubte CFG_EN-Bits verändert');
    }else if(i===18&&allowAlarmMask&&before[i]!==after[i]){
     if(((before[i]^after[i])&0xF000)!==0)
@@ -401,22 +403,24 @@ const ELMOS_CAL = (() => {
    * the original AODO mode, and a user-approved output plan.
    * This helper is pure: it cannot grant a hardware writing permission.
    */
-  function validateRecoveryCalibrationDiff(before,after,{allowAnalogScaling=false}={}){
+  function validateRecoveryCalibrationDiff(before,after,{allowAnalogScaling=false,allowPressureCorrection=false}={}){
    if(!Array.isArray(before)||!Array.isArray(after)||before.length!==64||after.length!==64||
       [...before,...after].some(w=>!Number.isInteger(w)||w<0||w>0xFFFF))
     throw Error('Recovery-NVM: ungültiges 64-Wort-Abbild');
    const calibrationWords=new Set([SVDD_INDEX,28,30,31,32,33,34,...Array.from({length:16},(_,i)=>35+i),51,52,53,54,63]);
    const outputWords=new Set([16,57,58,59,60]);
    const changed=after.map((word,index)=>word===before[index]?null:index).filter(index=>index!==null);
-   const outputChanged=changed.some(index=>outputWords.has(index));
+   const pressureMask=allowPressureCorrection&&validPressureActivation(before[16],after[16])?3:0;
+    if(pressureMask)calibrationWords.add(16);
+    const outputChanged=changed.some(index=>outputWords.has(index)&&(index!==16||!!((before[16]^after[16])&~pressureMask)));
    if(outputChanged&&!allowAnalogScaling)
     throw Error('Nach PSSC-RAM-Freigabe ist AODO nur mit NVM-Freigabe und ausdrücklich vorgemerkter Ausgangsskalierung erlaubt.');
    if(changed.some(index=>!calibrationWords.has(index)&&!(allowAnalogScaling&&outputWords.has(index))))
     throw Error('Nach PSSC-RAM-Freigabe sind nur Kalibrierdaten sowie ausdrücklich freigegebene AODO-Skalierung/Clipping erlaubt.');
-   if(allowAnalogScaling&&
-      (before[22]!==after[22]||((before[16]^after[16])&~((1<<6)|(1<<7)))!==0))
-    throw Error('Recovery-NVM: AODO-Modus und CFG_AODO müssen unverändert bleiben. Nur scale_en/limit_en dürfen in CFG_EN wechseln.');
-   protectStartupCommunication(before,after,{allowSvdd:true});
+   if((allowAnalogScaling||pressureMask)&&
+       (before[22]!==after[22]||((before[16]^after[16])&~((allowAnalogScaling?((1<<6)|(1<<7)):0)|pressureMask))!==0))
+    throw Error('Recovery-NVM: AODO-Modus und CFG_AODO müssen unverändert bleiben. Nur freigegebene scale_en/limit_en und s_cor_en dürfen in CFG_EN wechseln.');
+   protectStartupCommunication(before,after,{allowSvdd:true,allowPressureCorrection});
    return {outputChanged,changes:changed.length};
   }
   function configFrom(original,solution,afeWord,opts={}){
@@ -430,7 +434,12 @@ const ELMOS_CAL = (() => {
    if(![0,1,2].includes(opts.bridgeSupply))throw Error('Ungültige SVDD-Einstellung');
    cfg[SVDD_INDEX]=(cfg[SVDD_INDEX]&~SVDD_MASK)|opts.bridgeSupply;
   }
-  // Preserve factory and communication settings outside validated fields.
+  // Targeted opt-in after verified live SSP3 pressure calibration.
+   if(opts.activatePressureCorrection===true){
+    if((original[16]&3)!==0)throw Error('DSP-Druckkorrektur: nur Übergang 00 -> 10 zulässig');
+    cfg[16]=(cfg[16]&~3)|2;
+   }
+   // Preserve factory and communication settings outside validated fields.
   cfg[28]=(cfg[28]&~0x17FF)|(afeWord&0x17FF); // gain/offset and documented s_pga1_inv; preserve bits 11,13–15
   cfg[33]=r.so;cfg[34]=r.sf;for(let i=0;i<16;i++)cfg[35+i]=r.coeffs[i];
   if(r.tcoeffs){cfg[31]=r.to;cfg[32]=r.tf;for(let i=0;i<4;i++)cfg[51+i]=r.tcoeffs[i]}
@@ -440,9 +449,9 @@ const ELMOS_CAL = (() => {
   }
   cfg[63]=crc16(cfg);
   for(let i=0;i<=27;i++)if(cfg[i]!==original[i]&&![16,22,SVDD_INDEX].includes(i))throw Error('Sicherheitsfehler: schreibgeschützter NVM-Bereich verändert');
-  if(cfg[16]!==original[16]&&(((cfg[16]^original[16])&~((7<<9)|(1<<6)|(1<<7)))!==0))throw Error('CFG_EN: fremde Bits dürfen nicht verändert werden');
+  if(cfg[16]!==original[16]&&(((cfg[16]^original[16])&~((7<<9)|(1<<6)|(1<<7)|(opts.activatePressureCorrection===true?3:0)))!==0))throw Error('CFG_EN: fremde Bits dürfen nicht verändert werden');
   if(cfg.slice(0,16).some((v,i)=>v!==original[i]))throw Error('Werkskalibrierung verändert');
-  protectStartupCommunication(original,cfg,{allowSvdd:opts.bridgeSupply!==undefined,interfaceMode:opts.interfaceMode});
+  protectStartupCommunication(original,cfg,{allowSvdd:opts.bridgeSupply!==undefined,allowPressureCorrection:opts.activatePressureCorrection===true,interfaceMode:opts.interfaceMode});
   return {before:original.slice(),after:cfg,changes:cfg.map((v,i)=>v!==original[i]?{index:i,address:i*2,from:original[i],to:v}:null).filter(Boolean)};
  }
  // A temperature-compensated verification may repeat a reference pressure at a
