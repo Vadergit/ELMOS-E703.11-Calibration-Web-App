@@ -11,148 +11,89 @@
 </style>
 </head>
 <body><main>
-<p><a href="../index.html">← Zurück zum Kalibrierassistenten</a> · <a href="https://github.com/Vadergit/ELMOS-E703.11-Calibration-Web-App">Repository</a></p>
-<header>
-<div class="eyebrow">Technische Grundlagen · ELMOS E703.11 · 19.11.2026</div>
-<h1>DSP-Skalierung und Sicherheitsreserven</h1>
-<p>Herleitung eines einheitlichen DSP-Zielbereichs für Drucksensoren mit analogem, PWM-, FM- oder digitalem Ausgang. Berechnungsgrundlage für die Wahl von ±25’000 Digits und für die Beurteilung der Temperaturkompensation keramischer Dickschichtmesszellen.</p>
-<div class="metrics"><div class="metric"><small>Vorgeschlagener DSP-Endwert</small><b>±25’000</b>50’000 Digits Messspanne</div><div class="metric"><small>Theoretische Schrittweite</small><b>0,002 % FS</b>15,61 Bit Codeumfang</div><div class="metric"><small>Reserve pro Seite</small><b>15,53 % FS</b>bis DSP-Sättigung</div><div class="metric"><small>Zusätzlich zu ±12,5 % FS</small><b>3,03 % FS</b>am korrigierten DSP-Ausgang</div></div>
-<p class="note"><strong>Status: Auslegungsvorschlag, keine Hardwarefreigabe.</strong> Der aktuelle Kalibrierassistent verwendet noch ±32’000 als Standard und erlaubt manuell kleinere Werte. Diese Seite ändert keine Kalibrierung, keine Register und keine NVM-Schutzlogik. ±25’000 ist ein begründeter Kandidat, aber kein universell nachgewiesenes Optimum.</p>
-</header>
-<nav aria-label="Inhaltsverzeichnis"><strong>Inhalt</strong><ol>
-<li><a href="#grundlagen">Bezugsgrössen und Elmos-Standard</a></li><li><a href="#reserve">10–90 % und Reserveberechnung</a></li><li><a href="#signalkette">Signalkette und Temperaturkorrektur</a></li><li><a href="#metallux">Metallux-Worst-Case</a></li><li><a href="#koeffizienten">Machbarkeit der Koeffizienten</a></li><li><a href="#aufloesung">Auflösung und Filter</a></li><li><a href="#schnittstellen">Schnittstellen und unbekannte Sensoren</a></li><li><a href="#strategie">Auswahlstrategie und Validierung</a></li><li><a href="#quellen">Quellen</a></li></ol></nav>
+<p><a href="../index.html">← Zum Kalibrierassistenten</a></p>
+<header><div class="eyebrow">Technische Grundlagen · DSP</div>
+<h1>DSP-Skalierung und Signalreserve</h1>
+<p>Der DSP-Endwert bestimmt, auf welchen digitalen Wertebereich der nominale Druckmessbereich abgebildet wird. Ein grösserer Endwert verbessert die digitale Schrittweite, ein kleinerer Endwert schafft mehr Reserve für Unter- und Übersteuerung.</p>
+<div class="metrics"><div class="metric"><small>Auslegungsvorschlag</small><b>±25’000</b>50’000 Digits Spanne</div><div class="metric"><small>Digitale Schrittweite</small><b>0,002 % FS</b>pro Digit</div><div class="metric"><small>Reserve je Seite</small><b>15,53 % FS</b>bis zur 16-Bit-Grenze</div><div class="metric"><small>Davon zusätzlich</small><b>3,03 % FS</b>nach 12,5 % FS Übersteuerung</div></div>
+<small>FS = Full Scale: nominaler Druck- beziehungsweise Brückensignalhub. ±25’000 ist ein Auslegungsvorschlag; der aktuelle Standardwert der Anwendung bleibt ±32’000.</small></header>
+<nav aria-label="Inhalt"><ol><li><a href="#skalierung">Digitale Skalierung</a></li><li><a href="#reserve">10–90 % und Reserve</a></li><li><a href="#aufloesung">Auflösung und Rundung</a></li><li><a href="#temperatur">Temperaturkompensation</a></li><li><a href="#beispiel">Worst Case: Metallux ME910</a></li></ol></nav>
+<section id="skalierung"><h2>1. Digitale Skalierung</h2>
+<p>Ein vorzeichenbehaftetes 16-Bit-Signal reicht von −32’768 bis +32’767 Digits. Der gewählte Endwert L definiert die beiden nominalen Druckendpunkte.</p>
+<div class="formula">DSP_S = L × (2p − 1)
+p = (DSP_S + L) / (2L)</div>
+<p>p ist der Druckanteil zwischen 0 und 1. Beispiel mit 0–10 bar und einem ratiometrischen 0,5–4,5-V-Ausgang bei 5 V:</p>
+<div class="tablewrap"><table><thead><tr><th>Druck</th><th>±32’000</th><th>±25’000</th><th>Analog</th></tr></thead><tbody>
+<tr><td>0 bar · 0 % FS</td><td>−32’000</td><td>−25’000</td><td>0,5 V</td></tr>
+<tr><td>5 bar · 50 % FS</td><td>0</td><td>0</td><td>2,5 V</td></tr>
+<tr><td>10 bar · 100 % FS</td><td>+32’000</td><td>+25’000</td><td>4,5 V</td></tr></tbody></table></div>
+<p>Die digitale Druckkennlinie kann für I²C, SPI und One-Wire einheitlich definiert werden. Analog-, PWM- und FM-Ausgänge besitzen zusätzlich ihre eigene Ausgangskennlinie. Bei einem bereits abgeglichenen Sensor muss der tatsächlich verwendete DSP-Endwert bekannt sein; aus der Bitbreite allein lässt er sich nicht bestimmen.</p></section>
+<section id="reserve"><h2>2. 10–90 % und zusätzliche Reserve</h2>
+<p>Eine 10–90-%-Kennlinie nutzt 80 % des elektrischen Ausgangsbereichs. Je 10 % bleiben unten und oben frei. Bezogen auf die nominale Messspanne sind dies 10/80 = <strong>12,5 % FS je Seite</strong>.</p>
+<div class="formula">Digitales Äquivalent zu 10–90 %:
+L ≈ 0,8 × 32’768 ≈ 26’214 Digits</div>
+<p>Bei diesem Endwert erreichen der digitale und der ideal extrapolierte elektrische Ausgang praktisch gleichzeitig ihre Grenzen. Ein Endwert von 25’000 schafft zusätzlichen Spielraum.</p>
+<div role="img" aria-label="50’000 nominale Digits, je 6’250 Digits Übersteuerung und rund 1’518 zusätzliche Digits" class="bar"><span class="extra" style="width:2.316%">R</span><span class="over" style="width:9.537%">12,5 %</span><span class="nominal" style="width:76.294%">−25’000 bis +25’000</span><span class="over" style="width:9.537%">12,5 %</span><span class="extra" style="width:2.316%">R</span></div>
+<div class="legend"><span>Blau: Messbereich</span><span>Gelb: Übersteuerung</span><span>Hellblau: Zusatzreserve</span></div>
+<div class="formula">Gesamtreserve = (32’767 − L) / (2L)
+Bei L = 25’000: 7’767 / 50’000 = 15,534 % FS
+Zusatzreserve = (32’767 − 1,25L) / (2L)
+              = 1’517 / 50’000 = 3,034 % FS</div>
+<div class="tablewrap"><table><thead><tr><th>DSP-Endwert</th><th>Reserve je Seite</th><th>Nach 12,5 % FS</th></tr></thead><tbody>
+<tr><td>±20’000</td><td>31,92 % FS</td><td>19,42 % FS</td></tr>
+<tr><td><strong>±25’000</strong></td><td><strong>15,53 % FS</strong></td><td><strong>3,03 % FS</strong></td></tr>
+<tr><td>±26’214</td><td>12,50 % FS</td><td>ca. 0 % FS</td></tr>
+<tr><td>±27’000</td><td>10,68 % FS</td><td>−1,82 % FS</td></tr>
+<tr><td>±30’000</td><td>4,61 % FS</td><td>−7,89 % FS</td></tr>
+<tr><td>±32’000</td><td>1,20 % FS</td><td>−11,30 % FS</td></tr></tbody></table></div>
+<p>Werden 12,5 % FS Übersteuerung und zusätzlich 3 % FS Ausgangsreserve gefordert, folgt rechnerisch:</p>
+<div class="formula">Lmax = 32’767 / [1 + 2 × (0,125 + 0,03)]
+     ≈ 25’012 → abgerundet 25’000 Digits</div>
+<p>Die zusätzlichen 3 % sind ein gewähltes Auslegungsziel, keine bestätigte Grenze für den TK0 einer Rohbrücke. Negative Restreserve in der Tabelle bedeutet, dass der DSP vor der idealen Ausgangskennlinie begrenzt. Elektrische Ausgangsgrenzen und mechanisch zulässiger Druck sind unabhängig davon.</p></section>
+<section id="aufloesung"><h2>3. Auflösung und Rundung</h2>
+<div class="formula">Auflösung = 100 / (2L) % FS
+Idealer Quantisierungsfehler = ±0,5 Digit</div>
+<div class="tablewrap"><table><thead><tr><th>DSP-Endwert</th><th>Schrittweite</th><th>Idealer Rundungsfehler</th></tr></thead><tbody>
+<tr><td>±8’192</td><td>0,006104 % FS</td><td>±0,003052 % FS</td></tr>
+<tr><td>±16’384</td><td>0,003052 % FS</td><td>±0,001526 % FS</td></tr>
+<tr><td>±25’000</td><td>0,002000 % FS</td><td>±0,001000 % FS</td></tr>
+<tr><td>±32’000</td><td>0,001563 % FS</td><td>±0,000781 % FS</td></tr></tbody></table></div>
+<p>50’000 Digits entsprechen rechnerisch 15,61 Bit Codeumfang. Die tatsächliche Messauflösung hängt auch vom ADC, Signalhub, Filter und Rauschen ab. Ein Filter mit 14 Bit effektiver Auflösung (ENOB) begrenzt das digitale Ausgangsregister nicht auf 14 Bit.</p>
+<p>Weitere Fehler können durch quantisierte Koeffizienten und interne Rechenschritte entstehen. Beispielsweise entsprechen fünf Fehler-Digits bei ±25’000 einem Fehler von 0,01 % FS. Das ist ein Rechenbeispiel, kein gemessener Fehlerwert. Ob eine kleinere Skalierung praktisch gleich genau ist, muss anhand der konkreten Sensordaten beurteilt werden.</p></section>
+<section id="temperatur"><h2>4. Temperaturkompensation und Rohsignalreserve</h2>
+<div class="flow" aria-label="Signalfluss"><span>Sensorbrücke</span> → <span>AFE / ADC</span> → <span>Normalisierung</span> → <span>Temperaturkorrektur</span> → <span>DSP_S</span></div>
+<p>TK0 verschiebt den Nullpunkt, TKS (auch TKE) verändert die Spanne. Nichtlinearität verändert die Kennlinienform. Diese Abweichungen wirken bereits auf das Rohsignal, bevor der korrigierte DSP-Ausgang entsteht.</p>
+<div class="tablewrap"><table><thead><tr><th>Einfluss</th><th>Bezugsgrösse</th></tr></thead><tbody>
+<tr><td>TK0</td><td>Nullpunktverschiebung in % FS/K</td></tr><tr><td>TKS / TKE</td><td>Relative Spannenänderung in %/K</td></tr><tr><td>Nichtlinearität, Hysterese, Montageversatz</td><td>Abweichung in % des nominalen Signalhubs</td></tr></tbody></table></div>
+<p>Bei funktionierender Kompensation bleibt der DSP-Endwert unabhängig vom Roh-TK0 am nominalen Druckendpunkt gleich. Deshalb sind die 3,03 % FS zusätzliche Ausgangsreserve nicht die maximal zulässige Rohbrückendrift. AFE, ADC, Normalisierung und Korrekturkoeffizienten benötigen jeweils eigenen Spielraum. Ein bereits begrenztes Rohsignal kann nachträglich nicht vollständig korrigiert werden.</p></section>
+<section id="beispiel"><h2>5. Worst Case: Metallux ME910</h2>
+<p>Beispiel einer unkompensierten keramischen 10-bar-Dickschichtmesszelle. Öffentlich verfügbare Herstellerwerte, [1]:</p>
+<div class="tablewrap"><table><thead><tr><th>Eigenschaft</th><th>Wert</th></tr></thead><tbody>
+<tr><td>TK0 typisch / maximal</td><td>±0,04 / ±0,10 % FS/K</td></tr><tr><td>TKS</td><td>−0,03 bis 0 %/K</td></tr><tr><td>Genauigkeitskennwert maximal¹</td><td>0,5 % FS</td></tr></tbody></table></div>
+<p><small>¹ Quadratische Kombination aus Nichtlinearität, Hysterese und Nichtwiederholbarkeit. Für das folgende vereinfachte Modell wird dieser Wert als zusätzlicher Fehlerzuschlag angenommen; er ist keine garantierte Summe aller Einzelabweichungen.</small></p>
+<h3>Temperaturabhängige Abweichungen</h3>
+<p>Mit den Beträgen der obigen Koeffizienten ergibt sich konservativ bei 100 % Druck:</p>
+<div class="tablewrap"><table><thead><tr><th>Temperaturdifferenz</th><th>TK0</th><th>TKS</th><th>Zuschlag</th><th>Summe</th></tr></thead><tbody>
+<tr><td>50 K</td><td>5 % FS</td><td>1,5 %</td><td>0,5 % FS</td><td>7 % FS</td></tr>
+<tr><td>100 K</td><td>10 % FS</td><td>3 %</td><td>0,5 % FS</td><td>13,5 % FS</td></tr></tbody></table></div>
+<p>Für eine Brückenspanne von 2 mV/V entsprechen 13,5 % FS einer Abweichung von 0,27 mV/V. Das Beispiel ist unabhängig vom gewählten absoluten Temperaturniveau.</p>
+<h3>Abbildung des Rohsignals</h3>
+<p>Wird das unkompensierte Eingangssignal bei der Referenztemperatur beispielhaft auf ±25’000 Digits zentriert (H = 25’000, unabhängig vom DSP-Endwert L), ergibt sich bei 100 K:</p>
+<div class="formula">Rohsignal = H × [2 × (a + (1+b)p + e) − 1]
+a = TK0-Drift als FS-Anteil; b = relative Spannenänderung
+e = zusätzlicher Fehler als FS-Anteil
 
-<section id="grundlagen"><h2>1. Bezugsgrössen und Elmos-Standard</h2>
-<p><strong>FS</strong> (Full Scale) bezeichnet auf dieser Seite immer die nominale Spanne zwischen unterem und oberem Druckmesspunkt, nicht den maximalen Registerwert. Bei einem Sensor 0–10 bar entspricht 1 % FS einer Druckänderung von 0,1 bar. Bei einer Brückenspanne von 2 mV/V entspricht 1 % FS einer Änderung von 0,02 mV/V.</p>
-<p>Der korrigierte Sensorwert DSP_S ist ein vorzeichenbehafteter 16-Bit-Wert im Zweierkomplement. Die Grenzen sind −32’768 und +32’767. Der DSP selbst rechnet laut Elmos mit 22 Bit und verwendet 16-Bit-Koeffizienten. Die Breite einzelner Signalregister ist nicht gleich der effektiven Messauflösung. [1]</p>
-<p>Die im Projekt nach AN0203 §2.2 implementierte Beispielkennlinie lautet DSP_S = 640 × P[%] − 32’000. Bei symmetrischer Skalierung mit dem frei gewählten Endwert L ergeben sich allgemein:</p>
-<div class="formula">p = (P − Pmin) / (Pmax − Pmin)
-DSP_S = L × (2p − 1)
-P[% FS] = 100 × (DSP_S + L) / (2L)
-Spanne N = 2L</div>
-<div class="tablewrap"><table><thead><tr><th>Druck</th><th>Elmos-Beispiel L = 32’000</th><th>Vorschlag L = 25’000</th><th>Analog 5 V, nominal</th></tr></thead><tbody><tr><td>0 % FS</td><td>−32’000</td><td>−25’000</td><td>0,5 V</td></tr><tr><td>25 % FS</td><td>−16’000</td><td>−12’500</td><td>1,5 V</td></tr><tr><td>50 % FS</td><td>0</td><td>0</td><td>2,5 V</td></tr><tr><td>75 % FS</td><td>+16’000</td><td>+12’500</td><td>3,5 V</td></tr><tr><td>100 % FS</td><td>+32’000</td><td>+25’000</td><td>4,5 V</td></tr></tbody></table></div>
-<p>Elmos trennt DSP-Kalibrierung und AODO-Ausgangsskalierung. Weshalb die Beispielkennlinie den Wert 32’000 verwendet, ist in den hier verwendeten Unterlagen nicht als Optimierungsentscheidung begründet. Ein Herstellerstandard von ±25’000 ist nicht belegt.</p>
+Nominal: 25’000 × (1 + 2 × 0,135) = 31’750 Digits
+Restreserve: 32’767 − 31’750 = 1’017 Digits
+            = 2,034 % der nominalen Rohsignalspanne
+
+Mit +12,5 % FS Übersteuerung (p = 1,125):
+25’000 × [2 × (0,10 + 1,03 × 1,125 + 0,005) − 1]
+= 38’187,5 Digits → ausserhalb des 16-Bit-Bereichs</div>
+<p>Das konservative nominale Rohsignalmodell passt innerhalb von 16 Bit. Die volle zusätzliche Übersteuerung dagegen nicht. Mit sinkender Empfindlichkeit bei steigender Temperatur kann die tatsächliche Hüllkurve günstiger ausfallen. Weitere Montage- oder Alterungsfehler sind nicht enthalten.</p>
+<p>Eine Reduktion der Eingangsnormalisierung schafft Reserve, kann aber höhere Korrekturverstärkung erfordern. Im einfachen linearen Modell gilt K = L / [H × (1+b)]. Beispielsweise verlangt H = 26’500, L = 25’000 und b = −0,03 eine Verstärkung von rund 0,973. Ob die gesamte Korrektur mit den verfügbaren Koeffizienten und Zwischenwerten darstellbar ist, hängt vom konkreten Sensor ab.</p>
+<p><strong>Ergebnis:</strong> ±25’000 Digits sind als Ausgangsskalierung ein begründeter Kompromiss zwischen Auflösung und Reserve. Der nominale Metallux-Fall ist im vereinfachten Modell plausibel; ein universeller Nachweis für alle Sensoren und Temperaturen folgt daraus nicht.</p>
+<p class="muted">[1] Metallux: <a href="https://www.metallux.ch/pdf/products/Catalog%20-%20Pressure%20Sensor%20-%20ME910.pdf" target="_blank" rel="noopener noreferrer">Öffentliches ME910-Datenblatt, Rev. B (2022), Seite 2</a>. Alle übrigen Formeln und Reservewerte sind eigene mathematische Herleitungen beziehungsweise ausdrücklich gekennzeichnete Auslegungsannahmen.</p>
 </section>
-
-<section id="reserve"><h2>2. Warum ±25’000? 10–90 % und zusätzliche Reserve</h2>
-<p>Eine 10–90-%-Kennlinie verwendet nominal 80 % des elektrischen Wertebereichs. Die verbleibenden 10 % je Seite entsprechen deshalb 10/80 = <strong>12,5 % des nominalen Druckmessbereichs</strong>, nicht 10 % FS. TE Connectivity verwendet bei seiner SM9000-Serie beispielsweise −26’215 bis +26’214 Counts im nominalen Bereich. Das ist eine industrielle Referenz, aber kein Beleg dafür, dass dort der E703.11 eingesetzt wird. [3]</p>
-<div class="formula">D = 32’767 (konservative symmetrische Grenze)
-Rgesamt = (D − L) / (2L)
-L10–90 ≈ 0,8 × 32’768 ≈ 26’214
-DSP-Aussteuerung für p = −0,125 bzw. 1,125: ±1,25L
-Rzusätzlich = (D − 1,25L) / (2L)</div>
-<p>Für L = 25’000 gilt: ±31’250 Digits entsprechen rechnerisch 0 bzw. 100 % einer idealen 10–90-%-Ausgangskennlinie. Bis +32’767 verbleiben 1’517 Digits, auf der negativen Seite 1’518.</p>
-<div role="img" aria-label="16-Bit-Bereich mit 50’000 nominalen Digits, 6’250 Digits Übersteuerungsbereich und rund 1’518 zusätzlichen Digits je Seite" class="bar"><span class="extra" style="width:2.316%">R</span><span class="over" style="width:9.537%">12,5 %</span><span class="nominal" style="width:76.294%">−25’000 bis +25’000</span><span class="over" style="width:9.537%">12,5 %</span><span class="extra" style="width:2.316%">R</span></div>
-<div class="legend"><span>Blau: nominal 50’000 Digits</span><span>Gelb: 6’250 je Seite</span><span>Hellblau: zusätzliche 1’517/1’518</span></div>
-<div class="tablewrap"><table><thead><tr><th>Endwert L</th><th>Schrittweite % FS</th><th>Reserve je Seite % FS</th><th>Nach ±12,5 % FS</th></tr></thead><tbody>
-<tr><td>8’192</td><td>0,006104</td><td>149,994 %</td><td>137,494 %</td></tr>
-<tr><td>16’384</td><td>0,003052</td><td>49,997 %</td><td>37,497 %</td></tr>
-<tr><td>20’000</td><td>0,002500</td><td>31,918 %</td><td>19,418 %</td></tr>
-<tr><td><strong>25’000</strong></td><td>0,002000</td><td>15,534 %</td><td>3,034 %</td></tr>
-<tr><td>26’214</td><td>0,001907</td><td>12,499 %</td><td>ca. 0 %¹</td></tr>
-<tr><td>27’000</td><td>0,001852</td><td>10,680 %</td><td>−1,820 %</td></tr>
-<tr><td>30’000</td><td>0,001667</td><td>4,612 %</td><td>−7,888 %</td></tr>
-<tr><td>32’000</td><td>0,001563</td><td>1,198 %</td><td>−11,302 %</td></tr>
-</tbody></table></div>
-<p class="muted">¹ Die asymmetrischen positiven/negativen Integergrenzen und die Quantisierung ergeben bei 26’214 eine Abweichung von höchstens wenigen Codes. Negative Restreserve bedeutet, dass der DSP vor dem theoretischen 0–100-%-Ausgangsanschlag begrenzt.</p>
-<p>Wenn zusätzlich zur Übersteuerung ein frei gewähltes Ausgangsfehlerbudget r von 3 % FS je Seite gefordert wird, ergibt sich:</p>
-<div class="formula">Lmax = floor(D / (1 + 2 × (0,125 + r)))
-     = floor(32’767 / 1,31) = 25’012
-Vorschlag auf 100 Digits abgerundet: L = 25’000</div>
-<p>Damit ist 25’000 aus einer klaren Designforderung ableitbar. Die 3 % sind jedoch ein vorgeschlagener <em>Ausgangs</em>-Sicherheitszuschlag und nicht aus dem TK0 einer Rohbrücke bewiesen. Eine kleinere Reserve oder eine andere geforderte Übersteuerung ergibt entsprechend einen anderen Endwert.</p>
-<p class="note">Die 0–5 V sind nur die rechnerische Extrapolation bei 5 V VDD. Der Elmos-DAC hat einen spezifizierten linearen Bereich von 10–90 % VDD; reale Rail-Grenzen, Ausgangslimits und mechanische Druckgrenzen sind gesondert zu prüfen. Die Übersteuerungsreserve garantiert keine Genauigkeit ausserhalb des Messbereichs.</p>
-</section>
-
-<section id="signalkette"><h2>3. Wo wird TK0 kompensiert?</h2>
-<div class="flow" aria-label="Signalfluss"><span>Wheatstone-Brücke</span> → <span>AFE: Gain / Offset</span> → <span>ADC_S</span> → <span>Normalisierung S</span> → <span>DSP-Polynom + Temperatur T</span> → <span>DSP_S</span> → <span>optional AODO-Skalierung / Limits</span></div>
-<p>Der TK0 ist vor dem Abgleich eine Änderung des Nullpunkts der Rohbrücke, TKS/TKE eine Änderung ihrer Empfindlichkeit. Beide wirken bereits auf das analoge Eingangssignal. Erst der DSP korrigiert sie. Ein vorher begrenzter ADC oder ein begrenzter Normalisierungswert kann anschliessend nicht durch Temperaturkompensation gerettet werden.</p>
-<div class="formula">S = S_F × ADC_S / 32768 + S_O
-T = T_F × ADC_T' / 32768 + T_O
-DSP_S / 32768 = K0(T) + K1(T)S + K2(T)S² + K3(T)S³
-K_i(T) = Summe über j = 0..3: S_(4i+j) × T^j</div>
-<p>S_F, S_O, T_F und T_O: Q3.12 (auf −8 bis knapp +8 begrenzt). S0…S15: Q0.15 (−1 bis knapp +1). S und T sind laut Datenblatt normalisierte Q0.15-Signale. Der Temperatur-ADC wird intern geglättet. Die hier verwendeten Formeln sind in reellen Zahlen dargestellt; sie bilden die chipinterne Rundung und alle 22-Bit-Zwischenstufen nicht bitgenau nach. [1]</p>
-<div class="tablewrap"><table><thead><tr><th>Reserve</th><th>Was benötigt den Spielraum?</th><th>Wie prüfen?</th></tr></thead><tbody><tr><td>Brücke / AFE / ADC_S</td><td>Roh-TK0, TKS, Offset, Einspannversatz, Überdruck, Rauschen; zusätzlich analoge PGA-Grenzen</td><td>Extrema über Druck und Temperatur, realer ADC-Hub, AFE-Arbeitspunkte, Diagnose</td></tr><tr><td>Normalisierung S und T</td><td>Rohsignal, Extrapolation ausserhalb der Kalibriermesspunkte, Q3.12-Quantisierung</td><td>Alle relevanten Druck-/Temperaturkombinationen auf darstellbare Werte prüfen</td></tr><tr><td>DSP-Polynom</td><td>Koeffizienten, Temperaturterme, interne Zwischenwerte und Rundung</td><td>Quantisierte Koeffizienten, Modellfehler, Chipstatus dsp_sat</td></tr><tr><td>DSP_S</td><td>Korrigierter Druck inklusive verbleibender Fehler und Übersteuerung</td><td>−32’768…+32’767; nominal ±L</td></tr><tr><td>DSP_AODO / physischer Ausgang</td><td>Nachskalierung, Begrenzung, Fehlerwerte, DAC/PWM/FM</td><td>Register, Ausgangskennlinie und reale Messung</td></tr></tbody></table></div>
-<p>Beispiel: Eine Rohbrücke driftet bei konstant 0 bar um +10 % FS. Bei funktionierender TK0-Kompensation bleibt der korrigierte DSP_S bei −25’000. Die 10 % werden nicht automatisch von der Ausgangsreserve abgezogen. Sie beanspruchen vielmehr den Rohsignalbereich und die Koeffizienten. Die zusätzliche DSP_S-Reserve von 3,034 % FS ist für verbleibende Ausgangsabweichungen verfügbar, nicht als Obergrenze des Roh-TK0 zu verstehen.</p>
-</section>
-
-<section id="metallux"><h2>4. Worst Case mit Metallux ME910 (10 bar)</h2>
-<p>Die ME910 ist eine keramische piezoresistive Dickschichtmesszelle. Als Entwicklungsreferenz übernehmen wir die Daten der 10-bar-Variante aus Rev. B (2022), Seite 2. [2]</p>
-<div class="tablewrap"><table><thead><tr><th>Eigenschaft</th><th>Hersteller bzw. Auslegungsannahme</th></tr></thead><tbody><tr><td>Nominaler Druckbereich</td><td>0–10 bar</td></tr><tr><td>Empfindlichkeit</td><td>1,5–3 mV/V</td></tr><tr><td>TK0</td><td>typisch ±0,04; maximal ±0,10 % FS/K</td></tr><tr><td>TKS/TKE</td><td>−0,030 bis 0 % FS/K, typisch −0,016</td></tr><tr><td>Accuracy</td><td>typisch 0,25 %, maximal 0,50 % FS (quadratische Kombination von Nichtlinearität, Hysterese und Nichtwiederholbarkeit)</td></tr><tr><td>Temperaturbereich</td><td>−40…+125 °C, abhängig von Anschlussvariante</td></tr></tbody></table></div>
-<p>Für die allgemeine Projekt-Auslegung vereinfachen wir den TKS konservativ auf ±0,03 %/K, TK0 auf ±0,1 % FS/K und verwenden 0,5 % FS als zusätzlichen Szenariozuschlag e. Die Hersteller-Accuracy ist ein RSS-Wert, kein Nachweis für eine absolute Worst-Case-Summe der drei Einzelabweichungen: Für einen garantierten Grenzfall sind deren Einzelgrenzen nötig. Einspannversatz, Alterung, Rauschen, Referenzunsicherheit und Fehler ausserhalb des Nennbereichs sind nicht in diesem Szenario enthalten.</p>
-<h3>4.1 Allgemeines Rohsignalmodell</h3>
-<div class="formula">a = TK0 × ΔT / 100      (TK0 in % FS/K)
-b = TKS × ΔT / 100      (TKS in %/K)
-q = a + (1 + b) × p + e
-Rohwert C = H × (2q − 1)</div>
-<p>p ist der wahre Druckanteil (0…1 im nominalen Bereich), q der Rohsignalanteil bezogen auf die Brückenspanne bei Referenztemperatur. H ist der halbe nominale Rohsignalhub nach Zentrierung, <strong>nicht automatisch der DSP-Endwert L</strong>. e fasst für die Beispielrechnung zusätzliche Fehler als Anteil von FS zusammen. Der Vergleich setzt einen linearen Temperaturgang und konstante Referenzverstärkung voraus.</p>
-<div class="tablewrap"><table><thead><tr><th>|ΔT|</th><th>max. TK0</th><th>max. TKS</th><th>Fehlerzuschlag</th><th>konservativ bei 100 % Druck</th></tr></thead><tbody><tr><td>50 K</td><td>5 % FS</td><td>1,5 %</td><td>0,5 % FS</td><td>7 % FS</td></tr><tr><td>65 K</td><td>6,5 % FS</td><td>1,95 %</td><td>0,5 % FS</td><td>8,95 % FS</td></tr><tr><td>100 K</td><td>10 % FS</td><td>3 %</td><td>0,5 % FS</td><td>13,5 % FS</td></tr></tbody></table></div>
-<p>Beispiel mit einer ME910-Brückenspanne von 2 mV/V und ΔT = 100 K: TK0 ±0,20 mV/V, TKS ±0,06 mV/V, Fehlerzuschlag ±0,01 mV/V. Zusammen konservativ ±0,27 mV/V bei 100 % Druck. Bei SVDD = 2,4 V sind das ±0,648 mV Brückendifferenzspannung vor dem AFE.</p>
-<h3>4.2 Konservativer Vergleich in Digits bei H = 25’000</h3>
-<p>Für diesen Modellvergleich wird die Rohsignalhalbspanne bewusst auf denselben Zahlenwert wie L gesetzt. Das ist eine Rechenannahme, keine Eigenschaft des Elmos-Fitters.</p>
-<div class="formula">100 K: amax = 0,10; |b|max = 0,03; |e|max = 0,005
-Nur nominaler Druck: max. |C| = H × (1 + 2 × 0,135)
-                              = 31’750 Digits
-Reserve: 32’767 − 31’750 = 1’017 Digits = 2,034 % der Rohsignalspanne
-
-Mit p = 1,125 (analog vollständig extrapoliert):
-max. C = H × (1 + 2 × (0,125 + 0,10 + 1,125 × 0,03 + 0,005))
-       = 38’187,5 Digits → Sättigung</div>
-<p>Für das nominale Druckintervall reicht dieser Rohsignalbereich rechnerisch aus. Für zusätzliche ±12,5 % FS Übersteuerung reicht er nicht. Bei festgehaltener Zentrierung auf die Referenztemperatur darf H im nominalen Modell höchstens floor(32’767/1,27) = 25’800 betragen. Mit Übersteuerung sind es floor(32’767/1,5275) = 21’451. Das sind Grenzen des vereinfachten Rohsignalmodells, nicht automatisch zulässige DSP-Ausgangsendwerte.</p>
-<h3>4.3 Mit dem dokumentierten Vorzeichen des Metallux-TKS</h3>
-<p>Ausgehend von 25 °C nimmt die Empfindlichkeit bei Erwärmung gemäss Datenblatt ab und kann bei Abkühlung zunehmen. Unter demselben vereinfachten linearen Modell (mit ±0,5 % FS Fehlerzuschlag) ergibt sich eine weniger konservative Hüllkurve für nominalen Druck:</p>
-<div class="tablewrap"><table><thead><tr><th>Temperatur</th><th>TK0</th><th>Spannenänderung</th><th>max. |C| bei H = 25’000</th><th>Reserve</th></tr></thead><tbody><tr><td>−40 °C</td><td>±6,5 %</td><td>0…+1,95 %</td><td>29’475</td><td>3’292</td></tr><tr><td>25 °C</td><td>0 %</td><td>0 %</td><td>25’250</td><td>7’517</td></tr><tr><td>+125 °C</td><td>±10 %</td><td>−3…0 %</td><td>30’250</td><td>2’517</td></tr></tbody></table></div>
-<p>Der grösste Betrag bei +125 °C entsteht am unteren Druckende durch negativen TK0; die schrumpfende Spanne vergrössert den oberen Rohwert dort nicht. Die Rechnung ist ein Modell mit Datenblattgrenzen, keine gemessene Kennlinie. Bei 0–10 bar ist die mechanische Vakuumfähigkeit des ME910 laut Hersteller nur bis −1 bar angegeben. Eine rechnerische Untersteuerung von −1,25 bar ist daher ausdrücklich keine zulässige Prüfvorgabe für diese Zelle.</p>
-</section>
-
-<section id="koeffizienten"><h2>5. Kann der Elmos damit tatsächlich abgleichen?</h2>
-<p>Die Rohsignalrechnung allein genügt nicht. Das folgende analytische Beispiel prüft zusätzlich die Darstellung eines linearen Druckkoeffizienten. Sein Ergebnis ist bewusst auf das definierte Modell beschränkt.</p>
-<p>Für einen festen Temperaturzustand mit unkompensierter Kennlinie q = a + (1+b)p und einer festen Eingangsnormierung H gilt bei S = H(2q−1)/32768 die exakte lineare Umkehrung:</p>
-<div class="formula">DSP_S / 32768 = K1 × S + K0
-K1 = L / (H × (1+b))
-K0 = −(L / 32768) × (2a+b) / (1+b)</div>
-<p>Positive K1 darf im einfachen Modell ohne weitere Umparametrierung 32767/32768 nicht überschreiten, soweit sie als einzelner Q0.15-Koeffizient gespeichert wird. Bei Temperaturpolynomen sind K0/K1 dagegen Zwischenwerte; die einzeln gespeicherten S-Koeffizienten und die tatsächlichen Zwischenwertgrenzen müssen separat geprüft werden. Ein K1 über 1 ist daher nicht pauschal ein Beweis für Unmöglichkeit jeder Elmos-Kalibrierung.</p>
-<h3>5.1 Rechenbeispiel: nominaler Druck, L = 25’000</h3>
-<p>Beispielhaft normieren wir S bei der Referenztemperatur auf H = 26’500 (unabhängig vom physischen ADC-Hub). Im Metallux-Modell mit richtungsabhängigem TKS ergibt das bei +125 °C maximal 32’065 normierte Digits und bei −40 °C rund 31’244. Bei schlimmster Spannenschrumpfung von 3 % gilt K1 = 25’000/(26’500 × 0,97) ≈ 0,97257. Für a = +0,10 und b = −0,03 ergibt sich K0 ≈ −0,13371. Beide liegen vom Betrag her unter 1. Bei idealer linearer Umkehrung werden p = 0 und p = 1 wieder auf −25’000 bzw. +25’000 abgebildet.</p>
-<p><strong>Damit ist ±25’000 in diesem vereinfachten nominalen Modell plausibel.</strong> Es ist kein vollständiger Nachweis für das Temperaturpolynom, die AFE-Grenzen, Festkomma-Zwischenwerte oder den tatsächlichen Sensor. Die exakte inverse Empfindlichkeit 1/(1+b(T)) ist bei linearer Änderung von b im Allgemeinen nicht linear in T; ein 4-Punkt-Abgleich mit linearem Temperaturmodell kann deshalb zwischen den Kalibrierpunkten einen Restfehler haben.</p>
-<h3>5.2 Warum ein festes L nicht alle Fälle abdecken kann</h3>
-<p>Im konservativen Übersteuerungsmodell aus §4.2 wäre bei gleicher Zentrierung H auf maximal 21’451 beschränkt. Bereits bei Referenztemperatur wäre dann K1 ≥ 25’000/21’451 ≈ 1,1655; bei einem reinen linearen Druckfit mit nur S0 und S4 ist ein solcher positiver Q0.15-Koeffizient nicht darstellbar. Eine andere Normalisierung, reduzierte Übersteuerungsforderung, kleineres L oder ein geeigneteres nachgewiesenes Korrekturmodell können erforderlich sein.</p>
-<h3>5.3 Aktueller Web-App-Algorithmus</h3>
-<p>In <a href="https://github.com/Vadergit/ELMOS-E703.11-Calibration-Web-App/blob/main/calibration.js">calibration.js</a> wird S aus den gemessenen Extrema grundsätzlich auf etwa ±0,99 normiert (Verstärkung auf Q3.12 begrenzt). Die Temperaturreferenzen werden ungefähr auf ±0,85 normiert. Geprüft werden die erfassten Punkte, Koeffizientenquantisierung und der modellierte Ausgang. Ein vollständiger Rastertest über alle Betriebsbedingungen ist damit noch nicht gegeben. Bei nicht darstellbaren Druckkoeffizienten kann ein kleinerer DSP-Endwert in 500-Digit-Schritten vorgeschlagen werden. Die numerische JavaScript-Berechnung ist keine bestätigte bitgenaue Portierung der originalen PSSC-DLL.</p>
-<p class="note">Das aktuelle Problem einer Nullpunktabweichung nach dem TK0-Abgleich ist ein separater Fehlerfall. Ein kleinerer DSP-Endwert allein korrigiert keinen Fehler in der Modellbildung, Temperaturreferenz, Rundung, Registerprogrammierung oder Datenumrechnung.</p>
-</section>
-
-<section id="aufloesung"><h2>6. Auflösung, Rundung und Filter</h2>
-<div class="formula">Digitale Schrittweite = 100 / (2L) % FS
-Idealer Rundungsfehler bei Rundung zur nächsten Stufe ≤ 0,5 Digit
-Rechnerischer Codeumfang in Bit ≈ log2(2L)</div>
-<p>Bei L = 25’000 beträgt die Schrittweite 0,002 % FS und der ideale Rundungsfehler maximal ±0,001 % FS. Bei L = 32’000 sind es 0,0015625 % FS bzw. ±0,00078125 % FS. Der Unterschied der isolierten Quantisierung ist klein; fünf gleich grosse Fehler-Digits entsprechen hingegen 0,010 % FS bei 25’000 und 0,0078125 % FS bei 32’000. Fünf Digits sind hier nur eine Beispielannahme.</p>
-<p>Q0.15-Koeffizienten werden auf 1/32768 quantisiert. Q3.12 hat Schritte von 1/4096. Bei 16 Polynomkoeffizienten mit |S|, |T| ≤ 1 ist allein durch Rundung jedes Koeffizienten auf den nächsten Q0.15-Wert die grobe reelle Fehlerobergrenze 8 DSP-Digits (0,016 % FS bei L = 25’000). Bei drei Koeffizienten beträgt sie 1,5, bei vier 2 Digits. Diese Schranken ignorieren Fehler der Eingangsnormalisierung, Chip-Zwischenrechnungen sowie Sättigung und gelten nur bei nicht begrenzten, korrekt gerundeten Koeffizienten.</p>
-<p>Die 14 Bit des Filterprofils Bessel 190 Hz / 8 kS/s sind geschätzte effektive ADC-Auflösung (ENOB), keine Begrenzung des 16-Bit-DSP-Registers. Andere Filter ermöglichen andere Bandbreiten und Auflösungen. Bei Bessel sind zeitliche Form und Einschwingverhalten im Vordergrund; Butterworth hat einen flachen Amplitudenverlauf im Durchlassbereich. Langsamere Filter reduzieren typischerweise Rauschen, können aber die Reaktion verzögern. Die effektive Auflösung über den Druckbereich hängt zusätzlich von der Ausnutzung des ADC-Bereichs, der Brücke und der Verstärkung ab.</p>
-<p>Ein kleinerer DSP-Endwert kann Rundungsfehler und nachgelagerte Ausgangsverstärkung relativ erhöhen. Deshalb müssen bei festem Filter und identischen Rohdaten mehrere L-Werte auf digitalem und gegebenenfalls analogem Ausgang verglichen werden, inklusive Quantisierungsfehler, Wiederholbarkeit, Rauschen und Rest-TK. Kein Filterwechsel darf stillschweigend die gespeicherte Druckskalierung verändern; die Wirkung des Filter-Gain-Faktors auf den bestehenden Abgleich ist separat zu prüfen.</p>
-</section>
-
-<section id="schnittstellen"><h2>7. Einheitliche Kennlinie für alle Schnittstellen</h2>
-<div class="tablewrap"><table><thead><tr><th>Ausgabe</th><th>Vorgeschlagene Anwendung</th></tr></thead><tbody><tr><td>I²C / SPI / One-Wire-Registerzugriff</td><td>DSP_S (0x30) als signed 16 Bit lesen. Für bestätigtes L = 25’000 gilt P[% FS] = (DSP_S + 25’000)/500. Status, Kommunikationsmodus und Post-Scaling beachten.</td></tr><tr><td>Ratiometrisch</td><td>Nominal 10–90 % VDD. AODO-F/O passend zu tatsächlichem L und gewünschter Kennlinie berechnen. Bei symmetrischem 10–90-%-Ausgang idealer Gain ≈ 26’214,4/25’000 = 1,048576; Offset ideal 0. Tatsächliche Q3.12-Werte und DAC prüfen.</td></tr><tr><td>PWM / FM</td><td>Gleicher DSP_S-Zielbereich; eigenständige modusspezifische Zuordnung zu Tastgrad bzw. Frequenz gemäss Elmos-Datenblatt und realer Messung. 10–90 % Tastgrad ist ein möglicher Designwunsch, nicht identisch mit der DAC-Formel.</td></tr><tr><td>Alarme / Limits / Fehlerwerte</td><td>Physische Schwellen bei Änderung von L korrekt neu umrechnen. DSP_S und DSP_AODO nicht verwechseln. Vorhandene Funktionen und Schutzbits nicht automatisch überschreiben.</td></tr></tbody></table></div>
-<p>Der E703.11 bietet DSP-Post-Scaling für nachträgliche lineare Korrektur (ALARM_HI/LO gemeinsam mit der Alarmfunktion genutzt). Es ist kein zuverlässiger Speicher des ursprünglich gewählten Endwerts, und Alarme und Post-Scaling können nicht beliebig gleichzeitig benutzt werden. [1]</p>
-<h3>Unbekannte bereits kalibrierte Sensoren</h3>
-<p>Aus 16 Bit oder den Polynomkoeffizienten allein lässt sich die ursprüngliche Druckreferenz nicht universell bestimmen. Die Koeffizienten definieren eine Abbildung von ADC-Werten nach DSP_S, aber nicht, welcher physikalische Druck dem jeweiligen ADC-Wert entspricht. Daher:</p>
-<ol><li>Bestätigtes Profil mit Chip-UID, NVM-CRC, tatsächlichem DSP-Endwert und Druckreferenz verwenden.</li><li>Bei dokumentierten analogen Endpunkten lässt sich die Skala aus AODO-F/O näherungsweise zurückrechnen, sofern Modus und Registerkonsistenz stimmen. Eine angenommene 10–90-%-Kennlinie bleibt als Näherung gekennzeichnet; das aktuelle 100-Digit-Raster ist kein Beweis.</li><li>Bei rein digitalem Fremdsensor ohne Referenz Rohdigits anzeigen. Keine automatische Annahme von ±25’000. Zwei bekannte relative Druckpunkte können eine lineare Ausgangskennlinie identifizieren; daraus folgt noch keine vollständige Temperaturverifikation.</li></ol>
-</section>
-
-<section id="strategie"><h2>8. Empfohlene Auswahlstrategie und Hardwarevalidierung</h2>
-<p>±25’000 ist ein sinnvoller <strong>gemeinsamer Ausgangspunkt für neue Abgleiche</strong>. Die Schnittstelle ist kein Grund, die interne Skalierung willkürlich zu verändern. Ein automatischer Wechsel auf einen kleineren Wert würde die digitale Kennlinie ändern und darf deshalb nur vor der Freigabe bewusst bestätigt werden; bei einem fest spezifizierten digitalen Produkt ist eine solche Abweichung entweder ausdrücklich abzulehnen oder separat zu spezifizieren.</p>
-<ol><li>Definieren: Druck- und Temperaturbereich, erlaubte Übersteuerung, Fehlerbudget, Filter und mechanische Grenzen; für den ME910-Test TK0 ≤ ±0,1 % FS/K und TKS-Betrag ≤ 0,03 %/K.</li><li>AFE zuerst mit Rohsignalextrema auslegen, inklusive Montage, Temperaturrandpunkten und sicher erreichbaren Übersteuerungswerten; keine Sättigung vor dem DSP zulassen.</li><li>DSP-Kandidaten (z. B. ±20’000, ±25’000, ±26’200, ±27’000, ±30’000 und ±32’000) mit denselben Rohdaten berechnen. Eingangsnormalisierung und quantisierte Koeffizienten mit ausreichender Reserve prüfen, z. B. 2 % als vorgeschlagenes Entwicklungsziel.</li><li>Über unabhängige Druck-/Temperaturpunkte, nicht nur die Fitpunkte, den modellierten und realen Fehler prüfen. Für TK0 mindestens zwei Druckpunkte einer Referenztemperatur und einen Nullpunkt bei anderer Temperatur; für TK0 + TKS mindestens vier Punkte für ein lineares Modell mit Druck-Temperatur-Interaktion. Für die Qualifikation zusätzliche Zwischenpunkte, Temperaturzyklen und Umkehrpunkte verwenden.</li><li>Sensorwerte und Status mit gültiger Aktualisierung erfassen; dsp_sat (STATUS/STATUS_SYNC, Bit 10) kontrollieren. Keine Sättigung akzeptieren. Software-Warnungen ersetzen keine echte Messung. Fehlerbudget gegen die Referenzmessung und Wiederholstreuung festlegen (z. B. digital zusätzlich ≤0,01 % FS als Vorschlag, nicht als schon nachgewiesene Eigenschaft).</li><li>Ausgangsparameter und Alarm-/Limitwerte konsistent planen, RAM schreiben und rücklesen. Unabhängige Messung mit geeignetem Prüfmittel, erst danach den bestehenden geschützten NVM-Ablauf mit Backup, UID, CRC und Kaltstartprüfung nutzen. Kein Abschalten von Sicherheitsprüfungen.</li></ol>
-<p>Für einen vorläufigen automatischen Optimierer: Unter allen nachweislich zulässigen Kandidaten den grössten L wählen, der die spezifizierte Übersteuerungs- und Zusatzreserve erfüllt und das geforderte Fehlerbudget einhält; bei festem Produktprofil stattdessen L festhalten und ungeeignete Sensoren/AFE-Einstellungen zurückweisen. Ein dichter Simulationsraster ist kein mathematischer Beweis für das gesamte Kontinuum. Für eine garantierte Grenze sind zusätzliche analytische Intervallprüfungen und die Validierung der realen Chip-Arithmetik nötig.</p>
-<p><strong>Fazit:</strong> 25’000 ist für den DSP-Ausgang nachvollziehbar begründet. Der Metallux-Fall ist für den nominalen Druckbereich im vereinfachten Modell machbar. Ob ein konkreter Sensor auch über den ganzen Temperatur- und Übersteuerungsbereich abgeglichen werden kann, entscheidet die gesamte Signalkette. Die neue Strategie muss vor einem produktiven Standardwechsel implementiert, getestet und freigegeben werden.</p>
-</section>
-
-<section id="quellen"><h2>9. Quellen und Abgrenzung</h2>
-<ol>
-<li>Elmos Semiconductor SE: E703.11 Production Data, 25DS0170E.04 (16.11.2023), insbesondere §§6.2.1.7, 6.3.1–6.3.2, 6.4.1, 6.5.3–6.5.4 und Tabelle 7.5-1. AN0203 §2.2 als Referenz der im Projekt implementierten Druckkennlinie. <a href="https://www.elmos.com/applikationen/non-automotive/industrial-automation/measurement/level-sensing/e70311.html">Öffentliche Produktseite</a>. Herstellerunterlagen werden hier nicht erneut veröffentlicht.</li>
-<li>Metallux SA: <a href="https://www.metallux.ch/pdf/products/Catalog%20-%20Pressure%20Sensor%20-%20ME910.pdf">ME910-Datenblatt, Rev. B – 2022</a>, S. 2, insbesondere die 10-bar-Spalte und die Definition von Accuracy.</li>
-<li>TE Connectivity: <a href="https://www.mouser.com/datasheet/2/418/6/ENG_DS_SM9000_A1-2066781.pdf">SMI SM9000-Serie, Datenblatt 08/2020</a>, S. 11–12, digitale Druckkennlinie und Übersteuerungsdiagramme. Industrielles Beispiel einer 80-%-Codeausnutzung, kein Nachweis der ASIC-Identität.</li>
-<li>Projekt: <a href="https://github.com/Vadergit/ELMOS-E703.11-Calibration-Web-App/blob/main/calibration.js">Kalibrieralgorithmus</a> · <a href="https://github.com/Vadergit/ELMOS-E703.11-Calibration-Web-App/blob/main/CHANGELOG.md">Änderungsverlauf</a> · <a href="https://github.com/Vadergit/ELMOS-E703.11-Calibration-Web-App/blob/main/README.md">README</a>, Stand v0.7.154.</li>
-</ol>
-<p class="muted">Alle nicht ausdrücklich als Herstellerangabe bezeichneten Reserven, Fehlerbudgets, Modelle und Auswahlkriterien sind eigene Entwicklungsrechnungen. Diese Seite ist eine technische Erklärung, keine Produkt- oder Serienfreigabe.</p></section>
-<footer>ELMOS E703.11 Web-Kalibrierassistent · Technische Dokumentation · <a href="../index.html">Zurück zur Anwendung</a></footer>
+<footer>Technische Erklärung · <a href="../index.html">Zurück zum Kalibrierassistenten</a></footer>
 </main></body></html>
