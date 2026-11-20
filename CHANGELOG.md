@@ -1,3 +1,10 @@
+## v0.7.158 – Testkandidat: NVM-Vorabprüfung und Messpunktentwurf
+
+- Original-NVM, UID, CRC, Programmer, Startmodi und Messprofil vor der ersten Messung prüfen. SSP3-Filter-/Messzyklusänderungen nur nach ausdrücklicher Bestätigung übernehmen.
+- Bestehende temperaturabhängige Druckkoeffizienten nur nach ausdrücklicher Bestätigung durch einen Abgleich ohne TK ersetzen.
+- UID-gebundener lokaler Messpunktentwurf mit Export und Wiederherstellung bei identischem NVM, Messprofil, AFE und Referenzplan. Keine alten Schreibfreigaben übernehmen.
+- Pflichtbackup, vollständige NVM-Rücklesung und Vergleich des Messprofils und DSP vor Schreiben und nach Neustart. Hardwareabnahme noch ausstehend.
+
 ## v0.7.157 – DSP-Druckkorrektur beim SSP3-Abgleich dauerhaft übernehmen
 
 - SSP3-Druckabgleich: CFG_EN.s_cor_en gezielt von 00 auf 10 aktivieren; alle anderen Bits bleiben unverändert. Reservierte Werte bleiben gesperrt.

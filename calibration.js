@@ -235,14 +235,67 @@ const ELMOS_CAL = (() => {
   if(selection<2)return actual===((stored&~3)|1);
   return selection===3&&(stored&3)>=1&&(stored&3)<=2&&actual===stored;
  }
+
+ // The profile is an explicitly confirmed target, not a hardware write permission.
+ const PROFILE_REGS=Object.freeze([[0x00,13],[0x02,14],[0x04,16],[0x0E,21],[0x14,24],[0x16,25],[0x18,26],[0x1A,27],[0x1C,28],[0x1E,29]].map(Object.freeze));
+ const PROFILE_WORDS=Object.freeze([21,24,25,26]);
+ const word16=x=>Number.isInteger(x)&&x>=0&&x<=65535;
+ const sameNvmImage=(a,b)=>Array.isArray(a)&&Array.isArray(b)&&a.length===64&&b.length===64&&a.every((v,k)=>word16(v)&&v===b[k]);
+ const hasPressureTemperatureCompensation=a=>Array.isArray(a)&&Array.from({length:16},(_,k)=>k).some(k=>k%4!==0&&a[35+k]!==0);
+ function planCalibrationProfile(original,ram,{orderT=0,recovery=false,allowOperatingChanges=false,allowSingleMeasurement=false,filterCatalog=[]}={}){
+  if(!sameNvmImage(original,original))throw Error('NVM-Vorabprüfung benötigt 64 gültige Wörter');
+  for(const [addr] of PROFILE_REGS)if(!word16(ram[addr]))throw Error('Messregister 0x'+addr.toString(16)+' fehlt');
+  if(![0,1,2,3].includes(orderT))throw Error('Ungültige Temperaturordnung');
+  if(![0,2].includes(original[16]&3)||![0,2].includes(ram[4]&3))throw Error('CFG_EN.s_cor_en reserviert');
+  if(!allowOperatingChanges&&((original[16]&3)!==2||(ram[4]&3)!==2))throw Error('Druckkorrektur deaktiviert; Programmer unterstützt die Aktivierung nicht');
+  if((ram[0x1e]&3)!==0)throw Error('Nur interne Temperaturquelle ist für den Abgleich validiert');
+  const temperatureEnable=orderT>0&&(original[16]&12)===0;
+  const temperatureTarget=temperatureEnable?4:(original[16]&12);
+  if(orderT>0&&temperatureTarget!==4)throw Error('Temperaturkorrektur für interne Quelle nicht validiert');
+  if(temperatureEnable&&!allowOperatingChanges)throw Error('Temperaturaktivierung mit diesem Programmer nicht unterstützt');
+  const ramTemp=ram[4]&12;
+  const temperatureRamChange=ramTemp!==temperatureTarget;
+  if(temperatureRamChange&&(!allowOperatingChanges||![0,4].includes(ramTemp)||![0,4].includes(temperatureTarget)))throw Error('CFG_EN.t_cor_en im RAM weicht ab');
+  for(const [addr,index] of PROFILE_REGS){
+   if(PROFILE_WORDS.includes(index))continue;
+   let mask=0xffff;
+   if(index===16)mask=0xff30;
+   if(index===27)mask=recovery?0xffff:0xfffc;
+   if(index===28)mask=0xe800;
+   if(((original[index]^ram[addr])&mask)!==0)throw Error('Messprofil: Register 0x'+addr.toString(16)+' weicht vom Original-NVM ab');
+  }
+  if(ram[0x0e]===0)throw Error('CFG_PERIOD: keine aktive Messung');
+  if(ram[0x0e]===2&&(!allowSingleMeasurement||original[21]!==2))throw Error('CFG_PERIOD: Einzelmessungsprofil vor Abgleich auf unterstützten kontinuierlichen Betrieb einstellen');
+  const values=PROFILE_WORDS.map(index=>ram[PROFILE_REGS.find(x=>x[1]===index)[0]]);
+  const changed=PROFILE_WORDS.flatMap((index,k)=>original[index]===values[k]?[]:[{index,from:original[index],to:values[k]}]);
+  if(changed.length){
+   if(!allowOperatingChanges)throw Error('Messzyklus/Filter im RAM weichen vom NVM ab; Programmer unterstützt Übernahme nicht');
+   if(values[0]!==1)throw Error('Geändertes Messprofil benötigt bestätigten kontinuierlichen CFG_PERIOD=1');
+   if(values.slice(1).some((v,k)=>v!==original[k+24])&&!filterCatalog.some(f=>f.length===3&&f.every((v,k)=>v===values[k+1])))throw Error('Abweichende Filter sind kein dokumentiertes Profil');
+  }
+  if(temperatureEnable)changed.push({index:16,from:original[16],to:(original[16]&~12)|4});
+  return {values,temperatureEnable,temperatureTarget,temperatureRamChange,changed,replaceTemperature:orderT===0&&hasPressureTemperatureCompensation(original)};
+ }
+ function operatingWordAllowed(i,after,profile){
+  const k=PROFILE_WORDS.indexOf(i);
+  return k>=0&&Array.isArray(profile?.values)&&profile.values.length===4&&profile.values.every(word16)&&after[i]===profile.values[k]&&(i!==21||after[i]===1);
+ }
+ function temperatureActivationMask(before,after,profile){return profile?.temperatureEnable===true&&(before&12)===0&&(after&12)===4?12:0;}
+ function sameMeasurementProfile(a,b,enableMask=0){
+  return !!a&&!!b&&PROFILE_REGS.every(([addr])=>word16(a[addr])&&word16(b[addr])&&((a[addr]^b[addr])&(addr===4?0xffff&~enableMask:0xffff))===0);
+ }
+ function checkpointMatches(d,{uid,words,ram,gains,reference}){
+  return !!d&&d.version===1&&d.uid===uid&&sameNvmImage(d.words,words)&&sameMeasurementProfile(d.ram,ram)&&JSON.stringify(d.gains)===JSON.stringify(gains)&&JSON.stringify(d.reference)===JSON.stringify(reference)&&Array.isArray(d.points)&&d.points.length>0&&d.points.length<=10&&d.points.every(p=>p&&['lo','hi','extra'].includes(p.kind)&&Number.isFinite(p.adc_s)&&Number.isFinite(p.adc_t)&&Number.isFinite(p.pressure)&&Number.isFinite(p.temperature));
+ }
+
  function validPressureActivation(before,after){return (before&3)===0&&(after&3)===2;}
- function protectStartupCommunication(before,after,{allowSvdd=false,allowAlarmMask=false,allowPressureCorrection=false,interfaceMode='plc'}={}){
+ function protectStartupCommunication(before,after,{allowSvdd=false,allowAlarmMask=false,allowPressureCorrection=false,operatingProfile=null,interfaceMode='plc'}={}){
   if(!Array.isArray(before)||!Array.isArray(after)||before.length!==64||after.length!==64||
    [...before,...after].some(v=>!Number.isInteger(v)||v<0||v>65535))
    throw Error('1-Wire-Startschutz: Ungültiges 64-Wort-NVM-Abbild');
   for(let i=0;i<28;i++){
    if(i===16){
-    const pressureMask=allowPressureCorrection&&validPressureActivation(before[i],after[i])?3:0;
+    const pressureMask=(allowPressureCorrection&&validPressureActivation(before[i],after[i])?3:0)|temperatureActivationMask(before[i],after[i],operatingProfile);
      const allowed=((7<<9)|(1<<6)|(1<<7))|(allowAlarmMask?((1<<5)|(1<<8)):0)|pressureMask;
     if(((before[i]^after[i])&~allowed)!==0)throw Error('1-Wire-Startschutz: Nicht erlaubte CFG_EN-Bits verändert');
    }else if(i===18&&allowAlarmMask&&before[i]!==after[i]){
@@ -251,7 +304,7 @@ const ELMOS_CAL = (() => {
    }else if(i===SVDD_INDEX&&allowSvdd&&before[i]!==after[i]){
     if(((before[i]^after[i])&~SVDD_MASK)!==0||(after[i]&SVDD_MASK)===SVDD_MASK)
      throw Error('CFG_AFE0: Nur dokumentierte SVDD-Bits dürfen geändert werden');
-   }else if(i!==22&&before[i]!==after[i]){
+   }else if(i!==22&&before[i]!==after[i]&&!operatingWordAllowed(i,after,operatingProfile)){
     throw Error('1-Wire-Startschutz: Kommunikations-, Boot- oder Factory-Wort '+i+' verändert');
    }
   }
@@ -403,14 +456,15 @@ const ELMOS_CAL = (() => {
    * the original AODO mode, and a user-approved output plan.
    * This helper is pure: it cannot grant a hardware writing permission.
    */
-  function validateRecoveryCalibrationDiff(before,after,{allowAnalogScaling=false,allowPressureCorrection=false}={}){
+  function validateRecoveryCalibrationDiff(before,after,{allowAnalogScaling=false,allowPressureCorrection=false,operatingProfile=null}={}){
    if(!Array.isArray(before)||!Array.isArray(after)||before.length!==64||after.length!==64||
       [...before,...after].some(w=>!Number.isInteger(w)||w<0||w>0xFFFF))
     throw Error('Recovery-NVM: ungültiges 64-Wort-Abbild');
    const calibrationWords=new Set([SVDD_INDEX,28,30,31,32,33,34,...Array.from({length:16},(_,i)=>35+i),51,52,53,54,63]);
    const outputWords=new Set([16,57,58,59,60]);
    const changed=after.map((word,index)=>word===before[index]?null:index).filter(index=>index!==null);
-   const pressureMask=allowPressureCorrection&&validPressureActivation(before[16],after[16])?3:0;
+   const pressureMask=(allowPressureCorrection&&validPressureActivation(before[16],after[16])?3:0)|temperatureActivationMask(before[16],after[16],operatingProfile);
+    for(const index of PROFILE_WORDS)if(operatingWordAllowed(index,after,operatingProfile))calibrationWords.add(index);
     if(pressureMask)calibrationWords.add(16);
     const outputChanged=changed.some(index=>outputWords.has(index)&&(index!==16||!!((before[16]^after[16])&~pressureMask)));
    if(outputChanged&&!allowAnalogScaling)
@@ -420,7 +474,7 @@ const ELMOS_CAL = (() => {
    if((allowAnalogScaling||pressureMask)&&
        (before[22]!==after[22]||((before[16]^after[16])&~((allowAnalogScaling?((1<<6)|(1<<7)):0)|pressureMask))!==0))
     throw Error('Recovery-NVM: AODO-Modus und CFG_AODO müssen unverändert bleiben. Nur freigegebene scale_en/limit_en und s_cor_en dürfen in CFG_EN wechseln.');
-   protectStartupCommunication(before,after,{allowSvdd:true,allowPressureCorrection});
+   protectStartupCommunication(before,after,{allowSvdd:true,allowPressureCorrection,operatingProfile});
    return {outputChanged,changes:changed.length};
   }
   function configFrom(original,solution,afeWord,opts={}){
@@ -439,6 +493,19 @@ const ELMOS_CAL = (() => {
     if((original[16]&3)!==0)throw Error('DSP-Druckkorrektur: nur Übergang 00 -> 10 zulässig');
     cfg[16]=(cfg[16]&~3)|2;
    }
+   // The live profile was explicitly confirmed before collection.
+   const operatingProfile=opts.operatingProfile??null;
+   if(operatingProfile){
+    if(!Array.isArray(operatingProfile.values)||operatingProfile.values.length!==4||!operatingProfile.values.every(word16))throw Error('Ungültiges Messprofil');
+    for(const [k,index] of PROFILE_WORDS.entries())if(cfg[index]!==operatingProfile.values[k]){
+     if(index===21&&operatingProfile.values[k]!==1)throw Error('Geändertes Messprofil: CFG_PERIOD muss 1 sein');
+     cfg[index]=operatingProfile.values[k];
+    }
+    if(operatingProfile.temperatureEnable){
+     if((original[16]&12)!==0||!(solution.orderT>0)||!Array.isArray(r.tcoeffs)||r.tcoeffs.length!==4)throw Error('Temperaturaktivierung ohne vollständigen Temperaturabgleich');
+     cfg[16]=(cfg[16]&~12)|4;
+    }
+   }
    // Preserve factory and communication settings outside validated fields.
   cfg[28]=(cfg[28]&~0x17FF)|(afeWord&0x17FF); // gain/offset and documented s_pga1_inv; preserve bits 11,13–15
   cfg[33]=r.so;cfg[34]=r.sf;for(let i=0;i<16;i++)cfg[35+i]=r.coeffs[i];
@@ -448,10 +515,10 @@ const ELMOS_CAL = (() => {
    cfg[30]=opts.userId;
   }
   cfg[63]=crc16(cfg);
-  for(let i=0;i<=27;i++)if(cfg[i]!==original[i]&&![16,22,SVDD_INDEX].includes(i))throw Error('Sicherheitsfehler: schreibgeschützter NVM-Bereich verändert');
-  if(cfg[16]!==original[16]&&(((cfg[16]^original[16])&~((7<<9)|(1<<6)|(1<<7)|(opts.activatePressureCorrection===true?3:0)))!==0))throw Error('CFG_EN: fremde Bits dürfen nicht verändert werden');
+  for(let i=0;i<=27;i++)if(cfg[i]!==original[i]&&![16,22,SVDD_INDEX].includes(i)&&!operatingWordAllowed(i,cfg,operatingProfile))throw Error('Sicherheitsfehler: schreibgeschützter NVM-Bereich verändert');
+  if(cfg[16]!==original[16]&&(((cfg[16]^original[16])&~((7<<9)|(1<<6)|(1<<7)|(opts.activatePressureCorrection===true?3:0)|temperatureActivationMask(original[16],cfg[16],operatingProfile)))!==0))throw Error('CFG_EN: fremde Bits dürfen nicht verändert werden');
   if(cfg.slice(0,16).some((v,i)=>v!==original[i]))throw Error('Werkskalibrierung verändert');
-  protectStartupCommunication(original,cfg,{allowSvdd:opts.bridgeSupply!==undefined,allowPressureCorrection:opts.activatePressureCorrection===true,interfaceMode:opts.interfaceMode});
+  protectStartupCommunication(original,cfg,{allowSvdd:opts.bridgeSupply!==undefined,allowPressureCorrection:opts.activatePressureCorrection===true,operatingProfile,interfaceMode:opts.interfaceMode});
   return {before:original.slice(),after:cfg,changes:cfg.map((v,i)=>v!==original[i]?{index:i,address:i*2,from:original[i],to:v}:null).filter(Boolean)};
  }
  // A temperature-compensated verification may repeat a reference pressure at a
@@ -473,6 +540,6 @@ const ELMOS_CAL = (() => {
   Number.isInteger(required)&&required>=1&&required<=10&&Array.isArray(records)&&
   Array.from({length:required},(_,slot)=>records.some(point=>
    point?.slot===slot&&Number.isFinite(point.errorBar))).every(Boolean);
- return {SVDD_INDEX,SVDD_MASK,fit,suggestDspLimit,solveFit,crc16,crc8,configFrom,prepareOutputConfig,validateRecoveryCalibrationDiff,protectStartupCommunication,i2cBootRegisterMatches,oneWireStartupStatus,oneWireOnlyStatus,analogScaling,analogOutputStatus,elmosDspTarget,elmosTemperatureTarget,fromQ,q,signed,independentVerificationPoint,verificationPointsSufficient,temperatureSourceFromAfe2,dspTemperatureCelsius,isFactoryTemperatureProfile,factoryInternalTemperatureCelsius,factoryTemperatureAddresses,programmedTemperatureAddresses,programmedTemperatureProfileMatches};
+ return {PROFILE_REGS,PROFILE_WORDS,planCalibrationProfile,sameMeasurementProfile,sameNvmImage,checkpointMatches,hasPressureTemperatureCompensation,SVDD_INDEX,SVDD_MASK,fit,suggestDspLimit,solveFit,crc16,crc8,configFrom,prepareOutputConfig,validateRecoveryCalibrationDiff,protectStartupCommunication,i2cBootRegisterMatches,oneWireStartupStatus,oneWireOnlyStatus,analogScaling,analogOutputStatus,elmosDspTarget,elmosTemperatureTarget,fromQ,q,signed,independentVerificationPoint,verificationPointsSufficient,temperatureSourceFromAfe2,dspTemperatureCelsius,isFactoryTemperatureProfile,factoryInternalTemperatureCelsius,factoryTemperatureAddresses,programmedTemperatureAddresses,programmedTemperatureProfileMatches};
 })();
 if(typeof module!=='undefined'&&module.exports)module.exports=ELMOS_CAL;

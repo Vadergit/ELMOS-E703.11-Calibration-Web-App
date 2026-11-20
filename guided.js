@@ -175,6 +175,7 @@ const ELMOS_GUIDED=(()=>{
   const pointRows=[...document.querySelectorAll('.panel[data-panel="2"] .cal-point-row')];
   if(pointRows.length!==10)throw Error('Messpunktkarten der Originalansicht haben sich geändert');
   pointRows.forEach(el=>move(el,'gwPointHost'));
+  moveId('calPreflightPanel','gwSampleStatus');
   moveId('calSampleProgress','gwSampleStatus');
   moveId('calMsg','gwPointMessages');
   moveLabel('calSOrder','gwFitFields');moveLabel('calTOrder','gwFitFields');moveLabel('calFitMode','gwFitFields');

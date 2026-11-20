@@ -68,7 +68,7 @@ test('Combined NVM preflight and no-recalibration alarm-only path stay guarded',
  assert.ok(app.includes('ELMOS_ALARM_EDITOR.pendingForCalibration()'));
  assert.ok(app.includes('const alarmIntegrated=!restoring&&!alarmOnly&&!outputOnly'));
  assert.ok(app.includes('ELMOS_ALARM_CONFIG.validateDiff(image.after,normalized.after,CAL.crc16)'));
- assert.ok(app.includes('CAL.protectStartupCommunication(image.before,normalized.after,{allowSvdd:true,allowAlarmMask:true,interfaceMode:st.iface})'));
+ assert.ok(app.includes('CAL.protectStartupCommunication(image.before,normalized.after,{allowSvdd:true,allowAlarmMask:true,allowPressureCorrection:activatePressureCorrection,operatingProfile,interfaceMode:st.iface})'));
  assert.ok(app.includes('outputOnly||[22,57,58,59,60].some'));
  assert.ok(editor.includes('duringCalibration'));
  assert.ok(editor.includes('skipForCalibration'));

@@ -1515,8 +1515,9 @@ test('SSP3 prepares a combined calibration in the verified live session without 
  const app=read('app.js');
  const start=app.indexOf(' function bridgeColdStartVerified(){');
  const end=app.indexOf(' // Read-only early warning:',start);
+ const profileHelpers=app.slice(app.indexOf(' function activePreflight(){'),app.indexOf(' async function calibrationPreflight('));
  const build=new Function('st','CAL','P','$','verificationComplete',
-  app.slice(start,end)+'return {allowed:ssp3CalibrationWithoutRestart,block:psscNvmBlock};');
+  profileHelpers+app.slice(start,end)+'return {allowed:ssp3CalibrationWithoutRestart,block:psscNvmBlock};');
  const before=safeNvm();
  before[16]=0x1216;
  before[17]=0x6C00;
@@ -1556,11 +1557,12 @@ test('SSP3 prepares a combined calibration in the verified live session without 
   [0x16,25],[0x18,26],[0x1A,27],[0x1C,28],[0x1E,29]].map(([addr,index])=>[addr,before[index]]));
  const prepare=new Function('st','CAL','P','$','verificationComplete','coefficientSettingsCurrent',
   'requestedNvmUserId','readNvmBridgeSupply','ELMOS_ALARM_EDITOR','h','ca','renderFlowState',
-  'verificationRequiredCount','stopLive','startLive','logging','readReg',
-  app.slice(start,end)+app.slice(prepareStart,prepareEnd)+'return prepareNvmOperation;')(
+  'verificationRequiredCount','stopLive','startLive','logging','readReg','demoEnabled','assertPreflightForFit',
+  profileHelpers+app.slice(start,end)+app.slice(prepareStart,prepareEnd)+'return prepareNvmOperation;')(
   liveState,CAL,require('../app.js'),id=>fields[id],()=>true,()=>true,
   ()=>undefined,async()=>0,{pendingForCalibration:()=>false},v=>v.toString(16),
-  (...args)=>messages.push(args),()=>{},()=>1,()=>{},()=>{},()=>{},async address=>ram.get(address));
+  (...args)=>messages.push(args),()=>{},()=>1,()=>{},()=>{},()=>{},async address=>ram.get(address),false,()=>{assert.ok(liveState.calibrationPreflight);return liveState.calibrationPreflight;});
+ liveState.calibrationPreflight={uid:uid.hex,session:7,port:state.port,words:before,allowOperatingChanges:false};
  await prepare();
  assert.equal(messages.at(-1)?.[2],'warn',messages.at(-1)?.[1]);
  assert.equal(liveState.calImage.recoveryCombined,true);
@@ -1613,7 +1615,7 @@ test('SSP3 prepares a combined calibration in the verified live session without 
   assert.notEqual(api().block(before,after,...operation,true),'');
  assert.equal(api().allowed(before,after,false),false);
  const write=app.slice(app.indexOf(' async function nvmProgramOperation('));
- assert.ok(write.includes('const verifyWords=(liveSsp3Calibration||'));
+ assert.ok(write.includes('const verifyWords=Array.from({length:64},(_,i)=>i)'));
  const fullRead=write.indexOf('const verifyWords=');
  const ramCheck=write.indexOf('of activeCalibrationRamWords()',fullRead);
  const enable=write.indexOf('for(const x of [0x98BD',fullRead);
