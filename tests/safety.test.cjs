@@ -1518,9 +1518,12 @@ test('SSP3 prepares a combined calibration in the verified live session without 
  const build=new Function('st','CAL','P','$','verificationComplete',
   app.slice(start,end)+'return {allowed:ssp3CalibrationWithoutRestart,block:psscNvmBlock};');
  const before=safeNvm();
+ before[16]=0x1216;
  before[17]=0x6C00;
  before[19]&=~(1<<8);
+ before[21]=1;
  before[22]=0x0880;
+ before[28]=0x0800;
  before[63]=CAL.crc16(before);
  assert.equal(CAL.oneWireStartupStatus(before).requiresCookie,true);
  const after=before.slice();
@@ -1549,18 +1552,34 @@ test('SSP3 prepares a combined calibration in the verified live session without 
  const prepareStart=app.indexOf(' async function prepareNvmOperation(){');
  const prepareEnd=app.indexOf(' function nvmWriteFeedback(',prepareStart);
  const messages=[];
+ const ram=new Map([[0x00,13],[0x02,14],[0x04,16],[0x0E,21],[0x14,24],
+  [0x16,25],[0x18,26],[0x1A,27],[0x1C,28],[0x1E,29]].map(([addr,index])=>[addr,before[index]]));
  const prepare=new Function('st','CAL','P','$','verificationComplete','coefficientSettingsCurrent',
   'requestedNvmUserId','readNvmBridgeSupply','ELMOS_ALARM_EDITOR','h','ca','renderFlowState',
-  'verificationRequiredCount','stopLive','startLive','logging',
+  'verificationRequiredCount','stopLive','startLive','logging','readReg',
   app.slice(start,end)+app.slice(prepareStart,prepareEnd)+'return prepareNvmOperation;')(
   liveState,CAL,require('../app.js'),id=>fields[id],()=>true,()=>true,
   ()=>undefined,async()=>0,{pendingForCalibration:()=>false},v=>v.toString(16),
-  (...args)=>messages.push(args),()=>{},()=>1,()=>{},()=>{},()=>{});
+  (...args)=>messages.push(args),()=>{},()=>1,()=>{},()=>{},()=>{},async address=>ram.get(address));
  await prepare();
  assert.equal(messages.at(-1)?.[2],'warn',messages.at(-1)?.[1]);
  assert.equal(liveState.calImage.recoveryCombined,true);
  assert.equal(CAL.analogOutputStatus(liveState.calImage.after,0.5,4.5,5,30000).ok,true);
  assert.deepEqual(liveState.calImage.after.slice(17,28),before.slice(17,28));
+ liveState.coldStartAfeRestored=true;
+ await prepare();
+ assert.equal(messages.at(-1)?.[2],'warn',messages.at(-1)?.[1]);
+ assert.equal(liveState.calImage.recoveryCombined,true,'AFE recovery can prepare a matching profile');
+ for(const [address,name] of [[0x04,'CFG_EN'],[0x0E,'CFG_PERIOD'],[0x18,'CFG_LP1'],[0x1C,'CFG_AFE1'],[0x1E,'CFG_AFE2']]){
+  const saved=ram.get(address);
+  ram.set(address,saved^1);
+  await prepare();
+  assert.equal(liveState.calImage,null);
+  assert.match(messages.at(-1)?.[1],new RegExp(name+' im RAM'));
+  ram.set(address,saved);
+ }
+ for(const operation of [[true,false,false],[false,true,false],[false,false,true]])
+  assert.notEqual(api({coldStartAfeRestored:true}).block(before,after,...operation,true),'');
  for(const [index,mask] of [[0,1],[16,1<<9],[17,4],[18,1<<12],[19,1<<8],[22,1],[CAL.SVDD_INDEX,1]]){
   const changed=after.slice();
   changed[index]^=mask;
@@ -1570,7 +1589,7 @@ test('SSP3 prepares a combined calibration in the verified live session without 
  }
  for(const overrides of [
   {sessionIndex:8},{uid:{...uid,hex:'other'}},{plcAddress:0x7C},
-  {plcAddressVerified:false},{coldStartAfeRestored:true},{adapterKind:'bridge'},
+  {plcAddressVerified:false},{adapterKind:'bridge'},
   {calStaged:false},{expertOutputPlan:null},{sensorLost:true},
  ]){
   assert.equal(api(overrides).allowed(before,after,true),false);
@@ -1585,7 +1604,8 @@ test('SSP3 prepares a combined calibration in the verified live session without 
  const fullRead=write.indexOf('const verifyWords=');
  const ramCheck=write.indexOf('of activeCalibrationRamWords()',fullRead);
  const enable=write.indexOf('for(const x of [0x98BD',fullRead);
- assert.ok(fullRead<ramCheck&&ramCheck<enable,'verify 64 words and active DSP before enabling writes');
+ const profileCheck=write.indexOf('await verifyRecoveredCalibrationProfile(modified)',fullRead);
+ assert.ok(fullRead<profileCheck&&profileCheck<ramCheck&&ramCheck<enable,'verify 64 words and active DSP before enabling writes');
 });
 
 test('ESP32-C3 combined DSP/AODO recovery requires generic user NVM and cold-start UID proof',()=>{

@@ -1,3 +1,9 @@
+## v0.7.156 – NVM-Freigabe nach SSP3-AFE-Wiederanlauf
+
+- Ein geprüfter SSP3-Abgleich mit vorgemerkter Analogskalierung kann nach einem AFE-Wiederanlauf gespeichert werden, wenn die aktiven Messregister mit dem geplanten NVM-Abbild übereinstimmen.
+- Die App prüft das Messprofil bei der Vorschau und erneut vor der Schreibfreigabe. Bei einer Abweichung nennt sie das betroffene Register.
+- Der Ablauf mit passendem und abweichendem Messprofil wurde simuliert. Der Test am echten SSP3 steht aus.
+
 ## v0.7.155 – SSP3-Kalibrierung ohne erneuten Kaltstart speichern
 
 - Beim originalen SSP3 lässt sich ein geprüfter DSP-Abgleich mit vorgemerkter Analogskalierung in der laufenden Sitzung speichern, wenn Startkonfiguration, Ausgangsart und Brückenspannung unverändert bleiben.

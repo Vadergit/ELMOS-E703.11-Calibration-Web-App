@@ -1297,7 +1297,7 @@ if(typeof document!=='undefined') (function UI(){
  // and the diff leaves all startup settings and bridge supply intact.
  function ssp3CalibrationWithoutRestart(before,after,recoveryCombined){
   if(!recoveryCombined||st.adapterKind!=='ssp3'||st.iface!=='plc'||
-     st.mode!=='usb'||!st.chip||st.closing||st.sensorLost||st.coldStartAfeRestored||
+     st.mode!=='usb'||!st.chip||st.closing||st.sensorLost||
      !st.plcAddressVerified||!hasCurrentNvmBackup()||!st.calStaged||!verificationComplete()||
      !st.expertOutputPlan?.scaleEnabled||!$('nvmAutoBackup').checked)
    return false;
@@ -1310,6 +1310,27 @@ if(typeof document!=='undefined') (function UI(){
   try{CAL.validateRecoveryCalibrationDiff(before,after,{allowAnalogScaling:true})}
   catch(_){return false}
   return true;
+ }
+ // DS 6.6.1: compare the active measurement path with what will load from CM.
+ // Ignore only the AODO gain/clipping enable bits in CFG_EN during DSP testing.
+ async function verifyRecoveredCalibrationProfile(words){
+  const checks=[
+   [0x00,13,'CFG_CAL0'],[0x02,14,'CFG_CAL1'],[0x04,16,'CFG_EN',0xFF3F],
+   [0x0E,21,'CFG_PERIOD'],[0x14,24,'CFG_ADC'],[0x16,25,'CFG_LP0'],
+   [0x18,26,'CFG_LP1'],[0x1A,27,'CFG_AFE0'],[0x1C,28,'CFG_AFE1'],[0x1E,29,'CFG_AFE2']
+  ];
+  if(words[16]&0x4000)checks.push([0x9C,55,'ALARM_LO'],[0x9E,56,'ALARM_HI']);
+  if((words[16]&3)!==2)
+   throw Error('AFE-Wiederanlauf: DSP-Druckkorrektur im Original-NVM deaktiviert.');
+  if(words[21]===0)
+   throw Error('AFE-Wiederanlauf: Messzyklus im Original-NVM deaktiviert (CFG_PERIOD = 0x0000).');
+  for(const [address,index,name,mask=0xFFFF] of checks){
+   const actual=await readReg(address);
+   const expected=words[index];
+   if(((actual^expected)&mask)!==0)
+    throw Error('AFE-Wiederanlauf: '+name+' im RAM 0x'+h(actual,2)+
+     ' weicht vom geplanten NVM-Wert 0x'+h(expected,2)+' ab.');
+  }
  }
  function psscNvmBlock(initial,modified,restoring=false,outputOnly=false,alarmOnly=false,allowCombinedRecovery=false){
   // Unified low-level bridge: no firmware feature-specific NVM address list.
@@ -1342,13 +1363,15 @@ if(typeof document!=='undefined') (function UI(){
   }
   if(st.adapterKind==='bridge'&&st.bridgeCalibrationNvm&&!bridgeColdStartVerified())return 'Sensorversorgung aktivieren und den Sensor vor dem Abgleich neu verbinden.';
   if(st.adapterKind==='bridge'&&st.bridgeReadOnly)return 'Diese Arduino-Testbridge unterstützt Live-Messungen. NVM-Schreiben ist gesperrt.';
-  const recovered=st.psscRamRecovery||(st.regs[0x06]===0x6C04&&initial?.[17]!==0x6C04);
-  if(st.coldStartAfeRestored)return 'NVM-Schreiben nach AFE-Wiederanlauf gesperrt. Kalibrierung im RAM ist verfügbar.';
+  const recovered=st.coldStartAfeRestored||st.psscRamRecovery||
+   (st.regs[0x06]===0x6C04&&initial?.[17]!==0x6C04);
   if(!recovered&&!(st.adapterKind==='bridge'&&st.bridgeCalibrationNvm))return '';
   if(st.adapterKind==='bridge'&&!st.bridgeCalibrationNvm)
    return 'Nach temporärer ESP32-RAM-Freigabe ist NVM-Schreiben gesperrt. Live-Messung, RAM-Kalibrierung und NVM-Lesen sind verfügbar.';
   const liveCalibration=!restoring&&!outputOnly&&!alarmOnly&&
    ssp3CalibrationWithoutRestart(initial,modified,allowCombinedRecovery);
+  if(st.coldStartAfeRestored&&!liveCalibration)
+   return 'AFE-Wiederanlauf: Nur ein geprüfter SSP3-Abgleich mit vorgemerkter Analogskalierung, Original-Backup und unveränderter Startkonfiguration und Brückenspannung kann gespeichert werden.';
   if(!psscRecoveryProven()&&!bridgeColdStartVerified()&&!liveCalibration)
    return 'Für diesen NVM-Plan fehlt der bestätigte Kaltstart. '+psscRecoveryEvidence();
   if(!initial||!modified)return '';
@@ -2149,7 +2172,7 @@ if(typeof document!=='undefined') (function UI(){
    await detect();
    st.readOnlySensor=null;
    if(remember)lsSet('ssp3-auto-ram-uid',uid);
-   show('connMsg','Live-Messung im RAM gestartet. NVM-Schreiben ist in dieser Sitzung gesperrt.','success');
+   show('connMsg','Live-Messung im RAM gestartet. Vor dem Speichern prüft die App die aktiven Messregister gegen den NVM-Plan.','success');
   }catch(error){
    st.chip=false;
    stopLive();
@@ -2769,7 +2792,7 @@ if(typeof document!=='undefined') (function UI(){
    if(!ready)throw Error('PSSC-RAM-Freigabe ohne bestätigte Kalibrierbereitschaft');
    trial.readVerified=true;
    trial.verifiedUid=st.uid?.hex||null;
-   show('connMsg',st.coldStartAfeRestored?'Sensor nach AFE-Wiederanlauf verbunden. NVM-Schreiben bleibt gesperrt.':'Sensor über PSSC-RAM-Freigabe verbunden. NVM-Schreiben ist auf geprüfte Kalibrierdaten begrenzt.','success');
+   show('connMsg',st.coldStartAfeRestored?'Sensor nach AFE-Wiederanlauf verbunden. Vor dem Speichern prüft die App die aktiven Messregister gegen den NVM-Plan.':'Sensor über PSSC-RAM-Freigabe verbunden. NVM-Schreiben ist auf geprüfte Kalibrierdaten begrenzt.','success');
    return true;
   }catch(e){
    trial.error=String(e.message||e);
@@ -3901,7 +3924,7 @@ if(typeof document!=='undefined') (function UI(){
     if(startup.requiresCookie&&!psscRecoveryProven())
      await refreshPsscRecoveryProofReadOnly();
    }
-   const recovery=st.psscRamRecovery||(st.regs[0x06]===0x6C04&&st.nvmBackup[17]!==0x6C04);
+   const recovery=st.coldStartAfeRestored||st.psscRamRecovery||(st.regs[0x06]===0x6C04&&st.nvmBackup[17]!==0x6C04);
    // With temporary One-Wire RAM access, include analog scaling only when
    // explicitly staged. The recovery guard checks the complete NVM diff.
    const ignoredOutputPlan=recovery&&!!st.expertOutputPlan&&st.expertOutputPlan.mode==='onewire';
@@ -3990,6 +4013,13 @@ if(typeof document!=='undefined') (function UI(){
    if(recoveryBlock)throw Error(recoveryBlock);
    if(image.changes.some(c=>(c.index<28&&![16,22,CAL.SVDD_INDEX,...(includeAlarms?[18]:[])].includes(c.index))||c.index===29))throw Error('Unzulässiges NVM-Register im Änderungsplan');
    if(!image.changes.length)throw Error('Keine NVM-Änderungen nötig');
+   if(st.coldStartAfeRestored){
+    const port=st.port,session=st.sessionIndex,uid=st.uid.hex;
+    await verifyRecoveredCalibrationProfile(image.after);
+    if(st.port!==port||st.sessionIndex!==session||st.uid?.hex!==uid||
+       !ssp3CalibrationWithoutRestart(image.before,image.after,recoveryCombined))
+     throw Error('SSP3-Sitzung oder Kalibrierung hat sich während der AFE-Prüfung verändert.');
+   }
    st.calImage=image;
    $('nvmDiff').textContent=image.changes.map(c=>{
     const raw=`NVM 0x${h(c.address)} [${c.index}] 0x${h(c.from,2)} → 0x${h(c.to,2)}`;
@@ -4163,7 +4193,7 @@ if(typeof document!=='undefined') (function UI(){
     throw Error('Brückenspannung dauerhaft speichern wird derzeit nur mit SSP3 unterstützt.');
    CAL.protectStartupCommunication(initial,modified,{allowSvdd,allowAlarmMask:alarmOnly||alarmIntegrated,interfaceMode:st.iface});
    const startup=CAL.oneWireStartupStatus(initial);
-   const liveSsp3Calibration=!restoring&&!outputOnly&&!alarmOnly&&!psscRecoveryProven()&&
+   const liveSsp3Calibration=!restoring&&!outputOnly&&!alarmOnly&&(st.coldStartAfeRestored||!psscRecoveryProven())&&
     ssp3CalibrationWithoutRestart(initial,modified,!!st.calImage.recoveryCombined);
    if(st.iface==='plc'&&startup.requiresCookie&&!psscRecoveryProven()&&!bridgeColdStartVerified()&&!liveSsp3Calibration)
     throw Error('1-Wire-Startschutz: Für diesen NVM-Plan fehlt der Kaltstartnachweis.');
@@ -4269,6 +4299,7 @@ if(typeof document!=='undefined') (function UI(){
    CAL.protectStartupCommunication(initial,modified,{allowSvdd,allowAlarmMask:alarmOnly||alarmIntegrated,interfaceMode:st.iface});
    for(let i=0;i<28;i++)if(modified[i]!==initial[i]&&(restoring||![16,...((alarmOnly||alarmIntegrated)?[18,22]:[22]),...(allowSvdd?[CAL.SVDD_INDEX]:[])].includes(i)))throw Error('Boot-/Werksbereich verändert');
    if(liveSsp3Calibration){
+    if(st.coldStartAfeRestored)await verifyRecoveredCalibrationProfile(modified);
     for(const [address,value] of activeCalibrationRamWords()){
      if(await readReg(address)!==value){
       st.calVerified=false;st.calImage=null;
