@@ -2252,7 +2252,7 @@ if(typeof document!=='undefined') (function UI(){
   };
   const changed=[];
   let restored=false;
-  st.ramMeasurementStarting=true;
+  st.ramMeasurementStarting=true;st.ramRecoveryAttempted=true;st.ramRecoveryRetryable=false;
   stopLive();renderStatus();
   try{
    // One additional read on missing response; no repeated RAM writes.
@@ -2269,8 +2269,10 @@ if(typeof document!=='undefined') (function UI(){
     throw Error('EEPROM-UID oder CRC8/CRC16 ungültig. Keine RAM-Übernahme.');
    for(const i of [0,1,15,16,21,28,63])
     if(await readWord(i)!==words[i])throw Error('EEPROM-Wiederholungslesung unstabil');
-   const afe=words[28];
+   const firstCalibration=CAL.uncalibratedAfeBlank(words);
+   const afe=firstCalibration?words[28]|0x0800:words[28];
    decodeSafeAFE(afe);
+   if(firstCalibration)logging('Erstabgleich erkannt: Druckpfad unkalibriert, Elmos-Temperaturbeispielprofil. Nur AFE-Pflichtbit 11 im RAM setzen.');
    if(afeBefore!==0&&afeBefore!==afe)throw Error('AFE im RAM weicht vom bestätigten EEPROM ab');
    const live=await readCalibrationProfile();
    if(live[R_AFE]!==afeBefore)throw Error('AFE während Diagnose geändert');
@@ -2324,6 +2326,8 @@ if(typeof document!=='undefined') (function UI(){
     }catch(_){restoreError=true;}
    }
    st.measurementPeriod=null;st.measurementStatus=null;
+   // Only a transport failure before any write may trigger another startup profile.
+   st.ramRecoveryRetryable=changed.length===0&&!restoreError&&/PLC nothing received|Timeout/i.test(error.message);
    const msg='Automatischer RAM-Wiederanlauf nicht bestätigt: '+error.message+
     (restoreError?' Ursprüngliche RAM-Werte nicht vollständig bestätigt. Sensor am Prüfplatz sicher neu starten.':'')+
     '. Keine NVM-Programmierung. USB-Protokoll exportieren.';
@@ -2923,6 +2927,16 @@ if(typeof document!=='undefined') (function UI(){
      continue;
     }
     ready=await probePlcAddresses('PSSC-RAM-Freigabe (Delay '+delay+')');
+    if(ready&&st.readOnlySensor){
+     // A UID alone must not terminate startup as a successful measuring sensor.
+     // Try the verified RAM repair here, then retry a different startup delay
+     // ONLY for a transient transport error before any RAM mutation.
+     if(await startRamMeasurementOperation())break;
+     if(!st.ramRecoveryRetryable||delay==='10')return true;
+     trial.steps.push({delay,error:'RAM-Wiederanlauf ohne Schreibzugriff unterbrochen; nächstes Startprofil'});
+     st.readOnlySensor=null;st.plcAddressVerified=false;ready=false;
+     continue;
+    }
     if(ready)break;
     trial.steps.push({delay,error:'Keine bestätigte AFE-Konfiguration; nächstes Startprofil prüfen'});
    }
@@ -3034,7 +3048,7 @@ if(typeof document!=='undefined') (function UI(){
    show('connMsg','Neuinitialisierung erst nach Abschluss des laufenden Chipvorgangs möglich.','warn');return;
   }
   cancelAutoReconnect();
-  st.reinitRunning=true;
+  st.reinitRunning=true;st.ramRecoveryAttempted=false;st.ramRecoveryRetryable=false;
   st.psscRamRecovery=false;st.coldStartAfeRestored=false;st.calibrationPreflight=null;
   st.startupTrials=[];
   st.chip=false;st.readOnlySensor=null;st.plcAddressVerified=false;st.plcAddressProbes=[];stopLive();
@@ -3065,8 +3079,7 @@ if(typeof document!=='undefined') (function UI(){
     }else await detect();
    }
    if(st.readOnlySensor){
-    showReadOnlySensor();
-    await startRamMeasurementOperation();
+    if(!st.ramRecoveryAttempted){showReadOnlySensor();await startRamMeasurementOperation();}
     return;
    }
    if(!st.chip)throw Error('Keine gültige Registerantwort vom E703.11 erhalten');
@@ -3116,6 +3129,7 @@ if(typeof document!=='undefined') (function UI(){
   autoPortInfo=port?.getInfo?.()||null;
   st.sessionIndex++;st.sessionStartedAt=new Date().toISOString();st.calibrationPreflight=null;
   st.psscRamRecovery=false;st.coldStartAfeRestored=false;st.calibrationPreflight=null;
+  st.ramRecoveryAttempted=false;st.ramRecoveryRetryable=false;
   st.startupTrials=[];st.chipDiag=null;st.lastPlcReply=null;st.readerAlive=false;
   st.plcAddress=0x6C;st.plcAddressVerified=false;st.plcAddressSource='';st.plcAddressProbes=[];
   st.reinitRunning=false;st.firmware='';st.bridgeBoard=null;st.bridgeOutputNvm=false;st.readOnlySensor=null;st.powerHelp=null;st.powerCycleResult=null;st.magicResult=null;st.liveReadAttempts=0;st.liveReadSuccesses=0;st.liveLastError=null;st.liveLastAttemptAt=null;st.measurementPeriod=null;st.measurementStatus=null;st.measurementError=null;st.measurementStarts=0;st.measurementFreshCount=0;st.measurementLastChangedAt=null;st.plcHostFormat=$('plcHostFormat').value;st.chip=false;st.afe=null;st.afe0=null;st.boot=null;st.regs={};st.dsp=null;st.dspError=null;st.calStaged=false;st.calVerified=false;st.nvmDone=false;st.adc=null;st.manualLivePause=false;st.afeWriteActive=false;st.ramWriteScope=null;st.uid=null;st.uidShownForInput=null;st.restorePlan=null;st.expertOutputPlan=null;st.outputOnlyPlan=null;st.iface=$('iface').value;st.adapterKind=$('adapterType').value;
@@ -3149,7 +3163,7 @@ if(typeof document!=='undefined') (function UI(){
      logging('SSP3 + One Wire: automatischer Sensorstart über VSUPPLY; PLC-Format '+st.plcHostFormat+'.');
      if(!await probePlcAddresses('Erstverbindung ohne Power-Cycle',true))
       await startSsp3WithBoundedRetry();
-     if(st.readOnlySensor)await startRamMeasurementOperation();
+     if(st.readOnlySensor&&!st.ramRecoveryAttempted)await startRamMeasurementOperation();
      return;
     }
     await detect();
@@ -4200,6 +4214,7 @@ if(typeof document!=='undefined') (function UI(){
    st.calImage=image;
    $('nvmDiff').textContent=image.changes.map(c=>{
     const raw=`NVM 0x${h(c.address)} [${c.index}] 0x${h(c.from,2)} → 0x${h(c.to,2)}`;
+    if(c.index===28&&operatingProfile?.afeMandatoryRepair)return 'AFE-Pflichtbit 11 und geprüfte Verstärkung · '+raw;
     if(c.index===16&&activatePressureCorrection)return 'DSP-Druckkorrektur: deaktiviert → aktiviert · '+raw;
      if(c.index===30)return 'USER-ID · '+raw;
     if(c.index===28&&((c.from^c.to)&0x1000))return 'Brückenpolarität: '+((c.from&0x1000)?'invertiert':'normal')+' → '+((c.to&0x1000)?'invertiert':'normal')+' · '+raw;

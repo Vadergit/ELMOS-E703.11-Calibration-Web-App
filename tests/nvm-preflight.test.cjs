@@ -92,3 +92,39 @@ test('preflight catches missing cookie cold-start proof before the first measure
  const ready=simulatePreflight({cookie:true,cold:true});
  assert.ok(await ready.run());
 });
+
+function firstCalibrationImage(){
+ const a=w();a[16]=0x1214;a[17]=0x6C06;a[18]=0x4000;a[19]=0x099F;a[21]=0;
+ a[24]=0x48A0;a[25]=0x2E56;a[26]=0x04B4;a[27]=0x0C80;a[28]=0;a[29]=0x1154;a[30]=1;
+ a[32]=0x1000;a[51]=0x0F4D;a[52]=0xBC8E;a[53]=0xFC54;
+ a[15]=C.crc8(a)<<8;a[63]=C.crc16(a);return a;
+}
+test('first calibration from diagnostic log profile: AFE and period survive final NVM construction',()=>{
+ const a=firstCalibrationImage(),active=ram(a);active[28]=0x0C02;active[14]=1;
+ const p=C.planCalibrationProfile(a,active,{recovery:true,allowOperatingChanges:true});
+ assert.equal(p.afeMandatoryRepair,true);
+ for(const orderT of [0,1,2]){
+  const plan=C.planCalibrationProfile(a,active,{orderT,recovery:true,allowOperatingChanges:true});
+  const result=C.configFrom(a,fit(orderT),active[28],{activatePressureCorrection:true,operatingProfile:plan});
+  assert.equal(result.after[28],0x0C02);assert.equal(result.after[21],1);assert.equal(result.after[16]&3,2);
+  assert.equal(result.after[63],C.crc16(result.after));
+  assert.deepEqual(result.after.slice(0,16),a.slice(0,16));
+  assert.deepEqual(result.after.slice(17,20),a.slice(17,20));
+  assert.doesNotThrow(()=>C.validateRecoveryCalibrationDiff(a,result.after,{allowPressureCorrection:true,operatingProfile:plan}));
+  assert.throws(()=>C.protectStartupCommunication(a,result.after,{allowPressureCorrection:true}));
+ }
+ assert.throws(()=>C.planCalibrationProfile(a,active,{allowOperatingChanges:true}),/Messprofil/);
+ assert.throws(()=>C.configFrom(a,fit(0),0x0402,{operatingProfile:p}),/Erstinitialisierung/);
+});
+test('AFE mandatory repair cannot authorize a previously calibrated or corrupt profile',()=>{
+ for(const [i,mask] of [[16,2],[21,1],[35,1],[52,1],[58,1],[28,0x1000]]){
+  const a=firstCalibrationImage();a[i]^=mask;a[63]=C.crc16(a);
+  assert.equal(C.uncalibratedAfeBlank(a),false);
+  const target=a.slice();target[28]|=0x0800;target[63]=C.crc16(target);
+  assert.throws(()=>C.protectStartupCommunication(a,target,{operatingProfile:{afeMandatoryRepair:true}}),/Pflichtbit/);
+ }
+ const bad=firstCalibrationImage();bad[63]^=1;assert.equal(C.uncalibratedAfeBlank(bad),false);
+ const good=firstCalibrationImage();good[28]=0x0C02;good[63]=C.crc16(good);
+ const target=good.slice();target[28]&=~0x0800;
+ assert.throws(()=>C.protectStartupCommunication(good,target,{operatingProfile:{afeMandatoryRepair:true}}),/Pflichtbit/);
+});

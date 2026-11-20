@@ -1,3 +1,10 @@
+## v0.7.160 – Erstabgleich bei fehlendem AFE-Pflichtbit
+
+- Erkennung des protokollierten druckunkalibrierten Zustands anhand von gültiger CRC8/CRC16, deaktivierter Druckkorrektur, leeren Druckkoeffizienten, inaktivem Messzyklus, fehlender Ausgangsskalierung und unverändertem Elmos-Temperaturbeispielprofil.
+- Nur für dieses Profil CFG_AFE1 Bit 11 zunächst im RAM setzen. Erst nach bestätigtem Messprofil, Vorabprüfung, Kalibrierung und DSP-Verifikation im NVM-Zielabbild übernehmen. Kein automatisches NVM-Schreiben und keine Änderung der Factory-/One-Wire-Register.
+- PSSC-Start beendet bei Diagnose-UID nicht ohne RAM-Wiederanlauf. Weitere Startprofile nur bei transientem Transportfehler vor Schreibzugriff; nach nicht bestätigten Schreibvorgängen keine automatische Wiederholung.
+- Regressionen mit rekonstruierten Registerwerten aus den beiden USB-Fehlerbildern; physische Hardwarevalidierung ausstehend.
+
 ## v0.7.159 – Automatischer SSP3-RAM-Wiederanlauf
 
 - Bei bestätigter UID und CFG_AFE1=0 wird der Wiederanlauf beim Verbinden und Neuinitialisieren automatisch versucht, ohne zuvor gespeicherte UID oder Wechsel in die klassische Ansicht.
