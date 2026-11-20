@@ -77,3 +77,42 @@ test('blank AFE recovery fails safely when no fresh ADC conversion arrives',asyn
  assert.equal(await x.run(),false);assert.equal(x.regs[0x1c],0);
  assert.equal(x.regs[14],0);assert.equal(x.st.ramRecoveryRetryable,false);
 });
+
+function simulateStartup(scenarios){
+ const start=app.indexOf(' async function tryPsscRamStartup(){'),end=app.indexOf('\n }',start)+3;
+ const port={},uid='002000FC44BC',st={port,sessionIndex:3,firmware:'02.08.02.04',adapterKind:'ssp3',iface:'plc',startupTrials:[],chip:false,readOnlySensor:null,plcAddress:0x6c};
+ let trialIndex=-1,recoveries=0,liveStarts=0;const commands=[];
+ const deps={st,P:{readData:()=>[17,0,7,1]},
+  exchange:async cmd=>{commands.push(cmd);if(cmd.startsWith('PWR_ON FFFF '))trialIndex++;return ':'},
+  readReg:async()=>1,probePlcAddresses:async()=>{
+   const state=scenarios[trialIndex];st.chip=state==='ready';st.readOnlySensor=state==='ready'||state==='absent'?null:uid;
+   if(st.chip)st.uid={hex:uid};return state!=='absent';
+  },
+  startRamMeasurementOperation:async()=>{
+   recoveries++;const state=scenarios[trialIndex];st.ramRecoveryAttempted=true;st.ramRecoveryRetryable=state==='transient';
+   if(state==='repair'){st.chip=true;st.readOnlySensor=null;st.uid={hex:uid};st.coldStartAfeRestored=true;return true}
+   return false;
+  },
+  logging:()=>{},renderStatus:()=>{},show:()=>{},showReadOnlySensor:()=>{},startLive:()=>{liveStarts++}
+ };
+ const run=new Function(...Object.keys(deps),app.slice(start,end)+';return tryPsscRamStartup;')(...Object.values(deps));
+ return {run,st,commands,counts:()=>({recoveries,liveStarts})};
+}
+test('PSSC startup: diagnostic-only first response uses verified repair without unnecessary power cycling',async()=>{
+ const x=simulateStartup(['repair']);assert.equal(await x.run(),true);assert.equal(x.st.chip,true);
+ assert.deepEqual(x.commands.filter(c=>c.startsWith('PWR_ON FFFF')),['PWR_ON FFFF 0 0']);
+ assert.deepEqual(x.counts(),{recoveries:1,liveStarts:1});
+ assert.equal(x.st.startupTrials[0].verifiedUid,x.st.uid.hex);
+});
+test('PSSC startup: bounded additional delays reach a working sensor on the third attempt',async()=>{
+ const x=simulateStartup(['transient','absent','ready']);assert.equal(await x.run(),true);
+ assert.deepEqual(x.commands.filter(c=>c.startsWith('PWR_ON FFFF')),['PWR_ON FFFF 0 0','PWR_ON FFFF 8 0','PWR_ON FFFF 10 0']);
+ assert.equal(x.st.chip,true);assert.equal(x.st.startupTrials[0].readVerified,true);
+ assert.deepEqual(x.counts(),{recoveries:1,liveStarts:1});
+});
+test('PSSC startup: unsafe diagnostic profile is not retried or labelled verified',async()=>{
+ const x=simulateStartup(['unsafe','ready']);assert.equal(await x.run(),true);
+ assert.equal(x.st.chip,false);assert.equal(x.st.startupTrials[0].readVerified,false);
+ assert.deepEqual(x.commands.filter(c=>c.startsWith('PWR_ON FFFF')),['PWR_ON FFFF 0 0']);
+ assert.deepEqual(x.counts(),{recoveries:1,liveStarts:0});
+});

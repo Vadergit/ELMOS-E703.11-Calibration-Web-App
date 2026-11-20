@@ -128,3 +128,8 @@ test('AFE mandatory repair cannot authorize a previously calibrated or corrupt p
  const target=good.slice();target[28]&=~0x0800;
  assert.throws(()=>C.protectStartupCommunication(good,target,{operatingProfile:{afeMandatoryRepair:true}}),/Pflichtbit/);
 });
+
+test('first calibration cannot build an incomplete NVM image without confirmed AFE profile',()=>{
+ const a=firstCalibrationImage();
+ assert.throws(()=>C.configFrom(a,fit(0),0x0800),/AFE-Erstinitialisierung/);
+});

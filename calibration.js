@@ -524,6 +524,8 @@ const ELMOS_CAL = (() => {
    }
    // Preserve factory and communication settings outside validated fields.
   cfg[28]=(cfg[28]&~0x17FF)|(afeWord&0x17FF); // preserve bits 11,13–15 normally
+  if(uncalibratedAfeBlank(original)&&!operatingProfile?.afeMandatoryRepair)
+   throw Error('AFE-Erstinitialisierung benötigt bestätigte Vorabprüfung');
   if(operatingProfile?.afeMandatoryRepair){
    if(!uncalibratedAfeBlank(original)||!(afeWord&0x0800)||(afeWord&0xe000)!==(original[28]&0xe000))throw Error('AFE-Erstinitialisierung nicht bestätigt');
    cfg[28]|=0x0800;
