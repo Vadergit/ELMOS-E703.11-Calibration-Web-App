@@ -7,6 +7,17 @@ const fs=require('node:fs');
 const path=require('node:path');
 const CAL=require('../calibration.js');
 const read=file=>fs.readFileSync(path.join(__dirname,'..',file),'utf8');
+
+// Extract the named top-level function rather than relying on its old signature
+// or accidentally including unrelated handlers below it.
+const routine=(src,name)=>{
+ const match=new RegExp('^ (?:async )?function '+name+'\\(','m').exec(src);
+ assert.ok(match,'function exists: '+name);
+ const start=match.index,end=src.indexOf('\n }',start);
+ assert.ok(end>start,'function boundary: '+name);
+ return src.slice(start,end+3);
+};
+
 const safeNvm=()=>{
  const words=Array(64).fill(0);
  words[16]=1<<9;                         // AODO analog; valid 1-Wire mode
@@ -55,8 +66,8 @@ test('Seven calibration steps plus independent EEPROM viewer and test logger',()
  const html=read('index.html');
  const panels=Array.from(html.matchAll(/<section[^>]*data-panel="([0-9]+)"/g),m=>Number(m[1]));
  const steps=Array.from(html.matchAll(/<button class="stepBtn[^"]*" data-step="([0-9]+)"/g),m=>Number(m[1]));
- assert.deepEqual(panels,[0,1,2,3,4,5,6,7,8,9]);
- assert.deepEqual(steps,[0,1,2,3,4,5,6,7,9,8]);
+ assert.deepEqual(panels,[0,1,2,3,4,5,6,7,10,8,9]);
+ assert.deepEqual(steps,[0,1,2,3,4,5,9,6,7,8]);
  assert.equal(html.split('id="expertOutputMode"').length-1,1);
  const output=html.split('data-panel="5" hidden>')[1].split('data-panel="6" hidden>')[0];
  assert.ok(output.includes('id="expertOutputMode"'));
@@ -68,8 +79,16 @@ test('Seven calibration steps plus independent EEPROM viewer and test logger',()
 });
 test('NVM write path requires one-wire + preservation check',()=>{
  const src=read('app.js');
- assert.ok(src.includes("st.iface!=='plc')throw Error('1-Wire-Startschutz"));
- assert.ok(src.includes('CAL.protectStartupCommunication(initial,modified,{allowSvdd})'));
+ const transport=routine(src,'nvmTransportSupported');
+ const supported=new Function('st','i2cNvmSupported',transport+';return nvmTransportSupported();');
+ assert.equal(supported({iface:'plc'},()=>false),true);
+ assert.equal(supported({iface:'i2c'},()=>false),false);
+ assert.equal(supported({iface:'i2c'},()=>true),true);
+ assert.equal(supported({iface:'spi'},()=>false),false);
+ const program=routine(src,'nvmProgramOperation');
+ assert.match(program,/if\(!nvmTransportSupported\(\)\)throw Error/);
+ assert.match(program,/CAL\.protectStartupCommunication\(initial,modified,\{allowSvdd,allowAlarmMask:.*operatingProfile,interfaceMode:st\.iface\}\)/);
+ assert.ok(program.indexOf('CAL.protectStartupCommunication(initial,modified')<program.indexOf('for(const x of [0x98BD'));
 });
 
 test('PSSC S0/S1 quantization stays inside analog range',()=>{
@@ -90,7 +109,7 @@ test('PSSC scaling rejects out-of-range voltages',()=>{
 });
 test('PSSC UI separates supported and unsupported output modes',()=>{
  const html=read('index.html');
- for(const token of ['Digital Interface','AODO pin','Scaling','Limiting','Error Signaling','Error Values'])assert.ok(html.includes(token));
+ for(const token of ['Digital Interface','AODO pin','Scaling','Limiting','Error Signaling','alarmErrorLowPct','alarmErrorHighPct'])assert.ok(html.includes(token));
  assert.ok(html.includes('Analog Ratiometric 0..5 V'));
  assert.ok(html.includes('Analog Absolute 0..10 V · nicht E703.11'));
  assert.ok(html.includes('value="abs10" disabled'));
@@ -195,10 +214,9 @@ test('Expert mode shows contextual settings and no modal',()=>{
  assert.ok(html.includes('data-expert-area hidden><summary>Erweitert · AODO_F'));
  assert.ok(src.includes("classList.toggle('is-expert',enabled)"));
  const scripts=Array.from(html.matchAll(/<script src="([^"]+)"/g),m=>m[1]);
- assert.deepEqual(scripts.map(url=>url.split('?')[0]),
-  ['calibration.js','eeprom-help.js','expert.js','config.js','guided-plan.js','demo.js',
-   'archive-core.js','test-logger-core.js','archive-analysis.js','archive.js',
-   'app.js','compact.js','test-logger.js','guided.js']);
+ const names=scripts.map(url=>url.split('?')[0]);
+ for(const name of ['calibration.js','eeprom-help.js','expert.js','config.js','guided-plan.js','demo.js','archive-core.js','archive.js','app.js','compact.js','test-logger.js','guided.js'])assert.equal(names.filter(n=>n===name).length,1,name);
+ for(const [before,after] of [['calibration.js','app.js'],['expert.js','app.js'],['app.js','guided.js'],['alarm-config.js','alarm-editor.js'],['alarm-editor.js','app.js']])assert.ok(names.indexOf(before)<names.indexOf(after),before+' before '+after);
 });
 
 test('Failed E703.11 probe keeps SSP3 open for explicit, bounded startup test',()=>{
@@ -219,7 +237,7 @@ test('EEPROM viewer reads only via the established CRC-tested NVM path',()=>{
  const html=read('index.html'),app=read('app.js'),expert=read('expert.js');
  assert.ok(html.includes('id="eepromSearch"'));
  assert.ok(html.includes('id="eepromExport"'));
- assert.ok(app.includes("if(n===7)return ''"));
+ assert.match(routine(app,'workflowGate'),/if\(n===7\|\|n===10\)return ''/);
  assert.ok(app.includes('expert.refreshEEPROMViewer()'));
  assert.ok(expert.includes('async function readNvm()'));
  assert.ok(expert.includes('await nvmScan({expertRead:true})'));
@@ -256,7 +274,10 @@ test('EEPROM fixed-point conversion, signed values, search and documented bit de
  assert.equal(EEPROM_HELP.describe(55,0xFFFF).interpreted,null);
  assert.equal(EEPROM_HELP.describe(17,4).fields[0].meaning,'1-Wire dauerhaft aktiviert');
  assert.equal(EEPROM_HELP.describe(18,2<<12).fields[0].meaning,'200 ms');
- assert.equal(EEPROM_HELP.describe(28,0x0800).fields.length,4);
+ const fields=EEPROM_HELP.describe(28,0x0800).fields;
+ assert.equal(fields.length,7);
+ assert.equal(fields[0].meaning,'Normal');
+ assert.equal(EEPROM_HELP.describe(28,0x1800).fields[0].meaning,'SIP/SIN vertauscht');
  assert.ok(EEPROM_HELP.describe(28,0x0800).search.includes('offset'));
  assert.ok(EEPROM_HELP.describe(35,0).search.includes('druckkalibrierung'));
  assert.throws(()=>EEPROM_HELP.describe(64,0));
@@ -363,7 +384,7 @@ test('Selective config includes only requested groups and AFE imports auto-apply
  assert.ok(app.includes('ELMOS_CONFIG.createSelective('));
  assert.ok(app.includes('const p=st.staged;'));
  assert.ok(app.includes("if(target&&(!st.port||!st.chip||st.mode!=='usb'))"));
- assert.ok(app.includes('const ok=await commitGain(target)'));
+ assert.ok(app.includes('const ok=await commitGain(gains)'));
  assert.ok(app.includes("if(!ok||!st.chip||!['pga1','pga2','offset'].every"));
  assert.ok(app.includes("throw Error('AFE-RAM-Übernahme nicht bestätigt."));
  assert.ok(app.includes("if(has('output'))expert.applyOutputProfile(values.output)"));
@@ -455,10 +476,10 @@ test('Guided planner rejects >10, nonascending temperatures, invalid pressure an
 test('Guided view is optional and contains only one set of hardware inputs',()=>{
  const html=read('index.html'),ui=read('guided.js');
  assert.ok(html.includes('id="guidedWorkspace" hidden'));
- assert.ok(html.includes('id="workflowMode"'));
+ assert.ok(html.includes('id="guidedHomeTop"'));
  assert.ok(html.includes('id="guidedLaunch"'));
  assert.ok(html.includes('id="guidedLaunchTop"'));
- assert.ok(html.includes('guided.css?v=0.6.57'));
+ assert.match(html,/guided\.css\?v=0\.7\.\d+/);
  for(const id of ['nvmProgram','nvmPrepare','calApplyRam','calVerifyRam','expertOutputStage','configApply','configFile']){
   assert.equal(html.split('id="'+id+'"').length-1,1);
  }
@@ -478,7 +499,7 @@ test('Guided app uses read-only status, and the original NVM protections remain'
  assert.ok(app.includes("window.ELMOS_GUIDED?.onConnected?.()"));
  assert.ok(app.includes("const approvalGranted=nvmReason===''"));
  assert.ok(app.includes("$('nvmProgram').disabled=!approvalGranted"));
- assert.ok(app.includes('CAL.protectStartupCommunication(initial,modified,{allowSvdd})'));
+ assert.match(routine(app,'nvmProgramOperation'),/CAL\.protectStartupCommunication\(initial,modified,\{allowSvdd,allowAlarmMask:.*operatingProfile,interfaceMode:st\.iface\}\)/);
 });
 test('USB bridge fails closed until a truly compatible PLC firmware is available',()=>{
  const app=read('app.js'),fw=read('firmware/usb_bridge_cdc/usb_bridge_cdc.ino');
@@ -511,13 +532,13 @@ test('Guided and compact modes restore the original controls before switching',(
 });
 test('ESP32-C3 bridge verifies capabilities and establishes PLC access before detection',()=>{
  const app=read('app.js'),fw=read('firmware/esp32c3_supermini/esp32c3_supermini.ino');
- assert.ok(app.indexOf('if(!bridgeReady)return;')<app.indexOf("await exchange('PLC_BAUD '"));
- assert.ok(app.includes("st.sensorPowerEnabled?'PLC START':'PLC ACCESS'"));
- assert.ok(fw.includes('CAPS=PLC_UID,PLC_READ,PLC_WRITE,NVM'));
- assert.ok(fw.includes('CONFIG_IDF_TARGET_ESP32C3'));
- assert.ok(fw.includes('ARDUINO_USB_CDC_ON_BOOT'));
- assert.ok(fw.includes('GPIO18/19'));
- assert.ok(fw.includes('PLC_WRITE_DENIED'));
+ const conn=routine(app,'connectOperation'),bridge=routine(app,'connectBridgeChip'),hello=routine(app,'bridgeHello');
+ assert.ok(conn.indexOf('if(!bridgeReady)return;')>conn.indexOf('await bridgeHello()'));
+ assert.ok(conn.indexOf('if(!bridgeReady)return;')<conn.indexOf('await connectBridgeChip()'));
+ assert.match(hello,/caps\.includes\('PLC_GPIO4_IO'\).*caps\.includes\('POWER_GPIO_10'\)/);
+ assert.match(bridge,/await exchange\('PLC_BAUD '\+rate\)/);
+ assert.ok(bridge.indexOf('await bridgeAccess({power,recover})')<bridge.lastIndexOf('await detect('));
+ for(const token of ['CAPS=PLC_UID,PLC_READ,PLC_WRITE,NVM','CONFIG_IDF_TARGET_ESP32C3','ARDUINO_USB_CDC_ON_BOOT','GPIO18/19','PLC_WRITE_DENIED'])assert.ok(fw.includes(token),token);
 });
 
 test('Mathematical fit works with representative synthetic pressure-temperature grids',()=>{
@@ -535,14 +556,9 @@ test('Mathematical fit works with representative synthetic pressure-temperature 
 });
 test('Board shortlist, flash guide and pure-USB safety instructions are included',()=>{
  const boards=read('docs/ESP_BOARD_OPTIONS.md'),guide=read('docs/USB_BRIDGE_GUIDE.md');
- for(const name of ['ESP32-C3 SuperMini','XIAO ESP32C3','ESP32-S3 DevKitC-1','Nano ESP32','ESP32-C6'])
-  assert.ok(boards.includes(name),name);
- for(const term of ['ESP32C3 Dev Module','USB CDC On Boot','BRIDGE_INFO','CDC_ONLY','GPIO18','GPIO19','esp32c3_supermini.ino'])
-  assert.ok(boards.includes(term),term);
+ for(const name of ['ESP32-C3 SuperMini','Arduino Pro Micro','ELMOS SSP3','GPIO4','GPIO10','D7','3,3-V-GPIOs sind nicht 5-V-tolerant','esp32c3_supermini.ino','pro_micro.ino'])assert.ok(boards.includes(name),name);
  assert.ok(guide.includes('ESP_BOARD_OPTIONS.md'));
 });
-
-
 
 test('Guided AFE uses the original ADC chart and live buttons, never a second hardware connection',()=>{
  const html=read('index.html'),guide=read('guided.js'),app=read('app.js'),css=read('guided.css');
@@ -561,9 +577,8 @@ test('Guided AFE uses the original ADC chart and live buttons, never a second ha
 });
 test('Guided AFE range tracker uses original samples and ignores older or changed-gain readings',()=>{
  const app=read('app.js');
- const segment=app.split(' function guidedAfeStats(since){')[1].split('\n }\n window.ELMOS_GUIDED_API')[0];
- assert.ok(segment&&segment.includes('st.history.filter('));
- const func='function guidedAfeStats(since){'+segment+'\n }';
+ const func=routine(app,'guidedAfeStats');
+ assert.ok(func.includes('st.history.filter('));
  const when=Date.parse('2026-11-11T18:00:00Z');
  const gains={pga1:1,pga2:3,offset:0};
  const rows=[
@@ -634,10 +649,10 @@ test('Saving config now always exports all five groups regardless of import chec
 });
 test('Import checkbox selection controls which groups are applied and gates AFE writes',()=>{
  const app=read('app.js'),html=read('index.html');
- assert.ok(app.includes('function resetConfigImportSelection(profile){'));
+ assert.ok(app.includes('function resetConfigImportSelection(profile,editing=false){'));
  assert.ok(app.includes('const available=new Set(profile?configIncluded(profile):[]);'));
- assert.ok(app.includes('checkbox.checked=available.has(group)'));
- assert.ok(app.includes('checkbox.disabled=!available.has(group)'));
+ assert.ok(app.includes('checkbox.checked=profile?present:editing'));
+ assert.ok(app.includes('checkbox.disabled=!present&&!editing'));
  assert.ok(app.includes("selectedConfig=null;resetConfigImportSelection(null);"));
  assert.ok(app.includes('resetConfigImportSelection(profile);'));
  assert.ok(app.includes('included=configSelectedGroups()'));
@@ -646,7 +661,7 @@ test('Import checkbox selection controls which groups are applied and gates AFE 
  assert.ok(app.includes("const target=has('afe')?{...values.afe}:null;"));
  assert.ok(app.includes("if(target&&(!st.port||!st.chip||st.mode!=='usb'))"));
  assert.ok(app.includes('if(target){'));
- assert.ok(app.includes('const ok=await commitGain(target);'));
+ assert.ok(app.includes('const ok=await commitGain(gains);'));
  assert.ok(app.includes("if(has('output'))expert.applyOutputProfile(values.output);"));
  assert.ok(app.includes("document.dispatchEvent(new CustomEvent('elmos-config-applied'"));
  for(const id of ['configIncludeAfe','configIncludeReference','configIncludeMeasurement','configIncludeDsp','configIncludeOutput'])
@@ -740,7 +755,7 @@ test('AFE RAM commit returns explicit success or failure without NVM bypass',()=
 
 test('Read-only AFE1 diagnostics captures three reads, other AFE registers and raw CRC byte',()=>{
  const src=read('app.js'),html=read('index.html');
- const diag=src.split(' async function runChipDiagnostics(reason=')[1].split(' async function detect(){')[0];
+ const diag=routine(src,'runChipDiagnosticsOperation');
  assert.ok(diag.includes("[[R_AFE,'CFG_AFE1'],[R_AFE,'CFG_AFE1'],[R_AFE,'CFG_AFE1']"));
  for(const name of ['CFG_AFE0','CFG_AFE2','ADC_S'])assert.ok(diag.includes("'"+name+"'"));
  assert.ok(diag.includes('p.value=await readReg(addr)'));
@@ -759,7 +774,7 @@ test('Malformed and unexpected AFE1 values keep write gates while raw reply is r
  const safe=src.split(' function decodeSafeAFE(w){')[1].split(' function formatChipDiag(d){')[0];
  assert.ok(reader.includes('const bytes=P.readData(reply,3);'));
  assert.ok(reader.includes('crc8Rx:bytes[2]'));
- assert.ok(reader.includes("crc8IndependentCheck:'not-validated'"));
+ assert.ok(reader.includes("crc8IndependentCheck:crc8Valid?'valid':'invalid'"));
  assert.ok(reader.includes('rawReply:reply.slice(0,1000)'));
  assert.ok(reader.includes("status:'malformed'"));
  assert.ok(safe.includes('if(!(w&0x0800))throw Error('));
@@ -1269,7 +1284,11 @@ test('analog clipping rounds voltage limits inward and preserves One Wire settin
  assert.deepEqual(after.slice(17,20),before.slice(17,20));
  assert.equal(CAL.prepareOutputConfig(after,{...settings,clipping:{mode:'off'}})[16]&0x80,0);
  assert.equal(CAL.prepareOutputConfig(after,settings)[16]&0x80,0x80);
- assert.throws(()=>CAL.prepareOutputConfig(before,{...settings,clipping:{...clipping,high:4.6}}),/10–90/);
+ // Clipping thresholds and guaranteed analog linearity range are distinct.
+ const extended=CAL.prepareOutputConfig(before,{...settings,clipping:{...clipping,high:4.6}});
+ assert.ok(extended[60]>after[60]);
+ assert.throws(()=>CAL.prepareOutputConfig(before,{...settings,clipping:{...clipping,high:5.1}}),/Clipping/);
+ assert.throws(()=>CAL.prepareOutputConfig(before,{...settings,gain:1.0,clipping}),/10–90/);
  before[16]|=0x100;
  before[61]=1;
  assert.throws(()=>CAL.prepareOutputConfig(before,{...settings,clipping}),/Fehlerreaktionen/);
@@ -1286,11 +1305,11 @@ test('ESP32-C3 output-only NVM is capability-gated and scope-limited',()=>{
  assert.ok(fw.includes('index == 57 || index == 58 || index == 59 || index == 60 || index == 63'));
  assert.ok(fw.includes('outputDataPending = false;'));
  assert.ok(fw.includes('disarmNvm();'));
- assert.ok(app.includes("st.bridgeOutputNvm=isEsp32C3&&caps.includes('BRIDGE_AODO_OUTPUT_NVM_TEST')"));
+ assert.ok(app.includes("st.bridgeOutputNvm=st.bridgeUserNvm||(isEsp32C3&&caps.includes('BRIDGE_AODO_OUTPUT_NVM_TEST'))"));
  assert.ok(app.includes("outputOnly?'NVM ARM OUTPUT':'NVM ARM CALIBRATION'"));
  assert.ok(app.includes("if(st.adapterKind==='bridge'&&!st.bridgeOutputNvm)"));
  assert.ok(app.includes('const outputWords=new Set([16,57,58,59,60,63]);'));
- assert.ok(app.includes('CAL.protectStartupCommunication(initial,modified,{allowSvdd})'));
+ assert.match(routine(app,'nvmProgramOperation'),/CAL\.protectStartupCommunication\(initial,modified,\{allowSvdd,allowAlarmMask:.*operatingProfile,interfaceMode:st\.iface\}\)/);
  assert.ok(app.includes('if(finalRecoveryBlock)throw Error(finalRecoveryBlock)'));
  assert.ok(app.includes('if(after.some((x,i)=>x!==modified[i]))'));
  assert.ok(!proMicro.includes('BRIDGE_AODO_OUTPUT_NVM_TEST'));
@@ -1328,7 +1347,7 @@ test('Clipping activation enters real VDD defaults but never overwrites edited l
 test('Output-only NVM action displays persistent stages and preserves verified plan during archive capture',()=>{
  const app=read('app.js'),html=read('index.html'),guided=read('guided.js'),compact=read('compact.js');
  assert.ok(html.includes('id="nvmWriteStatus"')&&html.includes('id="nvmWriteBar"'));
- assert.ok(app.includes("await archive.begin(outputOnly?'output':'calibration')"));
+ assert.ok(app.includes("await archive.begin((outputOnly||alarmOnly)?'output':'calibration')"));
  assert.ok(app.includes('const verifiedAlready=hasCurrentNvmBackup();'));
  assert.ok(app.includes('const readOK=verifiedAlready||await nvmScan({expertRead:true});'));
  assert.ok(app.includes('st.calImage?.before!==initial||st.calImage?.after!==modified'));
@@ -1423,10 +1442,10 @@ test('AODO preflight warns on outdated scaling after recalculating DSP',()=>{
  const fields=id=>({value:values[id]});
  const original=safeNvm();
  // The initial NVM has no AODO scaling, while the new DSP fit is for 30k digits.
- const st={calfit:{outputLimit:30000},calStaged:true,nvmBackup:original,
+ const st={calfit:{outputLimit:30000},calStaged:true,nvmBackup:original,regs:{},
   expertOutputPlan:null};
  const needed=(state,field=fields,hasBackup=()=>true)=>
-  build(state,CAL,field,hasBackup)().required;
+  build(state,CAL,field,hasBackup,()=>false,()=>false)().required;
  assert.equal(needed(st),true,'not-yet-programmed AODO must be detected');
  const scale=CAL.analogScaling(.5,4.5,5,30000);
  const plan={mode:'1',scaleEnabled:true,gain:scale.gain,offset:scale.offset,
@@ -1436,6 +1455,8 @@ test('AODO preflight warns on outdated scaling after recalculating DSP',()=>{
  assert.equal(needed({...st,expertOutputPlan:{...plan,gain:plan.gain*1.15}}),true,
   'incorrect stale plan must not pass');
  assert.equal(needed({...st,calfit:null}),false);
+ assert.equal(needed({...st,coldStartAfeRestored:true,nvmBackup:CAL.prepareOutputConfig(original,plan,30000)}),true);
+ assert.equal(needed({...st,coldStartAfeRestored:true,expertOutputPlan:plan}),false);
  assert.equal(needed({...st,nvmBackup:CAL.prepareOutputConfig(original,plan,30000)}),false,
   'correct pre-existing AODO need not be modified');
  assert.equal(needed(st,id=>({value:id==='psscS0'?'4.8':values[id]})),true,
@@ -1858,7 +1879,7 @@ test('DSP display restores arbitrary endpoints only for the matching live calibr
 test('Unknown DSP scale displays exact chip digits without a manual setting or a guessed percentage',()=>{
  const app=read('app.js');
  const start=app.indexOf(' function dspDisplayReading(');
- const end=app.indexOf(' function dspNumber(',start);
+ const end=app.indexOf(' function renderStandardReferenceUi(',start);
  const reading=new Function(app.slice(start,end)+'return dspDisplayReading;')();
  assert.deepEqual(reading(null,null),{value:null,unit:''});
  assert.deepEqual(reading(-30014,null),{value:-30014,unit:'Digits'});
