@@ -192,8 +192,8 @@ test('automatic ESP32-C3 access honours selected VDD control without implicit RA
  assert.ok(from>0&&to>from);
  const implementation=app.slice(from,to);
  assert.match(implementation,/power=!!st\.sensorPowerEnabled&&\(!autoProbe\|\|st\.iface==='plc'\)/);
- assert.match(implementation,/if\(autoProbe\|\|!st\.bridgePsscRam/);
- assert.match(implementation,/detect\(\{requireUid:autoProbe\}\)/);
+ assert.match(implementation,/if\(!found&&!autoProbe&&st\.bridgePsscRam&&/);
+ assert.match(implementation,/detect\(\{requireUid:autoProbe\|\|st\.bridgeBoard==='ESP32-C3 SuperMini'\}\)/);
  assert.match(app,/if\(st\.port===port&&!st\.closing&&\(!st\.chip\|\|!st\.uid\?\.hex\)\)scheduleAutoReconnect\(2800\)/);
 });
 
@@ -223,8 +223,8 @@ test('auto PLC reconnect honours configured VDD switch to reopen short startup w
  assert.ok(first>0&&end>first);
  const snippet=app.slice(first,end);
  assert.match(snippet,/power=!!st\.sensorPowerEnabled&&\(!autoProbe\|\|st\.iface==='plc'\)/);
- assert.match(app,/await bridgeAccess\(\{power\}\)/);
- assert.match(app,/if\(autoProbe\|\|!st\.bridgePsscRam/);
+ assert.match(app,/await attemptAccess\(rate,false\)/);
+ assert.match(app,/if\(!found&&!autoProbe&&st\.bridgePsscRam&&/);
 });
 test('sensor banner shows a stable auto-connect state while detailed retries stay in the log',()=>{
  assert.match(html,/id="sensorAutoReconnectStatus"/);
@@ -249,8 +249,8 @@ test('manual reinitialization retains bridge recovery and is independent of auto
  const bridgeStart=app.indexOf(' async function connectBridgeChip(');
  const bridgeEnd=app.indexOf(' // CRC8 verification follows DS',bridgeStart);
  const bridge=app.slice(bridgeStart,bridgeEnd);
- assert.match(bridge,/if\(autoProbe\|\|!st\.bridgePsscRam/);
- assert.match(bridge,/await bridgeAccess\(\{power,recover:true\}\)/);
+ assert.match(bridge,/if\(!found&&!autoProbe&&st\.bridgePsscRam&&/);
+ assert.match(bridge,/await attemptAccess\(rate,true\)/);
  assert.match(html,/data-app-version="0\.7\.\d+"/);
 });
 
@@ -282,8 +282,8 @@ test('auto bridge path now uses manual PLC RECOVER fallback and never calls auto
  const bridgeStart=app.indexOf(' async function connectBridgeChip(');
  const bridgeEnd=app.indexOf(' // CRC8 verification follows DS',bridgeStart);
  const bridge=app.slice(bridgeStart,bridgeEnd);
- assert.match(bridge,/await bridgeAccess\(\{power,recover:true\}\)/);
- assert.match(bridge,/if\(autoProbe\|\|!st\.bridgePsscRam/);
+ assert.match(bridge,/await attemptAccess\(rate,true\)/);
+ assert.match(bridge,/if\(!found&&!autoProbe&&st\.bridgePsscRam&&/);
  assert.match(html,/temporäre RAM-Freigabe/);
  assert.doesNotMatch(attempt,/writeReg\(|nvmProgram\(|nvmWrite\(/);
 });
@@ -333,4 +333,33 @@ test('background reconnect probes keep the disconnected UI stable until the UID 
  assert.match(html,/html\.archive-active #sensorReconnectBanner\{display:none!important\}/);
  assert.match(app,/const connected=!!st\.port&&confirmedSensorForUi\(\);/);
  assert.match(app,/\$\('status'\)\.textContent=demoEnabled\?'Demo · Simulation':confirmedSensorForUi\(\)/);
+});
+
+test('dual baud access before recovery, explicit auto-probe never recovers RAM',async()=>{
+ const start=app.indexOf(' async function connectBridgeChip('),end=app.indexOf(' // CRC8 verification follows DS',start);
+ const source=app.slice(start,end);
+ const simulate=(autoProbe,succeedAt,power=true)=>{
+  const calls=[],port={},st={port,sessionIndex:1,iface:'plc',sensorPowerEnabled:power,
+    bridgeBoard:'ESP32-C3 SuperMini',bridgePsscRam:true,plcAddress:0x6c};
+  let rate;
+  const deps={st,$:id=>({checked:false,value:id==='plcBaud'?'25000':''}),logging:()=>{},h:n=>n.toString(16),
+   exchange:async cmd=>{rate=Number(cmd.split(' ')[1]);calls.push(['baud',rate]);return ''},
+   bridgeAccess:async opts=>{calls.push(['access',rate,opts.power,opts.recover]);if(!succeedAt(rate,opts.recover))throw Error('PLC_NO_VALID_FRAME')},
+   noteBridgeRx:async()=>{},readReg:async()=>1,detect:async opts=>{calls.push(['detect',opts.requireUid]);st.chip=true;st.uid={hex:'002000010002'}},
+   bridgeColdStartVerified:()=>false,show:()=>{},renderStatus:()=>{}};
+  const fn=new Function(...Object.keys(deps),source+';return connectBridgeChip;')(...Object.values(deps));
+  return {calls,st,run:()=>fn({autoProbe})};
+ };
+ const ordinary=simulate(false,(rate,recover)=>rate===100000&&!recover);
+ await ordinary.run();
+ assert.deepEqual(ordinary.calls.filter(x=>x[0]==='access'),[['access',25000,true,false],['access',100000,true,false]]);
+ assert.equal(ordinary.st.psscRamRecovery,undefined);
+ const recovered=simulate(false,(_rate,recover)=>recover,false);
+ await recovered.run();
+ assert.deepEqual(recovered.calls.filter(x=>x[0]==='access'),[['access',25000,false,false],['access',100000,false,false],['access',25000,false,true]]);
+ assert.equal(recovered.st.psscRamRecovery,true);
+ const auto=simulate(true,(_rate,recover)=>recover);
+ await assert.rejects(auto.run(),/PLC-Erkennung fehlgeschlagen/);
+ assert.deepEqual(auto.calls.filter(x=>x[0]==='access'),[['access',25000,true,false],['access',100000,true,false]]);
+ assert.equal(auto.st.psscRamRecovery,undefined);
 });
