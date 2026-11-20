@@ -69,29 +69,28 @@ Idealer Quantisierungsfehler = ±0,5 Digit</div>
 <section id="beispiel"><h2>5. Worst Case: Metallux ME910</h2>
 <p>Beispiel einer unkompensierten keramischen 10-bar-Dickschichtmesszelle. Öffentlich verfügbare Herstellerwerte, [1]:</p>
 <div class="tablewrap"><table><thead><tr><th>Eigenschaft</th><th>Wert</th></tr></thead><tbody>
-<tr><td>TK0 typisch / maximal</td><td>±0,04 / ±0,10 % FS/K</td></tr><tr><td>TKS</td><td>−0,03 bis 0 %/K</td></tr><tr><td>Genauigkeitskennwert maximal¹</td><td>0,5 % FS</td></tr></tbody></table></div>
-<p><small>¹ Quadratische Kombination aus Nichtlinearität, Hysterese und Nichtwiederholbarkeit. Für das folgende vereinfachte Modell wird dieser Wert als zusätzlicher Fehlerzuschlag angenommen; er ist keine garantierte Summe aller Einzelabweichungen.</small></p>
+<tr><td>TK0 typisch / maximal</td><td>±0,04 / ±0,10 % FS/K</td></tr><tr><td>TKS</td><td>−0,03 bis 0 %/K</td></tr></tbody></table></div>
+
 <h3>Temperaturabhängige Abweichungen</h3>
-<p>Mit den Beträgen der obigen Koeffizienten ergibt sich konservativ bei 100 % Druck:</p>
-<div class="tablewrap"><table><thead><tr><th>Temperaturdifferenz</th><th>TK0</th><th>TKS</th><th>Zuschlag</th><th>Summe</th></tr></thead><tbody>
-<tr><td>50 K</td><td>5 % FS</td><td>1,5 %</td><td>0,5 % FS</td><td>7 % FS</td></tr>
-<tr><td>100 K</td><td>10 % FS</td><td>3 %</td><td>0,5 % FS</td><td>13,5 % FS</td></tr></tbody></table></div>
-<p>Für eine Brückenspanne von 2 mV/V entsprechen 13,5 % FS einer Abweichung von 0,27 mV/V. Das Beispiel ist unabhängig vom gewählten absoluten Temperaturniveau.</p>
+<p>Für die Auslegung werden ausschliesslich TK0 und TKS betrachtet. Bei 100 % Druck werden ihre maximalen Beträge konservativ addiert. Die tatsächliche Abweichung hängt von den Vorzeichen und der Referenztemperatur ab.</p>
+<div class="tablewrap"><table><thead><tr><th>Temperaturdifferenz</th><th>TK0</th><th>TKS</th><th>Max. Drift bei 100 % Druck</th></tr></thead><tbody>
+<tr><td>50 K</td><td>5 % FS</td><td>1,5 %</td><td>6,5 % FS</td></tr>
+<tr><td>100 K</td><td>10 % FS</td><td>3 %</td><td>13 % FS</td></tr></tbody></table></div>
+<p>Für eine Brückenspanne von 2 mV/V entsprechen 13 % FS einer Abweichung von 0,26 mV/V. Das Beispiel ist unabhängig vom gewählten absoluten Temperaturniveau.</p>
 <h3>Abbildung des Rohsignals</h3>
 <p>Wird das unkompensierte Eingangssignal bei der Referenztemperatur beispielhaft auf ±25’000 Digits zentriert (H = 25’000, unabhängig vom DSP-Endwert L), ergibt sich bei 100 K:</p>
-<div class="formula">Rohsignal = H × [2 × (a + (1+b)p + e) − 1]
+<div class="formula">Rohsignal = H × [2 × (a + (1+b)p) − 1]
 a = TK0-Drift als FS-Anteil; b = relative Spannenänderung
-e = zusätzlicher Fehler als FS-Anteil
 
-Nominal: 25’000 × (1 + 2 × 0,135) = 31’750 Digits
-Restreserve: 32’767 − 31’750 = 1’017 Digits
-            = 2,034 % der nominalen Rohsignalspanne
+Nominal: 25’000 × (1 + 2 × 0,13) = 31’500 Digits
+Restreserve: 32’767 − 31’500 = 1’267 Digits
+            = 2,534 % der nominalen Rohsignalspanne
 
 Mit +12,5 % FS Übersteuerung (p = 1,125):
-25’000 × [2 × (0,10 + 1,03 × 1,125 + 0,005) − 1]
-= 38’187,5 Digits → ausserhalb des 16-Bit-Bereichs</div>
-<p>Das konservative nominale Rohsignalmodell passt innerhalb von 16 Bit. Die volle zusätzliche Übersteuerung dagegen nicht. Mit sinkender Empfindlichkeit bei steigender Temperatur kann die tatsächliche Hüllkurve günstiger ausfallen. Weitere Montage- oder Alterungsfehler sind nicht enthalten.</p>
-<p>Eine Reduktion der Eingangsnormalisierung schafft Reserve, kann aber höhere Korrekturverstärkung erfordern. Im einfachen linearen Modell gilt K = L / [H × (1+b)]. Beispielsweise verlangt H = 26’500, L = 25’000 und b = −0,03 eine Verstärkung von rund 0,973. Ob die gesamte Korrektur mit den verfügbaren Koeffizienten und Zwischenwerten darstellbar ist, hängt vom konkreten Sensor ab.</p>
+25’000 × [2 × (0,10 + 1,03 × 1,125) − 1]
+= 37’937,5 Digits → ausserhalb des 16-Bit-Bereichs</div>
+<p>Das konservative nominale Rohsignalmodell passt innerhalb von 16 Bit. Die volle zusätzliche Übersteuerung dagegen nicht. Mit sinkender Empfindlichkeit bei steigender Temperatur kann die tatsächliche Hüllkurve günstiger ausfallen. Nichtlinearität, Hysterese, Wiederholbarkeit, Montageversatz und Alterung werden in dieser Rechnung nicht pauschal angesetzt. Ihre Auswirkungen hängen vom konkreten Sensor, der mechanischen Integration und der Signalkette ab; die Restreserve ist deshalb kein garantierter Fehlergrenzwert.</p>
+<p>Eine Reduktion der Eingangsnormalisierung schafft Reserve, kann aber höhere Korrekturverstärkung erfordern. Im einfachen linearen Modell gilt K = L / [H × (1+b)]. Bei H = 25’000 und b = −0,03 wäre für L = 25’000 eine Verstärkung von rund 1,031 nötig. Der einfache lineare Gewinnkoeffizient kann damit bereits eine Darstellungsgrenze erreichen. Ob die gesamte Korrektur mit den verfügbaren Koeffizienten und Zwischenwerten darstellbar ist, hängt vom konkreten Sensor ab.</p>
 <p><strong>Ergebnis:</strong> ±25’000 Digits sind als Ausgangsskalierung ein begründeter Kompromiss zwischen Auflösung und Reserve. Der nominale Metallux-Fall ist im vereinfachten Modell plausibel; ein universeller Nachweis für alle Sensoren und Temperaturen folgt daraus nicht.</p>
 <p class="muted">[1] Metallux: <a href="https://www.metallux.ch/pdf/products/Catalog%20-%20Pressure%20Sensor%20-%20ME910.pdf" target="_blank" rel="noopener noreferrer">Öffentliches ME910-Datenblatt, Rev. B (2022), Seite 2</a>. Alle übrigen Formeln und Reservewerte sind eigene mathematische Herleitungen beziehungsweise ausdrücklich gekennzeichnete Auslegungsannahmen.</p>
 </section>
