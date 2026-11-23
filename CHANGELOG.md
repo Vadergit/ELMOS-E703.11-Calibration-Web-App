@@ -1,3 +1,10 @@
+## v0.7.164 – SSP3-Notebook: Live-Verbindung unabhängig vom optionalen NVM-Profil (Test)
+
+- Beim originalen SSP3 wird die zusätzliche automatische NVM-/DSP-Anzeigeprofilprüfung unmittelbar nach dem Verbinden nicht mehr gestartet. Diese Prüfung stoppte die Live-Abfrage und konnte auf langsamen FTDI-/USB-Hosts in einer seriellen Transaktion hängen bleiben.
+- Verbindungsprüfung, Chip-UID, RAM-/Startfensterprotokoll, ADC-/DSP-Live-Abfragen und sämtliche Schreibschutzregeln bleiben unverändert.
+- Es werden zunächst rohe DSP-Digits statt möglicherweise nur angenommener Prozentwerte angezeigt; das NVM kann weiterhin manuell im EEPROM Viewer ausgelesen werden, um ein bestätigtes Anzeigeprofil zu übernehmen.
+- Kein NVM-Schreibzugriff, keine ESP32-Firmwareänderung. JavaScript-Syntax geprüft; Tests simulieren SSP3 ohne automatische Profilabfrage und USB-Bridge mit bisherigem Verhalten. Hardwaretest an den Sony-/Lenovo-Notebooks ausstehend.
+
 ## v0.7.163 – SSP3-Verbindungsdialog auf langsamen Rechnern entkoppelt (Testversion)
 
 - Der Verbindungsdialog wartet nicht länger auf die optionale automatische NVM-/DSP-Anzeigeprofilrekonstruktion. Die initiale AFE-/ADC-Prüfung und die echte UID-Erkennung bleiben unverändert.
