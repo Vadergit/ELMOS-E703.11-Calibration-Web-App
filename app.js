@@ -587,6 +587,23 @@ if(typeof document!=='undefined') (function UI(){
   return st.chip&&r?.port===st.port&&r.session===st.sessionIndex&&r.uid===st.uid?.hex&&
    !st.calStaged&&(!r.automatic||autoStandardEnabled())?r.reference:null;
  }
+ // SSP3 notebook-safe digital percentage preview. The verified profile is
+ // preferred; otherwise infer the conventional 10–90% VDD target from RAM
+ // AODO scaling read during the existing UID/Output identification.
+ // This performs NO USB, RAM or NVM access and is display-only; it does not
+ // authorize calibration, output changes, NVM programming or pressure units.
+ function ramAodoDisplayReference(){
+  if(!autoStandardEnabled()||!st.port||!st.chip||!st.uid?.hex||
+     st.calStaged||st.calpoints?.length||st.sensorLost||st.closing)return null;
+  const en=st.regs[0x04],mode=Number.isInteger(en)?(en>>>9)&7:0;
+  const cfgAodo=st.regs[0x10],offset=st.regs[0xA0],gain=st.regs[0xA2];
+  if(![en,cfgAodo,offset,gain].every(v=>Number.isInteger(v)&&v>=0&&v<=0xFFFF)||
+     mode<1||mode>3||cfgAodo!==0x0880||offset!==0||
+     gain===0||gain>=0x8000)return null;
+  const words=Array(64).fill(0);
+  words[16]=en;words[57]=offset;words[58]=gain;
+  return standardPressureReference(words);
+ }
  async function restoreCalibrationDisplayProfile(verifiedWords=null,options={}){
   const port=st.port,session=st.sessionIndex,uid=st.uid?.hex;
   // Optional post-connect work has a total time budget. Stop only between
@@ -728,11 +745,13 @@ if(typeof document!=='undefined') (function UI(){
  // One measurement reference for all consumers. Keep getActiveDSPRange restricted
  // to verified calibration profiles for write gates and physical-unit inference.
  function effectiveMeasurementReference(){
-  const range=getActiveDSPRange(),standard=activeStandardReference();
+  const range=getActiveDSPRange(),verified=activeStandardReference();
+  const standard=verified||(!range?ramAodoDisplayReference():null);
+  const inferredFromRam=!verified&&!!standard;
   const d=displayReferenceDiagnostic;
   const diagnostic=d?.port===st.port&&d?.session===st.sessionIndex&&d?.uid===st.uid?.hex&&!st.calStaged?d:null;
   const aodo=diagnostic?.comparison||standard;
-  const source=range?.kind||(standard?'standard':null);
+  const source=range?.kind||(standard?(inferredFromRam?'ram-aodo':'standard'):null);
   return {source,limit:range?.limit??standard?.limit??null,
    physicalRange:range&&range.unit!=='%'?{min:range.min,max:range.max,unit:range.unit}:null,
    range:range?{...range}:null,standard:standard?{...standard}:null,
@@ -740,7 +759,7 @@ if(typeof document!=='undefined') (function UI(){
    uid:st.uid?.hex??null,session:st.sessionIndex,
    crc:source==='ram'?null:diagnostic?.crc??(hasCurrentNvmBackup()?st.nvmBackup[63]:null),
    profileSource:diagnostic?.profileSource??null,profileLimit:diagnostic?.profileLimit??null,
-   assumedStandard:source==='standard'};
+   assumedStandard:source==='standard'||source==='ram-aodo'};
  }
  function measurementValue(raw,ref){
   const percent=digitalPercent(raw,ref.range,ref.standard);
@@ -748,7 +767,7 @@ if(typeof document!=='undefined') (function UI(){
   const physical=Number.isFinite(p)&&r?r.min+(r.max-r.min)*p/100:null;
   return {sensorPercent:p,sensorValue:p,sensorUnit:p===null?null:'%',
    sensorPressure:physical,pressureUnit:Number.isFinite(physical)?r.unit:null,
-   pressureConversionKind:percent?.source??null};
+   pressureConversionKind:percent?.source==='standard'&&ref.source==='ram-aodo'?'ram-aodo':percent?.source??null};
  }
  function dspDisplayReading(raw,range){
   if(!Number.isInteger(raw))return {value:null,unit:''};
@@ -764,6 +783,7 @@ if(typeof document!=='undefined') (function UI(){
   button.disabled=!eligible||!!getActiveDSPRange()||!!activeStandardReference();
   reset.disabled=busy||!st.uid?.hex||!storedStandardReference(st.uid.hex);
   note.textContent=getActiveDSPRange()?'Bestätigtes Abgleichprofil aktiv.':
+   !activeStandardReference()&&ramAodoDisplayReference()?'≈% aus bereits gelesenen AODO-RAM-Registern (10–90 % VDD angenommen). Kein NVM-Abgleich bestätigt; nur Anzeige.':
    activeStandardReference()?(standardDisplayRange.automatic?'10–90 % VDD angenommen':'10–90 % VDD bestätigt')+
     ' · DSP-Endwert rechnerisch ±'+activeStandardReference().inferredLimit.toFixed(1)+' · auf ±'+activeStandardReference().limit+' Digits gerundet.':
    autoStandardEnabled()?'Automatik aktiv. Ohne plausiblen, übereinstimmenden RAM-/EEPROM-Abgleich werden Digits angezeigt. Bei Bedarf EEPROM erneut lesen.':
@@ -811,6 +831,7 @@ if(typeof document!=='undefined') (function UI(){
   const range=getActiveDSPRange();
   const ref=effectiveMeasurementReference();
   const percent=digitalPercent(activeDSP?st.dsp.raw:null,ref.range,ref.standard);
+  if(percent?.source==='standard'&&ref.source==='ram-aodo')percent.source='ram-aodo';
   $('liveAdcS').textContent=activeADC?fmt(st.adc.s):'—';
   $('liveAdcT').textContent=activeADC&&Number.isFinite(st.adc.t)?fmt(st.adc.t):'—';
   const internalSource=connected&&Number.isInteger(st.regs[0x1E])&&CAL.temperatureSourceFromAfe2(st.regs[0x1E])==='internal';
@@ -847,14 +868,15 @@ if(typeof document!=='undefined') (function UI(){
     ' · Keine zuverlässige °C-Skalierung bestätigt. Nach einem früheren AN0203-Abgleich müssen die sechs Chipregister zur gespeicherten NVM-Programmierung mit derselben UID passen.');
   $('liveDspS').textContent=activeDSP?fmt(st.dsp.raw):'—';
   $('livePressure').textContent=percent?dspNumber(percent.value):activeDSP?fmt(st.dsp.raw):'—';
-  $('livePressureUnit').textContent=percent?'% · Effektivwert':
+  $('livePressureUnit').textContent=percent?.source==='ram-aodo'?'% · AODO-Näherung':
+   percent?'% · Effektivwert':
    (checkingDSPScale?'Digits · Profilprüfung':'Digits · kein Abgleichprofil');
   const info=$('livePressureInfo');
   if(info){
    const d=displayReferenceDiagnostic;
    const diagnostic=d?.port===st.port&&d?.session===st.sessionIndex&&d?.uid===st.uid?.hex&&!st.calStaged?d:null;
-   const aodo=diagnostic?.comparison||activeStandardReference();
-   const limit=percent?.source==='standard'?activeStandardReference()?.limit:range?.limit;
+   const aodo=diagnostic?.comparison||ref.standard;
+   const limit=['standard','ram-aodo'].includes(percent?.source)?ref.standard?.limit:range?.limit;
    const lines=[
     'Digitaler Sensorwert (keine Analogmessung)',
     'DSP_S: '+(activeDSP?fmt(st.dsp.raw)+' Digits':'—'),
@@ -864,6 +886,7 @@ if(typeof document!=='undefined') (function UI(){
     'AODO-Endwert: '+(aodo?'±'+aodo.inferredLimit.toFixed(1)+' → ±'+fmt(aodo.limit)+' Digits':'nicht verfügbar'),
     ...(diagnostic?.delta!=null?['Abweichung: '+fmt(diagnostic.delta)+' Digits (Toleranz 100)']:[]),
     ...(diagnostic?.decision?[diagnostic.decision]:[]),
+    ...(percent?.source==='ram-aodo'?['Näherung ausschliesslich aus bereits gelesenen RAM-AODO-Registern; 10–90 % VDD als Ziel angenommen. NVM/Abgleich nicht geprüft.']:[]),
     ...(aodo?['AODO setzt 10–90 % VDD und ein 100-Digit-Raster voraus.']:[]),
     ...(percent?.source==='standard'?['Verwendet: rekonstruierter DSP-Endwert (Annahme, nicht unabhängig verifiziert).']:[])
    ];
@@ -2444,6 +2467,9 @@ if(typeof document!=='undefined') (function UI(){
    try{st.filterWords=await readFilterProfile()}
    catch(e){logging('ADC-Filter konnte nicht gelesen werden: '+e.message)}
    await expert.onDetect();
+   // AODO RAM coefficients are already in st.regs after expert UID probing.
+   // Render percentage immediately without waiting for an EEPROM scan.
+   renderDSPLive();
    if(requireUid&&!st.uid?.hex){
     st.chip=false;st.sensorLost=true;st.adc=null;st.dsp=null;
     stopLive();
