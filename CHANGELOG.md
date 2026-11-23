@@ -1,3 +1,11 @@
+## v0.7.165 – SSP3-Prozentanzeige ohne NVM-Wartezugriffe wiederhergestellt
+
+- Nach der Chip- und UID-Erkennung wird die Standardanzeige in % wieder aus den ohnehin bereits gelesenen aktiven AODO-RAM-Registern (CFG_EN, CFG_AODO, AODO_O und AODO_F) abgeleitet, sofern eine plausible analoge symmetrische 10–90-%-VDD-Skalierung vorliegt.
+- Der DSP-Endwert wird aus AODO_F errechnet und gemäss der bisherigen 100-Digit-Konvention gerundet (Beispiel AODO_F=3579 → ±30'000 Digits, DSP_S=−29'930 → 0,12 %).
+- Die Anzeige ist ausdrücklich als «% · AODO-Näherung» gekennzeichnet. 10–90 % VDD ist eine Annahme, keine unabhängige Kalibrierungsprüfung. Fehlende/ungültige AODO-Werte bleiben Digits. Bestätigte chipgebundene Kalibrierprofile haben Vorrang.
+- Der SSP3 führt beim Verbinden weiterhin keine automatische NVM-Profilprüfung durch; keine neuen USB-Lesevorgänge, keine Änderungen an Firmware, RAM, NVM, Verbindungsaufbau oder Schreibschutz.
+- JavaScript-Syntax und fünf isolierte Referenztests (gültiges AODO, fehlende Verstärkung, Offset, ungeeigneter Modus, getrennter Chip) erfolgreich. Ein realer Hardwaretest steht noch aus.
+
 ## v0.7.164 – SSP3-Notebook: Live-Verbindung unabhängig vom optionalen NVM-Profil (Test)
 
 - Beim originalen SSP3 wird die zusätzliche automatische NVM-/DSP-Anzeigeprofilprüfung unmittelbar nach dem Verbinden nicht mehr gestartet. Diese Prüfung stoppte die Live-Abfrage und konnte auf langsamen FTDI-/USB-Hosts in einer seriellen Transaktion hängen bleiben.
