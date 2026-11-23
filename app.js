@@ -266,7 +266,12 @@ if(typeof document!=='undefined') (function UI(){
  $('iface').querySelector('option[value=spi]').disabled=st.adapterKind==='bridge';
  $('plcBaud').closest('label').hidden=st.iface!=='plc';
  $('plcGpio4Mode').closest('label').hidden=st.iface!=='plc';
- $('plcOptions').hidden=st.adapterKind!=='bridge'||!$('expertMode').checked;
+ // Power control is important for 4-ms startup windows and must not be
+ // hidden with expert settings. Advanced baud/pin controls remain expert-only.
+ $('plcOptions').hidden=st.adapterKind!=='bridge';
+ $('plcBaud').closest('label').hidden=st.iface!=='plc'||!showExpert;
+ $('plcGpio4Mode').closest('label').hidden=st.iface!=='plc'||!showExpert;
+ $('plcPowerCycle').disabled=connected||st.closing;
  if($('chipDiagDetails'))$('chipDiagDetails').hidden=!$('expertMode').checked;
  if($('usbAdvancedDetails'))$('usbAdvancedDetails').hidden=!$('expertMode').checked;
  if($('wiringStartDetails'))$('wiringStartDetails').hidden=!$('expertMode').checked;
@@ -5350,6 +5355,14 @@ if(typeof document!=='undefined') (function UI(){
  if(!['ssp3','bridge'].includes($('adapterType').value))$('adapterType').value='ssp3';
  st.adapterKind=$('adapterType').value;
  if(st.adapterKind==='bridge'&&st.iface==='spi')st.iface=$('iface').value='plc';
+ // Existing users could have an invisible, persisted disabled option from
+ // the expert-only UI. Reset it once upon this release, then respect the
+ // explicit choice made in the now-visible standard connection form.
+ const powerMigrationKey='elmos-bridge-plcPowerCycle-default-v0.7.161';
+ if(!demoEnabled&&lsGet(powerMigrationKey)!=='1'){
+  lsSet('elmos-bridge-plcPowerCycle','1');
+  lsSet(powerMigrationKey,'1');
+ }
  for(const id of ['plcPowerCycle','plcGpio4Mode']){
   const option=$(id),key='elmos-bridge-'+id;
   option.checked=(lsGet(key)??'1')==='1';
