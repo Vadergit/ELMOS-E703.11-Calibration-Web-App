@@ -1,3 +1,12 @@
+## v0.7.163 – SSP3-Verbindungsdialog auf langsamen Rechnern entkoppelt (Testversion)
+
+- Der Verbindungsdialog wartet nicht länger auf die optionale automatische NVM-/DSP-Anzeigeprofilrekonstruktion. Die initiale AFE-/ADC-Prüfung und die echte UID-Erkennung bleiben unverändert.
+- Erst nach Abschluss der SSP3-/ESP32-Initialisierung und Schliessen des Verbindungsdialogs folgt ein begrenzter, nachgelagerter Versuch zur Anzeigeprofilprüfung (maximal 30 s, ohne NVM-Programmierung). Bei einer bereits laufenden Kalibrierung, Diagnose oder NVM-Aktion entfällt diese Zusatzprüfung. Ohne bestätigtes Anzeigeprofil bleiben die digitalen Digits sichtbar.
+- Die Verbindung zeigt nun die Phasen USB-Port, Adapter-Firmware, Chip-Schnittstelle und Sensorerkennung sowie bei SSP3 die Startfenster-/RAM-Prüfung.
+- Live-Abfragen werden für die optionale Profilprüfung vorübergehend unterbrochen und anschliessend nur für dieselbe bestätigte Chip-UID fortgesetzt.
+- Keine Änderung am SSP3-Protokoll, der Magic-Cookie-/Power-Startsequenz, dem Sensor-NVM oder den Kalibrier- und NVM-Schreibsperren.
+- JS-Syntaxprüfung und vier isolierte Simulationen (normale Verbindung, Live-Fortsetzung, fehlende UID, laufender Schreibvorgang) erfolgreich. Kein Hardware-/Notebooktest; das löst mögliche echte USB-Write-Hänger nicht nachweislich.
+
 ## v0.7.162 – Lastschalter auch im geführten Expertenmodus
 
 - Im geführten Modus unter «Verbindung & Diagnose» erscheint bei aktivierten Expertenparametern und DIY-Adapter (ESP32-C3/Pro Micro) die Option «Sensorversorgung über Adapter steuern» inklusive Hinweis zu GPIO10/D7 und angeschlossenem Lastschalter.
