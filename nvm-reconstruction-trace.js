@@ -27,7 +27,10 @@ const ELMOS_NVM_TRACE=(()=>{
    'S_F [34] '+raw(w[34])+' → '+f(s.sF,8)+'; S_O [33] '+raw(w[33])+' → '+f(s.sO,8),
    'Vorzeichenbehaftete 16-Bit-Wörter. S0–S15 sind dagegen im Format Q0.15 gespeichert.'),
   step('AFE-Einstellungen lesen','SVDD, PGA1, PGA2 und Offset-DAC aus CFG_AFE0 / CFG_AFE1',
-   'CFG_AFE0 [27] '+raw(w[27])+'; CFG_AFE1 [28] '+raw(w[28])+' → SVDD '+f(s.supply,3)+' V, PGA1 '+f(s.pga1,3)+'×, PGA2 '+f(s.pga2,3)+'×, Brückenpolarität '+(s.sign1<0?'invertiert':'normal')+', DAC '+f(s.offsetStage,3)+' mV/V')
+   'CFG_AFE0 [27] '+raw(w[27])+'; CFG_AFE1 [28] '+raw(w[28])+' → SVDD '+f(s.supply,3)+' V, PGA1 '+f(s.pga1,3)+'×, PGA2 '+f(s.pga2,3)+'×, Brückenpolarität '+(s.sign1<0?'invertiert':'normal')+', DAC '+f(s.offsetStage,3)+' mV/V'),
+  step('ADC-Filterverstärkung AADC bestimmen','CFG_ADC, CFG_LP0 und CFG_LP1 → Tabelle 7.5-1',
+   'NVM[24..26] '+raw(w[24])+' / '+raw(w[25])+' / '+raw(w[26])+' → AADC '+f(s.adcGain,6)+' ('+(s.adcGainSource==='datasheet'?'Datenblatt':s.adcGainSource==='manual'?'manuell':'nicht bekannt')+')',
+   'Datenblatt §§6.2.1.10 und 7.5. Ohne bestätigten AADC-Faktor keine physikalische mV/V-Rückrechnung.')
  ];
  function pressureEndpoint(r,w,rowIndex,endpointIndex){
   const s=r.settings,row=r.rows[rowIndex],ep=row.endpoints[endpointIndex],label=rowIndex===0?'T1':'T2';
@@ -69,8 +72,8 @@ const ELMOS_NVM_TRACE=(()=>{
     ' → '+f(ep.adcDigits,3)+' Digits',
    'S_F und S_O stehen in den NVM-Wörtern 34 und 33.'));
   result.push(step('Brückensignal näherungsweise ableiten',
-   'B [mV/V] = (ADC_S × 700 / (PGA2 × SVDD) × sign2 × signADC − Offset-DAC) / (PGA1 × sign1)',
-   '('+f(ep.adcS,9)+' × 700 / ('+f(s.pga2,3)+' × '+f(s.supply,3)+') × '+f(s.sign2,0)+' × '+
+   'B [mV/V] = (ADC_S × 1000 / (AADC × PGA2 × SVDD) × sign2 × signADC − Offset-DAC) / (PGA1 × sign1)',
+   '('+f(ep.adcS,9)+' × 1000 / ('+f(s.adcGain,6)+' × '+f(s.pga2,3)+' × '+f(s.supply,3)+') × '+f(s.sign2,0)+' × '+
    f(s.signAdc,0)+' − '+f(s.offsetStage,2)+') / ('+f(s.pga1,3)+' × '+f(s.sign1,0)+') = '+f(ep.bridge,8)+' mV/V',
    'Nominale AFE-Werte; kein gemessener originaler Brückenausgang.'));
   return result;
@@ -92,7 +95,7 @@ const ELMOS_NVM_TRACE=(()=>{
     step('Beide Druckpunkte einzeln umkehren','P(S,T) = DSP_S,vor; ADC_S = (S − S_O) / S_F',
      'ADC_S,min = '+f(a.endpoints[0].adcDigits,3)+', ADC_S,max = '+f(a.endpoints[1].adcDigits,3)+' Digits',
      'Bei nichtlinearen Kennlinien wird jeder Druckpunkt separat invertiert.'),
-    step('Brückensignale bilden','B = (ADC_S × 700/(PGA2 × SVDD) × sign2 × signADC − DAC)/(PGA1 × sign1)',
+    step('Brückensignale bilden','B = (ADC_S × 1000/(AADC × PGA2 × SVDD) × sign2 × signADC − DAC)/(PGA1 × sign1)',
      'B,min = '+f(a.zero,8)+' mV/V; B,max = '+f(a.full,8)+' mV/V'),
     step('Spanne bestimmen','Spanne = B,max − B,min',
      f(a.full,8)+' − ('+f(a.zero,8)+') = '+f(a.span,8)+' mV/V')
@@ -162,9 +165,9 @@ const ELMOS_NVM_TRACE=(()=>{
    out.summary='Nominale AFE-Rückrechnung mit den aus dem Polynom gewonnenen ADC_S-Werten.';
    out.steps=[...qSteps(w,s),...r.rows.flatMap((row,i)=>row.endpoints.map((ep,j)=>
     step('T'+(i+1)+' · '+(j?'oberer':'unterer')+' Druckpunkt',
-     'B = (ADC_S × 700/(PGA2 × SVDD) × sign2 × signADC − DAC)/(PGA1 × sign1)',
+     'B = (ADC_S × 1000/(AADC × PGA2 × SVDD) × sign2 × signADC − DAC)/(PGA1 × sign1)',
      'ADC_S = '+f(ep.adcS,9)+' → '+f(ep.bridge,8)+' mV/V',
-     'SVDD = '+f(s.supply,3)+' V, PGA1 = '+f(s.pga1,3)+', PGA2 = '+f(s.pga2,3))))];
+     'SVDD = '+f(s.supply,3)+' V, PGA1 = '+f(s.pga1,3)+', PGA2 = '+f(s.pga2,3)+', AADC = '+f(s.adcGain,6))))];
    out.result='T1 Null: '+ending(a.zero,'mV/V')+' · T1 Spanne: '+ending(a.span,'mV/V');
   }else if(key==='analog'){
    out.summary='Ideale ratiometrische Ausgangsspannung aus dem DSP-Druckziel; kein echter Spannungsmesswert.';
