@@ -1,3 +1,14 @@
+## v0.7.166 – Sensorbrücken-Rückrechnung: ADC-Faktor korrigiert
+
+- Grundlegender Rechenfehler behoben: 700 mV wurde bisher fälschlich als ADC-Vollbereich ±32768 Digits verwendet. Laut Elmos E703.11 25DS0170E.04 §6.2.1.10 gilt V_ADC[V] = ADC_S[Digits] / (32768 × AADC).
+- Im Sensorbrücken-Rechner werden automatisch alle 45 dokumentierten ADC-/LP-Filterkombinationen aus Datenblatt-Tabelle 7.5-1 (CFG_ADC, CFG_LP0, CFG_LP1; NVM-Wörter 24, 25, 26) erkannt.
+- Neue inverse AFE-Formel berücksichtigt AADC, PGA1, Offset-DAC nach PGA1, PGA2, interne SVDD sowie alle drei Signal-Invertierungsbits. Die Druck-Polynomumkehr und die ursprünglichen ADC-Digits bleiben unverändert.
+- Für ein nicht dokumentiertes Filterprofil erscheinen bewusst keine nominellen mV/V-Werte. Ein unabhängig bestimmter AADC-Faktor kann optional nur für diese Rückrechnung manuell eingegeben werden. Automatisch/manuell/fehlend wird klar angezeigt.
+- Numerische Formeldetails im Info-Dialog und nvm-formeln.html verwenden jetzt dieselbe korrekte ADC-Formel.
+- Reproduzierbares Beispiel aus dem Test: vor Korrektur ca. -14,99 mV/V Nullpunkt und -2,56 mV/V Spanne; mit AADC=0,953854 ca. -13,67 / -3,83 mV/V gegenüber extern -13,6 / -3,81 mV/V. Die aktuelle NVM-Filterkonfiguration des externen Vergleichschips muss noch separat bestätigt werden.
+- Sieben Regressionstests inklusive aller 45 ADC-Presets, Polynom- und AFE-Rückrechnung, fehlendem AADC, manueller Eingabe und Gegenprobe der alten Fehlformel erfolgreich simuliert. Kein Hardwaretest der neuen Version.
+- Keine Änderungen am SSP3-/ESP32-Verbindungsablauf, Live-Messung, Sensor-RAM/NVM oder Kalibrier-Schreibschutz.
+
 ## v0.7.165 – SSP3-Prozentanzeige ohne NVM-Wartezugriffe wiederhergestellt
 
 - Nach der Chip- und UID-Erkennung wird die Standardanzeige in % wieder aus den ohnehin bereits gelesenen aktiven AODO-RAM-Registern (CFG_EN, CFG_AODO, AODO_O und AODO_F) abgeleitet, sofern eine plausible analoge symmetrische 10–90-%-VDD-Skalierung vorliegt.
