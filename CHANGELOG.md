@@ -1,3 +1,10 @@
+## v0.7.162 – Lastschalter auch im geführten Expertenmodus
+
+- Im geführten Modus unter «Verbindung & Diagnose» erscheint bei aktivierten Expertenparametern und DIY-Adapter (ESP32-C3/Pro Micro) die Option «Sensorversorgung über Adapter steuern» inklusive Hinweis zu GPIO10/D7 und angeschlossenem Lastschalter.
+- Der Haken übernimmt den bereits bestehenden, standardmässig eingeschalteten Wert aus dem klassischen Verbindungsdialog. Änderungen werden bidirektional synchronisiert und über denselben vorhandenen Browser-Speichermechanismus übernommen.
+- Die Einstellung gilt beim nächsten Verbindungsaufbau; keine zusätzlichen GPIO-Befehle, Firmware- oder NVM-Änderungen.
+- JavaScript-Syntax und statische Sichtbarkeits-/Synchronisationsprüfung durchgeführt; realer USB-Hardwaretest steht noch aus.
+
 ## v0.7.161 – Sensorversorgung im Standard-Verbindungsdialog
 
 - Die DIY-Programmer-Option «Sensorversorgung über Adapter steuern» ist bereits in Schritt 1 ohne Expertenmodus sichtbar. Automatische Power-Cycle-Funktion bleibt technisch an den angeschlossenen Lastschalter auf GPIO10 (ESP32-C3) bzw. D7 (Pro Micro) gebunden.
