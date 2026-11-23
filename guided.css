@@ -366,3 +366,14 @@ html[data-theme="dark"] #guidedWorkspace .gw-connection-diagnostic{background:#1
 #guidedWorkspace .gw-connection-page .gw-connection-advanced{margin-top:12px;padding:10px 12px;border:1px solid #cbddeb;border-radius:10px}
 #guidedWorkspace .gw-connection-page .gw-connection-consent{display:flex;align-items:flex-start;gap:8px;font-size:12px}
 #guidedWorkspace .gw-connection-page .gw-connection-consent input{margin-top:3px}
+
+/* Guided expert connection: use the same persisted GPIO10/D7 power control as classic. */
+#guidedWorkspace .gw-connection-page .gw-connection-power{
+ display:flex;align-items:center;gap:9px;margin:12px 0 0;
+ font-size:12px;font-weight:650;color:var(--text,#30475d);
+}
+#guidedWorkspace .gw-connection-page .gw-connection-power[hidden]{display:none}
+#guidedWorkspace .gw-connection-page .gw-connection-power input{
+ width:16px;height:16px;flex:0 0 auto;accent-color:var(--accent,#0877b9);
+}
+#guidedWorkspace .gw-connection-page #gwConnectionPowerHint[hidden]{display:none}
