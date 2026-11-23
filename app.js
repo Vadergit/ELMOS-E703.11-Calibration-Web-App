@@ -3133,6 +3133,15 @@ if(typeof document!=='undefined') (function UI(){
  let postConnectProfileTimer=null,postConnectProfileBusy=false;
  function queuePostConnectDisplayProfile(){
   clearTimeout(postConnectProfileTimer);
+  // SSP3 notebook compatibility test: the optional post-connect NVM profile
+  // reconstruction sends many PLC/CM_CMD transactions and stops live polling.
+  // On slower USB/FTDI hosts it may stall after the chip is already connected.
+  // Disable ONLY the automatic SSP3 scan; explicit EEPROM/NVM reads continue
+  // to use the normal guarded code and can still establish the display profile.
+  if(st.adapterKind==='ssp3'){
+   logging('SSP3: automatische NVM-Anzeigeprofilprüfung beim Verbinden deaktiviert (Notebook-Kompatibilität). ADC/DSP-Live bleibt aktiv; EEPROM bei Bedarf ausdrücklich auslesen.');
+   return;
+  }
   const port=st.port,session=st.sessionIndex,uid=st.uid?.hex;
   if(!port||!st.chip||!uid)return;
   logging('Sensor und UID erkannt; optionale NVM-Anzeigeprüfung erfolgt nach dem USB-Verbindungsdialog.');
