@@ -587,8 +587,17 @@ if(typeof document!=='undefined') (function UI(){
   return st.chip&&r?.port===st.port&&r.session===st.sessionIndex&&r.uid===st.uid?.hex&&
    !st.calStaged&&(!r.automatic||autoStandardEnabled())?r.reference:null;
  }
- async function restoreCalibrationDisplayProfile(verifiedWords=null){
+ async function restoreCalibrationDisplayProfile(verifiedWords=null,options={}){
   const port=st.port,session=st.sessionIndex,uid=st.uid?.hex;
+  // Optional post-connect work has a total time budget. Stop only between
+  // complete USB operations and leave the original NVM unchanged.
+  const deadline=Number.isFinite(options?.maxDurationMs)&&options.maxDurationMs>0?
+    Date.now()+options.maxDurationMs:Infinity;
+  const checkBudget=()=>{
+   if(Date.now()>deadline)throw Error('Optionale Anzeigeprofilprüfung zeitlich begrenzt; Digits bleiben verfügbar.');
+   if(st.port!==port||st.sessionIndex!==session||st.uid?.hex!==uid||!st.chip||st.closing)
+    throw Error('Sensorverbindung während Anzeigeprofilprüfung geändert.');
+  };
   if(!uid||st.calStaged||st.calpoints?.length)return false;
   sensorDisplayRange=null;standardDisplayRange=null;displayReferenceDiagnostic=null;
   const local=storedDisplayProfile(uid);
@@ -603,9 +612,9 @@ if(typeof document!=='undefined') (function UI(){
    crc=verifiedWords?.[63];
    if(ownsTask){
     // CM_CMD.0x4C only reads NVM. Use the same scoped access as a backup.
-    st.calTask=true;st.ramWriteScope='display-profile';
-    await ramGrant();
-    crc=await nvmReadWord(0x7E);
+    checkBudget();st.calTask=true;st.ramWriteScope='display-profile';
+    await ramGrant();checkBudget();
+    crc=await nvmReadWord(0x7E);checkBudget();
     if((await readReg(0x46))&0x40)return false;
    }
    const archive=await window.ELMOS_ARCHIVE?.findDisplayCalibration?.(uid,crc);
@@ -617,7 +626,7 @@ if(typeof document!=='undefined') (function UI(){
     // On an explicit EEPROM scan use its entire CRC-verified image instead.
     const words=verifiedWords?verifiedWords.slice():Array(64).fill(0);
     if(!verifiedWords){
-     for(const i of [16,57,58])words[i]=await nvmReadWord(i*2);
+     for(const i of [16,57,58]){checkBudget();words[i]=await nvmReadWord(i*2)}
      partialAuto=true;
     }
     if(!standardPressureReference(words))return false;
@@ -632,6 +641,7 @@ if(typeof document!=='undefined') (function UI(){
     // and verify the active pressure calibration words against their saved values.
     let calibrated=false;
     for(let i=31;i<=54;i++){
+     checkBudget();
      const active=await readReg(0x6C+2*(i-31));
      const saved=await nvmReadWord(i*2);
      if(active!==saved)return false;
@@ -642,7 +652,7 @@ if(typeof document!=='undefined') (function UI(){
     if(await nvmReadWord(0x7E)!==crc||((await readReg(0x46))&0x40))return false;
    }else{
     if(automatic&&(!p.nvmWords[34]||!p.nvmWords.slice(35,51).some(Boolean)))return false;
-    for(let i=31;i<=54;i++)if(await readReg(0x6C+2*(i-31))!==p.nvmWords[i])return false;
+    for(let i=31;i<=54;i++){checkBudget();if(await readReg(0x6C+2*(i-31))!==p.nvmWords[i])return false}
    }
    const postScaling=1<<14;
    if(((await readReg(0x04))^p.nvmWords[16])&postScaling)return false;
@@ -654,7 +664,7 @@ if(typeof document!=='undefined') (function UI(){
    const savedAodo=verifiedWords?verifiedWords:p.nvmWords;
    const aodoWords=savedAodo.slice();
    if(ownsTask&&!partialAuto){
-    for(const i of [16,57,58])aodoWords[i]=await nvmReadWord(i*2);
+    for(const i of [16,57,58]){checkBudget();aodoWords[i]=await nvmReadWord(i*2)}
     if(await nvmReadWord(0x7E)!==crc||((await readReg(0x46))&0x40))return false;
    }
    const candidate=standardPressureReference(aodoWords);
@@ -671,6 +681,7 @@ if(typeof document!=='undefined') (function UI(){
     if(allowAuto||standard?.crc===crc){isStandard=true;automatic=allowAuto;}
     else decision={...decision,reason:'Profilabweichung > 100 Digits; AODO-Automatik ausgeschaltet, Profil beibehalten'};
    }
+   checkBudget();
    const version=await readReg(0x38),ser0=await readReg(0x50),ser1=await readReg(0x52);
    if(h(version,2)+h(ser1,2)+h(ser0,2)!==uid)return false;
   }catch(e){logging('DSP-Anzeigeprofil: '+e.message);return false}
@@ -2438,7 +2449,8 @@ if(typeof document!=='undefined') (function UI(){
     stopLive();
     throw Error('Sensor-UID nach Registererkennung nicht bestätigt.');
    }
-   await restoreCalibrationDisplayProfile();
+   // The optional EEPROM/DSP display profile is NOT part of the confirmed
+   // sensor connection. The post-connect job runs once startup is complete.
   }finally{checkingDSPScale=false}
   renderStatus();
   show('connMsg',demoEnabled?'Demo-Sensor verbunden. Messwerte und Schreibvorgänge sind simuliert.':
@@ -3118,15 +3130,51 @@ if(typeof document!=='undefined') (function UI(){
    show('connMsg',serialOpenError(e,port),'error');
   }
  }
+ let postConnectProfileTimer=null,postConnectProfileBusy=false;
+ function queuePostConnectDisplayProfile(){
+  clearTimeout(postConnectProfileTimer);
+  const port=st.port,session=st.sessionIndex,uid=st.uid?.hex;
+  if(!port||!st.chip||!uid)return;
+  logging('Sensor und UID erkannt; optionale NVM-Anzeigeprüfung erfolgt nach dem USB-Verbindungsdialog.');
+  postConnectProfileTimer=setTimeout(async()=>{
+   postConnectProfileTimer=null;
+   if(st.port!==port||st.sessionIndex!==session||st.uid?.hex!==uid||
+      !st.chip||st.closing||postConnectProfileBusy||st.calTask||
+      st.writing||st.nvmWorking||st.powerCycleRunning||st.ramMeasurementStarting||
+      st.reinitRunning||st.startupRunning||st.magicRunning||st.diagRunning||
+      window.ELMOS_TEST_LOGGER?.isBusy()){
+    logging('Optionale NVM-Anzeigeprüfung übersprungen: Verbindungs- oder Tätigkeitswechsel.');
+    return;
+   }
+   postConnectProfileBusy=true;
+   const resumeLive=st.live&&!st.manualLivePause;
+   try{
+    logging('Optionale NVM-Anzeigeprüfung gestartet (maximal 30 s, kein NVM-Schreiben).');
+    if(resumeLive){stopLive();if(st.liveReadPromise)await st.liveReadPromise.catch(()=>{})}
+    if(st.port!==port||st.sessionIndex!==session||st.uid?.hex!==uid||!st.chip||st.closing)return;
+    const found=await restoreCalibrationDisplayProfile(null,{maxDurationMs:30000});
+    logging('Optionale NVM-Anzeigeprüfung beendet: '+(found?'Profil verfügbar':'kein bestätigtes Profil; Digits bleiben sichtbar')+'.');
+   }catch(error){logging('Optionale NVM-Anzeigeprüfung: '+String(error.message||error))}
+   finally{
+    postConnectProfileBusy=false;
+    if(resumeLive&&st.port===port&&st.sessionIndex===session&&st.uid?.hex===uid&&st.chip&&!st.closing&&!st.manualLivePause&&!st.calTask&&!st.writing&&!st.nvmWorking)
+     startLive();
+   }
+  },800);
+ }
  async function connect(port){
   if(!uiReady)throw Error('Softwareinitialisierung nicht abgeschlossen. Seite vollständig neu laden.');
-  return withProgress('Verbindung wird aufgebaut',()=>connectOperation(port),true);
+  const result=await withProgress('Verbindung wird aufgebaut',progress=>connectOperation(port,progress),true);
+  if(st.port===port&&st.chip&&st.uid?.hex)queuePostConnectDisplayProfile();
+  return result;
  }
- async function connectOperation(port){
+ async function connectOperation(port,progress){
   if(st.port)throw Error('Es ist bereits ein Port offen');
   if(demoEnabled&&port!==demoPort)throw Error('Demo verwendet ausschliesslich den simulierten Adapter');
   if(!demoEnabled&&(!navigator.serial||!window.isSecureContext))throw Error('Chrome benötigt Web Serial über HTTPS oder localhost');
+  progress?.update('USB-/COM-Port wird geöffnet');
   await port.open({baudRate:Number($('baud').value)});
+  progress?.update('USB-Port offen · Adapter und Firmware werden geprüft');
   liveSecondaryIndex=0;
   reconnectSsp3OnUsb=true;
   st.port=port;st.mode='usb';st.sensorLost=false;st.adapterNoReply=false;
@@ -3154,9 +3202,15 @@ if(typeof document!=='undefined') (function UI(){
     if(st.iface==='spi')throw Error('Diese USB-Bridge unterstützt kein SPI. Wähle 1-Wire oder I²C.');
    }
    await firmware();
+   progress?.update('Adapter-Firmware erkannt · Schnittstelle wird vorbereitet');
    await selectChipInterface();
+   progress?.update('Schnittstelle bereit · Sensorerkennung läuft');
    try{
-    if(st.adapterKind==='bridge'&&!demoEnabled){await connectBridgeChip();return;}
+    if(st.adapterKind==='bridge'&&!demoEnabled){
+     await connectBridgeChip();
+     progress?.update(st.chip?'Chip und UID bestätigt · Verbindung bereit':'Adapter bereit · Chip noch nicht erkannt');
+     return;
+    }
     if(!demoEnabled&&st.adapterKind==='ssp3'&&st.iface==='plc'){
      // The user confirmed that this lab's DUT is powered from SSP3 VSUPPLY.
      // A fresh power-up opens the NVM-configured 4/10/200-ms PLC window.
@@ -3166,9 +3220,15 @@ if(typeof document!=='undefined') (function UI(){
      // there is no stale user setting or checkbox.
      $('plcPowerConfirm').checked=true;
      logging('SSP3 + One Wire: automatischer Sensorstart über VSUPPLY; PLC-Format '+st.plcHostFormat+'.');
-     if(!await probePlcAddresses('Erstverbindung ohne Power-Cycle',true))
+     if(!await probePlcAddresses('Erstverbindung ohne Power-Cycle',true)){
+      progress?.update('SSP3 bereit · Startfenster und Sensor-RAM werden geprüft');
       await startSsp3WithBoundedRetry();
-     if(st.readOnlySensor&&!st.ramRecoveryAttempted)await startRamMeasurementOperation();
+     }
+     if(st.readOnlySensor&&!st.ramRecoveryAttempted){
+      progress?.update('Sensor lesbar · RAM-Messbereitschaft wird geprüft');
+      await startRamMeasurementOperation();
+     }
+     progress?.update(st.chip?'Chip und UID bestätigt · Verbindung bereit':'SSP3 bereit · Chip noch nicht bestätigt');
      return;
     }
     await detect();
