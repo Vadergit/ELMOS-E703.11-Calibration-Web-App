@@ -128,6 +128,14 @@ function chooseDisplayReference(profile,standard){
    : '—';
  const pg1 = [3.5, 6, 8.5, 11];
  const pg2 = [2, 2.22, 2.5, 2.86, 3.33, 4, 5, 6.67, 10];
+ // Elmos 25DS0170E.04 table 7.5-1, pp. 90–91.
+ // Match ALL THREE NVM words: CFG_ADC [24], CFG_LP0 [25], CFG_LP1 [26].
+ // Non-standard filter settings have no documented ADC gain and must not
+ // silently fall back to 700 mV or an assumed preset.
+ const ADC_FILTER_PRESETS=[[18643,10910,1042,0.78125,"Continuous fs=50kS/s, f3dB=10.94kHz"],[19107,10966,1297,0.558036,"Continuous fs=50kS/s, f3dB=12.56kHz"],[18915,10963,1298,0.868056,"Continuous fs=50kS/s, f3dB=10.98kHz"],[18851,11931,274,0.868056,"Continuous fs=50kS/s, f3dB=6.44kHz"],[51731,11802,1334,0.651042,"Continuous fs=50kS/s, f3dB=4kHz"],[60195,13983,306,0.520833,"Continuous fs=50kS/s, f3dB=500Hz"],[52002,14878,310,0.558036,"Continuous fs=50kS/s, f3dB=2.1kHz"],[59922,15007,1330,0.520833,"Continuous fs=50kS/s, f3dB=1.04kHz"],[18595,2902,1105,0.8,"Continuous fs=31kS/s, f3dB=7.21kHz"],[18850,7067,118,0.888889,"Continuous fs=31kS/s, f3dB=1kHz"],[18641,10910,1171,0.762939,"Continuous fs=20kS/s, f3dB=4.37kHz"],[19424,11931,147,0.586877,"Continuous fs=20kS/s, f3dB=3.39kHz"],[18640,11859,436,0.847711,"Continuous fs=20kS/s, f3dB=1.97kHz"],[18912,11862,1460,0.762939,"Continuous fs=20kS/s, f3dB=960Hz"],[26832,13015,432,0.693581,"Continuous fs=20kS/s, f3dB=490Hz"],[22947,12699,247,0.84787,"Continuous fs=8kS/s, f3dB=250Hz"],[23188,3167,1214,0.993411,"Continuous fs=2kS/s, f3dB=115Hz"],[30932,4311,441,0.677326,"Continuous fs=2kS/s, f3dB=50Hz"],[31652,5271,442,0.993411,"Continuous fs=2kS/s, f3dB=20Hz"],[30868,5202,670,0.931323,"Continuous fs=2kS/s, f3dB=10Hz"],[19427,11935,274,0.520833,"Continuous fs=50kS/s, f3dB=7.89kHz"],[19427,11931,273,0.600962,"Continuous fs=50kS/s, f3dB=7.17kHz"],[18915,11935,18,0.710227,"Continuous fs=50kS/s, f3dB=6.33kHz"],[19347,11990,277,0.558036,"Continuous fs=50kS/s, f3dB=5.15kHz"],[51283,11807,1077,0.710227,"Continuous fs=50kS/s, f3dB=3.11kHz"],[60259,13983,305,0.520833,"Continuous fs=50kS/s, f3dB=370Hz"],[52066,14875,54,0.600962,"Continuous fs=50kS/s, f3dB=1.53kHz"],[59986,15007,1074,0.520833,"Continuous fs=50kS/s, f3dB=860Hz"],[18915,3871,82,0.727273,"Continuous fs=31kS/s, f3dB=3.95kHz"],[18850,7067,373,0.888889,"Continuous fs=31kS/s, f3dB=870Hz"],[19425,11935,403,0.508626,"Continuous fs=20kS/s, f3dB=3.15kHz"],[18912,11931,144,0.847711,"Continuous fs=20kS/s, f3dB=2.13kHz"],[19152,11807,1460,0.508626,"Continuous fs=20kS/s, f3dB=1.51kHz"],[18592,11862,1204,0.762939,"Continuous fs=20kS/s, f3dB=790Hz"],[27024,12887,176,0.693581,"Continuous fs=20kS/s, f3dB=410Hz"],[22947,12698,500,0.953854,"Continuous fs=8kS/s, f3dB=190Hz"],[23204,3158,1469,0.532184,"Continuous fs=2kS/s, f3dB=90Hz"],[31124,4183,185,0.677326,"Continuous fs=2kS/s, f3dB=40Hz"],[31716,5271,441,0.993411,"Continuous fs=2kS/s, f3dB=15Hz"],[30932,5202,669,0.931323,"Continuous fs=2kS/s, f3dB=10Hz"],[50200,33682,192,0.909149,"Periodic fs=16kS/s, no lp"],[20635,8594,208,0.953854,"Periodic fs=8kS/s, no lp"],[155,402,152,0.545299,"Periodic fs=6kS/s, no lp"],[53272,40978,216,0.931323,"Periodic fs=4kS/s, no lp"],[23700,18,137,0.931323,"Periodic fs=2kS/s, no lp"]];
+ function adcGainPreset(words){
+  return ADC_FILTER_PRESETS.find(p=>p[0]===words[24]&&p[1]===words[25]&&p[2]===words[26])||null;
+ }
  // Polynomial root isolation by derivative extrema, not a sampling grid.
  // Supports first, second and third order curves, including tangential roots.
  // A non-monotonic curve is rejected whenever more than one inverse exists.
@@ -191,6 +199,15 @@ function chooseDisplayReference(profile,standard){
      !Number.isInteger(limit)||limit<1000||limit>32000)
    return {ok:false,error:'Bereich prüfen: Druck max > min, Temperatur −40…125 °C mit T2 > T1, VDD 2,7…5,5 V und DSP-Endwert 1’000…32’000.'};
   const w=words, warnings=[], cfg=w[16], afe=w[28],
+   adcPreset=adcGainPreset(w),
+   manualADC=opts.adcGain===null||opts.adcGain===undefined||opts.adcGain===''?null:Number(opts.adcGain);
+  if(manualADC!==null&&(!Number.isFinite(manualADC)||manualADC<=0.05||manualADC>2))
+   return {ok:false,error:'Manueller ADC-Gain AADC muss grösser als 0,05 und höchstens 2 sein.'};
+  const adcGain=manualADC??adcPreset?.[3]??null,
+   adcGainSource=manualADC!==null?'manual':adcPreset?'datasheet':'unknown',
+   adcGainProfile=adcPreset?.[4]??null,
+   adcConfig=[w[24],w[25],w[26]],
+   cfgDummyUnused=undefined,
    factoryTemp=(w[31]===0&&w[32]===0x1000&&w[51]===0x0F4D&&w[52]===0xBC8E&&w[53]===0xFC54&&w[54]===0),
    requestedModel=opts.tempModel??'auto',
    tempModel=requestedModel==='auto'?(factoryTemp?'factory':'an0203'):requestedModel,
@@ -226,8 +243,12 @@ function chooseDisplayReference(profile,standard){
    postGain=post?(postFine?1+q15(w[56]):q12(w[56])):1,
    postOffset=post?(postFine?q15(w[55]):q12(w[55])):0;
   const physical=adc=>{
-   if(!supply||pga2===null||offsetStage===null)return null;
-   const stage=(adc*700/(pga2*supply))*(sign2*signAdc);
+   if(!supply||pga2===null||offsetStage===null||!adcGain)return null;
+   // 25DS0170E.04 §6.2.1.10: ADC_S[digits]=V_ADC[V]*32768*AADC.
+   // This adc is normalized ADC_S/32768 (not ±700 mV full scale).
+   // §6.2.1.7: V_ADC=(bridge[mV/V]/1000*SVDD*PGA1
+   //               + DAC[mV/V]/1000*SVDD)*PGA2 with inversion flags.
+   const stage=(adc*1000/(adcGain*pga2*supply))*(sign2*signAdc);
    return (stage-offsetStage)/(pga1*sign1);
   };
   // The normalized intermediate S (or T) can be outside ±1 even when the
@@ -249,6 +270,8 @@ function chooseDisplayReference(profile,standard){
   if(factoryTemp)warnings.push('Elmos-Werk-Temperaturprofil erkannt: ungetrimmtes Temperaturmodell mit 100 Digits/°C. Keine garantierte absolute Genauigkeit.');
   if(requestedModel!=='auto')warnings.push('Temperaturmodell manuell gewählt: prüfen, ob dieses zum Abgleich gehört.');
   if((cfg&3)===0)warnings.push('Druckkorrektur ist in CFG_EN nicht aktiv; die abgelegten Koeffizienten beschreiben möglicherweise nicht den aktiven Ausgang.');
+  if(!adcPreset)warnings.push('CFG_ADC/CFG_LP0/CFG_LP1 '+adcConfig.map(hex).join(' / ')+': keine genaue Übereinstimmung mit den 45 Elmos-Profilen in Datenblatt-Tabelle 7.5-1. ADC-Verstärkung nicht aus dem NVM bestimmbar. Mit einem bestätigten AADC-Wert aus der Originalsoftware manuell ergänzen.');
+  if(manualADC!==null)warnings.push('AADC='+manualADC+' wurde manuell angegeben'+(adcPreset?' (Datenblattwert wäre '+adcPreset[3]+')':' (nicht durch ein bekanntes Filterprofil bestätigt)')+'. mV/V basieren auf dieser Annahme.');
   if(!supply)warnings.push('Reservierter Code für Brückenspeisung: mV/V nicht berechenbar.');
   if(pga2===null)warnings.push('CFG_AFE1 enthält einen reservierten PGA2-Code: keine mV/V-Rückrechnung.');
   if(offsetStage===null)warnings.push('CFG_AFE1 enthält einen nicht dokumentierten Offset-DAC-Code: keine mV/V-Rückrechnung.');
@@ -313,6 +336,7 @@ function chooseDisplayReference(profile,standard){
   if(tempCorrectionConstant)warnings.push('DSP_T enthält nur T0 (konstante Temperatur). Absolute Temperaturen lassen sich daraus nicht zurückrechnen.'+
    (manualBoth?' Die manuell angegebenen ADC_T-Werte werden stattdessen für den Druckvergleich verwendet.':' TK0/TKR sind ohne zwei gemessene ADC_T-Werte nicht bestimmbar.'));
   return {ok:true,settings:{pmin,pmax,ta,tb,vdd,limit,pressureUnit,pga1,pga2,supply,offsetSteps,offsetStage,
+    adcGain,adcGainSource,adcGainProfile,adcConfig,
     sign1,sign2,signAdc,sF,sO,tF,tO,post,postGain,postOffset,
     temperatureActive:!!(cfg&0x1000),temperatureModel:tempModel,factoryTemp,scoeff,tcoeff,
     pressureTempIndependent,tempCorrectionConstant,fixedTemperatureC,manualTemperatureInputs:rawInputs,manualBoth},
@@ -343,7 +367,7 @@ function chooseDisplayReference(profile,standard){
   }
   if(missingBridge&&!missingS)
    items.push({name:'Nullpunkt / Spanne in mV/V',
-    reason:'Die Verstärker- oder Brückeneinstellungen im NVM reichen für eine eindeutige Rückrechnung nicht aus.'});
+    reason:!cfg.adcGain?'Die drei ADC-Filterregister sind keinem Elmos-Profil zuordenbar. Der ADC-Faktor AADC muss zuerst aus der Originalsoftware bestätigt und manuell eingetragen werden.':'Die Verstärker- oder Brückeneinstellungen im NVM reichen für eine eindeutige Rückrechnung nicht aus.'});
   if(!finite(r.tk0)||!finite(r.tkr)){
    const reason=cfg.pressureTempIndependent?
     'Im Druckabgleich ist keine Temperaturabhängigkeit hinterlegt. Für echte Temperaturabweichungen wären Druckmessungen bei zwei Temperaturen nötig.':
@@ -427,7 +451,7 @@ function chooseDisplayReference(profile,standard){
   if(!styleAdded){const style=dom('style');style.textContent=css;document.head.appendChild(style);styleAdded=true}
   if(!root._nvmInit){
    root._nvmInit=true;
-   root._nvmState={live:null,offline:null,preferred:'file',connected:false,busy:false,liveMeta:null,sourceKey:null,fileUid:null,limitEdited:false,reference:null,profileFile:null,profileFileError:null,profileKey:null,profileLocked:{},profileCurrent:null,profileOverride:false,sessionProfile:null,readNotice:'',readError:false,reading:false,fileName:null,fileError:null,fileNotice:'',fileKind:null,opts:{pmin:0,pmax:100,ta:25,tb:75,vdd:5,limit:null,tempModel:'auto',pressureUnit:'%'},last:null};
+   root._nvmState={live:null,offline:null,preferred:'file',connected:false,busy:false,liveMeta:null,sourceKey:null,fileUid:null,limitEdited:false,reference:null,profileFile:null,profileFileError:null,profileKey:null,profileLocked:{},profileCurrent:null,profileOverride:false,sessionProfile:null,readNotice:'',readError:false,reading:false,fileName:null,fileError:null,fileNotice:'',fileKind:null,opts:{pmin:0,pmax:100,ta:25,tb:75,vdd:5,limit:null,tempModel:'auto',pressureUnit:'%',adcGain:null},last:null};
    const heading=dom('h3','Datenquelle & Referenzen','nvmrecon-section-title');
    const detail=dom('p','NVM-Backup laden und Referenzbedingungen festlegen. Die Rückrechnung erfolgt lokal, ohne Sensorzugriff.','nvmrecon-muted nvmrecon-intro');
    const actions=dom('div',undefined,'nvmrecon-actions');
@@ -509,11 +533,15 @@ function chooseDisplayReference(profile,standard){
    const grid=dom('div',undefined,'nvmrecon-grid');
    const fields=[['pmin','Druck min. [%]','0'],['pmax','Druck max. [%]','100'],
     ['ta','Temperatur 1 [°C]','25'],['tb','Temperatur 2 [°C]','75'],
-    ['vdd','VDD [V]','5'],['limit','DSP-Endwert','']];
+    ['vdd','VDD [V]','5'],['limit','DSP-Endwert',''],['adcGain','AADC manuell (optional)','']];
    for(const [key,title,value] of fields){
     const label=dom('label',title),input=dom('input');input.type='number';input.step=key==='limit'?'1':'any';
     input.value=value;input.dataset.key=key;label.dataset.profileKey=key;
-    input.addEventListener('input',()=>{root._nvmState.opts[key]=Number(input.value);if(key==='limit')root._nvmState.limitEdited=true;draw(root)});
+    if(key==='adcGain'){input.placeholder='Automatisch';input.min='0.05';input.max='2';input.step='0.000001';input.title='Nur nötig, wenn CFG_ADC/CFG_LP0/CFG_LP1 nicht in Elmos-Tabelle 7.5-1 stehen. Wert aus Originalsoftware verwenden.'}
+    input.addEventListener('input',()=>{
+     root._nvmState.opts[key]=key==='adcGain'?(input.value.trim()===''?null:Number(input.value)):Number(input.value);
+     if(key==='limit')root._nvmState.limitEdited=true;draw(root)
+    });
     label.appendChild(input);grid.appendChild(label);
    }
    const modelLabel=dom('label','Temperaturmodell'),modelSelect=dom('select');
@@ -652,7 +680,7 @@ function chooseDisplayReference(profile,standard){
    state.profileKey=profileKey;
    if(changedSource||!state.profileOverride){
     // Never inherit pressure, temperature, ADC_T or VDD from another sensor/file.
-    state.opts={pmin:0,pmax:100,ta:25,tb:75,vdd:5,limit:null,tempModel:'auto',pressureUnit:'%',adcT1:null,adcT2:null};
+    state.opts={pmin:0,pmax:100,ta:25,tb:75,vdd:5,limit:null,tempModel:'auto',pressureUnit:'%',adcT1:null,adcT2:null,adcGain:null};
     state.profileLocked={};
     if(profile){
      state.profileLocked={...profile.fields};
@@ -669,7 +697,7 @@ function chooseDisplayReference(profile,standard){
     }
     state.opts.limit=state.limitEdited?oldLimit:choice?.limit??null;
     if(!state.limitEdited&&validLimit(choice?.limit))state.profileLocked.limit=choice.limit;
-    for(const key of ['pmin','pmax','ta','tb','vdd','limit','adcT1','adcT2','tempModel']){
+    for(const key of ['pmin','pmax','ta','tb','vdd','limit','adcT1','adcT2','tempModel','adcGain']){
      const control=root.querySelector('[data-key="'+key+'"]');
      if(control)control.value=state.opts[key]==null?'':String(state.opts[key]);
     }
@@ -826,6 +854,7 @@ function chooseDisplayReference(profile,standard){
   if(!r.settings.tF&&!r.settings.pressureTempIndependent)unavailable.push('T_F ist 0x0000. ADC_T ist nicht eindeutig rekonstruierbar.');
   if(r.settings.tcoeff.every(c=>c===0)&&!r.settings.manualBoth&&!r.settings.pressureTempIndependent)
    unavailable.push('Alle T0–T3 stehen auf 0x0000. Für temperaturabhängige Druckkoeffizienten werden zwei gemessene ADC_T-Werte benötigt.');
+  if(!r.settings.adcGain)unavailable.push('ADC-Verstärkung AADC unbekannt: CFG_ADC/CFG_LP0/CFG_LP1 '+r.settings.adcConfig.map(hex).join(' / ')+'. Die mV/V-Rückrechnung ist gesperrt. Bei einem benutzerdefinierten ADC-Filter einen unabhängig bestätigten AADC-Wert manuell eingeben.');
   if(!unavailable.length && !r.hasPhysical)unavailable.push('Die Polynomumkehr ist mit diesen Koeffizienten und Bezugspunkten nicht eindeutig möglich. Siehe Diagnosehinweise.');
   if(r.settings.tempCorrectionConstant && r.hasPhysical && !r.settings.manualBoth){
    const tempInfo=finite(r.settings.fixedTemperatureC)?' Der fest programmierte DSP_T entspricht nominell '+fmt(r.settings.fixedTemperatureC,2)+' °C; das ist keine aktuelle Temperaturmessung.':'';
@@ -887,7 +916,7 @@ function chooseDisplayReference(profile,standard){
    body.appendChild(row);
   }
   table.appendChild(body);const wrap=dom('div',undefined,'nvmrecon-table-scroll');wrap.style.overflowX='auto';wrap.appendChild(table);box.appendChild(wrap);
-  const e=dom('p','Temperaturmodell: '+(r.settings.temperatureModel==='factory'?'Werkprofil (100 Digits/°C)':'AN0203 (387,88 × °C − 16’485)')+' · AFE: SVDD '+fmt(r.settings.supply,2)+' V · PGA1 '+fmt(r.settings.pga1,2)+'× · PGA2 '+fmt(r.settings.pga2,2)+'× · Brückenpolarität '+(r.settings.sign1<0?'invertiert':'normal')+' · Offset-DAC '+r.settings.offsetSteps+' Stufen · S_F '+fmt(r.settings.sF,5)+' · S_O '+fmt(r.settings.sO,5),'nvmrecon-muted');
+  const e=dom('p','Temperaturmodell: '+(r.settings.temperatureModel==='factory'?'Werkprofil (100 Digits/°C)':'AN0203 (387,88 × °C − 16’485)')+' · ADC-Gain AADC '+fmt(r.settings.adcGain,6)+' ('+(r.settings.adcGainSource==='datasheet'?'Datenblattprofil':r.settings.adcGainSource==='manual'?'manuell':'unbekannt')+')'+(r.settings.adcGainProfile?' · '+r.settings.adcGainProfile:'')+' · AFE: SVDD '+fmt(r.settings.supply,2)+' V · PGA1 '+fmt(r.settings.pga1,2)+'× · PGA2 '+fmt(r.settings.pga2,2)+'× · Brückenpolarität '+(r.settings.sign1<0?'invertiert':'normal')+' · Offset-DAC '+r.settings.offsetSteps+' Stufen · S_F '+fmt(r.settings.sF,5)+' · S_O '+fmt(r.settings.sO,5),'nvmrecon-muted');
   const technical=dom('details',undefined,'nvmrecon-technical');
   technical.appendChild(dom('summary','AFE- und Registerdetails'));
   technical.appendChild(e);
@@ -898,7 +927,7 @@ function chooseDisplayReference(profile,standard){
   const rawText=dom('p',
    'S_F [34] '+hex(words[34])+' = '+fmt(r.settings.sF,6)+' · S_O [33] '+hex(words[33])+' = '+fmt(r.settings.sO,6)+
    ' · T_F [32] '+hex(words[32])+' = '+fmt(r.settings.tF,6)+' · T_O [31] '+hex(words[31])+' = '+fmt(r.settings.tO,6)+
-   ' · CFG_EN [16] '+hex(words[16])+' · CFG_AFE0 [27] '+hex(words[27])+' · CFG_AFE1 [28] '+hex(words[28]),'nvmrecon-muted');
+   ' · CFG_EN [16] '+hex(words[16])+' · CFG_ADC [24] '+hex(words[24])+' · CFG_LP0 [25] '+hex(words[25])+' · CFG_LP1 [26] '+hex(words[26])+' · CFG_AFE0 [27] '+hex(words[27])+' · CFG_AFE1 [28] '+hex(words[28]),'nvmrecon-muted');
   raw.appendChild(rawText);
   raw.appendChild(dom('p','Druck-Koeffizienten: '+words.slice(35,51).map((w,i)=>'S'+i+'='+hex(w)).join(' · '),'nvmrecon-muted'));
   raw.appendChild(dom('p','Temperatur-Koeffizienten: '+words.slice(51,55).map((w,i)=>'T'+i+'='+hex(w)).join(' · '),'nvmrecon-muted'));
@@ -920,7 +949,7 @@ function chooseDisplayReference(profile,standard){
   warnings.appendChild(dom('summary',r.warnings.length+' Hinweise / Gültigkeitsgrenzen'));
   const ul=dom('ul');
   for(const message of r.warnings)ul.appendChild(dom('li',message));
-  ul.appendChild(dom('li','Nominale AFE-Verstärkungen, ADC-Fullscale ±700 mV und Offset-DAC-Stufe 50 mV/V verwendet. Fabriktrim, reale Brückenspannung und Temperaturdrift der Elektronik sind nicht rückgerechnet.'));
+  ul.appendChild(dom('li','ADC_S wird über 2 V/(65536 × AADC) [V/Digit] umgerechnet (Elmos §6.2.1.10, Filtertabelle 7.5-1). Die ±700 mV sind nur der empfohlene ADC-Arbeitsbereich. PGA-Verstärkungen, SVDD und 50-mV/V-DAC-Stufen sind nominell; Fertigungstoleranzen und Temperaturdrift sind nicht rückgerechnet.'));
   warnings.appendChild(ul);box.appendChild(warnings);
   if(missing){
    missing.appendChild(dom('h3','Nicht berechenbare Werte'));
