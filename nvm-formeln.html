@@ -89,16 +89,25 @@ S_min/max = S_F × ADC_S,min/max + S_O</code><p class="muted">Beispiel: Mit S_F 
 <div class="step"><h3>3.5 ADC_S zurückrechnen</h3><code class="formula">S = S_F × ADC_S + S_O
 ADC_S [Digits] = ((S − S_O) / S_F) × 32768</code><p class="muted">S_F und S_O stammen aus NVM-Wort 34 bzw. 33.</p></div></div></section>
 
-<section class="chapter" id="bruecke"><div class="kicker">Schritt 4</div><h2>ADC_S in mV/V umrechnen</h2>
-<p>Aus dem normierten ADC_S-Signal und den eingestellten Verstärkern wird das nominale Brückensignal abgeschätzt:</p>
+<section class="chapter" id="bruecke"><div class="kicker">Schritt 4</div><h2>ADC_S richtig in mV/V umrechnen</h2>
+<p>Der Elmos E703.11 besitzt einen von der ADC-/Filterkonfiguration abhängigen Verstärkungsfaktor <strong>AADC</strong>. Die nutzbaren ±700 mV sind ein empfohlener Betriebsbereich und <strong>keine</strong> Skalierung von ±32'768 Digits.</p>
+<code class="formula">ADC_S [Digits] = V_ADC [V] × 32768 × AADC
+V_ADC [V] = (ADC_S [Digits] / 32768) / AADC</code>
+<p>Aus der AFE-Übertragungsfunktion nach Datenblatt §6.2.1.7 folgt die inverse Brückengleichung:</p>
 <code class="formula">B [mV/V] =
- (ADC_S × 700 / (PGA2 × SVDD) × sign2 × signADC − Offset-DAC)
+ ((ADC_S / 32768) × 1000 / (AADC × PGA2 × SVDD)
+  × sign2 × signADC − Offset-DAC [mV/V])
  / (PGA1 × sign1)</code>
 <table><thead><tr><th>Zeichen</th><th>Bedeutung</th></tr></thead><tbody>
-<tr><td>700</td><td>Nominale ADC-Fullscale in mV</td></tr><tr><td>SVDD</td><td>Brückenversorgung in V (nominal aus CFG_AFE0)</td></tr>
-<tr><td>PGA1, PGA2</td><td>Verstärkerstufen (nominal aus CFG_AFE1)</td></tr><tr><td>Offset-DAC</td><td>Eingestellte Kompensation, näherungsweise 50 mV/V pro Stufe</td></tr>
-<tr><td>sign1, sign2, signADC</td><td>Vorzeichen aus den konfigurierten Invertierungsbits</td></tr>
-</tbody></table><div class="note">Dieser Schritt ist eine <strong>Modellannahme</strong> des Rückrechners, keine unabhängige Messung. Fabriktrim, echte Versorgungsspannung und thermische Drifts werden nicht rekonstruiert.</div></section>
+<tr><td>ADC_S</td><td>Vorzeichenbehafteter 16-Bit-Sensorwert in Digits, in der Formel durch 32768 normiert</td></tr>
+<tr><td>AADC</td><td>ADC-Verstärkungsfaktor zu CFG_ADC [24], CFG_LP0 [25], CFG_LP1 [26] aus Tabelle 7.5-1 des Elmos-Datenblatts</td></tr>
+<tr><td>1000</td><td>Umrechnung Volt in Millivolt (kein angenommener ADC-Vollbereich)</td></tr>
+<tr><td>SVDD</td><td>Interne Sensorbrückenversorgung in Volt, nominell aus CFG_AFE0</td></tr>
+<tr><td>PGA1, PGA2</td><td>Verstärkerstufen aus CFG_AFE1, deren nominelle Werte dem Datenblatt entsprechen</td></tr>
+<tr><td>Offset-DAC</td><td>Kompensation nach PGA1, ±8 Stufen à nominell 50 mV/V bezogen auf SVDD</td></tr>
+<tr><td>sign1, sign2, signADC</td><td>Invertierungen aus CFG_AFE1 (SIP/SIN, PGA2, Sensor-ADC)</td></tr>
+</tbody></table>
+<div class="note"><strong>Gültigkeitsprüfung:</strong> Der Rechner erkennt AADC nur dann automatisch, wenn alle drei ADC-/Filterwörter mit einem der 45 Datenblattprofile übereinstimmen. Bei einer kundenspezifischen Filterkonfiguration zeigt er bewusst keine mV/V-Werte, bis ein unabhängiger AADC-Faktor aus der Originalsoftware manuell angegeben wurde. Automatische und manuelle Faktoren werden gekennzeichnet. Die resultierenden Brückensignale sind weiterhin <strong>nominelle Modellwerte</strong>: die tatsächlichen PGA-Gains, SVDD und DAC-Stufen haben Bauteiltoleranzen.</div></section>
 
 <section class="chapter" id="nullpunkt"><h2>Nullpunkt</h2><p>Der untere DSP-Zielwert wird rückwärts bis zum Brückensignal umgerechnet. Dieses Ergebnis ist der angezeigte nominelle Nullpunkt.</p>
 <code class="formula">Nullpunkt(T1) = B(pmin, T1)</code><p class="muted">Die vollständige numerische Folge – DSP-Sollwert, Post-Skalierung, K0–K3, S, ADC_S und B – zeigt das Info-Symbol neben dem Nullpunkt.</p></section>
@@ -127,12 +136,12 @@ Vout,ideal = VDD × (DSP_AODO + 1) / 2</code>
 <div class="note">Der Rechner zeigt die <strong>ideale Spannung vor Begrenzung und Fehlerersatz</strong>. Reale Ausgangsspannungen müssen bei Bedarf mit einem Messgerät geprüft werden. Bei AODO_F = 0 kann die ideale Ausgangsspannung für alle Druckwerte konstant sein.</div></section>
 
 <section class="chapter" id="beispiel"><h2>Kleines Rechenbeispiel</h2><p>Ein vereinfachter, frei gewählter linearer Datensatz ohne Temperaturkompensation oder Nachskalierung:</p>
-<div class="info-grid"><div class="mini"><strong>Eingaben</strong><span>DSP_S,Ziel = 0,4 · S0 = 0 · S4 = 0,8 · S_F = 1 · S_O = 0</span></div><div class="mini"><strong>Nominales AFE</strong><span>SVDD = 2,4 V · PGA1 = 11 · PGA2 = 10 · DAC = 0 · Vorzeichen = +1</span></div></div>
+<div class="info-grid"><div class="mini"><strong>Eingaben</strong><span>DSP_S,Ziel = 0,4 · S0 = 0 · S4 = 0,8 · S_F = 1 · S_O = 0</span></div><div class="mini"><strong>Nominales AFE</strong><span>SVDD = 2,4 V · PGA1 = 11 · PGA2 = 10 · DAC = 0 · AADC = 0,953854 · Vorzeichen = +1</span></div></div>
 <code class="formula">0,4 = 0 + 0,8 × S       → S = 0,5
 ADC_S = (0,5 − 0) / 1   → ADC_S = 0,5
 ADC_S [Digits] = 0,5 × 32768 = 16’384
-B = (0,5 × 700 / (10 × 2,4)) / 11
-  ≈ 1,32576 mV/V</code>
+B = (0,5 × 1000 / (0,953854 × 10 × 2,4)) / 11
+  ≈ 1,985565 mV/V</code>
 <p class="muted">Beispielwerte, keine Daten eines angeschlossenen Sensors. Im Rechner stehen an derselben Stelle die NVM-Werte deiner ausgewählten Datei.</p></section>
 
 <section class="chapter" id="grenzen"><h2>Was lässt sich nicht immer herauslesen?</h2><p>Ein NVM-Abbild speichert Kalibrierkoeffizienten, aber nicht zwangsläufig die Rohmessungen, mit denen sie berechnet wurden.</p>
