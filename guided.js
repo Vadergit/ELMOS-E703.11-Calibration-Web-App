@@ -140,7 +140,9 @@ const ELMOS_GUIDED=(()=>{
    '<section id="gwSwapPage" class="gw-tile" hidden><ol><li>Stecke den fertig abgeglichenen Sensor ab.</li><li>Schliesse den nächsten Sensor am Programmieradapter an.</li><li>Klicke auf «Neuen Sensor verbinden».</li></ol><p>Der Assistent übernimmt den Messplan und die Ausgangsvorgaben. Er schreibt die Frontend-Einstellungen ins RAM des neuen Sensors. Für ihn nimmst du danach neue Messwerte auf.</p><div class="gw-panel-actions"><button id="gwSwapConnect" class="primary" type="button">Neuen Sensor verbinden</button><button id="gwSwapChoose" type="button" hidden>USB-Port auswählen</button><button id="gwSwapCancel" type="button">Serie abbrechen</button></div></section>'+
    '<section id="gwConnectionPage" class="gw-page gw-connection-page" hidden><div class="gw-panel-actions gw-connection-backbar"><button id="gwConnectionBackTop" type="button">← Zurück zum Assistenten</button></div><div class="gw-columns">'+
     '<section class="gw-tile"><h3>USB-Adapter und Chip-Protokoll</h3><p>Bei einem anderen Sensor kannst du 1-Wire, I²C oder SPI auswählen, ohne in die klassische Ansicht zu wechseln. Der bisherige USB-Port wird sicher geschlossen und mit dem neuen Protokoll neu initialisiert.</p>'+
-    '<div class="gw-fields"><label>Programmieradapter<select id="gwConnectionAdapter"><option value="ssp3">Original ELMOS SSP3</option><option value="bridge">ESP32-C3 / Pro Micro</option></select></label><label>Chip-Schnittstelle<select id="gwConnectionInterface"><option value="plc">1-Wire · AODO</option><option value="i2c">I²C · SCL/SDA</option><option value="spi">SPI · Testmodus (SSP3)</option></select></label></div>'+
+    '<div class="gw-fields"><label>Programmieradapter<select id="gwConnectionAdapter"><option value="ssp3">Original ELMOS SSP3</option><option value="bridge">ESP32-C3 / Pro Micro</option></select></label><label>Chip-Schnittstelle<select id="gwConnectionInterface"><option value="plc">1-Wire · AODO</option><option value="i2c">I²C · SCL/SDA</option><option value="spi">SPI · Testmodus (SSP3)</option></select></label></div>'+ 
+    '<label id="gwConnectionPowerWrap" class="gw-connection-power" hidden><input id="gwConnectionPowerCycle" type="checkbox"> Sensorversorgung über Adapter steuern (ESP32 GPIO10 / Pro Micro D7)</label>'+
+    '<p id="gwConnectionPowerHint" class="gw-connection-hint" hidden>Nur mit angeschlossenem Lastschalter. Die Einstellung gilt beim nächsten Verbindungsaufbau und startet den Sensor neu; kein NVM-Schreiben.</p>'+
     '<div class="gw-panel-actions"><button id="gwConnectionApply" class="primary" type="button">Protokoll übernehmen &amp; verbinden</button><button id="gwConnectionChoose" type="button">Anderen USB-Port auswählen</button></div><p class="gw-connection-hint">Ein neuer Sensor erhält eine neue Chip-UID-Prüfung. Ein bisheriger Abgleich wird vor dem Wechsel separat abgeschlossen oder als unvollständig archiviert. Keine NVM-Programmierung.</p>'+
     '<div class="gw-alert" id="gwConnectionStatus" role="status">Verbindungsstatus wird abgefragt.</div></section>'+
     '<section class="gw-tile"><h3>Verbindung beheben</h3><p>Falls der Adapter verbunden ist, aber der Sensor nicht antwortet, kannst du die Register nur lesend prüfen und das USB-Protokoll zur Fehlersuche speichern.</p>'+
@@ -234,6 +236,19 @@ const ELMOS_GUIDED=(()=>{
   $('gwConnectionClose').addEventListener('click',closeConnectionPanel);
   $('gwConnectionBackTop').addEventListener('click',closeConnectionPanel);
   $('gwConnectionAdapter').addEventListener('change',updateConnectionChoices);
+  $('gwConnectionInterface').addEventListener('change',updateConnectionChoices);
+  $('gwConnectionPowerCycle').addEventListener('change',()=>{
+   // The existing classic setting is the single source of truth for the
+   // power-cycle command and its persisted default. The guided view never
+   // issues separate GPIO or sensor commands.
+   const classic=$('plcPowerCycle');
+   classic.checked=$('gwConnectionPowerCycle').checked;
+   classic.dispatchEvent(new Event('change',{bubbles:true}));
+   renderConnectionStatus();
+  });
+  subscribe($('plcPowerCycle'),'change',()=>{
+   if($('gwConnectionPowerCycle'))$('gwConnectionPowerCycle').checked=$('plcPowerCycle').checked;
+  });
   subscribe($('expertMode'),'change',()=>{updateConnectionChoices();renderConnectionStatus()});
   $('gwConnectionApply').addEventListener('click',()=>connectGuidedSensor(false));
   $('gwConnectionChoose').addEventListener('click',()=>connectGuidedSensor(true));
@@ -660,6 +675,12 @@ const ELMOS_GUIDED=(()=>{
   const spi=iface.querySelector('option[value="spi"]');
   spi.disabled=adapter==='bridge'||!$('expertMode').checked;
   if(spi.disabled&&iface.value==='spi')iface.value='plc';
+  const showPower=adapter==='bridge'&&$('expertMode').checked;
+  $('gwConnectionPowerWrap').hidden=!showPower;
+  $('gwConnectionPowerHint').hidden=!showPower;
+  // Match the persistent classic setting when opening the guided connection
+  // panel. Changes made here are written back through its existing listener.
+  $('gwConnectionPowerCycle').checked=$('plcPowerCycle').checked;
  }
  function openConnectionPanel(){
   if(!mode)return;
@@ -680,7 +701,9 @@ const ELMOS_GUIDED=(()=>{
  }
  function renderConnectionStatus(){
   if(!connectionOpen)return;
+  updateConnectionChoices();
   const expert=$('expertMode').checked;
+  $('gwConnectionPowerCycle').disabled=connectionBusy||state().connectionBusy;
   for(const id of ['gwConnectionAdvanced','gwConnectionDiagnose','gwConnectionStartup'])$(id).hidden=!expert;
   if(!expert){
    $('gwConnectionAdvanced').open=false;
