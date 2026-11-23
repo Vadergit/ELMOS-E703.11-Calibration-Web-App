@@ -847,6 +847,12 @@ function chooseDisplayReference(profile,standard){
   if(!validLimit(state.opts.limit)){state.last=null;box.appendChild(dom('p','Kein verlässlicher DSP-Endwert verfügbar. Ohne passende Referenz oder ausdrücklich eingegebenen Endwert ist keine Brückenrückrechnung möglich.','nvmrecon-error'));return}
   const r=calculate(words,state.opts);state.last=r;
   if(!r.ok){box.appendChild(dom('p',r.error,'nvmrecon-error'));return}
+  const gainText=r.settings.adcGainSource==='datasheet'?
+   'ADC-Gain automatisch erkannt: AADC '+fmt(r.settings.adcGain,6)+' · '+(r.settings.adcGainProfile||'Datenblatt-Tabelle 7.5-1')+'.':
+   r.settings.adcGainSource==='manual'?
+   'ADC-Gain manuell: AADC '+fmt(r.settings.adcGain,6)+' · Verwendung nur für diese Rückrechnung.':
+   'ADC-Gain unbekannt: Die drei ADC-Filterregister entsprechen keinem der 45 Datenblattprofile. mV/V nicht berechenbar.';
+  box.appendChild(dom('p',gainText,'nvmrecon-muted nvmrecon-adc-gain-status'));
   const unavailable=[];
   if(!r.settings.sF)unavailable.push('S_F ist 0x0000. Ohne gültigen Druck-Normierungsfaktor lassen sich ADC_S, Nullpunkt, Spanne, TK0 und TKR nicht rekonstruieren.');
   if(r.settings.scoeff.every(c=>c===0))unavailable.push('Alle S0–S15 stehen auf 0x0000. Die Druck-Kennlinie fehlt im ausgewählten Datensatz.');
