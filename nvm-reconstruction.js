@@ -207,7 +207,6 @@ function chooseDisplayReference(profile,standard){
    adcGainSource=manualADC!==null?'manual':adcPreset?'datasheet':'unknown',
    adcGainProfile=adcPreset?.[4]??null,
    adcConfig=[w[24],w[25],w[26]],
-   cfgDummyUnused=undefined,
    factoryTemp=(w[31]===0&&w[32]===0x1000&&w[51]===0x0F4D&&w[52]===0xBC8E&&w[53]===0xFC54&&w[54]===0),
    requestedModel=opts.tempModel??'auto',
    tempModel=requestedModel==='auto'?(factoryTemp?'factory':'an0203'):requestedModel,
