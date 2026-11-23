@@ -1,3 +1,10 @@
+## v0.7.161 – Sensorversorgung im Standard-Verbindungsdialog
+
+- Die DIY-Programmer-Option «Sensorversorgung über Adapter steuern» ist bereits in Schritt 1 ohne Expertenmodus sichtbar. Automatische Power-Cycle-Funktion bleibt technisch an den angeschlossenen Lastschalter auf GPIO10 (ESP32-C3) bzw. D7 (Pro Micro) gebunden.
+- Einmalige Migration vormals versteckter, gespeicherter Aus-Einstellungen: Standard beim DIY-Programmer ist aktiv. Danach bleibt eine bewusst gewählte Deaktivierung gespeichert, damit Adapter ohne Lastschalter weiterhin unterstützt werden.
+- Baudrate und GPIO4/Split bleiben Expertenparameter; die Versorgungsoption kann während einer bestehenden USB-Verbindung nicht umgestellt werden. Für eine Änderung neu verbinden.
+- Keine Änderungen an Sensor-NVM, Kalibrierablauf oder ESP32-Firmware. Browser-/Hardwareprüfung steht aus.
+
 ## v0.7.160 – Erstabgleich bei fehlendem AFE-Pflichtbit
 
 - Erkennung des protokollierten druckunkalibrierten Zustands anhand von gültiger CRC8/CRC16, deaktivierter Druckkorrektur, leeren Druckkoeffizienten, inaktivem Messzyklus, fehlender Ausgangsskalierung und unverändertem Elmos-Temperaturbeispielprofil.
