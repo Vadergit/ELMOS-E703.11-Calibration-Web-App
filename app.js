@@ -634,7 +634,15 @@ if(typeof document!=='undefined') (function UI(){
     crc=await nvmReadWord(0x7E);checkBudget();
     if((await readReg(0x46))&0x40)return false;
    }
-   const archive=await window.ELMOS_ARCHIVE?.findDisplayCalibration?.(uid,crc);
+   // Archive lookup is local-only and must never hold the sensor task indefinitely.
+   logging('DSP-Anzeigeprofil: lokale Archivsuche gestartet.');
+   let archiveTimer;
+   const archive=await Promise.race([
+    Promise.resolve().then(()=>window.ELMOS_ARCHIVE?.findDisplayCalibration?.(uid,crc)).catch(error=>{logging('DSP-Anzeigeprofil: Archivsuche fehlgeschlagen: '+error.message);return null}),
+    new Promise(resolve=>{archiveTimer=setTimeout(()=>{logging('DSP-Anzeigeprofil: Archivsuche Timeout; lokale Referenzen werden weiter geprüft.');resolve(null)},Math.min(3000,Math.max(0,deadline-Date.now())))})
+   ]).finally(()=>clearTimeout(archiveTimer));
+   checkBudget();
+   logging('DSP-Anzeigeprofil: Archivsuche beendet.');
    const fileProfile=archive&&validDisplayProfile(archive,uid)&&archive.crc===crc?archive:null;
    profileCandidate=fileProfile||(local?.crc===crc?local:null);
    p=profileCandidate||(standard?.crc===crc?standard:null);
@@ -704,7 +712,7 @@ if(typeof document!=='undefined') (function UI(){
   }catch(e){logging('DSP-Anzeigeprofil: '+e.message);return false}
   finally{
    if(ownsTask){
-    await ramLock();st.ramWriteScope=null;st.calTask=false;
+    try{await ramLock()}finally{st.ramWriteScope=null;st.calTask=false;logging('DSP-Anzeigeprofil: Task-Sperre freigegeben.');}
    }
   }
   if(st.port!==port||st.sessionIndex!==session||st.uid?.hex!==uid||!st.chip||st.closing)return false;
@@ -3206,52 +3214,41 @@ if(typeof document!=='undefined') (function UI(){
    show('connMsg',serialOpenError(e,port),'error');
   }
  }
- let postConnectProfileTimer=null,postConnectProfileBusy=false;
- function queuePostConnectDisplayProfile(){
+ let postConnectProfileTimer=null,postConnectProfileBusy=false,initialProfilePort=null;
+ async function queuePostConnectDisplayProfile(){
   clearTimeout(postConnectProfileTimer);
-  // SSP3 notebook compatibility test: the optional post-connect NVM profile
-  // reconstruction sends many PLC/CM_CMD transactions and stops live polling.
-  // On slower USB/FTDI hosts it may stall after the chip is already connected.
-  // Disable ONLY the automatic SSP3 scan; explicit EEPROM/NVM reads continue
-  // to use the normal guarded code and can still establish the display profile.
-  if(st.adapterKind==='ssp3'){
-   logging('SSP3: automatische NVM-Anzeigeprofilprüfung beim Verbinden deaktiviert (Notebook-Kompatibilität). ADC/DSP-Live bleibt aktiv; EEPROM bei Bedarf ausdrücklich auslesen.');
-   return;
-  }
   const port=st.port,session=st.sessionIndex,uid=st.uid?.hex;
   if(!port||!st.chip||!uid)return;
-  logging('Sensor und UID erkannt; optionale NVM-Anzeigeprüfung erfolgt nach dem USB-Verbindungsdialog.');
-  postConnectProfileTimer=setTimeout(async()=>{
-   postConnectProfileTimer=null;
-   if(st.port!==port||st.sessionIndex!==session||st.uid?.hex!==uid||
-      !st.chip||st.closing||postConnectProfileBusy||st.calTask||
-      st.writing||st.nvmWorking||st.powerCycleRunning||st.ramMeasurementStarting||
-      st.reinitRunning||st.startupRunning||st.magicRunning||st.diagRunning||
-      window.ELMOS_TEST_LOGGER?.isBusy()){
-    logging('Optionale NVM-Anzeigeprüfung übersprungen: Verbindungs- oder Tätigkeitswechsel.');
-    return;
-   }
-   postConnectProfileBusy=true;
-   const resumeLive=st.live&&!st.manualLivePause;
-   try{
-    logging('Optionale NVM-Anzeigeprüfung gestartet (maximal 30 s, kein NVM-Schreiben).');
-    if(resumeLive){stopLive();if(st.liveReadPromise)await st.liveReadPromise.catch(()=>{})}
-    if(st.port!==port||st.sessionIndex!==session||st.uid?.hex!==uid||!st.chip||st.closing)return;
-    const found=await restoreCalibrationDisplayProfile(null,{maxDurationMs:30000});
-    logging('Optionale NVM-Anzeigeprüfung beendet: '+(found?'Profil verfügbar':'kein bestätigtes Profil; Digits bleiben sichtbar')+'.');
-   }catch(error){logging('Optionale NVM-Anzeigeprüfung: '+String(error.message||error))}
-   finally{
-    postConnectProfileBusy=false;
-    if(resumeLive&&st.port===port&&st.sessionIndex===session&&st.uid?.hex===uid&&st.chip&&!st.closing&&!st.manualLivePause&&!st.calTask&&!st.writing&&!st.nvmWorking)
-     startLive();
-   }
-  },800);
+  if(st.closing||postConnectProfileBusy||st.calTask||st.writing||st.nvmWorking||
+     st.powerCycleRunning||st.ramMeasurementStarting||st.reinitRunning||
+     st.startupRunning||st.magicRunning||st.diagRunning||window.ELMOS_TEST_LOGGER?.isBusy()){
+   logging('Optionale NVM-Anzeigeprüfung übersprungen: Verbindungs- oder Tätigkeitswechsel.');
+   return;
+  }
+  postConnectProfileBusy=true;
+  try{
+   logging('Optionale NVM-Anzeigeprüfung vor Live-Start (30 s Budget zwischen USB-Operationen, kein NVM-Schreiben).');
+   if(st.live){stopLive();if(st.liveReadPromise)await st.liveReadPromise.catch(()=>{})}
+   if(st.port!==port||st.sessionIndex!==session||st.uid?.hex!==uid||!st.chip||st.closing)return;
+   const found=await restoreCalibrationDisplayProfile(null,{maxDurationMs:30000});
+   logging('Optionale NVM-Anzeigeprüfung beendet: '+(found?'Profil verfügbar':'kein bestätigtes Profil; Digits bleiben sichtbar')+'.');
+  }catch(error){logging('Optionale NVM-Anzeigeprüfung: '+String(error.message||error))}
+  finally{postConnectProfileBusy=false;logging('Optionale NVM-Anzeigeprüfung: Ablauf beendet; Kommunikationsstatus wird geprüft.');renderStatus()}
  }
  async function connect(port){
   if(!uiReady)throw Error('Softwareinitialisierung nicht abgeschlossen. Seite vollständig neu laden.');
-  const result=await withProgress('Verbindung wird aufgebaut',progress=>connectOperation(port,progress),true);
-  if(st.port===port&&st.chip&&st.uid?.hex)queuePostConnectDisplayProfile();
-  return result;
+  // Defer polling during initial discovery and the automatic read-only profile check.
+  // Preserve the existing SSP3 compatibility exception until hardware-tested.
+  const deferProfile=st.adapterKind==='bridge';
+  if(deferProfile)initialProfilePort=port;
+  try{
+   const result=await withProgress('Verbindung wird aufgebaut',progress=>connectOperation(port,progress),true);
+   if(st.port===port&&st.chip&&st.uid?.hex&&st.adapterKind==='bridge')await queuePostConnectDisplayProfile();
+   return result;
+  }finally{
+   if(initialProfilePort===port)initialProfilePort=null;
+   if(st.port===port&&st.chip&&!st.closing&&!st.manualLivePause&&!st.calTask&&!st.writing&&!st.nvmWorking)startLive();
+  }
  }
  async function connectOperation(port,progress){
   if(st.port)throw Error('Es ist bereits ein Port offen');
@@ -3547,7 +3544,7 @@ if(typeof document!=='undefined') (function UI(){
   return s;
  }
  function startLive(){
-  if(st.live||st.calTask||!st.chip||st.powerCycleRunning||st.closing||!st.port)return;
+  if(st.live||st.calTask||!st.chip||st.powerCycleRunning||st.closing||!st.port||initialProfilePort===st.port)return;
   st.live=true;st.consecutiveErrors=0;
   livePacing?.reset();
   logging('Live-Messung gestartet: ADC_S zyklisch, ADC_T/ADC_TC/DSP_S/DSP_T verteilt; kein NVM-Schreiben.');
@@ -4012,7 +4009,14 @@ if(typeof document!=='undefined') (function UI(){
   throw Error('NVM-Controller reagiert nicht / Timeout')
  }
  async function nvmReadWord(addr){
-  await maintWrite(0x4E,0x4C00|addr);await nvmWaitIdle(12000,12,15);return await readReg(0x48);
+  const diagnostic=st.ramWriteScope==='display-profile',started=Date.now();
+  if(diagnostic)logging('NVM-Anzeigeprofil: Wort '+(addr/2+1)+'/64 (0x'+h(addr)+') gestartet.');
+  try{
+   await maintWrite(0x4E,0x4C00|addr);await nvmWaitIdle(12000,12,15);
+   const value=await readReg(0x48);
+   if(diagnostic)logging('NVM-Anzeigeprofil: Wort '+(addr/2+1)+'/64 gelesen in '+(Date.now()-started)+' ms.');
+   return value;
+  }catch(error){if(diagnostic)logging('NVM-Anzeigeprofil: Wort '+(addr/2+1)+'/64 fehlgeschlagen nach '+(Date.now()-started)+' ms: '+error.message);throw error}
  }
  async function nvmScan(options={}){
   return withProgress('NVM wird gelesen',progress=>nvmScanOperation(options, progress),true);
