@@ -1,3 +1,9 @@
+## v0.7.172 – NVM-Anzeigeprofil und Live-Start robuster
+
+- DIY-Bridge: automatische NVM-Anzeigeprüfung vor dem zyklischen Live-Start; bestehende SSP3-Kompatibilitätsausnahme bleibt erhalten.
+- Lokale Archivsuche auf 3 Sekunden begrenzt; bei Timeout werden lokale Referenzen weiter geprüft. NVM-Wortnummer, Lesezeit und Sperrenfreigabe im USB-Protokoll.
+- Keine Änderung an NVM-Programmierfreigaben, CRC-Prüfungen oder Firmware. Hardwaretest ausstehend.
+
 ## v0.7.171 – USB-Protokoll auch bei blockierter Kommunikation exportieren
 
 - Der USB-Protokoll-Download im geführten Assistenten bleibt unabhängig vom USB- und Sensorstatus sowie laufenden Kommunikationsoperationen verfügbar.
