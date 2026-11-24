@@ -1,3 +1,8 @@
+## v0.7.173 – ESP32-RAM-Start für unkalibrierte Sensoren
+
+- Der ESP32-C3 kann einen E703.11 mit leerem Druckprofil an der One-Wire-Adresse 0x6C nach bestätigter Chip-UID und gültigen EEPROM-Prüfsummen im RAM initialisieren.
+- Am angeschlossenen Print mit ESP32-Firmware v0.14 bei 25 und 100 kBd geprüft. Alle 64 EEPROM-Wörter blieben beim Test identisch.
+
 ## v0.7.172 – NVM-Anzeigeprofil und Live-Start robuster
 
 - DIY-Bridge: automatische NVM-Anzeigeprüfung vor dem zyklischen Live-Start; bestehende SSP3-Kompatibilitätsausnahme bleibt erhalten.
