@@ -1139,13 +1139,24 @@ if(typeof document!=='undefined') (function UI(){
    if(st.calpoints.length&&!same&&!restoringDraft)throw Error('Messprofil oder Abgleichplan seit erster Aufnahme verändert. Messpunkte sichern und bewusst neu aufnehmen.');
    const saved=storedCalibrationCheckpoint(uid);
    if(saved&&!st.calpoints.length&&!restoringDraft)throw Error('Gesicherte Messpunkte vorhanden. «Messpunkte wiederherstellen» wählen oder Entwurf ausdrücklich verwerfen.');
-   if(!same&&(plan.changed.length||plan.replaceTemperature||plan.temperatureRamChange)){
+   // A verified factory pressure-blank SSC is the normal production case.
+   // The standard ADC/period/AFE initialization is already validated and will
+   // still be shown in the final NVM diff. Keep warnings for nonstandard edits.
+   const routineFirstCalibration=recovery&&allowOperatingChanges&&CAL.uncalibratedPressureBlank(words)&&
+    (ram[4]&3)===2&&ram[0x0e]===1&&!plan.replaceTemperature&&!plan.temperatureRamChange&&!plan.temperatureEnable&&
+    plan.changed.every(x=>
+     (x.index===21&&x.from===0&&x.to===1)||
+     (x.index===16&&(x.from&3)===0&&x.to===((x.from&~3)|2))||
+     (x.index===28&&plan.afeMandatoryRepair&&x.from===0&&x.to===ram[0x1c]));
+   if(!same&&!routineFirstCalibration&&(plan.changed.length||plan.replaceTemperature||plan.temperatureRamChange)){
     const details=plan.changed.map(x=>'NVM '+x.index+': 0x'+h(x.from,2)+' → 0x'+h(x.to,2)).join('\n')+(plan.temperatureRamChange?'\nRAM-Temperaturmodus wird vor DSP-Verifikation an das bestätigte Ziel angepasst.':'');
     if(!window.confirm('NVM-Vorabprüfung – folgende Änderungen erst nach bestandenem DSP-Test speichern:\n'+details+
      (plan.replaceTemperature?'\nACHTUNG: Der bisher temperaturkompensierte Druckabgleich wird durch einen Abgleich ohne TK ersetzt. Soll die TK erhalten bleiben, abbrechen und Temperaturabgleich wählen.':'')+'\nFortfahren?'))throw Error('Änderungen nicht bestätigt.');
    }
    st.calibrationPreflight={uid,session,port,words,ram,reference,plan,allowOperatingChanges};
-   show('calPreflightStatus','Vorabprüfung bestanden: UID/CRC, Messprofil und Betriebsart geprüft. DSP-Verifikation und endgültige Schreibprüfung bleiben Pflicht.','success');
+   show('calPreflightStatus',routineFirstCalibration?
+    'Erstabgleich bereit: Original-EEPROM und Messprofil geprüft. Änderungen werden erst nach DSP-Verifikation und endgültiger Schreibbestätigung gespeichert.':
+    'Vorabprüfung bestanden: UID/CRC, Messprofil und Betriebsart geprüft. DSP-Verifikation und endgültige Schreibprüfung bleiben Pflicht.','success');
    return st.calibrationPreflight;
   }finally{st.calTask=false;if(resume&&st.chip&&!st.closing)startLive();renderStatus()}
  }
@@ -1588,9 +1599,9 @@ if(typeof document!=='undefined') (function UI(){
  }
  function hasCurrentNvmBackup(){
   const proof=st.nvmBackupProof;
-  return !!(st.port&&st.chip&&st.uid?.hex&&proof?.session===st.sessionIndex&&
-   proof.uid===st.uid.hex&&proof.words===st.nvmBackup&&st.nvmBackupVerified&&
-   st.nvmBackup.length===64&&st.uid.ser0===st.nvmBackup[0]&&st.uid.ser1===st.nvmBackup[1]);
+  return !!(st.port&&st.chip&&!st.closing&&!st.sensorLost&&st.uid?.hex&&proof?.session===st.sessionIndex&&
+   proof.port===st.port&&proof.uid===st.uid.hex&&proof.words===st.nvmBackup&&st.nvmBackupVerified&&
+   Array.isArray(st.nvmBackup)&&st.nvmBackup.length===64&&st.uid.ser0===st.nvmBackup[0]&&st.uid.ser1===st.nvmBackup[1]);
  }
  // Read-only early warning: an existing analogue NVM image cannot produce
  // the new DSP endpoint voltages unless a matching AODO plan was confirmed.
@@ -2292,6 +2303,8 @@ if(typeof document!=='undefined') (function UI(){
   const changed=[];
   let restored=false,firstCalibration=false,firstIdleRequested=false;
   st.ramMeasurementStarting=true;st.ramRecoveryAttempted=true;st.ramRecoveryRetryable=false;
+  // Never retain a previous DUT's original image during an initialization.
+  st.nvmBackup=null;st.nvmBackupVerified=false;st.nvmBackupProof=null;
   stopLive();renderStatus();
   try{
    // One additional read on missing response; no repeated RAM writes.
@@ -2306,7 +2319,7 @@ if(typeof document!=='undefined') (function UI(){
    if(h(words[1],2)+h(words[0],2)!==uid.slice(4)||
       CAL.crc16(words)!==words[63]||CAL.crc8(words)!==(words[15]>>>8))
     throw Error('EEPROM-UID oder CRC8/CRC16 ungültig. Keine RAM-Übernahme.');
-   for(const i of [0,1,15,16,21,28,63])
+   for(const i of [0,1,15,16,17,18,19,20,21,22,CAL.SVDD_INDEX,28,63])
     if(await readWord(i)!==words[i])throw Error('EEPROM-Wiederholungslesung unstabil');
    firstCalibration=CAL.uncalibratedPressureBlank(words);
    const afe=firstCalibration?words[28]|0x0800:words[28];
@@ -2365,12 +2378,31 @@ if(typeof document!=='undefined') (function UI(){
    st.measurementPeriod=period;st.measurementStatus=status;
    st.coldStartAfeRestored=changed.length>0;
    await detect({requireUid:true});
-   if(st.uid?.hex!==uid)throw Error('Chip-UID nach RAM-Wiederanlauf nicht bestätigt');
+   if(st.uid?.hex!==uid||st.uid.ser0!==words[0]||st.uid.ser1!==words[1])
+    throw Error('Chip-UID nach RAM-Wiederanlauf nicht bestätigt');
+   await assertUid();
+   // The same complete CM image has passed CRC8/CRC16, repeat reads and
+   // physical UID checks. Reuse it only for this port/session/UID.
+   // No NVM write permission is granted; the final writer re-reads all 64 words.
+   const backup=Object.freeze(words.slice());
+   st.nvmBackup=backup;st.nvmBackupVerified=true;
+   st.nvmBackupProof={port,session,uid,words:backup,readAt:new Date().toISOString(),source:'ram-initialization'};
+   st.calImage=null;
    st.readOnlySensor=null;restored=true;
-   show('connMsg','Live-Messung automatisch aus dem geprüften EEPROM-Profil gestartet. Keine NVM-Programmierung.','success');
+   // UI and local backup history only: no new USB transaction.
+   try{
+    expert.afterNvmScan();
+    show('backupMsg','Original-NVM bereits bei Sensorinitialisierung gelesen und geprüft.','success');
+    show('backupProgress','64 / 64 Wörter – aus aktueller Sensorinitialisierung übernommen.');
+    show('nvmMsg','Original-NVM (64 Wörter, UID, CRC8/CRC16) geprüft. Vor Programmierung erfolgt eine unabhängige Rücklesung.','success');
+   }catch(e){logging('NVM-Anzeige/Backup-Historie: '+e.message)}
+   logging('Geprüftes Original-NVM für diese USB-Sitzung übernommen; keine erneute EEPROM-Lesung zur Vorabprüfung.');
+   show('connMsg',firstCalibration?'Erstabgleich: SSC initialisiert, Original-EEPROM geprüft. Sensor messbereit. Keine NVM-Programmierung.':
+    'Live-Messung automatisch aus dem geprüften EEPROM-Profil gestartet. Keine NVM-Programmierung.','success');
    return true;
   }catch(error){
    st.chip=false;stopLive();st.uid=null;st.adc=null;st.dsp=null;st.boot=null;st.coldStartAfeRestored=false;
+   st.nvmBackup=null;st.nvmBackupVerified=false;st.nvmBackupProof=null;
    let restoreError=false;
    if(firstIdleRequested&&changed.length){
     try{await assertUid();await send(0x22,0x7BBA);}
@@ -3234,6 +3266,7 @@ if(typeof document!=='undefined') (function UI(){
   autoReconnectSuppressed=false;cancelAutoReconnect();
   autoPortInfo=port?.getInfo?.()||null;
   st.sessionIndex++;st.sessionStartedAt=new Date().toISOString();st.calibrationPreflight=null;
+  st.nvmBackup=null;st.nvmBackupVerified=false;st.nvmBackupProof=null;
   st.psscRamRecovery=false;st.coldStartAfeRestored=false;st.calibrationPreflight=null;
   st.ramRecoveryAttempted=false;st.ramRecoveryRetryable=false;
   st.startupTrials=[];st.chipDiag=null;st.lastPlcReply=null;st.readerAlive=false;
@@ -3995,7 +4028,7 @@ if(typeof document!=='undefined') (function UI(){
    st.calTask=true;st.writing=true;st.ramWriteScope='backup';started=true;stopLive();
    ca('backupMsg',preview?'NVM wird für die Änderungsvorschau gelesen und mit CRC geprüft …':'Original-NVM wird gelesen und geprüft …','warn');
    ca('nvmMsg','NVM wird vollständig gelesen …','warn');
-   const session=st.sessionIndex,uid=st.uid?.hex;
+   const port=st.port,session=st.sessionIndex,uid=st.uid?.hex;
    const before=await bootSnapshot();await ramGrant();const words=[];
    for(let i=0;i<64;i++){words.push(await nvmReadWord(i*2));progress.update('NVM wird gelesen',i+1,64);$('nvmProgress').textContent=`NVM lesen: ${i+1}/64`;$('backupProgress').textContent=`NVM: ${i+1} / 64 Wörter`}
    const crc=CAL.crc16(words);
@@ -4004,7 +4037,9 @@ if(typeof document!=='undefined') (function UI(){
    if(factoryCRC!==factoryHigh)throw Error(`Werks-CRC8 stimmt nicht: 0x${h(factoryCRC)} statt 0x${h(factoryHigh)}. Programmierung gesperrt.`);
    for(const index of [0,1,15,16,17,18,19,20,22,CAL.SVDD_INDEX,28,63])if(await nvmReadWord(index*2)!==words[index])throw Error('NVM bei Wiederholungslesung unstabil (Wort '+index+')');
    const after=await bootSnapshot();if(!sameBoot(before,after))throw Error('Bootregister haben sich beim NVM-Lesen verändert');
-   st.nvmBackup=words;st.nvmBackupVerified=true;st.nvmBackupProof={session,uid,words,readAt:new Date().toISOString()};st.calImage=null;
+   if(st.port!==port||st.sessionIndex!==session||st.uid?.hex!==uid||st.closing||st.sensorLost)
+    throw Error('Sensor oder USB-Sitzung während NVM-Lesung geändert');
+   st.nvmBackup=words;st.nvmBackupVerified=true;st.nvmBackupProof={port,session,uid,words,readAt:new Date().toISOString()};st.calImage=null;
    if((postBoot||expertRead)&&await restoreCalibrationDisplayProfile(words))
     logging('Anzeigebereich aus UID-/NVM-gebundener Referenz wiederhergestellt.');
    expert.refreshOutputReadOnly();expert.refreshEEPROMViewer();

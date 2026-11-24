@@ -25,9 +25,10 @@ function simulate({newChip=false,corrupt=false,invalidAfe=false,wrongCoeff=false
    if(failWrite&&addr===0x1c&&!failed){failed=true;throw Error('write failed')}regs[addr]=value},
   readReg:async addr=>addr===0x48?words[selected]:addr===0x36?(idle?1:noFresh?0x8014:(regs[4]&3)===2&&regs[14]===1&&(regs[0x1c]&0x0800)?0x8016:0x8014):addr===0x2a?100:regs[addr],
   nvmWaitIdle:async()=>{},decodeSafeAFE:v=>{if(!(v&0x800))throw Error('AFE Pflichtbit fehlt');return {}},readCalibrationProfile:async()=>Object.fromEntries(C.PROFILE_REGS.map(([addr])=>[addr,regs[addr]])),
-  filterProfiles:[['default',[0x48d3,0x2a9e,0x0412]]],sleep:async ms=>{clock+=ms},Date:{now:()=>clock},
+  filterProfiles:[['default',[0x48d3,0x2a9e,0x0412]]],sleep:async ms=>{clock+=ms},Date:class extends Date{static now(){return clock}},
   stopLive:()=>{},startLive:()=>{},renderStatus:()=>{},logging:()=>{},show:(...args)=>messages.push(args),
-  detect:async opts=>{assert.equal(opts.requireUid,true);st.chip=true;st.uid={hex:uid}}};
+  expert:{afterNvmScan:()=>{}},
+  detect:async opts=>{assert.equal(opts.requireUid,true);st.chip=true;st.uid={hex:uid,ser0:words[0],ser1:words[1]}}};
  const run=new Function(...Object.keys(deps),code)(...Object.values(deps));
  return {run,st,regs,words,writes,messages};
 }
@@ -123,4 +124,28 @@ test('pressure-disabled temperature-only status can never pass startup',async()=
  assert.match(x.messages.at(-1)[1],/STATUS 0x8014/);
  assert.deepEqual(x.writes,[[0x22,0x7bba],[0x1c,0x0800],[0x04,0x1216],[0x0e,1],[0x22,0x8b93],[0x22,0x7bba],[0x0e,0],[0x04,0x1214],[0x1c,0]]);
  assert.equal(x.st.chip,false);assert.equal(x.words[16],0x1214);
+});
+
+test('verified recovery reuses immutable original CM only for matching USB session and UID',async()=>{
+ const x=simulate({newChip:true,invalidAfe:true});
+ assert.equal(await x.run(),true,x.messages.at(-1)?.[1]);
+ const section=app.slice(app.indexOf(' function hasCurrentNvmBackup(){'),app.indexOf(' // Read-only early warning',app.indexOf(' function hasCurrentNvmBackup(){')));
+ const valid=new Function('st',section+';return hasCurrentNvmBackup;')(x.st);
+ assert.equal(valid(),true);assert.equal(Object.isFrozen(x.st.nvmBackup),true);
+ assert.deepEqual(x.st.nvmBackup,x.words);assert.equal(x.st.nvmBackup[16],0x1214);
+ assert.equal(x.st.nvmBackupProof.source,'ram-initialization');
+ const port=x.st.port,uid=x.st.uid;
+ x.st.port={};assert.equal(valid(),false);x.st.port=port;
+ x.st.sessionIndex++;assert.equal(valid(),false);x.st.sessionIndex--;
+ x.st.uid={...uid,hex:'other'};assert.equal(valid(),false);x.st.uid=uid;
+ x.st.sensorLost=true;assert.equal(valid(),false);x.st.sensorLost=false;
+ x.st.closing=true;assert.equal(valid(),false);x.st.closing=false;
+ assert.equal(valid(),true);
+});
+test('failed startup cannot publish a verified original EEPROM',async()=>{
+ for(const opts of [{newChip:true,invalidAfe:true,noFresh:true},{corrupt:true},{uidChanges:true}]){
+  const x=simulate(opts);x.st.nvmBackup=[1];x.st.nvmBackupVerified=true;x.st.nvmBackupProof={};
+  assert.equal(await x.run(),false);
+  assert.equal(x.st.nvmBackup,null);assert.equal(x.st.nvmBackupVerified,false);assert.equal(x.st.nvmBackupProof,null);
+ }
 });

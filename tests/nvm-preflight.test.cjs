@@ -50,20 +50,24 @@ test('unsafe starting states fail before calibration',()=>{
 });
 
 const preflightApp=require('node:fs').readFileSync(require('node:path').join(__dirname,'../app.js'),'utf8');
-function simulatePreflight({cookie=false,cold=false}={}){
- const words=w();
+function simulatePreflight({cookie=false,cold=false,first=false,temperature=false,confirm=true}={}){
+ const words=first?firstCalibrationImage():w();
+ if(temperature){words[16]|=4;words[36]=42;words[63]=C.crc16(words);}
  if(cookie){words[17]=0;words[19]&=~(1<<7);words[63]=C.crc16(words);}
  const active=ram(words),fields={pmin:'0',pmax:'6',calUnit:'bar',calUnitOther:'',calPointCount:'3',calTempSource:'internal',calTOrder:'0',calSOrder:'1',calFitMode:'pressure',calLoTemp:'25',calHiTemp:'25',calExtra1Pressure:'0',calExtra1Temp:'75',expertOutputMode:'1'};
  const st={iface:'plc',adapterKind:'ssp3',port:{},chip:true,uid:{hex:'002000123456'},sessionIndex:1,nvmBackup:words,regs:{6:words[17]},calpoints:[]};
+ if(first){active[4]=0x1216;active[14]=1;active[28]=0x0900;st.coldStartAfeRestored=true;}
+ let confirmations=0,scans=0;
+ const statuses=[];
  const $=id=>({value:fields[id]??'',checked:true});
  const section=(a,b)=>preflightApp.slice(preflightApp.indexOf(a),preflightApp.indexOf(b,preflightApp.indexOf(a)));
  const code=section('function capturedReferenceMatches(','function calEndpointsReady(')+
   section('function retainedCalibrationReferencesMatch(','const checkpointKey=')+
   section('function activePreflight(','function confirmedOperatingProfile(')+
   section('async function calibrationPreflight(','async function restoreCalibrationCheckpoint(')+'\nreturn calibrationPreflight;';
- const run=new Function('st','CAL','$','demoEnabled','nvmTransportSupported','hasCurrentNvmBackup','psscRecoveryProven','refreshPsscRecoveryProofReadOnly','bridgeColdStartVerified','stopLive','startLive','readCalibrationUid','readCalibrationProfile','filterProfiles','storedCalibrationCheckpoint','show','renderStatus','pressureUnit','window','h',code)(
-  st,C,$,false,()=>true,()=>true,()=>cold,async()=>{},()=>false,()=>{},()=>{},async()=>st.uid.hex,async()=>({...active}),cat.map(p=>['test',p]),()=>null,()=>{},()=>{},()=>fields.calUnit,{confirm:()=>true},v=>v.toString(16));
- return {run,st,active,fields};
+ const run=new Function('st','CAL','$','demoEnabled','nvmTransportSupported','hasCurrentNvmBackup','psscRecoveryProven','refreshPsscRecoveryProofReadOnly','bridgeColdStartVerified','stopLive','startLive','readCalibrationUid','readCalibrationProfile','filterProfiles','storedCalibrationCheckpoint','show','renderStatus','pressureUnit','window','h','nvmScan',code)(
+  st,C,$,false,()=>true,()=>true,()=>cold,async()=>{},()=>false,()=>{},()=>{},async()=>st.uid.hex,async()=>({...active}),cat.map(p=>['test',p]),()=>null,(...args)=>statuses.push(args),()=>{},()=>fields.calUnit,{confirm:()=>{confirmations++;return confirm}},v=>v.toString(16),async()=>{scans++});
+ return {run,st,active,fields,statuses,counts:()=>({confirmations,scans})};
 }
 test('preflight keeps valid points when only an uncaptured or removed reference is corrected',async()=>{
  const {run,st,fields,active}=simulatePreflight();
@@ -150,4 +154,24 @@ test('first calibration with real ADC enabled produces a complete verified analo
  assert.deepEqual(result.after.slice(17,21),a.slice(17,21));
  assert.doesNotThrow(()=>C.validateRecoveryCalibrationDiff(a,result.after,{allowAnalogScaling:true,allowPressureCorrection:true,operatingProfile:plan}));
  assert.throws(()=>C.configFrom(a,fit(0),active[28],{operatingProfile:plan,output}),/Erstinitialisierung/);
+});
+
+test('factory first calibration uses verified EEPROM and no routine confirmation',async()=>{
+ const x=simulatePreflight({first:true,cold:true,confirm:false});
+ await x.run();assert.deepEqual(x.counts(),{confirmations:0,scans:0});
+ assert.match(x.statuses.at(-1)[1],/Erstabgleich bereit/);
+ assert.equal(x.st.calibrationPreflight.plan.changed.length,3);
+ x.st.calpoints=[{kind:'lo',pressure:0,temperature:25,unit:'bar'}];
+ await x.run();assert.deepEqual(x.counts(),{confirmations:0,scans:0});
+});
+test('nonstandard filter changes on a new SSC still require confirmation',async()=>{
+ const x=simulatePreflight({first:true,cold:true,confirm:false});
+ x.active[20]=cat[1][0];x.active[22]=cat[1][1];x.active[24]=cat[1][2];
+ await assert.rejects(x.run(),/Änderungen nicht bestätigt/);
+ assert.equal(x.counts().confirmations,1);
+});
+test('replacing an existing temperature compensation still requires confirmation',async()=>{
+ const x=simulatePreflight({temperature:true,confirm:false});
+ await assert.rejects(x.run(),/Änderungen nicht bestätigt/);
+ assert.equal(x.counts().confirmations,1);
 });

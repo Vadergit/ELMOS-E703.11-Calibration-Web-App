@@ -1,3 +1,11 @@
+## v0.7.168 – Erstabgleich ohne doppelte EEPROM-Lesung und Routine-Popup
+
+- Bereits vollständig gelesene, CRC8-/CRC16-geprüfte und wiederholt bestätigte Original-NVM-Daten aus dem erfolgreichen SSP3-RAM-Wiederanlauf werden an den Kalibrierablauf übergeben. Das unveränderliche Abbild ist an USB-Port, Sitzung und physische Chip-UID gebunden.
+- Archivstart und NVM-Vorabprüfung nutzen dieses Abbild statt eines zweiten 64-Wort-Lesezyklus. Bei neuer Sitzung, abweichender UID oder Verbindungsverlust bleibt die bisherige Neulesung erforderlich.
+- Die Standardinitialisierung eines nachweislich druckunkalibrierten SSC (Druck-ADC, Messzyklus, AFE-Pflichtbit/Gain) benötigt kein separates Bestätigungsfenster. Dezenter Hinweis in der Vorabprüfung; nicht standardmässige Filter-/Temperaturänderungen und Ersatz bestehender TK bleiben bestätigungspflichtig.
+- Unabhängige vollständige NVM-Rücklesung vor der tatsächlichen Programmierung, Originalbackup, DSP-Verifikation, endgültige Schreibbestätigung, Boot-/Factory-Schutz und Nachprüfung unverändert.
+- Regressionen für die Wiederverwendung, Sitzungs-/UID-Sperren, fehlgeschlagene Initialisierung, ausbleibendes Routine-Popup und erhaltene Warnungen. Hardwaretest der Zeitersparnis ausstehend.
+
 ## v0.7.167 – Erstabgleich: Druck-ADC vor der Kalibrierung aktivieren
 
 - USB-Protokoll vom 24.11.2026: STATUS 0x8014 (nur Temperaturmessung). Gemäss DS 25DS0170E.04 §6.5.1.1 deaktiviert CFG_EN.s_cor_en=00 auch den Druck-ADC.
