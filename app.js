@@ -3239,7 +3239,7 @@ if(typeof document!=='undefined') (function UI(){
   if(!uiReady)throw Error('Softwareinitialisierung nicht abgeschlossen. Seite vollständig neu laden.');
   // Defer polling during initial discovery and the automatic read-only profile check.
   // Preserve the existing SSP3 compatibility exception until hardware-tested.
-  const deferProfile=st.adapterKind==='bridge';
+  const deferProfile=!demoEnabled&&$('adapterType').value==='bridge';
   if(deferProfile)initialProfilePort=port;
   try{
    const result=await withProgress('Verbindung wird aufgebaut',progress=>connectOperation(port,progress),true);
