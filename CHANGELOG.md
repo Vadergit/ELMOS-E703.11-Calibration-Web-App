@@ -1,3 +1,9 @@
+## v0.7.171 – USB-Protokoll auch bei blockierter Kommunikation exportieren
+
+- Der USB-Protokoll-Download im geführten Assistenten bleibt unabhängig vom USB- und Sensorstatus sowie laufenden Kommunikationsoperationen verfügbar.
+- Der Export nutzt bereits lokal aufgezeichnete Diagnosedaten und startet keine weiteren Sensorabfragen. Bestehende Sperren für Hardwareaktionen bleiben unverändert.
+- Hardwaretest auf betroffenen Notebooks ausstehend.
+
 ## v0.7.170 – Digitaler Sensorwert in % nur mit Expertenparametern
 
 - Der gesamte Abschnitt «Digitaler Sensorwert in %» im EEPROM-Viewer ist standardmässig ausgeblendet und erscheint ausschliesslich bei aktivierten Expertenparametern.
