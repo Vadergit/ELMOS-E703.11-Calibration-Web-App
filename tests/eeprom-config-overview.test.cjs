@@ -185,3 +185,20 @@ test('output limiting highlights actual changes to enable, active limits and hys
  assert.equal(get({...ram,59:0xE001}).differs,true,'Hysteresis change');
  assert.equal(get({...ram,16:ram[16]&~0x80}).differs,true,'Clipping disabled');
 });
+
+test('digital sensor reference settings are visible only in expert mode',()=>{
+ const html=read('index.html'),app=read('app.js');
+ assert.match(html,/<div class="eeprom-overview" aria-labelledby="digitalStandardHeading" data-expert-area hidden>/);
+ const block=html.slice(html.indexOf('aria-labelledby="digitalStandardHeading"'),html.indexOf('aria-labelledby="eepromOverviewHeading"'));
+ for(const id of ['digitalStandardAuto','digitalStandardConfirm','digitalStandardForget','digitalStandardStatus'])assert.ok(block.includes('id="'+id+'"'));
+ assert.match(html,/\[data-expert-area\]\[hidden\][^\{]*\{display:none!important\}/);
+ assert.match(app,/\$\('expertMode'\)\.addEventListener\('change',renderStatus\)/);
+ const start=app.indexOf("const showExpert=$('expertMode').checked;");
+ const end=app.indexOf("const addrRow=",start);
+ const panel={hidden:true},setting={checked:false};
+ const sync=new Function('$','document',app.slice(start,end));
+ const doc={querySelectorAll:selector=>{assert.equal(selector,'[data-expert-area]');return [panel]}};
+ sync(()=>setting,doc);assert.equal(panel.hidden,true);
+ setting.checked=true;sync(()=>setting,doc);assert.equal(panel.hidden,false);
+ setting.checked=false;sync(()=>setting,doc);assert.equal(panel.hidden,true);
+});

@@ -1,3 +1,8 @@
+## v0.7.170 – Digitaler Sensorwert in % nur mit Expertenparametern
+
+- Der gesamte Abschnitt «Digitaler Sensorwert in %» im EEPROM-Viewer ist standardmässig ausgeblendet und erscheint ausschliesslich bei aktivierten Expertenparametern.
+- Die automatische Referenzerkennung, gespeicherten Einstellungen und Live-Anzeige bleiben unverändert. Keine Änderung an Sensorregister- oder Kalibrierlogik.
+
 ## v0.7.169 – EEPROM-Viewer: Ausgangsbegrenzung korrekt vergleichen
 
 - Ausgangsbegrenzung vergleicht nur CFG_EN.limit_en und, bei aktiver Begrenzung, LIMIT_LO/HI einschliesslich Hysterese. Andere CFG_EN-Bits (insbesondere Druck-ADC-Aktivierung beim Erstabgleich) lösen keine gelbe Markierung mehr aus.
