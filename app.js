@@ -2290,7 +2290,7 @@ if(typeof document!=='undefined') (function UI(){
    return readReg(0x48);
   };
   const changed=[];
-  let restored=false;
+  let restored=false,firstCalibration=false,firstIdleRequested=false;
   st.ramMeasurementStarting=true;st.ramRecoveryAttempted=true;st.ramRecoveryRetryable=false;
   stopLive();renderStatus();
   try{
@@ -2308,10 +2308,10 @@ if(typeof document!=='undefined') (function UI(){
     throw Error('EEPROM-UID oder CRC8/CRC16 ungültig. Keine RAM-Übernahme.');
    for(const i of [0,1,15,16,21,28,63])
     if(await readWord(i)!==words[i])throw Error('EEPROM-Wiederholungslesung unstabil');
-   const firstCalibration=CAL.uncalibratedAfeBlank(words);
+   firstCalibration=CAL.uncalibratedPressureBlank(words);
    const afe=firstCalibration?words[28]|0x0800:words[28];
    decodeSafeAFE(afe);
-   if(firstCalibration)logging('Erstabgleich erkannt: Druckpfad unkalibriert, Elmos-Temperaturbeispielprofil. Nur AFE-Pflichtbit 11 im RAM setzen.');
+   if(firstCalibration)logging('Erstabgleich erkannt: Druckpfad unkalibriert, Elmos-Temperaturbeispielprofil. AFE-Pflichtbit und Druck-ADC nur im RAM aktivieren.');
    if(afeBefore!==0&&afeBefore!==afe)throw Error('AFE im RAM weicht vom bestätigten EEPROM ab');
    const live=await readCalibrationProfile();
    if(live[R_AFE]!==afeBefore)throw Error('AFE während Diagnose geändert');
@@ -2325,12 +2325,25 @@ if(typeof document!=='undefined') (function UI(){
    }
    const period=words[21]||1;
    if(period===2)throw Error('Einzelmessungsprofil am SSP3 benötigt separate Freigabe');
-   const en=(live[4]&~3)|(words[16]&3);
+   // DS 6.5.1.1: 00 disables ADC_S too; 10 is the only enabled mode.
+   // Never activate a non-blank or unverified pressure profile here.
+   const en=(live[4]&~3)|(firstCalibration?2:(words[16]&3));
+   if((en&3)!==2)throw Error('Druck-ADC deaktiviert; kein bestätigtes Erstabgleichprofil.');
    const target={...live,[R_AFE]:afe,4:en,14:period};
    CAL.planCalibrationProfile(words,target,{recovery:true,allowOperatingChanges:true,filterCatalog:filterProfiles.map(f=>f[1])});
    const profile=[{address:R_AFE,before:afeBefore,after:afe},
     {address:0x04,before:live[4],after:en},{address:0x0E,before:live[14],after:period}];
    await assertUid();
+   if(firstCalibration){
+    // DS 6.5: idle -> configure -> start; blank CM has CFG_PERIOD=0.
+    firstIdleRequested=true;
+    await send(0x22,0x7BBA);
+    const idleDeadline=Date.now()+1000;
+    let idleStatus;
+    do{await sleep(20);idleStatus=await readReg(0x36,500)}
+    while(!(idleStatus&1)&&Date.now()<idleDeadline);
+    if(!(idleStatus&1))throw Error('Erstabgleich: CMD idle nicht bestätigt.');
+   }
    for(const entry of profile){
     if(await readReg(entry.address)!==entry.before)throw Error('RAM-Profil während Diagnose geändert');
     if(entry.before===entry.after)continue;
@@ -2340,13 +2353,14 @@ if(typeof document!=='undefined') (function UI(){
    }
    if(!CAL.sameMeasurementProfile(target,await readCalibrationProfile()))throw Error('RAM-Messprofil nach Wiederanlauf verändert');
    await assertUid();
-   await readReg(0x2A);
+   await readReg(0x2A); // clear old ADC_S event before CMD start
    await send(0x22,0x8B93);
+   st.measurementStarts=(st.measurementStarts||0)+1;
    const deadline=Date.now()+1600;
    let status;
    do{await sleep(30);status=await readReg(0x36,500)}
    while(!(status&2)&&Date.now()<deadline);
-   if(!(status&2))throw Error('Der Sensor meldet keine neue ADC_S-Messung');
+   if(!(status&2))throw Error('Der Sensor meldet keine neue ADC_S-Messung (STATUS 0x'+h(status,2)+', CFG_EN 0x'+h(await readReg(0x04),2)+')');
    await readReg(0x2A);await assertUid();
    st.measurementPeriod=period;st.measurementStatus=status;
    st.coldStartAfeRestored=changed.length>0;
@@ -2358,6 +2372,10 @@ if(typeof document!=='undefined') (function UI(){
   }catch(error){
    st.chip=false;stopLive();st.uid=null;st.adc=null;st.dsp=null;st.boot=null;st.coldStartAfeRestored=false;
    let restoreError=false;
+   if(firstIdleRequested&&changed.length){
+    try{await assertUid();await send(0x22,0x7BBA);}
+    catch(_){restoreError=true;}
+   }
    for(const entry of changed.reverse()){
     try{
      await assertUid();await send(entry.address,entry.before);
@@ -2366,7 +2384,7 @@ if(typeof document!=='undefined') (function UI(){
    }
    st.measurementPeriod=null;st.measurementStatus=null;
    // Only a transport failure before any write may trigger another startup profile.
-   st.ramRecoveryRetryable=changed.length===0&&!restoreError&&/PLC nothing received|Timeout/i.test(error.message);
+   st.ramRecoveryRetryable=changed.length===0&&!firstIdleRequested&&!restoreError&&/PLC nothing received|Timeout/i.test(error.message);
    const msg='Automatischer RAM-Wiederanlauf nicht bestätigt: '+error.message+
     (restoreError?' Ursprüngliche RAM-Werte nicht vollständig bestätigt. Sensor am Prüfplatz sicher neu starten.':'')+
     '. Keine NVM-Programmierung. USB-Protokoll exportieren.';

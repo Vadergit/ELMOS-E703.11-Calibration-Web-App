@@ -17,13 +17,13 @@ function simulate({newChip=false,corrupt=false,invalidAfe=false,wrongCoeff=false
  if(wrongCoeff)regs[0x74]^=1;
  if(changedProfile)regs[0x1A]^=1;
  const uid='002000FC44BC',port={},st={port,plcAddress:0x6c,plcAddressVerified:true,plcHostFormat:'legacy',sessionIndex:1,readOnlySensor:uid,chip:false,adapterKind:'ssp3',iface:'plc',calpoints:[]};
- let selected=0,uidReads=0,failed=false,clock=0;const writes=[],messages=[];
+ let selected=0,uidReads=0,failed=false,clock=0,idle=true;const writes=[],messages=[];
  const deps={st,CAL:C,P:{plcWrite:(addr,value)=>[addr,value],plcHostCommand:x=>x},R_AFE:0x1c,h:(n,b=1)=>n.toString(16).toUpperCase().padStart(b*2,'0'),
   readCalibrationUid:async()=>{uidReads++;if(transient&&uidReads===1)throw Error('PLC nothing received');return uidChanges&&uidReads>1?'002000000001':uid},
   exchange:async([addr,value])=>{if(addr===0x4e){assert.equal(value&0xff80,0x4c00);selected=(value&0x7f)/2;return}
-   writes.push([addr,value]);if(addr===0x22){assert.equal(value,0x8b93);return}
+   writes.push([addr,value]);if(addr===0x22){assert.ok([0x7bba,0x8b93].includes(value));idle=value===0x7bba;return}
    if(failWrite&&addr===0x1c&&!failed){failed=true;throw Error('write failed')}regs[addr]=value},
-  readReg:async addr=>addr===0x48?words[selected]:addr===0x36?(noFresh?0:2):addr===0x2a?100:regs[addr],
+  readReg:async addr=>addr===0x48?words[selected]:addr===0x36?(idle?1:noFresh?0x8014:(regs[4]&3)===2&&regs[14]===1&&(regs[0x1c]&0x0800)?0x8016:0x8014):addr===0x2a?100:regs[addr],
   nvmWaitIdle:async()=>{},decodeSafeAFE:v=>{if(!(v&0x800))throw Error('AFE Pflichtbit fehlt');return {}},readCalibrationProfile:async()=>Object.fromEntries(C.PROFILE_REGS.map(([addr])=>[addr,regs[addr]])),
   filterProfiles:[['default',[0x48d3,0x2a9e,0x0412]]],sleep:async ms=>{clock+=ms},Date:{now:()=>clock},
   stopLive:()=>{},startLive:()=>{},renderStatus:()=>{},logging:()=>{},show:(...args)=>messages.push(args),
@@ -35,8 +35,8 @@ test('calibrated sensor restores own AFE, preserves DSP and NVM',async()=>{
  const x=simulate();assert.equal(await x.run(),true,x.messages.at(-1)?.[1]);assert.equal(x.st.chip,true);assert.equal(x.regs[0x1c],0x1891);assert.equal(x.regs[4],0x1216);
  assert.deepEqual(x.writes,[[0x1c,0x1891],[0x0e,1],[0x22,0x8b93]]);assert.equal(C.crc16(x.words),x.words[63]);
 });
-test('new sensor starts continuous RAM measurement without enabling uncalibrated DSP',async()=>{
- const x=simulate({newChip:true,transient:true});assert.equal(await x.run(),true,x.messages.at(-1)?.[1]);assert.equal(x.regs[4]&3,0);
+test('new pressure-blank sensor enables pressure ADC before collecting raw measurements',async()=>{
+ const x=simulate({newChip:true,transient:true});assert.equal(await x.run(),true,x.messages.at(-1)?.[1]);assert.equal(x.regs[4]&3,2);assert.equal(x.words[16],0x1214);
  assert.equal(x.regs[0x1c],0x0800);assert.equal(x.words[21],0);assert.equal(x.st.readOnlySensor,null);
 });
 for(const option of ['corrupt','invalidAfe','wrongCoeff','uidChanges','changedProfile'])test('unsafe recovery blocked before RAM writes: '+option,async()=>{
@@ -49,7 +49,7 @@ test('no initialisation during an active calibration',async()=>{
  const x=simulate();x.st.calpoints=[{}];assert.equal(await x.run(),false);assert.deepEqual(x.writes,[]);
 });
 test('automatic recovery runs from both connection paths without a stored UID',()=>{
- assert.match(app,/if\(st\.readOnlySensor&&!st\.ramRecoveryAttempted\)await startRamMeasurementOperation\(\)/);
+ assert.match(app,/if\(st\.readOnlySensor&&!st\.ramRecoveryAttempted\)\{\s*progress\?\.update\([^;\n]+\);\s*await startRamMeasurementOperation\(\)/);
  assert.match(app,/if\(st\.readOnlySensor\)\{\s*if\(!st\.ramRecoveryAttempted\)\{showReadOnlySensor\(\);await startRamMeasurementOperation\(\);\}/);
  assert.match(app,/if\(ready&&st\.readOnlySensor\)\{[\s\S]*?if\(await startRamMeasurementOperation\(\)\)break;\s*if\(!st\.ramRecoveryRetryable\|\|delay==='10'\)return true;/);
  assert.doesNotMatch(app,/st\.readOnlySensor(?:&&st\.readOnlySensor)?===lsGet\('ssp3-auto-ram-uid'\)/);
@@ -58,13 +58,13 @@ test('automatic recovery runs from both connection paths without a stored UID',(
 // Reconstructed register fixture: Jürg's log shows blank pressure/RAM,
 // factory example temperature coefficients, USER=1 and AFE=0 both in CM/RAM.
 // Factory-specific words and CRCs in this fixture are synthetic.
-test('pressure-blank log profile repairs only AFE bit 11 and starts measurement',async()=>{
+test('pressure-blank log profile enables AFE and ADC in RAM before starting measurement',async()=>{
  const x=simulate({newChip:true,invalidAfe:true,transient:true});
  assert.equal(C.uncalibratedAfeBlank(x.words),true);
  assert.equal(await x.run(),true,x.messages.at(-1)?.[1]);
- assert.deepEqual(x.writes,[[0x1c,0x0800],[0x0e,1],[0x22,0x8b93]]);
+ assert.deepEqual(x.writes,[[0x22,0x7bba],[0x1c,0x0800],[0x04,0x1216],[0x0e,1],[0x22,0x8b93]]);
  assert.equal(x.words[28],0);assert.equal(x.regs[0x1c],0x0800);
- assert.equal(x.words[21],0);assert.equal(x.regs[4],0x1214);
+ assert.equal(x.words[21],0);assert.equal(x.regs[4],0x1216);assert.equal(x.words[16],0x1214);
  assert.equal(x.regs[0x96],0xBC8E);assert.equal(x.st.coldStartAfeRestored,true);
 });
 test('nonzero pressure coefficient forbids automatic AFE default, even with pressure disabled',async()=>{
@@ -75,7 +75,7 @@ test('nonzero pressure coefficient forbids automatic AFE default, even with pres
 test('blank AFE recovery fails safely when no fresh ADC conversion arrives',async()=>{
  const x=simulate({newChip:true,invalidAfe:true,noFresh:true});
  assert.equal(await x.run(),false);assert.equal(x.regs[0x1c],0);
- assert.equal(x.regs[14],0);assert.equal(x.st.ramRecoveryRetryable,false);
+ assert.equal(x.regs[14],0);assert.equal(x.regs[4],0x1214);assert.equal(x.st.ramRecoveryRetryable,false);
 });
 
 function simulateStartup(scenarios){
@@ -115,4 +115,12 @@ test('PSSC startup: unsafe diagnostic profile is not retried or labelled verifie
  assert.equal(x.st.chip,false);assert.equal(x.st.startupTrials[0].readVerified,false);
  assert.deepEqual(x.commands.filter(c=>c.startsWith('PWR_ON FFFF')),['PWR_ON FFFF 0 0']);
  assert.deepEqual(x.counts(),{recoveries:1,liveStarts:0});
+});
+
+test('pressure-disabled temperature-only status can never pass startup',async()=>{
+ const x=simulate({newChip:true,invalidAfe:true,noFresh:true});
+ assert.equal(await x.run(),false);
+ assert.match(x.messages.at(-1)[1],/STATUS 0x8014/);
+ assert.deepEqual(x.writes,[[0x22,0x7bba],[0x1c,0x0800],[0x04,0x1216],[0x0e,1],[0x22,0x8b93],[0x22,0x7bba],[0x0e,0],[0x04,0x1214],[0x1c,0]]);
+ assert.equal(x.st.chip,false);assert.equal(x.words[16],0x1214);
 });

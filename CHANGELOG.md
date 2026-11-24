@@ -1,3 +1,10 @@
+## v0.7.167 – Erstabgleich: Druck-ADC vor der Kalibrierung aktivieren
+
+- USB-Protokoll vom 24.11.2026: STATUS 0x8014 (nur Temperaturmessung). Gemäss DS 25DS0170E.04 §6.5.1.1 deaktiviert CFG_EN.s_cor_en=00 auch den Druck-ADC.
+- Nur bei CRC-/UID-geprüftem druckunkalibriertem EEPROM-Profil wird der Druckpfad im RAM gezielt 00 → 10 aktiviert. CMD idle, AFE-Pflichtbit, CFG_EN, CFG_PERIOD, Rücklesung, CMD start und frisches ADC_S-Statusbit. Bei Fehler Rücksetzung der geänderten RAM-Wörter; keine NVM-Programmierung.
+- Vorabprüfung zeigt die geplante Druckaktivierung ausdrücklich an. Erstabgleich-NVM benötigt bestätigte Messpunkte, DSP-Verifikation, Originalbackup, geprüfte AODO-Skalierung, unveränderte Boot-/Factory-Wörter und CRC-/Rückleseprüfungen.
+- Regressionen modellieren den beobachteten Temperatur-only-Status statt einen bedingungslos frischen ADC. Hardwaretest mit neuen Prints steht aus.
+
 ## v0.7.166 – Sensorbrücken-Rückrechnung: ADC-Faktor korrigiert
 
 - Grundlegender Rechenfehler behoben: 700 mV wurde bisher fälschlich als ADC-Vollbereich ±32768 Digits verwendet. Laut Elmos E703.11 25DS0170E.04 §6.2.1.10 gilt V_ADC[V] = ADC_S[Digits] / (32768 × AADC).

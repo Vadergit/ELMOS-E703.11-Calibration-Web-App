@@ -100,9 +100,11 @@ function firstCalibrationImage(){
  a[15]=C.crc8(a)<<8;a[63]=C.crc16(a);return a;
 }
 test('first calibration from diagnostic log profile: AFE and period survive final NVM construction',()=>{
- const a=firstCalibrationImage(),active=ram(a);active[28]=0x0C02;active[14]=1;
+ const a=firstCalibrationImage(),active=ram(a);active[28]=0x0C02;active[14]=1;active[4]=0x1216;
  const p=C.planCalibrationProfile(a,active,{recovery:true,allowOperatingChanges:true});
  assert.equal(p.afeMandatoryRepair,true);
+ assert.ok(p.changed.some(x=>x.index===16&&x.from===0x1214&&x.to===0x1216));
+ assert.throws(()=>C.planCalibrationProfile(a,{...active,4:0x1214},{recovery:true,allowOperatingChanges:true}),/Druck-ADC/);
  for(const orderT of [0,1,2]){
   const plan=C.planCalibrationProfile(a,active,{orderT,recovery:true,allowOperatingChanges:true});
   const result=C.configFrom(a,fit(orderT),active[28],{activatePressureCorrection:true,operatingProfile:plan});
@@ -132,4 +134,20 @@ test('AFE mandatory repair cannot authorize a previously calibrated or corrupt p
 test('first calibration cannot build an incomplete NVM image without confirmed AFE profile',()=>{
  const a=firstCalibrationImage();
  assert.throws(()=>C.configFrom(a,fit(0),0x0800),/AFE-Erstinitialisierung/);
+});
+
+test('first calibration with real ADC enabled produces a complete verified analogue NVM plan',()=>{
+ const a=firstCalibrationImage(),active=ram(a);
+ active[4]=0x1216;active[14]=1;active[28]=0x0800;
+ const plan=C.planCalibrationProfile(a,active,{recovery:true,allowOperatingChanges:true});
+ const output={mode:'1',...C.analogScaling(0.5,4.5,5,30000)};
+ const result=C.configFrom(a,fit(0),active[28],{activatePressureCorrection:true,operatingProfile:plan,output});
+ assert.equal(result.after[16],0x1256);
+ assert.equal(result.after[21],1);assert.equal(result.after[28],0x0800);
+ assert.equal(C.analogOutputStatus(result.after,0.5,4.5,5,30000).ok,true);
+ assert.equal(C.crc16(result.after),result.after[63]);
+ assert.deepEqual(result.after.slice(0,16),a.slice(0,16));
+ assert.deepEqual(result.after.slice(17,21),a.slice(17,21));
+ assert.doesNotThrow(()=>C.validateRecoveryCalibrationDiff(a,result.after,{allowAnalogScaling:true,allowPressureCorrection:true,operatingProfile:plan}));
+ assert.throws(()=>C.configFrom(a,fit(0),active[28],{operatingProfile:plan,output}),/Erstinitialisierung/);
 });

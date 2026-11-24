@@ -245,11 +245,14 @@ const ELMOS_CAL = (() => {
  // DS 25DS0170E.04 §§6.5.1.3,6.6.1: a pressure-blank profile may have factory temperature coefficients.
  // The reported device has CFG_AFE1=0 both in RAM and CM despite valid CRCs.
  // Only this narrow, inactive pressure profile may receive mandatory bit 11.
- function uncalibratedAfeBlank(words){
-  return sameNvmImage(words,words)&&words[28]===0&&(words[16]&3)===0&&[0,4].includes(words[16]&12)&&words[21]===0&&
+ function uncalibratedPressureBlank(words){
+  return sameNvmImage(words,words)&&(words[28]===0||!!(words[28]&0x0800))&&(words[16]&3)===0&&[0,4].includes(words[16]&12)&&words[21]===0&&
    words.slice(33,51).every(v=>v===0)&&words[57]===0&&words[58]===0&&
    words[31]===0&&words[32]===0x1000&&words[51]===0x0F4D&&words[52]===0xBC8E&&words[53]===0xFC54&&words[54]===0&&
    crc16(words)===words[63]&&crc8(words)===(words[15]>>>8);
+ }
+ function uncalibratedAfeBlank(words){
+  return uncalibratedPressureBlank(words)&&words[28]===0;
  }
  function afeRepairAllowed(before,after,profile){
   return profile?.afeMandatoryRepair===true&&uncalibratedAfeBlank(before)&&!!(after[28]&0x0800)&&((before[28]^after[28])&0xe000)===0;
@@ -269,6 +272,10 @@ const ELMOS_CAL = (() => {
   const temperatureRamChange=ramTemp!==temperatureTarget;
   if(temperatureRamChange&&(!allowOperatingChanges||![0,4].includes(ramTemp)||![0,4].includes(temperatureTarget)))throw Error('CFG_EN.t_cor_en im RAM weicht ab');
   const afeMandatoryRepair=allowOperatingChanges&&recovery&&uncalibratedAfeBlank(original)&&!!(ram[0x1c]&0x0800);
+  // DS 6.5.1.1: s_cor_en controls the ADC as well as the DSP.
+  const firstPressure=allowOperatingChanges&&recovery&&uncalibratedPressureBlank(original);
+  if(firstPressure&&(ram[4]&3)!==2)throw Error('Erstabgleich: Druck-ADC im RAM nicht aktiviert (CFG_EN.s_cor_en).');
+  const pressureActivation=(original[16]&3)===0&&(ram[4]&3)===2;
   for(const [addr,index] of PROFILE_REGS){
    if(PROFILE_WORDS.includes(index))continue;
    let mask=0xffff;
@@ -286,7 +293,12 @@ const ELMOS_CAL = (() => {
    if(values[0]!==1)throw Error('Geändertes Messprofil benötigt bestätigten kontinuierlichen CFG_PERIOD=1');
    if(values.slice(1).some((v,k)=>v!==original[k+24])&&!filterCatalog.some(f=>f.length===3&&f.every((v,k)=>v===values[k+1])))throw Error('Abweichende Filter sind kein dokumentiertes Profil');
   }
-  if(temperatureEnable)changed.push({index:16,from:original[16],to:(original[16]&~12)|4});
+  if(temperatureEnable||pressureActivation){
+   let target=original[16];
+   if(temperatureEnable)target=(target&~12)|4;
+   if(pressureActivation)target=(target&~3)|2;
+   changed.push({index:16,from:original[16],to:target});
+  }
   if(afeMandatoryRepair)changed.push({index:28,from:original[28],to:ram[0x1c]});
   return {values,temperatureEnable,temperatureTarget,temperatureRamChange,afeMandatoryRepair,changed,replaceTemperature:orderT===0&&hasPressureTemperatureCompensation(original)};
  }
@@ -527,7 +539,7 @@ const ELMOS_CAL = (() => {
   if(uncalibratedAfeBlank(original)&&!operatingProfile?.afeMandatoryRepair)
    throw Error('AFE-Erstinitialisierung benötigt bestätigte Vorabprüfung');
   if(operatingProfile?.afeMandatoryRepair){
-   if(!uncalibratedAfeBlank(original)||!(afeWord&0x0800)||(afeWord&0xe000)!==(original[28]&0xe000))throw Error('AFE-Erstinitialisierung nicht bestätigt');
+   if(!uncalibratedAfeBlank(original)||!(afeWord&0x0800)||(afeWord&0xe000)!==(original[28]&0xe000)||opts.activatePressureCorrection!==true)throw Error('AFE-Erstinitialisierung nicht vollständig bestätigt (Druck-ADC und AFE)');
    cfg[28]|=0x0800;
   }
   cfg[33]=r.so;cfg[34]=r.sf;for(let i=0;i<16;i++)cfg[35+i]=r.coeffs[i];
@@ -562,6 +574,6 @@ const ELMOS_CAL = (() => {
   Number.isInteger(required)&&required>=1&&required<=10&&Array.isArray(records)&&
   Array.from({length:required},(_,slot)=>records.some(point=>
    point?.slot===slot&&Number.isFinite(point.errorBar))).every(Boolean);
- return {PROFILE_REGS,PROFILE_WORDS,uncalibratedAfeBlank,planCalibrationProfile,sameMeasurementProfile,sameNvmImage,checkpointMatches,hasPressureTemperatureCompensation,SVDD_INDEX,SVDD_MASK,fit,suggestDspLimit,solveFit,crc16,crc8,configFrom,prepareOutputConfig,validateRecoveryCalibrationDiff,protectStartupCommunication,i2cBootRegisterMatches,oneWireStartupStatus,oneWireOnlyStatus,analogScaling,analogOutputStatus,elmosDspTarget,elmosTemperatureTarget,fromQ,q,signed,independentVerificationPoint,verificationPointsSufficient,temperatureSourceFromAfe2,dspTemperatureCelsius,isFactoryTemperatureProfile,factoryInternalTemperatureCelsius,factoryTemperatureAddresses,programmedTemperatureAddresses,programmedTemperatureProfileMatches};
+ return {PROFILE_REGS,PROFILE_WORDS,uncalibratedPressureBlank,uncalibratedAfeBlank,planCalibrationProfile,sameMeasurementProfile,sameNvmImage,checkpointMatches,hasPressureTemperatureCompensation,SVDD_INDEX,SVDD_MASK,fit,suggestDspLimit,solveFit,crc16,crc8,configFrom,prepareOutputConfig,validateRecoveryCalibrationDiff,protectStartupCommunication,i2cBootRegisterMatches,oneWireStartupStatus,oneWireOnlyStatus,analogScaling,analogOutputStatus,elmosDspTarget,elmosTemperatureTarget,fromQ,q,signed,independentVerificationPoint,verificationPointsSufficient,temperatureSourceFromAfe2,dspTemperatureCelsius,isFactoryTemperatureProfile,factoryInternalTemperatureCelsius,factoryTemperatureAddresses,programmedTemperatureAddresses,programmedTemperatureProfileMatches};
 })();
 if(typeof module!=='undefined'&&module.exports)module.exports=ELMOS_CAL;
