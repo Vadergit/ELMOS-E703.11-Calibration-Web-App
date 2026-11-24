@@ -157,3 +157,31 @@ test('EEPROM and RAM polarity are shown separately',()=>{
  const row=overview.summarize(stored,active,stored).flatMap(g=>g.rows).find(r=>r.label==='Brückenpolarität (SIP / SIN)');
  assert.equal(row.saved.text,'Normal');assert.equal(row.active.text,'Invertiert');assert.equal(row.differs,true);
 });
+
+test('output limiting ignores unrelated CFG_EN changes from first calibration in RAM and plan',()=>{
+ const saved=image();saved[16]=0x1214;
+ const staged=saved.slice();staged[16]=0x1256;
+ const ram={16:0x1216,59:saved[59],60:saved[60]};
+ const row=overview.summarize(saved,ram,staged).flatMap(g=>g.rows).find(r=>r.label==='Ausgangsbegrenzung');
+ assert.equal(row.saved.text,'Ausgangsbegrenzung deaktiviert');
+ assert.equal(row.active.text,row.saved.text);
+ assert.equal(row.differs,false);
+ assert.equal(row.pending,false);
+});
+test('output limiting highlights actual changes to enable, active limits and hysteresis only',()=>{
+ const saved=image();
+ const get=(ram,staged)=>overview.summarize(saved,ram,staged).flatMap(g=>g.rows).find(r=>r.label==='Ausgangsbegrenzung');
+ const ram={16:saved[16],59:0xE000,60:0x2000};
+ assert.equal(get(ram).differs,false,'Inactive stored thresholds do not change effective clipping');
+ const staged=saved.slice();staged[59]=0xE000;staged[60]=0x2000;
+ assert.equal(get(ram,staged).pending,false);
+ assert.equal(get({...ram,16:ram[16]|0x80}).differs,true);
+ staged[16]|=0x80;assert.equal(get(ram,staged).pending,true);
+ saved[16]|=0x80;saved[59]=ram[59];saved[60]=ram[60];
+ ram[16]=saved[16]^2;
+ assert.equal(get(ram).differs,false,'Pressure ADC bit does not change active clipping');
+ assert.equal(get({...ram,59:0xE004}).differs,true,'Actual lower threshold change');
+ assert.equal(get({...ram,60:0x2004}).differs,true,'Actual upper threshold change');
+ assert.equal(get({...ram,59:0xE001}).differs,true,'Hysteresis change');
+ assert.equal(get({...ram,16:ram[16]&~0x80}).differs,true,'Clipping disabled');
+});

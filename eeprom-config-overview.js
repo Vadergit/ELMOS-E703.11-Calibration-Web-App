@@ -44,7 +44,11 @@ const ELMOS_EEPROM_OVERVIEW=(()=>{
   {group:'DSP & Kalibrierung',label:'Temperaturkoeffizienten T0–T3',indices:[51,52,53,54],decode:xs=>xs.filter(x=>x!==0).length+' / 4 ungleich 0'},
   {group:'Ausgang & Grenzwerte',label:'Ausgangs-Offset AODO_O',index:57,decode:q12},
   {group:'Ausgang & Grenzwerte',label:'Ausgangs-Faktor AODO_F',index:58,decode:q12},
-  {group:'Ausgang & Grenzwerte',label:'Ausgangsbegrenzung',indices:[16,59,60],decode:(xs,all)=>SETTINGS.limitText(all)},
+  // Only CFG_EN.limit_en belongs to this row. Inactive limit words remain
+  // visible in the raw EEPROM view, but do not change the effective setting.
+  {group:'Ausgang & Grenzwerte',label:'Ausgangsbegrenzung',indices:[16,59,60],
+   decode:(xs,all)=>SETTINGS.limitText(all),
+   compareKey:xs=>(xs[0]&(1<<7))?'on:'+raw(xs[1])+'/'+raw(xs[2]):'off'},
   {group:'Ausgang & Grenzwerte',label:'Alarm unten / DSP-Nachskalierung Offset',index:55,dependencies:[16,55,56],decode:(x,all)=>SETTINGS.alarmText(all,'lower')},
   {group:'Ausgang & Grenzwerte',label:'Alarm oben / DSP-Nachskalierung Faktor',index:56,dependencies:[16,55,56],decode:(x,all)=>SETTINGS.alarmText(all,'upper')},
   {group:'Ausgang & Grenzwerte',label:'Fehlerreaktionen',index:61,decode:x=>SETTINGS.errorMask(x)},
@@ -70,9 +74,13 @@ const ELMOS_EEPROM_OVERVIEW=(()=>{
     return {label:item.label,register:(item.indices||[item.index]).map(i=>'CM '+i.toString(16).toUpperCase().padStart(2,'0')).join(', '),
      saved,active,planned,
      // For individual decoded fields, compare the displayed setting rather than unrelated bits in a shared register.
-     // Multi-word rows represent an entire group: any changed constituent word is relevant.
-     differs:!!active&&(item.indices?active.raw!==saved.raw:active.text!==saved.text),
-     pending:!!planned&&planned.raw!==saved.raw};
+     // Multi-word groups normally compare raw words to detect e.g. changed
+     // coefficients even when their displayed counts are equal. Shared control
+     // registers can instead define a field-specific effective comparison.
+     differs:!!active&&(item.compareKey?item.compareKey(active.values)!==item.compareKey(saved.values):
+      item.indices?active.raw!==saved.raw:active.text!==saved.text),
+     pending:!!planned&&(item.compareKey?item.compareKey(planned.values)!==item.compareKey(saved.values):
+      planned.raw!==saved.raw)};
    })
   }));
  }

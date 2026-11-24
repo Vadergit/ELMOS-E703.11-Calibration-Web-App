@@ -1,3 +1,9 @@
+## v0.7.169 – EEPROM-Viewer: Ausgangsbegrenzung korrekt vergleichen
+
+- Ausgangsbegrenzung vergleicht nur CFG_EN.limit_en und, bei aktiver Begrenzung, LIMIT_LO/HI einschliesslich Hysterese. Andere CFG_EN-Bits (insbesondere Druck-ADC-Aktivierung beim Erstabgleich) lösen keine gelbe Markierung mehr aus.
+- Gleiche Regel für RAM und vorgemerkte Werte. Inaktive Grenzwerte bleiben in den Rohdaten sichtbar; tatsächliche Änderungen der aktiven Begrenzung werden weiterhin markiert.
+- Rein lesende Anzeigeänderung; keine Änderung der Sensorregister oder Kalibrier-/Programmierlogik.
+
 ## v0.7.168 – Erstabgleich ohne doppelte EEPROM-Lesung und Routine-Popup
 
 - Bereits vollständig gelesene, CRC8-/CRC16-geprüfte und wiederholt bestätigte Original-NVM-Daten aus dem erfolgreichen SSP3-RAM-Wiederanlauf werden an den Kalibrierablauf übergeben. Das unveränderliche Abbild ist an USB-Port, Sitzung und physische Chip-UID gebunden.
