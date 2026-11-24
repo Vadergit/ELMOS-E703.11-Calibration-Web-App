@@ -338,14 +338,19 @@ test('background reconnect probes keep the disconnected UI stable until the UID 
 test('dual baud access before recovery, explicit auto-probe never recovers RAM',async()=>{
  const start=app.indexOf(' async function connectBridgeChip('),end=app.indexOf(' // CRC8 verification follows DS',start);
  const source=app.slice(start,end);
- const simulate=(autoProbe,succeedAt,power=true)=>{
+ const simulate=(autoProbe,succeedAt,power=true,blank=false)=>{
   const calls=[],port={},st={port,sessionIndex:1,iface:'plc',sensorPowerEnabled:power,
     bridgeBoard:'ESP32-C3 SuperMini',bridgePsscRam:true,plcAddress:0x6c};
   let rate;
   const deps={st,$:id=>({checked:false,value:id==='plcBaud'?'25000':''}),logging:()=>{},h:n=>n.toString(16),
    exchange:async cmd=>{rate=Number(cmd.split(' ')[1]);calls.push(['baud',rate]);return ''},
    bridgeAccess:async opts=>{calls.push(['access',rate,opts.power,opts.recover]);if(!succeedAt(rate,opts.recover))throw Error('PLC_NO_VALID_FRAME')},
-   noteBridgeRx:async()=>{},readReg:async()=>1,detect:async opts=>{calls.push(['detect',opts.requireUid]);st.chip=true;st.uid={hex:'002000010002'}},
+   noteBridgeRx:async()=>{},startEsp32BlankSensor:async attempt=>{
+    if(!blank)return false;
+    calls.push(['blank',attempt.requestedBaud]);
+    st.chip=true;st.uid={hex:'002001004044'};
+    return true;
+   },readReg:async()=>1,detect:async opts=>{calls.push(['detect',opts.requireUid]);st.chip=true;st.uid={hex:'002000010002'}},
    bridgeColdStartVerified:()=>false,show:()=>{},renderStatus:()=>{}};
   const fn=new Function(...Object.keys(deps),source+';return connectBridgeChip;')(...Object.values(deps));
   return {calls,st,run:()=>fn({autoProbe})};
@@ -362,4 +367,9 @@ test('dual baud access before recovery, explicit auto-probe never recovers RAM',
  await assert.rejects(auto.run(),/PLC-Erkennung fehlgeschlagen/);
  assert.deepEqual(auto.calls.filter(x=>x[0]==='access'),[['access',25000,true,false],['access',100000,true,false]]);
  assert.equal(auto.st.psscRamRecovery,undefined);
+ const blank=simulate(false,()=>false,true,true);
+ await blank.run();
+ assert.deepEqual(blank.calls,[['baud',25000],['access',25000,true,false],['blank',25000]]);
+ assert.equal(blank.st.bridgeColdStart,null);
+
 });

@@ -1085,13 +1085,13 @@ if(typeof document!=='undefined') (function UI(){
   lsSet(checkpointKey(proof.uid),serialized);
   if(lsGet(checkpointKey(proof.uid))!==serialized)throw Error('Messpunkte nicht lokal gesichert (Browser-Speicher prüfen). Aktive Messpunkte bleiben erhalten.');
  }
- async function readCalibrationUid(){
-  const v=await readReg(0x38),lo=await readReg(0x50),hi=await readReg(0x52);
+ async function readCalibrationUid(read=readReg){
+  const v=await read(0x38),lo=await read(0x50),hi=await read(0x52);
   return h(v,2)+h(hi,2)+h(lo,2);
  }
- async function readCalibrationProfile(){
+ async function readCalibrationProfile(read=readReg){
   const ram={};
-  for(const [addr] of CAL.PROFILE_REGS)ram[addr]=await readReg(addr);
+  for(const [addr] of CAL.PROFILE_REGS)ram[addr]=await read(addr);
   return ram;
  }
  function activePreflight(){
@@ -2062,6 +2062,42 @@ if(typeof document!=='undefined') (function UI(){
    else st.bridgeRxNote=(st.bridgeBoard||'DIY-Programmer')+' erkennt Signalwechsel am AODO-Empfänger, aber keine bestätigte Chipantwort. Details im USB-Protokoll.';
   }catch(e){if(attempt)attempt.diagnosticError=e.message;logging('ESP32 RX-Diagnose: '+e.message)}
  }
+ // A zero AFE does not prove absence. ESP32 firmware accepts maintenance
+ // frames at its default 0x6C address even before PLC ACCESS succeeds.
+ async function readEsp32StartupRegister(address,timeout){
+  for(let attempt=0;;attempt++){
+   try{return await readReg(address,timeout)}
+   catch(error){
+    if(attempt===2||!error.message.includes('PLC_NO_VALID_FRAME'))
+     throw Error('Register 0x'+h(address)+': '+error.message);
+   }
+  }
+ }
+ async function startEsp32BlankSensor(attempt){
+  if(st.bridgeBoard!=='ESP32-C3 SuperMini'||!st.bridgeGenericRam||
+     !attempt.addressProbes.some(p=>p.address==='0x6C'&&p.result==='CRC_OK'&&p.word==='0x0000'))
+   return false;
+  const port=st.port,session=st.sessionIndex;
+  st.plcAddress=0x6C;
+  const afe=await readEsp32StartupRegister(R_AFE),cfg=await readEsp32StartupRegister(0x06),pads=await readEsp32StartupRegister(0x0A);
+  if(afe!==0||!(cfg&4)||P.plcAddressFromConfig(cfg,pads)!==st.plcAddress)return false;
+  const uid=await readCalibrationUid(readEsp32StartupRegister);
+  if((parseInt(uid.slice(0,4),16)&0xFFF8)!==0x0020||
+     ['00000000','FFFFFFFF'].includes(uid.slice(4)))return false;
+  if(st.port!==port||st.sessionIndex!==session||st.closing||st.plcAddress!==0x6C)
+   throw Error('USB-Verbindung während ESP32-Initialisierung geändert');
+  st.readOnlySensor=uid;
+  st.plcAddressVerified=true;
+  st.plcAddressSource='ESP32: CFG_SPI_I2C + CFG_PADS1 / CRC8';
+  st.bridgeEffectiveBaud=attempt.requestedBaud;
+  if(!await startRamMeasurementOperation({esp32Blank:true}))
+   throw Error('ESP32: RAM-Messstart fehlgeschlagen. '+st.bridgeRxNote);
+  st.bridgeRxNote='';
+  attempt.result='ram-measurement-confirmed';
+  attempt.effectiveBaud=st.bridgeEffectiveBaud;
+  attempt.address='0x6C';
+  return true;
+ }
  function i2cColdStartReply(reply){
   return /^# I2C ACCESS ADDR=[0-9A-F]{2} RAM_ENABLE=0 COLD_START=1$/m.test(reply.trim());
  }
@@ -2120,7 +2156,10 @@ if(typeof document!=='undefined') (function UI(){
    }
   };
   let found=false;
-  for(const rate of rates){if(await attemptAccess(rate,false)){found=true;break}}
+  for(const rate of rates){
+   if(await attemptAccess(rate,false)){found=true;break}
+   if(!autoProbe&&await startEsp32BlankSensor(st.bridgePlcAttempts.at(-1)))return;
+  }
   // Recovery changes volatile sensor RAM. Keep the current opt-in/manual
   // restriction and try both ordinary rates before any recovery.
   if(!found&&!autoProbe&&st.bridgePsscRam&&st.bridgePlcAttempts.some(a=>a.error?.includes('PLC_NO_VALID_FRAME'))){
@@ -2285,10 +2324,11 @@ if(typeof document!=='undefined') (function UI(){
  async function startRamMeasurement(){
   return withProgress('Live-Messung wird vorbereitet',()=>startRamMeasurementOperation(),true);
  }
- async function startRamMeasurementOperation(){
+ async function startRamMeasurementOperation({esp32Blank=false}={}){
   if(!st.port||!st.readOnlySensor||st.chip||st.closing||st.ramMeasurementStarting||
-     st.adapterKind!=='ssp3'||st.iface!=='plc'||!st.plcAddressVerified||
-     st.calTask||st.writing||st.nvmWorking||st.calStaged||st.calpoints.length)return false;
+     (esp32Blank?(st.adapterKind!=='bridge'||st.bridgeBoard!=='ESP32-C3 SuperMini'||!st.bridgeGenericRam):st.adapterKind!=='ssp3')||
+     st.iface!=='plc'||!st.plcAddressVerified||st.calTask||st.writing||st.nvmWorking||st.calStaged||st.calpoints.length)return false;
+  const read=esp32Blank?readEsp32StartupRegister:readReg;
   const port=st.port,address=st.plcAddress,uid=st.readOnlySensor,session=st.sessionIndex;
   const sameConnection=()=>{
    if(st.port!==port||st.closing||st.plcAddress!==address||st.sessionIndex!==session)
@@ -2296,7 +2336,7 @@ if(typeof document!=='undefined') (function UI(){
   };
   const assertUid=async()=>{
    sameConnection();
-   if(await readCalibrationUid()!==uid)throw Error('Chip-UID während RAM-Wiederanlauf geändert');
+   if(await readCalibrationUid(read)!==uid)throw Error('Chip-UID während RAM-Wiederanlauf geändert');
    sameConnection();
   };
   const send=async(register,value)=>{
@@ -2305,8 +2345,8 @@ if(typeof document!=='undefined') (function UI(){
   };
   const readWord=async i=>{
    await send(0x4E,0x4C00|i*2);
-   await nvmWaitIdle(1200,12,15);
-   return readReg(0x48);
+   await nvmWaitIdle(1200,12,15,read);
+   return read(0x48);
   };
   const changed=[];
   let restored=false,firstCalibration=false,firstIdleRequested=false;
@@ -2320,7 +2360,7 @@ if(typeof document!=='undefined') (function UI(){
     try{await assertUid();break}
     catch(e){if(attempt||!/PLC nothing received|Timeout/i.test(e.message))throw e;await sleep(100)}
    }
-   const afeBefore=await readReg(R_AFE);
+   const afeBefore=await read(R_AFE);
    if(afeBefore!==0)decodeSafeAFE(afeBefore);
    const words=[];
    for(let i=0;i<64;i++)words.push(await readWord(i));
@@ -2330,18 +2370,20 @@ if(typeof document!=='undefined') (function UI(){
    for(const i of [0,1,15,16,17,18,19,20,21,22,CAL.SVDD_INDEX,28,63])
     if(await readWord(i)!==words[i])throw Error('EEPROM-Wiederholungslesung unstabil');
    firstCalibration=CAL.uncalibratedPressureBlank(words);
+   if(esp32Blank&&!firstCalibration)
+    throw Error('Original-NVM entspricht keinem bestätigten Erstabgleichprofil.');
    const afe=firstCalibration?words[28]|0x0800:words[28];
    decodeSafeAFE(afe);
    if(firstCalibration)logging('Erstabgleich erkannt: Druckpfad unkalibriert, Elmos-Temperaturbeispielprofil. AFE-Pflichtbit und Druck-ADC nur im RAM aktivieren.');
    if(afeBefore!==0&&afeBefore!==afe)throw Error('AFE im RAM weicht vom bestätigten EEPROM ab');
-   const live=await readCalibrationProfile();
+   const live=await readCalibrationProfile(read);
    if(live[R_AFE]!==afeBefore)throw Error('AFE während Diagnose geändert');
    if(![0,2].includes(words[16]&3)||![0,2].includes(live[4]&3))
     throw Error('Reservierte DSP-Druckkorrektur');
    if((live[4]&12)!==(words[16]&12))throw Error('Temperaturkorrektur im RAM weicht vom EEPROM ab');
    if((words[16]&3)===2||(words[16]&12)!==0){
     for(let i=31;i<=54;i++)
-     if(await readReg(0x6C+(i-31)*2)!==words[i])
+     if(await read(0x6C+(i-31)*2)!==words[i])
       throw Error('Bestehende DSP-Koeffizienten stimmen nicht mit dem EEPROM überein');
    }
    const period=words[21]||1;
@@ -2361,28 +2403,28 @@ if(typeof document!=='undefined') (function UI(){
     await send(0x22,0x7BBA);
     const idleDeadline=Date.now()+1000;
     let idleStatus;
-    do{await sleep(20);idleStatus=await readReg(0x36,500)}
+    do{await sleep(20);idleStatus=await read(0x36,500)}
     while(!(idleStatus&1)&&Date.now()<idleDeadline);
     if(!(idleStatus&1))throw Error('Erstabgleich: CMD idle nicht bestätigt.');
    }
    for(const entry of profile){
-    if(await readReg(entry.address)!==entry.before)throw Error('RAM-Profil während Diagnose geändert');
+    if(await read(entry.address)!==entry.before)throw Error('RAM-Profil während Diagnose geändert');
     if(entry.before===entry.after)continue;
     await assertUid();changed.push(entry);
     await send(entry.address,entry.after);
-    if(await readReg(entry.address)!==entry.after)throw Error('RAM-Rücklesen fehlgeschlagen bei Register 0x'+h(entry.address));
+    if(await read(entry.address)!==entry.after)throw Error('RAM-Rücklesen fehlgeschlagen bei Register 0x'+h(entry.address));
    }
-   if(!CAL.sameMeasurementProfile(target,await readCalibrationProfile()))throw Error('RAM-Messprofil nach Wiederanlauf verändert');
+   if(!CAL.sameMeasurementProfile(target,await readCalibrationProfile(read)))throw Error('RAM-Messprofil nach Wiederanlauf verändert');
    await assertUid();
-   await readReg(0x2A); // clear old ADC_S event before CMD start
+   await read(0x2A); // clear old ADC_S event before CMD start
    await send(0x22,0x8B93);
    st.measurementStarts=(st.measurementStarts||0)+1;
    const deadline=Date.now()+1600;
    let status;
-   do{await sleep(30);status=await readReg(0x36,500)}
+   do{await sleep(30);status=await read(0x36,500)}
    while(!(status&2)&&Date.now()<deadline);
-   if(!(status&2))throw Error('Der Sensor meldet keine neue ADC_S-Messung (STATUS 0x'+h(status,2)+', CFG_EN 0x'+h(await readReg(0x04),2)+')');
-   await readReg(0x2A);await assertUid();
+   if(!(status&2))throw Error('Der Sensor meldet keine neue ADC_S-Messung (STATUS 0x'+h(status,2)+', CFG_EN 0x'+h(await read(0x04),2)+')');
+   await read(0x2A);await assertUid();
    st.measurementPeriod=period;st.measurementStatus=status;
    st.coldStartAfeRestored=changed.length>0;
    await detect({requireUid:true});
@@ -2405,7 +2447,8 @@ if(typeof document!=='undefined') (function UI(){
     show('nvmMsg','Original-NVM (64 Wörter, UID, CRC8/CRC16) geprüft. Vor Programmierung erfolgt eine unabhängige Rücklesung.','success');
    }catch(e){logging('NVM-Anzeige/Backup-Historie: '+e.message)}
    logging('Geprüftes Original-NVM für diese USB-Sitzung übernommen; keine erneute EEPROM-Lesung zur Vorabprüfung.');
-   show('connMsg',firstCalibration?'Erstabgleich: SSC initialisiert, Original-EEPROM geprüft. Sensor messbereit. Keine NVM-Programmierung.':
+   show('connMsg',esp32Blank?'ESP32: Sensor im RAM gestartet. Live-Messung verfügbar.':
+    firstCalibration?'Erstabgleich: SSC initialisiert, Original-EEPROM geprüft. Sensor messbereit. Keine NVM-Programmierung.':
     'Live-Messung automatisch aus dem geprüften EEPROM-Profil gestartet. Keine NVM-Programmierung.','success');
    return true;
   }catch(error){
@@ -2419,7 +2462,7 @@ if(typeof document!=='undefined') (function UI(){
    for(const entry of changed.reverse()){
     try{
      await assertUid();await send(entry.address,entry.before);
-     if(await readReg(entry.address)!==entry.before)restoreError=true;
+     if(await read(entry.address)!==entry.before)restoreError=true;
     }catch(_){restoreError=true;}
    }
    st.measurementPeriod=null;st.measurementStatus=null;
@@ -2428,6 +2471,7 @@ if(typeof document!=='undefined') (function UI(){
    const msg='Automatischer RAM-Wiederanlauf nicht bestätigt: '+error.message+
     (restoreError?' Ursprüngliche RAM-Werte nicht vollständig bestätigt. Sensor am Prüfplatz sicher neu starten.':'')+
     '. Keine NVM-Programmierung. USB-Protokoll exportieren.';
+   if(esp32Blank)st.bridgeRxNote=msg;
    logging(msg);show('connMsg',msg,'warn');
    return false;
   }finally{
@@ -3999,10 +4043,10 @@ if(typeof document!=='undefined') (function UI(){
   if(st.iface==='plc')return; // No documented PLC relock shortcut; power cycle restores authorization
   try{await maintWrite(0x22,0x62A2)}catch(e){logging('RAM-Sperre: '+e.message)}
  }
- async function nvmWaitIdle(max=12000,initialDelay=25,pollDelay=80){
+ async function nvmWaitIdle(max=12000,initialDelay=25,pollDelay=80,read=readReg){
   const start=Date.now();await sleep(initialDelay);let stable=0;
   while(Date.now()-start<max){
-   const flags=await readReg(0x46);
+   const flags=await read(0x46);
    if((flags&7)===0){if(++stable>=2)return flags}else stable=0;
    await sleep(pollDelay)
   }

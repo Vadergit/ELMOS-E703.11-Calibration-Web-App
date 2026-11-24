@@ -2,9 +2,9 @@
 const test=require('node:test'),assert=require('node:assert/strict'),fs=require('node:fs'),path=require('node:path');
 const C=require('../calibration.js');
 const app=fs.readFileSync(path.join(__dirname,'../app.js'),'utf8');
-const from=app.indexOf(' async function startRamMeasurementOperation()'),to=app.indexOf(' // Confirm the PLC address',from);
+const from=app.indexOf(' async function startRamMeasurementOperation('),to=app.indexOf(' // Confirm the PLC address',from);
 const code=app.slice(from,to)+'\nreturn startRamMeasurementOperation;';
-function simulate({newChip=false,corrupt=false,invalidAfe=false,wrongCoeff=false,uidChanges=false,failWrite=false,noFresh=false,transient=false,changedProfile=false,nonblank=false}={}){
+function simulate({newChip=false,corrupt=false,invalidAfe=false,wrongCoeff=false,uidChanges=false,failWrite=false,noFresh=false,transient=false,changedProfile=false,nonblank=false,esp32=false}={}){
  const words=Array(64).fill(0);
  words[0]=0x44BC;words[1]=0x00FC;words[16]=newChip?0x1214:0x1216;words[17]=4;words[18]=2<<12;words[19]=(1<<11)|(1<<8)|(1<<7);
  words[21]=newChip?0:1;words[22]=0x0880;words[24]=0x48d3;words[25]=0x2a9e;words[26]=0x0412;words[28]=invalidAfe?0:newChip?0x0800:0x1891;
@@ -16,7 +16,7 @@ function simulate({newChip=false,corrupt=false,invalidAfe=false,wrongCoeff=false
  for(let i=31;i<=54;i++)regs[0x6C+(i-31)*2]=words[i];
  if(wrongCoeff)regs[0x74]^=1;
  if(changedProfile)regs[0x1A]^=1;
- const uid='002000FC44BC',port={},st={port,plcAddress:0x6c,plcAddressVerified:true,plcHostFormat:'legacy',sessionIndex:1,readOnlySensor:uid,chip:false,adapterKind:'ssp3',iface:'plc',calpoints:[]};
+ const uid='002000FC44BC',port={},st={port,plcAddress:0x6c,plcAddressVerified:true,plcHostFormat:'legacy',sessionIndex:1,readOnlySensor:uid,chip:false,adapterKind:esp32?'bridge':'ssp3',bridgeBoard:esp32?'ESP32-C3 SuperMini':null,bridgeGenericRam:esp32,iface:'plc',calpoints:[]};
  let selected=0,uidReads=0,failed=false,clock=0,idle=true;const writes=[],messages=[];
  const deps={st,CAL:C,P:{plcWrite:(addr,value)=>[addr,value],plcHostCommand:x=>x},R_AFE:0x1c,h:(n,b=1)=>n.toString(16).toUpperCase().padStart(b*2,'0'),
   readCalibrationUid:async()=>{uidReads++;if(transient&&uidReads===1)throw Error('PLC nothing received');return uidChanges&&uidReads>1?'002000000001':uid},
@@ -29,8 +29,9 @@ function simulate({newChip=false,corrupt=false,invalidAfe=false,wrongCoeff=false
   stopLive:()=>{},startLive:()=>{},renderStatus:()=>{},logging:()=>{},show:(...args)=>messages.push(args),
   expert:{afterNvmScan:()=>{}},
   detect:async opts=>{assert.equal(opts.requireUid,true);st.chip=true;st.uid={hex:uid,ser0:words[0],ser1:words[1]}}};
- const run=new Function(...Object.keys(deps),code)(...Object.values(deps));
- return {run,st,regs,words,writes,messages};
+ deps.readEsp32StartupRegister=deps.readReg;
+ const start=new Function(...Object.keys(deps),code)(...Object.values(deps));
+ return {run:()=>start({esp32Blank:esp32}),st,regs,words,writes,messages};
 }
 test('calibrated sensor restores own AFE, preserves DSP and NVM',async()=>{
  const x=simulate();assert.equal(await x.run(),true,x.messages.at(-1)?.[1]);assert.equal(x.st.chip,true);assert.equal(x.regs[0x1c],0x1891);assert.equal(x.regs[4],0x1216);
@@ -67,6 +68,18 @@ test('pressure-blank log profile enables AFE and ADC in RAM before starting meas
  assert.equal(x.words[28],0);assert.equal(x.regs[0x1c],0x0800);
  assert.equal(x.words[21],0);assert.equal(x.regs[4],0x1216);assert.equal(x.words[16],0x1214);
  assert.equal(x.regs[0x96],0xBC8E);assert.equal(x.st.coldStartAfeRestored,true);
+});
+test('ESP32 starts verified blank pressure profile in RAM and blocks invalid or nonblank CM',async()=>{
+ const x=simulate({newChip:true,invalidAfe:true,esp32:true});
+ assert.equal(await x.run(),true,x.messages.at(-1)?.[1]);
+ assert.deepEqual(x.writes,[[0x22,0x7bba],[0x1c,0x0800],[0x04,0x1216],[0x0e,1],[0x22,0x8b93]]);
+ assert.equal(x.st.bridgeColdStart,undefined);
+ assert.equal(x.words[28],0);
+ for(const flag of ['nonblank','corrupt']){
+  const invalid=simulate({newChip:true,invalidAfe:true,esp32:true,[flag]:true});
+  assert.equal(await invalid.run(),false);
+  assert.deepEqual(invalid.writes,[]);
+ }
 });
 test('nonzero pressure coefficient forbids automatic AFE default, even with pressure disabled',async()=>{
  const x=simulate({newChip:true,invalidAfe:true,nonblank:true});
