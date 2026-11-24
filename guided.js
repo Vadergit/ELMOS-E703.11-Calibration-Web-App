@@ -716,12 +716,13 @@ const ELMOS_GUIDED=(()=>{
   status.className='gw-alert '+(connected?'success':usb?'warn':'');
   status.textContent=(connected?'Sensor erkannt, UID '+(s.uid||'nicht bekannt')+'. ':s.diagnosticUid?'Sensor erkannt, UID '+s.diagnosticUid+' · noch nicht messbereit. ':usb?'USB-Adapter verbunden, Sensor nicht erkannt. ':'Noch kein USB-Adapter verbunden. ')+
    'Aktives Protokoll: '+current+'.'+(s.connectionMessage?' '+s.connectionMessage:'');
-  for(const id of ['gwConnectionApply','gwConnectionChoose','gwConnectionReinit','gwConnectionDiagnose','gwConnectionStartup','gwConnectionLog','gwConnectionMagic'])
+  for(const id of ['gwConnectionApply','gwConnectionChoose','gwConnectionReinit','gwConnectionDiagnose','gwConnectionStartup','gwConnectionMagic'])
    $(id).disabled=working;
   $('gwConnectionReinit').disabled=working||!usb;
   $('gwConnectionDiagnose').disabled=working||!usb;
   $('gwConnectionStartup').disabled=!expert||working||!usb||connected||s.iface!=='plc'||s.adapter!=='ssp3';
-  $('gwConnectionLog').disabled=working||!usb;
+  // Export only reads the locally buffered log, even during a blocked USB operation.
+  $('gwConnectionLog').disabled=false;
   $('gwConnectionMagic').disabled=!expert||working||!usb||connected||s.iface!=='plc'||s.adapter!=='ssp3'||!$('gwConnectionMagicConfirm').checked;
  }
  async function connectGuidedSensor(selectPort){
@@ -742,11 +743,18 @@ const ELMOS_GUIDED=(()=>{
   finally{connectionBusy=false;renderConnectionStatus()}
  }
  async function guidedConnectionDiagnostic(action){
-  if(connectionBusy)return;
+  if(connectionBusy&&action!=='export')return;
   if(action!=='export'&&!$('expertMode').checked)
    return msg('Diese Diagnose ist nur mit aktivierten Expertenparametern verfügbar.','warn');
   const api=window.ELMOS_GUIDED_API;
   if(!api?.guidedDiagnostic)return msg('Diagnosefunktion nicht verfügbar. Bitte die App neu laden.','error');
+  if(action==='export'){
+   try{
+    await api.guidedDiagnostic('export');
+    msg('USB-Protokoll wurde als JSON zum Herunterladen bereitgestellt.','success');
+   }catch(error){msg('USB-Protokoll-Export fehlgeschlagen: '+String(error.message||error),'error')}
+   return;
+  }
   connectionBusy=true;renderConnectionStatus();
   const report=$('gwConnectionDiagnosticResult');
   if(action!=='export'){report.hidden=false;report.textContent='Lesende Diagnose läuft …'}
