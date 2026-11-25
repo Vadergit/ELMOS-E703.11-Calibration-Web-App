@@ -103,7 +103,7 @@ const ELMOS_COMPACT=(()=>{
   label('psscS1','cpOutputAnalog').classList.add('cp-s1');
   for(const id of ['expertScaleGain','expertScaleOffset'])label(id,'cpOutputExpert');
   actions(['psscDefaultScaling','expertOutputPreset','expertOutputStage','expertOutputDiscard','outputNvmRead'],'cpOutputActions');
-  for(const id of ['outputOneWireStatus','psscScalingPreview','expertOutputMsg','psscOneWireOnlyStatus'])moveId(id,'cpOutputStatus');
+  for(const id of ['outputOneWireStatus','outputTimedOneWireOption','psscScalingPreview','expertOutputMsg','psscOneWireOnlyStatus'])moveId(id,'cpOutputStatus');
 
   label('nvmAutoBackup','cpNvmTop');
   actions(['nvmPrepare'],'cpNvmPrepare');

@@ -360,6 +360,7 @@ const ELMOS_EXPERT=(()=>{
    }catch(e){$('expertRegisterDump').textContent=e.message}finally{if(live&&st.chip)startLive()}
   }
   const outputValues=()=>({mode:$('expertOutputMode').value,scaleEnabled:$('expertScaleEnable').checked,
+   timedOneWire:isAnalog($('expertOutputMode').value)&&!$('outputTimedOneWire')?.disabled&&$('outputTimedOneWire')?.checked===true,
    gain:Number($('expertScaleGain').value),offset:Number($('expertScaleOffset').value),pwmPeriod:Number($('expertPwmPeriod').value),
    clipping:isAnalog($('expertOutputMode').value)?{mode:$('outputClippingMode').value,
     low:$('outputClipLow').valueAsNumber,high:$('outputClipHigh').valueAsNumber,
@@ -523,10 +524,15 @@ const ELMOS_EXPERT=(()=>{
      after[63]=CAL.crc16(after);
      const changes=after.map((v,i)=>v!==before[i]?{index:i,address:i*2,from:before[i],to:v}:null).filter(Boolean);
      if(!changes.length)throw Error('Ausgang ist bereits entsprechend konfiguriert');
-     if(changes.some(c=>![16,22,57,58,59,60,63].includes(c.index)))throw Error('Nicht erlaubtes Ausgangsregister im Änderungsplan');
+     if(changes.some(c=>![16,22,57,58,59,60,63,...(values.timedOneWire?[17,18]:[])].includes(c.index)))throw Error('Nicht erlaubtes Ausgangsregister im Änderungsplan');
      const plan={uid:st.uid.hex,outputOnly:true,limit,before:before.slice(),after,changes};
      st.outputOnlyPlan=plan;st.restorePlan=null;st.calImage=plan;
      st.expertOutputPlan=values;
+     $('nvmDiff').textContent=changes.map(({index,address,from,to})=>{
+      const prefix=values.timedOneWire&&index===17?'One-Wire dauerhaft → nur beim Sensorstart · ':
+       values.timedOneWire&&index===18?'One-Wire-Startfenster → 200 ms · ':'';
+      return prefix+'NVM 0x'+hx(address)+' ['+index+'] 0x'+hx(from)+' → 0x'+hx(to);
+     }).join('\n');
      const bridgeRecovered=st.adapterKind==='bridge'&&!st.bridgeUserNvm&&
       (st.psscRamRecovery||(st.regs[0x06]===0x6C04&&before[17]!==0x6C04));
      show('expertOutputMsg',bridgeRecovered?
@@ -655,6 +661,7 @@ const ELMOS_EXPERT=(()=>{
    $('outputModeHint').textContent=(hints[mode]||'Unbekannter oder nicht freigegebener Modus')+' Nur verifizierte AODO-Werte werden für NVM vorgemerkt.';
    refreshOutputReadOnly();renderOutputPreview();
   }
+  $('outputTimedOneWire')?.addEventListener('change',invalidateOutputPlan);
   $('expertOutputMode').addEventListener('change',()=>{
    modeChoiceEdited=true;
    manualScaling=false;

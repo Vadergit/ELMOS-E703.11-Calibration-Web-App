@@ -1,6 +1,6 @@
 'use strict';
 const test=require('node:test'),assert=require('node:assert/strict'),C=require('../calibration.js');
-const w=()=>{const a=Array(64).fill(0);a[16]=0x1216;a[17]=4;a[18]=2<<12;a[19]=(1<<11)|(1<<8)|(1<<7);a[21]=1;a[22]=0x0880;a[24]=0x48d3;a[25]=0x2a9e;a[26]=0x0412;a[28]=0x0800;a[63]=C.crc16(a);return a};
+const w=()=>{const a=Array(64).fill(0);a[16]=0x1216;a[18]=2<<12;a[19]=(1<<11)|(1<<8)|(1<<7);a[21]=1;a[22]=0x0880;a[24]=0x48d3;a[25]=0x2a9e;a[26]=0x0412;a[28]=0x0800;a[63]=C.crc16(a);return a};
 const ram=a=>Object.fromEntries(C.PROFILE_REGS.map(([addr,i])=>[addr,a[i]]));
 const fit=orderT=>({orderT,outputLimit:30000,registers:{so:1,sf:2,coeffs:Array(16).fill(0),to:0,tf:4096,tcoeffs:orderT?Array(4).fill(0):null}});
 const cat=[[0x48d3,0x2a9e,0x0412],[0x5a94,0x0c5f,0x04be]];
@@ -141,7 +141,9 @@ test('first calibration cannot build an incomplete NVM image without confirmed A
 });
 
 test('first calibration with real ADC enabled produces a complete verified analogue NVM plan',()=>{
- const a=firstCalibrationImage(),active=ram(a);
+ const a=firstCalibrationImage();
+ a[17]&=~4;a[63]=C.crc16(a);
+ const active=ram(a);
  active[4]=0x1216;active[14]=1;active[28]=0x0800;
  const plan=C.planCalibrationProfile(a,active,{recovery:true,allowOperatingChanges:true});
  const output={mode:'1',...C.analogScaling(0.5,4.5,5,30000)};

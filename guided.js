@@ -196,7 +196,7 @@ const ELMOS_GUIDED=(()=>{
   for(const id of ['expertScaleGain','expertScaleOffset'])moveLabel(id,'gwExpertOutputFields');
   for(const id of ['expertOutputPreset','expertOutputStage','outputNvmRead'])moveId(id,'gwOutputActions');
   moveId('outputClippingFields','gwOutputClipping');
-  for(const id of ['outputModeHint','psscScalingPreview','expertOutputMsg','outputOneWireStatus','outputScalingAdvisory','psscOneWireOnlyStatus'])moveId(id,'gwOutputStatuses');
+  for(const id of ['outputModeHint','outputTimedOneWireOption','psscScalingPreview','expertOutputMsg','outputOneWireStatus','outputScalingAdvisory','psscOneWireOnlyStatus'])moveId(id,'gwOutputStatuses');
   moveId('psscCurrentOutputStatus','gwOutputRegisters');
   moveId('alarmEditorSection','gwAlarmHost');
   move($('alarmSummaryHeading').closest('section'),'gwAlarmDiagnostic');

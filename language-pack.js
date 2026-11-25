@@ -1476,6 +1476,8 @@ window.ELMOS_TRANSLATIONS_EN=Object.assign(window.ELMOS_TRANSLATIONS_EN||{}, {
  "CFG_EN.aodo_en muss 1–5 sein (Analog/PWM/FM, nicht High-Z/Alarm)": "CFG_EN.aodo_en must be 1–5 (Analog/PWM/FM, not High-Z/Alarm)",
  "Weder PLC dauerhaft noch Startup-1-Wire-Zeitfenster aktiv": "Neither permanent PLC nor startup 1-Wire window enabled",
  "Permanentes PLC benötigt Upstream und Registerfreigabe": "Permanent PLC requires upstream and register authorisation",
+ "Dauerhaftes One-Wire belegt AODO. Für Analogbetrieb One-Wire auf ein Startfenster von 200 ms umstellen. Dazu zuerst den Sensor-Kaltstart über den Programmer bestätigen.": "Permanent 1-Wire occupies AODO. For analog output, switch 1-Wire to a 200 ms startup window after verifying a sensor cold start with the programmer.",
+ "One-Wire auf ein 200-ms-Startfenster umstellen (Labortest)": "Switch 1-Wire to a 200 ms startup window (bench test)",
  "One Wire only benötigt CFG_SPI_I2C.plc_en = 1 im Original-NVM (permanenter 1-Wire-Betrieb); ein kurzes Startup-Zeitfenster allein genügt nicht": "1-Wire only requires CFG_SPI_I2C.plc_en = 1 in original NVM (permanent 1-Wire operation); a short startup window alone is insufficient",
  "1-Wire-Startschutz: Ungültiges 64-Wort-NVM-Abbild": "1-Wire startup protection: Invalid 64-word NVM image",
  "1-Wire-Startschutz: Nicht erlaubte CFG_EN-Bits verändert": "1-Wire startup protection: Forbidden CFG_EN bits changed",

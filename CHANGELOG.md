@@ -1,3 +1,9 @@
+## v0.7.174 – Analogausgang bei dauerhaftem One-Wire
+
+- Bei dauerhaftem One-Wire meldet der Assistent den belegten AODO-Pin und blockiert die Freigabe eines scheinbar gültigen Analogabgleichs.
+- Nach bestätigtem One-Wire-Kaltstart mit geschalteter Sensorversorgung kann im Schritt «Ausgang» ein 200-ms-One-Wire-Startfenster für den Analogbetrieb ausdrücklich vorgemerkt werden. Die Änderung erscheint im regulären NVM-Plan mit Original-Backup, UID- und CRC-Prüfung. Unterstützt werden der originale SSP3 mit AN0204-Stromstart und eine ESP32-C3-Bridge mit generischer NVM-Firmware und Lastschalter.
+- Prüfstandstest: Nach dem Speichern den Sensor ohne Programmieradapter neu einschalten und bei 5 V die Ausgangsspannung an beiden Druck-Endpunkten messen. Anschliessend erneut über den One-Wire-Stromstart des Programmers verbinden und das NVM rücklesen.
+
 ## v0.7.173 – ESP32-RAM-Start für unkalibrierte Sensoren
 
 - Der ESP32-C3 kann einen E703.11 mit leerem Druckprofil an der One-Wire-Adresse 0x6C nach bestätigter Chip-UID und gültigen EEPROM-Prüfsummen im RAM initialisieren.

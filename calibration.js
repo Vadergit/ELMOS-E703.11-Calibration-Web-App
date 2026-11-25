@@ -315,11 +315,23 @@ const ELMOS_CAL = (() => {
  }
 
  function validPressureActivation(before,after){return (before&3)===0&&(after&3)===2;}
- function protectStartupCommunication(before,after,{allowSvdd=false,allowAlarmMask=false,allowPressureCorrection=false,operatingProfile=null,interfaceMode='plc'}={}){
+ function aodoPinBlocked(words){
+  return !!(words[17]&4);
+ }
+ const AODO_PLC_CONFLICT='Dauerhaftes One-Wire belegt AODO. Für Analogbetrieb One-Wire auf ein Startfenster von 200 ms umstellen. Dazu zuerst den Sensor-Kaltstart über den Programmer bestätigen.';
+ function protectStartupCommunication(before,after,{allowTimedOneWire=false,allowSvdd=false,allowAlarmMask=false,allowPressureCorrection=false,operatingProfile=null,interfaceMode='plc'}={}){
   if(!Array.isArray(before)||!Array.isArray(after)||before.length!==64||after.length!==64||
    [...before,...after].some(v=>!Number.isInteger(v)||v<0||v>65535))
    throw Error('1-Wire-Startschutz: Ungültiges 64-Wort-NVM-Abbild');
+  if(allowTimedOneWire){
+   const mode=(after[16]>>9)&7;
+   if(interfaceMode!=='plc'||!oneWireStartupStatus(before).ok||!aodoPinBlocked(before)||mode<1||mode>3||
+      after[17]!==(before[17]&~4)||after[18]!==((before[18]&~0x3000)|0x2000)||
+      !oneWireStartupStatus(after).ok)
+    throw Error('1-Wire-Startschutz: Nur die geprüfte One-Wire-Umstellung auf 200 ms für den Analogausgang ist zulässig.');
+  }
   for(let i=0;i<28;i++){
+   if(allowTimedOneWire&&(i===17||i===18))continue;
    if(i===16){
     const pressureMask=(allowPressureCorrection&&validPressureActivation(before[i],after[i])?3:0)|temperatureActivationMask(before[i],after[i],operatingProfile);
      const allowed=((7<<9)|(1<<6)|(1<<7))|(allowAlarmMask?((1<<5)|(1<<8)):0)|pressureMask;
@@ -339,8 +351,8 @@ const ELMOS_CAL = (() => {
   const initial=oneWireStartupStatus(before),final=oneWireStartupStatus(after);
   if(interfaceMode!=='i2c'&&!initial.ok)throw Error('1-Wire-Startschutz: Original-NVM erfüllt die Voraussetzungen für den 1-Wire-Start nicht: '+initial.errors.join('; ')+'. NVM-Schreiben gesperrt.');
   if((interfaceMode!=='i2c'||initial.ok)&&!final.ok)throw Error('1-Wire-Startschutz: Geplantes NVM würde den 1-Wire-Start gefährden: '+final.errors.join('; '));
-  // Always preserve the original PLC window, interface flags and bitrate.
-  for(const index of [17,...(allowAlarmMask?[]:[18]),19])if(before[index]!==after[index])
+  // The opt-in conversion above checks every bit of words 17 and 18.
+  for(const index of [17,...(allowAlarmMask?[]:[18]),19])if(before[index]!==after[index]&&!(allowTimedOneWire&&index!==19))
    throw Error('1-Wire-Startschutz: Geschützte PLC-Startkonfiguration NVM '+index+' verändert');
   return true;
  }
@@ -386,6 +398,7 @@ const ELMOS_CAL = (() => {
    throw Error('AODO-Prüfung: S0/S1 müssen zwischen 10 und 90 % VDD liegen');
   const mode=(words[16]>>9)&7,scaled=!!(words[16]&(1<<6)),limited=!!(words[16]&(1<<7));
   if(mode<1||mode>3)return {checked:false,ok:true,mode,reason:'Kein ratiometrischer Analogausgang'};
+  if(aodoPinBlocked(words))return {checked:true,ok:false,mode,reason:AODO_PLC_CONFLICT};
   if(!scaled)return {checked:true,ok:false,mode,reason:'CFG_EN.scale_en ist aus: S0/S1 können nach Neustart nicht stimmen'};
   const gain=fromQ(words[58],12),offset=fromQ(words[57],12);
   const raw=[-outputLimit,outputLimit].map(dsp=>gain*dsp+offset*32768);
@@ -472,9 +485,15 @@ const ELMOS_CAL = (() => {
     out[16]|=1<<7;
    }else throw Error('Ungültige Clipping-Einstellung');
   }
+  const allowTimedOneWire=settings.timedOneWire===true;
+  if(allowTimedOneWire){
+   out[17]&=~4;
+   out[18]=(out[18]&~0x3000)|0x2000;
+  }
+  if(mode<=3&&aodoPinBlocked(out))throw Error(AODO_PLC_CONFLICT);
   if(original.slice(0,16).some((v,i)=>v!==out[i]))throw Error('Factory-Bereich darf nicht verändert werden');
-  for(let i=17;i<28;i++)if(i!==22&&out[i]!==original[i])throw Error('Geschützte Kommunikation verändert');
-  protectStartupCommunication(original,out,{interfaceMode});
+  for(let i=17;i<28;i++)if(i!==22&&!(allowTimedOneWire&&(i===17||i===18))&&out[i]!==original[i])throw Error('Geschützte Kommunikation verändert');
+  protectStartupCommunication(original,out,{interfaceMode,allowTimedOneWire});
   return out;
  }
   /**
@@ -549,10 +568,12 @@ const ELMOS_CAL = (() => {
    cfg[30]=opts.userId;
   }
   cfg[63]=crc16(cfg);
-  for(let i=0;i<=27;i++)if(cfg[i]!==original[i]&&![16,22,SVDD_INDEX].includes(i)&&!operatingWordAllowed(i,cfg,operatingProfile))throw Error('Sicherheitsfehler: schreibgeschützter NVM-Bereich verändert');
+  const allowTimedOneWire=opts.output?.timedOneWire===true;
+  const permittedWords=[16,22,SVDD_INDEX,...(allowTimedOneWire?[17,18]:[])];
+  for(let i=0;i<=27;i++)if(cfg[i]!==original[i]&&!permittedWords.includes(i)&&!operatingWordAllowed(i,cfg,operatingProfile))throw Error('Sicherheitsfehler: schreibgeschützter NVM-Bereich verändert');
   if(cfg[16]!==original[16]&&(((cfg[16]^original[16])&~((7<<9)|(1<<6)|(1<<7)|(opts.activatePressureCorrection===true?3:0)|temperatureActivationMask(original[16],cfg[16],operatingProfile)))!==0))throw Error('CFG_EN: fremde Bits dürfen nicht verändert werden');
   if(cfg.slice(0,16).some((v,i)=>v!==original[i]))throw Error('Werkskalibrierung verändert');
-  protectStartupCommunication(original,cfg,{allowSvdd:opts.bridgeSupply!==undefined,allowPressureCorrection:opts.activatePressureCorrection===true,operatingProfile,interfaceMode:opts.interfaceMode});
+  protectStartupCommunication(original,cfg,{allowTimedOneWire,allowSvdd:opts.bridgeSupply!==undefined,allowPressureCorrection:opts.activatePressureCorrection===true,operatingProfile,interfaceMode:opts.interfaceMode});
   return {before:original.slice(),after:cfg,changes:cfg.map((v,i)=>v!==original[i]?{index:i,address:i*2,from:original[i],to:v}:null).filter(Boolean)};
  }
  // A temperature-compensated verification may repeat a reference pressure at a
@@ -574,6 +595,6 @@ const ELMOS_CAL = (() => {
   Number.isInteger(required)&&required>=1&&required<=10&&Array.isArray(records)&&
   Array.from({length:required},(_,slot)=>records.some(point=>
    point?.slot===slot&&Number.isFinite(point.errorBar))).every(Boolean);
- return {PROFILE_REGS,PROFILE_WORDS,uncalibratedPressureBlank,uncalibratedAfeBlank,planCalibrationProfile,sameMeasurementProfile,sameNvmImage,checkpointMatches,hasPressureTemperatureCompensation,SVDD_INDEX,SVDD_MASK,fit,suggestDspLimit,solveFit,crc16,crc8,configFrom,prepareOutputConfig,validateRecoveryCalibrationDiff,protectStartupCommunication,i2cBootRegisterMatches,oneWireStartupStatus,oneWireOnlyStatus,analogScaling,analogOutputStatus,elmosDspTarget,elmosTemperatureTarget,fromQ,q,signed,independentVerificationPoint,verificationPointsSufficient,temperatureSourceFromAfe2,dspTemperatureCelsius,isFactoryTemperatureProfile,factoryInternalTemperatureCelsius,factoryTemperatureAddresses,programmedTemperatureAddresses,programmedTemperatureProfileMatches};
+ return {PROFILE_REGS,PROFILE_WORDS,uncalibratedPressureBlank,uncalibratedAfeBlank,planCalibrationProfile,sameMeasurementProfile,sameNvmImage,checkpointMatches,hasPressureTemperatureCompensation,SVDD_INDEX,SVDD_MASK,fit,suggestDspLimit,solveFit,crc16,crc8,configFrom,prepareOutputConfig,validateRecoveryCalibrationDiff,protectStartupCommunication,aodoPinBlocked,AODO_PLC_CONFLICT,i2cBootRegisterMatches,oneWireStartupStatus,oneWireOnlyStatus,analogScaling,analogOutputStatus,elmosDspTarget,elmosTemperatureTarget,fromQ,q,signed,independentVerificationPoint,verificationPointsSufficient,temperatureSourceFromAfe2,dspTemperatureCelsius,isFactoryTemperatureProfile,factoryInternalTemperatureCelsius,factoryTemperatureAddresses,programmedTemperatureAddresses,programmedTemperatureProfileMatches};
 })();
 if(typeof module!=='undefined'&&module.exports)module.exports=ELMOS_CAL;

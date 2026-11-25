@@ -58,7 +58,8 @@ test('Calibration persists only confirmed SVDD bits, with CRC and protection int
  assert.throws(()=>CAL.configFrom(before,solution,0,{bridgeSupply:3}),/SVDD/);
 });
 test('AODO mode preparation preserves communication',()=>{
- const before=safeNvm(),after=CAL.prepareOutputConfig(before,{mode:'1',scaleEnabled:true,gain:0.7,offset:0,pwmPeriod:16384},30000);
+ const before=safeNvm();before[17]&=~4;
+ const after=CAL.prepareOutputConfig(before,{mode:'1',scaleEnabled:true,gain:0.7,offset:0,pwmPeriod:16384},30000);
  assert.notEqual(after[16],before[16]);
  for(let i=0;i<28;i++)if(i!==16&&i!==22)assert.equal(after[i],before[i]);
 });
@@ -87,7 +88,7 @@ test('NVM write path requires one-wire + preservation check',()=>{
  assert.equal(supported({iface:'spi'},()=>false),false);
  const program=routine(src,'nvmProgramOperation');
  assert.match(program,/if\(!nvmTransportSupported\(\)\)throw Error/);
- assert.match(program,/CAL\.protectStartupCommunication\(initial,modified,\{allowSvdd,allowAlarmMask:.*operatingProfile,interfaceMode:st\.iface\}\)/);
+ assert.match(program,/CAL\.protectStartupCommunication\(initial,modified,\{allowSvdd,allowAlarmMask:.*operatingProfile,interfaceMode:st\.iface,allowTimedOneWire:timedOneWire\}\)/);
  assert.ok(program.indexOf('CAL.protectStartupCommunication(initial,modified')<program.indexOf('for(const x of [0x98BD'));
 });
 
@@ -98,7 +99,7 @@ test('PSSC S0/S1 quantization stays inside analog range',()=>{
  assert.ok(result.outputDigits[1]<=26214);
  assert.ok(Math.abs(result.actualVolts[0]-0.5)<0.005);
  assert.ok(Math.abs(result.actualVolts[1]-4.5)<0.005);
- const before=safeNvm();
+ const before=safeNvm();before[17]&=~4;
  const after=CAL.prepareOutputConfig(before,{mode:'1',...result,pwmPeriod:16384},32000);
  for(let i=0;i<28;i++)if(i!==16&&i!==22)assert.equal(after[i],before[i]);
 });
@@ -499,7 +500,7 @@ test('Guided app uses read-only status, and the original NVM protections remain'
  assert.ok(app.includes("window.ELMOS_GUIDED?.onConnected?.()"));
  assert.ok(app.includes("const approvalGranted=nvmReason===''"));
  assert.ok(app.includes("$('nvmProgram').disabled=!approvalGranted"));
- assert.match(routine(app,'nvmProgramOperation'),/CAL\.protectStartupCommunication\(initial,modified,\{allowSvdd,allowAlarmMask:.*operatingProfile,interfaceMode:st\.iface\}\)/);
+ assert.match(routine(app,'nvmProgramOperation'),/CAL\.protectStartupCommunication\(initial,modified,\{allowSvdd,allowAlarmMask:.*operatingProfile,interfaceMode:st\.iface,allowTimedOneWire:timedOneWire\}\)/);
 });
 test('USB bridge fails closed until a truly compatible PLC firmware is available',()=>{
  const app=read('app.js'),fw=read('firmware/usb_bridge_cdc/usb_bridge_cdc.ino');
@@ -988,7 +989,7 @@ test('SSP3+PLC always power-starts before register reads without user checkbox',
  // Remains conditional: I2C/SPI/bridge must not power-cycle.
  assert.ok(connect.includes("st.adapterKind==='ssp3'&&st.iface==='plc'"));
  assert.ok(app.includes('powerCycle:st.powerCycleResult'));
- assert.match(routine(app,'nvmProgramOperation'),/CAL\.protectStartupCommunication\(initial,modified,\{allowSvdd,allowAlarmMask:.*operatingProfile,interfaceMode:st\.iface\}\)/);
+ assert.match(routine(app,'nvmProgramOperation'),/CAL\.protectStartupCommunication\(initial,modified,\{allowSvdd,allowAlarmMask:.*operatingProfile,interfaceMode:st\.iface,allowTimedOneWire:timedOneWire\}\)/);
 });
 
 test('SSP3 prompt counter correctly counts independent command acknowledgements',()=>{
@@ -1079,7 +1080,7 @@ test('Magic-Cookie auto startup retains protected NVM and does not touch other i
  assert.ok(connect.includes("await startSsp3WithBoundedRetry()"));
  assert.ok(!connect.includes('P.plcWrite(0xAC'));
  assert.ok(cal.includes('for(const index of [17,...(allowAlarmMask?[]:[18]),19])'));
- assert.match(routine(app,'nvmProgramOperation'),/CAL\.protectStartupCommunication\(initial,modified,\{allowSvdd,allowAlarmMask:.*operatingProfile,interfaceMode:st\.iface\}\)/);
+ assert.match(routine(app,'nvmProgramOperation'),/CAL\.protectStartupCommunication\(initial,modified,\{allowSvdd,allowAlarmMask:.*operatingProfile,interfaceMode:st\.iface,allowTimedOneWire:timedOneWire\}\)/);
  assert.ok(app.includes('proof.verifiedUid===uid'));
 });
 
@@ -1199,7 +1200,7 @@ test('After SSP3 detection read-only live polling starts even if full NVM boot p
  assert.ok(power.includes("startLive();"));
  assert.ok(!power.includes("if(st.powerCycleResult?.readVerified&&st.port===port"));
  assert.ok(power.includes("st.powerCycleResult.readVerified=true;"));
- assert.match(routine(app,'nvmProgramOperation'),/CAL\.protectStartupCommunication\(initial,modified,\{allowSvdd,allowAlarmMask:.*operatingProfile,interfaceMode:st\.iface\}\)/);
+ assert.match(routine(app,'nvmProgramOperation'),/CAL\.protectStartupCommunication\(initial,modified,\{allowSvdd,allowAlarmMask:.*operatingProfile,interfaceMode:st\.iface,allowTimedOneWire:timedOneWire\}\)/);
 });
 test('Live ADC attempts and successes visible and exported without new chip writes',()=>{
  const app=read('app.js'),html=read('index.html');
@@ -1273,7 +1274,7 @@ test('Manual pause respected, RAM-only live correction exported and NVM gates un
 });
 
 test('analog clipping rounds voltage limits inward and preserves One Wire settings',()=>{
- const before=safeNvm();
+ const before=safeNvm();before[17]&=~4;
  before[59]=3;before[60]=3;
  const settings={mode:'1',scaleEnabled:true,gain:0.7,offset:0};
  const clipping={mode:'on',low:0.5,high:4.5,vdd:5};
@@ -1309,7 +1310,7 @@ test('ESP32-C3 output-only NVM is capability-gated and scope-limited',()=>{
  assert.ok(app.includes("outputOnly?'NVM ARM OUTPUT':'NVM ARM CALIBRATION'"));
  assert.ok(app.includes("if(st.adapterKind==='bridge'&&!st.bridgeOutputNvm)"));
  assert.ok(app.includes('const outputWords=new Set([16,57,58,59,60,63]);'));
- assert.match(routine(app,'nvmProgramOperation'),/CAL\.protectStartupCommunication\(initial,modified,\{allowSvdd,allowAlarmMask:.*operatingProfile,interfaceMode:st\.iface\}\)/);
+ assert.match(routine(app,'nvmProgramOperation'),/CAL\.protectStartupCommunication\(initial,modified,\{allowSvdd,allowAlarmMask:.*operatingProfile,interfaceMode:st\.iface,allowTimedOneWire:timedOneWire\}\)/);
  assert.ok(app.includes('if(finalRecoveryBlock)throw Error(finalRecoveryBlock)'));
  assert.ok(app.includes('if(after.some((x,i)=>x!==modified[i]))'));
  assert.ok(!proMicro.includes('BRIDGE_AODO_OUTPUT_NVM_TEST'));
@@ -1440,7 +1441,7 @@ test('AODO preflight warns on outdated scaling after recalculating DSP',()=>{
   app.slice(start,end)+'return outputScalingPreflight;');
  const values={expertOutputMode:'1',psscVdd:'5',psscS0:'0.5',psscS1:'4.5'};
  const fields=id=>({value:values[id]});
- const original=safeNvm();
+ const original=safeNvm();original[17]&=~4;
  // The initial NVM has no AODO scaling, while the new DSP fit is for 30k digits.
  const st={calfit:{outputLimit:30000},calStaged:true,nvmBackup:original,regs:{},
   expertOutputPlan:null};

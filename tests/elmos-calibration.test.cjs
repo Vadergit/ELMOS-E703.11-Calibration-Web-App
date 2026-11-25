@@ -10,7 +10,7 @@ const fullFour = points([[-12000,1000,0,25],[12000,1000,100,25],[-11600,8000,0,7
 function originalNvm(){
  const w=Array(64).fill(0);
  w[16]=0x0200; // analog without scale_en: deliberately incorrect as a final NVM
- w[17]=0x0004; // permanent PLC enabled, protected
+ w[18]=2<<12; // 200 ms PLC at startup, followed by analog output
  w[19]=(1<<11)|(1<<8)|(1<<7);
  w[28]=0x0800;
  w[63]=C.crc16(w);
@@ -61,6 +61,32 @@ test('Elmos image: coherent NVM stores AODO_F, updates CRC and preserves PLC/fac
  for(const i of [17,18,19])assert.equal(image.after[i],orig[i]);
  assert.ok(image.changes.some(c=>c.index===58));
 });
+test('Permanent One-Wire blocks analog output until an explicit timed conversion',()=>{
+ const orig=originalNvm(),output=plan(30000);
+ orig[16]=0x12D6;orig[17]=0x6C06;orig[18]=0x4000;orig[19]=0x099F;orig[22]=0x0880;
+ orig[58]=0x0DFB;orig[59]=0x8CD0;orig[60]=0x7330;orig[63]=C.crc16(orig);
+ const blocked=C.analogOutputStatus(orig,.5,4.5,5,30000);
+ assert.deepEqual([blocked.checked,blocked.ok,blocked.reason],[true,false,C.AODO_PLC_CONFLICT]);
+ assert.throws(()=>C.prepareOutputConfig(orig,output,30000),/belegt AODO/);
+ assert.deepEqual(C.prepareOutputConfig(orig,{mode:'onewire'}),orig);
+ const fit=C.fit(firstTwo,{pmin:0,pmax:100,outputLimit:30000});
+ const conversion={...output,timedOneWire:true};
+ const image=C.configFrom(orig,fit,0x0800,{output:conversion,interfaceMode:'plc'});
+ const changed=C.prepareOutputConfig(orig,conversion,30000,{interfaceMode:'plc'});
+ assert.deepEqual(changed.map((word,index)=>word===orig[index]?null:index).filter(Number.isInteger),[17,18]);
+ assert.equal(image.after[17],0x6C02);
+ assert.equal(image.after[18],0x6000);
+ assert.equal(image.after[63],C.crc16(image.after));
+ assert.equal(C.oneWireStartupStatus(image.after).windowLabel,'200 ms');
+ assert.equal(C.analogOutputStatus(image.after,.5,4.5,5,30000).ok,true);
+ assert.throws(()=>C.prepareOutputConfig(orig,conversion,30000,{interfaceMode:'i2c'}),/Startschutz/);
+ assert.throws(()=>C.protectStartupCommunication(orig,changed),/Startschutz/);
+ for(const index of [17,18,19]){
+  const bad=changed.slice();bad[index]^=1;
+  assert.throws(()=>C.protectStartupCommunication(orig,bad,{allowTimedOneWire:true}),/Startschutz/);
+ }
+});
+
 test('calibration-only image still reveals a missing AODO plan',()=>{
  const orig=originalNvm();
  const fit=C.fit(firstTwo,{pmin:0,pmax:100,outputLimit:32000});

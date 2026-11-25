@@ -1466,6 +1466,22 @@ if(typeof document!=='undefined') (function UI(){
   }
   return failed.length?failed.join('; ')+'.':'Sicherheitsnachweis nicht vollständig.';
  }
+ // The conversion must be reachable through the same PLC programmer after
+ // reset. Require a switched supply and a startup-capable transport.
+ function timedOneWireReady(words){
+  if(st.iface!=='plc'||!hasCurrentNvmBackup()||words!==st.nvmBackup||
+     !CAL.oneWireStartupStatus(words).ok||!CAL.aodoPinBlocked(words)||
+     st.psscRamRecovery||st.coldStartAfeRestored||st.regs[0x06]!==words[17])
+   return false;
+  if(st.adapterKind==='bridge')
+   return st.sensorPowerEnabled&&bridgeCombinedRecoveryReady()&&st.plcAddressVerified;
+  const proof=st.powerCycleResult;
+  return st.adapterKind==='ssp3'&&psscRecoveryProven()&&
+   proof?.port===st.port&&proof.session===st.sessionIndex&&proof.verifiedUid===st.uid?.hex&&
+   proof.stage==='verified'&&proof.plcEnabledInRam===true&&proof.powerRestored===true&&
+   proof.steps?.some(step=>step.ok&&step.command==='PWR_OFF 03E8')&&
+   proof.steps?.some(step=>step.ok&&step.command==='PWR_ON 0C80 00C8 0 -> PLC T');
+ }
  function i2cNvmSupported(){
   return st.iface==='i2c'&&st.adapterKind==='bridge'&&st.bridgeI2cNvm;
  }
@@ -1661,7 +1677,8 @@ if(typeof document!=='undefined') (function UI(){
    const field=$(id);
    if(!field)continue;
    field.hidden=!outputPreflight.required;
-   if(outputPreflight.required)field.textContent=
+   if(outputPreflight.required)field.textContent=outputPreflight.reason===CAL.AODO_PLC_CONFLICT?
+    outputPreflight.reason:
     'Ausgangsskalierung für den aktuellen DSP-Bereich fehlt: '+outputPreflight.reason+
     '. Im Schritt «Ausgang» die Skalierung für S0/S1 neu berechnen und «Ausgangskonfiguration prüfen und vormerken» anklicken. Erst danach zum NVM wechseln. Die aktuellen Messpunkte bleiben erhalten.';
   }
@@ -1723,7 +1740,22 @@ if(typeof document!=='undefined') (function UI(){
   const cookieVerified=psscRecoveryProven()||bridgeColdStartVerified();
   const liveSsp3Calibration=!restoring&&!outputOnly&&!alarmOnly&&
    ssp3CalibrationWithoutRestart(st.calImage?.before,st.calImage?.after,st.calImage?.recoveryCombined);
-  if(outputStatus&&st.iface==='i2c'){
+  const analogPinBlocked=startup?.permanent&&['1','2','3'].includes($('expertOutputMode').value);
+  const timedOneWire=$('outputTimedOneWire');
+  if(timedOneWire){
+   const available=analogPinBlocked&&timedOneWireReady(st.nvmBackup);
+   const owner=available?st.sessionIndex+':'+st.uid.hex:'';
+   if(timedOneWire.dataset.owner!==owner)timedOneWire.checked=false;
+   timedOneWire.dataset.owner=owner;
+   timedOneWire.disabled=!available;
+   $('outputTimedOneWireOption').hidden=!available;
+  }
+  if(outputStatus&&analogPinBlocked){
+   outputStatus.textContent=timedOneWire&&!timedOneWire.disabled?
+    'AODO ist momentan für One-Wire belegt. Wähle das 200-ms-Startfenster und prüfe die Ausgangskonfiguration.':
+    CAL.AODO_PLC_CONFLICT;
+   outputStatus.className='callout warn';
+  }else if(outputStatus&&st.iface==='i2c'){
    outputStatus.textContent=i2cBlock||'I²C-Kaltstart bestätigt. Schnittstellen- und Boot-Einstellungen bleiben erhalten.';
    outputStatus.className='callout '+(i2cBlock?'warn':'success');
   }else if(outputStatus){
@@ -1733,7 +1765,8 @@ if(typeof document!=='undefined') (function UI(){
    outputStatus.textContent=!connected?
     '1-Wire-Verbindung zum Chip nicht bestätigt. Dauerhaftes NVM-Schreiben gesperrt.':
     saved?
-     safeSaved?'One-Wire-Startfenster '+saved.windowLabel+' bleibt im NVM erhalten (AODO-Modus '+saved.mode+'). '+
+     safeSaved?(saved.permanent?'One-Wire ist im NVM dauerhaft aktiv. Es belegt AODO. ':
+      'One-Wire-Startfenster '+saved.windowLabel+' bleibt im NVM erhalten (AODO-Modus '+saved.mode+'). ')+
        (saved.requiresCookie?(cookieVerified?'Magic-Cookie-Start am aktuellen Chip bestätigt.':
         'Laufender SSP3-Zugriff bestätigt.'):'Direkter Registerzugriff aktiv.')+
        ' Boot-/Interface-Register bleiben unverändert. Nach dem Schreiben Kaltstart prüfen.':
@@ -1749,6 +1782,9 @@ if(typeof document!=='undefined') (function UI(){
   const eepromReadBtn=$('eepromRead');
   if(eepromReadBtn)eepromReadBtn.disabled=!st.port||!st.chip||st.calTask||st.writing||st.nvmWorking;
   const outputNvmRead=$('outputNvmRead');if(outputNvmRead)outputNvmRead.disabled=!st.port||!st.chip||st.writing||st.calTask||st.nvmWorking;
+  if(!nvmReason&&!restoring&&!alarmOnly&&st.expertOutputPlan?.timedOneWire&&
+     (!timedOneWire?.checked||timedOneWire.disabled))
+   nvmReason=CAL.AODO_PLC_CONFLICT;
   if(!nvmReason&&alarmPlanSelected&&!alarmOnly)nvmReason='Alarmänderungen zuerst im RAM übernehmen und erfolgreich rücklesen.';
   if(!nvmReason&&alarmOnly&&!$('nvmAutoBackup').checked)nvmReason='Alarm-NVM: Automatische Sicherung des Original-EEPROM aktivieren.';
   if(!nvmReason)nvmReason=psscNvmBlock(st.calImage?.before,st.calImage?.after,restoring,outputOnly,alarmOnly,!!st.calImage?.recoveryCombined);
@@ -4314,6 +4350,8 @@ if(typeof document!=='undefined') (function UI(){
    // the explicit NVM diff/confirmation remains required.
    const selectedOutputMode=$('expertOutputMode').value;
    const explicitOutputPlan=st.expertOutputPlan;
+   if(explicitOutputPlan?.timedOneWire&&(!timedOneWireReady(st.nvmBackup)||!$('outputTimedOneWire')?.checked))
+    throw Error(CAL.AODO_PLC_CONFLICT);
    let outputPlan=explicitOutputPlan;
    // Never auto-authorize an AODO write after Magic Cookie.
    // The operator must explicitly confirm the scaling in the output step.
@@ -4366,7 +4404,10 @@ if(typeof document!=='undefined') (function UI(){
    image.recoveryCombined=recoveryCombined;
     image.activatePressureCorrection=activatePressureCorrection;
      image.operatingProfile=operatingProfile;
+   const timedOneWire=outputPlan?.timedOneWire===true;
    const includeAlarms=ELMOS_ALARM_EDITOR.pendingForCalibration();
+   if(timedOneWire&&includeAlarms)
+    throw Error('One-Wire-Umstellung und Alarmänderungen bitte separat programmieren.');
    if(st.alarmOnlyPlan?.duringCalibration&&!includeAlarms)
     throw Error('Alarmänderungen sind nicht erfolgreich im RAM geprüft. Im Schritt «Alarme & Fehler» prüfen oder bewusst auslassen.');
    if(includeAlarms){
@@ -4403,7 +4444,7 @@ if(typeof document!=='undefined') (function UI(){
     throw Error('Für diesen NVM-Plan fehlt der bestätigte Kaltstart. '+psscRecoveryEvidence());
    const recoveryBlock=psscNvmBlock(image.before,image.after,false,false,false,recoveryCombined);
    if(recoveryBlock)throw Error(recoveryBlock);
-   if(image.changes.some(c=>(c.index<28&&![16,22,CAL.SVDD_INDEX,...(operatingProfile?CAL.PROFILE_WORDS:[]),...(includeAlarms?[18]:[])].includes(c.index))||c.index===29))throw Error('Unzulässiges NVM-Register im Änderungsplan');
+   if(image.changes.some(c=>(c.index<28&&![16,22,CAL.SVDD_INDEX,...(operatingProfile?CAL.PROFILE_WORDS:[]),...(includeAlarms?[18]:[]),...(timedOneWire?[17,18]:[])].includes(c.index))||c.index===29))throw Error('Unzulässiges NVM-Register im Änderungsplan');
    if(!image.changes.length)throw Error('Keine NVM-Änderungen nötig');
    if(st.coldStartAfeRestored||(!demoEnabled&&!!activePreflight())){
     const port=st.port,session=st.sessionIndex,uid=st.uid.hex;
@@ -4417,7 +4458,9 @@ if(typeof document!=='undefined') (function UI(){
     const raw=`NVM 0x${h(c.address)} [${c.index}] 0x${h(c.from,2)} → 0x${h(c.to,2)}`;
     if(c.index===28&&operatingProfile?.afeMandatoryRepair)return 'AFE-Pflichtbit 11 und geprüfte Verstärkung · '+raw;
     if(c.index===16&&activatePressureCorrection)return 'DSP-Druckkorrektur: deaktiviert → aktiviert · '+raw;
-     if(c.index===30)return 'USER-ID · '+raw;
+    if(timedOneWire&&c.index===17)return 'One-Wire dauerhaft → ausschliesslich beim Sensorstart · '+raw;
+    if(timedOneWire&&c.index===18)return 'One-Wire-Startfenster → 200 ms · '+raw;
+    if(c.index===30)return 'USER-ID · '+raw;
     if(c.index===28&&((c.from^c.to)&0x1000))return 'Brückenpolarität: '+((c.from&0x1000)?'invertiert':'normal')+' → '+((c.to&0x1000)?'invertiert':'normal')+' · '+raw;
     if(c.index!==CAL.SVDD_INDEX)return raw;
     const voltages=['2,4 V','1,6 V','2,0 V','reserviert'];
@@ -4582,6 +4625,10 @@ if(typeof document!=='undefined') (function UI(){
    const recoveryBlock=psscNvmBlock(initial,modified,restoring,outputOnly,alarmOnly,!!st.calImage?.recoveryCombined);
    if(recoveryBlock)throw Error(recoveryBlock);
    const alarmIntegrated=!restoring&&!alarmOnly&&!outputOnly&&st.calImage?.alarmIntegrated===true;
+   const timedOneWire=!restoring&&!alarmOnly&&st.expertOutputPlan?.timedOneWire===true;
+   if(timedOneWire&&(alarmIntegrated||!timedOneWireReady(st.nvmBackup)||
+      !$('outputTimedOneWire')?.checked||$('outputTimedOneWire').disabled))
+    throw Error('Für die One-Wire-Umstellung den Programmer-Kaltstart und die Auswahl im Schritt «Ausgang» erneut bestätigen.');
    const allowSvdd=!restoring&&!outputOnly&&!alarmOnly;
     const operatingProfile=allowSvdd&&!demoEnabled?confirmedOperatingProfile():null;
     if(allowSvdd&&!demoEnabled){assertPreflightForFit();if(JSON.stringify(st.calImage.operatingProfile)!==JSON.stringify(operatingProfile))throw Error('Messprofil-Freigabe veraltet. Änderungsliste erneut erstellen.');}
@@ -4592,7 +4639,7 @@ if(typeof document!=='undefined') (function UI(){
      throw Error('DSP-Druckkorrektur: unzulässiger NVM-Übergang');
    if(st.adapterKind==='bridge'&&!st.bridgeUserNvm&&modified[CAL.SVDD_INDEX]!==initial[CAL.SVDD_INDEX])
     throw Error('Brückenspannung dauerhaft speichern wird derzeit nur mit SSP3 unterstützt.');
-   CAL.protectStartupCommunication(initial,modified,{allowSvdd,allowAlarmMask:alarmOnly||alarmIntegrated,allowPressureCorrection,operatingProfile,interfaceMode:st.iface});
+   CAL.protectStartupCommunication(initial,modified,{allowSvdd,allowAlarmMask:alarmOnly||alarmIntegrated,allowPressureCorrection,operatingProfile,interfaceMode:st.iface,allowTimedOneWire:timedOneWire});
    const startup=CAL.oneWireStartupStatus(initial);
    const liveSsp3Calibration=!restoring&&!outputOnly&&!alarmOnly&&(st.coldStartAfeRestored||!psscRecoveryProven())&&
     ssp3CalibrationWithoutRestart(initial,modified,!!st.calImage.recoveryCombined);
@@ -4612,8 +4659,8 @@ if(typeof document!=='undefined') (function UI(){
    if(!restoring&&!outputOnly&&!alarmOnly&&st.calfit.stats.maxDigits>100)throw Error('Fitfehler zu gross (>100 Digits)');
    if(!restoring&&!outputOnly&&!alarmOnly&&modified[30]!==(requestedNvmUserId()??initial[30]))
     throw Error('USER-ID wurde geändert. Änderungsliste erneut vorbereiten.');
-   const allowedNormal=new Set([16,22,CAL.SVDD_INDEX,...(operatingProfile?CAL.PROFILE_WORDS:[]),28,30,31,32,33,34,...Array.from({length:16},(_,i)=>35+i),51,52,53,54,57,58,59,60,63,...(alarmIntegrated?[18,55,56,61,62]:[])]);
-   if(st.calImage.changes.some(c=>restoring?(c.index<28||c.index>63):alarmOnly?![16,18,55,56,61,62,63].includes(c.index):outputOnly?![16,22,57,58,59,60,63].includes(c.index):!allowedNormal.has(c.index)))throw Error('Unzulässige NVM-Änderung');
+   const allowedNormal=new Set([16,22,CAL.SVDD_INDEX,...(operatingProfile?CAL.PROFILE_WORDS:[]),28,30,31,32,33,34,...Array.from({length:16},(_,i)=>35+i),51,52,53,54,57,58,59,60,63,...(timedOneWire?[17,18]:[]),...(alarmIntegrated?[18,55,56,61,62]:[])]);
+   if(st.calImage.changes.some(c=>restoring?(c.index<28||c.index>63):alarmOnly?![16,18,55,56,61,62,63].includes(c.index):outputOnly?![16,22,57,58,59,60,63,...(timedOneWire?[17,18]:[])].includes(c.index):!allowedNormal.has(c.index)))throw Error('Unzulässige NVM-Änderung');
    if(alarmIntegrated){
     if(!(st.adapterKind==='ssp3'||st.bridgeUserNvm)||!ELMOS_ALARM_EDITOR.pendingForCalibration()||!$('nvmAutoBackup').checked)
      throw Error('Gemeinsamer Alarm-NVM-Plan nicht mehr bestätigt. Alarm-RAM erneut prüfen und Original sichern.');
@@ -4630,11 +4677,11 @@ if(typeof document!=='undefined') (function UI(){
     ELMOS_ALARM_CONFIG.validateDiff(initial,modified,CAL.crc16);
     if(initial[18]!==modified[18]&&((initial[18]^modified[18])&0xF000))
      throw Error('Alarm-Statusmaske darf Startfenster nicht verändern.');
-   }else if(outputOnly||[22,57,58,59,60].some(i=>initial[i]!==modified[i])||
+   }else if(outputOnly||[22,57,58,59,60].some(i=>initial[i]!==modified[i])||timedOneWire||
       ((initial[16]^modified[16])&((7<<9)|(1<<6)|(1<<7)))!==0){
     if(!st.expertOutputPlan)throw Error('AODO-NVM-Änderung ohne geprüften Expertenvorschlag');
     const expected=CAL.prepareOutputConfig(initial,st.expertOutputPlan,outputOnly?st.outputOnlyPlan.limit:st.calfit.outputLimit,{interfaceMode:st.iface});
-    for(const i of [16,22,57,58,59,60]){
+    for(const i of [16,22,57,58,59,60,...(timedOneWire?[17,18]:[])]){
      const ignoreMask=i===16?((alarmIntegrated?((1<<5)|(1<<8)):0)|(allowPressureCorrection?3:0)|(operatingProfile?.temperatureEnable?12:0)):0;
       const mismatch=((modified[i]^expected[i])&~ignoreMask)!==0;
      if(mismatch)throw Error('Ausgangsregister entspricht nicht dem geprüften Vorschlag');
@@ -4695,10 +4742,12 @@ if(typeof document!=='undefined') (function UI(){
      throw Error(`Chip-NVM hat sich seit dem Backup verändert (Index ${i}). Änderungsliste erneut vorbereiten.`);
     }
    }
+   if(timedOneWire&&(!timedOneWireReady(st.nvmBackup)||await readReg(0x06)!==initial[17]))
+    throw Error('One-Wire-Startnachweis oder aktives Schnittstellenregister hat sich seit der Vorschau geändert.');
    const finalRecoveryBlock=psscNvmBlock(initial,modified,restoring,outputOnly,alarmOnly,!!st.calImage?.recoveryCombined);
    if(finalRecoveryBlock)throw Error(finalRecoveryBlock);
-   CAL.protectStartupCommunication(initial,modified,{allowSvdd,allowAlarmMask:alarmOnly||alarmIntegrated,allowPressureCorrection,operatingProfile,interfaceMode:st.iface});
-   for(let i=0;i<28;i++)if(modified[i]!==initial[i]&&(restoring||![16,...((alarmOnly||alarmIntegrated)?[18,22]:[22]),...(allowSvdd?[CAL.SVDD_INDEX]:[]),...(operatingProfile?CAL.PROFILE_WORDS:[])].includes(i)))throw Error('Boot-/Werksbereich verändert');
+   CAL.protectStartupCommunication(initial,modified,{allowSvdd,allowAlarmMask:alarmOnly||alarmIntegrated,allowPressureCorrection,operatingProfile,interfaceMode:st.iface,allowTimedOneWire:timedOneWire});
+   for(let i=0;i<28;i++)if(modified[i]!==initial[i]&&(restoring||![16,...(timedOneWire?[17,18]:[]),...((alarmOnly||alarmIntegrated)?[18,22]:[22]),...(allowSvdd?[CAL.SVDD_INDEX]:[]),...(operatingProfile?CAL.PROFILE_WORDS:[])].includes(i)))throw Error('Boot-/Werksbereich verändert');
    if(liveSsp3Calibration){
     if(st.coldStartAfeRestored)await verifyRecoveredCalibrationProfile(modified);
     for(const [address,value] of activeCalibrationRamWords()){
@@ -4734,7 +4783,8 @@ if(typeof document!=='undefined') (function UI(){
    }
    for(const x of [0x98BD,0x25BF,0x36D8])await maintWrite(0x4E,x);
    const status=await readReg(0x46);if(!(status&8))throw Error('NVM User-Bereich nicht freigegeben (CM_STATUS.ep_en=0)');
-   const changes=st.calImage.changes.slice().sort((a,b)=>a.index===63?1:b.index===63?-1:a.index-b.index);
+   const order=index=>timedOneWire&&index===17?62.5:index;
+   const changes=st.calImage.changes.slice().sort((a,b)=>order(a.index)-order(b.index));
    nvmWriteFeedback('NVM-Programmierung beginnt: '+changes.length+' geänderte Wörter …','progress',0,changes.length);
    let done=0;for(const c of changes){
     if(c.index<16||c.index>63)throw Error('Werksbereich gesperrt');
@@ -4780,13 +4830,15 @@ if(typeof document!=='undefined') (function UI(){
    }catch(archiveError){
     logging('KRITISCH: NVM erfolgreich geschrieben, Archiv-/Komplett-Export fehlgeschlagen: '+archiveError.message);
     ca('backupMsg','Sensor-NVM erfolgreich verifiziert, aber die vollständige Abgleichdatei konnte nicht gespeichert werden! Archivordner prüfen und Protokoll abschliessen.','error');
-   }st.calImage=null;st.restorePlan=null;st.outputOnlyPlan=null;st.alarmOnlyPlan=null;st.alarmCalibrationSkipped=true;if(saveOldNvm)expert.afterNvmScan();const previousProgram=storedProgrammedNvm();
+   }
+   if(timedOneWire)st.expertOutputPlan=null;
+   st.calImage=null;st.restorePlan=null;st.outputOnlyPlan=null;st.alarmOnlyPlan=null;st.alarmCalibrationSkipped=true;if(saveOldNvm)expert.afterNvmScan();const previousProgram=storedProgrammedNvm();
    const carryTemperatureBasis=!restoring&&CAL.programmedTemperatureProfileMatches(
     previousProgram,id,Object.fromEntries([[31,0x6C],[32,0x6E],[51,0x94],[52,0x96],[53,0x98],[54,0x9A]]
      .map(([word,address])=>[address,after[word]])));
    const temperatureBasis=!restoring&&!outputOnly&&!alarmOnly&&st.calfit?.orderT>0?
     'an0203-celsius-v1':carryTemperatureBasis?'an0203-celsius-v1':null;
-   const outputTarget=!restoring&&!alarmOnly&&Number.isInteger(verifiedOutputLimit)&&((after[16]>>9)&7)>=1&&((after[16]>>9)&7)<=3?
+   const outputTarget=!restoring&&!alarmOnly&&!CAL.aodoPinBlocked(after)&&Number.isInteger(verifiedOutputLimit)&&((after[16]>>9)&7)>=1&&((after[16]>>9)&7)<=3?
     {s0:Number($('psscS0').value),s1:Number($('psscS1').value),
      vdd:Number($('psscVdd').value),limit:verifiedOutputLimit}:null;
    lsSet('elmos8-last-program',JSON.stringify({
@@ -4895,7 +4947,10 @@ if(typeof document!=='undefined') (function UI(){
    for(const [index,addr] of [[16,4],[17,6],[18,8],[19,10],[20,12],[22,16]]){
     const expectedWord=recoveredAfterBoot&&addr===6?0x6C04:st.nvmBackup[index];
     const matches=addr===6&&st.iface==='i2c'?
-     CAL.i2cBootRegisterMatches(st.nvmBackup,boot[addr]):boot[addr]===expectedWord;
+     CAL.i2cBootRegisterMatches(st.nvmBackup,boot[addr]):
+     boot[addr]===expectedWord||
+      (addr===6&&st.iface==='plc'&&!CAL.aodoPinBlocked(st.nvmBackup)&&
+       boot[addr]===(expectedWord|4)&&(psscRecoveryProven()||recoveredAfterBoot));
     if(!matches)throw Error('RAM-Bootregister 0x'+h(addr)+' weicht vom NVM-Backup ab');
    }
    const actualSvdd=bridgeSupplyCode(await readReg(R_BRIDGE));
