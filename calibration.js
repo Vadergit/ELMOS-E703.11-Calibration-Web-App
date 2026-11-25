@@ -267,7 +267,7 @@ const ELMOS_CAL = (() => {
  function afeRepairAllowed(before,after,profile){
   return profile?.afeMandatoryRepair===true&&uncalibratedAfeBlank(before)&&!!(after[28]&0x0800)&&((before[28]^after[28])&0xe000)===0;
  }
- function planCalibrationProfile(original,ram,{orderT=0,recovery=false,allowOperatingChanges=false,allowSingleMeasurement=false,filterCatalog=[]}={}){
+ function planCalibrationProfile(original,ram,{orderT=0,recovery=false,allowOperatingChanges=false,allowSingleMeasurement=false,allowBridgeSupplyChange=!recovery,filterCatalog=[]}={}){
   if(!sameNvmImage(original,original))throw Error('NVM-Vorabprüfung benötigt 64 gültige Wörter');
   for(const [addr] of PROFILE_REGS)if(!word16(ram[addr]))throw Error('Messregister 0x'+addr.toString(16)+' fehlt');
   if(![0,1,2,3].includes(orderT))throw Error('Ungültige Temperaturordnung');
@@ -290,9 +290,13 @@ const ELMOS_CAL = (() => {
    if(PROFILE_WORDS.includes(index))continue;
    let mask=0xffff;
    if(index===16)mask=0xff30;
-   if(index===27)mask=recovery?0xffff:0xfffc;
+   if(index===SVDD_INDEX)mask=allowBridgeSupplyChange?0xffff&~SVDD_MASK:0xffff;
    if(index===28)mask=afeMandatoryRepair?0xe000:0xe800;
-   if(((original[index]^ram[addr])&mask)!==0)throw Error('Messprofil: Register 0x'+addr.toString(16)+' weicht vom Original-NVM ab');
+   if(((original[index]^ram[addr])&mask)!==0){
+    const hex=value=>'0x'+value.toString(16).toUpperCase().padStart(4,'0');
+    const register=index===SVDD_INDEX?'CFG_AFE0 (0x1A)':'Register 0x'+addr.toString(16);
+    throw Error('Messprofil: '+register+' weicht vom Original-NVM ab (RAM '+hex(ram[addr])+', NVM '+hex(original[index])+')');
+   }
   }
   if(ram[0x0e]===0)throw Error('CFG_PERIOD: keine aktive Messung');
   if(ram[0x0e]===2&&(!allowSingleMeasurement||original[21]!==2))throw Error('CFG_PERIOD: Einzelmessungsprofil vor Abgleich auf unterstützten kontinuierlichen Betrieb einstellen');
@@ -303,6 +307,10 @@ const ELMOS_CAL = (() => {
    if(values[0]!==1)throw Error('Geändertes Messprofil benötigt bestätigten kontinuierlichen CFG_PERIOD=1');
    if(values.slice(1).some((v,k)=>v!==original[k+24])&&!filterCatalog.some(f=>f.length===3&&f.every((v,k)=>v===values[k+1])))throw Error('Abweichende Filter sind kein dokumentiertes Profil');
   }
+  const svdd=ram[0x1a]&SVDD_MASK;
+  if(svdd===SVDD_MASK)throw Error('CFG_AFE0: Brückenspannungsstufe 3 ist reserviert.');
+  if((original[SVDD_INDEX]&SVDD_MASK)!==svdd)
+   changed.push({index:SVDD_INDEX,from:original[SVDD_INDEX],to:ram[0x1a]});
   if(temperatureEnable||pressureActivation){
    let target=original[16];
    if(temperatureEnable)target=(target&~12)|4;

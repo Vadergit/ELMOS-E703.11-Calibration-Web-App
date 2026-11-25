@@ -1139,7 +1139,8 @@ if(typeof document!=='undefined') (function UI(){
    if(await readCalibrationUid()!==uid)throw Error('Physische Chip-UID weicht vor Messung ab.');
    const ram=await readCalibrationProfile(),reference=calibrationReferenceSnapshot();
    if(st.port!==port||st.sessionIndex!==session||st.uid?.hex!==uid||!hasCurrentNvmBackup()||!CAL.sameNvmImage(words,st.nvmBackup))throw Error('Sensor oder Original-NVM während Vorabprüfung geändert.');
-   const plan=CAL.planCalibrationProfile(words,ram,{orderT:Number($('calTOrder').value),recovery,allowOperatingChanges,allowSingleMeasurement:st.iface==='i2c'&&st.adapterKind==='bridge',filterCatalog:filterProfiles.map(f=>f[1])});
+   const allowBridgeSupplyChange=!recovery||st.adapterKind==='bridge'&&bridgeCombinedRecoveryReady();
+   const plan=CAL.planCalibrationProfile(words,ram,{orderT:Number($('calTOrder').value),recovery,allowOperatingChanges,allowBridgeSupplyChange,allowSingleMeasurement:st.iface==='i2c'&&st.adapterKind==='bridge',filterCatalog:filterProfiles.map(f=>f[1])});
    const previous=activePreflight();
    const same=previous&&CAL.sameMeasurementProfile(previous.ram,ram)&&
     previous.allowOperatingChanges===allowOperatingChanges&&JSON.stringify(previous.plan)===JSON.stringify(plan)&&
@@ -1157,7 +1158,9 @@ if(typeof document!=='undefined') (function UI(){
      (x.index===16&&(x.from&3)===0&&x.to===((x.from&~3)|2))||
      (x.index===28&&plan.afeMandatoryRepair&&x.from===0&&x.to===ram[0x1c]));
    if(!same&&!routineFirstCalibration&&(plan.changed.length||plan.replaceTemperature||plan.temperatureRamChange)){
-    const details=plan.changed.map(x=>'NVM '+x.index+': 0x'+h(x.from,2)+' → 0x'+h(x.to,2)).join('\n')+(plan.temperatureRamChange?'\nRAM-Temperaturmodus wird vor DSP-Verifikation an das bestätigte Ziel angepasst.':'');
+    const details=plan.changed.map(x=>x.index===CAL.SVDD_INDEX?
+     'Brückenspannung SVDD: '+(BRIDGE_VOLTAGES[bridgeSupplyCode(x.from)]??'reserviert')+' → '+BRIDGE_VOLTAGES[bridgeSupplyCode(x.to)]+' V':
+     'NVM '+x.index+': 0x'+h(x.from,2)+' → 0x'+h(x.to,2)).join('\n')+(plan.temperatureRamChange?'\nRAM-Temperaturmodus wird vor DSP-Verifikation an das bestätigte Ziel angepasst.':'');
     if(!window.confirm('NVM-Vorabprüfung – folgende Änderungen erst nach bestandenem DSP-Test speichern:\n'+details+
      (plan.replaceTemperature?'\nACHTUNG: Der bisher temperaturkompensierte Druckabgleich wird durch einen Abgleich ohne TK ersetzt. Soll die TK erhalten bleiben, abbrechen und Temperaturabgleich wählen.':'')+'\nFortfahren?'))throw Error('Änderungen nicht bestätigt.');
    }

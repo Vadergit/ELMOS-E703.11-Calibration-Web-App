@@ -1,3 +1,8 @@
+## v0.7.176 – Brückenspannung beim ESP32-Neuabgleich
+
+- Nach verifiziertem ESP32-C3-Kaltstart darf eine bestätigte Änderung der Brückenspannung (SVDD) aus dem RAM in den Abgleich übernommen werden. Die Vorabprüfung zeigt die Änderung an. Andere Abweichungen in CFG_AFE0 und reservierte SVDD-Stufen bleiben gesperrt.
+- Bei einer unerwarteten Abweichung zeigt die Vorabprüfung die tatsächlich gelesenen RAM- und NVM-Werte an.
+
 ## v0.7.175 – 4-ms-Startfenster für One-Wire
 
 - Die Umstellung auf Analogbetrieb verwendet das 4-ms-One-Wire-Startfenster. Ist es im NVM bereits eingestellt, wird für das Interface nur das dauerhafte One-Wire-Bit gelöscht.

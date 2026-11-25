@@ -27,6 +27,20 @@ test('changed filter and continuous period require explicit permission',()=>{
  const bad=b.slice();bad[17]^=4;assert.throws(()=>C.protectStartupCommunication(a,bad,{operatingProfile:p}));
  active[20]^=1;assert.throws(()=>C.planCalibrationProfile(a,active,{allowOperatingChanges:true,filterCatalog:cat}),/dokumentiertes Profil/);
 });
+test('confirmed bridge recovery may adopt the live SVDD without accepting other CFG_AFE0 changes',()=>{
+ const a=w();a[C.SVDD_INDEX]=0x0D02;a[63]=C.crc16(a);
+ const active=ram(a);active[0x1A]=0x0D00;
+ assert.throws(()=>C.planCalibrationProfile(a,active,{recovery:true}),/CFG_AFE0.*RAM 0x0D00, NVM 0x0D02/);
+ const options={recovery:true,allowBridgeSupplyChange:true};
+ const plan=C.planCalibrationProfile(a,active,options);
+ assert.deepEqual(plan.changed,[{index:C.SVDD_INDEX,from:0x0D02,to:0x0D00}]);
+ const image=C.configFrom(a,fit(0),a[28],{bridgeSupply:active[0x1A]&C.SVDD_MASK});
+ assert.equal(image.after[C.SVDD_INDEX],0x0D00);
+ assert.doesNotThrow(()=>C.validateRecoveryCalibrationDiff(a,image.after));
+ assert.throws(()=>C.planCalibrationProfile(a,{...active,0x1A:0x0D04},options),/CFG_AFE0/);
+ assert.throws(()=>C.planCalibrationProfile(a,{...active,0x1A:0x0D03},options),/reserviert/);
+ assert.equal(C.sameMeasurementProfile(active,ram(a)),false);
+});
 test('existing single measurement mode preserved on supported I2C programmer',()=>{
  const a=w();a[21]=2;
  assert.throws(()=>C.planCalibrationProfile(a,ram(a)),/Einzelmessungsprofil/);
@@ -50,14 +64,18 @@ test('unsafe starting states fail before calibration',()=>{
 });
 
 const preflightApp=require('node:fs').readFileSync(require('node:path').join(__dirname,'../app.js'),'utf8');
-function simulatePreflight({cookie=false,cold=false,first=false,temperature=false,confirm=true}={}){
+function simulatePreflight({cookie=false,cold=false,first=false,temperature=false,confirm=true,esp32=false}={}){
  const words=first?firstCalibrationImage():w();
  if(temperature){words[16]|=4;words[36]=42;words[63]=C.crc16(words);}
  if(cookie){words[17]=0;words[19]&=~(1<<7);words[63]=C.crc16(words);}
  const active=ram(words),fields={pmin:'0',pmax:'6',calUnit:'bar',calUnitOther:'',calPointCount:'3',calTempSource:'internal',calTOrder:'0',calSOrder:'1',calFitMode:'pressure',calLoTemp:'25',calHiTemp:'25',calExtra1Pressure:'0',calExtra1Temp:'75',expertOutputMode:'1'};
  const st={iface:'plc',adapterKind:'ssp3',port:{},chip:true,uid:{hex:'002000123456'},sessionIndex:1,nvmBackup:words,regs:{6:words[17]},calpoints:[]};
+ if(esp32){
+  st.adapterKind='bridge';st.psscRamRecovery=true;st.bridgeUserNvm=true;
+  words[C.SVDD_INDEX]=0x0D02;words[63]=C.crc16(words);active[0x1a]=0x0D00;
+ }
  if(first){active[4]=0x1216;active[14]=1;active[28]=0x0900;st.coldStartAfeRestored=true;}
- let confirmations=0,scans=0;
+ let confirmations=0,scans=0,confirmationText='';
  const statuses=[];
  const $=id=>({value:fields[id]??'',checked:true});
  const section=(a,b)=>preflightApp.slice(preflightApp.indexOf(a),preflightApp.indexOf(b,preflightApp.indexOf(a)));
@@ -65,9 +83,9 @@ function simulatePreflight({cookie=false,cold=false,first=false,temperature=fals
   section('function retainedCalibrationReferencesMatch(','const checkpointKey=')+
   section('function activePreflight(','function confirmedOperatingProfile(')+
   section('async function calibrationPreflight(','async function restoreCalibrationCheckpoint(')+'\nreturn calibrationPreflight;';
- const run=new Function('st','CAL','$','demoEnabled','nvmTransportSupported','hasCurrentNvmBackup','psscRecoveryProven','refreshPsscRecoveryProofReadOnly','bridgeColdStartVerified','stopLive','startLive','readCalibrationUid','readCalibrationProfile','filterProfiles','storedCalibrationCheckpoint','show','renderStatus','pressureUnit','window','h','nvmScan',code)(
-  st,C,$,false,()=>true,()=>true,()=>cold,async()=>{},()=>false,()=>{},()=>{},async()=>st.uid.hex,async()=>({...active}),cat.map(p=>['test',p]),()=>null,(...args)=>statuses.push(args),()=>{},()=>fields.calUnit,{confirm:()=>{confirmations++;return confirm}},v=>v.toString(16),async()=>{scans++});
- return {run,st,active,fields,statuses,counts:()=>({confirmations,scans})};
+ const run=new Function('st','CAL','$','demoEnabled','nvmTransportSupported','hasCurrentNvmBackup','psscRecoveryProven','refreshPsscRecoveryProofReadOnly','bridgeColdStartVerified','bridgeCombinedRecoveryReady','BRIDGE_VOLTAGES','bridgeSupplyCode','stopLive','startLive','readCalibrationUid','readCalibrationProfile','filterProfiles','storedCalibrationCheckpoint','show','renderStatus','pressureUnit','window','h','nvmScan',code)(
+  st,C,$,false,()=>true,()=>true,()=>cold&&!esp32,async()=>{},()=>esp32&&cold,()=>esp32&&cold,[2.4,1.6,2.0],word=>word&3,()=>{},()=>{},async()=>st.uid.hex,async()=>({...active}),cat.map(p=>['test',p]),()=>null,(...args)=>statuses.push(args),()=>{},()=>fields.calUnit,{confirm:message=>{confirmationText=message;confirmations++;return confirm}},v=>v.toString(16),async()=>{scans++});
+ return {run,st,active,fields,statuses,confirmationText:()=>confirmationText,counts:()=>({confirmations,scans})};
 }
 test('preflight keeps valid points when only an uncaptured or removed reference is corrected',async()=>{
  const {run,st,fields,active}=simulatePreflight();
@@ -95,6 +113,18 @@ test('preflight catches missing cookie cold-start proof before the first measure
  assert.equal(blocked.st.calibrationPreflight,undefined);
  const ready=simulatePreflight({cookie:true,cold:true});
  assert.ok(await ready.run());
+});
+
+test('ESP32 recovery shows the changed bridge voltage before accepting a measurement profile',async()=>{
+ const ready=simulatePreflight({esp32:true,cold:true});
+ const proof=await ready.run();
+ assert.match(ready.confirmationText(),/Brückenspannung SVDD: 2 → 2.4 V/);
+ assert.equal(proof.ram[0x1A],0x0D00);
+ const missingColdStart=simulatePreflight({esp32:true});
+ await assert.rejects(missingColdStart.run(),/Kaltstart/);
+ const declined=simulatePreflight({esp32:true,cold:true,confirm:false});
+ await assert.rejects(declined.run(),/Änderungen nicht bestätigt/);
+ assert.equal(declined.st.calibrationPreflight,undefined);
 });
 
 function firstCalibrationImage(){
