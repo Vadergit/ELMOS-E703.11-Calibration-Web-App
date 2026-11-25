@@ -73,11 +73,15 @@ test('Permanent One-Wire blocks analog output until an explicit timed conversion
  const conversion={...output,timedOneWire:true};
  const image=C.configFrom(orig,fit,0x0800,{output:conversion,interfaceMode:'plc'});
  const changed=C.prepareOutputConfig(orig,conversion,30000,{interfaceMode:'plc'});
- assert.deepEqual(changed.map((word,index)=>word===orig[index]?null:index).filter(Number.isInteger),[17,18]);
+ assert.deepEqual(changed.map((word,index)=>word===orig[index]?null:index).filter(Number.isInteger),[17]);
  assert.equal(image.after[17],0x6C02);
- assert.equal(image.after[18],0x6000);
+ assert.equal(image.after[18],0x4000);
  assert.equal(image.after[63],C.crc16(image.after));
- assert.equal(C.oneWireStartupStatus(image.after).windowLabel,'200 ms');
+ assert.equal(C.oneWireStartupStatus(image.after).windowLabel,'4 ms');
+ const withLongWindow=orig.slice();
+ withLongWindow[18]|=0x2000;
+ const shortened=C.prepareOutputConfig(withLongWindow,conversion,30000,{interfaceMode:'plc'});
+ assert.equal(shortened[18],0x4000);
  assert.equal(C.analogOutputStatus(image.after,.5,4.5,5,30000).ok,true);
  assert.throws(()=>C.prepareOutputConfig(orig,conversion,30000,{interfaceMode:'i2c'}),/Startschutz/);
  assert.throws(()=>C.protectStartupCommunication(orig,changed),/Startschutz/);
@@ -87,6 +91,18 @@ test('Permanent One-Wire blocks analog output until an explicit timed conversion
  }
 });
 
+test('One-Wire cold-start verification accepts only documented RAM overrides',()=>{
+ const w=originalNvm();
+ w[17]=0x6C00;w[18]=0xC000;w[19]=0x081F;
+ assert.equal(C.oneWireBootRegisterMatches(w,0x6C04,6,{startupAccess:true}),true);
+ assert.equal(C.oneWireBootRegisterMatches(w,0x099F,10,{startupAccess:true}),true);
+ assert.equal(C.oneWireBootRegisterMatches(w,0x099F,10),false);
+ assert.equal(C.oneWireBootRegisterMatches(w,0x199F,10,{startupAccess:true}),false);
+ w[17]=0x6C02;
+ assert.equal(C.oneWireBootRegisterMatches(w,0x6C04,6,{startupAccess:true}),false);
+ assert.equal(C.oneWireBootRegisterMatches(w,0x6C04,6,{startupAccess:true,psscRecovery:true}),true);
+ assert.equal(C.oneWireBootRegisterMatches(w,0x7C04,6,{startupAccess:true,psscRecovery:true}),false);
+});
 test('calibration-only image still reveals a missing AODO plan',()=>{
  const orig=originalNvm();
  const fit=C.fit(firstTwo,{pmin:0,pmax:100,outputLimit:32000});

@@ -530,7 +530,7 @@ const ELMOS_EXPERT=(()=>{
      st.expertOutputPlan=values;
      $('nvmDiff').textContent=changes.map(({index,address,from,to})=>{
       const prefix=values.timedOneWire&&index===17?'One-Wire dauerhaft → nur beim Sensorstart · ':
-       values.timedOneWire&&index===18?'One-Wire-Startfenster → 200 ms · ':'';
+       values.timedOneWire&&index===18?'One-Wire-Startfenster → 4 ms · ':'';
       return prefix+'NVM 0x'+hx(address)+' ['+index+'] 0x'+hx(from)+' → 0x'+hx(to);
      }).join('\n');
      const bridgeRecovered=st.adapterKind==='bridge'&&!st.bridgeUserNvm&&

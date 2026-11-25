@@ -1752,7 +1752,7 @@ if(typeof document!=='undefined') (function UI(){
   }
   if(outputStatus&&analogPinBlocked){
    outputStatus.textContent=timedOneWire&&!timedOneWire.disabled?
-    'AODO ist momentan für One-Wire belegt. Wähle das 200-ms-Startfenster und prüfe die Ausgangskonfiguration.':
+    'AODO ist momentan für One-Wire belegt. Wähle das 4-ms-Startfenster und prüfe die Ausgangskonfiguration.':
     CAL.AODO_PLC_CONFLICT;
    outputStatus.className='callout warn';
   }else if(outputStatus&&st.iface==='i2c'){
@@ -4459,7 +4459,7 @@ if(typeof document!=='undefined') (function UI(){
     if(c.index===28&&operatingProfile?.afeMandatoryRepair)return 'AFE-Pflichtbit 11 und geprüfte Verstärkung · '+raw;
     if(c.index===16&&activatePressureCorrection)return 'DSP-Druckkorrektur: deaktiviert → aktiviert · '+raw;
     if(timedOneWire&&c.index===17)return 'One-Wire dauerhaft → ausschliesslich beim Sensorstart · '+raw;
-    if(timedOneWire&&c.index===18)return 'One-Wire-Startfenster → 200 ms · '+raw;
+    if(timedOneWire&&c.index===18)return 'One-Wire-Startfenster → 4 ms · '+raw;
     if(c.index===30)return 'USER-ID · '+raw;
     if(c.index===28&&((c.from^c.to)&0x1000))return 'Brückenpolarität: '+((c.from&0x1000)?'invertiert':'normal')+' → '+((c.to&0x1000)?'invertiert':'normal')+' · '+raw;
     if(c.index!==CAL.SVDD_INDEX)return raw;
@@ -4944,13 +4944,14 @@ if(typeof document!=='undefined') (function UI(){
     if(!out.checked||!out.ok)throw Error('AODO stimmt nach Neustart nicht mit dem gespeicherten Spannungsziel überein: '+out.reason);
    }
    const boot=await bootSnapshot();
+   const startupAccess=st.iface==='plc'&&(automatic||psscRecoveryProven()||bridgeColdStartVerified());
+   const psscRecovery=recoveredAfterBoot||st.psscRamRecovery;
    for(const [index,addr] of [[16,4],[17,6],[18,8],[19,10],[20,12],[22,16]]){
-    const expectedWord=recoveredAfterBoot&&addr===6?0x6C04:st.nvmBackup[index];
     const matches=addr===6&&st.iface==='i2c'?
      CAL.i2cBootRegisterMatches(st.nvmBackup,boot[addr]):
-     boot[addr]===expectedWord||
-      (addr===6&&st.iface==='plc'&&!CAL.aodoPinBlocked(st.nvmBackup)&&
-       boot[addr]===(expectedWord|4)&&(psscRecoveryProven()||recoveredAfterBoot));
+     st.iface==='plc'&&(addr===6||addr===10)?
+      CAL.oneWireBootRegisterMatches(st.nvmBackup,boot[addr],addr,{startupAccess,psscRecovery}):
+      boot[addr]===st.nvmBackup[index];
     if(!matches)throw Error('RAM-Bootregister 0x'+h(addr)+' weicht vom NVM-Backup ab');
    }
    const actualSvdd=bridgeSupplyCode(await readReg(R_BRIDGE));

@@ -236,6 +236,16 @@ const ELMOS_CAL = (() => {
   return selection===3&&(stored&3)>=1&&(stored&3)<=2&&actual===stored;
  }
 
+ // The startup cookie can enable PLC, upstream and register access in RAM.
+ // The PSSC recovery broadcast may also replace the low interface-mode bits.
+ function oneWireBootRegisterMatches(words,actual,register,{startupAccess=false,psscRecovery=false}={}){
+  const stored=words[register===6?17:19];
+  if(actual===stored)return true;
+  if(!startupAccess||aodoPinBlocked(words))return false;
+  if(register===10)return actual===(stored|0x0180);
+  return actual===(stored|4)||(psscRecovery&&(stored&0xFFFC)===0x6C00&&actual===0x6C04);
+ }
+
  // The profile is an explicitly confirmed target, not a hardware write permission.
  const PROFILE_REGS=Object.freeze([[0x00,13],[0x02,14],[0x04,16],[0x0E,21],[0x14,24],[0x16,25],[0x18,26],[0x1A,27],[0x1C,28],[0x1E,29]].map(Object.freeze));
  const PROFILE_WORDS=Object.freeze([21,24,25,26]);
@@ -318,7 +328,7 @@ const ELMOS_CAL = (() => {
  function aodoPinBlocked(words){
   return !!(words[17]&4);
  }
- const AODO_PLC_CONFLICT='Dauerhaftes One-Wire belegt AODO. Für Analogbetrieb One-Wire auf ein Startfenster von 200 ms umstellen. Dazu zuerst den Sensor-Kaltstart über den Programmer bestätigen.';
+ const AODO_PLC_CONFLICT='Dauerhaftes One-Wire belegt AODO. Für Analogbetrieb One-Wire auf das Standard-Startfenster von 4 ms umstellen. Dazu zuerst den Sensor-Kaltstart über den Programmer bestätigen.';
  function protectStartupCommunication(before,after,{allowTimedOneWire=false,allowSvdd=false,allowAlarmMask=false,allowPressureCorrection=false,operatingProfile=null,interfaceMode='plc'}={}){
   if(!Array.isArray(before)||!Array.isArray(after)||before.length!==64||after.length!==64||
    [...before,...after].some(v=>!Number.isInteger(v)||v<0||v>65535))
@@ -326,9 +336,9 @@ const ELMOS_CAL = (() => {
   if(allowTimedOneWire){
    const mode=(after[16]>>9)&7;
    if(interfaceMode!=='plc'||!oneWireStartupStatus(before).ok||!aodoPinBlocked(before)||mode<1||mode>3||
-      after[17]!==(before[17]&~4)||after[18]!==((before[18]&~0x3000)|0x2000)||
+      after[17]!==(before[17]&~4)||after[18]!==(before[18]&~0x3000)||
       !oneWireStartupStatus(after).ok)
-    throw Error('1-Wire-Startschutz: Nur die geprüfte One-Wire-Umstellung auf 200 ms für den Analogausgang ist zulässig.');
+    throw Error('1-Wire-Startschutz: Nur die geprüfte One-Wire-Umstellung auf 4 ms für den Analogausgang ist zulässig.');
   }
   for(let i=0;i<28;i++){
    if(allowTimedOneWire&&(i===17||i===18))continue;
@@ -488,7 +498,7 @@ const ELMOS_CAL = (() => {
   const allowTimedOneWire=settings.timedOneWire===true;
   if(allowTimedOneWire){
    out[17]&=~4;
-   out[18]=(out[18]&~0x3000)|0x2000;
+   out[18]&=~0x3000;
   }
   if(mode<=3&&aodoPinBlocked(out))throw Error(AODO_PLC_CONFLICT);
   if(original.slice(0,16).some((v,i)=>v!==out[i]))throw Error('Factory-Bereich darf nicht verändert werden');
@@ -595,6 +605,6 @@ const ELMOS_CAL = (() => {
   Number.isInteger(required)&&required>=1&&required<=10&&Array.isArray(records)&&
   Array.from({length:required},(_,slot)=>records.some(point=>
    point?.slot===slot&&Number.isFinite(point.errorBar))).every(Boolean);
- return {PROFILE_REGS,PROFILE_WORDS,uncalibratedPressureBlank,uncalibratedAfeBlank,planCalibrationProfile,sameMeasurementProfile,sameNvmImage,checkpointMatches,hasPressureTemperatureCompensation,SVDD_INDEX,SVDD_MASK,fit,suggestDspLimit,solveFit,crc16,crc8,configFrom,prepareOutputConfig,validateRecoveryCalibrationDiff,protectStartupCommunication,aodoPinBlocked,AODO_PLC_CONFLICT,i2cBootRegisterMatches,oneWireStartupStatus,oneWireOnlyStatus,analogScaling,analogOutputStatus,elmosDspTarget,elmosTemperatureTarget,fromQ,q,signed,independentVerificationPoint,verificationPointsSufficient,temperatureSourceFromAfe2,dspTemperatureCelsius,isFactoryTemperatureProfile,factoryInternalTemperatureCelsius,factoryTemperatureAddresses,programmedTemperatureAddresses,programmedTemperatureProfileMatches};
+ return {PROFILE_REGS,PROFILE_WORDS,uncalibratedPressureBlank,uncalibratedAfeBlank,planCalibrationProfile,sameMeasurementProfile,sameNvmImage,checkpointMatches,hasPressureTemperatureCompensation,SVDD_INDEX,SVDD_MASK,fit,suggestDspLimit,solveFit,crc16,crc8,configFrom,prepareOutputConfig,validateRecoveryCalibrationDiff,protectStartupCommunication,aodoPinBlocked,AODO_PLC_CONFLICT,i2cBootRegisterMatches,oneWireBootRegisterMatches,oneWireStartupStatus,oneWireOnlyStatus,analogScaling,analogOutputStatus,elmosDspTarget,elmosTemperatureTarget,fromQ,q,signed,independentVerificationPoint,verificationPointsSufficient,temperatureSourceFromAfe2,dspTemperatureCelsius,isFactoryTemperatureProfile,factoryInternalTemperatureCelsius,factoryTemperatureAddresses,programmedTemperatureAddresses,programmedTemperatureProfileMatches};
 })();
 if(typeof module!=='undefined'&&module.exports)module.exports=ELMOS_CAL;

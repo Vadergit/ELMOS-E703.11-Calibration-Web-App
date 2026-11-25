@@ -1,3 +1,8 @@
+## v0.7.175 – 4-ms-Startfenster für One-Wire
+
+- Die Umstellung auf Analogbetrieb verwendet das 4-ms-One-Wire-Startfenster. Ist es im NVM bereits eingestellt, wird für das Interface nur das dauerhafte One-Wire-Bit gelöscht.
+- Die NVM-Neustartprüfung berücksichtigt die flüchtigen Schnittstellenbits, die der Programmer beim One-Wire-Wiederanlauf setzt.
+
 ## v0.7.174 – Analogausgang bei dauerhaftem One-Wire
 
 - Bei dauerhaftem One-Wire meldet der Assistent den belegten AODO-Pin und blockiert die Freigabe eines scheinbar gültigen Analogabgleichs.
