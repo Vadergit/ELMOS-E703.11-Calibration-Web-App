@@ -521,12 +521,13 @@ const ELMOS_CAL = (() => {
    * the original AODO mode, and a user-approved output plan.
    * This helper is pure: it cannot grant a hardware writing permission.
    */
-  function validateRecoveryCalibrationDiff(before,after,{allowAnalogScaling=false,allowPressureCorrection=false,operatingProfile=null}={}){
+  function validateRecoveryCalibrationDiff(before,after,{allowAnalogScaling=false,allowPressureCorrection=false,allowTimedOneWire=false,operatingProfile=null}={}){
    if(!Array.isArray(before)||!Array.isArray(after)||before.length!==64||after.length!==64||
       [...before,...after].some(w=>!Number.isInteger(w)||w<0||w>0xFFFF))
     throw Error('Recovery-NVM: ungültiges 64-Wort-Abbild');
    const calibrationWords=new Set([SVDD_INDEX,28,30,31,32,33,34,...Array.from({length:16},(_,i)=>35+i),51,52,53,54,63]);
-   const outputWords=new Set([16,57,58,59,60]);
+   if(allowTimedOneWire&&!allowAnalogScaling)throw Error('Recovery-NVM: 4-ms-Umstellung benötigt bestätigte Analogskalierung.');
+   const outputWords=new Set([16,57,58,59,60,...(allowTimedOneWire?[17,18]:[])]);
    const changed=after.map((word,index)=>word===before[index]?null:index).filter(index=>index!==null);
    const pressureMask=(allowPressureCorrection&&validPressureActivation(before[16],after[16])?3:0)|temperatureActivationMask(before[16],after[16],operatingProfile);
     for(const index of PROFILE_WORDS)if(operatingWordAllowed(index,after,operatingProfile))calibrationWords.add(index);
@@ -539,7 +540,7 @@ const ELMOS_CAL = (() => {
    if((allowAnalogScaling||pressureMask)&&
        (before[22]!==after[22]||((before[16]^after[16])&~((allowAnalogScaling?((1<<6)|(1<<7)):0)|pressureMask))!==0))
     throw Error('Recovery-NVM: AODO-Modus und CFG_AODO müssen unverändert bleiben. Nur freigegebene scale_en/limit_en und s_cor_en dürfen in CFG_EN wechseln.');
-   protectStartupCommunication(before,after,{allowSvdd:true,allowPressureCorrection,operatingProfile});
+   protectStartupCommunication(before,after,{allowSvdd:true,allowPressureCorrection,allowTimedOneWire,operatingProfile});
    return {outputChanged,changes:changed.length};
   }
   function configFrom(original,solution,afeWord,opts={}){

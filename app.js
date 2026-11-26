@@ -1469,19 +1469,19 @@ if(typeof document!=='undefined') (function UI(){
   }
   return failed.length?failed.join('; ')+'.':'Sicherheitsnachweis nicht vollständig.';
  }
- // A live SSP3 session with permanent PLC in both RAM and verified NVM
- // needs no extra power cycle in the old mode. Such a cycle cannot prove
- // the future 4-ms window. The final NVM/UID/CRC/diff/boot readbacks remain
- // mandatory. Recovery and firmware-specific bridge gates are unchanged.
+ // Build the permanent interface from original NVM, never from the
+ // known PSSC RAM-only broadcast (0x6C06 original -> 0x6C04 in RAM).
  function timedOneWireReady(words){
   if(st.iface!=='plc'||!hasCurrentNvmBackup()||words!==st.nvmBackup||
      !CAL.oneWireStartupStatus(words).ok||!CAL.aodoPinBlocked(words)||
-     st.psscRamRecovery||st.coldStartAfeRestored||st.regs[0x06]!==words[17]||
      !st.plcAddressVerified||P.plcAddressFromConfig(words[17],words[19])!==st.plcAddress)
    return false;
+  const ram=st.regs[0x06];
   if(st.adapterKind==='bridge')
-   return st.sensorPowerEnabled&&bridgeCombinedRecoveryReady();
-  return st.adapterKind==='ssp3'&&st.mode==='usb'&&st.chip&&!st.closing&&!st.sensorLost;
+   return !st.psscRamRecovery&&!st.coldStartAfeRestored&&ram===words[17]&&
+    st.sensorPowerEnabled&&bridgeCombinedRecoveryReady();
+  return st.adapterKind==='ssp3'&&st.mode==='usb'&&st.chip&&!st.closing&&!st.sensorLost&&
+   (ram===words[17]||(words[17]===0x6C06&&ram===0x6C04));
  }
  function i2cNvmSupported(){
   return st.iface==='i2c'&&st.adapterKind==='bridge'&&st.bridgeI2cNvm;
@@ -1511,7 +1511,9 @@ if(typeof document!=='undefined') (function UI(){
    return false;
   const mode=(before[16]>>9)&7;
   if(mode<1||mode>3||Number(st.expertOutputPlan.mode)!==mode)return false;
-  try{CAL.validateRecoveryCalibrationDiff(before,after,{allowAnalogScaling:true,allowPressureCorrection:true,operatingProfile:confirmedOperatingProfile()})}
+  const timed=st.expertOutputPlan?.timedOneWire===true;
+  if(timed&&!timedOneWireReady(st.nvmBackup))return false;
+  try{CAL.validateRecoveryCalibrationDiff(before,after,{allowAnalogScaling:true,allowPressureCorrection:true,allowTimedOneWire:timed,operatingProfile:confirmedOperatingProfile()})}
   catch(_){return false}
   return true;
  }
@@ -1617,7 +1619,10 @@ if(typeof document!=='undefined') (function UI(){
     return 'Kombinierter NVM-Abgleich nach Magic Cookie benötigt ein automatisches Original-NVM-Backup.';
   }
   try{
-   CAL.validateRecoveryCalibrationDiff(initial,modified,{allowAnalogScaling:allowCombinedRecovery,
+   const timed=allowCombinedRecovery&&!restoring&&!outputOnly&&!alarmOnly&&st.adapterKind==='ssp3'&&
+    st.expertOutputPlan?.timedOneWire===true;
+   if(timed&&!timedOneWireReady(st.nvmBackup))throw Error('4-ms-NVM-Umstellung: aktive SSP3-PLC-Verbindung nicht bestätigt.');
+   CAL.validateRecoveryCalibrationDiff(initial,modified,{allowAnalogScaling:allowCombinedRecovery,allowTimedOneWire:timed,
      allowPressureCorrection:!restoring&&!outputOnly&&!alarmOnly&&st.adapterKind==='ssp3'&&st.iface==='plc'&&st.calStaged&&verificationComplete(),operatingProfile:!restoring&&!outputOnly&&!alarmOnly?confirmedOperatingProfile():null});
   }catch(error){return error.message;}
   return '';
@@ -1748,7 +1753,7 @@ if(typeof document!=='undefined') (function UI(){
    // not a power-cycle proof. The write gate below still requires both.
    const available=analogPinBlocked&&st.iface==='plc'&&hasCurrentNvmBackup()&&startup.ok;
    const owner=available?st.sessionIndex+':'+st.uid.hex:'';
-   if(timedOneWire.dataset.owner!==owner)timedOneWire.checked=false;
+   if(timedOneWire.dataset.owner!==owner)timedOneWire.checked=!!owner&&st.adapterKind==='ssp3';
    timedOneWire.dataset.owner=owner;
    timedOneWire.disabled=!available;
    $('outputTimedOneWireOption').hidden=!analogPinBlocked;
@@ -4370,6 +4375,7 @@ if(typeof document!=='undefined') (function UI(){
      Number($('psscVdd').value),st.calfit.outputLimit);
     outputPlan={
      mode:selectedOutputMode,scaleEnabled:true,
+     timedOneWire:st.adapterKind==='ssp3'&&CAL.aodoPinBlocked(st.nvmBackup)&&$('outputTimedOneWire')?.checked===true,
      gain:scaling.gain,offset:scaling.offset,
      clipping:{mode:$('outputClippingMode').value,
       low:$('outputClipLow').valueAsNumber,high:$('outputClipHigh').valueAsNumber,
@@ -4477,7 +4483,7 @@ if(typeof document!=='undefined') (function UI(){
      (verificationRequiredCount()===1?' Nur ein unabhängiger DSP-Prüfpunkt wurde verifiziert.':'')+
      (recoveryCombined?' '+(st.adapterKind==='bridge'?'ESP32-C3 Kaltstart und generische User-NVM-Capability bestätigt':psscRecoveryProven()?'SSP3-Magic-Cookie-Start bestätigt':
        'SSP3-Zugriff und Original-NVM bestätigt')+
-      ': Die ausdrücklich vorgemerkte AODO-Skalierung wird zusammen mit den Kalibrierkoeffizienten gespeichert. AODO-Modus und One-Wire-Startregister bleiben unverändert. Original-NVM-Backup ist Pflicht.':
+      ': Die ausdrücklich vorgemerkte AODO-Skalierung wird zusammen mit den Kalibrierkoeffizienten gespeichert. AODO-Modus bleibt unverändert. '+(timedOneWire?'Nur die bestätigte 4-ms-Umstellung wird im NVM gespeichert. RAM bleibt aktiv. ':'One-Wire-Startregister bleiben unverändert. ')+'Original-NVM-Backup ist Pflicht.':
       recovery?' Nur Kalibrierdaten werden gespeichert. Ausgangs- und One-Wire-Einstellungen bleiben erhalten.':'')+
      (ignoredOutputPlan?' Permanentes One Wire ist im Original-NVM bestätigt; die AODO-Einstellungen bleiben unverändert.':'')+
      (autoStageAnalog&&!recovery?' Analogskalierung wurde anhand der sichtbaren S0/S1-Werte automatisch in die Änderungsliste aufgenommen.':'')+
@@ -4749,8 +4755,12 @@ if(typeof document!=='undefined') (function UI(){
      throw Error(`Chip-NVM hat sich seit dem Backup verändert (Index ${i}). Änderungsliste erneut vorbereiten.`);
     }
    }
-   if(timedOneWire&&(!timedOneWireReady(st.nvmBackup)||await readReg(0x06)!==initial[17]))
-    throw Error('One-Wire-Schreibfreigabe oder aktives Schnittstellenregister hat sich seit der Vorschau geändert.');
+   if(timedOneWire){
+    const plannedRamInterface=st.regs[0x06];
+    const actualRamInterface=await readReg(0x06);
+    if(actualRamInterface!==plannedRamInterface||!timedOneWireReady(st.nvmBackup))
+     throw Error('One-Wire-Schreibfreigabe oder aktives Schnittstellenregister hat sich seit der Vorschau geändert.');
+   }
    const finalRecoveryBlock=psscNvmBlock(initial,modified,restoring,outputOnly,alarmOnly,!!st.calImage?.recoveryCombined);
    if(finalRecoveryBlock)throw Error(finalRecoveryBlock);
    CAL.protectStartupCommunication(initial,modified,{allowSvdd,allowAlarmMask:alarmOnly||alarmIntegrated,allowPressureCorrection,operatingProfile,interfaceMode:st.iface,allowTimedOneWire:timedOneWire});

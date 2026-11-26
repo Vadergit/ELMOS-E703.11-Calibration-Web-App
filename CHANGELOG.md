@@ -1,3 +1,9 @@
+## v0.7.179 – 4-ms-Umstellung auch im bestätigten SSP3-Kalibrierpfad
+
+- Bei Original-NVM 0x6C06 darf die bekannte temporäre PSSC-RAM-Konfiguration 0x6C04 bestehen bleiben. Der NVM-Plan wird aus dem Original-NVM erstellt (0x6C02), nicht aus RAM. Nur das dokumentierte PLC-Bit und gegebenenfalls das Startfenster dürfen wechseln.
+- Der kombinierte Recovery-Diff akzeptiert die exakt geprüfte 4-ms-Umstellung bei verifizierter SSP3-Kalibrierung; alle übrigen Recovery-Beschränkungen bleiben bestehen. RAM-Schnittstelle wird unmittelbar vor dem Schreiben nochmals gelesen.
+- Bei Analogauswahl wird die erforderliche Umstellung für SSP3 vorausgewählt. Keine automatische NVM-Programmierung. Hardwareprüfung ausstehend.
+
 ## v0.7.178 – SSP3-Direktzugriff ohne zusätzlichen Kaltstart
 
 - Bei bestätigtem permanentem One-Wire im RAM und Original-NVM verlangt die 4-ms-NVM-Umstellung keinen separaten SSP3-Kaltstartnachweis mehr. Der Live-Zugriff, die bestätigte PLC-Adresse, UID, NVM-Backup, CRC, Registervergleich und explizite Änderungsliste bleiben Voraussetzung.
