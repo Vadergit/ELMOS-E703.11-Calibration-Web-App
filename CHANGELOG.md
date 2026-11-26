@@ -1,3 +1,7 @@
+## v0.7.193 – Labortest mit bereits deaktiviertem One-Wire
+
+- Original-NVM und tatsächliche Startup-Bits vor Planprüfung dauerhaft sichern. Ist plc_en bereits aus, getrennten Wiederverbindungstest ohne NVM-Änderung durchführen; bei deaktiviertem Startfenster ausdrücklich bestätigen. Kein automatisches Überschreiben geschützter Bootregister. Regulärer Zugriff und RAM-Recovery im Ergebnis unterscheiden. Programmierter Test bleibt unverändert für permanente PLC-Ausgangskonfiguration. Hardwaretest ausstehend.
+
 ## v0.7.192 – Startfehler nach gespeichertetem Labortest behoben
 
 - Der neue localStorage-Index enthält keine events-Liste; der Labortest hatte diese bereits vor dem Laden aus IndexedDB mit `.map()` verarbeitet. Bei gespeichertetem Test konnte dies die gesamte App-Initialisierung vor `uiReady=true` abbrechen. Anzeige toleriert Index/alte Testdaten, vollständiges Journal bleibt erhalten und wird erst beim Öffnen geladen. Fehler bei optionaler Labortest-UI-Initialisierung werden protokolliert und blockieren den normalen USB-Start nicht. Keine Änderung an USB-Handshake, Firmware oder NVM-Logik. Hardwareprüfung ausstehend.
