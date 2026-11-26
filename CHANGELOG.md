@@ -1,3 +1,9 @@
+## v0.7.199 – ESP32 als eigenständiger Worst-Case-Programmer
+
+- Worst Case: Programmer frei wählbar (ESP32-C3 v0.14 oder SSP3). Der ausgewählte Programmer übernimmt NVM-Programmierung, drei Neustartprüfungen und standardmässig auch die exakte Wiederherstellung. Der Vergleich mit dem zweiten Programmer ist optional; bei bestätigtem NVM-Abbild kann der Wiederherstellungsadapter explizit gewählt werden.
+- ESP32-Labor-Schreibfreigabe erfordert unveränderte UID/Sitzung, bestätigte PLC-Adresse, VDD-Steuerung, Kaltstart, generisches User-NVM und explizite Firmware-Antwort NVM HOST ARMED. Keine Lockerung des produktiven Schreibschutzes, kein Firmwareupdate. Bei Ablehnung kein NVM-Schreibbefehl; bei unklarem Schreibzustand kein automatischer Neustart.
+- Sechs simulierte Ablaufprüfungen bestanden; tatsächlicher NVM-Schreibvorgang und Recovery/Wiederherstellung mit ESP32 v0.14 weiterhin hardwareseitig zu bestätigen.
+
 ## v0.7.198 – USB-Neuinitialisierung und echter One-Wire-Worst-Case
 
 - Begrenzte automatische Wiederöffnung desselben autorisierten USB-Ports bei Adapter-Handshakefehlern (max. drei Versuche); alte USB-/Fehlerprotokolle mit Sitzungskennung erhalten. Sensorfehler allein lösen keine USB-Wiederöffnung aus. Manuelle Neuinitialisierung nutzt den gleichen Wiederholungsweg.
