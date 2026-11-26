@@ -6745,10 +6745,17 @@ if(typeof document!=='undefined') (function UI(){
   if(changes.some(x=>!mask[x.index]||((x.from^x.to)&~mask[x.index])))throw Error('Worst Case: nicht freigegebene NVM-Änderung.');
   return {before:before.slice(),after,changes,worstStep:step};
  }
- function owLabWorstWriterReady(adapter){
-  if(st.adapterKind!==adapter||st.iface!=='plc'||!st.chip||!st.uid?.hex||!st.readerAlive||!st.plcAddressVerified||!owLabCold(adapter))return false;
-  if(adapter==='ssp3')return psscRecoveryProven();
-  return adapter==='bridge'&&st.firmware==='0.14'&&st.sensorPowerEnabled===true&&bridgeCombinedRecoveryReady()&&!st.coldStartAfeRestored;
+ function owLabWorstWriterChecks(adapter){
+  const checks={adapter:owLabMatches(adapter)&&st.adapterKind===adapter,interface:st.iface==='plc',chip:!!st.chip,uid:!!st.uid?.hex,reader:!!st.readerAlive,plcAddress:!!st.plcAddressVerified,coldStart:owLabCold(adapter),firmware:owLabFwMatches(adapter,adapter==='bridge'?['0.14']:null)};
+  if(adapter==='ssp3')checks.psscRecovery=psscRecoveryProven();
+  else Object.assign(checks,{esp32:st.bridgeBoard==='ESP32-C3 SuperMini',sensorPower:st.sensorPowerEnabled===true,genericRam:st.bridgeGenericRam===true,userNvm:st.bridgeUserNvm===true,outputNvm:st.bridgeOutputNvm===true,combinedRecovery:bridgeCombinedRecoveryReady(),noAfeRepair:!st.coldStartAfeRestored});
+  return {adapter,firmware:owLabFirmware(),firmwareDescription:st.firmware,uid:st.uid?.hex??null,checks,failed:Object.keys(checks).filter(key=>!checks[key])};
+ }
+ function owLabWorstWriterReady(adapter){return owLabWorstWriterChecks(adapter).failed.length===0;}
+ function owLabWorstWriterAssert(adapter){
+  const proof=owLabWorstWriterChecks(adapter);
+  owLabEvent('Worst-Case-Schreibvorprüfung '+adapter+' / '+(proof.firmware||'unbekannt')+': '+(proof.failed.length?'nicht bestätigt – '+proof.failed.join(', '):'alle Voraussetzungen bestätigt; Firmware-ARM folgt vor NVM-Schreiben.'),{writerChecks:proof});
+  if(proof.failed.length)throw Error('Worst-Case-Schreibvorprüfung: '+proof.failed.join(', ')+'. Kein NVM geschrieben.');
  }
  function owLabWorstValidate(plan,r){
   const adapter=plan.worstStep==='restore'?(r?.restoreAdapter||r?.writerAdapter||'ssp3'):(r?.writerAdapter||'ssp3');
@@ -7079,22 +7086,25 @@ if(typeof document!=='undefined') (function UI(){
   const r=owLabRecord,base=r.programmed||r.original,versions=owLabWorstVersions(adapter),name=owLabWorstName(adapter);
   if(step==='restore')r.restoreAdapter=adapter;
   await owLabReopen(port,adapter,'Worst Case – Vorprüfung '+step+' / '+name);
-  if(!owLabFwMatches(adapter,versions)||!st.chip||st.uid?.hex!==r.uid||!owLabWorstWriterReady(adapter))throw Error(name+': UID, Kaltstart oder NVM-Schreibvoraussetzungen nicht bestätigt.');
+  owLabWorstWriterAssert(adapter);
+  if(st.uid?.hex!==r.uid)throw Error('Andere Chip-UID vor NVM-Schreiben.');
   const current=await owLabRead();
   if(!CAL.sameNvmImage(current,base))throw Error('NVM-Abweichung vor Worst-Case-Schreibvorgang.');
   const plan=owLabWorstPlan(current,r.original,step);
   r.planned=plan.after;r.changes=plan.changes;
   await owLabCheckpoint('Worst Case '+step+' – exakter NVM-Plan gesichert.');
-  if(plan.changes.length){await owLabWrite(plan);}
+  if(plan.changes.length){owLabSetStage('program','Worst Case '+step+' – NVM programmieren und verifizieren.');await owLabWrite(plan);}
   else{r.programmed=current.slice();r.verified=true;r.phase='written';await owLabCheckpoint('Zielabbild bereits vorhanden; kein erneutes Schreiben.');}
   await owLabWorstVerify(port,adapter,versions,step+' / '+name,3);
  }
  async function owLabWorstStart(port){
   const r=owLabRecord,adapter=r.writerAdapter||'ssp3',versions=owLabWorstVersions(adapter),name=owLabWorstName(adapter);
+  owLabSetStage('prepare','Worst Case – Programmer und Firmware prüfen.');
   if($('owLabRestoreAdapter'))$('owLabRestoreAdapter').value=adapter;
   await owLabReopen(port,adapter,'Worst Case Original / '+name);
-  if(!owLabFwMatches(adapter,versions)||!st.chip||!st.uid?.hex||!owLabWorstWriterReady(adapter))throw Error(name+': UID, Kaltstart oder NVM-Schreibvoraussetzungen nicht bestätigt. Kein NVM geschrieben.');
+  owLabWorstWriterAssert(adapter);
   if(r.uid&&r.uid!==st.uid.hex)throw Error('Andere Chip-UID.');
+  owLabSetStage('backup','Worst Case – Original-NVM vollständig sichern.');
   r.uid=st.uid.hex;r.original=await owLabRead();r.originalStartup=CAL.oneWireStartupStatus(r.original);r.writerFirmware=owLabFirmware();
   const target=owLabWorstPlan(r.original,r.original,'worst4');
   await owLabCheckpoint('Worst Case: vollständiges Original-NVM und Zielabbild gesichert.');
