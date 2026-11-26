@@ -2054,9 +2054,13 @@ if(typeof document!=='undefined') (function UI(){
  // firmware may accept only one CR-terminated command per UART/USB packet.
  // Do not WAIT for PWR_ON's firmware response before sending PLC T.
  // Command and chip timing is experimental; no claims about 4-ms guarantee.
- async function exchangeSsp3StartupBurst(mode='combined',pssc=false){
+ async function exchangeSsp3StartupBurst(mode='combined',pssc=false,cookieAddress=null){
   if(!['combined','split'].includes(mode))throw Error('Unbekannter SSP3-Starttransport');
   const commands=[pssc?'PWR_ON FFFF 0 0':'PWR_ON 0C80 00C8 0','PLC T'];
+  if(cookieAddress!==null){
+   if(!owLabBusy||mode!=='combined'||pssc||![0x6C,0x7C].includes(cookieAddress))throw Error('Früher Magic Cookie nur im isolierten Labortest.');
+   commands.push(...[[0xAC,0x2B42],[0x0E,0x5CFD]].map(([a,w])=>P.plcHostCommand(P.plcWrite(a,w,cookieAddress),st.plcHostFormat)));
+  }
   return serialize(async()=>{
    if(st.closing||!st.port?.writable||st.adapterKind!=='ssp3'||st.iface!=='plc')
     throw Error('SSP3 PLC-Start benötigt einen verbundenen SSP3 im One-Wire-Modus.');
@@ -2064,7 +2068,7 @@ if(typeof document!=='undefined') (function UI(){
    st.replyBuffer='';
    let resolver,rejecter;
    const future=new Promise((resolve,reject)=>{resolver=resolve;rejecter=reject});
-   const ticket={resolve:resolver,reject:rejecter,prompts:2,timer:null};
+   const ticket={resolve:resolver,reject:rejecter,prompts:commands.length,timer:null};
    ticket.timer=setTimeout(()=>{
     if(st.responseWait===ticket){
      const partial=st.replyBuffer.slice(0,1300);
@@ -2074,7 +2078,7 @@ if(typeof document!=='undefined') (function UI(){
       st.powerCycleResult.burstPartialReply=partial;
       st.powerCycleResult.burstPromptCount=received;
      }
-     rejecter(Error('SSP3 bestätigte '+received+'/2 Startbefehle. Teilantwort: '+(partial||'(keine)')));
+     rejecter(Error('SSP3 bestätigte '+received+'/'+commands.length+' Startbefehle. Teilantwort: '+(partial||'(keine)')));
     }
    },6000);
    st.responseWait=ticket;
@@ -2088,7 +2092,7 @@ if(typeof document!=='undefined') (function UI(){
      // that a 4-ms E703.11 startup window is missed by a second USB packet.
      // The SSP3 parser still executes PWR_ON before PLC T.
      const payload=commands.join('\r')+'\r';
-     logging('TX COMBINED USB: PWR_ON 0C80 00C8 0\\rPLC T\\r');
+     logging('TX COMBINED USB: '+commands.join('\\r')+'\\r');
      secondQueued=true;
      await writer.write(new TextEncoder().encode(payload));
     }else{
@@ -2104,7 +2108,7 @@ if(typeof document!=='undefined') (function UI(){
      st.powerCycleResult.usbWriteMode=mode;
     }
     logging('SSP3 PWR_ON/PLC T: '+(mode==='combined'?'ein gemeinsamer':'zwei getrennte')+
-     ' USB-Schreibvorgang/-vorgänge in '+sendDuration+' ms; warte auf 2 SSP3-Antworten.');
+     ' USB-Schreibvorgang/-vorgänge in '+sendDuration+' ms; warte auf '+commands.length+' SSP3-Antworten.');
    }catch(e){
     if(st.powerCycleResult){
      st.powerCycleResult.burstWriteError=String(e.message||e);
@@ -2117,8 +2121,8 @@ if(typeof document!=='undefined') (function UI(){
     throw e;
    }finally{writer.releaseLock()}
    const response=await future;
-   if(P.ssp3PromptCount(response)<2)
-    throw Error('SSP3-Start: beide Firmwareantworten fehlen.');
+   if(P.ssp3PromptCount(response)<commands.length)
+    throw Error('SSP3-Start: nicht alle Firmwareantworten erhalten.');
    const lines=response.split(/[\r\n]+/).map(line=>line.trim());
    if(lines.some(line=>line.startsWith('!')))
     throw Error('SSP3-Start meldet Fehler: '+response.slice(0,300));
@@ -2378,7 +2382,7 @@ if(typeof document!=='undefined') (function UI(){
    // first for an unknown DUT and never recover automatically on background probes.
    const noEdges=last?.addressProbes?.length===2&&last.addressProbes.every(p=>p.result==='PLC_NO_VALID_FRAME'&&p.edges===0);
    if(!labVariant&&!autoProbe&&!earlyRecoveryTried&&power&&st.bridgePsscRam&&st.bridgeBoard==='ESP32-C3 SuperMini'&&noEdges&&last.error?.includes('PLC_NO_VALID_FRAME')){
-    earlyRecoveryTried=true;
+    earlyRecoveryTried=true;st.psscRamRecovery=true;
     logging('PLC: keine Antwortflanken; geprüfte PSSC-RAM-Freigabe vor zweiter Normal-Baudrate.');
     if(await attemptAccess(rate,true)){found=true;break;}
     // A failed recovery is not proof of an unmodified RAM configuration.
@@ -2937,7 +2941,8 @@ if(typeof document!=='undefined') (function UI(){
  // Elmos AN0204: PLC P / PLC T and Power_OFF / PWR_ON. Test uses PWR_OFF only
  // if advertised by the running SSP3 firmware, because Power_OFF was rejected.
  // Only a separately approved bench test on DUT powered through switchable SSP3 VSUPPLY.
- async function testSsp3PowerStartup(burstMode='combined',speedProfile=null){
+ async function testSsp3PowerStartup(burstMode='combined',speedProfile=null,earlyCookieAddress=null){
+  if(earlyCookieAddress!==null&&(!owLabBusy||burstMode!=='combined'||![0x6C,0x7C].includes(earlyCookieAddress)))throw Error('Ungültiges isoliertes Cookie-Startprofil.');
   if(!['combined','split'].includes(burstMode))throw Error('Ungültiger SSP3-Startmodus');
   if(speedProfile!==null&&(![100,50].includes(speedProfile.khz)||
        ![7,14].includes(speedProfile.delay)|| (speedProfile.khz===100)!==(speedProfile.delay===7)))
@@ -3020,7 +3025,11 @@ if(typeof document!=='undefined') (function UI(){
    // recovery tries the previously used split-write variant once.
    st.powerCycleResult.stage='PWR_ON + PLC T ('+burstMode+')';
    const burstStarted=Date.now();
-   const burstResponse=await exchangeSsp3StartupBurst(burstMode);
+   if(earlyCookieAddress!==null){
+    st.magicResult={at:new Date().toISOString(),stage:'early-burst',address:'0x'+h(earlyCookieAddress),commands:[[0xAC,0x2B42],[0x0E,0x5CFD]].map(([a,w])=>P.plcHostCommand(P.plcWrite(a,w,earlyCookieAddress),st.plcHostFormat)),readVerified:false,earlyBurst:true};
+   }
+   const burstResponse=await exchangeSsp3StartupBurst(burstMode,false,earlyCookieAddress);
+   if(st.magicResult?.earlyBurst)st.magicResult.rawReply=burstResponse;
    st.powerCycleResult.steps.push({
     command:'PWR_ON 0C80 00C8 0 -> PLC T',
     mode:burstMode==='combined'?'single-combined-usb-write':'two-fast-serial-writes',
@@ -3033,8 +3042,10 @@ if(typeof document!=='undefined') (function UI(){
    st.powerCycleResult.stage='readback';
    logging('AN0204: erste Chip-Leseabfrage im Host-Format '+st.plcHostFormat+' (nur Register-READ).');
    try{
-    if(!await probePlcAddresses('Nach SSP3 PLC P/T'))
+    if(earlyCookieAddress!==null)st.plcAddress=earlyCookieAddress;
+    if(!await probePlcAddresses(earlyCookieAddress!==null?'Nach frühem Cookie-Burst':'Nach SSP3 PLC P/T'))
      throw Error('PLC nothing received: E703.11 antwortet weder mit 0x6C noch mit 0x7C nach PLC P/T.');
+    if(earlyCookieAddress!==null){st.magicResult.readVerified=!!st.uid?.hex&&!st.readOnlySensor;st.magicResult.verifiedUid=st.uid?.hex||null;st.magicResult.stage=st.magicResult.readVerified?'verified':'unconfirmed';st.powerCycleResult.magicCookieUsed=st.magicResult.readVerified;}
    }catch(firstReadError){
     // The SSP3 may report either "!PLC nothing received" or an apparently
     // parsed 00 00 35 frame for a missing/locked chip. Jürg's 2026-11-12
@@ -3042,6 +3053,7 @@ if(typeof document!=='undefined') (function UI(){
     // Only the exact typed zero-AFE case or explicit "nothing received" may
     // trigger the previously bench-tested one-time RAM cookie fallback.
     // Never bypass arbitrary invalid AFE codes, malformed frames or UID checks.
+    if(earlyCookieAddress!==null){st.magicResult.stage='failed';st.magicResult.error=String(firstReadError.message||firstReadError);throw firstReadError;}
     const missingReply=/\bPLC nothing received\b/i.test(String(firstReadError.message||firstReadError));
     const zeroAFE=firstReadError?.code==='AFE_ZERO_READBACK'&&
      st.lastPlcReply?.address===R_AFE&&st.lastPlcReply?.status==='parsed'&&st.lastPlcReply?.word===0;
@@ -3345,9 +3357,13 @@ if(typeof document!=='undefined') (function UI(){
   st.magicResult=null;
   const labVariant=owLabBusy&&owLabVariant?.adapter==='ssp3'?owLabVariant:null;
   if(labVariant?.mode==='pssc')return await tryPsscRamStartup(labVariant.delays||['0','8','10']);
-  if(labVariant?.mode==='combined'||labVariant?.mode==='split'){
+  if(labVariant?.mode==='combined'||labVariant?.mode==='split'||labVariant?.mode==='early-cookie'){
    if(st.firmware!=='02.08.02.04')throw Error('Isoliertes SSP3-Taktprofil für diese Firmware nicht bestätigt.');
-   await testSsp3PowerStartup(labVariant.mode,{khz:labVariant.rate,delay:labVariant.rate===100?7:14});
+   const early=labVariant.mode==='early-cookie';
+   const baseline=owLabRecord?.programmed||owLabRecord?.original;
+   const addr=early&&baseline?P.plcAddressFromConfig(baseline[17],baseline[19]):null;
+   if(early&&![0x6C,0x7C].includes(addr))throw Error('Cookie-Zieladresse aus Referenz-NVM nicht bestätigt.');
+   await testSsp3PowerStartup(early?'combined':labVariant.mode,{khz:labVariant.rate,delay:labVariant.rate===100?7:14},addr);
    st.startupTrials.push({...st.powerCycleResult,magicCookie:st.magicResult?{...st.magicResult}:null});
    return !!st.chip;
   }
@@ -6764,7 +6780,7 @@ if(typeof document!=='undefined') (function UI(){
    {id:'recovery-100',mode:'recovery',rate:100000},{id:'recovery-25',mode:'recovery',rate:25000},
    {id:'auto',mode:'auto'}];
   return [{id:'pssc-10',mode:'pssc',delays:['10']},{id:'pssc-0',mode:'pssc',delays:['0']},{id:'pssc-8',mode:'pssc',delays:['8']},{id:'pssc',mode:'pssc',delays:['0','8','10']},
-   ...[100,50].flatMap(rate=>['combined','split'].map(mode=>({id:mode+'-'+rate,mode,rate}))),
+   ...[100,50].flatMap(rate=>['combined','split','early-cookie'].map(mode=>({id:mode+'-'+rate,mode,rate}))),
    {id:'auto',mode:'auto'}];
  }
  function owLabMatrixSummary(){
