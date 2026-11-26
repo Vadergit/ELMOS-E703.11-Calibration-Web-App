@@ -1,3 +1,7 @@
+## v0.7.187 – One-Wire Labortest: Verbindungsdiagnose
+
+- Voraussetzungen einzeln mit tatsächlicher Firmware, Chip-UID, GPIO10, Kaltstartnachweis und User-NVM-Fähigkeit anzeigen. Keine pauschale Fehlermeldung. Separater Vorbereitungsschritt: USB-Neuverbindung über GPIO10 mit UID-Prüfung, ohne NVM-Schreibvorgang. Bestehende NVM-Freigaben bleiben aktiv.
+
 ## v0.7.186 – One-Wire Wiederverbindungstest (Experten-Labor)
 
 - Separater Hardwaretest mit ESP32 v0.14: Original-NVM/UID/CRC sichern, ausschliesslich plc_en deaktivieren, startup_plc auf 4 ms setzen und CRC16 aktualisieren. Nach vollständiger Verifikation USB trennen und über GPIO10 neu verbinden.

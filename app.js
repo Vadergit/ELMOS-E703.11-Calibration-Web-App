@@ -6464,6 +6464,42 @@ if(typeof document!=='undefined') (function UI(){
  let owLabBusy=false,owLabRecord=null;
  try{const old=JSON.parse(localStorage.getItem(owLabKey)||'null');if(old?.schema===1)owLabRecord=old}catch(_){}
  const owLabFirmware=()=>String(debugTrace.versionReply?.raw||'').match(/ESP32-C3 SuperMini[^\r\n]*\bv(0\.\d+)\b/i)?.[1]||null;
+
+ function owLabReadiness(){
+  const fw=owLabFirmware();
+  return [
+   {name:'ESP32-C3 SuperMini',ok:st.adapterKind==='bridge'&&st.bridgeBoard==='ESP32-C3 SuperMini',value:st.bridgeBoard||st.adapterKind||'nicht erkannt'},
+   {name:'Firmware v0.14',ok:fw==='0.14',value:fw?'v'+fw:'nicht erkannt'},
+   {name:'One-Wire',ok:st.iface==='plc',value:st.iface||'unbekannt'},
+   {name:'Sensor / Chip-UID',ok:!!(st.chip&&st.uid?.hex&&st.port&&st.readerAlive),value:st.uid?.hex||'nicht bestätigt'},
+   {name:'GPIO10-Versorgungssteuerung',ok:!!st.sensorPowerEnabled,value:st.sensorPowerEnabled?'aktiv (VDD nicht gemessen)':'in dieser Verbindung nicht aktiviert'},
+   {name:'Kaltstartnachweis',ok:bridgeColdStartVerified(),value:bridgeColdStartVerified()?'bestätigt':'noch nicht bestätigt'},
+   {name:'NVM-Firmware-Freigabe',ok:!!(st.bridgeGenericRam&&st.bridgeUserNvm&&st.bridgeOutputNvm),value:st.bridgeUserNvm?'User-NVM unterstützt':'nicht bestätigt'}
+  ];
+ }
+ function owLabRenderReadiness(){
+  const rows=owLabReadiness();
+  $('owLabChecks').textContent=rows.map(x=>(x.ok?'✓ ':'○ ')+x.name+': '+x.value).join('\n');
+  $('owLabPrepare').disabled=owLabBusy||!$('owLabConsent').checked||!st.port||st.adapterKind!=='bridge'||st.bridgeBoard!=='ESP32-C3 SuperMini'||st.iface!=='plc'||owLabFirmware()!=='0.14'||!st.uid?.hex||!!(owLabRecord&&['programming','write-uncertain','written','v14-failed','fallback-failed','v14-inconclusive'].includes(owLabRecord.phase));
+ }
+ async function owLabPrepareConnection(){
+  if(owLabBusy)return;
+  const previousAuto=autoReconnectEnabled;
+  try{
+   owLabAssertIdle();
+   if(!$('owLabConsent').checked||!st.port||st.adapterKind!=='bridge'||st.bridgeBoard!=='ESP32-C3 SuperMini'||st.iface!=='plc'||owLabFirmware()!=='0.14'||!st.uid?.hex)throw Error('Zuerst ESP32 v0.14 und Testsensor verbinden.');
+   if(owLabRecord&&['programming','write-uncertain','written','v14-failed','fallback-failed','v14-inconclusive'].includes(owLabRecord.phase))throw Error('Vorheriger Test ist noch offen.');
+   const port=st.port,uid=st.uid.hex;
+   owLabBusy=true;autoReconnectEnabled=false;cancelAutoReconnect();owLabRender();
+   // Only reconnect, never write NVM, and require the same UID after PLC START.
+   if(!await disconnect())throw Error('USB konnte nicht getrennt werden.');
+   $('adapterType').value='bridge';$('iface').value='plc';$('plcPowerCycle').checked=true;
+   await sleep(500);await connect(port);
+   if(st.uid?.hex!==uid||!bridgeColdStartVerified()||!st.sensorPowerEnabled||owLabFirmware()!=='0.14')throw Error('Kaltstart derselben UID mit v0.14 nicht bestätigt. Kein NVM geschrieben.');
+   $('owLabState').textContent='Kaltstart bestätigt. Du kannst jetzt den NVM-Test starten.';
+  }catch(e){$('owLabState').textContent=e.message;logging('Labortest Vorbereitung: '+e.message)}
+  finally{if(owLabBusy){owLabBusy=false;autoReconnectEnabled=previousAuto;autoReconnectSuppressed=true;cancelAutoReconnect();owLabRenderReadiness();$('owLabStart').disabled=!$('owLabConsent').checked||owLabReadiness().some(x=>!x.ok);$('owLabClose').disabled=false;}}
+ }
  function owLabSave(){localStorage.setItem(owLabKey,JSON.stringify(owLabRecord))}
  function owLabEvent(message,data={}){
   owLabRecord.events.push({at:new Date().toISOString(),message,...data});
@@ -6473,9 +6509,10 @@ if(typeof document!=='undefined') (function UI(){
  function owLabRender(){
   const r=owLabRecord;
   $('owLabSettings').hidden=!$('expertMode').checked;
-  $('owLabState').textContent=owLabBusy?'Hardwaretest läuft – Sensor/USB nicht trennen.':r?('Test '+r.uid+' · '+r.phase):'Verbinde zuerst den Testsensor über ESP32-C3 v0.14.';
+  $('owLabState').textContent=owLabBusy?'Hardwaretest läuft – Sensor/USB nicht trennen.':r?('Test '+r.uid+' · '+r.phase):owLabReadiness().every(x=>x.ok)?'Bereit für den NVM-Test.':'Voraussetzungen unten prüfen. Bei fehlendem GPIO10/Kaltstart «Verbindung vorbereiten» wählen.';
   $('owLabLog').textContent=r?[...r.events.map(x=>x.at+'  '+x.message),...(r.changes||[]).map(x=>'NVM 0x'+h(x.address)+'  0x'+h(x.from,2)+' → 0x'+h(x.to,2))].join('\n'):'Noch kein Test gestartet.';
-  $('owLabStart').disabled=owLabBusy||!$('owLabConsent').checked||!!(r&&['programming','write-uncertain','written','v14-failed','fallback-failed','v14-inconclusive'].includes(r.phase));
+  owLabRenderReadiness();
+  $('owLabStart').disabled=owLabBusy||!$('owLabConsent').checked||owLabReadiness().some(x=>!x.ok)||!!(r&&['programming','write-uncertain','written','v14-failed','fallback-failed','v14-inconclusive'].includes(r.phase));
   $('owLabRetry').disabled=owLabBusy||!r||!['v14-failed','fallback-failed'].includes(r.phase);
   $('owLabResume').disabled=owLabBusy||!r?.verified||!['written','v14-inconclusive'].includes(r.phase);
   $('owLabFlash').hidden=!r||!['v14-failed','fallback-failed'].includes(r.phase);
@@ -6503,7 +6540,7 @@ if(typeof document!=='undefined') (function UI(){
  async function owLabWrite(plan){
   const r=owLabRecord,port=st.port,session=st.sessionIndex;
   if(!timedOneWireReady(st.nvmBackup)||st.uid?.hex!==r.uid||!plan.before.every((w,i)=>w===st.nvmBackup[i]))
-   throw Error('Kaltstart-/UID-/RAM-Nachweis fehlt. NVM unverändert.');
+   throw Error('NVM unverändert. '+timedBridgeBlockReason(st.nvmBackup));
   // Persist original and intended image before any maintenance write.
   r.phase='programming';owLabSave();
   if(!expert.archiveCurrentNvm('One-Wire Labortest: Original-NVM'))throw Error('Original-Backup nicht gespeichert.');
@@ -6587,8 +6624,8 @@ if(typeof document!=='undefined') (function UI(){
     port=await navigator.serial.requestPort();
    }else{
     if(owLabRecord&&['programming','write-uncertain','written','v14-failed','fallback-failed','v14-inconclusive'].includes(owLabRecord.phase))throw Error('Vorheriger Test noch offen; kein erneutes NVM-Schreiben.');
-    if(!$('owLabConsent').checked||!st.chip||st.adapterKind!=='bridge'||st.bridgeBoard!=='ESP32-C3 SuperMini'||st.iface!=='plc'||
-       !st.sensorPowerEnabled||!bridgeColdStartVerified()||owLabFirmware()!=='0.14')throw Error('Bestätigter ESP32 v0.14, One-Wire, GPIO10 und erkannter Testsensor erforderlich.');
+    const missing=owLabReadiness().filter(x=>!x.ok);
+    if(!$('owLabConsent').checked||missing.length)throw Error('Voraussetzungen fehlen: '+missing.map(x=>x.name+' ('+x.value+')').join('; '));
     if(owLabRecord&&owLabRecord.uid===st.uid.hex&&owLabRecord.verified)throw Error('Dieser Sensor wurde bereits programmiert; für einen neuen Test einen anderen permanenten One-Wire-Sensor verwenden.');
     if(!window.confirm('Testsensor '+st.uid.hex+': permanentes One-Wire im NVM deaktivieren und 4 ms setzen? Wiederverbindung kann scheitern.'))return;
     port=st.port;
@@ -6619,7 +6656,7 @@ if(typeof document!=='undefined') (function UI(){
     owLabEvent('Test gestoppt: '+e.message);
    }else $('owLabState').textContent=e.message;
    logging('One-Wire Labortest: '+e.message);
-   if(!owLabBusy)window.alert(e.message);
+   owLabRenderReadiness();
   }finally{
    if(owLabBusy){owLabBusy=false;autoReconnectEnabled=oldAuto;autoReconnectSuppressed=true;cancelAutoReconnect();owLabRender();}
   }
@@ -6630,6 +6667,7 @@ if(typeof document!=='undefined') (function UI(){
  $('owLabDialog').addEventListener('cancel',e=>{if(owLabBusy)e.preventDefault()});
  $('owLabConsent').addEventListener('change',owLabRender);
  $('owLabStart').addEventListener('click',()=>owLabRun(false));
+ $('owLabPrepare').addEventListener('click',owLabPrepareConnection);
  $('owLabRetry').addEventListener('click',()=>owLabRun(true));
  $('owLabResume').addEventListener('click',()=>owLabRun(false,true));
  $('owLabExport').addEventListener('click',()=>{if(owLabRecord)download('ELMOS_OneWire_Lab_'+owLabRecord.uid+'.json',JSON.stringify(owLabRecord,null,2))});
