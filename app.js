@@ -6540,7 +6540,7 @@ if(typeof document!=='undefined') (function UI(){
  function owLabRender(){
   const r=owLabRecord,phase=r?.phase||'idle';
   $('owLabSettings').hidden=!$('expertMode').checked;
-  const status=owLabBusy?'Läuft automatisch · '+owLabStage:phase==='await-ssp3'?'Sensor am originalen SSP3 anschliessen. Fortsetzen schreibt erst nach identischer UID und geprüftem Original-NVM.':phase==='await-v14'?'Denselben Sensor an ESP32 v0.14 anschliessen. Kein weiteres NVM-Schreiben.':phase==='await-new'?'v0.14 ohne bestätigte Sensorantwort. v0.16 installieren und fortsetzen. Kein weiteres NVM-Schreiben.':phase==='await-manual'?'Automatischer Start nicht bestätigt. Sensor sicher stromlos machen und wieder anschliessen; dann Fortsetzen. Kein NVM-Schreiben.':phase==='write-uncertain'?'Schreibzustand unklar. Nicht neu starten oder erneut programmieren. Protokoll exportieren.':phase==='written'?(r?.readOnlyBaseline?'Original-NVM gesichert, nicht programmiert. Fortsetzen startet nur die Wiederverbindung.':'NVM verifiziert. Fortsetzen startet nur die Wiederverbindung.'):phase==='programming'?'Unterbrochene Programmierung. Kein Neustart; Protokoll sichern.':r?('Test '+(r.uid||'—')+' · '+phase):'Bereit. Programmer auswählen und Start drücken.';
+  const status=owLabBusy?'Läuft automatisch · '+owLabStage:phase==='await-ssp3'?'Sensor am originalen SSP3 anschliessen. Fortsetzen liest und prüft zuerst das vollständige Original-NVM und dieselbe UID; programmiert nur bei gültigem Änderungsplan.':phase==='await-v14'?'Denselben Sensor an ESP32 v0.14 anschliessen. Kein weiteres NVM-Schreiben.':phase==='await-new'?'v0.14 ohne bestätigte Sensorantwort. v0.16 installieren und fortsetzen. Kein weiteres NVM-Schreiben.':phase==='await-manual'?'Automatischer Start nicht bestätigt. Sensor sicher stromlos machen und wieder anschliessen; dann Fortsetzen. Kein NVM-Schreiben.':phase==='write-uncertain'?'Schreibzustand unklar. Nicht neu starten oder erneut programmieren. Protokoll exportieren.':phase==='written'?(r?.readOnlyBaseline?'Original-NVM gesichert, nicht programmiert. Fortsetzen startet nur die Wiederverbindung.':'NVM verifiziert. Fortsetzen startet nur die Wiederverbindung.'):phase==='programming'?'Unterbrochene Programmierung. Kein Neustart; Protokoll sichern.':r?('Test '+(r.uid||'—')+' · '+phase):'Bereit. Programmer auswählen und Start drücken.';
   $('owLabState').textContent=status+(owLabStorageError?' · '+owLabStorageError:'');
   $('owLabChecks').textContent='Adapter: '+(st.bridgeBoard||st.adapterKind||'—')+' · Firmware: '+(owLabFirmware()||'—')+'\nChip-UID: '+(st.uid?.hex||'—')+' · Kaltstart: '+(owLabCold(st.adapterKind)?'bestätigt':'nicht bestätigt');
   $('owLabLog').textContent=r?[...(Array.isArray(r.events)?r.events:[]).map(x=>x.at+'  '+x.message),...(Array.isArray(r.changes)?r.changes:[]).map(x=>'NVM 0x'+h(x.address)+'  0x'+h(x.from,2)+' → 0x'+h(x.to,2))].join('\n'):'Noch kein Test gestartet.';
@@ -6598,10 +6598,26 @@ if(typeof document!=='undefined') (function UI(){
   owLabSnapshot('Nach Verbindung: '+label);
   await owLabCheckpoint('Verbindungsversuch abgeschlossen: '+label);
  }
+ function owLabRetryableRead(error){
+  return /PLC_NO_VALID_FRAME|PLC_BAD_CRC|PLC nothing received/i.test(String(error?.message||error));
+ }
  async function owLabRead(){
-  stopLive();if(st.liveReadPromise)await st.liveReadPromise.catch(()=>{});
-  if(!await nvmScan({expertRead:true,postBoot:true})||!hasCurrentNvmBackup())throw Error('Aktuelle 64-Wort-NVM-Sicherung nicht bestätigt.');
-  return st.nvmBackup.slice();
+  await owLabDrainLive();
+  const port=st.port,session=st.sessionIndex,uid=st.uid?.hex;
+  const same=()=>!!(port&&uid&&st.port===port&&st.sessionIndex===session&&st.uid?.hex===uid&&st.chip&&st.readerAlive&&!st.closing&&!st.sensorLost);
+  for(let n=1;n<=2;n++){
+   if(!same())throw Error('USB-Sitzung oder Chip-UID geändert; NVM-Lesen abgebrochen.');
+   const ok=await nvmScan({expertRead:true,postBoot:true});
+   if(ok&&same()&&hasCurrentNvmBackup())return st.nvmBackup.slice();
+   const detail=$('backupMsg').textContent||$('nvmMsg').textContent||'Aktuelle 64-Wort-NVM-Sicherung nicht bestätigt.';
+   const error=Error(detail);
+   owLabSnapshot('NVM-Leseversuch '+n+' fehlgeschlagen');
+   await owLabCheckpoint('NVM-Leseversuch '+n+'/2: '+detail);
+   if(n===2||!same()||!owLabRetryableRead(error))throw error;
+   owLabEvent('Flüchtiger PLC-Lesefehler: vollständige 64-Wort-Sicherung wird einmal wiederholt. Kein Neustart, kein NVM-Schreiben.');
+   await sleep(150);
+  }
+  throw Error('NVM-Sicherung nicht bestätigt.');
  }
  async function owLabWrite(plan){
   const r=owLabRecord,port=st.port,session=st.sessionIndex;
@@ -6730,7 +6746,14 @@ if(typeof document!=='undefined') (function UI(){
   if(r.uid&&r.uid!==st.uid.hex)throw Error('Andere Chip-UID als beim ursprünglichen Test.');
   r.uid=st.uid.hex;
   owLabSetStage('backup','Original-NVM vollständig lesen und CRC prüfen.');
-  const original=await owLabRead();
+  let original;
+  try{original=await owLabRead()}catch(error){
+   if(adapter!=='bridge'||!owLabRetryableRead(error)||!r.uid||st.uid?.hex!==r.uid)throw error;
+   r.phase='await-ssp3';
+   owLabEvent('ESP32 v0.14: vollständiges Original-NVM nicht lesbar. Kein NVM geschrieben. Denselben Sensor an SSP3 anschliessen; dort vollständige Sicherung und CRC-Prüfung durchführen, danach nur bei gültigem Plan programmieren.');
+   await owLabCheckpoint('SSP3-Übergabe nach NVM-Lesefehler');
+   await owLabDisconnect();return;
+  }
   if(r.original&&!r.original.every((v,i)=>v===original[i]))throw Error('Original-NVM weicht von vorherigem Versuch ab. Kein Schreiben.');
   r.original=original.slice();
   const initial=CAL.oneWireStartupStatus(original);

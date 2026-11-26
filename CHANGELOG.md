@@ -1,3 +1,7 @@
+## v0.7.194 – One-Wire Labortest: vollständige NVM-Lesung wiederholen
+
+- Feldtest UID 002001004044: Lesen von NVM 0x22 abgebrochen, PLC_NO_VALID_FRAME bei nachfolgender Statusabfrage. Labortest wiederholt bei einem PLC-Transportfehler die gesamte 64-Wort-Sicherung einmal in derselben UID/USB-Sitzung, ohne Kaltstart oder NVM-Programmierung. CRC-/Identitäts-/Bootfehler bleiben Abbruchkriterien. Beide Fehlversuche werden mit Teilbefund gespeichert. Bei erneutem PLC-Lesefehler am ESP32 geführte SSP3-Übergabe vor dem ersten NVM-Schreiben. Normale USB-, Firmware- und NVM-Routinen unverändert.
+
 ## v0.7.193 – Labortest mit bereits deaktiviertem One-Wire
 
 - Original-NVM und tatsächliche Startup-Bits vor Planprüfung dauerhaft sichern. Ist plc_en bereits aus, getrennten Wiederverbindungstest ohne NVM-Änderung durchführen; bei deaktiviertem Startfenster ausdrücklich bestätigen. Kein automatisches Überschreiben geschützter Bootregister. Regulärer Zugriff und RAM-Recovery im Ergebnis unterscheiden. Programmierter Test bleibt unverändert für permanente PLC-Ausgangskonfiguration. Hardwaretest ausstehend.
