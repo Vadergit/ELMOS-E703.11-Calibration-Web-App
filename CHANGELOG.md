@@ -1,3 +1,8 @@
+## v0.7.200 – Clipping-Grenzen bei Sensorwechsel und Profilen
+
+- Einstellungsprofile und Sensorwechsel verwenden dieselbe Clipping-Prüfung wie die NVM-Ausgangskonfiguration. 5–95 % VDD und andere gültige LIMIT_LO/HI-Grenzen ausserhalb 10–90 % sind erlaubt. S0/S1 bleiben auf den linearen Messbereich beschränkt.
+- Gemeinsame Q0.13-Quantisierung, unveränderte Registergrenzen und NVM-Schutzlogik. 14 simulierte Regressionstests bestanden; Hardware-Sensorwechsel noch zu bestätigen.
+
 ## v0.7.199 – ESP32 als eigenständiger Worst-Case-Programmer
 
 - Worst Case: Programmer frei wählbar (ESP32-C3 v0.14 oder SSP3). Der ausgewählte Programmer übernimmt NVM-Programmierung, drei Neustartprüfungen und standardmässig auch die exakte Wiederherstellung. Der Vergleich mit dem zweiten Programmer ist optional; bei bestätigtem NVM-Abbild kann der Wiederherstellungsadapter explizit gewählt werden.
