@@ -1,3 +1,8 @@
+## v0.7.190 – USB-Handshaking im automatischen One-Wire-Labortest
+
+- Feldprotokoll: alte Live-Antwort endet erst nach USB-Neuverbindung; leerer `:`-Prompt wurde fälschlich als BRIDGE_INFO-Antwort gewertet. Bridge-Handshake wartet jetzt auf die passende vollständige Nutzlast und protokolliert verworfene Frames. Vor dem Handshake RX-Kanal kurz beruhigen.
+- Vor jeder Labortest-USB-Trennung Live-Abfrage und Befehlswarteschlange abwarten. Sitzungsbezogene PLC-Diagnose und Kaltstartnachweis beim Öffnen zurücksetzen. Bereits CRC-/UID-bestätigte RAM-Verbindungen ohne Kaltstart für Original-NVM-Lesen nutzen; v0.14-Schreibschutz bleibt unverändert. Bei Adapter-Handshaking-Fehler maximal ein erneuter Verbindungsaufbau. Hardwareprüfung ausstehend.
+
 ## v0.7.189 – Automatischer One-Wire Wiederverbindungstest
 
 - Ein Start für Verbindungsvorbereitung, Original-NVM/CRC, begrenzte NVM-Programmierung, USB-Neuverbindung und bis zu drei Kaltstart-/Magic-Cookie-Versuche. Bei v0.14 ohne Firmware-Kaltstartfreigabe geführte SSP3-Übergabe, danach unveränderte v0.14 testen. Keine Wiederholung der NVM-Programmierung bei Adapter-/Firmwarevergleich. Manuelle Stromunterbrechung und Firmwarewechsel nur nach Aufforderung.
