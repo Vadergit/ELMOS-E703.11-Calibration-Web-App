@@ -1,3 +1,8 @@
+## v0.7.189 – Automatischer One-Wire Wiederverbindungstest
+
+- Ein Start für Verbindungsvorbereitung, Original-NVM/CRC, begrenzte NVM-Programmierung, USB-Neuverbindung und bis zu drei Kaltstart-/Magic-Cookie-Versuche. Bei v0.14 ohne Firmware-Kaltstartfreigabe geführte SSP3-Übergabe, danach unveränderte v0.14 testen. Keine Wiederholung der NVM-Programmierung bei Adapter-/Firmwarevergleich. Manuelle Stromunterbrechung und Firmwarewechsel nur nach Aufforderung.
+- Durchgängiges USB-/Register-/Ereignisjournal über alle Sitzungen, Original-/Soll-/Ist-NVM, Adapterstatus und persistente IndexedDB-Checkpoints. Keine Kürzung des Labortestjournals. Unkalibrierter Sensor bleibt unkalibriert; reine Kommunikationsprüfung. Physische VDD und interne v0.14-Frame-Zeiten nicht messbar. Hardwareprüfung ausstehend.
+
 ## v0.7.188 – One-Wire Labortest: SSP3 und Adaptervergleich
 
 - Original SSP3 als NVM-Testadapter mit bestätigtem VSUPPLY-Kaltstart, UID, CRC und begrenztem NVM-Plan. ESP32-Firmware-Kaltstartschutz bleibt erhalten; RAM-Messstart wird gesondert angezeigt. Vorbereitung und Adaptervergleich ohne NVM-Programmierung, Diagnoseexport auch vor erstem Schreibvorgang. Vergleich mit v0.14 vor neuer ESP32-Firmware. Hardwareprüfung ausstehend.
