@@ -1,3 +1,7 @@
+## v0.7.188 – One-Wire Labortest: SSP3 und Adaptervergleich
+
+- Original SSP3 als NVM-Testadapter mit bestätigtem VSUPPLY-Kaltstart, UID, CRC und begrenztem NVM-Plan. ESP32-Firmware-Kaltstartschutz bleibt erhalten; RAM-Messstart wird gesondert angezeigt. Vorbereitung und Adaptervergleich ohne NVM-Programmierung, Diagnoseexport auch vor erstem Schreibvorgang. Vergleich mit v0.14 vor neuer ESP32-Firmware. Hardwareprüfung ausstehend.
+
 ## v0.7.187 – One-Wire Labortest: Verbindungsdiagnose
 
 - Voraussetzungen einzeln mit tatsächlicher Firmware, Chip-UID, GPIO10, Kaltstartnachweis und User-NVM-Fähigkeit anzeigen. Keine pauschale Fehlermeldung. Separater Vorbereitungsschritt: USB-Neuverbindung über GPIO10 mit UID-Prüfung, ohne NVM-Schreibvorgang. Bestehende NVM-Freigaben bleiben aktiv.
