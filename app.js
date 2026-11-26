@@ -3848,7 +3848,7 @@ if(typeof document!=='undefined') (function UI(){
   })()
  }
  function stopLive(){st.live=false;clearTimeout(st.timeout);st.timeout=null;renderStatus()}
- async function bootSnapshot(){if(!st.chip)throw Error('Chip nicht verbunden');const out={};for(const a of LOCKED)out[a]=await readReg(a);return out}
+ async function bootSnapshot(read=readReg){if(!st.chip)throw Error('Chip nicht verbunden');const out={};for(const a of LOCKED)out[a]=await read(a);return out}
  function bootString(b){return LOCKED.map(a=>`${REG_NAMES[a]} 0x${h(a)} = 0x${h(b[a],2)} · gesperrt`).join('\n')}
  async function readBoot(){
   return withProgress('Bootregister werden gelesen',()=>readBootOperation());
@@ -4259,12 +4259,12 @@ if(typeof document!=='undefined') (function UI(){
   }
   throw Error('NVM-Controller reagiert nicht / Timeout')
  }
- async function nvmReadWord(addr){
+ async function nvmReadWord(addr,read=readReg){
   const diagnostic=st.ramWriteScope==='display-profile',started=Date.now();
   if(diagnostic)logging('NVM-Anzeigeprofil: Wort '+(addr/2+1)+'/64 (0x'+h(addr)+') gestartet.');
   try{
-   await maintWrite(0x4E,0x4C00|addr);await nvmWaitIdle(12000,12,15);
-   const value=await readReg(0x48);
+   await maintWrite(0x4E,0x4C00|addr);await nvmWaitIdle(12000,12,15,read);
+   const value=await read(0x48);
    debugRead('nvmReads',addr,value);
    if(diagnostic)logging('NVM-Anzeigeprofil: Wort '+(addr/2+1)+'/64 gelesen in '+(Date.now()-started)+' ms.');
    return value;
@@ -4285,14 +4285,15 @@ if(typeof document!=='undefined') (function UI(){
    ca('backupMsg',preview?'NVM wird für die Änderungsvorschau gelesen und mit CRC geprüft …':'Original-NVM wird gelesen und geprüft …','warn');
    ca('nvmMsg','NVM wird vollständig gelesen …','warn');
    const port=st.port,session=st.sessionIndex,uid=st.uid?.hex;
-   const before=await bootSnapshot();await ramGrant();const words=[];
-   for(let i=0;i<64;i++){words.push(await nvmReadWord(i*2));progress.update('NVM wird gelesen',i+1,64);$('nvmProgress').textContent=`NVM lesen: ${i+1}/64`;$('backupProgress').textContent=`NVM: ${i+1} / 64 Wörter`}
+   const read=options?.labRead||readReg;
+   const before=await bootSnapshot(read);await ramGrant();const words=[];
+   for(let i=0;i<64;i++){words.push(await nvmReadWord(i*2,read));options?.labProgress?.(i+1,64);progress.update('NVM wird gelesen',i+1,64);$('nvmProgress').textContent=`NVM lesen: ${i+1}/64`;$('backupProgress').textContent=`NVM: ${i+1} / 64 Wörter`}
    const crc=CAL.crc16(words);
    if(crc!==words[63])throw Error(`CRC16 im bestehenden NVM ungültig: berechnet 0x${h(crc,2)}, gelesen 0x${h(words[63],2)}. Programmierung nicht zulässig.`);
    const factoryCRC=CAL.crc8(words),factoryHigh=(words[15]>>>8);
    if(factoryCRC!==factoryHigh)throw Error(`Werks-CRC8 stimmt nicht: 0x${h(factoryCRC)} statt 0x${h(factoryHigh)}. Programmierung gesperrt.`);
-   for(const index of [0,1,15,16,17,18,19,20,22,CAL.SVDD_INDEX,28,63])if(await nvmReadWord(index*2)!==words[index])throw Error('NVM bei Wiederholungslesung unstabil (Wort '+index+')');
-   const after=await bootSnapshot();if(!sameBoot(before,after))throw Error('Bootregister haben sich beim NVM-Lesen verändert');
+   for(const index of [0,1,15,16,17,18,19,20,22,CAL.SVDD_INDEX,28,63])if(await nvmReadWord(index*2,read)!==words[index])throw Error('NVM bei Wiederholungslesung unstabil (Wort '+index+')');
+   const after=await bootSnapshot(read);if(!sameBoot(before,after))throw Error('Bootregister haben sich beim NVM-Lesen verändert');
    if(st.port!==port||st.sessionIndex!==session||st.uid?.hex!==uid||st.closing||st.sensorLost)
     throw Error('Sensor oder USB-Sitzung während NVM-Lesung geändert');
    if(!debugTrace.originalNvm)debugTrace.originalNvm={words:words.slice(),at:new Date().toISOString(),uid,crc8Verified:true,crc16Verified:true};
@@ -6466,7 +6467,7 @@ if(typeof document!=='undefined') (function UI(){
  // Guided lab: one start, automatic preparation/program/reboot; explicit physical
  // handoff only when an unchanged v0.14 firmware cannot authorize a write.
  const owLabKey='elmos-onewire-reconnect-lab-v1';
- let owLabBusy=false,owLabRecord=null,owLabForceSsp3Start=false,owLabJournal=[],owLabStage='idle',owLabDbPromise=null,owLabStorageError='',owLabLoaded=false,owLabLoading=false;
+ let owLabBusy=false,owLabRecord=null,owLabForceSsp3Start=false,owLabJournal=[],owLabStage='idle',owLabDetail='',owLabDbPromise=null,owLabStorageError='',owLabLoaded=false,owLabLoading=false;
  try{const old=JSON.parse(localStorage.getItem(owLabKey)||'null');if(old?.schema===1)owLabRecord=old}catch(_){}
  const owLabFirmware=()=>st.adapterKind==='ssp3'?(/^[0-9A-F]{2}(\.[0-9A-F]{2}){3}$/i.test(st.firmware)?st.firmware:null):String(debugTrace.versionReply?.raw||'').match(/ESP32-C3 SuperMini[^\r\n]*\bv(0\.\d+)\b/i)?.[1]||null;
  const owLabAdapter=()=>$('owLabAdapter').value;
@@ -6536,11 +6537,12 @@ if(typeof document!=='undefined') (function UI(){
    settings:{baud:$('baud').value,plcBaud:$('plcBaud').value,gpio4:$('plcGpio4Mode').checked,hostFormat:st.plcHostFormat}});
  }
  function owLabSnapshot(label){if(owLabRecord)(owLabRecord.snapshots??=[]).push({at:new Date().toISOString(),label,...owLabTrace()});}
- function owLabSetStage(stage,message){owLabStage=stage;owLabEvent(message);}
+ function owLabSetStage(stage,message){owLabStage=stage;owLabDetail=message;owLabEvent(message);}
+ function owLabProgress(label,n,total){owLabDetail=label+': '+n+'/'+total; $('owLabState').textContent=owLabDetail; if(n===total||n%8===0)owLabEvent(owLabDetail);}
  function owLabRender(){
   const r=owLabRecord,phase=r?.phase||'idle';
   $('owLabSettings').hidden=!$('expertMode').checked;
-  const status=owLabBusy?'Läuft automatisch · '+owLabStage:phase==='await-ssp3'?'Sensor am originalen SSP3 anschliessen. Fortsetzen liest und prüft zuerst das vollständige Original-NVM und dieselbe UID; programmiert nur bei gültigem Änderungsplan.':phase==='await-v14'?'Denselben Sensor an ESP32 v0.14 anschliessen. Kein weiteres NVM-Schreiben.':phase==='await-new'?'v0.14 ohne bestätigte Sensorantwort. v0.16 installieren und fortsetzen. Kein weiteres NVM-Schreiben.':phase==='await-manual'?'Automatischer Start nicht bestätigt. Sensor sicher stromlos machen und wieder anschliessen; dann Fortsetzen. Kein NVM-Schreiben.':phase==='write-uncertain'?'Schreibzustand unklar. Nicht neu starten oder erneut programmieren. Protokoll exportieren.':phase==='written'?(r?.readOnlyBaseline?'Original-NVM gesichert, nicht programmiert. Fortsetzen startet nur die Wiederverbindung.':'NVM verifiziert. Fortsetzen startet nur die Wiederverbindung.'):phase==='programming'?'Unterbrochene Programmierung. Kein Neustart; Protokoll sichern.':r?('Test '+(r.uid||'—')+' · '+phase):'Bereit. Programmer auswählen und Start drücken.';
+  const status=owLabBusy?'Läuft automatisch · '+(owLabDetail||owLabStage):phase==='await-ssp3'?'Sensor am originalen SSP3 anschliessen. Fortsetzen liest und prüft zuerst das vollständige Original-NVM und dieselbe UID; programmiert nur bei gültigem Änderungsplan.':phase==='await-v14'?'Denselben Sensor an ESP32 v0.14 anschliessen. Kein weiteres NVM-Schreiben.':phase==='await-new'?'v0.14 ohne bestätigte Sensorantwort. v0.16 installieren und fortsetzen. Kein weiteres NVM-Schreiben.':phase==='await-manual'?'Automatischer Start nicht bestätigt. Sensor sicher stromlos machen und wieder anschliessen; dann Fortsetzen. Kein NVM-Schreiben.':phase==='write-uncertain'?'Schreibzustand unklar. Nicht neu starten oder erneut programmieren. Protokoll exportieren.':phase==='written'?(r?.readOnlyBaseline?'Original-NVM gesichert, nicht programmiert. Fortsetzen startet nur die Wiederverbindung.':'NVM verifiziert. Fortsetzen startet nur die Wiederverbindung.'):phase==='programming'?'Unterbrochene Programmierung. Kein Neustart; Protokoll sichern.':r?('Test '+(r.uid||'—')+' · '+phase):'Bereit. Programmer auswählen und Start drücken.';
   $('owLabState').textContent=status+(owLabStorageError?' · '+owLabStorageError:'');
   $('owLabChecks').textContent='Adapter: '+(st.bridgeBoard||st.adapterKind||'—')+' · Firmware: '+(owLabFirmware()||'—')+'\nChip-UID: '+(st.uid?.hex||'—')+' · Kaltstart: '+(owLabCold(st.adapterKind)?'bestätigt':'nicht bestätigt');
   $('owLabLog').textContent=r?[...(Array.isArray(r.events)?r.events:[]).map(x=>x.at+'  '+x.message),...(Array.isArray(r.changes)?r.changes:[]).map(x=>'NVM 0x'+h(x.address)+'  0x'+h(x.from,2)+' → 0x'+h(x.to,2))].join('\n'):'Noch kein Test gestartet.';
@@ -6599,15 +6601,31 @@ if(typeof document!=='undefined') (function UI(){
   await owLabCheckpoint('Verbindungsversuch abgeschlossen: '+label);
  }
  function owLabRetryableRead(error){
-  return /PLC_NO_VALID_FRAME|PLC_BAD_CRC|PLC nothing received/i.test(String(error?.message||error));
+  return /PLC_NO_VALID_FRAME|PLC_BAD_CRC|PLC nothing received|CRC8-Prüfung fehlgeschlagen bei Register/i.test(String(error?.message||error));
+ }
+ function owLabSessionGuard(){
+  const port=st.port,session=st.sessionIndex,uid=st.uid?.hex,address=st.plcAddress;
+  return ()=>!!(port&&uid&&st.port===port&&st.sessionIndex===session&&st.uid?.hex===uid&&st.plcAddress===address&&st.chip&&st.readerAlive&&!st.closing&&!st.sensorLost);
+ }
+ function owLabReadRegister(same){
+  return async(addr,timeoutMs)=>{
+   for(let n=1;n<=3;n++){
+    if(!same())throw Error('USB-Sitzung, PLC-Adresse oder Chip-UID geändert; Lesen abgebrochen.');
+    try{const value=await readReg(addr,timeoutMs);if(!same())throw Error('Sensor während Registerlesung geändert.');return value;}
+    catch(error){
+     if(n===3||!same()||st.adapterKind!=='bridge'||!owLabRetryableRead(error))throw error;
+     owLabEvent('PLC-Lesefehler Register 0x'+h(addr)+'; gezielte Wiederholung '+(n+1)+'/3. Kein Schreibbefehl wiederholt.',{address:addr,attempt:n,error:error.message});
+     await sleep(40*n);
+    }
+   }
+  };
  }
  async function owLabRead(){
   await owLabDrainLive();
-  const port=st.port,session=st.sessionIndex,uid=st.uid?.hex;
-  const same=()=>!!(port&&uid&&st.port===port&&st.sessionIndex===session&&st.uid?.hex===uid&&st.chip&&st.readerAlive&&!st.closing&&!st.sensorLost);
+  const same=owLabSessionGuard(),read=owLabReadRegister(same);
   for(let n=1;n<=2;n++){
    if(!same())throw Error('USB-Sitzung oder Chip-UID geändert; NVM-Lesen abgebrochen.');
-   const ok=await nvmScan({expertRead:true,postBoot:true});
+   const ok=await nvmScan({expertRead:true,postBoot:true,labRead:read,labProgress:(n,total)=>owLabProgress('NVM-Sicherung',n,total)});
    if(ok&&same()&&hasCurrentNvmBackup())return st.nvmBackup.slice();
    const detail=$('backupMsg').textContent||$('nvmMsg').textContent||'Aktuelle 64-Wort-NVM-Sicherung nicht bestätigt.';
    const error=Error(detail);
@@ -6628,39 +6646,42 @@ if(typeof document!=='undefined') (function UI(){
   if(!eligible||st.uid?.hex!==r.uid||!plan.before.every((w,i)=>w===st.nvmBackup[i]))
    throw Error('NVM unverändert. '+(ssp?'SSP3-Kaltstart, UID, PLC-Adresse oder RAM/NVM-Kompatibilität nicht bestätigt.':'Firmware-Kaltstart, aktuelles NVM, PLC-Adresse und kompatibles RAM müssen bestätigt sein.'));
   // Persist original and intended image before any maintenance write.
-  r.phase='programming';await owLabCheckpoint('Vor NVM-Programmierung');
+  r.phase='prepared';await owLabCheckpoint('Vorprüfung: noch kein NVM-Wort geschrieben.');
   if(!expert.archiveCurrentNvm('One-Wire Labortest: Original-NVM'))throw Error('Original-Backup nicht gespeichert.');
   // Original-NVM is already durably stored in the run database and included in the final export.
   st.nvmWorking=true;st.writing=true;st.calTask=true;st.ramWriteScope='nvm';stopLive();
   let started=false,verified=false;
+  const same=owLabSessionGuard(),read=owLabReadRegister(same);
   try{
    if(st.liveReadPromise)await st.liveReadPromise.catch(()=>{});
-   const uid=h(await readReg(0x38),2)+h(await readReg(0x52),2)+h(await readReg(0x50),2);
+   const uid=h(await read(0x38),2)+h(await read(0x52),2)+h(await read(0x50),2);
    if(uid!==r.uid||st.port!==port||st.sessionIndex!==session)throw Error('Sensoridentität geändert.');
-   const boot=await bootSnapshot();
+   const boot=await bootSnapshot(read);
    await ramGrant();
-   for(let i=0;i<64;i++)if(await nvmReadWord(i*2)!==plan.before[i])throw Error('Original-NVM geändert: Wort '+i);
-   const ram=await readReg(0x06);
+   for(let i=0;i<64;i++){if(await nvmReadWord(i*2,read)!==plan.before[i])throw Error('Original-NVM geändert: Wort '+i);owLabProgress('Schreibvorprüfung – noch kein NVM geschrieben',i+1,64);}
+   const ram=await read(0x06);
    if(!CAL.timedPlcRamMatches(plan.before,ram)||!(ssp?psscRecoveryProven()&&hasCurrentNvmBackup():timedOneWireReady(st.nvmBackup)))throw Error('RAM-Freigabe geändert.');
    CAL.protectStartupCommunication(plan.before,plan.after,{allowTimedOneWire:true,interfaceMode:'plc'});
    if(!ssp){const reply=await exchange('NVM ARM HOST');
    if(!reply.includes('# NVM ')||!reply.includes('ARMED'))throw Error('Bridge-NVM-Freigabe nicht bestätigt.');
    }
    for(const x of [0x98BD,0x25BF,0x36D8])await maintWrite(0x4E,x);
-   if(!((await readReg(0x46))&8))throw Error('NVM User-Bereich nicht freigegeben.');
+   if(!((await read(0x46))&8))throw Error('NVM User-Bereich nicht freigegeben.');
    const order=i=>i===17?62.5:i;
    for(const x of plan.changes.slice().sort((a,b)=>order(a.index)-order(b.index))){
     if(![17,18,63].includes(x.index)||x.to!==plan.after[x.index])throw Error('NVM-Laborwort nicht erlaubt.');
-    await maintWrite(0x4A,x.to);started=true;r.writeStarted=true;await owLabCheckpoint('Vor NVM-Wort '+x.index);
-    await maintWrite(0x4E,0xA300|x.address);
-    if((await nvmWaitIdle(18000))&64)throw Error('CM CRC-Fehler.');
-    if(await nvmReadWord(x.address)!==x.to)throw Error('NVM-Wort nicht verifiziert: '+x.index);
+    if(!same())throw Error('Sensor vor Schreibbefehl geändert.');
+    await maintWrite(0x4A,x.to);r.phase='programming';r.writeStarted=true;owLabDetail='NVM-Wort 0x'+h(x.address)+' wird programmiert';await owLabCheckpoint('Vor NVM-Wort '+x.index+' (Schreibbefehl folgt)');
+    if(!same())throw Error('Sensor vor Schreibbefehl geändert.');
+    started=true;await maintWrite(0x4E,0xA300|x.address);
+    if((await nvmWaitIdle(18000,25,80,read))&64)throw Error('CM CRC-Fehler.');
+    if(await nvmReadWord(x.address,read)!==x.to)throw Error('NVM-Wort nicht verifiziert: '+x.index);
     owLabEvent('NVM-Wort '+x.index+' geschrieben und rückgelesen.');
    }
-   await maintWrite(0x4E,0);await maintWrite(0x4E,0x8800);await nvmWaitIdle(15000);
-   const words=[];for(let i=0;i<64;i++)words.push(await nvmReadWord(i*2));
-   if(!words.every((v,i)=>v===plan.after[i])||CAL.crc16(words)!==words[63]||CAL.crc8(words)!==(words[15]>>>8)||
-      ((await readReg(0x46))&64)||!sameBoot(boot,await bootSnapshot()))throw Error('NVM-Gesamtvergleich/CRC/Bootprüfung fehlgeschlagen.');
+   await maintWrite(0x4E,0);await maintWrite(0x4E,0x8800);await nvmWaitIdle(15000,25,80,read);
+   const words=[];for(let i=0;i<64;i++){words.push(await nvmReadWord(i*2,read));owLabProgress('NVM-Rücklesekontrolle',i+1,64);}
+   if(!same()||!words.every((v,i)=>v===plan.after[i])||CAL.crc16(words)!==words[63]||CAL.crc8(words)!==(words[15]>>>8)||
+      ((await read(0x46))&64)||!sameBoot(boot,await bootSnapshot(read)))throw Error('NVM-Gesamtvergleich/CRC/Bootprüfung fehlgeschlagen.');
    r.programmed=words;r.verified=true;r.phase='written';verified=true;
    owLabEvent('64/64 NVM-Wörter, CRC8/16 und unveränderte RAM-Bootregister bestätigt.');
   }catch(e){
@@ -6703,6 +6724,7 @@ if(typeof document!=='undefined') (function UI(){
   if(!(cfg&4)||P.plcAddressFromConfig(cfg,pads)!==st.plcAddress){owLabEvent('UID und NVM gelesen, dauerhafte RAM-PLC-Freigabe nicht bestätigt.');return 'inconclusive';}
   trace.result='success';r.postBoot=actual;
   trace.accessPath=st.psscRamRecovery?'RAM-Recovery':st.coldStartAfeRestored?'RAM-Messstart':'regulärer Zugriff';
+  trace.magicCookieEvidence={coldStartConfirmed:owLabCold(adapter),adapterResult:debugValue(st.magicResult),directCookieWaveform:false,ramRecovery:!!st.psscRamRecovery};
   owLabEvent(label+': UID, 64/64 NVM-Wörter, CRC und plc_en=1 im RAM bestätigt. Zugriff: '+trace.accessPath+'.'+(st.psscRamRecovery?' Regulärer Magic-Cookie-Start damit nicht separat nachgewiesen.':''));
   return 'success';
  }
@@ -6715,13 +6737,16 @@ if(typeof document!=='undefined') (function UI(){
   for(let n=1;n<=3;n++){
    owLabSetStage('restart',label+' – Kaltstart '+n+'/3'+(manual?' nach manueller Unterbrechung':''));
    await owLabReopen(port,adapter,label+' #'+n);
-   owLabSetStage('magic','Magic-Cookie-/PLC-Startsequenz durch Adapter ausgeführt; Antwort wird geprüft.');
-   result=await owLabAssess(adapter,versions,label);
+   owLabSetStage('magic','Adapterstart beendet; Kaltstart, Magic-Cookie-Nachweis und Sensorantwort werden getrennt bewertet.');
+   try{result=await owLabAssess(adapter,versions,label)}catch(error){
+    if(!owLabRetryableRead(error))throw error;
+    result='inconclusive';owLabEvent('Transportfehler bei Wiederverbindungsprüfung: '+error.message+'; kein negatives Magic-Cookie-Ergebnis abgeleitet.');
+   }
    await owLabCheckpoint('Ergebnis '+label+' #'+n+': '+result);
    if(result==='success'||!owLabFwMatches(adapter,versions)||st.uid?.hex&&st.uid.hex!==r.uid)break;
   }
   if(result==='success'){
-   r.phase='complete';owLabSetStage('done','Wiederverbindung erfolgreich. '+(r.readOnlyBaseline?'Kein NVM geschrieben. ':'')+'Test abgeschlossen.');
+   r.phase='complete';owLabSetStage('done','Wiederverbindung erfolgreich. '+(r.readOnlyBaseline?'Kein NVM geschrieben. ':'NVM verifiziert. ')+'Magic-Cookie-Nachweis separat im Protokoll; interne Flanken nicht gemessen. Test abgeschlossen.');
   }else if(label==='v0.14'&&result==='failed'){
    r.phase='await-new';owLabEvent('v0.14 ohne bestätigte Sensorantwort. Neuere Firmware als nächster Test; NVM bleibt unverändert.');
   }else{
@@ -6788,6 +6813,7 @@ if(typeof document!=='undefined') (function UI(){
   }
   if(!owLabCold(adapter))throw Error('SSP3-Kaltstartnachweis fehlt. Kein NVM geschrieben.');
   r.writerAdapter=adapter;r.writerFirmware=owLabFirmware();
+  r.next=continuing&&r.baselineAdapter==='bridge'&&adapter==='ssp3'?{adapter:'bridge',versions:['0.14'],label:'v0.14'}:{adapter,versions,label:adapter==='ssp3'?'SSP3':'v0.14'};
   owLabSetStage('program','Permanentes One-Wire deaktivieren, 4-ms-Startfenster und CRC16 programmieren.');
   await owLabWrite(plan);
   if(continuing&&r.baselineAdapter==='bridge'&&adapter==='ssp3'){
@@ -6876,7 +6902,7 @@ if(typeof document!=='undefined') (function UI(){
  $('owLabContinue').addEventListener('click',()=>owLabRun('continue'));
  $('owLabManual').addEventListener('click',()=>{if(window.confirm('Sensorversorgung sicher trennen und wieder anschliessen; ESP32 v0.14 unverändert lassen. Danach wird der Start erneut geprüft.'))owLabRun('manual')});
  $('owLabFinish').addEventListener('click',async()=>{if(owLabBusy||!owLabRecord||!window.confirm('Test ohne weitere Programmierung abschliessen? Protokoll bleibt exportierbar.'))return;owLabRecord.phase='complete';owLabSetStage('done','Test durch Benutzer abgeschlossen.');try{await owLabCheckpoint('Test abgeschlossen')}catch(e){owLabStorageError=e.message}owLabRender()});
- $('owLabExport').addEventListener('click',()=>{if(owLabRecord)download('ELMOS_OneWire_Lab_'+(owLabRecord.uid||'Diagnose')+'.json',JSON.stringify({schema:2,record:owLabRecord,journal:owLabJournal,storageError:owLabStorageError,limitations:['VDD physikalisch nicht gemessen','Interne Magic-Cookie-Bits/Flanken der Firmware v0.14 über USB nicht sichtbar','Journal enthält alle während des Labortests erfassten Host-USB-Einträge und Registerlesungen. Bei Browserabsturz sind nur gespeicherte Checkpoints verfügbar.']},null,2))});
+ $('owLabExport').addEventListener('click',()=>{if(owLabRecord)download('ELMOS_OneWire_Lab_'+(owLabRecord.uid||'Diagnose')+'.json',JSON.stringify({schema:2,record:owLabRecord,journal:owLabJournal,storageError:owLabStorageError,exportedWhileRunning:owLabBusy,exportStage:owLabStage,exportDetail:owLabDetail,limitations:['VDD physikalisch nicht gemessen','Interne Magic-Cookie-Bits/Flanken der Firmware v0.14 über USB nicht sichtbar','Journal enthält alle während des Labortests erfassten Host-USB-Einträge und Registerlesungen. Bei Browserabsturz sind nur gespeicherte Checkpoints verfügbar.']},null,2))});
  owLabRender();
  }catch(error){
   debugAppend('errors',{kind:'labUiInit',message:String(error.message||error),stack:error.stack});
