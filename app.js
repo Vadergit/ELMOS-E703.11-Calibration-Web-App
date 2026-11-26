@@ -6719,10 +6719,38 @@ if(typeof document!=='undefined') (function UI(){
   }
   throw Error('NVM-Sicherung nicht bestätigt.');
  }
+ function owLabWorstPlan(before,original,step){
+  const valid=w=>Array.isArray(w)&&w.length===64&&w.every(x=>Number.isInteger(x)&&x>=0&&x<=65535)&&CAL.crc16(w)===w[63]&&CAL.crc8(w)===(w[15]>>>8)&&CAL.oneWireStartupStatus(w).ok;
+  if(!valid(before)||!valid(original)||![1,2,3].includes(CAL.oneWireStartupStatus(original).mode))throw Error('Worst Case benötigt CRC-geprüftes, analoges Referenz-NVM mit aktivem Startweg.');
+  const build=windowCode=>{const w=original.slice();w[17]&=~4;w[18]=(w[18]&~0x3000)|(windowCode<<12);w[19]&=~0x0180;w[63]=CAL.crc16(w);return w;};
+  const four=build(0),ten=build(1);
+  const same=(a,b)=>a.every((v,i)=>v===b[i]);
+  if(![original,four,ten].some(x=>same(before,x)))throw Error('NVM entspricht keinem freigegebenen Laborabbild.');
+  const after=step==='restore'?original.slice():step==='stage10'?ten:step==='worst4'?four:null;
+  if(!after||!valid(after))throw Error('Ungültiges Worst-Case-Ziel.');
+  const changes=after.flatMap((to,index)=>to===before[index]?[]:[{index,address:index*2,from:before[index],to}]);
+  const mask={17:4,18:0x3000,19:0x0180,63:0xFFFF};
+  if(changes.some(x=>!mask[x.index]||((x.from^x.to)&~mask[x.index])))throw Error('Worst Case: nicht freigegebene NVM-Änderung.');
+  return {before:before.slice(),after,changes,worstStep:step};
+ }
+ function owLabWorstValidate(plan,r){
+  if(!r?.worstMode||!owLabBusy||st.adapterKind!=='ssp3'||st.iface!=='plc'||!psscRecoveryProven()||!hasCurrentNvmBackup())throw Error('Worst-Case-Schreibfreigabe nur im SSP3-Labor nach bestätigter Recovery.');
+  const expected=owLabWorstPlan(plan.before,r.original,plan.worstStep);
+  if(!CAL.sameNvmImage(expected.after,plan.after)||JSON.stringify(expected.changes)!==JSON.stringify(plan.changes)||!plan.changes.length)throw Error('Worst-Case-Plan geändert oder leer.');
+  if(!CAL.sameNvmImage(plan.before,r.programmed||r.original))throw Error('Worst Case: aktuelles Abbild nicht erwartet.');
+  return true;
+ }
+ async function owLabWorstRamMatches(words,read){
+  const cfg=await read(0x06),pads=await read(0x0A);
+  return !!((cfg&4)&&(pads&0x0180)===0x0180&&P.plcAddressFromConfig(cfg,pads)===st.plcAddress&&P.plcAddressFromConfig(words[17],words[19])===st.plcAddress&&
+   (CAL.oneWireBootRegisterMatches(words,cfg,6,{startupAccess:true,psscRecovery:true})||CAL.timedPlcRamMatches(words,cfg))&&CAL.oneWireBootRegisterMatches(words,pads,10,{startupAccess:true,psscRecovery:true}));
+ }
  async function owLabWrite(plan){
   const r=owLabRecord,port=st.port,session=st.sessionIndex;
   const ssp=st.adapterKind==='ssp3';
-  const eligible=ssp?psscRecoveryProven()&&hasCurrentNvmBackup()&&st.plcAddressVerified&&
+  const worst=!!plan.worstStep;
+  if(worst)owLabWorstValidate(plan,r);
+  const eligible=worst?await owLabWorstRamMatches(plan.before,owLabReadRegister(owLabSessionGuard())):ssp?psscRecoveryProven()&&hasCurrentNvmBackup()&&st.plcAddressVerified&&
    P.plcAddressFromConfig(plan.before[17],plan.before[19])===st.plcAddress&&
    CAL.oneWireStartupStatus(plan.before).permanent&&CAL.timedPlcRamMatches(plan.before,st.regs[0x06]):timedOneWireReady(st.nvmBackup);
   if(!eligible||st.uid?.hex!==r.uid||!plan.before.every((w,i)=>w===st.nvmBackup[i]))
@@ -6742,8 +6770,11 @@ if(typeof document!=='undefined') (function UI(){
    await ramGrant();
    for(let i=0;i<64;i++){if(await nvmReadWord(i*2,read)!==plan.before[i])throw Error('Original-NVM geändert: Wort '+i);owLabProgress('Schreibvorprüfung – noch kein NVM geschrieben',i+1,64);}
    const ram=await read(0x06);
-   if(!CAL.timedPlcRamMatches(plan.before,ram)||!(ssp?psscRecoveryProven()&&hasCurrentNvmBackup():timedOneWireReady(st.nvmBackup)))throw Error('RAM-Freigabe geändert.');
-   CAL.protectStartupCommunication(plan.before,plan.after,{allowTimedOneWire:true,interfaceMode:'plc'});
+   if(worst){owLabWorstValidate(plan,r);if(!await owLabWorstRamMatches(plan.before,read))throw Error('Worst Case: RAM-Freigabe geändert.');}
+   else{
+    if(!CAL.timedPlcRamMatches(plan.before,ram)||!(ssp?psscRecoveryProven()&&hasCurrentNvmBackup():timedOneWireReady(st.nvmBackup)))throw Error('RAM-Freigabe geändert.');
+    CAL.protectStartupCommunication(plan.before,plan.after,{allowTimedOneWire:true,interfaceMode:'plc'});
+   }
    if(!ssp){const reply=await exchange('NVM ARM HOST');
    if(!reply.includes('# NVM ')||!reply.includes('ARMED'))throw Error('Bridge-NVM-Freigabe nicht bestätigt.');
    }
@@ -6751,7 +6782,7 @@ if(typeof document!=='undefined') (function UI(){
    if(!((await read(0x46))&8))throw Error('NVM User-Bereich nicht freigegeben.');
    const order=i=>i===17?62.5:i;
    for(const x of plan.changes.slice().sort((a,b)=>order(a.index)-order(b.index))){
-    if(![17,18,63].includes(x.index)||x.to!==plan.after[x.index])throw Error('NVM-Laborwort nicht erlaubt.');
+    if(!(worst?[17,18,19,63]:[17,18,63]).includes(x.index)||x.to!==plan.after[x.index])throw Error('NVM-Laborwort nicht erlaubt.');
     if(!same())throw Error('Sensor vor Schreibbefehl geändert.');
     await maintWrite(0x4A,x.to);r.phase='programming';r.writeStarted=true;owLabDetail='NVM-Wort 0x'+h(x.address)+' wird programmiert';await owLabCheckpoint('Vor NVM-Wort '+x.index+' (Schreibbefehl folgt)');
     if(!same())throw Error('Sensor vor Schreibbefehl geändert.');
@@ -6765,6 +6796,7 @@ if(typeof document!=='undefined') (function UI(){
    if(!same()||!words.every((v,i)=>v===plan.after[i])||CAL.crc16(words)!==words[63]||CAL.crc8(words)!==(words[15]>>>8)||
       ((await read(0x46))&64)||!sameBoot(boot,await bootSnapshot(read)))throw Error('NVM-Gesamtvergleich/CRC/Bootprüfung fehlgeschlagen.');
    r.programmed=words;r.verified=true;r.phase='written';verified=true;
+   if(worst)(r.worstWrites??=[]).push({step:plan.worstStep,at:new Date().toISOString(),changes:plan.changes,before:plan.before,after:words.slice(),crcVerified:true});
    owLabEvent('64/64 NVM-Wörter, CRC8/16 und unveränderte RAM-Bootregister bestätigt.');
   }catch(e){
    r.phase=started?'write-uncertain':'prewrite-failed';owLabEvent('Abbruch: '+e.message);throw e;
@@ -6803,7 +6835,7 @@ if(typeof document!=='undefined') (function UI(){
   if(!(r.programmed||r.original).every((x,i)=>x===actual[i])){trace.nvmMismatch=true;throw Error('NVM-Abweichung nach Neustart. Test gestoppt; kein weiteres Schreiben.');}
   const cfg=await readReg(0x06),pads=await readReg(0x0A);
   trace.ramAfter={cfg,pads,afe:await readReg(0x1C)};
-  if(!(cfg&4)||P.plcAddressFromConfig(cfg,pads)!==st.plcAddress){owLabEvent('UID und NVM gelesen, dauerhafte RAM-PLC-Freigabe nicht bestätigt.');return 'inconclusive';}
+  if(!(cfg&4)||r.worstMode&&(pads&0x0180)!==0x0180||P.plcAddressFromConfig(cfg,pads)!==st.plcAddress){owLabEvent('UID und NVM gelesen, dauerhafte RAM-PLC-Freigabe nicht bestätigt.');return 'inconclusive';}
   trace.result='success';r.postBoot=actual;
   trace.accessPath=st.psscRamRecovery?'RAM-Recovery':st.coldStartAfeRestored?'RAM-Messstart':'regulärer Zugriff';
   trace.magicCookieEvidence={coldStartConfirmed:owLabCold(adapter),adapterResult:debugValue(st.magicResult),directCookieWaveform:false,ramRecovery:!!st.psscRamRecovery};
@@ -6824,7 +6856,7 @@ if(typeof document!=='undefined') (function UI(){
   const entries=r.matrix||[];
   const lines=entries.map(x=>x.firmwareLabel+' / '+x.profile+' / '+x.variant+' #'+x.repeat+': '+x.result+(x.accessPath?' · '+x.accessPath:'')+(x.psscSuccessfulDelay!==null&&x.psscSuccessfulDelay!==undefined?' · Delay 0x'+x.psscSuccessfulDelay:'')+(x.cookie?' · Cookie '+x.cookie:''));
   const coverage=['dauerhaft','4 ms','10 ms','200 ms','aus'].map(profile=>{const summaries=(r.matrixSummaries||[]).filter(x=>x.profile===profile);return profile+': '+(summaries.length?summaries.map(x=>x.firmwareLabel+' '+(x.blocked?'nicht durchgeführt':x.successes+'/'+x.total+' erfolgreich')).join(', '):'offen');});
-  return 'Testmatrix (3 Wiederholungen je Variante; kein Abbruch nach erstem Erfolg)\n'+(lines.join('\n')||'Noch keine Matrixmessung.')+'\n\nProfilabdeckung:\n'+coverage.join('\n')+'\nNur vorhandenes Profil bzw. freigegebene 4-ms-Umstellung wird geprüft.';
+  return 'Testmatrix ('+(r.testMode==='quick'?'5 Standardstarts':r.testMode==='endurance'?'100 Standardstarts':'3 Wiederholungen je Variante')+'; kein Abbruch nach erstem Erfolg)\n'+(lines.join('\n')||'Noch keine Matrixmessung.')+'\n\nProfilabdeckung:\n'+coverage.join('\n')+'\nNur vorhandenes Profil bzw. freigegebene 4-ms-Umstellung wird geprüft.';
  }
  async function owLabMatrix(port,adapter,versions,label,manual=false,prewrite=false){
   const r=owLabRecord,baseline=r.programmed||r.original;
@@ -6835,11 +6867,13 @@ if(typeof document!=='undefined') (function UI(){
    owLabSetStage('done','Kein Startup-Fenster aktiv; NVM nur gelesen. Kaltstartmatrix nicht durchgeführt.');await owLabCheckpoint('Matrix aus Sicherheitsgründen übersprungen');return;
   }
   r.matrix??=[];
-  const variants=owLabVariants(adapter);
+  const repetitions=r.testMode==='quick'?5:r.testMode==='endurance'?100:3;
+  const variants=['quick','endurance'].includes(r.testMode)?[{id:'auto',mode:'auto'}]:owLabVariants(adapter);
   let successes=0,failed=0,unknown=0;
   for(const variant of variants){
-   for(let repeat=1;repeat<=3;repeat++){
-    owLabSetStage('restart',label+' · '+profile+' · '+variant.id+' · '+repeat+'/3');
+   for(let repeat=1;repeat<=repetitions;repeat++){
+    owLabSetStage('restart',label+' · '+profile+' · '+variant.id+' · '+repeat+'/'+repetitions);
+    const startedAt=Date.now();
     const entry={at:new Date().toISOString(),firmwareLabel:label,adapter,profile,variant:variant.id,requestedRate:variant.rate??null,repeat,manual:!!manual,prewrite,result:'inconclusive'};
     r.matrix.push(entry);
     await owLabCheckpoint('Matrix: '+variant.id+' #'+repeat+' vorbereitet');
@@ -6883,11 +6917,12 @@ if(typeof document!=='undefined') (function UI(){
      }
      entry.result='inconclusive';
     }finally{owLabVariant=null;$('plcBaud').value=previousBaud;}
+    entry.durationMs=Date.now()-startedAt;
     if(entry.result==='success')successes++;else if(entry.result==='failed')failed++;else unknown++;
     await owLabCheckpoint('Matrix '+variant.id+' #'+repeat+': '+entry.result);
    }
   }
-  r.matrixSummary={profile,adapter,firmwareLabel:label,total:variants.length*3,successes,failed,inconclusive:unknown,prewrite};
+  r.matrixSummary={profile,adapter,firmwareLabel:label,total:variants.length*repetitions,successes,failed,inconclusive:unknown,prewrite};
   (r.matrixSummaries??=[]).push({...r.matrixSummary});
   r.phase=prewrite?'prepared':'complete';
   owLabSetStage(prewrite?'backup':'done','Matrix '+profile+' abgeschlossen: '+successes+' erfolgreich, '+failed+' fehlgeschlagen, '+unknown+' nicht eindeutig. Nicht gleichbedeutend mit bestandenem Magic-Cookie-Test.');
