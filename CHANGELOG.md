@@ -1,3 +1,9 @@
+## v0.7.195 – One-Wire Labortest: gezielte PLC-Lesewiederholung und Schreibfortschritt
+
+- ESP32: einzelne fehlgeschlagene PLC-Registerlesung bis zu zweimal mit kurzem Abstand wiederholen, ausschliesslich im Labortest und bei unveränderter USB-Sitzung, Chip-UID und PLC-Adresse. Keine automatische Wiederholung persistenter Schreibbefehle. Die vollständige CRC-/Boot-/UID-Prüfung und der SSP3-Fallback bleiben erhalten.
+- Schreibvorprüfung, tatsächlicher NVM-Schreibbefehl und Rücklesekontrolle sichtbar unterscheiden; 64-Wort-Fortschritt und laufenden Exportstatus erfassen. Geplanten Folgeadapter vor der Programmierung sichern. Kein Neustart ohne verifiziertes NVM und bestätigte Schreibsperre.
+- Wiederverbindungsprüfung: Transportfehler als nicht abschliessend bewerten und getrennt von Magic-Cookie-/Kaltstartnachweis dokumentieren. Die unveränderte ESP32-Firmware v0.14 bleibt Referenz; Hardwaretest und direkter Nachweis der Cookie-Flanken stehen aus.
+
 ## v0.7.194 – One-Wire Labortest: vollständige NVM-Lesung wiederholen
 
 - Feldtest UID 002001004044: Lesen von NVM 0x22 abgebrochen, PLC_NO_VALID_FRAME bei nachfolgender Statusabfrage. Labortest wiederholt bei einem PLC-Transportfehler die gesamte 64-Wort-Sicherung einmal in derselben UID/USB-Sitzung, ohne Kaltstart oder NVM-Programmierung. CRC-/Identitäts-/Bootfehler bleiben Abbruchkriterien. Beide Fehlversuche werden mit Teilbefund gespeichert. Bei erneutem PLC-Lesefehler am ESP32 geführte SSP3-Übergabe vor dem ersten NVM-Schreiben. Normale USB-, Firmware- und NVM-Routinen unverändert.
