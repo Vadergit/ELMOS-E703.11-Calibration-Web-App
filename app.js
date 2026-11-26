@@ -6591,7 +6591,7 @@ if(typeof document!=='undefined') (function UI(){
     if(['programming','write-uncertain'].includes(phase)||owLabRecord.phase==='programming'){owLabRecord.phase='write-uncertain';owLabRecord.verified=false;}
    }else{owLabStorageError='Gespeicherter Volltrace nicht verfügbar.';owLabRecord.phase='write-uncertain';owLabRecord.verified=false;}
   }catch(e){owLabStorageError='Labordaten nicht geladen: '+e.message;owLabRecord.phase='write-uncertain';owLabRecord.verified=false;}
-  finally{owLabLoading=false;owLabLoaded=true;owLabRecord.snapshots??=[];owLabRecord.events??=[];owLabRecord.attempts??=[];if(['preparing','prepared'].includes(owLabRecord.phase)&&!owLabRecord.writeStarted)owLabRecord.phase='prewrite-failed';}
+  finally{owLabLoading=false;owLabLoaded=true;owLabRecord.snapshots??=[];owLabRecord.events??=[];owLabRecord.attempts??=[];if(['preparing','prepared'].includes(owLabRecord.phase)){if(owLabRecord.worstMode&&owLabRecord.verified&&owLabRecord.programmed)owLabRecord.phase='worst-hold';else if(!owLabRecord.writeStarted)owLabRecord.phase='prewrite-failed';else owLabRecord.phase='write-uncertain';}if($('owLabRestoreAdapter'))$('owLabRestoreAdapter').value=owLabRecord.restoreAdapter||owLabRecord.writerAdapter||'ssp3';}
  }
  function owLabSave(){
   if(!owLabRecord)return;
@@ -7073,10 +7073,13 @@ if(typeof document!=='undefined') (function UI(){
   }
   if(successes!==count)throw Error(label+': '+successes+'/'+count+' Wiederverbindungen bestätigt.');
  }
- async function owLabWorstWriteStep(port,step){
-  const r=owLabRecord,base=r.programmed||r.original;
-  await owLabReopen(port,'ssp3','Worst Case – Vorprüfung '+step);
-  if(!owLabFwMatches('ssp3',null)||!st.chip||st.uid?.hex!==r.uid||!owLabCold('ssp3'))throw Error('SSP3, UID oder Recovery nicht bestätigt.');
+ const owLabWorstVersions=adapter=>adapter==='bridge'?['0.14']:null;
+ const owLabWorstName=adapter=>adapter==='bridge'?'ESP32 v0.14':'SSP3';
+ async function owLabWorstWriteStep(port,step,adapter=owLabRecord.writerAdapter||'ssp3'){
+  const r=owLabRecord,base=r.programmed||r.original,versions=owLabWorstVersions(adapter),name=owLabWorstName(adapter);
+  if(step==='restore')r.restoreAdapter=adapter;
+  await owLabReopen(port,adapter,'Worst Case – Vorprüfung '+step+' / '+name);
+  if(!owLabFwMatches(adapter,versions)||!st.chip||st.uid?.hex!==r.uid||!owLabWorstWriterReady(adapter))throw Error(name+': UID, Kaltstart oder NVM-Schreibvoraussetzungen nicht bestätigt.');
   const current=await owLabRead();
   if(!CAL.sameNvmImage(current,base))throw Error('NVM-Abweichung vor Worst-Case-Schreibvorgang.');
   const plan=owLabWorstPlan(current,r.original,step);
@@ -7084,36 +7087,42 @@ if(typeof document!=='undefined') (function UI(){
   await owLabCheckpoint('Worst Case '+step+' – exakter NVM-Plan gesichert.');
   if(plan.changes.length){await owLabWrite(plan);}
   else{r.programmed=current.slice();r.verified=true;r.phase='written';await owLabCheckpoint('Zielabbild bereits vorhanden; kein erneutes Schreiben.');}
-  await owLabWorstVerify(port,'ssp3',null,step,3);
+  await owLabWorstVerify(port,adapter,versions,step+' / '+name,3);
  }
  async function owLabWorstStart(port){
-  const r=owLabRecord;
-  await owLabReopen(port,'ssp3','Worst Case Original');
-  if(!owLabFwMatches('ssp3',null)||!st.chip||!st.uid?.hex||!owLabCold('ssp3'))throw Error('SSP3-Recovery und Chip-UID nicht bestätigt.');
+  const r=owLabRecord,adapter=r.writerAdapter||'ssp3',versions=owLabWorstVersions(adapter),name=owLabWorstName(adapter);
+  await owLabReopen(port,adapter,'Worst Case Original / '+name);
+  if(!owLabFwMatches(adapter,versions)||!st.chip||!st.uid?.hex||!owLabWorstWriterReady(adapter))throw Error(name+': UID, Kaltstart oder NVM-Schreibvoraussetzungen nicht bestätigt. Kein NVM geschrieben.');
   if(r.uid&&r.uid!==st.uid.hex)throw Error('Andere Chip-UID.');
-  r.uid=st.uid.hex;r.original=await owLabRead();r.originalStartup=CAL.oneWireStartupStatus(r.original);
+  r.uid=st.uid.hex;r.original=await owLabRead();r.originalStartup=CAL.oneWireStartupStatus(r.original);r.writerFirmware=owLabFirmware();
   const target=owLabWorstPlan(r.original,r.original,'worst4');
   await owLabCheckpoint('Worst Case: vollständiges Original-NVM und Zielabbild gesichert.');
-  // If already at 4 ms with both access bits off, create a real 10 ms -> 4 ms transition.
-  if(!target.changes.length)await owLabWorstWriteStep(port,'stage10');
-  await owLabWorstWriteStep(port,'worst4');
+  if(!target.changes.length)await owLabWorstWriteStep(port,'stage10',adapter);
+  await owLabWorstWriteStep(port,'worst4',adapter);
+  r.writerWorstPassed=true;
   r.phase='worst-bridge';
-  await owLabCheckpoint('SSP3-Worst-Case bestanden. Jetzt externe Analogprüfung und ESP32-Vergleich.');
+  if($('owLabRestoreAdapter'))$('owLabRestoreAdapter').value=adapter;
+  await owLabCheckpoint(name+'-Worst-Case bestanden. Jetzt externe Analogprüfung'+(r.compareOther?' und optionaler zweiter Programmer':' und Original wiederherstellen')+'.');
   await owLabDisconnect();
  }
  async function owLabWorstContinue(port,adapter){
   const r=owLabRecord;
   if(r.phase==='worst-bridge'){
    r.analogEvidence={manual:true,notes:$('owLabAnalogNotes')?.value.trim()||null,physicalMeasurementVerified:false};
-   try{await owLabWorstVerify(port,'bridge',['0.14'],'Worst Case ESP32 v0.14',3);r.bridgeWorstPassed=true;}
-   finally{r.phase='worst-restore';await owLabCheckpoint('ESP32-Test beendet; Original am SSP3 wiederherstellen.');await owLabDisconnect();}
-  }else{
-   await owLabWorstWriteStep(port,'restore');
-   if(!CAL.sameNvmImage(r.postBoot,r.original))throw Error('Original nach Neustart nicht bestätigt.');
-   r.restored=true;r.phase='complete';
-   owLabSetStage('done','Original-NVM 64/64 nach Wiederverbindung bestätigt. '+(r.bridgeWorstPassed?'SSP3 und ESP32 bestätigt.':'ESP32-Worst-Case nicht bestätigt; kein Gesamterfolg.'));
-   await owLabCheckpoint('Original-NVM wiederhergestellt und nach Neustart verifiziert.');
+   if(r.compareOther!==false){
+    try{await owLabWorstVerify(port,adapter,owLabWorstVersions(adapter),'Worst Case Vergleich '+owLabWorstName(adapter),3);r.compareWorstPassed=true;if(adapter==='bridge')r.bridgeWorstPassed=true;}
+    finally{r.phase='worst-restore';if($('owLabRestoreAdapter'))$('owLabRestoreAdapter').value=r.writerAdapter||'ssp3';await owLabCheckpoint('Adaptervergleich beendet; Original wiederherstellen.');await owLabDisconnect();}
+    return;
+   }
+   r.phase='worst-restore';
+   await owLabCheckpoint('Analogprüfung dokumentiert; Original wiederherstellen.');
   }
+  await owLabWorstWriteStep(port,'restore',adapter);
+  if(!CAL.sameNvmImage(r.postBoot,r.original))throw Error('Original nach Neustart nicht bestätigt.');
+  r.restored=true;r.phase='complete';
+  const passed=(r.writerWorstPassed||r.writerAdapter==null)&&(r.compareOther===false||r.compareWorstPassed||r.bridgeWorstPassed);
+  owLabSetStage('done','Original-NVM 64/64 nach Wiederverbindung bestätigt. '+(passed?'Gewählte Programmer-Tests bestätigt.':'Mindestens ein Programmer-Test nicht bestätigt; kein Gesamterfolg.'));
+  await owLabCheckpoint('Original-NVM wiederhergestellt und nach Neustart verifiziert.');
  }
  async function owLabRun(action='start'){
   if(owLabBusy)return;
