@@ -39,7 +39,7 @@ test('webapp grants generic NVM only to boards advertising both capabilities',()
 test('webapp keeps chip identity, boot protection, backup and full post-write CRC check',()=>{
  for(const term of [
   "st.uid.ser0!==st.nvmBackup[0]",'CAL.protectStartupCommunication(initial,modified',
-  'const verifyWords=(liveSsp3Calibration||st.psscRamRecovery||alarmOnly||st.bridgeUserNvm)?Array.from({length:64}',
+  'const verifyWords=Array.from({length:64}',
   "if(!$('nvmAutoBackup').checked)",'NVM wird rückgelesen','CAL.crc16(after)!==after[63]',
   "if(c.index<16||c.index>63)",'await exchange(\'NVM DISARM\')'
  ])assert.ok(app.includes(term),term);
@@ -54,7 +54,21 @@ test('release workflow compiles ESP32-C3 and both Pro Micro frequencies and publ
  const yml=source('.github/workflows/esp32-c3-release.yml');
  for(const needle of ['firmware/esp32c3_supermini','firmware/pro_micro','arduino-cli compile',
   '16MHzatmega32U4','8MHzatmega32U4','github.ref == \'refs/heads/main\'',
-  'firmware/releases/esp32-c3/v0.14','firmware/releases/pro-micro/v0.29']){
+  'firmware/releases/esp32-c3/v0.16','firmware/releases/pro-micro/v0.29']){
   assert.ok(yml.includes(needle),needle);
  }
+});
+
+test('ESP32 cold-start tuning is bounded and leaves NVM arm unchanged',()=>{
+ const header=source('firmware/esp32c3_supermini/plc_read.h');
+ const retry=esp.slice(esp.indexOf('static const char *retryTimedPlcStart()'),esp.indexOf('static const char *openPlcAccess('));
+ assert.match(retry,/profiles\[\] = \{\{100000, 250\}, \{100000, 1000\}, \{187500, 500\}\}/);
+ assert.match(retry,/constexpr unsigned offMs = 500/);
+ assert.match(retry,/enableAccess\(profile.baud, true, false, slave/);
+ assert.doesNotMatch(retry,/NVM ARM|PsscRamAccess|0xA300|writeWord/);
+ assert.match(esp,/openPlcAccess\(powerCycle, recover, powerCycle && !recover\)/);
+ assert.match(esp,/tuneStartup && powerCycle && plcBaud == 100000/);
+ assert.match(esp,/PLC_START_TIMING_V1/);
+ assert.match(header,/gpio_set_pull_mode\(Tx, GPIO_FLOATING\)/);
+ assert.match(app,/power&&!recover&&st.bridgeStartupTiming\?12000:3500/);
 });

@@ -237,7 +237,37 @@ static const char *probeAddresses() {
   return strcmp(other, "!BRIDGE PLC_NO_VALID_FRAME") == 0 ? error : other;
 }
 
-static const char *openPlcAccess(bool powerCycle, bool recover = false) {
+// Bounded normal cold-start retries. No additional recovery broadcast or NVM command.
+static void printStartupTiming(const plc::StartupTiming &timing, unsigned baud,
+                               uint8_t slave, unsigned offMs, unsigned settleUs,
+                               const char *error) {
+  Serial.printf("# PLC_START_TIMING ADDR=%02X HOST_BAUD=%u OFF_MS=%u SETTLE_US=%u FIRST_BEGIN_US=%lu FIRST_END_US=%lu SECOND_BEGIN_US=%lu SECOND_END_US=%lu VDD=UNMEASURED RESULT=%s\r\n",
+                unsigned(slave & 0xFE), baud, offMs, settleUs,
+                (unsigned long)(timing.firstBegin - timing.powerOn),
+                (unsigned long)(timing.firstEnd - timing.powerOn),
+                (unsigned long)(timing.secondBegin - timing.powerOn),
+                (unsigned long)(timing.secondEnd - timing.powerOn),
+                error ? error + 8 : "OK");
+}
+static const char *retryTimedPlcStart() {
+  struct Profile { unsigned baud, settleUs; };
+  constexpr Profile profiles[] = {{100000, 250}, {100000, 1000}, {187500, 500}};
+  constexpr unsigned offMs = 500;
+  const uint8_t first = activeSlave;
+  const uint8_t addresses[] = {first, uint8_t(first == 0x6D ? 0x7D : 0x6D)};
+  for (const auto &profile : profiles) {
+    for (const uint8_t slave : addresses) {
+      plc::StartupTiming timing{};
+      plc::enableAccess(profile.baud, true, false, slave, offMs, profile.settleUs, &timing, true);
+      const char *error = probeAtRate(slave, profile.baud);
+      printStartupTiming(timing, profile.baud, slave, offMs, profile.settleUs, error);
+      if (!error) { plcBaud = profile.baud; return nullptr; }
+      if (strcmp(error, "!BRIDGE PLC_NO_VALID_FRAME") != 0) return error;
+    }
+  }
+  return "!BRIDGE PLC_NO_VALID_FRAME";
+}
+static const char *openPlcAccess(bool powerCycle, bool recover = false, bool tuneStartup = false) {
   disarmNvm();
   if (powerCycle) {
     coldStartVerified = false;
@@ -267,16 +297,25 @@ static const char *openPlcAccess(bool powerCycle, bool recover = false) {
     plc::enableAccess(plcBaud, powerCycle, true);
     error = probe(0x6D);
   } else {
-    if (powerCycle) plc::enableAccess(plcBaud, true, false);
+    plc::StartupTiming initialTiming{};
+    if (powerCycle) plc::enableAccess(plcBaud, true, false, plc::ReadAddress, 100, 500,
+                                      tuneStartup ? &initialTiming : nullptr);
     error = probeAddresses();
+    if (powerCycle && tuneStartup) printStartupTiming(initialTiming, plcBaud, plc::ReadAddress, 100, 500, error);
     if (error && strcmp(error, "!BRIDGE PLC_NO_VALID_FRAME") == 0) {
       plc::enableAccess(plcBaud, false, false, 0x6D);
       error = probe(0x6D);
       if (error && strcmp(error, "!BRIDGE PLC_NO_VALID_FRAME") == 0) {
-        plc::enableAccess(plcBaud, powerCycle, false, 0x7D);
+        plc::StartupTiming otherTiming{};
+        plc::enableAccess(plcBaud, powerCycle, false, 0x7D, 100, 500,
+                          powerCycle && tuneStartup ? &otherTiming : nullptr);
         error = probe(0x7D);
+        if (powerCycle && tuneStartup) printStartupTiming(otherTiming, plcBaud, 0x7D, 100, 500, error);
       }
     }
+    if (tuneStartup && powerCycle && plcBaud == 100000 &&
+        error && strcmp(error, "!BRIDGE PLC_NO_VALID_FRAME") == 0)
+      error = retryTimedPlcStart();
   }
   if (!error) error = startContinuousAfterCookie();
   return error;
@@ -302,7 +341,7 @@ static bool coldStartMatches() {
 }
 
 static void establishAccess(bool powerCycle, bool recover = false) {
-  if (const char *error = openPlcAccess(powerCycle, recover)) {
+  if (const char *error = openPlcAccess(powerCycle, recover, powerCycle && !recover)) {
     answer(error);
     return;
   }
@@ -535,9 +574,9 @@ static void onCommand(const char *command) {
     answer("# NVM DISARMED");
   } else if (strcmp(command, "BRIDGE_INFO") == 0) {
     disarmNvm();
-    answer("# E70311-BRIDGE V1 CAPS=PLC_UID,PLC_READ,PLC_WRITE,NVM,POWER_GPIO_10,PSSC_RAM,AFE_FILTER,BRIDGE_CAL_NVM,BRIDGE_AODO_OUTPUT_NVM_TEST,BRIDGE_GENERIC_RAM_V1,BRIDGE_USER_NVM_V1,PLC_RX_DIAG,PLC_GPIO4_IO,I2C_CRC,BRIDGE_I2C_NVM_V1,PLC_RX_DIAG_DETAIL_V1");
+    answer("# E70311-BRIDGE V1 CAPS=PLC_UID,PLC_READ,PLC_WRITE,NVM,POWER_GPIO_10,PSSC_RAM,AFE_FILTER,BRIDGE_CAL_NVM,BRIDGE_AODO_OUTPUT_NVM_TEST,BRIDGE_GENERIC_RAM_V1,BRIDGE_USER_NVM_V1,PLC_RX_DIAG,PLC_GPIO4_IO,I2C_CRC,BRIDGE_I2C_NVM_V1,PLC_RX_DIAG_DETAIL_V1,PLC_START_TIMING_V1");
   } else if (strcmp(command, ".VERSION") == 0) {
-    answer("# ESP32-C3 SuperMini ELMOS PLC/I2C bridge v0.15");
+    answer("# ESP32-C3 SuperMini ELMOS PLC/I2C bridge v0.16");
   } else if (strcmp(command, "BRIDGE_PING") == 0) {
     answer("# PONG ESP32-C3 SUPERMini PLC_UID");
   } else if (strcmp(command, "BRIDGE_STATS") == 0) {

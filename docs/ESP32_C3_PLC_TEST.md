@@ -1,3 +1,7 @@
+## One-Wire-Kaltstartvarianten v0.16 (experimentell)
+
+Bei ausbleibender Antwort nach normalem PLC START bei 100000 Host-Timing folgen maximal sechs zusätzliche Kaltstarts (500 ms AUS, 250/1000 µs Einschaltwartezeit bei 100000 sowie 500 µs bei 187500, je zwei Adressen). GPIO4 wird während der Entladung hochohmig geschaltet. Kein zusätzlicher NVM-Befehl. # PLC_START_TIMING protokolliert Beginn/Ende beider Magic-Cookie-Telegramme relativ zum GPIO10-Schaltbefehl, nicht zur tatsächlichen VDD-Flanke. Hardwareprüfung am 4-ms-Sensor steht aus. Bei weiterem Fehler SSP3-Gegenprobe und VDD/AODO am Oszilloskop prüfen. Vorheriges v0.14-Image bleibt separat verfügbar.
+
 ## USB-Antworten und beide I²C-Adressen in v0.14
 
 Serial.flush() schliesst jede ESP32-USB-Antwort ab. Beide CRC-Adressen 0x6D und 0x7D wurden am realen Sensor mit identischer Chip-UID und laufenden ADC_S-/ADC_T-/DSP_S-Lesezugriffen getestet. Dazu wurde ausschliesslich das Adressfeld im Sensor-RAM vorübergehend gewechselt. Der anschliessende Kaltstart stellte 0x7D aus dem Original-NVM wieder her.

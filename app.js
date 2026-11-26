@@ -2202,6 +2202,7 @@ if(typeof document!=='undefined') (function UI(){
   st.bridgePsscRam=caps.includes('PSSC_RAM');
   st.bridgeReadOnly=caps.includes('PLC_READ_ONLY')&&caps.includes('PLC_READ');
   st.bridgeRxDiag=caps.includes('PLC_RX_DIAG');
+  st.bridgeStartupTiming=caps.includes('PLC_START_TIMING_V1');
   $('plcGpio4Mode').disabled=!st.bridgePlcIo;
   st.firmware=st.bridgeBoard+' · USB-Bridge · '+caps.join('/');
   renderStatus();logging('USB-Bridge CAPS: '+caps.join(','));
@@ -2214,7 +2215,9 @@ if(typeof document!=='undefined') (function UI(){
 
 
  async function bridgeAccess({power=false,recover=false}={}){
-  const response=await exchange(recover?'PLC RECOVER'+(power?' START':''):power?'PLC START':'PLC ACCESS',3500);
+  const command=recover?'PLC RECOVER'+(power?' START':''):power?'PLC START':'PLC ACCESS';
+  const response=await exchange(command,power&&!recover&&st.bridgeStartupTiming?12000:3500);
+  for(const row of response.split(/\r?\n/).filter(l=>l.startsWith('# PLC_START_TIMING ')))logging(row);
   if(!st.bridgePsscRam)return;
   const status=response.match(/PLC ACCESS ADDR=(6C|7C) RAM_RECOVERY=([01])/);
   if(!status)throw Error((st.bridgeBoard||'DIY-Programmer')+' hat die One-Wire-Adresse nicht bestätigt');

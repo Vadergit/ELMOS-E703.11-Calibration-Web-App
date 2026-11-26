@@ -1,3 +1,9 @@
+## v0.7.185 – ESP32-Testfirmware v0.16: Wiederverbindung im kurzen One-Wire-Startfenster
+
+- Normaler PLC START bleibt zuerst erhalten. Bei fehlender Antwort folgen maximal sechs Kaltstartvarianten mit 500 ms Ausschaltzeit, GPIO4/Treiber hochohmig während der Entladung, 250/1000 µs Einschaltwartezeit bei 100000 sowie 500 µs bei 187500 Host-Timing, je 0x6C/0x7C. Keine zusätzlichen Recovery-Broadcasts oder NVM-Befehle.
+- PLC_START_TIMING_V1 protokolliert beide Magic-Cookie-Telegramme relativ zum GPIO10-Einschaltbefehl. VDD bleibt ungemessen. App wartet bei neuer Firmware bis zu 12 s. Bestehende NVM-Freigaben unverändert.
+- Firmware v0.16 wird nach erfolgreichem CI-Build separat im Installer angeboten; v0.14 bleibt verfügbar. Hardwareprüfung ausstehend.
+
 ## v0.7.184 – Prüfpunkt-Vorgabe im geführten Abgleich
 
 - Bei einer neu übernommenen Messmatrix wird der erste unabhängige DSP-Prüfpunkt explizit auf den Mittelpunkt des tatsächlichen Druckbereichs gesetzt, auch wenn der Bereich bereits vorbelegt war. Manuell angepasste Prüfpunkte bleiben beim erneuten Öffnen derselben Matrix erhalten.

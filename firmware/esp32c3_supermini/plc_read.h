@@ -115,9 +115,14 @@ inline void configurePins() {
   gpio_config(&pins);
 }
 
+struct StartupTiming {
+  uint32_t powerOn = 0, firstBegin = 0, firstEnd = 0, secondBegin = 0, secondEnd = 0;
+};
 inline size_t transfer(const uint8_t *request, size_t length, unsigned baud,
                        Edge *edges, size_t capacity, bool startup = false, bool shortGap = false,
-                       bool *rxStart = nullptr, uint8_t *txEcho = nullptr) {
+                       bool *rxStart = nullptr, uint8_t *txEcho = nullptr,
+                       unsigned settleUs = 500, uint32_t *powerOnUs = nullptr,
+                       uint32_t *txBeginUs = nullptr, uint32_t *txEndUs = nullptr) {
   static portMUX_TYPE timingLock = portMUX_INITIALIZER_UNLOCKED;
   const uint32_t half = esp_clk_cpu_freq() / baud;
   const uint32_t bitTime = 2 * half;
@@ -130,11 +135,13 @@ inline size_t transfer(const uint8_t *request, size_t length, unsigned baud,
   if (!singlePin) GPIO.out_w1ts.val = EnableMask;
   if (startup) {
     gpio_set_level(Power, 1);
-    delayMicroseconds(500);
+    if (powerOnUs) *powerOnUs = micros();
+    delayMicroseconds(settleUs);
   } else {
     delayMicroseconds(shortGap ? 10 * (1000000 / baud) : 3500);
   }
 
+  if (txBeginUs) *txBeginUs = micros();
   portENTER_CRITICAL(&timingLock);
   uint32_t next = esp_cpu_get_cycle_count();
   for (size_t i = 0; i < length; ++i) {
@@ -168,7 +175,7 @@ inline size_t transfer(const uint8_t *request, size_t length, unsigned baud,
     }
   }
   portEXIT_CRITICAL(&timingLock);
-
+  if (txEndUs) *txEndUs = micros();
   return count;
 }
 
@@ -181,34 +188,46 @@ constexpr uint8_t writeCrc(uint8_t address, uint8_t header, uint8_t high, uint8_
 
 static_assert(writeCrc(0x6A, 0x0A, 0x67, 0x89) == 0x5F);
 
-inline void writeWord(uint8_t address, uint16_t word, unsigned baud, bool startup = false, bool shortGap = false, uint8_t slave = ReadAddress) {
+inline void writeWord(uint8_t address, uint16_t word, unsigned baud, bool startup = false, bool shortGap = false, uint8_t slave = ReadAddress,
+                      unsigned settleUs = 500, uint32_t *powerOnUs = nullptr,
+                      uint32_t *txBeginUs = nullptr, uint32_t *txEndUs = nullptr) {
   const uint8_t header = readHeader(address, slave);
   const uint8_t high = word >> 8;
   const uint8_t low = word & 0xFF;
   const uint8_t request[] = {Preamble, static_cast<uint8_t>(slave & 0xFE), address, header, high, low,
                              writeCrc(address, header, high, low)};
-  transfer(request, sizeof(request), baud, nullptr, 0, startup, shortGap);
+  transfer(request, sizeof(request), baud, nullptr, 0, startup, shortGap,
+           nullptr, nullptr, settleUs, powerOnUs, txBeginUs, txEndUs);
 }
 
 // PSSC 3.2.1 trace: 02 FE 06 07 6C 04 4E. Do not expose generic broadcast writes.
 constexpr uint8_t PsscRamAccess[] = {0x02, 0xFE, 0x06, 0x07, 0x6C, 0x04, 0x4E};
 static_assert(writeCrc(0x06, 0x07, 0x6C, 0x04) == 0x4E);
 
-inline void powerOffBeforeStart() {
+inline void powerOffBeforeStart(unsigned offMs = 100, bool releaseBus = false) {
+    if (releaseBus) {
+      GPIO.out_w1tc.val = EnableMask;
+      GPIO.enable_w1tc.val = TxMask;
+      gpio_set_pull_mode(Tx, GPIO_FLOATING);
+    }
     gpio_set_level(Power, 0);
     gpio_config_t power{};
     power.pin_bit_mask = 1ULL << Power;
     power.mode = GPIO_MODE_OUTPUT;
     gpio_config(&power);
-    delay(100);
+    delay(offMs);
 }
-
-inline void enableAccess(unsigned baud, bool powerCycle, bool recover, uint8_t slave = ReadAddress) {
-  if (powerCycle) powerOffBeforeStart();
-  writeWord(0xAC, 0x2B42, baud, powerCycle, false, slave);
+inline void enableAccess(unsigned baud, bool powerCycle, bool recover, uint8_t slave = ReadAddress,
+                         unsigned offMs = 100, unsigned settleUs = 500,
+                         StartupTiming *timing = nullptr, bool releaseBus = false) {
+  if (powerCycle) powerOffBeforeStart(offMs, releaseBus);
+  writeWord(0xAC, 0x2B42, baud, powerCycle, false, slave, settleUs,
+            timing ? &timing->powerOn : nullptr, timing ? &timing->firstBegin : nullptr,
+            timing ? &timing->firstEnd : nullptr);
   // During a cold start the first preamble has already established the bit rate.
   // The second frame still needs a gap, but must fit inside the 4 ms window.
-  writeWord(0x0E, 0x5CFD, baud, false, powerCycle, slave);
+  writeWord(0x0E, 0x5CFD, baud, false, powerCycle, slave, settleUs, nullptr,
+            timing ? &timing->secondBegin : nullptr, timing ? &timing->secondEnd : nullptr);
   if (recover) transfer(PsscRamAccess, sizeof(PsscRamAccess), baud, nullptr, 0, false, powerCycle);
 }
 

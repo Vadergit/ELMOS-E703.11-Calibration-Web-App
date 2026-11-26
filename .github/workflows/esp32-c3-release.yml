@@ -52,7 +52,7 @@ jobs:
         if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
         run: |
           set -euo pipefail
-          esp="firmware/releases/esp32-c3/v0.14"
+          esp="firmware/releases/esp32-c3/v0.16"
           pro="firmware/releases/pro-micro/v0.29"
           mkdir -p "$esp" "$pro"
           app=$(find build/esp -maxdepth 1 -name '*.ino.bin' -print -quit)
@@ -70,7 +70,7 @@ jobs:
           cat > "$esp/manifest.json" <<'MANIFEST'
           {
             "name": "ELMOS E703.11 Universal DIY Bridge (Laborversion)",
-            "version": "0.14",
+            "version": "0.16",
             "new_install_prompt_erase": false,
             "builds": [{
               "chipFamily": "ESP32-C3",
@@ -83,7 +83,26 @@ jobs:
             }]
           }
           MANIFEST
-          grep -q 'manifest="firmware/releases/esp32-c3/v0.14/manifest.json"' firmware-update.html
+          python3 - <<'PY'
+          from pathlib import Path
+          p = Path("firmware-update.html")
+          s = p.read_text()
+          if 'manifest="firmware/releases/esp32-c3/v0.16/manifest.json"' not in s:
+              anchor = '<div class="actions">\n    <esp-web-install-button manifest="firmware/releases/esp32-c3/v0.14/manifest.json">'
+              replacement = """<div class="actions">
+              <p class="note"><strong>v0.16 (One-Wire-Testfirmware):</strong> Zusätzliche Startversuche für bereits analog abgeglichene Sensoren mit 4-ms-Startfenster. Timing-Diagnose, keine Änderung der NVM-Schreiblogik. Hardwareprüfung ausstehend. Vor dem Flashen Original-NVM und ungesicherte Abgleichdaten sichern.</p>
+              <esp-web-install-button manifest="firmware/releases/esp32-c3/v0.16/manifest.json">
+                <button type="button" slot="activate" disabled>ESP32 v0.16 installieren (Test)</button>
+                <span slot="unsupported">Chrome oder Edge auf dem Computer verwenden.</span>
+                <span slot="not-allowed">HTTPS oder localhost erforderlich.</span>
+              </esp-web-install-button>
+              <p>Vorherige Version als Rückfallmöglichkeit:</p>
+              <esp-web-install-button manifest="firmware/releases/esp32-c3/v0.14/manifest.json">"""
+              assert anchor in s, "Installer anchor missing"
+              s = s.replace(anchor, replacement, 1).replace('>ESP32 installieren</button>', '>ESP32 v0.14 installieren</button>', 1).replace('v0.14 (Labor)</span></h2>', 'v0.16 (Test) / v0.14</span></h2>', 1)
+              p.write_text(s)
+          PY
+          grep -q 'manifest="firmware/releases/esp32-c3/v0.16/manifest.json"' firmware-update.html
           grep -q 'firmware/releases/pro-micro/v0.29/pro-micro-8mhz.hex' firmware-update.html
           grep -q 'BRIDGE_USER_NVM_V1' firmware/esp32c3_supermini/esp32c3_supermini.ino
           grep -q 'BRIDGE_USER_NVM_V1' firmware/pro_micro/pro_micro.ino
@@ -95,8 +114,8 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add firmware/releases/esp32-c3/v0.14 firmware/releases/pro-micro/v0.29 firmware-update.html pro-micro-installer.js
+          git add firmware/releases/esp32-c3/v0.16 firmware/releases/pro-micro/v0.29 firmware-update.html pro-micro-installer.js
           if ! git diff --cached --quiet; then
-            git commit -m "release: ESP32-C3 v0.14 and Pro Micro v0.29 universal bridges"
+            git commit -m "release: ESP32-C3 v0.16 and Pro Micro v0.29 universal bridges"
             git push
           fi
