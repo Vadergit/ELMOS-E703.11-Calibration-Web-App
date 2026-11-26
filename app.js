@@ -230,7 +230,7 @@ if(typeof document!=='undefined') (function UI(){
    originalStartupValid:check(startup?.ok,startup,'valid'),
    timedSelection:check(timed?context.timedChecked&&!context.timedDisabled:null,{requested:timed,checked:context.timedChecked,disabled:context.timedDisabled},'checked and enabled when requested'),
    timedAodoPinBlocked:check(timed&&hasWords?CAL.aodoPinBlocked(w):null,hasWords?CAL.aodoPinBlocked(w):null,true),
-   timedRamEqualsNvm:check(timed&&bridge&&hasWords?ram===w[17]:null,{ram,nvm:w?.[17]},'match on current bridge path'),
+   timedRamEqualsNvm:check(timed&&bridge&&hasWords?ram===w[17]||(w[17]===0x6C06&&ram===0x6C04):null,{ram,nvm:w?.[17]},'equal or documented original 0x6C06 / temporary RAM 0x6C04'),
    timedNoRamRecovery:check(timed&&bridge?!st.psscRamRecovery:null,!!st.psscRamRecovery,false),
    timedNoColdStartAfeRestore:check(timed&&bridge?!st.coldStartAfeRestored:null,!!st.coldStartAfeRestored,false),
    timedPowerEnabled:check(timed&&bridge?st.sensorPowerEnabled:null,!!st.sensorPowerEnabled,true),
@@ -1601,10 +1601,34 @@ if(typeof document!=='undefined') (function UI(){
    return false;
   const ram=st.regs[0x06];
   if(st.adapterKind==='bridge')
-   return !st.psscRamRecovery&&!st.coldStartAfeRestored&&ram===words[17]&&
+   // A normal PLC START can leave the documented temporary RAM-only
+   // configuration. The verified original NVM remains the source of the plan.
+   return !st.psscRamRecovery&&!st.coldStartAfeRestored&&
+    (ram===words[17]||(words[17]===0x6C06&&ram===0x6C04))&&
     st.sensorPowerEnabled&&bridgeCombinedRecoveryReady();
   return st.adapterKind==='ssp3'&&st.mode==='usb'&&st.chip&&!st.closing&&!st.sensorLost&&
    (ram===words[17]||(words[17]===0x6C06&&ram===0x6C04));
+ }
+ function timedBridgeBlockReason(words){
+  const missing=[];
+  if(st.bridgeBoard!=='ESP32-C3 SuperMini')missing.push('ESP32-C3 nicht bestätigt');
+  if(!st.bridgeGenericRam)missing.push('BRIDGE_GENERIC_RAM_V1 fehlt');
+  if(!st.bridgeUserNvm)missing.push('BRIDGE_USER_NVM_V1 fehlt');
+  if(!st.bridgeOutputNvm)missing.push('AODO-NVM-Freigabe fehlt');
+  if(!bridgeColdStartVerified())missing.push('Kaltstartnachweis der aktuellen USB-Sitzung/UID fehlt');
+  if(!st.sensorPowerEnabled)missing.push('Sensor-Versorgungssteuerung inaktiv');
+  if(st.psscRamRecovery)missing.push('explizite PLC-RECOVER-Sitzung');
+  if(st.coldStartAfeRestored)missing.push('AFE-Wiederanlauf aktiv');
+  if(!hasCurrentNvmBackup()||words!==st.nvmBackup)missing.push('aktuelles NVM-Backup fehlt');
+  if(words?.length===64){
+   const ram=st.regs[0x06],saved=words[17];
+   if(ram!==saved&&!(saved===0x6C06&&ram===0x6C04))
+    missing.push('CFG_SPI_I2C RAM '+(Number.isInteger(ram)?'0x'+h(ram,2):'unbekannt')+' / NVM 0x'+h(saved,2)+' nicht kompatibel');
+   if(!CAL.oneWireStartupStatus(words).ok||!CAL.aodoPinBlocked(words))missing.push('Original-NVM-Startkonfiguration nicht geeignet');
+   if(!st.plcAddressVerified||P.plcAddressFromConfig(words[17],words[19])!==st.plcAddress)missing.push('PLC-Adresse nicht bestätigt');
+  }
+  if(!$('outputTimedOneWire')?.checked||$('outputTimedOneWire')?.disabled)missing.push('4-ms-Auswahl nicht aktiv');
+  return missing.length?missing.join('; ')+'.':'Weitere Schreibvoraussetzungen prüfen.';
  }
  function i2cNvmSupported(){
   return st.iface==='i2c'&&st.adapterKind==='bridge'&&st.bridgeI2cNvm;
@@ -1684,7 +1708,10 @@ if(typeof document!=='undefined') (function UI(){
      if(!st.expertOutputPlan||!['1','2','3'].includes(String(st.expertOutputPlan.mode))||
         !st.expertOutputPlan.scaleEnabled)
       return 'ESP32-C3: Analoge Ausgangsskalierung zuerst ausdrücklich prüfen und vormerken.';
-     try{CAL.validateRecoveryCalibrationDiff(initial,modified,{allowAnalogScaling:true})}
+     const timed=!restoring&&!alarmOnly&&!outputOnly&&st.expertOutputPlan?.timedOneWire===true;
+     if(timed&&!timedOneWireReady(st.nvmBackup))
+      return 'ESP32-C3: 4-ms-Umstellung nicht freigegeben. '+timedBridgeBlockReason(st.nvmBackup);
+     try{CAL.validateRecoveryCalibrationDiff(initial,modified,{allowAnalogScaling:true,allowTimedOneWire:timed})}
      catch(error){return 'ESP32-C3 Kombi-NVM-Schutz: '+error.message}
     }
    }
@@ -1919,7 +1946,7 @@ if(typeof document!=='undefined') (function UI(){
      (!timedOneWire?.checked||timedOneWire.disabled||!timedOneWireReady(st.nvmBackup)))
    nvmReason=st.adapterKind==='ssp3'?
     '4-ms-NVM-Umstellung: Auswahl, aktuelle Chip-UID, PLC-Adresse und unveränderte permanente RAM-/NVM-Schnittstelle bestätigen. Recovery-Schutz bleibt aktiv.':
-    '4-ms-NVM-Umstellung: DIY-Programmer benötigt bestätigten Kaltstart und passende NVM-Firmware.';
+    '4-ms-NVM-Umstellung: '+timedBridgeBlockReason(st.nvmBackup);
   if(!nvmReason&&alarmPlanSelected&&!alarmOnly)nvmReason='Alarmänderungen zuerst im RAM übernehmen und erfolgreich rücklesen.';
   if(!nvmReason&&alarmOnly&&!$('nvmAutoBackup').checked)nvmReason='Alarm-NVM: Automatische Sicherung des Original-EEPROM aktivieren.';
   if(!nvmReason)nvmReason=psscNvmBlock(st.calImage?.before,st.calImage?.after,restoring,outputOnly,alarmOnly,!!st.calImage?.recoveryCombined);
@@ -2120,7 +2147,7 @@ if(typeof document!=='undefined') (function UI(){
   // SSP3 firmware replies as @02 08 02 04; retain the actual firmware version.
   const match=reply.match(/(?:^|[\r\n])\s*@([0-9A-F]{2})\s+([0-9A-F]{2})\s+([0-9A-F]{2})\s+([0-9A-F]{2})(?=[\s\r\n:]|$)/i);
   debugTrace.versionReply={at:new Date().toISOString(),raw:reply};
-  st.firmware=match?match.slice(1,5).join('.'):'Antwort erhalten';
+  if(st.adapterKind!=='bridge'||!st.bridgeBoard)st.firmware=match?match.slice(1,5).join('.'):'Antwort erhalten';
   if(match&&st.adapterKind==='ssp3'&&!demoEnabled)lsSet('ssp3-confirmed-baud',$('baud').value);
   if(st.adapterKind==='ssp3'&&st.iface==='plc'&&match&&match.slice(1,5).join(' ').toUpperCase()==='02 08 02 04'){
    // Actual SSP3 RX proves that the separated ASCII form
@@ -4692,6 +4719,14 @@ if(typeof document!=='undefined') (function UI(){
     }
    };
    confirmSameSession();
+   if(st.adapterKind==='bridge'){
+    // Refresh only the USB adapter capabilities; never PLC START/RECOVER,
+    // never manufacture a cold-start proof and never clear the fit.
+    if(!await bridgeHello())throw Error('USB-Bridge meldet keine passende Firmware.');
+    confirmSameSession();
+    await readReg(0x06);
+    await readReg(0x0A);
+   }
    await verifyRam('Vor NVM-Lesung');
    // This existing operation reissues PLC P/T and reads each EEPROM word
    // through CM_CMD read-only commands. It never calls PWR_OFF / PWR_ON.
@@ -4710,7 +4745,8 @@ if(typeof document!=='undefined') (function UI(){
    if(!st.calImage)
     throw Error('Kommunikation und RAM geprüft, aber der NVM-Plan bleibt gesperrt: '+$('nvmMsg').textContent);
    confirmSameSession();
-   show('nvmRecheckMsg','Erneute Prüfung bestanden: 64-Wort-NVM/CRC und Chip-UID bestätigt, alle DSP-RAM-Koeffizienten unverändert, NVM-Änderungsplan neu erstellt. Kein Sensorneustart und keine NVM-Programmierung. Bitte Änderungsliste und Freigabe kontrollieren.','success');
+   const timedBlocked=st.expertOutputPlan?.timedOneWire&&st.adapterKind==='bridge'&&(!timedOneWireReady(st.nvmBackup)||!$('outputTimedOneWire')?.checked||$('outputTimedOneWire')?.disabled);
+   show('nvmRecheckMsg',timedBlocked?'RAM, UID und NVM geprüft; 4-ms-Schreibfreigabe fehlt: '+timedBridgeBlockReason(st.nvmBackup)+' Kein Neustart, Messpunkte erhalten.':'Erneute Prüfung bestanden: 64-Wort-NVM/CRC und Chip-UID bestätigt, alle DSP-RAM-Koeffizienten unverändert, NVM-Änderungsplan neu erstellt. Kein Sensorneustart und keine NVM-Programmierung. Bitte Änderungsliste und Freigabe kontrollieren.',timedBlocked?'warn':'success');
   }catch(error){
    st.calImage=null; // A failed recheck must never leave an old writable plan.
    if(ramIntegrityFailed){

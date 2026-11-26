@@ -1,3 +1,9 @@
+## v0.7.182 – ESP32: gezielte 4-ms-NVM-Freigabe und erneute Diagnose
+
+- Beim bestätigten normalen ESP32-PLC-Start akzeptiert der 4-ms-Pfad zusätzlich genau die dokumentierte Original-NVM/RAM-Kombination 0x6C06/0x6C04. Keine Freigabe für andere RAM-Abweichungen, explizites PLC RECOVER oder AFE-Wiederanlauf. Kaltstartnachweis, generische Firmware-Capabilities, UID, Backup, CRC und abschliessende Rücklesung bleiben Pflicht.
+- Der kombinierte generische ESP32-NVM-Diff kann die ausdrücklich vorgemerkte und geprüfte 4-ms-Umstellung übernehmen; weitere Startregister bleiben geschützt. Die Firmware muss weiterhin NVM ARM HOST bestätigen.
+- «Verbindung & NVM-Freigabe erneut prüfen» liest die Bridge-Capabilities und Schnittstellenregister erneut, ohne Neustart oder Verlust der Messpunkte. Konkrete Sperrgründe statt Sammelmeldung; Bridge-Firmwarekennung bleibt beim .VERSION-Abruf erhalten. Hardwarevalidierung ausstehend.
+
 ## v0.7.181 – Debug-Verlauf vervollständigt
 
 - Gesendete und empfangene USB-Daten in einem chronologischen Rohprotokoll; separate UI-Warnungen, Fehler und Statuswechsel. Export ohne Verbindung und auch bei fehlender Freigabe möglich.

@@ -53,3 +53,14 @@ test('Original 0x6C06 and PSSC RAM 0x6C04 yield NVM 0x6C02, not a copied RAM wor
  assert.throws(()=>C.validateRecoveryCalibrationDiff(w,bad,{allowAnalogScaling:true,allowTimedOneWire:true}));
  state.regs[6]=0x6c00;assert.equal(ready(w),false);
 });
+
+ test('ESP32 normal cold-start permits only the documented temporary PLC RAM difference',()=>{
+ const start=app.indexOf(' function timedOneWireReady('),end=app.indexOf(' function i2cNvmSupported(',start);
+ const words=Array(64).fill(0);words[17]=0x6c06;
+ const base={iface:'plc',adapterKind:'bridge',mode:'usb',port:{},chip:true,plcAddressVerified:true,plcAddress:0x6c,regs:{6:0x6c04},nvmBackup:words,sensorPowerEnabled:true};
+ const run=(changes={},backup=true,proof=true)=>new Function('st','CAL','P','hasCurrentNvmBackup','bridgeCombinedRecoveryReady',app.slice(start,end)+';return timedOneWireReady;')({...base,...changes},{oneWireStartupStatus:()=>({ok:true}),aodoPinBlocked:()=>true},{plcAddressFromConfig:()=>0x6c},()=>backup,()=>proof)(words);
+ assert.equal(run(),true);
+ assert.equal(run({regs:{6:0x6c06}}),true);
+ for(const changes of [{regs:{6:0x6c00}},{regs:{6:0x7c04}},{psscRamRecovery:true},{coldStartAfeRestored:true},{sensorPowerEnabled:false},{plcAddressVerified:false},{plcAddress:0x7c}])assert.equal(run(changes),false);
+ assert.equal(run({},false),false);assert.equal(run({},true,false),false);
+});
