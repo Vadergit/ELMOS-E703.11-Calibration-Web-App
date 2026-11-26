@@ -1,3 +1,8 @@
+## v0.7.201 – ESP32-Worst-Case Versionsprüfung
+
+- Korrigiert die Vorprüfung des ESP32-v0.14-Schreibtests: tatsächliche .VERSION-Antwort statt Anzeige-/Capability-Beschreibung. Das Protokoll vom Sensor 0020018B39FA zeigte erfolgreiche Recovery und vollständige Bridge-Capabilities, aber einen Abbruch vor der NVM-Sicherung.
+- Einzelne Voraussetzungen werden mit konkreten Ergebnissen im Labortest protokolliert. Firmware-ARM, UID, Kaltstart, RAM-/NVM-Prüfungen und Schreibschutz bleiben erhalten. Neun simulierte Regressionstests bestanden. Hardware-Schreibtest noch offen.
+
 ## v0.7.200 – Clipping-Grenzen bei Sensorwechsel und Profilen
 
 - Einstellungsprofile und Sensorwechsel verwenden dieselbe Clipping-Prüfung wie die NVM-Ausgangskonfiguration. 5–95 % VDD und andere gültige LIMIT_LO/HI-Grenzen ausserhalb 10–90 % sind erlaubt. S0/S1 bleiben auf den linearen Messbereich beschränkt.
