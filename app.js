@@ -6556,7 +6556,7 @@ if(typeof document!=='undefined') (function UI(){
  const owLabCold=adapter=>adapter==='ssp3'?psscRecoveryProven():bridgeColdStartVerified();
  const owLabFwMatches=(adapter,versions)=>owLabMatches(adapter)&&!!owLabFirmware()&&(!versions||versions.includes(owLabFirmware()))&&!st.adapterNoReply&&st.readerAlive;
  const owLabHasBaseline=()=>!!(owLabRecord&&(owLabRecord.verified||owLabRecord.readOnlyBaseline)&&Array.isArray(owLabRecord.programmed||owLabRecord.original)&&(owLabRecord.programmed||owLabRecord.original).length===64&&!['programming','write-uncertain'].includes(owLabRecord.phase));
- const owLabPending=()=>!!(owLabRecord&&['programming','write-uncertain','written','await-ssp3','await-v14','await-new','await-manual','preparing','prepared'].includes(owLabRecord.phase));
+ const owLabPending=()=>!!(owLabRecord&&['programming','write-uncertain','written','await-ssp3','await-v14','await-new','await-manual','preparing','prepared','worst-bridge','worst-restore','worst-hold'].includes(owLabRecord.phase));
  function owLabDatabase(){
   if(!owLabDbPromise)owLabDbPromise=new Promise((resolve,reject)=>{
    const q=indexedDB.open('elmos-onewire-lab',1);
@@ -6623,7 +6623,7 @@ if(typeof document!=='undefined') (function UI(){
  function owLabRender(){
   const r=owLabRecord,phase=r?.phase||'idle';
   $('owLabSettings').hidden=!$('expertMode').checked;
-  const status=owLabBusy?'Läuft automatisch · '+(owLabDetail||owLabStage):phase==='await-ssp3'?'Sensor am originalen SSP3 anschliessen. Fortsetzen liest und prüft zuerst das vollständige Original-NVM und dieselbe UID; programmiert nur bei gültigem Änderungsplan.':phase==='await-v14'?'Denselben Sensor an ESP32 v0.14 anschliessen. Kein weiteres NVM-Schreiben.':phase==='await-new'?'v0.14 ohne bestätigte Sensorantwort. v0.16 installieren und fortsetzen. Kein weiteres NVM-Schreiben.':phase==='await-manual'?'Automatischer Start nicht bestätigt. Sensor sicher stromlos machen und wieder anschliessen; dann Fortsetzen. Kein NVM-Schreiben.':phase==='write-uncertain'?'Schreibzustand unklar. Nicht neu starten oder erneut programmieren. Protokoll exportieren.':phase==='written'?(r?.readOnlyBaseline?'Original-NVM gesichert, nicht programmiert. Fortsetzen startet nur die Wiederverbindung.':'NVM verifiziert. Fortsetzen startet nur die Wiederverbindung.'):phase==='programming'?'Unterbrochene Programmierung. Kein Neustart; Protokoll sichern.':r?('Test '+(r.uid||'—')+' · '+phase):'Bereit. Programmer auswählen und Start drücken.';
+  const status=owLabBusy?'Läuft automatisch · '+(owLabDetail||owLabStage):phase==='worst-bridge'?'4-ms-NVM verifiziert. Sensor ohne Programmer starten, Analogausgang extern prüfen und dann ESP32 v0.14 anschliessen.':phase==='worst-restore'||phase==='worst-hold'||r?.worstMode&&phase==='written'?'SSP3 anschliessen. Fortsetzen prüft UID und aktuelles NVM, stellt danach das Original wieder her.':phase==='await-ssp3'?'Sensor am originalen SSP3 anschliessen. Fortsetzen liest und prüft zuerst das vollständige Original-NVM und dieselbe UID; programmiert nur bei gültigem Änderungsplan.':phase==='await-v14'?'Denselben Sensor an ESP32 v0.14 anschliessen. Kein weiteres NVM-Schreiben.':phase==='await-new'?'v0.14 ohne bestätigte Sensorantwort. v0.16 installieren und fortsetzen. Kein weiteres NVM-Schreiben.':phase==='await-manual'?'Automatischer Start nicht bestätigt. Sensor sicher stromlos machen und wieder anschliessen; dann Fortsetzen. Kein NVM-Schreiben.':phase==='write-uncertain'?'Schreibzustand unklar. Nicht neu starten oder erneut programmieren. Protokoll exportieren.':phase==='written'?(r?.readOnlyBaseline?'Original-NVM gesichert, nicht programmiert. Fortsetzen startet nur die Wiederverbindung.':'NVM verifiziert. Fortsetzen startet nur die Wiederverbindung.'):phase==='programming'?'Unterbrochene Programmierung. Kein Neustart; Protokoll sichern.':r?('Test '+(r.uid||'—')+' · '+phase):'Bereit. Programmer auswählen und Start drücken.';
   $('owLabState').textContent=status+(owLabStorageError?' · '+owLabStorageError:'');
   if($('owLabMatrixResults'))$('owLabMatrixResults').textContent=owLabMatrixSummary();
   $('owLabChecks').textContent='Adapter: '+(st.bridgeBoard||st.adapterKind||'—')+' · Firmware: '+(owLabFirmware()||'—')+'\nChip-UID: '+(st.uid?.hex||'—')+' · Kaltstart: '+(owLabCold(st.adapterKind)?'bestätigt':'nicht bestätigt');
@@ -6634,14 +6634,17 @@ if(typeof document!=='undefined') (function UI(){
   $('owLabStart').disabled=owLabBusy||!owLabLoaded||owLabPending();
   $('owLabManual').hidden=phase!=='await-new';$('owLabManual').disabled=owLabBusy||!owLabLoaded;
   $('owLabFinish').hidden=!r||!['await-new','await-manual','await-v14','await-ssp3','written'].includes(phase);$('owLabFinish').disabled=owLabBusy||!owLabLoaded;
-  $('owLabContinue').hidden=!['await-ssp3','await-v14','await-new','await-manual','written'].includes(phase);
+  $('owLabContinue').hidden=!['await-ssp3','await-v14','await-new','await-manual','written','worst-bridge','worst-restore','worst-hold'].includes(phase);
   $('owLabContinue').disabled=owLabBusy||!owLabLoaded;
-  $('owLabContinue').textContent=phase==='await-ssp3'?'SSP3 angeschlossen – fortsetzen':phase==='await-new'?'Neue Firmware installiert – fortsetzen':phase==='await-v14'?'ESP32 v0.14 angeschlossen – fortsetzen':phase==='await-manual'?'Sensor stromlos gemacht – fortsetzen':'Wiederverbindung starten';
+  $('owLabContinue').textContent=phase==='worst-bridge'?'ESP32 angeschlossen – vergleichen':phase==='worst-restore'||phase==='worst-hold'||r?.worstMode&&phase==='written'?'SSP3 angeschlossen – Original wiederherstellen':phase==='await-ssp3'?'SSP3 angeschlossen – fortsetzen':phase==='await-new'?'Neue Firmware installiert – fortsetzen':phase==='await-v14'?'ESP32 v0.14 angeschlossen – fortsetzen':phase==='await-manual'?'Sensor stromlos gemacht – fortsetzen':'Wiederverbindung starten';
   $('owLabFlash').hidden=phase!=='await-new';
   $('owLabAdapter').disabled=owLabBusy||owLabPending();
   $('owLabCompareAdapter').disabled=owLabBusy;
   $('owLabCompare').disabled=owLabBusy||!owLabLoaded||!owLabHasBaseline()||['programming','write-uncertain'].includes(phase);
-  $('owLabCompare').hidden=!owLabHasBaseline();
+  $('owLabCompare').hidden=!owLabHasBaseline()||!!r?.worstMode&&phase!=='complete';
+  if($('owLabMode'))$('owLabMode').disabled=owLabBusy||owLabPending();
+  if($('owLabAnalogEvidence'))$('owLabAnalogEvidence').hidden=phase!=='worst-bridge';
+  if(r?.worstMode&&phase!=='complete')$('owLabFinish').hidden=true;
   $('owLabClose').disabled=owLabBusy;
   $('owLabExport').disabled=!r||!owLabLoaded;
   $('owLabExport').textContent='Vollständiges Testprotokoll exportieren ('+owLabJournal.length+' Einträge)';
@@ -7036,6 +7039,62 @@ if(typeof document!=='undefined') (function UI(){
   }
   await owLabTest(port,adapter,versions,adapter==='ssp3'?'SSP3':'v0.14');
  }
+ async function owLabWorstVerify(port,adapter,versions,label,count=3){
+  const r=owLabRecord;
+  let successes=0;
+  for(let n=1;n<=count;n++){
+   owLabSetStage('restart',label+' · '+n+'/'+count);
+   await owLabReopen(port,adapter,label+' #'+n);
+   if(!owLabFwMatches(adapter,versions)||st.uid?.hex&&st.uid.hex!==r.uid)throw Error('Adapter/Firmware oder Chip-UID nicht bestätigt.');
+   const start=Date.now(),result=await owLabAssess(adapter,versions,label+' #'+n);
+   (r.worstChecks??=[]).push({label,adapter,repeat:n,result,durationMs:Date.now()-start,at:new Date().toISOString()});
+   await owLabCheckpoint(label+' #'+n+': '+result);
+   if(result==='success')successes++;
+  }
+  if(successes!==count)throw Error(label+': '+successes+'/'+count+' Wiederverbindungen bestätigt.');
+ }
+ async function owLabWorstWriteStep(port,step){
+  const r=owLabRecord,base=r.programmed||r.original;
+  await owLabReopen(port,'ssp3','Worst Case – Vorprüfung '+step);
+  if(!owLabFwMatches('ssp3',null)||!st.chip||st.uid?.hex!==r.uid||!owLabCold('ssp3'))throw Error('SSP3, UID oder Recovery nicht bestätigt.');
+  const current=await owLabRead();
+  if(!CAL.sameNvmImage(current,base))throw Error('NVM-Abweichung vor Worst-Case-Schreibvorgang.');
+  const plan=owLabWorstPlan(current,r.original,step);
+  r.planned=plan.after;r.changes=plan.changes;
+  await owLabCheckpoint('Worst Case '+step+' – exakter NVM-Plan gesichert.');
+  if(plan.changes.length){await owLabWrite(plan);}
+  else{r.programmed=current.slice();r.verified=true;r.phase='written';await owLabCheckpoint('Zielabbild bereits vorhanden; kein erneutes Schreiben.');}
+  await owLabWorstVerify(port,'ssp3',null,step,3);
+ }
+ async function owLabWorstStart(port){
+  const r=owLabRecord;
+  await owLabReopen(port,'ssp3','Worst Case Original');
+  if(!owLabFwMatches('ssp3',null)||!st.chip||!st.uid?.hex||!owLabCold('ssp3'))throw Error('SSP3-Recovery und Chip-UID nicht bestätigt.');
+  if(r.uid&&r.uid!==st.uid.hex)throw Error('Andere Chip-UID.');
+  r.uid=st.uid.hex;r.original=await owLabRead();r.originalStartup=CAL.oneWireStartupStatus(r.original);
+  const target=owLabWorstPlan(r.original,r.original,'worst4');
+  await owLabCheckpoint('Worst Case: vollständiges Original-NVM und Zielabbild gesichert.');
+  // If already at 4 ms with both access bits off, create a real 10 ms -> 4 ms transition.
+  if(!target.changes.length)await owLabWorstWriteStep(port,'stage10');
+  await owLabWorstWriteStep(port,'worst4');
+  r.phase='worst-bridge';
+  await owLabCheckpoint('SSP3-Worst-Case bestanden. Jetzt externe Analogprüfung und ESP32-Vergleich.');
+  await owLabDisconnect();
+ }
+ async function owLabWorstContinue(port,adapter){
+  const r=owLabRecord;
+  if(r.phase==='worst-bridge'){
+   r.analogEvidence={manual:true,notes:$('owLabAnalogNotes')?.value.trim()||null,physicalMeasurementVerified:false};
+   try{await owLabWorstVerify(port,'bridge',['0.14'],'Worst Case ESP32 v0.14',3);r.bridgeWorstPassed=true;}
+   finally{r.phase='worst-restore';await owLabCheckpoint('ESP32-Test beendet; Original am SSP3 wiederherstellen.');await owLabDisconnect();}
+  }else{
+   await owLabWorstWriteStep(port,'restore');
+   if(!CAL.sameNvmImage(r.postBoot,r.original))throw Error('Original nach Neustart nicht bestätigt.');
+   r.restored=true;r.phase='complete';
+   owLabSetStage('done','Original-NVM 64/64 nach Wiederverbindung bestätigt. Worst-Case-Test abgeschlossen.');
+   await owLabCheckpoint('Original-NVM wiederhergestellt und nach Neustart verifiziert.');
+  }
+ }
  async function owLabRun(action='start'){
   if(owLabBusy)return;
   const oldAuto=autoReconnectEnabled;
@@ -7045,19 +7104,24 @@ if(typeof document!=='undefined') (function UI(){
    if(!owLabLoaded)throw Error('Testprotokoll wird noch geladen.');
    if(action==='start'){
     if(owLabPending())throw Error('Offenen Test fortsetzen oder Protokoll exportieren.');
-    if(owLabRecord?.verified&&owLabRecord.uid===st.uid?.hex&&!$('owLabReadOnly')?.checked)throw Error('Sensor bereits programmiert. Adaptervergleich statt erneutem NVM-Schreiben verwenden.');
-    adapter=owLabAdapter();
-    const readOnly=!!$('owLabReadOnly')?.checked;
-    if(!window.confirm('Entbehrlicher Testsensor, schaltbare Versorgung und AODO geprüft? '+(readOnly?'Nur vorhandenes NVM-Profil testen; keine NVM-Programmierung.':'Bei permanentem PLC einmalige 4-ms-NVM-Umstellung nach geprüfter Sicherung.')+' Danach alle Startvarianten mit je drei Versuchen testen.'))return;
+    const testMode=$('owLabMode')?.value||'matrix';
+    const worstMode=testMode==='worst';
+    adapter=worstMode?'ssp3':owLabAdapter();
+    const readOnly=!worstMode&&(!!$('owLabReadOnly')?.checked||['quick','endurance'].includes(testMode));
+    if(owLabRecord?.verified&&owLabRecord.uid===st.uid?.hex&&!readOnly&&!worstMode)throw Error('Sensor bereits programmiert. Adaptervergleich statt erneutem NVM-Schreiben verwenden.');
+    if(!window.confirm('Entbehrlicher Testsensor, schaltbare Versorgung und AODO geprüft? '+(worstMode?'Worst Case: NVM am SSP3 tatsächlich schreiben, 4 ms mit Upstream/Registerzugriff aus, danach ESP32 testen und Original am SSP3 wiederherstellen. Bei Fehler kann der Sensor nicht erreichbar bleiben.':readOnly?'Nur vorhandenes NVM-Profil testen; keine NVM-Programmierung.':'Bei permanentem PLC einmalige 4-ms-NVM-Umstellung nach geprüfter Sicherung.')))return;
     port=st.port&&owLabMatches(adapter)?st.port:await navigator.serial.requestPort();
     if(owLabRecord&&owLabRecord.runId)await owLabStore();
-    owLabRecord={schema:1,runId:new Date().toISOString()+'-'+Math.random().toString(36).slice(2),appVersion:document.body.dataset.appVersion,uid:owLabMatches(adapter)?st.uid?.hex||null:null,baselineAdapter:adapter,matrixEnabled:true,matrixReadOnly:readOnly,matrix:[],phase:'preparing',createdAt:new Date().toISOString(),original:null,planned:null,changes:[],attempts:[],snapshots:[],events:[]};
+    owLabRecord={schema:1,runId:new Date().toISOString()+'-'+Math.random().toString(36).slice(2),appVersion:document.body.dataset.appVersion,uid:owLabMatches(adapter)?st.uid?.hex||null:null,baselineAdapter:adapter,testMode,worstMode,matrixEnabled:true,matrixReadOnly:readOnly,matrix:[],phase:'preparing',createdAt:new Date().toISOString(),original:null,planned:null,changes:[],attempts:[],snapshots:[],events:[]};
     owLabJournal=[];owLabStorageError='';
     // Keep the preceding connection trace, too, in case the DUT was already connected.
     if(st.port&&owLabMatches(adapter))for(const kind of ['usb','events','errors'])for(const entry of debugTrace[kind]||[])owLabJournal.push({kind,stage:'pre-existing-session',...debugValue(entry)});
    }else{
     if(!owLabRecord||owLabRecord.phase==='write-uncertain'||owLabRecord.phase==='programming')throw Error('Keine sichere Fortsetzung möglich.');
-    if(action==='compare'){
+    if(owLabRecord.worstMode&&owLabRecord.phase!=='complete'){
+     if(action!=='continue')throw Error('Worst-Case-Test zuerst fortsetzen oder Original wiederherstellen.');
+     adapter=owLabRecord.phase==='worst-bridge'?'bridge':'ssp3';
+    }else if(action==='compare'){
      if(!owLabHasBaseline())throw Error('Kein verifiziertes Referenz-NVM vorhanden.');
      const target=$('owLabCompareAdapter').value;
      adapter=target==='ssp3'?'ssp3':'bridge';versions=adapter==='ssp3'?null:target==='v15'?['0.15']:target==='v16'?['0.16']:target==='new'?['0.15','0.16']:['0.14'];label=adapter==='ssp3'?'SSP3':target==='v15'?'v0.15':target==='v16'?'v0.16':target==='new'?'fallback':'v0.14';
@@ -7075,7 +7139,9 @@ if(typeof document!=='undefined') (function UI(){
    }
    owLabBusy=true;window.ELMOS_ONEWIRE_LAB_ACTIVE=true;autoReconnectEnabled=false;cancelAutoReconnect();owLabRender();
    await owLabCheckpoint(action==='start'?'Geführten Hardwaretest gestartet.':'Test fortgesetzt: '+action);
-   if(action==='start'||owLabRecord.phase==='await-ssp3'){
+   if(owLabRecord.worstMode&&action==='start')await owLabWorstStart(port);
+   else if(owLabRecord.worstMode&&owLabRecord.phase!=='complete')await owLabWorstContinue(port,adapter);
+   else if(action==='start'||owLabRecord.phase==='await-ssp3'){
     await owLabPrepareAndProgram(port,adapter,action!=='start');
    }else{
     const manual=action==='manual'||owLabRecord.phase==='await-manual'&&action==='continue';
@@ -7085,7 +7151,8 @@ if(typeof document!=='undefined') (function UI(){
   }catch(e){
    message=e.message;
    if(owLabBusy&&owLabRecord){
-    if(!['write-uncertain','programming','await-ssp3','await-v14','await-new','await-manual','written'].includes(owLabRecord.phase))
+    if(owLabRecord.worstMode&&!['write-uncertain','programming','worst-restore','worst-bridge'].includes(owLabRecord.phase))owLabRecord.phase=owLabRecord.verified?'worst-hold':'prewrite-failed';
+    else if(!['write-uncertain','programming','await-ssp3','await-v14','await-new','await-manual','written','worst-restore','worst-bridge','worst-hold'].includes(owLabRecord.phase))
      owLabRecord.phase=owLabHasBaseline()?'await-manual':'prewrite-failed';
     else if(owLabRecord.phase==='programming'){owLabRecord.phase='write-uncertain';owLabRecord.verified=false;}
     owLabEvent('Test gestoppt: '+message);
@@ -7113,7 +7180,7 @@ if(typeof document!=='undefined') (function UI(){
  $('owLabStart').addEventListener('click',()=>owLabRun('start'));
  $('owLabContinue').addEventListener('click',()=>owLabRun('continue'));
  $('owLabManual').addEventListener('click',()=>{if(window.confirm('Sensorversorgung sicher trennen und wieder anschliessen; ESP32 v0.14 unverändert lassen. Danach wird der Start erneut geprüft.'))owLabRun('manual')});
- $('owLabFinish').addEventListener('click',async()=>{if(owLabBusy||!owLabRecord||!window.confirm('Test ohne weitere Programmierung abschliessen? Protokoll bleibt exportierbar.'))return;owLabRecord.phase='complete';owLabSetStage('done','Test durch Benutzer abgeschlossen.');try{await owLabCheckpoint('Test abgeschlossen')}catch(e){owLabStorageError=e.message}owLabRender()});
+ $('owLabFinish').addEventListener('click',async()=>{if(owLabBusy||!owLabRecord||owLabRecord.worstMode&&!owLabRecord.restored||!window.confirm('Test ohne weitere Programmierung abschliessen? Protokoll bleibt exportierbar.'))return;owLabRecord.phase='complete';owLabSetStage('done','Test durch Benutzer abgeschlossen.');try{await owLabCheckpoint('Test abgeschlossen')}catch(e){owLabStorageError=e.message}owLabRender()});
  $('owLabExport').addEventListener('click',()=>{if(owLabRecord)download('ELMOS_OneWire_Lab_'+(owLabRecord.uid||'Diagnose')+'.json',JSON.stringify({schema:2,record:owLabRecord,journal:owLabJournal,storageError:owLabStorageError,exportedWhileRunning:owLabBusy,exportStage:owLabStage,exportDetail:owLabDetail,limitations:['VDD physikalisch nicht gemessen','Interne Magic-Cookie-Bits/Flanken der Firmware v0.14 über USB nicht sichtbar','Journal enthält alle während des Labortests erfassten Host-USB-Einträge und Registerlesungen. Bei Browserabsturz sind nur gespeicherte Checkpoints verfügbar.']},null,2))});
  owLabRender();
  }catch(error){
