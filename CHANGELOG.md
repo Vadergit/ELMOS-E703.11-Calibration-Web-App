@@ -1,3 +1,8 @@
+## v0.7.196 – One-Wire Labor: vollständige Startvariantenmatrix
+
+- Je drei unabhängige Verbindungsversuche pro Profil: ESP32 PLC START 100/25 kBd, PLC RECOVER START 100/25 kBd und Standardautomatik (15); SSP3 PSSC-RAM, kombinierte/getrennte USB-Ausgabe bei 100/50 kHz sowie Standardautomatik (18). Kein vorzeitiger Abbruch beim ersten Erfolg. Separate Bewertung von Startpfad, tatsächlichem Takt soweit gemeldet, Magic-Cookie-Nachweis, Kaltstart und 64-Wort-NVM-Vergleich. Firmware v0.14, v0.15 und v0.16 separat vergleichbar; kein automatisches Flashen.
+- Bei permanentem PLC zuerst Originalprofil prüfen, danach unverändertes Original erneut bestätigen und die bereits freigegebene 4-ms-Umstellung einmalig durchführen. Anschliessend erneute Matrix. Optional reiner Lesetest für vorhandene Profile; 10/200 ms nur auf entsprechend vorkonfiguriertem Sensor, kein automatisches Abschalten des letzten PLC-Zugangs. Nicht getestete Profile bleiben offen. UID- und NVM-Abweichung stoppt die Matrix. Normale Kalibrierung und NVM-Schutz unverändert. Hardwareprüfung ausstehend.
+
 ## v0.7.195 – One-Wire Labortest: gezielte PLC-Lesewiederholung und Schreibfortschritt
 
 - ESP32: einzelne fehlgeschlagene PLC-Registerlesung bis zu zweimal mit kurzem Abstand wiederholen, ausschliesslich im Labortest und bei unveränderter USB-Sitzung, Chip-UID und PLC-Adresse. Keine automatische Wiederholung persistenter Schreibbefehle. Die vollständige CRC-/Boot-/UID-Prüfung und der SSP3-Fallback bleiben erhalten.
