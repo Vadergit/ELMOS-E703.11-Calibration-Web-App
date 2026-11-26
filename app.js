@@ -6466,7 +6466,7 @@ if(typeof document!=='undefined') (function UI(){
  // Guided lab: one start, automatic preparation/program/reboot; explicit physical
  // handoff only when an unchanged v0.14 firmware cannot authorize a write.
  const owLabKey='elmos-onewire-reconnect-lab-v1';
- let owLabBusy=false,owLabRecord=null,owLabForceSsp3Start=false,owLabJournal=[],owLabStage='idle',owLabDbPromise=null,owLabStorageError='',owLabLoaded=false;
+ let owLabBusy=false,owLabRecord=null,owLabForceSsp3Start=false,owLabJournal=[],owLabStage='idle',owLabDbPromise=null,owLabStorageError='',owLabLoaded=false,owLabLoading=false;
  try{const old=JSON.parse(localStorage.getItem(owLabKey)||'null');if(old?.schema===1)owLabRecord=old}catch(_){}
  const owLabFirmware=()=>st.adapterKind==='ssp3'?(/^[0-9A-F]{2}(\.[0-9A-F]{2}){3}$/i.test(st.firmware)?st.firmware:null):String(debugTrace.versionReply?.raw||'').match(/ESP32-C3 SuperMini[^\r\n]*\bv(0\.\d+)\b/i)?.[1]||null;
  const owLabAdapter=()=>$('owLabAdapter').value;
@@ -6493,20 +6493,25 @@ if(typeof document!=='undefined') (function UI(){
  }
  async function owLabLoad(){
   if(owLabLoaded)return;
-  owLabLoaded=true;
-  if(!owLabRecord?.runId)return;
+  if(owLabLoading)return;
+  owLabLoading=true;
+  if(!owLabRecord?.runId){
+   if(owLabRecord){owLabRecord.snapshots??=[];owLabRecord.events??=[];owLabRecord.attempts??=[];owLabRecord.runId='legacy-'+Date.now();if(['programming','write-uncertain'].includes(owLabRecord.phase)){owLabRecord.phase='write-uncertain';owLabRecord.verified=false;}else if(owLabRecord.verified){owLabRecord.phase='written';}else owLabRecord.phase='prewrite-failed';}
+   owLabLoading=false;owLabLoaded=true;return;
+  }
   try{
    const db=await owLabDatabase();
    const value=await new Promise((resolve,reject)=>{const q=db.transaction('runs').objectStore('runs').get(owLabRecord.runId);q.onsuccess=()=>resolve(q.result);q.onerror=()=>reject(q.error)});
    if(value){const phase=owLabRecord.phase;owLabJournal=value.journal||[];owLabRecord=value.record;
     // A reload during a write is never an authorization to write or reboot.
     if(['programming','write-uncertain'].includes(phase)||owLabRecord.phase==='programming'){owLabRecord.phase='write-uncertain';owLabRecord.verified=false;}
-   }else owLabStorageError='Gespeicherter Volltrace nicht verfügbar.';
-  }catch(e){owLabStorageError='Labordaten nicht geladen: '+e.message;}
+   }else{owLabStorageError='Gespeicherter Volltrace nicht verfügbar.';owLabRecord.phase='write-uncertain';owLabRecord.verified=false;}
+  }catch(e){owLabStorageError='Labordaten nicht geladen: '+e.message;owLabRecord.phase='write-uncertain';owLabRecord.verified=false;}
+  finally{owLabLoading=false;owLabLoaded=true;owLabRecord.snapshots??=[];owLabRecord.events??=[];owLabRecord.attempts??=[];if(['preparing','prepared'].includes(owLabRecord.phase)&&!owLabRecord.writeStarted)owLabRecord.phase='prewrite-failed';}
  }
  function owLabSave(){
   if(!owLabRecord)return;
-  localStorage.setItem(owLabKey,JSON.stringify(owLabRecord));
+  localStorage.setItem(owLabKey,JSON.stringify({schema:1,runId:owLabRecord.runId,uid:owLabRecord.uid,phase:owLabRecord.phase,verified:!!owLabRecord.verified}));
  }
  function owLabEvent(message,data={}){
   if(owLabRecord){const event={at:new Date().toISOString(),stage:owLabStage,message,...data};owLabRecord.events.push(event);owLabJournal.push({kind:'lab',...event});}
@@ -6529,7 +6534,7 @@ if(typeof document!=='undefined') (function UI(){
    originalNvm:debugTrace.originalNvm,ramReads:debugTrace.ramReads,nvmReads:debugTrace.nvmReads,errors:debugTrace.errors,
    settings:{baud:$('baud').value,plcBaud:$('plcBaud').value,gpio4:$('plcGpio4Mode').checked,hostFormat:st.plcHostFormat}});
  }
- function owLabSnapshot(label){if(owLabRecord)owLabRecord.snapshots.push({at:new Date().toISOString(),label,...owLabTrace()});}
+ function owLabSnapshot(label){if(owLabRecord)(owLabRecord.snapshots??=[]).push({at:new Date().toISOString(),label,...owLabTrace()});}
  function owLabSetStage(stage,message){owLabStage=stage;owLabEvent(message);}
  function owLabRender(){
   const r=owLabRecord,phase=r?.phase||'idle';
@@ -6540,17 +6545,19 @@ if(typeof document!=='undefined') (function UI(){
   $('owLabLog').textContent=r?[...r.events.map(x=>x.at+'  '+x.message),...(r.changes||[]).map(x=>'NVM 0x'+h(x.address)+'  0x'+h(x.from,2)+' → 0x'+h(x.to,2))].join('\n'):'Noch kein Test gestartet.';
   $('owLabLog').scrollTop=$('owLabLog').scrollHeight;
   $('owLabStageList').textContent=['prepare','backup','program','restart','magic','verify','done'].map((s,i)=>(owLabStage===s?'▶ ':owLabStage==='done'||['prepare','backup','program','restart','magic','verify','done'].indexOf(owLabStage)>i?'✓ ':'○ ')+['Verbindung vorbereiten','Original-NVM sichern','NVM schreiben und verifizieren','Sensor neu starten','Magic Cookie / PLC-Zugriff','UID und NVM prüfen','Ergebnis'][i]).join('  ·  ');
-  $('owLabStart').disabled=owLabBusy||owLabPending();
+  $('owLabStart').disabled=owLabBusy||!owLabLoaded||owLabPending();
+  $('owLabManual').hidden=phase!=='await-new';$('owLabManual').disabled=owLabBusy||!owLabLoaded;
+  $('owLabFinish').hidden=!r||!['await-new','await-manual','await-v14','await-ssp3','written'].includes(phase);$('owLabFinish').disabled=owLabBusy||!owLabLoaded;
   $('owLabContinue').hidden=!['await-ssp3','await-v14','await-new','await-manual','written'].includes(phase);
-  $('owLabContinue').disabled=owLabBusy;
+  $('owLabContinue').disabled=owLabBusy||!owLabLoaded;
   $('owLabContinue').textContent=phase==='await-ssp3'?'SSP3 angeschlossen – fortsetzen':phase==='await-new'?'Neue Firmware installiert – fortsetzen':phase==='await-v14'?'ESP32 v0.14 angeschlossen – fortsetzen':phase==='await-manual'?'Sensor stromlos gemacht – fortsetzen':'Wiederverbindung starten';
   $('owLabFlash').hidden=phase!=='await-new';
   $('owLabAdapter').disabled=owLabBusy||owLabPending();
   $('owLabCompareAdapter').disabled=owLabBusy;
-  $('owLabCompare').disabled=owLabBusy||!r?.verified||['programming','write-uncertain'].includes(phase);
+  $('owLabCompare').disabled=owLabBusy||!owLabLoaded||!r?.verified||['programming','write-uncertain'].includes(phase);
   $('owLabCompare').hidden=!r?.verified;
   $('owLabClose').disabled=owLabBusy;
-  $('owLabExport').disabled=!r;
+  $('owLabExport').disabled=!r||!owLabLoaded;
   $('owLabExport').textContent='Vollständiges Testprotokoll exportieren ('+owLabJournal.length+' Einträge)';
  }
  function owLabAssertIdle(){
@@ -6733,14 +6740,14 @@ if(typeof document!=='undefined') (function UI(){
   let message='',adapter,port,versions,label;
   try{
    owLabAssertIdle();
-   if(!owLabLoaded)await owLabLoad();
+   if(!owLabLoaded)throw Error('Testprotokoll wird noch geladen.');
    if(action==='start'){
     if(owLabPending())throw Error('Offenen Test fortsetzen oder Protokoll exportieren.');
     if(owLabRecord?.verified&&owLabRecord.uid===st.uid?.hex)throw Error('Sensor bereits programmiert. Adaptervergleich statt erneutem NVM-Schreiben verwenden.');
     adapter=owLabAdapter();
     if(!window.confirm('Entbehrlicher Testsensor, schaltbare Versorgung und AODO geprüft? Start programmiert das NVM (plc_en aus, 4 ms) und startet den Sensor automatisch neu.'))return;
     port=st.port&&owLabMatches(adapter)?st.port:await navigator.serial.requestPort();
-    const previous=owLabRecord;
+    if(owLabRecord&&owLabRecord.runId)await owLabStore();
     owLabRecord={schema:1,runId:new Date().toISOString()+'-'+Math.random().toString(36).slice(2),appVersion:document.body.dataset.appVersion,uid:owLabMatches(adapter)?st.uid?.hex||null:null,baselineAdapter:adapter,phase:'preparing',createdAt:new Date().toISOString(),original:null,planned:null,changes:[],attempts:[],snapshots:[],events:[]};
     owLabJournal=[];owLabStorageError='';
     // Keep the preceding connection trace, too, in case the DUT was already connected.
@@ -6755,7 +6762,7 @@ if(typeof document!=='undefined') (function UI(){
     }else{
      const phase=owLabRecord.phase;
      if(phase==='await-ssp3')adapter='ssp3';
-     else if(phase==='await-new'){adapter='bridge';versions=['0.15','0.16'];label='fallback';}
+     else if(phase==='await-new'){adapter='bridge';versions=action==='manual'?['0.14']:['0.15','0.16'];label=action==='manual'?'v0.14':'fallback';}
      else if(phase==='await-v14'){adapter='bridge';versions=['0.14'];label='v0.14';}
      else if(['written','await-manual'].includes(phase)){const next=owLabRecord.next||{adapter:owLabRecord.baselineAdapter||'bridge',versions:owLabRecord.baselineAdapter==='ssp3'?null:['0.14'],label:owLabRecord.baselineAdapter==='ssp3'?'SSP3':'v0.14'};({adapter,versions,label}=next);}
      else throw Error('Kein offener Test vorhanden.');
@@ -6768,7 +6775,7 @@ if(typeof document!=='undefined') (function UI(){
    if(action==='start'||owLabRecord.phase==='await-ssp3'){
     await owLabPrepareAndProgram(port,adapter,action!=='start');
    }else{
-    const manual=owLabRecord.phase==='await-manual'&&action==='continue';
+    const manual=action==='manual'||owLabRecord.phase==='await-manual'&&action==='continue';
     if(manual)owLabEvent('Manuelles Stromlosmachen durch Benutzer bestätigt (VDD nicht gemessen).');
     await owLabTest(port,adapter,versions,label,manual);
    }
@@ -6800,6 +6807,8 @@ if(typeof document!=='undefined') (function UI(){
  $('owLabDialog').addEventListener('cancel',e=>{if(owLabBusy)e.preventDefault()});
  $('owLabStart').addEventListener('click',()=>owLabRun('start'));
  $('owLabContinue').addEventListener('click',()=>owLabRun('continue'));
+ $('owLabManual').addEventListener('click',()=>{if(window.confirm('Sensorversorgung sicher trennen und wieder anschliessen; ESP32 v0.14 unverändert lassen. Danach wird der Start erneut geprüft.'))owLabRun('manual')});
+ $('owLabFinish').addEventListener('click',async()=>{if(owLabBusy||!owLabRecord||!window.confirm('Test ohne weitere Programmierung abschliessen? Protokoll bleibt exportierbar.'))return;owLabRecord.phase='complete';owLabSetStage('done','Test durch Benutzer abgeschlossen.');try{await owLabCheckpoint('Test abgeschlossen')}catch(e){owLabStorageError=e.message}owLabRender()});
  $('owLabExport').addEventListener('click',()=>{if(owLabRecord)download('ELMOS_OneWire_Lab_'+(owLabRecord.uid||'Diagnose')+'.json',JSON.stringify({schema:2,record:owLabRecord,journal:owLabJournal,storageError:owLabStorageError,limitations:['VDD physikalisch nicht gemessen','Interne Magic-Cookie-Bits/Flanken der Firmware v0.14 über USB nicht sichtbar','Journal enthält alle während des Labortests erfassten Host-USB-Einträge und Registerlesungen. Bei Browserabsturz sind nur gespeicherte Checkpoints verfügbar.']},null,2))});
  owLabRender();
 
