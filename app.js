@@ -2039,29 +2039,7 @@ if(typeof document!=='undefined') (function UI(){
  };
 
  const rawLine=s=>{debugAppend('usb',{direction:String(s).startsWith('TX ')?'TX':String(s).startsWith('RX ')?'RX':'other',message:String(s)});if(window.ELMOS_ARCHIVE?.active&&(st.calTask||st.writing||st.nvmWorking))window.ELMOS_ARCHIVE.trace(s);st.log.push(now()+'  '+s);if(st.log.length>500)st.log.shift();$('usbLog').textContent=st.log.slice(-90).join('\n')};
- // Bridge handshake replies have a distinctive payload. A lone prompt or
- // delayed register response from the previous USB session is not a reply.
- function takeBridgeHandshake(buffer,command){
-  const prompt=/(?:^|[\r\n]):\r?\n/g;
-  const expected=command==='BRIDGE_INFO'?/(?:^|[\r\n])# E70311-BRIDGE\s+V1\s+CAPS=[A-Z0-9_,]+(?=[\r\n])/:
-   /(?:^|[\r\n])# ESP32-C3 SuperMini[^\r\n]*\bv0\.\d+(?=[\s\r\n])/i;
-  let match,offset=0,reply=null;const discarded=[];
-  while((match=prompt.exec(buffer))){
-   const frame=buffer.slice(offset,prompt.lastIndex);offset=prompt.lastIndex;
-   if(reply===null&&expected.test(frame))reply=frame;
-   else discarded.push(frame);
-  }
-  return {reply,rest:buffer.slice(offset),discarded};
- }
- async function readerLoop(port){try{let r=port.readable.getReader();st.readerAlive=true;st.reader=r;try{while(st.port===port&&!st.closing){const{value,done}=await r.read();if(done)break;if(!value)continue;let txt=new TextDecoder().decode(value);rawLine('RX '+txt.replace(/\r/g,'\\r').replace(/\n/g,'\\n'));st.lastSerialRxAt=Date.now();if(st.responseWait){st.replyBuffer+=txt;
-     const pending=st.responseWait;
-     if(pending.bridgeHandshake){
-      const parsed=takeBridgeHandshake(st.replyBuffer,pending.bridgeHandshake);
-      for(const frame of parsed.discarded)debugAppend('events',{kind:'staleHandshakeFrame',command:pending.bridgeHandshake,frame});
-      st.replyBuffer=parsed.rest;
-      if(parsed.reply!==null){st.responseWait=null;clearTimeout(pending.timer);st.replyBuffer='';pending.resolve(parsed.reply);continue;}
-     }
-     const complete=!pending.bridgeHandshake&&(st.adapterKind==='bridge'?/(?:^|[\r\n]):\r?\n$/.test(st.replyBuffer):P.ssp3PromptCount(st.replyBuffer)>=(st.responseWait.prompts||1));if(complete){const waiter=st.responseWait;st.responseWait=null;clearTimeout(waiter.timer);const out=st.replyBuffer;st.replyBuffer='';waiter.resolve(out)}else if(st.replyBuffer.length>16000){const waiter=st.responseWait;st.responseWait=null;clearTimeout(waiter.timer);waiter.reject(Error('SSP3-Antwort zu lang'))}}} }finally{r.releaseLock();if(st.reader===r)st.reader=null}}catch(e){
+ async function readerLoop(port){try{let r=port.readable.getReader();st.readerAlive=true;st.reader=r;try{while(st.port===port&&!st.closing){const{value,done}=await r.read();if(done)break;if(!value)continue;let txt=new TextDecoder().decode(value);rawLine('RX '+txt.replace(/\r/g,'\\r').replace(/\n/g,'\\n'));if(st.responseWait){st.replyBuffer+=txt;const complete=st.adapterKind==='bridge'?/(?:^|[\r\n]):\r?\n$/.test(st.replyBuffer):P.ssp3PromptCount(st.replyBuffer)>=(st.responseWait.prompts||1);if(complete){const waiter=st.responseWait;st.responseWait=null;clearTimeout(waiter.timer);const out=st.replyBuffer;st.replyBuffer='';waiter.resolve(out)}else if(st.replyBuffer.length>16000){const waiter=st.responseWait;st.responseWait=null;clearTimeout(waiter.timer);waiter.reject(Error('SSP3-Antwort zu lang'))}}} }finally{r.releaseLock();if(st.reader===r)st.reader=null}}catch(e){
    if(st.port===port&&!st.closing)logging('USB-Lesefehler: '+e.message);
   }finally{
    if(st.port===port&&!st.closing){
@@ -2070,7 +2048,7 @@ if(typeof document!=='undefined') (function UI(){
    }
   }}
  function serialize(fn){const run=st.cmdQueue.then(fn,fn);st.cmdQueue=run.catch(()=>{});return run}
- async function exchange(text,timeout=2500){return serialize(async()=>{if(!st.closing&&demoPort&&st.port===demoPort)return demoPort.exchange(text);if(st.closing||!st.port?.writable)throw Error('USB-Verbindung nicht geöffnet');if(st.responseWait)throw Error('Interner Befehlskonflikt');st.replyBuffer='';let resolver,rejecter;const future=new Promise((res,rej)=>{resolver=res;rejecter=rej});const ticket={bridgeHandshake:st.adapterKind==='bridge'&&(text==='BRIDGE_INFO'||text==='.VERSION'&&st.bridgeBoard==='ESP32-C3 SuperMini')?text:null,resolve:resolver,reject:rejecter,timer:setTimeout(()=>{if(st.responseWait===ticket){st.responseWait=null;ticket.reject(Error((st.adapterKind==='bridge'?'ESP32':'SSP3')+' antwortet nicht auf '+text.slice(0,18))) }},timeout)};st.responseWait=ticket;future.catch(()=>{});const writer=st.port.writable.getWriter();try{logging('TX '+text);await writer.write(new TextEncoder().encode(text+'\r'))}catch(e){if(st.responseWait===ticket){st.responseWait=null;clearTimeout(ticket.timer);rejecter(e)}throw e}finally{writer.releaseLock()}const ans=await future;if(ans.split(/[\r\n]+/).some(l=>l.trim().startsWith('!')))throw Error((st.adapterKind==='bridge'?'ESP32':'SSP3')+' meldet Fehler: '+ans.slice(0,140));return ans})}
+ async function exchange(text,timeout=2500){return serialize(async()=>{if(!st.closing&&demoPort&&st.port===demoPort)return demoPort.exchange(text);if(st.closing||!st.port?.writable)throw Error('USB-Verbindung nicht geöffnet');if(st.responseWait)throw Error('Interner Befehlskonflikt');st.replyBuffer='';let resolver,rejecter;const future=new Promise((res,rej)=>{resolver=res;rejecter=rej});const ticket={resolve:resolver,reject:rejecter,timer:setTimeout(()=>{if(st.responseWait===ticket){st.responseWait=null;ticket.reject(Error((st.adapterKind==='bridge'?'ESP32':'SSP3')+' antwortet nicht auf '+text.slice(0,18))) }},timeout)};st.responseWait=ticket;future.catch(()=>{});const writer=st.port.writable.getWriter();try{logging('TX '+text);await writer.write(new TextEncoder().encode(text+'\r'))}catch(e){if(st.responseWait===ticket){st.responseWait=null;clearTimeout(ticket.timer);rejecter(e)}throw e}finally{writer.releaseLock()}const ans=await future;if(ans.split(/[\r\n]+/).some(l=>l.trim().startsWith('!')))throw Error((st.adapterKind==='bridge'?'ESP32':'SSP3')+' meldet Fehler: '+ans.slice(0,140));return ans})}
 
  // Two fast serial writes, not two commands in one write. The actual SSP3
  // firmware may accept only one CR-terminated command per UART/USB packet.
@@ -3539,7 +3517,7 @@ if(typeof document!=='undefined') (function UI(){
   st.nvmBackup=null;st.nvmBackupVerified=false;st.nvmBackupProof=null;
   st.psscRamRecovery=false;st.coldStartAfeRestored=false;st.calibrationPreflight=null;
   st.ramRecoveryAttempted=false;st.ramRecoveryRetryable=false;
-  st.startupTrials=[];st.chipDiag=null;st.lastPlcReply=null;st.readerAlive=false;st.bridgePlcAttempts=[];st.bridgeColdStart=null;st.bridgeEffectiveBaud=null;st.replyBuffer='';st.lastSerialRxAt=Date.now();
+  st.startupTrials=[];st.chipDiag=null;st.lastPlcReply=null;st.readerAlive=false;
   st.plcAddress=0x6C;st.plcAddressVerified=false;st.plcAddressSource='';st.plcAddressProbes=[];
   st.reinitRunning=false;st.firmware='';st.bridgeBoard=null;st.bridgeOutputNvm=false;st.readOnlySensor=null;st.powerHelp=null;st.powerCycleResult=null;st.magicResult=null;st.liveReadAttempts=0;st.liveReadSuccesses=0;st.liveLastError=null;st.liveLastAttemptAt=null;st.measurementPeriod=null;st.measurementStatus=null;st.measurementError=null;st.measurementStarts=0;st.measurementFreshCount=0;st.measurementLastChangedAt=null;st.plcHostFormat=$('plcHostFormat').value;st.chip=false;st.afe=null;st.afe0=null;st.boot=null;st.regs={};st.dsp=null;st.dspError=null;st.calStaged=false;st.calVerified=false;st.nvmDone=false;st.adc=null;st.manualLivePause=false;st.afeWriteActive=false;st.ramWriteScope=null;st.uid=null;st.uidShownForInput=null;st.restorePlan=null;st.expertOutputPlan=null;st.outputOnlyPlan=null;st.iface=$('iface').value;st.adapterKind=$('adapterType').value;
   st.sensorPowerEnabled=st.adapterKind==='bridge'&&!demoEnabled&&$('plcPowerCycle').checked;
@@ -3552,14 +3530,6 @@ if(typeof document!=='undefined') (function UI(){
   try{
    if(st.adapterKind==='bridge'){
     st.plcHostFormat='legacy';
-    // Let the reader collect any trailing bytes from a preceding CDC session.
-    // No sensor-start timing depends on this delay: PLC START follows later.
-    if(!demoEnabled){
-     const deadline=Date.now()+600;
-     while(Date.now()<deadline&&Date.now()-st.lastSerialRxAt<100)await sleep(20);
-     if(!st.readerAlive||st.port!==port||st.closing)throw Error('USB-Lesekanal beim Handshake nicht bereit.');
-     logging('USB-Handshaking: RX-Puffer vor BRIDGE_INFO beruhigt.');
-    }
     const bridgeReady=await bridgeHello();
     if(!bridgeReady)return;
     if(st.iface==='i2c'&&!st.bridgeI2c)throw Error('I²C benötigt ESP32-C3 v0.10 oder Pro Micro v0.27. Für diese Bridge kannst du 1-Wire wählen.');
@@ -6619,7 +6589,9 @@ if(typeof document!=='undefined') (function UI(){
   owLabSnapshot('Vor USB-Trennung: '+label);
   await owLabCheckpoint('USB trennen, '+label);
   await owLabDisconnect();
-  await sleep(500);
+  await sleep(1000);
+  // Clear stale diagnostics only for this dedicated lab connection.
+  st.bridgePlcAttempts=[];st.bridgeColdStart=null;st.bridgeEffectiveBaud=null;st.replyBuffer='';
   await owLabConnect(port,adapter);
   owLabSnapshot('Nach Verbindung: '+label);
   await owLabCheckpoint('Verbindungsversuch abgeschlossen: '+label);

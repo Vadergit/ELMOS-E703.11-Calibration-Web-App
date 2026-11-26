@@ -1,3 +1,7 @@
+## v0.7.191 – Regulären USB-Verbindungsaufbau wiederherstellen
+
+- Allgemeine USB-Reader-, Exchange-, Firmware-Handshake- und Connect-Logik exakt auf v0.7.189 zurückgesetzt, nachdem ein Anwender in v0.7.190 keine Verbindung mehr herstellen konnte. Keine Firmware- oder NVM-Änderung. Labortest behält das Abwarten der laufenden Live-Abfragen, die begrenzte Wiederholung und die Vermeidung unnötiger Neuverbindungen. Laborspezifische Wartezeit und Diagnose-Reset nur im Labortest. Hardwarebestätigung ausstehend.
+
 ## v0.7.190 – USB-Handshaking im automatischen One-Wire-Labortest
 
 - Feldprotokoll: alte Live-Antwort endet erst nach USB-Neuverbindung; leerer `:`-Prompt wurde fälschlich als BRIDGE_INFO-Antwort gewertet. Bridge-Handshake wartet jetzt auf die passende vollständige Nutzlast und protokolliert verworfene Frames. Vor dem Handshake RX-Kanal kurz beruhigen.
