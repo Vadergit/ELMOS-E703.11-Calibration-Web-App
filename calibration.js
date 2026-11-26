@@ -476,6 +476,20 @@ const ELMOS_CAL = (() => {
     'AODO-NVM-Rohskalierung ergibt '+unClippedVolts.map(v=>v.toFixed(4)+' V').join(' / ')+
     ' statt '+s0.toFixed(4)+' / '+s1.toFixed(4)+' V (Clipping ersetzt keine Skalierung)'};
  }
+ // Shared validation for saved profiles, sensor series and actual NVM encoding.
+ function clippingThresholds(low,high,vdd){
+  // LIMIT_LO/HI are signed 14-bit Q0.13 thresholds independent of the
+  // 10–90 % VDD range where the analog output's linearity is guaranteed.
+  if(![low,high,vdd].every(Number.isFinite)||vdd<2.7||vdd>5.5||
+     low<0||high>vdd||low>=high)
+   throw Error('Clipping: Unter- und Obergrenze müssen aufsteigend zwischen 0 und VDD liegen');
+  const lo=Math.ceil(8192*(2*low/vdd-1)-1e-9);
+  const hi=Math.floor(8192*(2*high/vdd-1)+1e-9);
+  if(lo< -8192||hi>8191||lo>8191||hi< -8192)
+   throw Error('Clipping-Grenzen ausserhalb des 14-Bit-Q0.13-Registerbereichs. Die obere Grenze muss knapp unter VDD liegen.');
+  if(lo>=hi)throw Error('Abstand zwischen den Clipping-Grenzen zu klein');
+  return {lo,hi};
+ }
  function prepareOutputConfig(original,settings,outputLimit=32000,{interfaceMode}={}){
   if(!Array.isArray(original)||original.length!==64)throw Error('Vollständiges NVM-Abbild erforderlich');
   const out=original.slice();
@@ -516,16 +530,7 @@ const ELMOS_CAL = (() => {
    if(clipping.mode==='off')out[16]&=~(1<<7);
    else if(clipping.mode==='on'){
     const {low,high,vdd}=clipping;
-    // LIMIT_LO/HI are signed 14-bit Q0.13 thresholds independent of the
-    // 10–90 % VDD range where the analog output's linearity is guaranteed.
-    if(![low,high,vdd].every(Number.isFinite)||vdd<2.7||vdd>5.5||
-       low<0||high>vdd||low>=high)
-     throw Error('Clipping: Unter- und Obergrenze müssen aufsteigend zwischen 0 und VDD liegen');
-    const lo=Math.ceil(8192*(2*low/vdd-1)-1e-9);
-    const hi=Math.floor(8192*(2*high/vdd-1)+1e-9);
-    if(lo< -8192||hi>8191||lo>8191||hi< -8192)
-     throw Error('Clipping-Grenzen ausserhalb des 14-Bit-Q0.13-Registerbereichs. Die obere Grenze muss knapp unter VDD liegen.');
-    if(lo>=hi)throw Error('Abstand zwischen den Clipping-Grenzen zu klein');
+    const {lo,hi}=clippingThresholds(low,high,vdd);
     if((out[16]&(1<<8))&&(original[61]&0xF))
      throw Error('Aktive Fehlerreaktionen für AODO-Grenzen können das Clipping übersteuern');
     // Bits 15:2 contain the signed Q0.13 threshold. Bits 1:0 = 0 disable hysteresis.
@@ -645,6 +650,6 @@ const ELMOS_CAL = (() => {
   Number.isInteger(required)&&required>=1&&required<=10&&Array.isArray(records)&&
   Array.from({length:required},(_,slot)=>records.some(point=>
    point?.slot===slot&&Number.isFinite(point.errorBar))).every(Boolean);
- return {planOneWireReconnectTest,PROFILE_REGS,PROFILE_WORDS,uncalibratedPressureBlank,uncalibratedAfeBlank,planCalibrationProfile,sameMeasurementProfile,sameNvmImage,checkpointMatches,hasPressureTemperatureCompensation,SVDD_INDEX,SVDD_MASK,fit,suggestDspLimit,solveFit,crc16,crc8,configFrom,prepareOutputConfig,validateRecoveryCalibrationDiff,protectStartupCommunication,aodoPinBlocked,AODO_PLC_CONFLICT,i2cBootRegisterMatches,timedPlcRamMatches,oneWireBootRegisterMatches,oneWireStartupStatus,oneWireOnlyStatus,analogScaling,analogOutputStatus,elmosDspTarget,elmosTemperatureTarget,fromQ,q,signed,independentVerificationPoint,verificationPointsSufficient,temperatureSourceFromAfe2,dspTemperatureCelsius,isFactoryTemperatureProfile,factoryInternalTemperatureCelsius,factoryTemperatureAddresses,programmedTemperatureAddresses,programmedTemperatureProfileMatches};
+ return {planOneWireReconnectTest,PROFILE_REGS,PROFILE_WORDS,uncalibratedPressureBlank,uncalibratedAfeBlank,planCalibrationProfile,sameMeasurementProfile,sameNvmImage,checkpointMatches,hasPressureTemperatureCompensation,SVDD_INDEX,SVDD_MASK,fit,suggestDspLimit,solveFit,crc16,crc8,configFrom,clippingThresholds,prepareOutputConfig,validateRecoveryCalibrationDiff,protectStartupCommunication,aodoPinBlocked,AODO_PLC_CONFLICT,i2cBootRegisterMatches,timedPlcRamMatches,oneWireBootRegisterMatches,oneWireStartupStatus,oneWireOnlyStatus,analogScaling,analogOutputStatus,elmosDspTarget,elmosTemperatureTarget,fromQ,q,signed,independentVerificationPoint,verificationPointsSufficient,temperatureSourceFromAfe2,dspTemperatureCelsius,isFactoryTemperatureProfile,factoryInternalTemperatureCelsius,factoryTemperatureAddresses,programmedTemperatureAddresses,programmedTemperatureProfileMatches};
 })();
 if(typeof module!=='undefined'&&module.exports)module.exports=ELMOS_CAL;
