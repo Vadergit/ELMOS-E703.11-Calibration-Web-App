@@ -1,3 +1,7 @@
+## v0.7.192 – Startfehler nach gespeichertetem Labortest behoben
+
+- Der neue localStorage-Index enthält keine events-Liste; der Labortest hatte diese bereits vor dem Laden aus IndexedDB mit `.map()` verarbeitet. Bei gespeichertetem Test konnte dies die gesamte App-Initialisierung vor `uiReady=true` abbrechen. Anzeige toleriert Index/alte Testdaten, vollständiges Journal bleibt erhalten und wird erst beim Öffnen geladen. Fehler bei optionaler Labortest-UI-Initialisierung werden protokolliert und blockieren den normalen USB-Start nicht. Keine Änderung an USB-Handshake, Firmware oder NVM-Logik. Hardwareprüfung ausstehend.
+
 ## v0.7.191 – Regulären USB-Verbindungsaufbau wiederherstellen
 
 - Allgemeine USB-Reader-, Exchange-, Firmware-Handshake- und Connect-Logik exakt auf v0.7.189 zurückgesetzt, nachdem ein Anwender in v0.7.190 keine Verbindung mehr herstellen konnte. Keine Firmware- oder NVM-Änderung. Labortest behält das Abwarten der laufenden Live-Abfragen, die begrenzte Wiederholung und die Vermeidung unnötiger Neuverbindungen. Laborspezifische Wartezeit und Diagnose-Reset nur im Labortest. Hardwarebestätigung ausstehend.

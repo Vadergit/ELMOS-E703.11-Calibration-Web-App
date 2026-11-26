@@ -6542,7 +6542,8 @@ if(typeof document!=='undefined') (function UI(){
   const status=owLabBusy?'Läuft automatisch · '+owLabStage:phase==='await-ssp3'?'Sensor am originalen SSP3 anschliessen. Fortsetzen schreibt erst nach identischer UID und geprüftem Original-NVM.':phase==='await-v14'?'Denselben Sensor an ESP32 v0.14 anschliessen. Kein weiteres NVM-Schreiben.':phase==='await-new'?'v0.14 ohne bestätigte Sensorantwort. v0.16 installieren und fortsetzen. Kein weiteres NVM-Schreiben.':phase==='await-manual'?'Automatischer Start nicht bestätigt. Sensor sicher stromlos machen und wieder anschliessen; dann Fortsetzen. Kein NVM-Schreiben.':phase==='write-uncertain'?'Schreibzustand unklar. Nicht neu starten oder erneut programmieren. Protokoll exportieren.':phase==='written'?'NVM verifiziert. Fortsetzen startet nur die Wiederverbindung.':phase==='programming'?'Unterbrochene Programmierung. Kein Neustart; Protokoll sichern.':r?('Test '+(r.uid||'—')+' · '+phase):'Bereit. Programmer auswählen und Start drücken.';
   $('owLabState').textContent=status+(owLabStorageError?' · '+owLabStorageError:'');
   $('owLabChecks').textContent='Adapter: '+(st.bridgeBoard||st.adapterKind||'—')+' · Firmware: '+(owLabFirmware()||'—')+'\nChip-UID: '+(st.uid?.hex||'—')+' · Kaltstart: '+(owLabCold(st.adapterKind)?'bestätigt':'nicht bestätigt');
-  $('owLabLog').textContent=r?[...r.events.map(x=>x.at+'  '+x.message),...(r.changes||[]).map(x=>'NVM 0x'+h(x.address)+'  0x'+h(x.from,2)+' → 0x'+h(x.to,2))].join('\n'):'Noch kein Test gestartet.';
+  $('owLabLog').textContent=r?[...(Array.isArray(r.events)?r.events:[]).map(x=>x.at+'  '+x.message),...(Array.isArray(r.changes)?r.changes:[]).map(x=>'NVM 0x'+h(x.address)+'  0x'+h(x.from,2)+' → 0x'+h(x.to,2))].join('\n'):'Noch kein Test gestartet.';
+  if(r&&!owLabLoaded)$('owLabLog').textContent='Gespeichertes Testprotokoll wird beim Öffnen des Labortests geladen.';
   $('owLabLog').scrollTop=$('owLabLog').scrollHeight;
   $('owLabStageList').textContent=['prepare','backup','program','restart','magic','verify','done'].map((s,i)=>(owLabStage===s?'▶ ':owLabStage==='done'||['prepare','backup','program','restart','magic','verify','done'].indexOf(owLabStage)>i?'✓ ':'○ ')+['Verbindung vorbereiten','Original-NVM sichern','NVM schreiben und verifizieren','Sensor neu starten','Magic Cookie / PLC-Zugriff','UID und NVM prüfen','Ergebnis'][i]).join('  ·  ');
   $('owLabStart').disabled=owLabBusy||!owLabLoaded||owLabPending();
@@ -6818,6 +6819,8 @@ if(typeof document!=='undefined') (function UI(){
    if(message)$('owLabState').textContent=message+(owLabStorageError?' · '+owLabStorageError:'');
   }
  }
+ // Optional lab initialization must never prevent the normal USB startup.
+ try{
  $('expertMode').addEventListener('change',owLabRender);
  $('owLabOpen').addEventListener('click',()=>{toggleSettings(false);$('owLabAdapter').value=st.adapterKind==='ssp3'?'ssp3':'bridge';owLabRender();$('owLabDialog').showModal();void owLabLoad().then(owLabRender)});
  $('owLabAdapter').addEventListener('change',owLabRender);
@@ -6830,6 +6833,11 @@ if(typeof document!=='undefined') (function UI(){
  $('owLabFinish').addEventListener('click',async()=>{if(owLabBusy||!owLabRecord||!window.confirm('Test ohne weitere Programmierung abschliessen? Protokoll bleibt exportierbar.'))return;owLabRecord.phase='complete';owLabSetStage('done','Test durch Benutzer abgeschlossen.');try{await owLabCheckpoint('Test abgeschlossen')}catch(e){owLabStorageError=e.message}owLabRender()});
  $('owLabExport').addEventListener('click',()=>{if(owLabRecord)download('ELMOS_OneWire_Lab_'+(owLabRecord.uid||'Diagnose')+'.json',JSON.stringify({schema:2,record:owLabRecord,journal:owLabJournal,storageError:owLabStorageError,limitations:['VDD physikalisch nicht gemessen','Interne Magic-Cookie-Bits/Flanken der Firmware v0.14 über USB nicht sichtbar','Journal enthält alle während des Labortests erfassten Host-USB-Einträge und Registerlesungen. Bei Browserabsturz sind nur gespeicherte Checkpoints verfügbar.']},null,2))});
  owLabRender();
+ }catch(error){
+  debugAppend('errors',{kind:'labUiInit',message:String(error.message||error),stack:error.stack});
+  if($('owLabSettings'))$('owLabSettings').hidden=true;
+  console.error('Optional One-Wire lab initialization:',error);
+ }
 
  $('operationProgressDialog').addEventListener('cancel',event=>event.preventDefault());
  try{
