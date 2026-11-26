@@ -172,8 +172,8 @@ if(typeof document!=='undefined') (function UI(){
  const h=P.hx;
  const fmt=n=>n===null||n===undefined||!Number.isFinite(n)?'—':Math.round(n).toLocaleString('de-CH');
  const now=()=>new Date().toLocaleTimeString('de-CH',{hour12:false});
- const show=(id,text,type='')=>{const e=$(id);if(!e)return;if(id==='configPreview')e.hidden=false;e.textContent=text;e.className='callout'+(type?' '+type:'')};
- const logging=t=>{debugAppend('events',{kind:'application',message:String(t),step:currentStep});if(window.ELMOS_ARCHIVE?.active&&(st.calTask||st.writing||st.nvmWorking))window.ELMOS_ARCHIVE.trace(t);st.log.push(now()+'  '+t);if(st.log.length>500)st.log.shift();$('usbLog').textContent=st.log.slice(-90).join('\n')};
+ const show=(id,text,type='')=>{const e=$(id);if(!e)return;if(id==='configPreview')e.hidden=false;if((type==='warn'||type==='error'||type==='success')&&(e.textContent!==text||e.className!=='callout '+type)){debugAppend(type==='error'?'errors':'events',{kind:'uiMessage',id,severity:type,message:String(text),step:currentStep})}e.textContent=text;e.className='callout'+(type?' '+type:'')};
+ const logging=t=>{const message=String(t);if(message.startsWith('TX '))debugAppend('usb',{direction:'TX',message});else debugAppend('events',{kind:'application',message,step:currentStep});if(window.ELMOS_ARCHIVE?.active&&(st.calTask||st.writing||st.nvmWorking))window.ELMOS_ARCHIVE.trace(t);st.log.push(now()+'  '+t);if(st.log.length>500)st.log.shift();$('usbLog').textContent=st.log.slice(-90).join('\n')};
 
  // Support snapshot only: never issue a serial command or change a calibration.
  const debugLimit=100000, debugEventLimit=20000;
@@ -247,7 +247,7 @@ if(typeof document!=='undefined') (function UI(){
    bridgeCombinedRecoveryReady:check(timed&&bridge?bridgeCombinedRecoveryReady():null,bridge?bridgeCombinedRecoveryReady():null,true),
    timedOneWireReady:check(timed?timedOneWireReady(w):null,timed?timedOneWireReady(w):null,true)
   };
-  return {at:new Date().toISOString(),...context,checks,failedChecks:Object.keys(checks).filter(k=>checks[k].ok===false)};
+  return {...context,at:new Date().toISOString(),checks,failedChecks:Object.keys(checks).filter(k=>checks[k].ok===false)};
  }
  function recordDebugGate(context){
   try{
@@ -271,7 +271,7 @@ if(typeof document!=='undefined') (function UI(){
     if(/archivepath|archivefolder/i.test(e.id))continue;
     messages[e.id]={text:e.textContent,hidden:e.hidden,className:e.className};
    }
-   const gate=debugTrace.gate?debugGateSnapshot({reason:$('nvmWritePrereq')?.textContent,disabled:$('nvmProgram')?.disabled,verified:debugTrace.gate.verified,timedChecked:$('outputTimedOneWire')?.checked,timedDisabled:$('outputTimedOneWire')?.disabled}):null;
+   let gate=null;try{gate=debugGateSnapshot({...debugTrace.gate,checks:undefined,failedChecks:undefined,reason:debugTrace.gate?.reason??null,uiMessage:$('nvmWritePrereq')?.textContent,disabled:$('nvmProgram')?.disabled,verified:debugTrace.gate?.verified??null,timedChecked:$('outputTimedOneWire')?.checked,timedDisabled:$('outputTimedOneWire')?.disabled})}catch(error){debugAppend('errors',{kind:'exportGate',message:String(error.message||error)})}
    const packageData={
     schema:'elmos-e70311-full-debug',schemaVersion:1,appVersion:document.body.dataset.appVersion,exportedAt:new Date().toISOString(),
     environment:{userAgent:navigator.userAgent,language:navigator.language,platform:navigator.platform,demo:demoEnabled},
@@ -279,7 +279,7 @@ if(typeof document!=='undefined') (function UI(){
     programmer:{adapter:st.adapterKind,board:st.bridgeBoard,firmware:st.firmware,versionReply:debugTrace.versionReply,bridgeInfo:debugTrace.bridgeInfo},
     workflow:{classicStep:currentStep,visiblePanels:[...document.querySelectorAll('[data-panel]:not([hidden]),[aria-current="step"]')].filter(e=>e.getClientRects().length).map(e=>({panel:e.dataset.panel??null,id:e.id,text:e.getAttribute('aria-label')||null})),activeElement:document.activeElement?.id,fields,messages},
     nvm:{original:debugTrace.originalNvm,latestVerifiedBackup:st.nvmBackup,backupVerified:st.nvmBackupVerified,backupProof:st.nvmBackupProof,plannedImage:st.calImage,latestReadWords:debugTrace.nvmReads,missingWordAddresses:Array.from({length:64},(_,i)=>i*2).filter(a=>!(a in debugTrace.nvmReads)),programmedSnapshot:st.programmedSnapshot},
-    ram:{cachedRegisters:st.regs,readbacks:debugTrace.ramReads,registerNames:REG_NAMES,boot:st.boot},
+    ram:{cachedRegisters:st.regs,readbacks:debugTrace.ramReads,registerNames:REG_NAMES,missingKnownRegisterAddresses:Object.keys(REG_NAMES).map(Number).filter(address=>!(address in debugTrace.ramReads)),boot:st.boot},
     calibration:{points:st.calpoints,fit:st.calfit,verification:st.calValidation,afe:st.afe,adc:st.adc,dsp:st.dsp,outputPlan:st.expertOutputPlan},
     nvmGate:gate,gateAtLastRender:debugTrace.gate,
     state:Object.fromEntries(Object.entries(st).filter(([k])=>!['port','reader','readerPromise','cmdQueue','responseWait','liveReadPromise','timeout','log'].includes(k))),
@@ -3481,7 +3481,7 @@ if(typeof document!=='undefined') (function UI(){
   st.port=port;st.mode='usb';st.sensorLost=false;st.adapterNoReply=false;
   autoReconnectSuppressed=false;cancelAutoReconnect();
   autoPortInfo=port?.getInfo?.()||null;
-  st.sessionIndex++;debugTrace=newDebugTrace();st.sessionStartedAt=new Date().toISOString();st.calibrationPreflight=null;
+  st.sessionIndex++;debugTrace=newDebugTrace();st.sessionStartedAt=new Date().toISOString();debugAppend('events',{kind:'sessionStart',step:currentStep});st.calibrationPreflight=null;
   st.nvmBackup=null;st.nvmBackupVerified=false;st.nvmBackupProof=null;
   st.psscRamRecovery=false;st.coldStartAfeRestored=false;st.calibrationPreflight=null;
   st.ramRecoveryAttempted=false;st.ramRecoveryRetryable=false;

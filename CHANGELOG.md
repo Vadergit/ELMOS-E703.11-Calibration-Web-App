@@ -1,3 +1,8 @@
+## v0.7.181 – Debug-Verlauf vervollständigt
+
+- Gesendete und empfangene USB-Daten in einem chronologischen Rohprotokoll; separate UI-Warnungen, Fehler und Statuswechsel. Export ohne Verbindung und auch bei fehlender Freigabe möglich.
+- Fehlende bekannte RAM-Register und fehlende NVM-Wörter werden separat aufgeführt. Keine Änderung der Sensor-Schreiblogik.
+
 ## v0.7.180 – Vollständiges Debug-Paket
 
 - Einstellungen → Diagnose & Support: ein JSON-Export mit Firmware-Rohantwort, Capabilities, RAM-/NVM-Lesecache, Original-NVM, geplantem Image, Kalibrierung, UI-Zustand und einzelnen NVM-Freigaben.
