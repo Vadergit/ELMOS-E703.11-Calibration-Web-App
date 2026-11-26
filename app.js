@@ -110,7 +110,7 @@ if(typeof document!=='undefined') (function UI(){
   return !!window.ELMOS_ONEWIRE_LAB_ACTIVE||st.closing||st.reinitRunning||st.startupRunning||st.magicRunning||
    st.powerCycleRunning||st.diagRunning||st.writing||st.nvmWorking||
    st.nvmAttempting||st.calTask||st.afeWriteActive||st.ramMeasurementStarting||
-   st.bridgeReadBusy||window.ELMOS_TEST_LOGGER?.isBusy();
+   st.bridgeReadBusy||usbConnectBusy||window.ELMOS_TEST_LOGGER?.isBusy();
  }
  function scheduleAutoReconnect(ms=5000){
   cancelAutoReconnect();
@@ -3309,6 +3309,7 @@ if(typeof document!=='undefined') (function UI(){
     st.plcAddress=0x6C;
     try{await readReg(0x6A,1350)}catch(e){
      if(!/PLC nothing received/i.test(e.message))throw e;
+     delayResult.postEnableNoReply=true;delayResult.error=e.message;
      continue;
     }
     ready=await probePlcAddresses('PSSC-RAM-Freigabe (Delay '+delay+')');
@@ -3502,12 +3503,23 @@ if(typeof document!=='undefined') (function UI(){
   if(st.writing||st.calTask||st.nvmWorking||st.powerCycleRunning||st.magicRunning||st.afeWriteActive){
    show('connMsg','USB-Port erst nach Abschluss laufender Chipvorgänge neu öffnen.','warn');return;
   }
-  logging('SSP3-Port wird nach fehlendem .VERSION-Handshake neu geöffnet.');
+  if(usbConnectBusy)return;
+  cancelAutoReconnect();
+  if(autoReconnectBusy&&autoReconnectPromise)await Promise.race([autoReconnectPromise.catch(()=>{}),sleep(9000)]);
+  if(autoReconnectBusy||st.port!==port||st.closing)return;
+  const previous=debugValue(debugTrace),previousSession=st.sessionIndex;
+  logging('USB-Port wird nach fehlendem Handshake neu geöffnet.');
   const closed=await disconnect();
   if(!closed)return;
   try{await connect(port)}catch(e){
-   logging('SSP3-Port konnte nicht erneut geöffnet werden: '+String(e.message||e));
+   logging('USB-Port konnte nicht erneut geöffnet werden: '+String(e.message||e));
    show('connMsg',serialOpenError(e,port),'error');
+  }finally{
+   if(st.sessionIndex!==previousSession)for(const kind of ['usb','events','errors']){
+    const limit=kind==='usb'?debugLimit:debugEventLimit;
+    const combined=(previous[kind]||[]).map(x=>({...x,usbRetrySession:x.usbRetrySession??previousSession})).concat(debugTrace[kind]);
+    debugTrace.dropped[kind]+=Math.max(0,combined.length-limit)+(previous.dropped?.[kind]||0);debugTrace[kind]=combined.slice(-limit);
+   }
   }
  }
  let postConnectProfileTimer=null,postConnectProfileBusy=false,initialProfilePort=null;
@@ -3531,17 +3543,40 @@ if(typeof document!=='undefined') (function UI(){
   }catch(error){logging('Optionale NVM-Anzeigeprüfung: '+String(error.message||error))}
   finally{postConnectProfileBusy=false;logging('Optionale NVM-Anzeigeprüfung: Ablauf beendet; Kommunikationsstatus wird geprüft.');renderStatus()}
  }
+ let usbConnectBusy=false;
  async function connect(port){
+  if(usbConnectBusy)throw Error('USB-Verbindungsaufbau läuft bereits.');
   if(!uiReady)throw Error('Softwareinitialisierung nicht abgeschlossen. Seite vollständig neu laden.');
   // Defer polling during initial discovery and the automatic read-only profile check.
   // Preserve the existing SSP3 compatibility exception until hardware-tested.
   const deferProfile=!demoEnabled&&$('adapterType').value==='bridge';
   if(deferProfile)initialProfilePort=port;
+  usbConnectBusy=true;
+  const prior=[];
   try{
-   const result=await withProgress('Verbindung wird aufgebaut',progress=>connectOperation(port,progress),true);
-   if(st.port===port&&st.chip&&st.uid?.hex&&st.adapterKind==='bridge')await queuePostConnectDisplayProfile();
+   let result;
+   for(let n=1;n<=3;n++){
+    result=await withProgress('Verbindung wird aufgebaut · USB '+n+'/3',progress=>connectOperation(port,progress),true);
+    if(st.port!==port||!st.adapterNoReply||st.closing||demoEnabled||n===3)break;
+    // Only USB handshake failures trigger a reopen, never a sensor/NVM failure.
+    if(st.writing||st.nvmWorking||st.nvmAttempting||st.calTask||st.powerCycleRunning)break;
+    cancelAutoReconnect();
+    logging('USB-Handshake fehlgeschlagen; gleicher Port wird automatisch neu geöffnet ('+(n+1)+'/3).');
+    prior.push({session:st.sessionIndex,trace:debugValue(debugTrace)});
+    if(!await disconnect())break;
+    await sleep(350*n);
+   }
+   if(prior.length){
+    for(const {session,trace} of prior.reverse())for(const kind of ['usb','events','errors']){
+     const old=(trace[kind]||[]).map(entry=>({...entry,usbRetrySession:session}));
+     const limit=kind==='usb'?debugLimit:debugEventLimit;
+     const combined=old.concat(debugTrace[kind]);debugTrace.dropped[kind]+=Math.max(0,combined.length-limit)+(trace.dropped?.[kind]||0);debugTrace[kind]=combined.slice(-limit);
+    }
+   }
+   if(st.port===port&&st.chip&&st.uid?.hex&&st.adapterKind==='bridge'&&!owLabBusy)await queuePostConnectDisplayProfile();
    return result;
   }finally{
+   usbConnectBusy=false;
    if(initialProfilePort===port)initialProfilePort=null;
    if(st.port===port&&st.chip&&!st.closing&&!st.manualLivePause&&!st.calTask&&!st.writing&&!st.nvmWorking)startLive();
   }
@@ -3575,7 +3610,8 @@ if(typeof document!=='undefined') (function UI(){
   try{
    if(st.adapterKind==='bridge'){
     st.plcHostFormat='legacy';
-    const bridgeReady=await bridgeHello();
+    let bridgeReady;
+    try{bridgeReady=await bridgeHello()}catch(error){if(/timeout|zeitüberschreitung|keine antwort|no response/i.test(error.message))st.adapterNoReply=true;throw error;}
     if(!bridgeReady)return;
     if(st.iface==='i2c'&&!st.bridgeI2c)throw Error('I²C benötigt ESP32-C3 v0.10 oder Pro Micro v0.27. Für diese Bridge kannst du 1-Wire wählen.');
     if(st.iface==='spi')throw Error('Diese USB-Bridge unterstützt kein SPI. Wähle 1-Wire oder I²C.');
@@ -6745,7 +6781,7 @@ if(typeof document!=='undefined') (function UI(){
 
  function owLabNoAnswer(adapter){
   if(!owLabFwMatches(adapter,null))return false;
-  if(adapter==='ssp3')return (st.startupTrials||[]).some(x=>x.powerRestored===true&&!x.readVerified&&/PLC nothing received|keine.*antwort/i.test(x.error||''));
+  if(adapter==='ssp3')return (st.startupTrials||[]).some(x=>x.powerRestored===true&&!x.readVerified&&(/PLC nothing received|keine.*antwort/i.test(x.error||'')||x.delayResults?.length&&x.delayResults.every(d=>d.postEnableNoReply===true)));
   const attempts=st.bridgePlcAttempts||[];
   if(attempts.some(x=>x.addressProbes?.some(p=>p.result==='CRC_OK')))return false;
   return attempts.some(x=>x.result==='failed'&&/PLC_(NO_VALID_FRAME|BAD_CRC|ADDRESS_MISMATCH|IDENTITY_UNVERIFIED)/.test(x.error||''));
