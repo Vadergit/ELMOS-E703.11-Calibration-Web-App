@@ -13,7 +13,7 @@ test('Timed NVM conversion accepts verified permanent SSP3 direct access, not un
  const start=app.indexOf(' function timedOneWireReady('),end=app.indexOf(' function i2cNvmSupported(',start);
  const words=Array(64).fill(0);words[17]=0x6c04;
  const base={iface:'plc',adapterKind:'ssp3',mode:'usb',port:{},chip:true,plcAddressVerified:true,plcAddress:0x6c,regs:{6:words[17]},nvmBackup:words};
- const CAL={oneWireStartupStatus:()=>({ok:true}),aodoPinBlocked:w=>!!(w[17]&4)};
+ const CAL={oneWireStartupStatus:()=>({ok:true}),aodoPinBlocked:w=>!!(w[17]&4),timedPlcRamMatches:require('../calibration.js').timedPlcRamMatches};
  const P={plcAddressFromConfig:()=>0x6c};
  const run=(changes={},backup=true,bridgeProof=false,input=words)=>new Function('st','CAL','P','hasCurrentNvmBackup','bridgeCombinedRecoveryReady',app.slice(start,end)+';return timedOneWireReady;')({...base,...changes},CAL,P,()=>backup,()=>bridgeProof)(input);
  assert.equal(run(),true);
@@ -58,9 +58,27 @@ test('Original 0x6C06 and PSSC RAM 0x6C04 yield NVM 0x6C02, not a copied RAM wor
  const start=app.indexOf(' function timedOneWireReady('),end=app.indexOf(' function i2cNvmSupported(',start);
  const words=Array(64).fill(0);words[17]=0x6c06;
  const base={iface:'plc',adapterKind:'bridge',mode:'usb',port:{},chip:true,plcAddressVerified:true,plcAddress:0x6c,regs:{6:0x6c04},nvmBackup:words,sensorPowerEnabled:true};
- const run=(changes={},backup=true,proof=true)=>new Function('st','CAL','P','hasCurrentNvmBackup','bridgeCombinedRecoveryReady',app.slice(start,end)+';return timedOneWireReady;')({...base,...changes},{oneWireStartupStatus:()=>({ok:true}),aodoPinBlocked:()=>true},{plcAddressFromConfig:()=>0x6c},()=>backup,()=>proof)(words);
+ const run=(changes={},backup=true,proof=true)=>new Function('st','CAL','P','hasCurrentNvmBackup','bridgeCombinedRecoveryReady',app.slice(start,end)+';return timedOneWireReady;')({...base,...changes},{oneWireStartupStatus:()=>({ok:true}),aodoPinBlocked:()=>true,timedPlcRamMatches:require('../calibration.js').timedPlcRamMatches},{plcAddressFromConfig:()=>0x6c},()=>backup,()=>proof)(words);
  assert.equal(run(),true);
  assert.equal(run({regs:{6:0x6c06}}),true);
  for(const changes of [{regs:{6:0x6c00}},{regs:{6:0x7c04}},{psscRamRecovery:true},{coldStartAfeRestored:true},{sensorPowerEnabled:false},{plcAddressVerified:false},{plcAddress:0x7c}])assert.equal(run(changes),false);
  assert.equal(run({},false),false);assert.equal(run({},true,false),false);
+});
+
+test('v0.7.182 field trace: startup_com=1 yields 0x6C05 in RAM without copying it into NVM',()=>{
+ const C=require('../calibration.js');
+ const w=Array(64).fill(0);w[16]=0x12d6;w[17]=0x6c06;w[18]=0x4000;w[19]=0x099f;w[22]=0x0880;w[28]=0x0c4e;w[63]=C.crc16(w);
+ assert.equal(C.timedPlcRamMatches(w,0x6c05),true);
+ for(const bad of [0x6c00,0x6c01,0x6c02,0x6c03,0x6c07,0x7c05,0x6d05])assert.equal(C.timedPlcRamMatches(w,bad),false);
+ const other=w.slice();other[18]=0;assert.equal(C.timedPlcRamMatches(other,0x6c05),false);
+ const state={iface:'plc',adapterKind:'bridge',mode:'usb',port:{},chip:true,plcAddressVerified:true,plcAddress:0x6c,regs:{6:0x6c05},nvmBackup:w,sensorPowerEnabled:true};
+ const start=app.indexOf(' function timedOneWireReady('),end=app.indexOf(' function i2cNvmSupported(',start);
+ const ready=new Function('st','CAL','P','hasCurrentNvmBackup','bridgeCombinedRecoveryReady',app.slice(start,end)+';return timedOneWireReady;')(state,C,{plcAddressFromConfig:()=>0x6c},()=>true,()=>true);
+ assert.equal(ready(w),true);
+ const scaling=C.analogScaling(.5,4.5,5,30000);
+ const after=C.prepareOutputConfig(w,{mode:'1',scaleEnabled:true,timedOneWire:true,gain:scaling.gain,offset:scaling.offset,clipping:{mode:'on',low:.25,high:4.75,vdd:5}},30000,{interfaceMode:'plc'});
+ assert.equal(after[17],0x6c02);assert.equal(after[18],0x4000);assert.equal(after[19],w[19]);
+ assert.equal(C.oneWireBootRegisterMatches(after,0x6c05,6,{startupAccess:true}),true);
+ assert.equal(C.oneWireBootRegisterMatches(after,0x6c05,6,{startupAccess:false}),false);
+ assert.equal(C.oneWireBootRegisterMatches(after,0x7c05,6,{startupAccess:true}),false);
 });

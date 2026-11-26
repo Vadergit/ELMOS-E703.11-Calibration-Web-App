@@ -1,3 +1,9 @@
+## v0.7.183 – CFG_SPI_I2C RAM 0x6C05 nach bestätigtem ESP32-Start
+
+- Debug-Fall mit Firmware v0.14: Original-NVM 0x6C06, CFG_PADS0 0x4000 (startup_com=1), RAM 0x6C05 bei stabiler PLC-Kommunikation, alle übrigen Freigaben bestätigt. Gemeinsamer Vergleich erlaubt genau diese Startmodus-Abweichung; andere Adressen und Bits bleiben geschützt.
+- Geplantes NVM wird unverändert aus dem Original erzeugt (0x6C02, 4 ms); RAM wird nicht kopiert. Firmware-ARM, Kaltstart, Backup, UID, CRC und Rückleseprüfungen bleiben erforderlich.
+- Neustartprüfung berücksichtigt denselben Startmodus bei wieder geöffnetem PLC; Debug-Anzeige und Ausgangshinweis nutzen dieselbe Freigabeprüfung. Hardwaretest ausstehend.
+
 ## v0.7.182 – ESP32: gezielte 4-ms-NVM-Freigabe und erneute Diagnose
 
 - Beim bestätigten normalen ESP32-PLC-Start akzeptiert der 4-ms-Pfad zusätzlich genau die dokumentierte Original-NVM/RAM-Kombination 0x6C06/0x6C04. Keine Freigabe für andere RAM-Abweichungen, explizites PLC RECOVER oder AFE-Wiederanlauf. Kaltstartnachweis, generische Firmware-Capabilities, UID, Backup, CRC und abschliessende Rücklesung bleiben Pflicht.

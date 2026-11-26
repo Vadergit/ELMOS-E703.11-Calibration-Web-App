@@ -230,7 +230,7 @@ if(typeof document!=='undefined') (function UI(){
    originalStartupValid:check(startup?.ok,startup,'valid'),
    timedSelection:check(timed?context.timedChecked&&!context.timedDisabled:null,{requested:timed,checked:context.timedChecked,disabled:context.timedDisabled},'checked and enabled when requested'),
    timedAodoPinBlocked:check(timed&&hasWords?CAL.aodoPinBlocked(w):null,hasWords?CAL.aodoPinBlocked(w):null,true),
-   timedRamEqualsNvm:check(timed&&bridge&&hasWords?ram===w[17]||(w[17]===0x6C06&&ram===0x6C04):null,{ram,nvm:w?.[17]},'equal or documented original 0x6C06 / temporary RAM 0x6C04'),
+   timedRamEqualsNvm:check(timed&&bridge&&hasWords?CAL.timedPlcRamMatches(w,ram):null,{ram,nvm:w?.[17],startupCom:hasWords?w[18]>>>14:null},'equal or validated temporary PLC RAM mode (0x6C04 / 0x6C05 with startup_com=1)'),
    timedNoRamRecovery:check(timed&&bridge?!st.psscRamRecovery:null,!!st.psscRamRecovery,false),
    timedNoColdStartAfeRestore:check(timed&&bridge?!st.coldStartAfeRestored:null,!!st.coldStartAfeRestored,false),
    timedPowerEnabled:check(timed&&bridge?st.sensorPowerEnabled:null,!!st.sensorPowerEnabled,true),
@@ -1604,7 +1604,7 @@ if(typeof document!=='undefined') (function UI(){
    // A normal PLC START can leave the documented temporary RAM-only
    // configuration. The verified original NVM remains the source of the plan.
    return !st.psscRamRecovery&&!st.coldStartAfeRestored&&
-    (ram===words[17]||(words[17]===0x6C06&&ram===0x6C04))&&
+    CAL.timedPlcRamMatches(words,ram)&&
     st.sensorPowerEnabled&&bridgeCombinedRecoveryReady();
   return st.adapterKind==='ssp3'&&st.mode==='usb'&&st.chip&&!st.closing&&!st.sensorLost&&
    (ram===words[17]||(words[17]===0x6C06&&ram===0x6C04));
@@ -1622,7 +1622,7 @@ if(typeof document!=='undefined') (function UI(){
   if(!hasCurrentNvmBackup()||words!==st.nvmBackup)missing.push('aktuelles NVM-Backup fehlt');
   if(words?.length===64){
    const ram=st.regs[0x06],saved=words[17];
-   if(ram!==saved&&!(saved===0x6C06&&ram===0x6C04))
+   if(!CAL.timedPlcRamMatches(words,ram))
     missing.push('CFG_SPI_I2C RAM '+(Number.isInteger(ram)?'0x'+h(ram,2):'unbekannt')+' / NVM 0x'+h(saved,2)+' nicht kompatibel');
    if(!CAL.oneWireStartupStatus(words).ok||!CAL.aodoPinBlocked(words))missing.push('Original-NVM-Startkonfiguration nicht geeignet');
    if(!st.plcAddressVerified||P.plcAddressFromConfig(words[17],words[19])!==st.plcAddress)missing.push('PLC-Adresse nicht bestätigt');
@@ -1912,7 +1912,7 @@ if(typeof document!=='undefined') (function UI(){
    const ready=timedOneWireReady(st.nvmBackup);
    outputStatus.textContent=timedOneWire&&!timedOneWire.disabled?
     'AODO ist im Original-NVM für One-Wire belegt. Die 4-ms-Umstellung kann jetzt vorgemerkt werden. Die RAM-Verbindung bleibt aktiv. '+
-    (ready?'Aktive One-Wire-Verbindung und Original-NVM bestätigt. Nach dem Speichern Analogausgang und erneute Verbindung im 4-ms-Fenster am Prüfstand testen.':st.adapterKind==='ssp3'?'Schreibfreigabe fehlt: aktive One-Wire-Adresse, RAM-Schnittstellenregister und Original-NVM müssen übereinstimmen; Recovery-Schutz beachten.':'DIY-Programmer: bestätigter Kaltstart und geeignete NVM-Firmware erforderlich.'):
+    (ready?'Aktive One-Wire-Verbindung und Original-NVM bestätigt. Nach dem Speichern Analogausgang und erneute Verbindung im 4-ms-Fenster am Prüfstand testen.':st.adapterKind==='ssp3'?'Schreibfreigabe fehlt: aktive One-Wire-Adresse, RAM-Schnittstellenregister und Original-NVM müssen übereinstimmen; Recovery-Schutz beachten.':'DIY-Programmer: '+timedBridgeBlockReason(st.nvmBackup)):
     'Original-NVM und aktuelle Chip-UID bestätigen, um die 4-ms-Umstellung vorzumerken.';
    outputStatus.className='callout warn';
   }else if(outputStatus&&st.iface==='i2c'){

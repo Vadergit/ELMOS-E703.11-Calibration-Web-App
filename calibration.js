@@ -238,10 +238,25 @@ const ELMOS_CAL = (() => {
 
  // The startup cookie can enable PLC, upstream and register access in RAM.
  // The PSSC recovery broadcast may also replace the low interface-mode bits.
+ function timedPlcRamMatches(words,actual){
+  if(!Array.isArray(words)||words.length!==64||!Number.isInteger(actual))return false;
+  const stored=words[17];
+  if(actual===stored)return true;
+  if(stored===0x6C06&&actual===0x6C04)return true;
+  // CFG_PADS0.startup_com selects the RAM SPI/I2C interface mode.
+  // Verified field trace: NVM 0x6C06, startup_com=1, RAM 0x6C05.
+  // Only the two mode bits may differ; permanent PLC and address stay intact.
+  return stored===0x6C06&&actual===0x6C05&&(words[18]>>>14)===1;
+ }
  function oneWireBootRegisterMatches(words,actual,register,{startupAccess=false,psscRecovery=false}={}){
   const stored=words[register===6?17:19];
   if(actual===stored)return true;
-  if(!startupAccess||aodoPinBlocked(words))return false;
+  if(!startupAccess)return false;
+  // The same startup mode selection may be observed after re-opening PLC
+  // following the verified 4-ms NVM conversion (0x6C02 -> 0x6C05).
+  if(register===6&&(words[18]>>>14)===1&&
+     ((stored===0x6C06||stored===0x6C02)&&actual===0x6C05))return true;
+  if(aodoPinBlocked(words))return false;
   if(register===10)return actual===(stored|0x0180);
   return actual===(stored|4)||(psscRecovery&&(stored&0xFFFC)===0x6C00&&actual===0x6C04);
  }
@@ -614,6 +629,6 @@ const ELMOS_CAL = (() => {
   Number.isInteger(required)&&required>=1&&required<=10&&Array.isArray(records)&&
   Array.from({length:required},(_,slot)=>records.some(point=>
    point?.slot===slot&&Number.isFinite(point.errorBar))).every(Boolean);
- return {PROFILE_REGS,PROFILE_WORDS,uncalibratedPressureBlank,uncalibratedAfeBlank,planCalibrationProfile,sameMeasurementProfile,sameNvmImage,checkpointMatches,hasPressureTemperatureCompensation,SVDD_INDEX,SVDD_MASK,fit,suggestDspLimit,solveFit,crc16,crc8,configFrom,prepareOutputConfig,validateRecoveryCalibrationDiff,protectStartupCommunication,aodoPinBlocked,AODO_PLC_CONFLICT,i2cBootRegisterMatches,oneWireBootRegisterMatches,oneWireStartupStatus,oneWireOnlyStatus,analogScaling,analogOutputStatus,elmosDspTarget,elmosTemperatureTarget,fromQ,q,signed,independentVerificationPoint,verificationPointsSufficient,temperatureSourceFromAfe2,dspTemperatureCelsius,isFactoryTemperatureProfile,factoryInternalTemperatureCelsius,factoryTemperatureAddresses,programmedTemperatureAddresses,programmedTemperatureProfileMatches};
+ return {PROFILE_REGS,PROFILE_WORDS,uncalibratedPressureBlank,uncalibratedAfeBlank,planCalibrationProfile,sameMeasurementProfile,sameNvmImage,checkpointMatches,hasPressureTemperatureCompensation,SVDD_INDEX,SVDD_MASK,fit,suggestDspLimit,solveFit,crc16,crc8,configFrom,prepareOutputConfig,validateRecoveryCalibrationDiff,protectStartupCommunication,aodoPinBlocked,AODO_PLC_CONFLICT,i2cBootRegisterMatches,timedPlcRamMatches,oneWireBootRegisterMatches,oneWireStartupStatus,oneWireOnlyStatus,analogScaling,analogOutputStatus,elmosDspTarget,elmosTemperatureTarget,fromQ,q,signed,independentVerificationPoint,verificationPointsSufficient,temperatureSourceFromAfe2,dspTemperatureCelsius,isFactoryTemperatureProfile,factoryInternalTemperatureCelsius,factoryTemperatureAddresses,programmedTemperatureAddresses,programmedTemperatureProfileMatches};
 })();
 if(typeof module!=='undefined'&&module.exports)module.exports=ELMOS_CAL;
