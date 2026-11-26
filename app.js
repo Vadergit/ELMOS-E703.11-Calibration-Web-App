@@ -6755,20 +6755,24 @@ if(typeof document!=='undefined') (function UI(){
   const r=owLabRecord;if(!r)return '';
   const entries=r.matrix||[];
   const lines=entries.map(x=>x.firmwareLabel+' / '+x.profile+' / '+x.variant+' #'+x.repeat+': '+x.result+(x.accessPath?' · '+x.accessPath:'')+(x.cookie?' · Cookie '+x.cookie:''));
-  return 'Testmatrix (3 Wiederholungen je Variante; kein Abbruch nach erstem Erfolg)\n'+(lines.join('\n')||'Noch keine Matrixmessung.')+'\nNVM-Profile: dauerhaft / 4 ms / 10 ms / 200 ms / aus. Nur vorhandenes Profil bzw. freigegebene 4-ms-Umstellung wird geprüft. Nicht getestete Profile bleiben offen.';
+  const coverage=['dauerhaft','4 ms','10 ms','200 ms','aus'].map(profile=>{const summaries=(r.matrixSummaries||[]).filter(x=>x.profile===profile);return profile+': '+(summaries.length?summaries.map(x=>x.firmwareLabel+' '+(x.blocked?'nicht durchgeführt':x.successes+'/'+x.total+' erfolgreich')).join(', '):'offen');});
+  return 'Testmatrix (3 Wiederholungen je Variante; kein Abbruch nach erstem Erfolg)\n'+(lines.join('\n')||'Noch keine Matrixmessung.')+'\n\nProfilabdeckung:\n'+coverage.join('\n')+'\nNur vorhandenes Profil bzw. freigegebene 4-ms-Umstellung wird geprüft.';
  }
- async function owLabMatrix(port,adapter,versions,label,manual=false){
+ async function owLabMatrix(port,adapter,versions,label,manual=false,prewrite=false){
   const r=owLabRecord,baseline=r.programmed||r.original;
   if(!Array.isArray(baseline)||baseline.length!==64)throw Error('Matrix benötigt ein geprüftes Referenz-NVM.');
   const profile=CAL.oneWireStartupStatus(baseline).windowLabel;
-  if(!CAL.oneWireStartupStatus(baseline).startupAvailable)throw Error('Kein Startup-Fenster aktiv; keine automatischen weiteren Kaltstarts.');
+  if(!CAL.oneWireStartupStatus(baseline).startupAvailable){
+   r.phase='complete';(r.matrixSummaries??=[]).push({profile,adapter,firmwareLabel:label,total:0,successes:0,failed:0,inconclusive:0,blocked:'Kein Startup-Fenster aktiv; keine automatischen Kaltstarts ohne separaten Wiederherstellungsweg.'});
+   owLabSetStage('done','Kein Startup-Fenster aktiv; NVM nur gelesen. Kaltstartmatrix nicht durchgeführt.');await owLabCheckpoint('Matrix aus Sicherheitsgründen übersprungen');return;
+  }
   r.matrix??=[];
   const variants=owLabVariants(adapter);
   let successes=0,failed=0,unknown=0;
   for(const variant of variants){
    for(let repeat=1;repeat<=3;repeat++){
     owLabSetStage('restart',label+' · '+profile+' · '+variant.id+' · '+repeat+'/3');
-    const entry={at:new Date().toISOString(),firmwareLabel:label,adapter,profile,variant:variant.id,requestedRate:variant.rate??null,repeat,manual:!!manual,result:'inconclusive'};
+    const entry={at:new Date().toISOString(),firmwareLabel:label,adapter,profile,variant:variant.id,requestedRate:variant.rate??null,repeat,manual:!!manual,prewrite,result:'inconclusive'};
     r.matrix.push(entry);
     await owLabCheckpoint('Matrix: '+variant.id+' #'+repeat+' vorbereitet');
     const previousBaud=$('plcBaud').value;
@@ -6793,6 +6797,8 @@ if(typeof document!=='undefined') (function UI(){
      entry.nvmVerified=result==='success';
      entry.effectiveBaud=st.bridgeEffectiveBaud??null;
      entry.cookie=st.magicResult?.readVerified?'Registerzugriff nach Cookie bestätigt':st.magicResult?'nicht bestätigt':'nicht separat nachgewiesen';
+     if(adapter==='ssp3'&&st.magicResult)entry.accessPath=st.magicResult.readVerified?'Magic-Cookie-Fallback':entry.accessPath;
+     if(adapter==='ssp3'&&variant.mode==='pssc'&&result==='success')entry.accessPath='PSSC-RAM-Recovery';
      if(adapter==='bridge'&&variant.mode!=='auto'){
       const actual=entry.startAttempts.filter(a=>a.result==='access-confirmed');
       if(result==='success'&&(actual.length!==1||actual[0].recover!==(variant.mode==='recovery')||actual[0].requestedBaud!==variant.rate)){
@@ -6812,11 +6818,13 @@ if(typeof document!=='undefined') (function UI(){
     await owLabCheckpoint('Matrix '+variant.id+' #'+repeat+': '+entry.result);
    }
   }
-  r.matrixSummary={profile,adapter,firmwareLabel:label,total:variants.length*3,successes,failed,inconclusive:unknown};
-  r.phase='complete';
-  owLabSetStage('done','Matrix abgeschlossen: '+successes+' erfolgreich, '+failed+' fehlgeschlagen, '+unknown+' nicht eindeutig. Nicht gleichbedeutend mit bestandenem Magic-Cookie-Test.');
+  r.matrixSummary={profile,adapter,firmwareLabel:label,total:variants.length*3,successes,failed,inconclusive:unknown,prewrite};
+  (r.matrixSummaries??=[]).push({...r.matrixSummary});
+  r.phase=prewrite?'prepared':'complete';
+  owLabSetStage(prewrite?'backup':'done','Matrix '+profile+' abgeschlossen: '+successes+' erfolgreich, '+failed+' fehlgeschlagen, '+unknown+' nicht eindeutig. Nicht gleichbedeutend mit bestandenem Magic-Cookie-Test.');
   await owLabCheckpoint('Testmatrix abgeschlossen');
   if(!st.chip&&st.port)await owLabDisconnect();
+  if(prewrite&&!successes)throw Error('Keine erfolgreiche Referenzverbindung; NVM bleibt unverändert.');
  }
  async function owLabTest(port,adapter,versions,label,manual=false){
   const r=owLabRecord;
@@ -6889,6 +6897,14 @@ if(typeof document!=='undefined') (function UI(){
    r.next={adapter,versions,label:adapter==='ssp3'?'SSP3':'v0.14'};
    await owLabCheckpoint('Lesebaseline gesichert; kein NVM geschrieben');
    await owLabTest(port,adapter,versions,r.next.label);return;
+  }
+  if(r.matrixEnabled!==false&&!r.matrixSummaries?.some(x=>x.prewrite&&x.adapter===adapter&&x.profile===initial.windowLabel&&x.successes>0)){
+   r.phase='prepared';
+   await owLabMatrix(port,adapter,versions,adapter==='ssp3'?'SSP3':'v0.14',false,true);
+   await owLabReopen(port,adapter,'Normalverbindung nach Original-Matrix, vor NVM-Umstellung');
+   if(!owLabFwMatches(adapter,versions)||!st.chip||st.uid?.hex!==r.uid)throw Error('Referenzsensor nach Matrix nicht bestätigt; kein NVM-Schreiben.');
+   const fresh=await owLabRead();
+   if(!fresh.every((v,i)=>v===original[i]))throw Error('Original-NVM nach Matrix verändert; kein NVM-Schreiben.');
   }
   const plan=CAL.planOneWireReconnectTest(original);
   r.planned=plan.after;r.changes=plan.changes;
