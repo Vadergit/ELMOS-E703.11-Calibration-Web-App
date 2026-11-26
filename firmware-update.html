@@ -194,16 +194,16 @@
   <script type="module">
     import { setupProMicroInstaller } from './pro-micro-installer.js?v=0.29';
     setupProMicroInstaller();
-    const installer = document.querySelector('esp-web-install-button');
+    const installers = [...document.querySelectorAll('esp-web-install-button')];
     const status = document.getElementById('installerStatus');
     if (!window.isSecureContext || !('serial' in navigator)) {
-      installer.hidden = true;
+      installers.forEach(installer => { installer.hidden = true; });
       status.textContent = 'Öffne diese Seite in Chrome oder Edge über HTTPS oder localhost.';
     } else {
       try {
         await import('https://unpkg.com/esp-web-tools@10.5.2/dist/web/install-button.js?module');
         await customElements.whenDefined('esp-web-install-button');
-        installer.querySelector('button').disabled = false;
+        installers.forEach(installer => { installer.querySelector('button').disabled = false; });
         status.hidden = true;
       } catch {
         status.textContent = 'Installer konnte nicht geladen werden. Prüfe die Internetverbindung und lade die Seite neu.';

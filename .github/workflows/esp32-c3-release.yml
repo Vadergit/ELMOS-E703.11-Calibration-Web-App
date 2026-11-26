@@ -102,6 +102,7 @@ jobs:
               s = s.replace(anchor, replacement, 1).replace('>ESP32 installieren</button>', '>ESP32 v0.14 installieren</button>', 1).replace('v0.14 (Labor)</span></h2>', 'v0.16 (Test) / v0.14</span></h2>', 1)
               p.write_text(s)
           PY
+          grep -q 'const installers =' firmware-update.html
           grep -q 'manifest="firmware/releases/esp32-c3/v0.16/manifest.json"' firmware-update.html
           grep -q 'firmware/releases/pro-micro/v0.29/pro-micro-8mhz.hex' firmware-update.html
           grep -q 'BRIDGE_USER_NVM_V1' firmware/esp32c3_supermini/esp32c3_supermini.ino
