@@ -17,15 +17,15 @@ Der sichtbare PSSC-Eintrag «One Wire only» ist somit als **Betriebszustand**, 
 
 **Wichtig:** Bei dauerhaftem 1-Wire-Betrieb ist der AODO-Pin für die Kommunikation belegt. Auch wenn ein ratiometrischer AODO-Grundmodus in den Registern steht, ist in diesem Zustand keine gleichzeitige reguläre analoge Ausgabe auf AODO zu erwarten.
 
-## Analogausgang bei dauerhaft aktivem One-Wire (ab v0.7.175)
+## Analogausgang bei dauerhaft aktivem One-Wire (ab v0.7.178)
 
 Für einen Analogabgleich muss AODO nach dem Startfenster für die Spannungs­ausgabe verfügbar sein. Der Assistent meldet einen Konflikt, wenn das Original-NVM den Pin dauerhaft für One-Wire belegt.
 
-1. Den Sensor mit geschalteter Versorgung am originalen SSP3 über den AN0204-Sensorstart oder am ESP32-C3 mit generischer NVM-Firmware und Lastschalter verbinden. Die App muss nach dem Stromstart dieselbe Chip-UID bestätigen und das Original-NVM vollständig lesen.
-2. Unter **Ausgang** den ratiometrischen Typ wählen. **One-Wire auf ein 4-ms-Startfenster umstellen (Labortest)** aktivieren und **Ausgangskonfiguration prüfen und vormerken** wählen. Der NVM-Plan zeigt die Umstellung vor der Original-Sicherung und Programmierung.
+1. Sensor am originalen SSP3 verbinden. Bei bestätigtem direktem PLC-Zugriff, übereinstimmender permanenter RAM-/NVM-Schnittstelle und bestätigter UID ist kein zusätzlicher Stromstart nötig. Ist der Sensor nicht erreichbar, bleibt die Startsequenz verfügbar. Beim ESP32-C3 mit generischer NVM-Firmware bleibt der Lastschalter-/Kaltstartnachweis vorgeschrieben. Das Original-NVM muss vollständig gelesen und geprüft werden.
+2. Unter **Ausgang** den ratiometrischen Typ wählen. **4-ms-One-Wire-Startfenster im NVM vormerken (RAM bleibt unverändert)** aktivieren und **Ausgangskonfiguration prüfen und vormerken** wählen. Der NVM-Plan zeigt die Umstellung vor der Original-Sicherung und Programmierung.
 3. Zur Spannungsmessung den Sensor ohne Programmer neu einschalten. Bei 5 V Versorgung an beiden Druck-Endpunkten gegen Sensormasse messen. Danach wieder über den One-Wire-Stromstart verbinden und das NVM rücklesen.
 
-Der Labortest löscht nur das dauerhafte `plc_en` und setzt `startup_plc` auf 4 ms, falls es anders eingestellt ist. Die App prüft die Wiederverbindung vor der Umstellung im bisherigen Modus. Ob sich der konkrete Sensor nach der Umstellung innerhalb des neuen Zeitfensters öffnen lässt, muss am Prüfstand bestätigt werden.
+Der Labortest löscht nur das dauerhafte `plc_en` und setzt `startup_plc` auf 4 ms, falls es anders eingestellt ist. Die App prüft den aktuellen Direktzugriff und das geplante NVM-Abbild. Ein Kaltstart im bisherigen permanenten Modus beweist nicht den Zugriff innerhalb des neuen 4-ms-Fensters. Dieser muss nach der Umstellung am entbehrlichen Testchip bestätigt werden.
 
 ## 1-Wire beim Start oder 1-Wire dauerhaft: Unterschied
 

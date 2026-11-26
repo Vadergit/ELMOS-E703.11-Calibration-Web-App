@@ -1,3 +1,9 @@
+## v0.7.178 – SSP3-Direktzugriff ohne zusätzlichen Kaltstart
+
+- Bei bestätigtem permanentem One-Wire im RAM und Original-NVM verlangt die 4-ms-NVM-Umstellung keinen separaten SSP3-Kaltstartnachweis mehr. Der Live-Zugriff, die bestätigte PLC-Adresse, UID, NVM-Backup, CRC, Registervergleich und explizite Änderungsliste bleiben Voraussetzung.
+- Ein direkt lesbarer Sensor wird nicht allein wegen RAM-Wert 0x6C04 neu gestartet; Abweichungen zum Original-NVM bleiben durch die Recovery-Schutzpfade gesperrt bzw. eingeschränkt. DIY-Programmer behalten ihre Firmware-/Kaltstartfreigaben.
+- Nach Umstellung muss der echte Wiederzugriff im neuen 4-ms-Fenster am Testchip geprüft werden; ein Neustart im alten permanenten Modus ist dafür kein Nachweis. Noch keine Hardwarefreigabe.
+
 ## v0.7.177 – Analogausgang ohne blockierten Abgleichschritt
 
 - Dauerhaft erreichbare SSP3-One-Wire-Sensoren erhalten vor dem Abgleich bevorzugt den normalen AN0204-Kaltstart, statt die Startprüfung zu überspringen oder unnötig die PSSC-RAM-Freigabe zu verwenden.

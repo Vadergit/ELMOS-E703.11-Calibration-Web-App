@@ -1469,21 +1469,19 @@ if(typeof document!=='undefined') (function UI(){
   }
   return failed.length?failed.join('; ')+'.':'Sicherheitsnachweis nicht vollständig.';
  }
- // The conversion must be reachable through the same PLC programmer after
- // reset. Require a switched supply and a startup-capable transport.
+ // A live SSP3 session with permanent PLC in both RAM and verified NVM
+ // needs no extra power cycle in the old mode. Such a cycle cannot prove
+ // the future 4-ms window. The final NVM/UID/CRC/diff/boot readbacks remain
+ // mandatory. Recovery and firmware-specific bridge gates are unchanged.
  function timedOneWireReady(words){
   if(st.iface!=='plc'||!hasCurrentNvmBackup()||words!==st.nvmBackup||
      !CAL.oneWireStartupStatus(words).ok||!CAL.aodoPinBlocked(words)||
-     st.psscRamRecovery||st.coldStartAfeRestored||st.regs[0x06]!==words[17])
+     st.psscRamRecovery||st.coldStartAfeRestored||st.regs[0x06]!==words[17]||
+     !st.plcAddressVerified||P.plcAddressFromConfig(words[17],words[19])!==st.plcAddress)
    return false;
   if(st.adapterKind==='bridge')
-   return st.sensorPowerEnabled&&bridgeCombinedRecoveryReady()&&st.plcAddressVerified;
-  const proof=st.powerCycleResult;
-  return st.adapterKind==='ssp3'&&psscRecoveryProven()&&
-   proof?.port===st.port&&proof.session===st.sessionIndex&&proof.verifiedUid===st.uid?.hex&&
-   proof.stage==='verified'&&proof.plcEnabledInRam===true&&proof.powerRestored===true&&
-   proof.steps?.some(step=>step.ok&&step.command==='PWR_OFF 03E8')&&
-   proof.steps?.some(step=>step.ok&&step.command==='PWR_ON 0C80 00C8 0 -> PLC T');
+   return st.sensorPowerEnabled&&bridgeCombinedRecoveryReady();
+  return st.adapterKind==='ssp3'&&st.mode==='usb'&&st.chip&&!st.closing&&!st.sensorLost;
  }
  function i2cNvmSupported(){
   return st.iface==='i2c'&&st.adapterKind==='bridge'&&st.bridgeI2cNvm;
@@ -1759,7 +1757,7 @@ if(typeof document!=='undefined') (function UI(){
    const ready=timedOneWireReady(st.nvmBackup);
    outputStatus.textContent=timedOneWire&&!timedOneWire.disabled?
     'AODO ist im Original-NVM für One-Wire belegt. Die 4-ms-Umstellung kann jetzt vorgemerkt werden. Die RAM-Verbindung bleibt aktiv. '+
-    (ready?'Programmer-Kaltstart bestätigt.':'NVM-Schreiben erst nach bestätigtem Programmer-Kaltstart freigegeben. Aktuelle Kalibrierung nicht neu starten.'):
+    (ready?'Aktive One-Wire-Verbindung und Original-NVM bestätigt. Nach dem Speichern Analogausgang und erneute Verbindung im 4-ms-Fenster am Prüfstand testen.':st.adapterKind==='ssp3'?'Schreibfreigabe fehlt: aktive One-Wire-Adresse, RAM-Schnittstellenregister und Original-NVM müssen übereinstimmen; Recovery-Schutz beachten.':'DIY-Programmer: bestätigter Kaltstart und geeignete NVM-Firmware erforderlich.'):
     'Original-NVM und aktuelle Chip-UID bestätigen, um die 4-ms-Umstellung vorzumerken.';
    outputStatus.className='callout warn';
   }else if(outputStatus&&st.iface==='i2c'){
@@ -1791,7 +1789,9 @@ if(typeof document!=='undefined') (function UI(){
   const outputNvmRead=$('outputNvmRead');if(outputNvmRead)outputNvmRead.disabled=!st.port||!st.chip||st.writing||st.calTask||st.nvmWorking;
   if(!nvmReason&&!restoring&&!alarmOnly&&st.expertOutputPlan?.timedOneWire&&
      (!timedOneWire?.checked||timedOneWire.disabled||!timedOneWireReady(st.nvmBackup)))
-   nvmReason='4-ms-NVM-Umstellung vorgemerkt; Schreibfreigabe fehlt: '+psscRecoveryEvidence();
+   nvmReason=st.adapterKind==='ssp3'?
+    '4-ms-NVM-Umstellung: Auswahl, aktuelle Chip-UID, PLC-Adresse und unveränderte permanente RAM-/NVM-Schnittstelle bestätigen. Recovery-Schutz bleibt aktiv.':
+    '4-ms-NVM-Umstellung: DIY-Programmer benötigt bestätigten Kaltstart und passende NVM-Firmware.';
   if(!nvmReason&&alarmPlanSelected&&!alarmOnly)nvmReason='Alarmänderungen zuerst im RAM übernehmen und erfolgreich rücklesen.';
   if(!nvmReason&&alarmOnly&&!$('nvmAutoBackup').checked)nvmReason='Alarm-NVM: Automatische Sicherung des Original-EEPROM aktivieren.';
   if(!nvmReason)nvmReason=psscNvmBlock(st.calImage?.before,st.calImage?.after,restoring,outputOnly,alarmOnly,!!st.calImage?.recoveryCombined);
@@ -2527,8 +2527,7 @@ if(typeof document!=='undefined') (function UI(){
  // Confirm the PLC address before deciding whether calibration is available.
  async function probePlcAddresses(stage,verifyPsscStartup=false,allowReadOnly=true){
   const previous=st.plcAddress;
-  if(verifyPsscStartup)st.ssp3DirectPowerStart=false;
-  for(const candidate of P.plcProbeOrder(previous)){
+   for(const candidate of P.plcProbeOrder(previous)){
    if(!st.port||st.closing)throw Error('USB-Verbindung während PLC-Adresserkennung beendet');
    st.plcAddress=candidate;
    const record={at:new Date().toISOString(),stage,address:'0x'+h(candidate),verified:false};
@@ -2541,19 +2540,11 @@ if(typeof document!=='undefined') (function UI(){
     const pads=await readReg(0x0A,1350);
     const configured=P.plcAddressFromConfig(cfg,pads);
     record.configuredAddress='0x'+h(configured);
-    // A directly accessible permanent PLC sensor still needs a real power
-    // start before calibration if its final output is to be analog.
-    if(verifyPsscStartup&&st.adapterKind==='ssp3'&&(cfg&4)&&configured===candidate&&!diagnosticOnly){
-     st.ssp3DirectPowerStart=true;
-     st.plcAddress=candidate;
-     logging('Dauerhaftes One-Wire erkannt. AN0204-Kaltstart vor dem Abgleich, damit die spätere 4-ms-NVM-Umstellung geprüft werden kann.');
-     return false;
-    }
-    if(verifyPsscStartup&&st.adapterKind==='ssp3'&&st.firmware==='02.08.02.04'&&cfg===0x6C04){
-     st.plcAddress=previous;
-     logging('PSSC-RAM-Adresse bereits aktiv. Neustart wird vor der Kalibrierung geprüft.');
-     return false;
-    }
+    // 0x6C04 can be an original permanent PLC configuration OR a RAM
+    // recovery value. Do not infer a recovery or force a power cycle from
+    // this word alone. The UID-bound NVM/preflight checks distinguish them.
+    if(verifyPsscStartup&&st.adapterKind==='ssp3'&&cfg===0x6C04)
+     logging('PLC-RAM 0x6C04 erreichbar. Original-NVM entscheidet über Direktbetrieb oder Recovery-Schutz.');
     record.cfgSpiI2c='0x'+h(cfg,2);record.cfgPads1='0x'+h(pads,2);
     if(diagnosticOnly&&configured!==candidate)decodeSafeAFE(afe);
     if(configured!==candidate)throw Error('PLC-Adresskonflikt: gelesen über 0x'+h(candidate)+
@@ -2836,7 +2827,7 @@ if(typeof document!=='undefined') (function UI(){
    }
    // 03E8 = 1000 mV; the documented OFF threshold is applied to the detected alias.
    $('plcPowerState').textContent='PWR_OFF in Firmwarehilfe gefunden. SSP3-VSUPPLY wird einmalig am Prüfplatz geschaltet.';
-   powerOffAttempted=true;st.powerCycleResult.powerOffAttempted=true;
+   powerOffAttempted=true;
    await send('PWR_OFF 03E8',5500);
    await sleep(30); // off-state settling; no delay after the subsequent power-on
    await send('PLC P',2500);
@@ -3167,11 +3158,7 @@ if(typeof document!=='undefined') (function UI(){
   if(!port||st.closing)throw Error('SSP3-Port nicht offen');
   st.startupTrials=[];
   st.magicResult=null;
-  const directFirst=st.ssp3DirectPowerStart===true;
-  st.ssp3DirectPowerStart=false;
-  // Prefer the normal startup for directly readable permanent PLC; the
-  // PSSC broadcast intentionally changes RAM and is a recovery-only path.
-  if(!directFirst&&await tryPsscRamStartup())return true;
+  if(await tryPsscRamStartup())return true;
   const knownFirmware=st.firmware==='02.08.02.04';
   const profiles=knownFirmware?[
    {mode:'combined',speed:{khz:100,delay:7}},
@@ -3198,14 +3185,7 @@ if(typeof document!=='undefined') (function UI(){
     $('plcPowerState').textContent='Erster Startversuch ohne Chipantwort. Zweiter, letzter Versuch läuft …';
    }else break;
   }
-  if(directFirst&&!st.chip&&!st.readOnlySensor&&st.port===port&&!st.closing&&
-     (st.powerCycleResult?.powerRestored===true||st.powerCycleResult?.powerOffAttempted!==true)){
-   // A failed/unsupported AN0204 command must not prevent the existing
-   // read/recovery path. Never fall back if DUT power restoration is uncertain.
-   if(await tryPsscRamStartup())return true;
-   if(await probePlcAddresses('SSP3-Lesezugriff nach Startversuch'))return true;
-  }
-  logging('SSP3-Start beendet: '+st.startupTrials.length+' Versuch(e), Chip erkannt='+!!st.chip+'.');
+   logging('SSP3-Start beendet: '+st.startupTrials.length+' Versuch(e), Chip erkannt='+!!st.chip+'.');
   return !!st.chip;
  }
  // A serial port can remain open while the DUT disappears. Never keep stale
@@ -4655,7 +4635,7 @@ if(typeof document!=='undefined') (function UI(){
    const timedOneWire=!restoring&&!alarmOnly&&st.expertOutputPlan?.timedOneWire===true;
    if(timedOneWire&&(alarmIntegrated||!timedOneWireReady(st.nvmBackup)||
       !$('outputTimedOneWire')?.checked||$('outputTimedOneWire').disabled))
-    throw Error('Für die One-Wire-Umstellung den Programmer-Kaltstart und die Auswahl im Schritt «Ausgang» erneut bestätigen.');
+    throw Error('4-ms-NVM-Umstellung nicht freigegeben: Ausgangsauswahl, Original-NVM und aktive One-Wire-Verbindung prüfen. Bei DIY-Programmern gilt weiterhin der Kaltstartschutz.');
    const allowSvdd=!restoring&&!outputOnly&&!alarmOnly;
     const operatingProfile=allowSvdd&&!demoEnabled?confirmedOperatingProfile():null;
     if(allowSvdd&&!demoEnabled){assertPreflightForFit();if(JSON.stringify(st.calImage.operatingProfile)!==JSON.stringify(operatingProfile))throw Error('Messprofil-Freigabe veraltet. Änderungsliste erneut erstellen.');}
@@ -4770,7 +4750,7 @@ if(typeof document!=='undefined') (function UI(){
     }
    }
    if(timedOneWire&&(!timedOneWireReady(st.nvmBackup)||await readReg(0x06)!==initial[17]))
-    throw Error('One-Wire-Startnachweis oder aktives Schnittstellenregister hat sich seit der Vorschau geändert.');
+    throw Error('One-Wire-Schreibfreigabe oder aktives Schnittstellenregister hat sich seit der Vorschau geändert.');
    const finalRecoveryBlock=psscNvmBlock(initial,modified,restoring,outputOnly,alarmOnly,!!st.calImage?.recoveryCombined);
    if(finalRecoveryBlock)throw Error(finalRecoveryBlock);
    CAL.protectStartupCommunication(initial,modified,{allowSvdd,allowAlarmMask:alarmOnly||alarmIntegrated,allowPressureCorrection,operatingProfile,interfaceMode:st.iface,allowTimedOneWire:timedOneWire});
