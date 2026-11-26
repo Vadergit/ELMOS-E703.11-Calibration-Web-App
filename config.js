@@ -167,8 +167,8 @@ const ELMOS_CONFIG=(()=>{
     if(clippingMode==='on'){
      const low=number(o.clipping.low,0,out.output.vdd,'Clipping-Untergrenze');
      const high=number(o.clipping.high,0,out.output.vdd,'Clipping-Obergrenze');
-     if(low<out.output.vdd*0.1-1e-9||high>out.output.vdd*0.9+1e-9||low>=high)
-      throw Error('Clipping-Grenzen müssen aufsteigend und innerhalb 10–90 % VDD liegen');
+     if(!cal||typeof cal.clippingThresholds!=='function')throw Error('Clipping-Prüfung nicht verfügbar');
+     cal.clippingThresholds(low,high,out.output.vdd);
      Object.assign(out.output.clipping,{low,high});
     }
    }
