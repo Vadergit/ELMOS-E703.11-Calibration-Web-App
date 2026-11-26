@@ -173,7 +173,130 @@ if(typeof document!=='undefined') (function UI(){
  const fmt=n=>n===null||n===undefined||!Number.isFinite(n)?'—':Math.round(n).toLocaleString('de-CH');
  const now=()=>new Date().toLocaleTimeString('de-CH',{hour12:false});
  const show=(id,text,type='')=>{const e=$(id);if(!e)return;if(id==='configPreview')e.hidden=false;e.textContent=text;e.className='callout'+(type?' '+type:'')};
- const logging=t=>{if(window.ELMOS_ARCHIVE?.active&&(st.calTask||st.writing||st.nvmWorking))window.ELMOS_ARCHIVE.trace(t);st.log.push(now()+'  '+t);if(st.log.length>500)st.log.shift();$('usbLog').textContent=st.log.slice(-90).join('\n')};
+ const logging=t=>{debugAppend('events',{kind:'application',message:String(t),step:currentStep});if(window.ELMOS_ARCHIVE?.active&&(st.calTask||st.writing||st.nvmWorking))window.ELMOS_ARCHIVE.trace(t);st.log.push(now()+'  '+t);if(st.log.length>500)st.log.shift();$('usbLog').textContent=st.log.slice(-90).join('\n')};
+
+ // Support snapshot only: never issue a serial command or change a calibration.
+ const debugLimit=100000, debugEventLimit=20000;
+ function newDebugTrace(){
+  return {startedAt:new Date().toISOString(),usb:[],events:[],errors:[],dropped:{usb:0,events:0,errors:0},ramReads:{},nvmReads:{},originalNvm:null,versionReply:null,bridgeInfo:null,gate:null,gateKey:''};
+ }
+ let debugTrace=newDebugTrace();
+ function debugAppend(kind,data){
+  const list=debugTrace[kind],limit=kind==='usb'?debugLimit:debugEventLimit;
+  // Drop a chunk, not a single array element on each live read. Report any loss.
+  if(list.length>=limit){const count=Math.ceil(limit/10);list.splice(0,count);debugTrace.dropped[kind]+=count}
+  list.push({at:new Date().toISOString(),session:st.sessionIndex,...data});
+ }
+ function debugValue(value){
+  // Keep repeated references, but not host objects, promises or cycles.
+  const ancestors=[];
+  return JSON.parse(JSON.stringify(value,function(key,v){
+   if(typeof v==='bigint')return String(v);
+   if(typeof v==='function')return undefined;
+   if(v instanceof Error)return {name:v.name,message:v.message,stack:v.stack};
+   if(v&&typeof v==='object'){
+    if(v===st.port||v===st.reader||v instanceof Promise)return undefined;
+    if(v instanceof Map)return Object.fromEntries(v);
+    if(v instanceof Set)return [...v];
+    if(ArrayBuffer.isView(v))return Array.from(v);
+    if(v instanceof Date)return v.toISOString();
+    if(!Array.isArray(v)&&Object.getPrototypeOf(v)!==Object.prototype&&Object.getPrototypeOf(v)!==null)return undefined;
+    while(ancestors.length&&ancestors[ancestors.length-1]!==this)ancestors.pop();
+    if(ancestors.includes(v))return '[circular]';
+    ancestors.push(v);
+   }
+   return v===undefined?null:v;
+  })??'null');
+ }
+ function debugRead(kind,address,value){
+  debugTrace[kind][address]={value,hex:'0x'+value.toString(16).toUpperCase().padStart(4,'0'),at:new Date().toISOString(),session:st.sessionIndex,uid:st.uid?.hex??null};
+ }
+ function debugGateSnapshot(context){
+  const w=st.nvmBackup,ram=st.regs[0x06],hasWords=Array.isArray(w)&&w.length===64,proof=st.bridgeColdStart;
+  const check=(ok,actual,expected)=>({ok:ok==null?null:!!ok,actual:actual??null,expected});
+  const bridge=st.adapterKind==='bridge',timed=!!st.expertOutputPlan?.timedOneWire;
+  const startup=hasWords?CAL.oneWireStartupStatus(w):null;
+  const checks={
+   sensorConnected:check(!!st.port&&!!st.chip&&st.mode==='usb',{port:!!st.port,chip:!!st.chip,mode:st.mode},'USB + chip'),
+   verificationComplete:check(context.verified,context.verified,true),
+   nvmBackupVerified:check(st.nvmBackupVerified&&hasWords,{verified:st.nvmBackupVerified,length:w?.length},'64 verified words'),
+   currentNvmBackup:check(hasCurrentNvmBackup(),hasCurrentNvmBackup(),true),
+   planPresent:check(!!st.calImage,!!st.calImage,true),
+   uidMatch:check(hasWords&&!!st.uid?.hex&&st.uid.ser0===w[0]&&st.uid.ser1===w[1],{uid:st.uid?.hex,ser0:st.uid?.ser0,ser1:st.uid?.ser1,backupSer0:w?.[0],backupSer1:w?.[1]},'same UID'),
+   originalCrc16:check(hasWords?CAL.crc16(w)===w[63]:null,hasWords?{computed:CAL.crc16(w),stored:w[63]}:null,'match'),
+   originalFactoryCrc8:check(hasWords?CAL.crc8(w)===(w[15]>>>8):null,hasWords?{computed:CAL.crc8(w),stored:w[15]>>>8}:null,'match'),
+   plcAddressVerified:check(st.plcAddressVerified,st.plcAddressVerified,true),
+   plcAddressMatchesNvm:check(hasWords?P.plcAddressFromConfig(w[17],w[19])===st.plcAddress:null,{live:st.plcAddress,nvm:hasWords?P.plcAddressFromConfig(w[17],w[19]):null},'match'),
+   originalStartupValid:check(startup?.ok,startup,'valid'),
+   timedSelection:check(timed?context.timedChecked&&!context.timedDisabled:null,{requested:timed,checked:context.timedChecked,disabled:context.timedDisabled},'checked and enabled when requested'),
+   timedAodoPinBlocked:check(timed&&hasWords?CAL.aodoPinBlocked(w):null,hasWords?CAL.aodoPinBlocked(w):null,true),
+   timedRamEqualsNvm:check(timed&&bridge&&hasWords?ram===w[17]:null,{ram,nvm:w?.[17]},'match on current bridge path'),
+   timedNoRamRecovery:check(timed&&bridge?!st.psscRamRecovery:null,!!st.psscRamRecovery,false),
+   timedNoColdStartAfeRestore:check(timed&&bridge?!st.coldStartAfeRestored:null,!!st.coldStartAfeRestored,false),
+   timedPowerEnabled:check(timed&&bridge?st.sensorPowerEnabled:null,!!st.sensorPowerEnabled,true),
+   bridgeBoard:check(timed&&bridge?st.bridgeBoard==='ESP32-C3 SuperMini':null,st.bridgeBoard,'ESP32-C3 SuperMini'),
+   bridgeGenericRam:check(timed&&bridge?st.bridgeGenericRam===true:null,st.bridgeGenericRam,true),
+   bridgeUserNvm:check(timed&&bridge?st.bridgeUserNvm===true:null,st.bridgeUserNvm,true),
+   bridgeOutputNvm:check(timed&&bridge?st.bridgeOutputNvm===true:null,st.bridgeOutputNvm,true),
+   bridgeCalibrationNvm:check(timed&&bridge?!!st.bridgeCalibrationNvm:null,st.bridgeCalibrationNvm,true),
+   bridgeProofPort:check(timed&&bridge?!!st.port&&proof?.port===st.port:null,!!st.port&&proof?.port===st.port,true),
+   bridgeProofSession:check(timed&&bridge?proof?.session===st.sessionIndex:null,{proof:proof?.session,current:st.sessionIndex},'match'),
+   bridgeProofUid:check(timed&&bridge?!!st.uid?.hex&&proof?.uid===st.uid.hex:null,{proof:proof?.uid,current:st.uid?.hex},'match'),
+   bridgeProofInterface:check(timed&&bridge?!!proof&&(st.iface==='i2c'?proof.iface==='i2c':st.iface==='plc'&&proof.iface!=='i2c'):null,{proof:proof?.iface,current:st.iface},'match'),
+   bridgeColdStartVerified:check(timed&&bridge?bridgeColdStartVerified():null,bridge?bridgeColdStartVerified():null,true),
+   bridgeCombinedRecoveryReady:check(timed&&bridge?bridgeCombinedRecoveryReady():null,bridge?bridgeCombinedRecoveryReady():null,true),
+   timedOneWireReady:check(timed?timedOneWireReady(w):null,timed?timedOneWireReady(w):null,true)
+  };
+  return {at:new Date().toISOString(),...context,checks,failedChecks:Object.keys(checks).filter(k=>checks[k].ok===false)};
+ }
+ function recordDebugGate(context){
+  try{
+   const key=JSON.stringify({...context,ram:st.regs[0x06],nvm:st.nvmBackup?.[17],caps:[st.bridgeGenericRam,st.bridgeUserNvm,st.bridgeOutputNvm,st.bridgeCalibrationNvm],proof:[st.bridgeColdStart?.uid,st.bridgeColdStart?.session],uid:st.uid?.hex,recovery:st.psscRamRecovery,afeRestore:st.coldStartAfeRestored,session:st.sessionIndex,step:currentStep});
+   if(key===debugTrace.gateKey)return;
+   debugTrace.gateKey=key;
+   debugTrace.gate=debugGateSnapshot(context);
+   debugAppend('events',{kind:'nvmGate',step:currentStep,reason:context.reason,disabled:context.disabled,failedChecks:debugTrace.gate.failedChecks});
+  }catch(error){debugAppend('errors',{kind:'debugGate',message:String(error.message||error)})}
+ }
+ function exportFullDebug(){
+  const status=$('fullDebugStatus');
+  try{
+   const fields={};
+   for(const e of document.querySelectorAll('input[id],select[id],textarea[id]')){
+    if(['password','file','hidden','button','submit'].includes(e.type)||/password|token|secret|archivepath|email|phone/i.test(e.id))continue;
+    fields[e.id]={value:e.type==='checkbox'||e.type==='radio'?e.checked:e.value,disabled:e.disabled};
+   }
+   const messages={};
+   for(const e of document.querySelectorAll('.callout[id], [role="status"][id], #nvmProgress, #backupProgress, #nvmDiff')){
+    if(/archivepath|archivefolder/i.test(e.id))continue;
+    messages[e.id]={text:e.textContent,hidden:e.hidden,className:e.className};
+   }
+   const gate=debugTrace.gate?debugGateSnapshot({reason:$('nvmWritePrereq')?.textContent,disabled:$('nvmProgram')?.disabled,verified:debugTrace.gate.verified,timedChecked:$('outputTimedOneWire')?.checked,timedDisabled:$('outputTimedOneWire')?.disabled}):null;
+   const packageData={
+    schema:'elmos-e70311-full-debug',schemaVersion:1,appVersion:document.body.dataset.appVersion,exportedAt:new Date().toISOString(),
+    environment:{userAgent:navigator.userAgent,language:navigator.language,platform:navigator.platform,demo:demoEnabled},
+    session:{index:st.sessionIndex,startedAt:st.sessionStartedAt,port:serialPortInfo(st.port),uid:st.uid?.hex,traceStartedAt:debugTrace.startedAt},
+    programmer:{adapter:st.adapterKind,board:st.bridgeBoard,firmware:st.firmware,versionReply:debugTrace.versionReply,bridgeInfo:debugTrace.bridgeInfo},
+    workflow:{classicStep:currentStep,visiblePanels:[...document.querySelectorAll('[data-panel]:not([hidden]),[aria-current="step"]')].filter(e=>e.getClientRects().length).map(e=>({panel:e.dataset.panel??null,id:e.id,text:e.getAttribute('aria-label')||null})),activeElement:document.activeElement?.id,fields,messages},
+    nvm:{original:debugTrace.originalNvm,latestVerifiedBackup:st.nvmBackup,backupVerified:st.nvmBackupVerified,backupProof:st.nvmBackupProof,plannedImage:st.calImage,latestReadWords:debugTrace.nvmReads,missingWordAddresses:Array.from({length:64},(_,i)=>i*2).filter(a=>!(a in debugTrace.nvmReads)),programmedSnapshot:st.programmedSnapshot},
+    ram:{cachedRegisters:st.regs,readbacks:debugTrace.ramReads,registerNames:REG_NAMES,boot:st.boot},
+    calibration:{points:st.calpoints,fit:st.calfit,verification:st.calValidation,afe:st.afe,adc:st.adc,dsp:st.dsp,outputPlan:st.expertOutputPlan},
+    nvmGate:gate,gateAtLastRender:debugTrace.gate,
+    state:Object.fromEntries(Object.entries(st).filter(([k])=>!['port','reader','readerPromise','cmdQueue','responseWait','liveReadPromise','timeout','log'].includes(k))),
+    logs:{usb:debugTrace.usb,events:debugTrace.events,errors:debugTrace.errors,dropped:debugTrace.dropped,limits:{usb:debugLimit,events:debugEventLimit,errors:debugEventLimit}},
+    limitations:['No hardware commands are issued by export. Register values are cached, not a fresh complete dump. Missing and stale values are possible; see timestamps and UID.','NVM readbacks may span multiple operations; only explicitly verified images represent a complete verified snapshot.','Physical VDD and actual startup timing require measurement.','Session logs are held in memory; reload clears them; limits and dropped counts are reported.']
+   };
+   const json=JSON.stringify(debugValue(packageData),null,2);
+   download('ELMOS_E70311_FULL_DEBUG_v'+packageData.appVersion+'_'+new Date().toISOString().replace(/[:.]/g,'-')+'.json',json);
+   if(status)status.textContent='Debug-Paket erstellt · '+Math.round(json.length/1024)+' KiB · keine Sensorbefehle ausgeführt.';
+  }catch(error){
+   debugAppend('errors',{kind:'export',message:String(error.message||error),stack:error.stack});
+   if(status)status.textContent='Debug-Export fehlgeschlagen: '+error.message;
+  }
+ }
+ window.addEventListener('error',e=>debugAppend('errors',{kind:'javascript',message:e.message,filename:e.filename,line:e.lineno,column:e.colno,stack:e.error?.stack}));
+ window.addEventListener('unhandledrejection',e=>debugAppend('errors',{kind:'unhandledrejection',message:String(e.reason?.message||e.reason),stack:e.reason?.stack}));
+
  const hexWords=arr=>arr.map(x=>P.hx(x,2)).join(' ');
  const sleep=ms=>new Promise(r=>setTimeout(r,ms));
  const sameBoot=(a,b)=>!!a&&!!b&&LOCKED.every(k=>a[k]===b[k]);
@@ -1804,6 +1927,7 @@ if(typeof document!=='undefined') (function UI(){
   const experimentalRecoveryOutput=outputOnly&&
    (st.psscRamRecovery||(st.regs[0x06]===0x6C04&&st.nvmBackup?.[17]!==0x6C04));
   $('nvmProgram').disabled=!approvalGranted||!!st.nvmAttempting||st.nvmRechecking||st.nvmWorking||st.writing||st.calTask;
+  recordDebugGate({reason:nvmReason,disabled:$('nvmProgram').disabled,verified:!!verified,timedChecked:!!timedOneWire?.checked,timedDisabled:!!timedOneWire?.disabled,restoring,outputOnly,alarmOnly});
   const bootCheckBusy=st.closing||st.nvmWorking||st.writing||st.calTask;
   $('nvmRestart').hidden=!st.nvmDone||!(st.sensorPowerEnabled||demoEnabled);
   $('nvmRestart').disabled=bootCheckBusy||!st.chip||!st.port;
@@ -1885,7 +2009,7 @@ if(typeof document!=='undefined') (function UI(){
   show('calMsg','Messpunkte nach einer Änderung erneut aufnehmen.');renderCalPoints();renderFlowState()
  };
 
- const rawLine=s=>{if(window.ELMOS_ARCHIVE?.active&&(st.calTask||st.writing||st.nvmWorking))window.ELMOS_ARCHIVE.trace(s);st.log.push(now()+'  '+s);if(st.log.length>500)st.log.shift();$('usbLog').textContent=st.log.slice(-90).join('\n')};
+ const rawLine=s=>{debugAppend('usb',{direction:String(s).startsWith('TX ')?'TX':String(s).startsWith('RX ')?'RX':'other',message:String(s)});if(window.ELMOS_ARCHIVE?.active&&(st.calTask||st.writing||st.nvmWorking))window.ELMOS_ARCHIVE.trace(s);st.log.push(now()+'  '+s);if(st.log.length>500)st.log.shift();$('usbLog').textContent=st.log.slice(-90).join('\n')};
  async function readerLoop(port){try{let r=port.readable.getReader();st.readerAlive=true;st.reader=r;try{while(st.port===port&&!st.closing){const{value,done}=await r.read();if(done)break;if(!value)continue;let txt=new TextDecoder().decode(value);rawLine('RX '+txt.replace(/\r/g,'\\r').replace(/\n/g,'\\n'));if(st.responseWait){st.replyBuffer+=txt;const complete=st.adapterKind==='bridge'?/(?:^|[\r\n]):\r?\n$/.test(st.replyBuffer):P.ssp3PromptCount(st.replyBuffer)>=(st.responseWait.prompts||1);if(complete){const waiter=st.responseWait;st.responseWait=null;clearTimeout(waiter.timer);const out=st.replyBuffer;st.replyBuffer='';waiter.resolve(out)}else if(st.replyBuffer.length>16000){const waiter=st.responseWait;st.responseWait=null;clearTimeout(waiter.timer);waiter.reject(Error('SSP3-Antwort zu lang'))}}} }finally{r.releaseLock();if(st.reader===r)st.reader=null}}catch(e){
    if(st.port===port&&!st.closing)logging('USB-Lesefehler: '+e.message);
   }finally{
@@ -1995,6 +2119,7 @@ if(typeof document!=='undefined') (function UI(){
   }
   // SSP3 firmware replies as @02 08 02 04; retain the actual firmware version.
   const match=reply.match(/(?:^|[\r\n])\s*@([0-9A-F]{2})\s+([0-9A-F]{2})\s+([0-9A-F]{2})\s+([0-9A-F]{2})(?=[\s\r\n:]|$)/i);
+  debugTrace.versionReply={at:new Date().toISOString(),raw:reply};
   st.firmware=match?match.slice(1,5).join('.'):'Antwort erhalten';
   if(match&&st.adapterKind==='ssp3'&&!demoEnabled)lsSet('ssp3-confirmed-baud',$('baud').value);
   if(st.adapterKind==='ssp3'&&st.iface==='plc'&&match&&match.slice(1,5).join(' ').toUpperCase()==='02 08 02 04'){
@@ -2023,9 +2148,11 @@ if(typeof document!=='undefined') (function UI(){
  }
  async function bridgeHello(){
   const response=await exchange('BRIDGE_INFO',1600);
+  debugTrace.bridgeInfo={at:new Date().toISOString(),raw:response};
   const match=response.match(/E70311-BRIDGE\s+V1\s+CAPS=([A-Z0-9_,]+)/);
   if(!match)throw Error('Kein kompatibler E703.11 USB-CDC-Bridge-Handshake. Bitte Bridge-Firmware prüfen.');
   const caps=match[1].split(',');
+  debugTrace.bridgeInfo.capabilities=caps.slice();
   // Only the two approved DIY-programmer firmware families may access a chip.
   const isProMicro=caps.includes('PLC_D4_IO')&&caps.includes('PRO_MICRO_NVM');
   const isEsp32C3=caps.includes('PLC_GPIO4_IO')&&caps.includes('POWER_GPIO_10');
@@ -2280,7 +2407,7 @@ if(typeof document!=='undefined') (function UI(){
    const bytes=P.readData(await exchange(P.spiRead(addr)),4);
    result=(bytes[2]<<8)|bytes[3]
   }
-  st.regs[addr]=result;return result
+  st.regs[addr]=result;debugRead('ramReads',addr,result);return result
  }
  function decodeSafeAFE(w){
   if(w===0){
@@ -3354,7 +3481,7 @@ if(typeof document!=='undefined') (function UI(){
   st.port=port;st.mode='usb';st.sensorLost=false;st.adapterNoReply=false;
   autoReconnectSuppressed=false;cancelAutoReconnect();
   autoPortInfo=port?.getInfo?.()||null;
-  st.sessionIndex++;st.sessionStartedAt=new Date().toISOString();st.calibrationPreflight=null;
+  st.sessionIndex++;debugTrace=newDebugTrace();st.sessionStartedAt=new Date().toISOString();st.calibrationPreflight=null;
   st.nvmBackup=null;st.nvmBackupVerified=false;st.nvmBackupProof=null;
   st.psscRamRecovery=false;st.coldStartAfeRestored=false;st.calibrationPreflight=null;
   st.ramRecoveryAttempted=false;st.ramRecoveryRetryable=false;
@@ -4106,6 +4233,7 @@ if(typeof document!=='undefined') (function UI(){
   try{
    await maintWrite(0x4E,0x4C00|addr);await nvmWaitIdle(12000,12,15);
    const value=await readReg(0x48);
+   debugRead('nvmReads',addr,value);
    if(diagnostic)logging('NVM-Anzeigeprofil: Wort '+(addr/2+1)+'/64 gelesen in '+(Date.now()-started)+' ms.');
    return value;
   }catch(error){if(diagnostic)logging('NVM-Anzeigeprofil: Wort '+(addr/2+1)+'/64 fehlgeschlagen nach '+(Date.now()-started)+' ms: '+error.message);throw error}
@@ -4135,6 +4263,7 @@ if(typeof document!=='undefined') (function UI(){
    const after=await bootSnapshot();if(!sameBoot(before,after))throw Error('Bootregister haben sich beim NVM-Lesen verändert');
    if(st.port!==port||st.sessionIndex!==session||st.uid?.hex!==uid||st.closing||st.sensorLost)
     throw Error('Sensor oder USB-Sitzung während NVM-Lesung geändert');
+   if(!debugTrace.originalNvm)debugTrace.originalNvm={words:words.slice(),at:new Date().toISOString(),uid,crc8Verified:true,crc16Verified:true};
    st.nvmBackup=words;st.nvmBackupVerified=true;st.nvmBackupProof={port,session,uid,words,readAt:new Date().toISOString()};st.calImage=null;
    if((postBoot||expertRead)&&await restoreCalibrationDisplayProfile(words))
     logging('Anzeigebereich aus UID-/NVM-gebundener Referenz wiederhergestellt.');
@@ -5426,6 +5555,7 @@ if(typeof document!=='undefined') (function UI(){
   await applySeriesConfig(profile,groups);
  }
 
+ $('fullDebugExport')?.addEventListener('click',exportFullDebug);
  $('plcStartupLogExport').addEventListener('click',()=>{
   const log={
    tool:'ELMOS E703.11 – USB/PLC Startdiagnose',version:document.body.dataset.appVersion||'unbekannt',at:new Date().toISOString(),

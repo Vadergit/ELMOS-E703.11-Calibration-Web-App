@@ -1,3 +1,9 @@
+## v0.7.180 – Vollständiges Debug-Paket
+
+- Einstellungen → Diagnose & Support: ein JSON-Export mit Firmware-Rohantwort, Capabilities, RAM-/NVM-Lesecache, Original-NVM, geplantem Image, Kalibrierung, UI-Zustand und einzelnen NVM-Freigaben.
+- Separater USB-, Ereignis- und Fehlerverlauf mit Zeitstempeln, Sitzungsnummer und transparenten Kapazitätsgrenzen. Kein zusätzlicher Sensorbefehl, kein Neustart und keine Änderung der Schreibfreigaben.
+- Fehlende Registerwerte bleiben ausdrücklich als fehlend markiert; Hardwaretest ausstehend.
+
 ## v0.7.179 – 4-ms-Umstellung auch im bestätigten SSP3-Kalibrierpfad
 
 - Bei Original-NVM 0x6C06 darf die bekannte temporäre PSSC-RAM-Konfiguration 0x6C04 bestehen bleiben. Der NVM-Plan wird aus dem Original-NVM erstellt (0x6C02), nicht aus RAM. Nur das dokumentierte PLC-Bit und gegebenenfalls das Startfenster dürfen wechseln.
