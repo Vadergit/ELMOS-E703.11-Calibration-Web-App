@@ -2349,7 +2349,8 @@ if(typeof document!=='undefined') (function UI(){
    logging('PLC-Erkennung: '+rate/1000+' kBd, '+attempt.command+', GPIO'+(st.bridgeSinglePin?'4':'4/5/6')+', '+(power?'GPIO10-Lastschalter angefordert (VDD nicht gemessen)':'keine automatische VDD-Unterbrechung'));
    await exchange('PLC_BAUD '+rate);
    try{
-    await bridgeAccess({power,recover});
+    const ramRecovered=await bridgeAccess({power,recover});
+    attempt.ramRecoveryReported=ramRecovered===true;
     attempt.result='access-confirmed';attempt.address='0x'+h(st.plcAddress);
     if(!st.bridgeEffectiveBaud&&!recover)st.bridgeEffectiveBaud=rate;
     attempt.effectiveBaud=st.bridgeEffectiveBaud;
@@ -2363,21 +2364,34 @@ if(typeof document!=='undefined') (function UI(){
     return false;
    }
   };
-  let found=false;
+  let found=false,earlyRecoveryTried=false;
   if(labVariant?.mode==='recovery'){
    if(!power||!st.bridgePsscRam)throw Error('Recovery-Variante nicht unterstützt oder VDD-Steuerung fehlt');
    st.psscRamRecovery=true;
    found=await attemptAccess(rates[0],true);
   }else for(const rate of rates){
    if(await attemptAccess(rate,false)){found=true;break}
-   if(!labVariant&&!autoProbe&&await startEsp32BlankSensor(st.bridgePlcAttempts.at(-1)))return;
+   const last=st.bridgePlcAttempts.at(-1);
+   if(!labVariant&&!autoProbe&&await startEsp32BlankSensor(last))return;
+   // Hardware matrix: on ESP32 v0.14 a normal no-frame start was 0/6,
+   // while RAM recovery was 6/6 on the 4-ms sensor. Keep normal start
+   // first for an unknown DUT and never recover automatically on background probes.
+   const noEdges=last?.addressProbes?.length===2&&last.addressProbes.every(p=>p.result==='PLC_NO_VALID_FRAME'&&p.edges===0);
+   if(!labVariant&&!autoProbe&&!earlyRecoveryTried&&power&&st.bridgePsscRam&&st.bridgeBoard==='ESP32-C3 SuperMini'&&noEdges&&last.error?.includes('PLC_NO_VALID_FRAME')){
+    earlyRecoveryTried=true;
+    logging('PLC: keine Antwortflanken; geprüfte PSSC-RAM-Freigabe vor zweiter Normal-Baudrate.');
+    if(await attemptAccess(rate,true)){found=true;break;}
+    // A failed recovery is not proof of an unmodified RAM configuration.
+    // Keep recovery restrictions for the rest of this connection.
+    st.psscRamRecovery=true;
+   }
   }
   // Recovery changes volatile sensor RAM. Keep the current opt-in/manual
   // restriction and try both ordinary rates before any recovery.
   if(!labVariant&&!found&&!autoProbe&&st.bridgePsscRam&&st.bridgePlcAttempts.some(a=>a.error?.includes('PLC_NO_VALID_FRAME'))){
    st.psscRamRecovery=true;
    logging('PLC: normale Baudraten erfolglos; PSSC-Freigabe nur im Sensor-RAM.');
-   for(const rate of rates){if(await attemptAccess(rate,true)){found=true;break}}
+   for(const rate of rates){if(earlyRecoveryTried&&rate===rates[0])continue;if(await attemptAccess(rate,true)){found=true;break}}
   }
   if(!found){
    const attempts=st.bridgePlcAttempts;
@@ -3234,7 +3248,8 @@ if(typeof document!=='undefined') (function UI(){
  // PSSC 3.2.1 single-socket E703.11 startup, verified on SSP3 firmware 2824.
  // Channel #0 is the adapter's internal bus. The identifier read verifies
  // the extension before using its GPIO routing or the RAM-only broadcast.
- async function tryPsscRamStartup(){
+ async function tryPsscRamStartup(delays=['10','0','8','10']){
+  if(!Array.isArray(delays)||!delays.length||delays.some(x=>!['0','8','10'].includes(x)))throw Error('Ungültiges PSSC-Startprofil');
   if(st.firmware!=='02.08.02.04'||st.adapterKind!=='ssp3'||st.iface!=='plc')return false;
   let boardId;
   try{
@@ -3246,7 +3261,7 @@ if(typeof document!=='undefined') (function UI(){
   }
   if(boardId.join(',')!=='17,0,7,1')return false;
   const port=st.port;
-  const trial={stage:'PSSC-RAM-Start',port,session:st.sessionIndex,readVerified:false,powerRestored:false,steps:[]};
+  const trial={stage:'PSSC-RAM-Start',port,session:st.sessionIndex,readVerified:false,powerRestored:false,requestedDelays:delays.slice(),delayResults:[],steps:[]};
   st.startupTrials.push(trial);
   st.powerCycleRunning=true;
   renderStatus();
@@ -3262,7 +3277,8 @@ if(typeof document!=='undefined') (function UI(){
    // PSSC retries with adapter delays 0, 0x08 and 0x10. The first PLC
    // read may time out; the following broadcast is the RAM-only enable.
    let ready=false;
-   for(const delay of ['0','8','10']){
+   for(const [index,delay] of delays.entries()){
+    const delayResult={delay,index,readVerified:false};trial.delayResults.push(delayResult);
     trial.powerRestored=false;
     await run('PWR_OFF 0');
     for(const command of ['IF_CFG 7 0 0','PLC R','PLC_CFG 020A 0','PLC_CFG 1 0007','PLC P'])
@@ -3288,13 +3304,13 @@ if(typeof document!=='undefined') (function UI(){
      // A UID alone must not terminate startup as a successful measuring sensor.
      // Try the verified RAM repair here, then retry a different startup delay
      // ONLY for a transient transport error before any RAM mutation.
-     if(await startRamMeasurementOperation())break;
-     if(!st.ramRecoveryRetryable||delay==='10')return true;
+     if(await startRamMeasurementOperation()){delayResult.readVerified=true;trial.successfulDelay=delay;break;}
+     if(!st.ramRecoveryRetryable||index===delays.length-1)return true;
      trial.steps.push({delay,error:'RAM-Wiederanlauf ohne Schreibzugriff unterbrochen; nächstes Startprofil'});
      st.readOnlySensor=null;st.plcAddressVerified=false;ready=false;
      continue;
     }
-    if(ready)break;
+    if(ready){delayResult.readVerified=true;trial.successfulDelay=delay;break;}
     trial.steps.push({delay,error:'Keine bestätigte AFE-Konfiguration; nächstes Startprofil prüfen'});
    }
    if(st.readOnlySensor){showReadOnlySensor();return true;}
@@ -3328,7 +3344,7 @@ if(typeof document!=='undefined') (function UI(){
   st.startupTrials=[];
   st.magicResult=null;
   const labVariant=owLabBusy&&owLabVariant?.adapter==='ssp3'?owLabVariant:null;
-  if(labVariant?.mode==='pssc')return await tryPsscRamStartup();
+  if(labVariant?.mode==='pssc')return await tryPsscRamStartup(labVariant.delays||['0','8','10']);
   if(labVariant?.mode==='combined'||labVariant?.mode==='split'){
    if(st.firmware!=='02.08.02.04')throw Error('Isoliertes SSP3-Taktprofil für diese Firmware nicht bestätigt.');
    await testSsp3PowerStartup(labVariant.mode,{khz:labVariant.rate,delay:labVariant.rate===100?7:14});
@@ -6747,14 +6763,14 @@ if(typeof document!=='undefined') (function UI(){
    {id:'normal-100',mode:'normal',rate:100000},{id:'normal-25',mode:'normal',rate:25000},
    {id:'recovery-100',mode:'recovery',rate:100000},{id:'recovery-25',mode:'recovery',rate:25000},
    {id:'auto',mode:'auto'}];
-  return [{id:'pssc',mode:'pssc'},
+  return [{id:'pssc-10',mode:'pssc',delays:['10']},{id:'pssc-0',mode:'pssc',delays:['0']},{id:'pssc-8',mode:'pssc',delays:['8']},{id:'pssc',mode:'pssc',delays:['0','8','10']},
    ...[100,50].flatMap(rate=>['combined','split'].map(mode=>({id:mode+'-'+rate,mode,rate}))),
    {id:'auto',mode:'auto'}];
  }
  function owLabMatrixSummary(){
   const r=owLabRecord;if(!r)return '';
   const entries=r.matrix||[];
-  const lines=entries.map(x=>x.firmwareLabel+' / '+x.profile+' / '+x.variant+' #'+x.repeat+': '+x.result+(x.accessPath?' · '+x.accessPath:'')+(x.cookie?' · Cookie '+x.cookie:''));
+  const lines=entries.map(x=>x.firmwareLabel+' / '+x.profile+' / '+x.variant+' #'+x.repeat+': '+x.result+(x.accessPath?' · '+x.accessPath:'')+(x.psscSuccessfulDelay!==null&&x.psscSuccessfulDelay!==undefined?' · Delay 0x'+x.psscSuccessfulDelay:'')+(x.cookie?' · Cookie '+x.cookie:''));
   const coverage=['dauerhaft','4 ms','10 ms','200 ms','aus'].map(profile=>{const summaries=(r.matrixSummaries||[]).filter(x=>x.profile===profile);return profile+': '+(summaries.length?summaries.map(x=>x.firmwareLabel+' '+(x.blocked?'nicht durchgeführt':x.successes+'/'+x.total+' erfolgreich')).join(', '):'offen');});
   return 'Testmatrix (3 Wiederholungen je Variante; kein Abbruch nach erstem Erfolg)\n'+(lines.join('\n')||'Noch keine Matrixmessung.')+'\n\nProfilabdeckung:\n'+coverage.join('\n')+'\nNur vorhandenes Profil bzw. freigegebene 4-ms-Umstellung wird geprüft.';
  }
@@ -6799,6 +6815,7 @@ if(typeof document!=='undefined') (function UI(){
      entry.cookie=st.magicResult?.readVerified?'Registerzugriff nach Cookie bestätigt':st.magicResult?'nicht bestätigt':'nicht separat nachgewiesen';
      if(adapter==='ssp3'&&st.magicResult)entry.accessPath=st.magicResult.readVerified?'Magic-Cookie-Fallback':entry.accessPath;
      if(adapter==='ssp3'&&variant.mode==='pssc'&&result==='success')entry.accessPath='PSSC-RAM-Recovery';
+     if(adapter==='ssp3')entry.psscSuccessfulDelay=st.startupTrials?.find(x=>x.readVerified&&x.successfulDelay)?.successfulDelay??null;
      if(adapter==='bridge'&&variant.mode!=='auto'){
       const actual=entry.startAttempts.filter(a=>a.result==='access-confirmed');
       if(result==='success'&&(actual.length!==1||actual[0].recover!==(variant.mode==='recovery')||actual[0].requestedBaud!==variant.rate)){
