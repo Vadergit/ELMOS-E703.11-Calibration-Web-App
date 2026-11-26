@@ -1,3 +1,10 @@
+## v0.7.198 – USB-Neuinitialisierung und echter One-Wire-Worst-Case
+
+- Begrenzte automatische Wiederöffnung desselben autorisierten USB-Ports bei Adapter-Handshakefehlern (max. drei Versuche); alte USB-/Fehlerprotokolle mit Sitzungskennung erhalten. Sensorfehler allein lösen keine USB-Wiederöffnung aus. Manuelle Neuinitialisierung nutzt den gleichen Wiederholungsweg.
+- Neue lesende Labormodi mit 5/100 Standardstarts, UID-/CRC-/64-Wort-Vergleich und Dauerstatistik. PSSC-Fehler ohne Antwort nach RAM-Freigabe genauer klassifizieren; begrenzte Wiederholung flüchtiger Registerlesefehler.
+- Separater Worst-Case-Modus nur am originalen SSP3 und entbehrlichem Sensor: Original sichern; 4 ms, permanentes PLC aus, Upstream/Registerfreigabe aus, Downstream unverändert; nur maskierte Wörter 17/18/19 und CRC16 schreiben. Bei bereits identischem Ziel zunächst 10 ms schreiben und prüfen. Jede tatsächliche Programmierung mit vollständiger Rücklesung/CRC und anschliessend drei kontrollierten Wiederverbindungen. Danach Adapterwechsel auf ESP32 v0.14, drei weitere Wiederverbindungen, Original am SSP3 wiederherstellen und nach Neustart verifizieren. Externe Analogprüfung als manuelle Evidenz. Kein deaktiviertes Startfenster, kein absichtlicher Stromausfall während eines Schreibvorgangs, keine automatische Wiederholung unklarer Schreibvorgänge.
+- Produktions-NVM-Schreibschutz und ESP32-Firmware unverändert. Hardwarevalidierung und Jürgs tatsächliches USB-Protokoll ausstehend; simulierte Tests sind kein Hardware-Freigabenachweis.
+
 ## v0.7.197 – One-Wire Wiederverbindung und gezielter Cookie-Test
 
 - ESP32: Bei expliziter Verbindung nach einem regulären PLC-Start ohne Antwortflanken an beiden Adressen die PSSC-RAM-Freigabe vor der zweiten normalen Baudrate versuchen. Bisherige Fallbacks und Hintergrund-Recovery-Sperre bleiben erhalten; keine Änderung der NVM-Schreiblogik oder Firmware.
