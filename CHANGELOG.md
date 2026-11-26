@@ -1,3 +1,9 @@
+## v0.7.177 – Analogausgang ohne blockierten Abgleichschritt
+
+- Dauerhaft erreichbare SSP3-One-Wire-Sensoren erhalten vor dem Abgleich bevorzugt den normalen AN0204-Kaltstart, statt die Startprüfung zu überspringen oder unnötig die PSSC-RAM-Freigabe zu verwenden.
+- Bei gültigem Original-NVM kann die 4-ms-Umstellung unabhängig vom Kaltstartnachweis im Ausgangsschritt vorgemerkt werden. Es wird dabei nichts am Chip geändert; sämtliche NVM-Schreib-, UID-, CRC- und Bootschutzprüfungen bleiben bestehen.
+- Physische Prüfung am SSP3 und Sensor noch ausstehend.
+
 ## v0.7.176 – Brückenspannung beim ESP32-Neuabgleich
 
 - Nach verifiziertem ESP32-C3-Kaltstart darf eine bestätigte Änderung der Brückenspannung (SVDD) aus dem RAM in den Abgleich übernommen werden. Die Vorabprüfung zeigt die Änderung an. Andere Abweichungen in CFG_AFE0 und reservierte SVDD-Stufen bleiben gesperrt.

@@ -1746,17 +1746,21 @@ if(typeof document!=='undefined') (function UI(){
   const analogPinBlocked=startup?.permanent&&['1','2','3'].includes($('expertOutputMode').value);
   const timedOneWire=$('outputTimedOneWire');
   if(timedOneWire){
-   const available=analogPinBlocked&&timedOneWireReady(st.nvmBackup);
+   // Staging is a read-only operation: require a current verified NVM,
+   // not a power-cycle proof. The write gate below still requires both.
+   const available=analogPinBlocked&&st.iface==='plc'&&hasCurrentNvmBackup()&&startup.ok;
    const owner=available?st.sessionIndex+':'+st.uid.hex:'';
    if(timedOneWire.dataset.owner!==owner)timedOneWire.checked=false;
    timedOneWire.dataset.owner=owner;
    timedOneWire.disabled=!available;
-   $('outputTimedOneWireOption').hidden=!available;
+   $('outputTimedOneWireOption').hidden=!analogPinBlocked;
   }
   if(outputStatus&&analogPinBlocked){
+   const ready=timedOneWireReady(st.nvmBackup);
    outputStatus.textContent=timedOneWire&&!timedOneWire.disabled?
-    'AODO ist momentan für One-Wire belegt. Wähle das 4-ms-Startfenster und prüfe die Ausgangskonfiguration.':
-    CAL.AODO_PLC_CONFLICT;
+    'AODO ist im Original-NVM für One-Wire belegt. Die 4-ms-Umstellung kann jetzt vorgemerkt werden. Die RAM-Verbindung bleibt aktiv. '+
+    (ready?'Programmer-Kaltstart bestätigt.':'NVM-Schreiben erst nach bestätigtem Programmer-Kaltstart freigegeben. Aktuelle Kalibrierung nicht neu starten.'):
+    'Original-NVM und aktuelle Chip-UID bestätigen, um die 4-ms-Umstellung vorzumerken.';
    outputStatus.className='callout warn';
   }else if(outputStatus&&st.iface==='i2c'){
    outputStatus.textContent=i2cBlock||'I²C-Kaltstart bestätigt. Schnittstellen- und Boot-Einstellungen bleiben erhalten.';
@@ -1786,8 +1790,8 @@ if(typeof document!=='undefined') (function UI(){
   if(eepromReadBtn)eepromReadBtn.disabled=!st.port||!st.chip||st.calTask||st.writing||st.nvmWorking;
   const outputNvmRead=$('outputNvmRead');if(outputNvmRead)outputNvmRead.disabled=!st.port||!st.chip||st.writing||st.calTask||st.nvmWorking;
   if(!nvmReason&&!restoring&&!alarmOnly&&st.expertOutputPlan?.timedOneWire&&
-     (!timedOneWire?.checked||timedOneWire.disabled))
-   nvmReason=CAL.AODO_PLC_CONFLICT;
+     (!timedOneWire?.checked||timedOneWire.disabled||!timedOneWireReady(st.nvmBackup)))
+   nvmReason='4-ms-NVM-Umstellung vorgemerkt; Schreibfreigabe fehlt: '+psscRecoveryEvidence();
   if(!nvmReason&&alarmPlanSelected&&!alarmOnly)nvmReason='Alarmänderungen zuerst im RAM übernehmen und erfolgreich rücklesen.';
   if(!nvmReason&&alarmOnly&&!$('nvmAutoBackup').checked)nvmReason='Alarm-NVM: Automatische Sicherung des Original-EEPROM aktivieren.';
   if(!nvmReason)nvmReason=psscNvmBlock(st.calImage?.before,st.calImage?.after,restoring,outputOnly,alarmOnly,!!st.calImage?.recoveryCombined);
@@ -2523,6 +2527,7 @@ if(typeof document!=='undefined') (function UI(){
  // Confirm the PLC address before deciding whether calibration is available.
  async function probePlcAddresses(stage,verifyPsscStartup=false,allowReadOnly=true){
   const previous=st.plcAddress;
+  if(verifyPsscStartup)st.ssp3DirectPowerStart=false;
   for(const candidate of P.plcProbeOrder(previous)){
    if(!st.port||st.closing)throw Error('USB-Verbindung während PLC-Adresserkennung beendet');
    st.plcAddress=candidate;
@@ -2536,6 +2541,14 @@ if(typeof document!=='undefined') (function UI(){
     const pads=await readReg(0x0A,1350);
     const configured=P.plcAddressFromConfig(cfg,pads);
     record.configuredAddress='0x'+h(configured);
+    // A directly accessible permanent PLC sensor still needs a real power
+    // start before calibration if its final output is to be analog.
+    if(verifyPsscStartup&&st.adapterKind==='ssp3'&&(cfg&4)&&configured===candidate&&!diagnosticOnly){
+     st.ssp3DirectPowerStart=true;
+     st.plcAddress=candidate;
+     logging('Dauerhaftes One-Wire erkannt. AN0204-Kaltstart vor dem Abgleich, damit die spätere 4-ms-NVM-Umstellung geprüft werden kann.');
+     return false;
+    }
     if(verifyPsscStartup&&st.adapterKind==='ssp3'&&st.firmware==='02.08.02.04'&&cfg===0x6C04){
      st.plcAddress=previous;
      logging('PSSC-RAM-Adresse bereits aktiv. Neustart wird vor der Kalibrierung geprüft.');
@@ -2823,7 +2836,7 @@ if(typeof document!=='undefined') (function UI(){
    }
    // 03E8 = 1000 mV; the documented OFF threshold is applied to the detected alias.
    $('plcPowerState').textContent='PWR_OFF in Firmwarehilfe gefunden. SSP3-VSUPPLY wird einmalig am Prüfplatz geschaltet.';
-   powerOffAttempted=true;
+   powerOffAttempted=true;st.powerCycleResult.powerOffAttempted=true;
    await send('PWR_OFF 03E8',5500);
    await sleep(30); // off-state settling; no delay after the subsequent power-on
    await send('PLC P',2500);
@@ -3154,7 +3167,11 @@ if(typeof document!=='undefined') (function UI(){
   if(!port||st.closing)throw Error('SSP3-Port nicht offen');
   st.startupTrials=[];
   st.magicResult=null;
-  if(await tryPsscRamStartup())return true;
+  const directFirst=st.ssp3DirectPowerStart===true;
+  st.ssp3DirectPowerStart=false;
+  // Prefer the normal startup for directly readable permanent PLC; the
+  // PSSC broadcast intentionally changes RAM and is a recovery-only path.
+  if(!directFirst&&await tryPsscRamStartup())return true;
   const knownFirmware=st.firmware==='02.08.02.04';
   const profiles=knownFirmware?[
    {mode:'combined',speed:{khz:100,delay:7}},
@@ -3180,6 +3197,13 @@ if(typeof document!=='undefined') (function UI(){
      (knownFirmware?'PSSC-PLC 50 kHz und ':'')+'getrenntem USB-Transport.');
     $('plcPowerState').textContent='Erster Startversuch ohne Chipantwort. Zweiter, letzter Versuch läuft …';
    }else break;
+  }
+  if(directFirst&&!st.chip&&!st.readOnlySensor&&st.port===port&&!st.closing&&
+     (st.powerCycleResult?.powerRestored===true||st.powerCycleResult?.powerOffAttempted!==true)){
+   // A failed/unsupported AN0204 command must not prevent the existing
+   // read/recovery path. Never fall back if DUT power restoration is uncertain.
+   if(await tryPsscRamStartup())return true;
+   if(await probePlcAddresses('SSP3-Lesezugriff nach Startversuch'))return true;
   }
   logging('SSP3-Start beendet: '+st.startupTrials.length+' Versuch(e), Chip erkannt='+!!st.chip+'.');
   return !!st.chip;
@@ -4353,8 +4377,8 @@ if(typeof document!=='undefined') (function UI(){
    // the explicit NVM diff/confirmation remains required.
    const selectedOutputMode=$('expertOutputMode').value;
    const explicitOutputPlan=st.expertOutputPlan;
-   if(explicitOutputPlan?.timedOneWire&&(!timedOneWireReady(st.nvmBackup)||!$('outputTimedOneWire')?.checked))
-    throw Error(CAL.AODO_PLC_CONFLICT);
+   if(explicitOutputPlan?.timedOneWire&&(!$('outputTimedOneWire')?.checked||$('outputTimedOneWire').disabled))
+    throw Error('4-ms-NVM-Umstellung im Schritt «Ausgang» erneut bestätigen.');
    let outputPlan=explicitOutputPlan;
    // Never auto-authorize an AODO write after Magic Cookie.
    // The operator must explicitly confirm the scaling in the output step.

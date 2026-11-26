@@ -336,7 +336,7 @@ const ELMOS_CAL = (() => {
  function aodoPinBlocked(words){
   return !!(words[17]&4);
  }
- const AODO_PLC_CONFLICT='Dauerhaftes One-Wire belegt AODO. Für Analogbetrieb One-Wire auf das Standard-Startfenster von 4 ms umstellen. Dazu zuerst den Sensor-Kaltstart über den Programmer bestätigen.';
+ const AODO_PLC_CONFLICT='Dauerhaftes One-Wire belegt AODO. Für Analogbetrieb im Schritt «Ausgang» das 4-ms-Startfenster im NVM vormerken. Die RAM-Verbindung bleibt erhalten; der Kaltstartnachweis ist erst zur Schreibfreigabe erforderlich.';
  function protectStartupCommunication(before,after,{allowTimedOneWire=false,allowSvdd=false,allowAlarmMask=false,allowPressureCorrection=false,operatingProfile=null,interfaceMode='plc'}={}){
   if(!Array.isArray(before)||!Array.isArray(after)||before.length!==64||after.length!==64||
    [...before,...after].some(v=>!Number.isInteger(v)||v<0||v>65535))
