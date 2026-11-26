@@ -1,3 +1,8 @@
+## v0.7.184 – Prüfpunkt-Vorgabe im geführten Abgleich
+
+- Bei einer neu übernommenen Messmatrix wird der erste unabhängige DSP-Prüfpunkt explizit auf den Mittelpunkt des tatsächlichen Druckbereichs gesetzt, auch wenn der Bereich bereits vorbelegt war. Manuell angepasste Prüfpunkte bleiben beim erneuten Öffnen derselben Matrix erhalten.
+- Keine Änderung der One-Wire- oder NVM-Schreiblogik.
+
 ## v0.7.183 – CFG_SPI_I2C RAM 0x6C05 nach bestätigtem ESP32-Start
 
 - Debug-Fall mit Firmware v0.14: Original-NVM 0x6C06, CFG_PADS0 0x4000 (startup_com=1), RAM 0x6C05 bei stabiler PLC-Kommunikation, alle übrigen Freigaben bestätigt. Gemeinsamer Vergleich erlaubt genau diese Startmodus-Abweichung; andere Adressen und Bits bleiben geschützt.
