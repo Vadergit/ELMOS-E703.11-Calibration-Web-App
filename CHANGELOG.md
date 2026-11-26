@@ -1,3 +1,9 @@
+## v0.7.197 – One-Wire Wiederverbindung und gezielter Cookie-Test
+
+- ESP32: Bei expliziter Verbindung nach einem regulären PLC-Start ohne Antwortflanken an beiden Adressen die PSSC-RAM-Freigabe vor der zweiten normalen Baudrate versuchen. Bisherige Fallbacks und Hintergrund-Recovery-Sperre bleiben erhalten; keine Änderung der NVM-Schreiblogik oder Firmware.
+- SSP3: PSSC-Delay 0x10 zuerst versuchen, bei Misserfolg bisherige Folge 0/8/0x10. Delay-Ergebnisse und erfolgreiches Profil protokollieren. Das direkte Profil muss separat an Hardware bestätigt werden.
+- Labormatrix SSP3: 33 Versuche inklusive isolierter Delay-Profile 0/8/0x10 und frühem Magic-Cookie-Burst mit 100/50 kHz. Beide Cookie-Frames werden zusammen mit PWR_ON und PLC T vor der ersten Leseabfrage an den SSP3 übergeben. Registerzugriff und NVM-Vergleich bleiben Pflicht; Host-Burst ist kein physikalischer Timing-Nachweis. Normaler Kalibrierungsbetrieb nutzt den experimentellen Cookie-Burst nicht.
+
 ## v0.7.196 – One-Wire Labor: vollständige Startvariantenmatrix
 
 - Je drei unabhängige Verbindungsversuche pro Profil: ESP32 PLC START 100/25 kBd, PLC RECOVER START 100/25 kBd und Standardautomatik (15); SSP3 PSSC-RAM, kombinierte/getrennte USB-Ausgabe bei 100/50 kHz sowie Standardautomatik (18). Kein vorzeitiger Abbruch beim ersten Erfolg. Separate Bewertung von Startpfad, tatsächlichem Takt soweit gemeldet, Magic-Cookie-Nachweis, Kaltstart und 64-Wort-NVM-Vergleich. Firmware v0.14, v0.15 und v0.16 separat vergleichbar; kein automatisches Flashen.
