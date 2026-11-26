@@ -347,6 +347,22 @@ const ELMOS_CAL = (() => {
   return !!d&&d.version===1&&d.uid===uid&&sameNvmImage(d.words,words)&&sameMeasurementProfile(d.ram,ram)&&JSON.stringify(d.gains)===JSON.stringify(gains)&&JSON.stringify(d.reference)===JSON.stringify(reference)&&Array.isArray(d.points)&&d.points.length>0&&d.points.length<=10&&d.points.every(p=>p&&['lo','hi','extra'].includes(p.kind)&&Number.isFinite(p.adc_s)&&Number.isFinite(p.adc_t)&&Number.isFinite(p.pressure)&&Number.isFinite(p.temperature));
  }
 
+
+ // Dedicated lab reproduction: no calibration coefficients or factory data are copied.
+ function planOneWireReconnectTest(before){
+  if(!Array.isArray(before)||before.length!==64||before.some(v=>!Number.isInteger(v)||v<0||v>65535)||
+     crc16(before)!==before[63]||crc8(before)!==(before[15]>>>8))
+   throw Error('Original-NVM fehlt oder CRC-Prüfung fehlgeschlagen.');
+  const start=oneWireStartupStatus(before);
+  if(!start.ok||!start.permanent||!start.downstream||!start.upstream||!start.registerAccess||start.mode<1||start.mode>3)
+   throw Error('Testsensor benötigt permanentes PLC, Registerzugriff und analogen AODO-Modus.');
+  const after=before.slice();
+  after[17]&=~4;after[18]&=~0x3000;after[63]=crc16(after);
+  protectStartupCommunication(before,after,{allowTimedOneWire:true,interfaceMode:'plc'});
+  const changes=after.flatMap((to,index)=>to===before[index]?[]:[{index,address:index*2,from:before[index],to}]);
+  if(!changes.some(x=>x.index===17)||changes.some(x=>![17,18,63].includes(x.index)))throw Error('Ungültiger Labor-NVM-Plan.');
+  return {before:before.slice(),after,changes};
+ }
  function validPressureActivation(before,after){return (before&3)===0&&(after&3)===2;}
  function aodoPinBlocked(words){
   return !!(words[17]&4);
@@ -629,6 +645,6 @@ const ELMOS_CAL = (() => {
   Number.isInteger(required)&&required>=1&&required<=10&&Array.isArray(records)&&
   Array.from({length:required},(_,slot)=>records.some(point=>
    point?.slot===slot&&Number.isFinite(point.errorBar))).every(Boolean);
- return {PROFILE_REGS,PROFILE_WORDS,uncalibratedPressureBlank,uncalibratedAfeBlank,planCalibrationProfile,sameMeasurementProfile,sameNvmImage,checkpointMatches,hasPressureTemperatureCompensation,SVDD_INDEX,SVDD_MASK,fit,suggestDspLimit,solveFit,crc16,crc8,configFrom,prepareOutputConfig,validateRecoveryCalibrationDiff,protectStartupCommunication,aodoPinBlocked,AODO_PLC_CONFLICT,i2cBootRegisterMatches,timedPlcRamMatches,oneWireBootRegisterMatches,oneWireStartupStatus,oneWireOnlyStatus,analogScaling,analogOutputStatus,elmosDspTarget,elmosTemperatureTarget,fromQ,q,signed,independentVerificationPoint,verificationPointsSufficient,temperatureSourceFromAfe2,dspTemperatureCelsius,isFactoryTemperatureProfile,factoryInternalTemperatureCelsius,factoryTemperatureAddresses,programmedTemperatureAddresses,programmedTemperatureProfileMatches};
+ return {planOneWireReconnectTest,PROFILE_REGS,PROFILE_WORDS,uncalibratedPressureBlank,uncalibratedAfeBlank,planCalibrationProfile,sameMeasurementProfile,sameNvmImage,checkpointMatches,hasPressureTemperatureCompensation,SVDD_INDEX,SVDD_MASK,fit,suggestDspLimit,solveFit,crc16,crc8,configFrom,prepareOutputConfig,validateRecoveryCalibrationDiff,protectStartupCommunication,aodoPinBlocked,AODO_PLC_CONFLICT,i2cBootRegisterMatches,timedPlcRamMatches,oneWireBootRegisterMatches,oneWireStartupStatus,oneWireOnlyStatus,analogScaling,analogOutputStatus,elmosDspTarget,elmosTemperatureTarget,fromQ,q,signed,independentVerificationPoint,verificationPointsSufficient,temperatureSourceFromAfe2,dspTemperatureCelsius,isFactoryTemperatureProfile,factoryInternalTemperatureCelsius,factoryTemperatureAddresses,programmedTemperatureAddresses,programmedTemperatureProfileMatches};
 })();
 if(typeof module!=='undefined'&&module.exports)module.exports=ELMOS_CAL;

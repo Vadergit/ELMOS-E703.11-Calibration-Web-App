@@ -1,3 +1,8 @@
+## v0.7.186 – One-Wire Wiederverbindungstest (Experten-Labor)
+
+- Separater Hardwaretest mit ESP32 v0.14: Original-NVM/UID/CRC sichern, ausschliesslich plc_en deaktivieren, startup_plc auf 4 ms setzen und CRC16 aktualisieren. Nach vollständiger Verifikation USB trennen und über GPIO10 neu verbinden.
+- Nur bei bestätigter fehlender Sensorantwort Firmwarewechsel anbieten (v0.15 falls separat vorhanden, veröffentlichte v0.16). Wiederverbindung mit demselben NVM; kein weiterer NVM-Schreibvorgang. Testprotokoll bleibt lokal erhalten und exportierbar. Keine Änderung des normalen Abgleichablaufs. Hardwaretest ausstehend.
+
 ## v0.7.185 – ESP32-Testfirmware v0.16: Wiederverbindung im kurzen One-Wire-Startfenster
 
 - Normaler PLC START bleibt zuerst erhalten. Bei fehlender Antwort folgen maximal sechs Kaltstartvarianten mit 500 ms Ausschaltzeit, GPIO4/Treiber hochohmig während der Entladung, 250/1000 µs Einschaltwartezeit bei 100000 sowie 500 µs bei 187500 Host-Timing, je 0x6C/0x7C. Keine zusätzlichen Recovery-Broadcasts oder NVM-Befehle.
