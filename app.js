@@ -7091,6 +7091,7 @@ if(typeof document!=='undefined') (function UI(){
  }
  async function owLabWorstStart(port){
   const r=owLabRecord,adapter=r.writerAdapter||'ssp3',versions=owLabWorstVersions(adapter),name=owLabWorstName(adapter);
+  if($('owLabRestoreAdapter'))$('owLabRestoreAdapter').value=adapter;
   await owLabReopen(port,adapter,'Worst Case Original / '+name);
   if(!owLabFwMatches(adapter,versions)||!st.chip||!st.uid?.hex||!owLabWorstWriterReady(adapter))throw Error(name+': UID, Kaltstart oder NVM-Schreibvoraussetzungen nicht bestätigt. Kein NVM geschrieben.');
   if(r.uid&&r.uid!==st.uid.hex)throw Error('Andere Chip-UID.');
