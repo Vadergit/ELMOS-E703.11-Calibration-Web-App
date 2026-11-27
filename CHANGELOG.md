@@ -1,3 +1,8 @@
+## v0.7.202 – SSP3: Startmodus 0x6C05 bei NVM-Freigabe
+
+- Feldprotokoll v0.7.201: geprüfter SSP3-Abgleich mit Original-NVM 0x6C06, CFG_PADS0 0x4000 und RAM 0x6C05 scheitert an der alten 4-ms-Freigabe. SSP3 nutzt jetzt dieselbe eng begrenzte Registerprüfung wie ESP32. Debug zeigt den Registervergleich auch für SSP3.
+- NVM-Ziel bleibt 0x6C02 aus dem Original, nicht aus dem RAM. UID, CRC, Backup, AFE-/DSP-Prüfung, Adressschutz, explizite Bestätigung und abschliessender Readback unverändert. Regressionstest für SSP3 und unzulässige Abweichungen ergänzt; Hardware-Schreibtest und Wiederanlauf weiterhin offen.
+
 ## v0.7.201 – ESP32-Worst-Case Versionsprüfung
 
 - Korrigiert die Vorprüfung des ESP32-v0.14-Schreibtests: tatsächliche .VERSION-Antwort statt Anzeige-/Capability-Beschreibung. Das Protokoll vom Sensor 0020018B39FA zeigte erfolgreiche Recovery und vollständige Bridge-Capabilities, aber einen Abbruch vor der NVM-Sicherung.

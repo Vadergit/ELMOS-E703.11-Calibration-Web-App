@@ -232,7 +232,7 @@ if(typeof document!=='undefined') (function UI(){
    originalStartupValid:check(startup?.ok,startup,'valid'),
    timedSelection:check(timed?context.timedChecked&&!context.timedDisabled:null,{requested:timed,checked:context.timedChecked,disabled:context.timedDisabled},'checked and enabled when requested'),
    timedAodoPinBlocked:check(timed&&hasWords?CAL.aodoPinBlocked(w):null,hasWords?CAL.aodoPinBlocked(w):null,true),
-   timedRamEqualsNvm:check(timed&&bridge&&hasWords?CAL.timedPlcRamMatches(w,ram):null,{ram,nvm:w?.[17],startupCom:hasWords?w[18]>>>14:null},'equal or validated temporary PLC RAM mode (0x6C04 / 0x6C05 with startup_com=1)'),
+   timedRamEqualsNvm:check(timed&&hasWords?CAL.timedPlcRamMatches(w,ram):null,{ram,nvm:w?.[17],startupCom:hasWords?w[18]>>>14:null},'equal or validated temporary PLC RAM mode (0x6C04 / 0x6C05 with startup_com=1)'),
    timedNoRamRecovery:check(timed&&bridge?!st.psscRamRecovery:null,!!st.psscRamRecovery,false),
    timedNoColdStartAfeRestore:check(timed&&bridge?!st.coldStartAfeRestored:null,!!st.coldStartAfeRestored,false),
    timedPowerEnabled:check(timed&&bridge?st.sensorPowerEnabled:null,!!st.sensorPowerEnabled,true),
@@ -1609,7 +1609,7 @@ if(typeof document!=='undefined') (function UI(){
     CAL.timedPlcRamMatches(words,ram)&&
     st.sensorPowerEnabled&&bridgeCombinedRecoveryReady();
   return st.adapterKind==='ssp3'&&st.mode==='usb'&&st.chip&&!st.closing&&!st.sensorLost&&
-   (ram===words[17]||(words[17]===0x6C06&&ram===0x6C04));
+   CAL.timedPlcRamMatches(words,ram);
  }
  function timedBridgeBlockReason(words){
   const missing=[];

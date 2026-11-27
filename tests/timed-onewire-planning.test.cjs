@@ -82,3 +82,20 @@ test('v0.7.182 field trace: startup_com=1 yields 0x6C05 in RAM without copying i
  assert.equal(C.oneWireBootRegisterMatches(after,0x6c05,6,{startupAccess:false}),false);
  assert.equal(C.oneWireBootRegisterMatches(after,0x7c05,6,{startupAccess:true}),false);
 });
+
+ test('v0.7.201 SSP3 field trace: AFE recovery and startup_com=1 allow only documented RAM mode',()=>{
+ const C=require('../calibration.js'), P=require('../app.js');
+ const w=Array(64).fill(0);w[16]=0x1214;w[17]=0x6c06;w[18]=0x4000;w[19]=0x099f;w[22]=0x0880;w[63]=C.crc16(w);
+ const start=app.indexOf(' function timedOneWireReady('),end=app.indexOf(' function i2cNvmSupported(',start);
+ const base={iface:'plc',adapterKind:'ssp3',mode:'usb',port:{},chip:true,plcAddressVerified:true,plcAddress:0x6c,regs:{6:0x6c05},nvmBackup:w,coldStartAfeRestored:true};
+ const run=(changes={},words=w,backup=true)=>new Function('st','CAL','P','hasCurrentNvmBackup','bridgeCombinedRecoveryReady',app.slice(start,end)+';return timedOneWireReady;')({...base,nvmBackup:words,...changes},C,P,()=>backup,()=>false)(words);
+ assert.equal(run(),true);
+ for(const ram of [0x6c04,0x6c06])assert.equal(run({regs:{6:ram}}),true);
+ for(const ram of [0x6c00,0x6c01,0x6c02,0x6c03,0x6c07,0x7c05,0x6d05])assert.equal(run({regs:{6:ram}}),false);
+ const other=w.slice();other[18]=0;assert.equal(run({},other),false);
+ for(const changes of [{plcAddressVerified:false},{plcAddress:0x7c},{sensorLost:true},{closing:true},{chip:false},{iface:'i2c'}])assert.equal(run(changes),false);
+ assert.equal(run({},w,false),false);
+ const scaling=C.analogScaling(.5,4.5,5,30000);
+ const after=C.prepareOutputConfig(w,{mode:'1',scaleEnabled:true,timedOneWire:true,gain:scaling.gain,offset:scaling.offset,clipping:{mode:'on',low:.25,high:4.75,vdd:5}},30000,{interfaceMode:'plc'});
+ assert.equal(after[17],0x6c02);assert.equal(after[18],w[18]);assert.equal(after[19],w[19]);assert.equal(w[17],0x6c06);
+ });
