@@ -20,3 +20,9 @@ assert.ok(p.best.muxMin>=.425&&p.best.muxMax<=1);
 assert.equal(t.plan({minOhm:10,maxOhm:100000,svddCode:2}).best,null);
 assert.deepEqual(t.merge({afe0:0x0d82,afe2:0x1140,cfgEn:0x13d6,code:7,svddCode:2}),{afe0:0x0d72,afe2:0x114a,cfgEn:0x13da});
 console.log('temperature AFE: reference calculations, limits, register masks and edge cases passed');
+
+const dll=require('./fixtures/temperature-afe-dll.json');
+assert.equal(dll.i2u.length,16);
+for(const x of dll.i2u)near(t.rpga(x.code).i2u,x.i2u);
+assert.ok(dll.selections.some(x=>x.tpga1!==2||x.tpga2!==1));
+console.log('All 16 RPGA I/U constants match the native DLL output');
