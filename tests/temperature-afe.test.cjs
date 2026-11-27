@@ -26,3 +26,18 @@ assert.equal(dll.i2u.length,16);
 for(const x of dll.i2u)near(t.rpga(x.code).i2u,x.i2u);
 assert.ok(dll.selections.some(x=>x.tpga1!==2||x.tpga2!==1));
 console.log('All 16 RPGA I/U constants match the native DLL output');
+
+const CAL=require('../calibration.js');
+for(const sample of dll.calSimulation){
+ assert.equal(sample.rc,0);
+ for(let i=0;i<sample.t.length;i++)near(t.correctedBridgeTemperature(sample.t[i],sample.tc[i],sample.g01,sample.g2off)*32767/32768,sample.dspT[i],1e-6);
+}
+const sample=dll.calVerify,fac=dll.calWords;
+const pts=sample.adc_t.map((adc_t,i)=>({adc_t,adc_tc:sample.adc_tc[i],adc_s:sample.adc_s[i],pressure:(sample.targetS[i]+32000)/640,temperature:(sample.targetT[i]+16485)/387.88,temperatureSource:'bridge'}));
+const solution=t.fitBridgeOffline(pts,{pmin:0,pmax:100,orderS:1,orderT:1,outputLimit:32000},fac,CAL.fit);
+assert.equal(solution.offlineOnly,true);
+assert.ok(solution.stats.maxDigits<10);
+assert.ok(solution.stats.maxTemperatureDigits<200);
+assert.throws(()=>t.fitBridgeOffline(pts,{pmin:0,pmax:100,orderS:1,orderT:1}, {...fac,afe2:0x114e}, CAL.fit));
+assert.throws(()=>t.fitBridgeOffline([{...pts[0],adc_tc:null}],{},fac,CAL.fit));
+console.log('63 native DLL simulation samples match the shunt correction model; offline synthetic bridge fit passed');

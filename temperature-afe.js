@@ -64,7 +64,29 @@ function buildTemperatureAFE(){
   rpga(code);assert([0,1,2].includes(svddCode),'Ungültiger SVDD-Code.');
   return {afe0:(afe0&~0x00f3)|(code<<4)|svddCode,afe2:(afe2&~0x08ff)|0x004a,cfgEn:(cfgEn&~0x000c)|0x0008};
  }
- return Object.freeze({SUPPLIES,SUPPLY_LIMITS,rpga,equivalent,linearRange,signal,estimate,plan,merge});
+ function correctedBridgeTemperature(adcT,adcTC,g01,g2off){
+ if(![adcT,adcTC].every(v=>Number.isFinite(v)&&v>=-32768&&v<=32767))throw RangeError("ADC_T und ADC_TC als gültige signed 16-Bit-Rohwerte erforderlich.");
+ if(![g01,g2off].every(v=>Number.isInteger(v)&&v>=0&&v<=65535))throw RangeError("Originale G01/G2OFF-Wörter erforderlich.");
+ const s8=v=>v&128?v-256:v;
+ const g0=s8(g01&255)/2048,g1=s8((g01>>8)&255)/1024,g2=s8(g2off&255)/2048,goff=s8((g2off>>8)&255)/32;
+ const tc=adcTC/32768,k=g0+g1*tc+g2*tc*tc;
+ return adcT+(adcT+goff*32768)*k;
+}
+function fitBridgeOffline(points,opts={},factory,fit){
+ if(!factory||!Number.isInteger(factory.afe2)||(factory.afe2&255)!==0x4a||
+    !Number.isInteger(factory.cfgEn)||(factory.cfgEn&12)!==8)
+  throw Error("Brückenquelle, werkseitige TPGA/ADC_TC-Gains und Shunt-Kompensation erforderlich.");
+ if(typeof fit!=="function")throw Error("Druck-/Temperatur-Fitfunktion fehlt.");
+ const adjusted=points.map(p=>{
+  if(p.temperatureSource!=="bridge")throw Error("Messpunkt gehört nicht zur Brückentemperaturquelle.");
+  const value=correctedBridgeTemperature(p.adc_t,p.adc_tc,factory.g01,factory.g2off);
+  if(value< -32768||value>32767)throw Error("Korrigierter Temperaturrohwert ausserhalb 16-Bit-Bereich.");
+  return {...p,adc_t:value,rawAdcT:p.adc_t};
+ });
+ const result=fit(adjusted,opts);
+ return {...result,temperatureSource:"bridge",temperatureCorrection:"dll-reference-float-model",correctedTemperatureDigits:adjusted.map(x=>x.adc_t),rawTemperatureDigits:adjusted.map(x=>x.rawAdcT),factoryWords:{g01:factory.g01,g2off:factory.g2off},offlineOnly:true};
+}
+ return Object.freeze({SUPPLIES,SUPPLY_LIMITS,rpga,equivalent,linearRange,signal,estimate,plan,merge,correctedBridgeTemperature,fitBridgeOffline});
 }
 const ELMOS_TEMPERATURE_AFE=buildTemperatureAFE();
 if(typeof module!=="undefined"&&module.exports)module.exports=ELMOS_TEMPERATURE_AFE;
