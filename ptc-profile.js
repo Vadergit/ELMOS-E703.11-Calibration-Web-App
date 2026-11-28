@@ -1,6 +1,6 @@
 "use strict";
 function buildPtcProfile(A){
- const defaults=Object.freeze({bridgeOhm:10000,bridgeTolerance:10,parallelOhm:7000,parallelTolerance:20,bridgeCold:120,bridgeHot:180,ptcTcr:2000,ptcTcrTolerance:20,minTemp:-40,maxTemp:125,svddCode:2,fullSupplyTolerance:true});
+ const defaults=Object.freeze({bridgeOhm:10000,bridgeTolerance:10,parallelOhm:7000,parallelTolerance:20,bridgeCold:120,bridgeHot:180,bridgePressureVariation:0.1,ptcTcr:2000,ptcTcrTolerance:20,minTemp:-40,maxTemp:125,svddCode:2,fullSupplyTolerance:true});
  const check=(b,m)=>{if(!b)throw new RangeError(m)};
  const pos=(v,m)=>{check(Number.isFinite(v)&&v>0,m);return v};
  const limits=(v,t)=>[v*(1-t/100),v*(1+t/100)];
@@ -8,7 +8,7 @@ function buildPtcProfile(A){
  function validate(p){
   pos(p.bridgeOhm,'Brückenwiderstand muss positiv sein.');
   if(p.parallelOhm!==null)pos(p.parallelOhm,'PTC-Widerstand muss positiv sein.');
-  for(const k of ['bridgeTolerance','parallelTolerance','ptcTcrTolerance'])check(Number.isFinite(p[k])&&p[k]>=0&&p[k]<100,k+' muss zwischen 0 und unter 100 % liegen.');
+  for(const k of ['bridgeTolerance','parallelTolerance','ptcTcrTolerance','bridgePressureVariation'])check(Number.isFinite(p[k])&&p[k]>=0&&p[k]<100,k+' muss zwischen 0 und unter 100 % liegen.');
   for(const k of ['bridgeCold','bridgeHot','ptcTcr'])check(Number.isFinite(p[k])&&p[k]>=0,k+' muss nichtnegativ sein (PTC-Modell).');
   check(Number.isFinite(p.minTemp)&&Number.isFinite(p.maxTemp)&&p.minTemp<p.maxTemp,'Ungültiger Temperaturbereich.');
   check([0,1,2].includes(p.svddCode),'Ungültiger SVDD-Code.');
@@ -36,11 +36,15 @@ function buildPtcProfile(A){
   const nominalB=p.bridgeOhm;
   const nominalP=anchor?1/(1/anchor.ohm-1/(nominalB*factor(anchor.temp,p.bridgeCold,p.bridgeHot)))/factor(anchor.temp,p.ptcTcr):p.parallelOhm;
   pos(nominalP,'Nominaler PTC-Widerstand nicht bestimmbar.');
-  const endpoints=scenarios.flatMap(s=>[p.minTemp,p.maxTemp].map(t=>resistance(t,s.b,s.p,p.bridgeCold,p.bridgeHot,s.pt)));
+  // Product 560 notes: ~0.1% change of bridge resistance over pressure range.
+  // Unknown pressure at the resistance anchor: allow both signs as an envelope.
+  const pressureFactors=unique([1-p.bridgePressureVariation/100,1+p.bridgePressureVariation/100]);
+  const envelopeAt=t=>scenarios.flatMap(s=>pressureFactors.map(f=>resistance(t,s.b*f,s.p,p.bridgeCold,p.bridgeHot,s.pt)));
+  const endpoints=[p.minTemp,p.maxTemp].flatMap(envelopeAt);
   const nominalAt=t=>resistance(t,nominalB,nominalP,p.bridgeCold,p.bridgeHot,p.ptcTcr);
   const tcr=bT=>(nominalP*bT+nominalB*p.ptcTcr)/(nominalB+nominalP);
-  const samples=Array.from({length:33},(_,i)=>{const temp=p.minTemp+(p.maxTemp-p.minTemp)*i/32;const values=scenarios.map(s=>resistance(temp,s.b,s.p,p.bridgeCold,p.bridgeHot,s.pt));return {temp,min:Math.min(...values),max:Math.max(...values),nominal:nominalAt(temp)}});
-  return {minOhm:Math.min(...endpoints),maxOhm:Math.max(...endpoints),nominalOhm:nominalAt(25),nominalPtcOhm:nominalP,ptcMinOhm:nominalP*factor(p.minTemp,p.ptcTcr),ptcMaxOhm:nominalP*factor(p.maxTemp,p.ptcTcr),nominalMinOhm:nominalAt(p.minTemp),nominalMaxOhm:nominalAt(p.maxTemp),effectiveCold:tcr(p.bridgeCold),effectiveHot:tcr(p.bridgeHot),inferred,profileMismatch:!!inferred&&ps.length>0&&(inferred.min<ps[0]||inferred.max>ps[ps.length-1]),samples};
+  const samples=Array.from({length:33},(_,i)=>{const temp=p.minTemp+(p.maxTemp-p.minTemp)*i/32;const values=envelopeAt(temp);return {temp,min:Math.min(...values),max:Math.max(...values),nominal:nominalAt(temp)}});
+  return {minOhm:Math.min(...endpoints),maxOhm:Math.max(...endpoints),nominalOhm:nominalAt(25),nominalPtcOhm:nominalP,ptcMinOhm:nominalP*factor(p.minTemp,p.ptcTcr),ptcMaxOhm:nominalP*factor(p.maxTemp,p.ptcTcr),nominalMinOhm:nominalAt(p.minTemp),nominalMaxOhm:nominalAt(p.maxTemp),effectiveCold:tcr(p.bridgeCold),effectiveHot:tcr(p.bridgeHot),pressureTemperatureErrorC:p.bridgePressureVariation*10000*nominalP/(nominalB+nominalP)/Math.min(tcr(p.bridgeCold),tcr(p.bridgeHot)),inferred,profileMismatch:!!inferred&&ps.length>0&&(inferred.min<ps[0]||inferred.max>ps[ps.length-1]),samples};
  }
  function plan(input={},anchor=null){
   const p={...defaults,...input};const r=range(p,anchor);return {...r,selection:A.plan({minOhm:r.minOhm,maxOhm:r.maxOhm,svddCode:p.svddCode,fullSupplyTolerance:p.fullSupplyTolerance})};
