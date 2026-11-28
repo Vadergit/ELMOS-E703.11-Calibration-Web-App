@@ -17,10 +17,23 @@ const assert=require('node:assert/strict');
   const usePreset=name=>page.evaluate(name=>{window.__testGuided.preset(name);window.__testGuided.go(2)},name);
   const source=value=>page.evaluate(value=>{document.getElementById('calTempSource').value=value;window.ELMOS_GUIDED.temperatureSourceChanged();},value);
   const go=n=>page.evaluate(n=>window.__testGuided.go(n),n);
+  const standalone=page.locator('.ptc-offline-diagnostic');
+  assert.equal(await standalone.count(),1);
+  const verifyStandaloneHidden=async()=>{
+   assert.equal(await standalone.evaluate(el=>!!el.closest('#guidedWorkspace')),true);
+   // Expert mode may reveal classic controls; guided CSS must still hide this row.
+   assert.equal(await standalone.evaluate(el=>{const old=el.hidden;el.hidden=false;try{return getComputedStyle(el).display}finally{el.hidden=old}}),'none');
+   assert.equal(await standalone.isVisible(),false);
+  };
+  await usePreset('tke');await source('internal');await go(3);
+  await verifyStandaloneHidden();
+  assert.equal(await page.locator('#gwPtcControls').isVisible(),false);
+  assert.equal(await page.locator('#gwPtcPlot').isVisible(),false);
   for(const type of ['bridge','external']){
    await usePreset('tke');await source(type);
    assert.equal(await page.locator('#gwPtcSetup').isVisible(),true);
    await go(3);
+   await verifyStandaloneHidden();
    assert.equal(await page.locator('#gwPtcControls').isVisible(),true);
    assert.equal(await page.locator('#gwPtcPlot').isVisible(),true);
    await page.locator('#gwPtcControls [data-ptc-help="method"]').click();
@@ -35,6 +48,7 @@ const assert=require('node:assert/strict');
    assert.equal(await page.locator('#gwPtcSetup').isVisible(),false);
    assert.equal(await page.locator('#calTempSource').isVisible(),false);
    await go(3);
+   await verifyStandaloneHidden();
    assert.equal(await page.locator('#gwPtcControls').isVisible(),false);
    assert.equal(await page.locator('#gwPtcPlot').isVisible(),false);
    assert.equal(await page.evaluate(()=>window.ELMOS_PTC_DEV_UI.active()),false);
