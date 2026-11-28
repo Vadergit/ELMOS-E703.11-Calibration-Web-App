@@ -16,7 +16,7 @@ const ELMOS_GUIDED=(()=>{
   ['Ausgang','Ausgang und Skalierung','Kontrolliere AODO-Ausgangsart, Versorgungsspannung und Zielspannungen.'],
   ['Alarme','Alarme & Fehler (optional)','Ohne Änderungen weitergehen oder Alarme für diesen Sensor konfigurieren, anschliessend im RAM bestätigen.'],
   ['NVM','Sicher im Sensor speichern','Prüfe die Änderungsliste. Die App gleicht die Chip-UID vor dem Schreiben automatisch ab.'],
-  ['Fertig','Sensor abgeschlossen','Der Schreibvorgang wurde bestätigt. Für die Freigabe unbedingt einen echten Kaltstarttest durchführen.']
+  ['Fertig','Abschlussprüfung','NVM und Neustartstatus kontrollieren. Den elektrischen Ausgang vor der Freigabe messen.']
  ];
  let stage=0,task='calibration',root=null,original=[],mode=false,plan=null,signature=null,taskOpening=false;
  let selectedPoint=0,visited=new Set([0]),poll=null,pendingCapture=null,afeStatsStart=0,afeGainSignature='';
@@ -136,7 +136,7 @@ const ELMOS_GUIDED=(()=>{
     '<p class="muted small">Beim Überspringen bleiben bereits vorhandene Alarmregister unverändert. Alarme deaktivieren erfordert eine ausdrücklich vorgemerkte Einstellung.</p></div></div>'+
    '<div id="gwPage9" class="gw-page" hidden><div class="gw-columns"><div class="gw-tile gw-control"><h3>Änderungen prüfen und bestätigen</h3><div id="gwNvmBackup"></div><div class="gw-panel-actions" id="gwNvmPrepare"></div><div id="gwNvmMessages"></div><div class="gw-panel-actions" id="gwNvmWrite"></div><div id="gwNvmDetails"></div></div><div class="gw-tile is-warning"><h3>Wichtig vor dem NVM-Schreiben</h3><p>Ein Stromunterbruch während der Programmierung kann den Sensor unbrauchbar machen.</p><p>Prüfe Chip-UID und die Änderungsübersicht. Zuerst an einem entbehrlichen Testchip validieren.</p><p>Der Button ist nur freigegeben, wenn die bestehende Sicherheitslogik alle Voraussetzungen bestätigt.</p></div></div></div>'+
    '<div id="gwPage10" class="gw-page gw-finish-page" hidden><section class="gw-finish-signal"><div class="gw-finish-top"><div><span class="gw-kicker">Live-Sensorsignal</span><h3>Aktueller Sensorausgang</h3></div><span id="gwFinishStatus" class="gw-live-badge">Warte auf Chipwerte</span></div><div class="gw-finish-number" aria-live="off"><strong id="gwFinishSignalValue">—</strong><span id="gwFinishSignalUnit">—</span></div><div id="gwFinishSource" class="gw-finish-caption">DSP_S wird vom Chip gelesen und auf den eingestellten Anzeigebereich bezogen.</div><div class="gw-finish-bar"><span id="gwFinishBar"></span></div><div class="gw-finish-limits"><span id="gwFinishRangeMin">—</span><span id="gwFinishRangeMax">—</span></div><div class="gw-finish-kpis"><div><span>DSP_S</span><strong id="gwFinishDsp">—</strong><small>Digits</small></div><div><span>ADC_S</span><strong id="gwFinishAdc">—</strong><small>Digits</small></div><div><span>ADC_T</span><strong id="gwFinishTemp">—</strong><small>Digits</small></div><div><span>Letzte Messung</span><strong id="gwFinishTime">—</strong></div></div></section>'+
-    '<div class="gw-columns gw-finish-bottom"><section class="gw-tile"><div class="gw-section-head"><div><h3>Signalverlauf</h3><p>ADC_S im Zeitverlauf · letzte 60 Sekunden</p></div></div><div id="gwFinishChartHost" class="gw-finish-chart"></div></section><section class="gw-tile gw-finish-checklist"><h3>Abgleich und Freigabe</h3><div id="gwFinishCompletion" class="gw-alert">NVM-Status prüfen.</div><p id="gwFinishConfig">Gewünschte Ausgangseinstellungen werden hier als Sollwerte dargestellt.</p><p class="gw-finish-warning">Vor der Freigabe den Sensor stromlos machen und den Ausgang nach dem Neustart mit einem Messgerät prüfen. Die Anzeige ersetzt keinen Hardwaretest.</p><div class="gw-panel-actions" id="gwPostBoot"></div><button class="gw-secondary-link" id="gwBackClassic" type="button">Zur vollständigen Expertenansicht wechseln</button></section></div></div>'+
+    '<div class="gw-columns gw-finish-bottom"><section class="gw-tile"><div class="gw-section-head"><div><h3>Signalverlauf</h3><p>ADC_S im Zeitverlauf · letzte 60 Sekunden</p></div></div><div id="gwFinishChartHost" class="gw-finish-chart"></div></section><section class="gw-tile gw-finish-checklist"><h3>Abgleich und Freigabe</h3><div id="gwFinishCompletion" class="gw-alert">NVM-Status prüfen.</div><p id="gwFinishConfig">Gewünschte Ausgangseinstellungen werden hier als Sollwerte dargestellt.</p><p id="gwFinishWarning" class="gw-finish-warning">Vor der Freigabe den Ausgang mit einem Messgerät prüfen. Die Anzeige ersetzt keinen Hardwaretest.</p><div class="gw-panel-actions" id="gwPostBoot"></div><button class="gw-secondary-link" id="gwBackClassic" type="button">Zur vollständigen Expertenansicht wechseln</button></section></div></div>'+
    '<section id="gwSwapPage" class="gw-tile" hidden><ol><li>Stecke den fertig abgeglichenen Sensor ab.</li><li>Schliesse den nächsten Sensor am Programmieradapter an.</li><li>Klicke auf «Neuen Sensor verbinden».</li></ol><p>Der Assistent übernimmt den Messplan und die Ausgangsvorgaben. Er schreibt die Frontend-Einstellungen ins RAM des neuen Sensors. Für ihn nimmst du danach neue Messwerte auf.</p><div class="gw-panel-actions"><button id="gwSwapConnect" class="primary" type="button">Neuen Sensor verbinden</button><button id="gwSwapChoose" type="button" hidden>USB-Port auswählen</button><button id="gwSwapCancel" type="button">Serie abbrechen</button></div></section>'+
    '<section id="gwConnectionPage" class="gw-page gw-connection-page" hidden><div class="gw-panel-actions gw-connection-backbar"><button id="gwConnectionBackTop" type="button">← Zurück zum Assistenten</button></div><div class="gw-columns">'+
     '<section class="gw-tile"><h3>USB-Adapter und Chip-Protokoll</h3><p>Bei einem anderen Sensor kannst du 1-Wire, I²C oder SPI auswählen, ohne in die klassische Ansicht zu wechseln. Der bisherige USB-Port wird sicher geschlossen und mit dem neuen Protokoll neu initialisiert.</p>'+
@@ -691,8 +691,9 @@ const ELMOS_GUIDED=(()=>{
    'Ausgangs-Sollwerte nicht verfügbar.');
   const completion=$('gwFinishCompletion');
   completion.className='gw-alert '+(s.nvmDone?'success':'warn');
-  completion.textContent=s.nvmDone?'NVM-Schreibvorgang bestätigt. Kaltstart und Ausgangsmessung stehen noch aus.':
+  completion.textContent=s.postBootVerified?'NVM und Kaltstartprüfung erfolgreich. Elektrische Ausgangsmessung steht noch aus.':s.nvmDone?'NVM-Schreibvorgang bestätigt. Kaltstart und Ausgangsmessung stehen noch aus.':
    'NVM-Schreibbestätigung fehlt. Keine Hardwarefreigabe.';
+  setText('gwFinishWarning',s.postBootVerified?'Vor der Freigabe den elektrischen Ausgang mit einem Messgerät prüfen. Die Anzeige ersetzt keinen Hardwaretest.':'Vor der Freigabe den Sensor stromlos machen und das NVM erneut prüfen. Anschliessend den Ausgang elektrisch messen.');
  }
 
  function quickConnectVisible(s){return !s.demo&&!s.usbConnected&&!s.chip;}
@@ -946,8 +947,11 @@ const ELMOS_GUIDED=(()=>{
   if(mode&&restoreScroll){updateUI();apiRedraw();}
   return true;
  }
+ function wantsAutomaticPostBoot(){
+  return !!(mode&&stage===9&&!connectionOpen&&!nextSensorPending&&!calculatorOrigin);
+ }
  function onNvmProgrammed(result){
-  if(!result?.verified||!mode||stage!==9||connectionOpen||nextSensorPending||calculatorOrigin)return false;
+  if(!result?.verified||!wantsAutomaticPostBoot())return false;
   const s=state();
   if(!s.chip||!s.nvmDone||s.critical)return false;
   goto(10);
@@ -1265,7 +1269,7 @@ const ELMOS_GUIDED=(()=>{
      $('calUnit').value!==plan.unit)return null;
   return {pCount:plan.pCount,tCount:plan.tCount,fitMode:plan.fitMode};
  }
- return {init,open,close,openNvmCalculator,closeNvmCalculator,temperatureSourceChanged,onNvmProgrammed,preferredView:()=>rememberedView()==='classic'?'classic':'guided',goToStart:()=>{if(mode&&!nextSensorPending)goto(0)},goToCoefficients:()=>{if(mode&&task==='calibration'&&!nextSensorPending)goto(5)},resetForHome,hasUnfinishedTask,hasPendingOperation,onConnected,onSensorReset,makePlan,planForPreset:()=>mode&&stage>=1&&stage<=2?makePlan():plan,isOpen:()=>mode,appliedPlanForConfig};
+ return {init,open,close,openNvmCalculator,closeNvmCalculator,temperatureSourceChanged,onNvmProgrammed,wantsAutomaticPostBoot,preferredView:()=>rememberedView()==='classic'?'classic':'guided',goToStart:()=>{if(mode&&!nextSensorPending)goto(0)},goToCoefficients:()=>{if(mode&&task==='calibration'&&!nextSensorPending)goto(5)},resetForHome,hasUnfinishedTask,hasPendingOperation,onConnected,onSensorReset,makePlan,planForPreset:()=>mode&&stage>=1&&stage<=2?makePlan():plan,isOpen:()=>mode,appliedPlanForConfig};
 })();
 if(typeof window!=='undefined')window.ELMOS_GUIDED=ELMOS_GUIDED;
 if(typeof document!=='undefined'){
