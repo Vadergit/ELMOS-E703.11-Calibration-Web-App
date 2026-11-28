@@ -52,9 +52,10 @@ if(typeof module!=='undefined'&&module.exports)module.exports=PROTOCOL;
 if(typeof document!=='undefined') (function UI(){
  const $=id=>document.getElementById(id),P=PROTOCOL;
  const ptcDev=window.ELMOS_PTC_DEV===true;
- const demoEnabled=ptcDev||new URLSearchParams(location.search).get('demo')==='1';
- const lsGet=k=>{try{return demoEnabled?sessionStorage.getItem('demo-'+k):localStorage.getItem(k)}catch{return null}};
- const lsSet=(k,v)=>{try{if(demoEnabled)sessionStorage.setItem('demo-'+k,v);else localStorage.setItem(k,v)}catch{}};
+ const demoEnabled=new URLSearchParams(location.search).get('demo')==='1';
+ const devStoragePrefix=ptcDev?'ptc-dev-hardware-':'';
+ const lsGet=k=>{try{return demoEnabled?sessionStorage.getItem('demo-'+k):localStorage.getItem(devStoragePrefix+k)}catch{return null}};
+ const lsSet=(k,v)=>{try{if(demoEnabled)sessionStorage.setItem('demo-'+k,v);else localStorage.setItem(devStoragePrefix+k,v)}catch{}};
  // Legacy versions already persisted the last CRC-tested 64-word NVM image.
  // Cache parsing, but always compare the chip UID and six live temperature
  // registers before applying the AN0203 degrees-Celsius interpretation.
@@ -6017,9 +6018,9 @@ if(typeof document!=='undefined') (function UI(){
  $('expertMode').addEventListener('change',syncDemoExpertVisibility);
  syncDemoExpertVisibility();
  async function changeDemoMode(enabled){
-  if(ptcDev){demoMode.checked=true;return;}
   demoMode.disabled=true;
   try{
+   if(ptcDev&&shouldConfirmPageLeave(st)&&!window.confirm('Betriebsart wechseln? Ein laufender oder ungespeicherter Abgleich kann verloren gehen.')){demoMode.checked=demoEnabled;return;}
    if(st.closing||(st.port&&!await disconnect())){
     demoMode.checked=demoEnabled;
     $('settingsMsg').textContent='Demo-Modus konnte nicht gewechselt werden. Prüfe die USB-Verbindung oder warte auf den laufenden Vorgang.';
@@ -6034,6 +6035,18 @@ if(typeof document!=='undefined') (function UI(){
  }
  demoMode.addEventListener('change',()=>changeDemoMode(demoMode.checked));
  $('demoExit').addEventListener('click',()=>changeDemoMode(false));
+ if(ptcDev){
+  const modeNotice=$('ptcDevModeNotice'),modeToggle=$('ptcDevModeToggle');
+  if(modeNotice)modeNotice.hidden=false;
+  if(modeToggle){modeToggle.textContent=demoEnabled?'Zum realen Sensorbetrieb':'Zum Demo-Modus';modeToggle.onclick=()=>changeDemoMode(!demoEnabled);}
+  const info=$('ptcDevModeText');if(info)info.textContent=demoEnabled?'DEV · Simulation – keine physischen Schreibvorgänge.':'DEV · Echter Sensorbetrieb über USB. Interne Temperaturquelle freigegeben; PTC/EOC derzeit nur in der Simulation.';
+  $('demoExit').disabled=false;
+  $('demoExit').textContent='Demo verlassen';
+  if(!demoEnabled){
+   const source=$('calTempSource');source.value='internal';
+   for(const option of source.options)if(['bridge','external'].includes(option.value)){option.disabled=true;option.textContent=option.textContent.replace(' · DEV','')+' · nur Demo';}
+  }
+ }
 
  $('settingsAutoReconnect').checked=autoReconnectEnabled;
  $('settingsAutoReconnectInfo').textContent=autoReconnectEnabled?
