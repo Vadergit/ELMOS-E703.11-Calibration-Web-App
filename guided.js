@@ -102,7 +102,7 @@ const ELMOS_GUIDED=(()=>{
     '<div class="gw-monitor-actions"><div id="gwAfeLiveActions"></div><button type="button" id="gwAfeReset" class="gw-secondary-btn">Min/Max zurücksetzen</button></div><div id="gwAfeQuality" class="gw-afe-quality" role="status">Min/Max werden ab dem Start dieses AFE-Schritts erfasst.</div><div id="gwAfeMessage"></div><div id="gwPtcPlot"></div></section></div></div>'+
    '<div id="gwPage4" class="gw-page" hidden><div class="gw-points-layout"><div class="gw-point-nav" id="gwPointNav"></div><div class="gw-tile gw-control"><div id="gwPointConfirmation" class="gw-point-confirmation" hidden role="status" aria-live="polite"></div><div id="gwCurrentSetpoint" class="gw-summary gw-next-point"></div><div id="gwPointHost"></div><div id="gwSampleStatus"></div><div id="gwPointMessages"></div></div></div><details class="gw-inline-help"><summary>Hinweise zur Referenzmessung</summary><p>Druck und Temperatur sind Referenz-Sollwerte und werden nicht automatisch erzeugt. Am Prüfstand einstellen und erst bei stabilen Bedingungen aufnehmen.</p></details></div>'+
    '<div id="gwPage5" class="gw-page" hidden><div class="gw-columns"><div class="gw-tile gw-control"><h3>Polynom und DSP-Ziel</h3><div class="gw-fields gw-3" id="gwFitFields"></div><div class="gw-panel-actions" id="gwFitActions"></div><div id="gwFitStatuses"></div><div id="gwFitDetails"></div></div><details class="gw-fit-help"><summary>Ablauf und Sicherheit</summary><p>Koeffizienten berechnen, Zahlenbereich und Fehler prüfen, dann separat ins RAM übertragen und rücklesen. Anschliessend unabhängige DSP-Prüfung. Keine NVM-Programmierung.</p></details></div></div>'+
-   '<div id="gwPage6" class="gw-page" hidden><div class="gw-columns"><div class="gw-tile gw-control"><h3>Unabhängige Prüfpunkte</h3><div class="gw-fields gw-3" id="gwVerifyFields"></div><div class="gw-panel-actions" id="gwVerifyActions"></div><div id="gwVerifyStatuses"></div><details><summary>Prüfprotokoll</summary><div id="gwVerifyDetails"></div></details></div><div class="gw-verify-side"><section class="gw-tile gw-verify-chart"><div class="gw-section-head"><div><h3>Prüfergebnis und Toleranz</h3><p>Abweichung vom Referenzdruck</p></div></div><div id="gwVerifyPlot" aria-live="polite"></div></section><details class="gw-fit-help"><summary>Was prüfe ich hier?</summary><p>Prüfe die gewünschte Anzahl Punkte neu, auch an den Druckendpunkten. Bereits ein bestandener Prüfpunkt genügt für diesen Nachprüfschritt – auch bei TK0/TKE. Weitere Druck- und Temperaturpunkte sind freiwillig und erhöhen die Aussagekraft.</p><div class="gw-alert warn">Die Live-Anzeige allein zählt nicht als Prüfung. Verwende «Prüfwert aus DSP_S lesen» und kontrolliere die tatsächliche Abweichung.</div></details></div></div></div>'+
+   '<div id="gwPage6" class="gw-page" hidden><div class="gw-columns"><div class="gw-tile gw-control"><h3>Unabhängige Prüfpunkte</h3><div class="gw-fields gw-3" id="gwVerifyFields"></div><div class="gw-panel-actions" id="gwVerifyActions"></div><div id="gwVerifyStatuses" aria-live="polite"></div><details class="gw-verify-details"><summary>Prüfprotokoll und Hinweise</summary><div id="gwVerifyDetails"></div></details></div><div class="gw-verify-side"><section class="gw-tile gw-verify-chart"><div class="gw-section-head"><div><h3>Prüfergebnis und Toleranz</h3><p>Abweichung vom Referenzdruck</p></div></div><div id="gwVerifyPlot" aria-live="polite"></div></section><details class="gw-fit-help"><summary>Was prüfe ich hier?</summary><p>Prüfe die gewünschte Anzahl Punkte neu, auch an den Druckendpunkten. Bereits ein bestandener Prüfpunkt genügt für diesen Nachprüfschritt – auch bei TK0/TKE. Weitere Druck- und Temperaturpunkte sind freiwillig und erhöhen die Aussagekraft.</p><div class="gw-alert warn">Die Live-Anzeige allein zählt nicht als Prüfung. Verwende «Prüfwert aus DSP_S lesen» und kontrolliere die tatsächliche Abweichung.</div></details></div></div></div>'+
    `<div id="gwPage7" class="gw-page" hidden>
     <div class="gw-columns gw-output-layout">
      <section class="gw-tile gw-control">
@@ -187,7 +187,7 @@ const ELMOS_GUIDED=(()=>{
   move($('calCoeffList').closest('details'),'gwFitDetails');
   for(const id of ['calVerifyCount','calVerifyTolerance','devTemperatureTolerance'])if($(id))moveLabel(id,'gwVerifyFields');
   moveId('calVerifyRows','gwVerifyActions');
-  for(const id of ['calVerifyCoverage','calVerifyProgress','calRamMsg'])moveId(id,'gwVerifyStatuses');
+  for(const id of ['calVerifyCoverage','calVerifyProgress','calRamMsg'])moveId(id,'gwVerifyDetails');
   moveId('calVerifyList','gwVerifyDetails');
   moveLabel('expertOutputMode','gwOutputFields');moveId('expertPwmPeriodField','gwOutputFields');
   moveLabel('expertScaleEnable','gwOutputFields');
@@ -518,6 +518,19 @@ const ELMOS_GUIDED=(()=>{
  }
  function outputNavigationReady(s){
   return !!(s.chip&&s.calVerified&&!s.connectionBusy&&!s.outputScalingRequired&&s.calibrationOutputConfirmed&&!fixedFitBusy);
+ }
+ // Move the original status element, not a copy. Its original classic-view
+ // placeholder is retained by moveId, so restoring classic remains unchanged.
+ function syncVerificationMessages(){
+  const message=$('calRamMsg'),details=$('gwVerifyDetails'),alerts=$('gwVerifyStatuses');
+  if(!message||!details||!alerts)return;
+  const urgent=message.classList.contains('error');
+  const target=urgent?alerts:details;
+  if(message.parentNode!==target){
+   if(urgent)target.appendChild(message);
+   else target.insertBefore(message,$('calVerifyList'));
+  }
+  alerts.hidden=!urgent;
  }
  function renderVerificationPlot(){
   const host=$('gwVerifyPlot'),data=window.ELMOS_GUIDED_API?.verificationResults?.();
@@ -930,7 +943,7 @@ const ELMOS_GUIDED=(()=>{
   else for(const side of root.querySelectorAll('[data-gw-side]'))side.disabled=!!nextSensorPending||connectionOpen;
   $('gwOutputSkipAlarm').hidden=true;
   if(stage===7)updateOutputPresentation(s);
-  if(stage===6)renderVerificationPlot();
+  if(stage===6){syncVerificationMessages();renderVerificationPlot();}
   if(connectionOpen){renderConnectionStatus();return}
   if(nextSensorPending){void refreshSwapPort();return}
   $('gwChipStatus').textContent=statusText();

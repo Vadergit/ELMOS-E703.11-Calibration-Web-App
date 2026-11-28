@@ -503,3 +503,12 @@ html[data-theme="dark"] #guidedWorkspace .gw-quick-connect{background:#382e1d;co
 #guidedWorkspace .gw-footer #gwOutputSkipAlarm:disabled,#guidedWorkspace .gw-footer #gwNext:disabled{background:var(--card,#edf2f7);color:var(--muted,#697d90);border-color:var(--line,#c9d6e3);opacity:.75}
 @media(max-width:700px){#guidedWorkspace .gw-footer .gw-actions{justify-content:flex-start}#guidedWorkspace .gw-footer #gwOutputSkipAlarm{flex-basis:100%}}
 
+
+/* Guided DSP verification: normal scope and detailed results are optional reading. */
+#guidedWorkspace #gwVerifyStatuses[hidden]{display:none!important}
+#guidedWorkspace .gw-verify-details{margin-top:16px}
+#guidedWorkspace #gwVerifyDetails{padding-top:8px}
+#guidedWorkspace #gwVerifyDetails #calVerifyCoverage{background:transparent;border:0;box-shadow:none;padding:0;color:var(--ink);font-size:12px}
+#guidedWorkspace #gwVerifyDetails #calVerifyProgress{margin:8px 0}
+#guidedWorkspace #gwVerifyDetails #calRamMsg:not(.error){background:transparent;border:0;box-shadow:none;padding:0;color:var(--ink);font-size:12px}
+#guidedWorkspace #gwVerifyStatuses #calRamMsg.error{margin-top:10px}

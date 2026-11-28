@@ -1,3 +1,8 @@
+## v0.7.214 – DSP-Verifikation weiter vereinfacht
+
+- Hinweise zur Prüfabdeckung, Fortschritt und ausführliche DSP-Meldungen im standardmässig geschlossenen Bereich «Prüfprotokoll und Hinweise». Das Diagramm und die kurzen Prüfpunktbestätigungen bleiben sichtbar.
+- Fehler werden weiterhin direkt angezeigt. Alle Originaltexte bleiben verfügbar; klassische Ansicht, Kommunikation, Berechnung und NVM-Freigabe unverändert.
+
 ## v0.7.213 – DSP-Prüfgraph und Abschlussseite
 
 - Ein gemeinsamer Graph: Prüfpunkte von links nach rechts, vertikale Abweichung, horizontales Toleranzband, farbige Messpunkte und kompakte Zusammenfassung. Bestehendes Prüfprotokoll bleibt erhalten.
