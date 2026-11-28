@@ -16,6 +16,7 @@ function element(id=''){
   appendChild(a){this.children.push(a)},
   setAttribute(k,v){this.attributes[k]=v},
   addEventListener(k,fn){this.events[k]=fn},
+  querySelector(){return null},
   classList:{current:new Set(),toggle(k,yes){if(yes)this.current.add(k);else this.current.delete(k)}}
  };
  return item;
@@ -25,7 +26,7 @@ function setup(){
  const $=id=>{if(!ids.has(id))ids.set(id,element(id));return ids.get(id)};
  const points=[{index:0,slot:'lo',pressure:0,temperature:25},
   {index:1,slot:'hi',pressure:10,temperature:25}];
- const plan={total:2,unit:'bar',points};
+ const plan={total:2,tCount:1,tempComp:false,unit:'bar',points};
  const records=[];
  const rows=points.map(()=>element('original-cal-row'));
  let interval=null;
@@ -36,16 +37,16 @@ function setup(){
  const pointRow=point=>rows[point.index];
  const setText=(id,value)=>{$(id).textContent=value};
  const messages=[];
- const start=guided.indexOf(' function renderCapture(){');
+ const start=guided.indexOf(' function captureNumber(');
  const end=guided.indexOf(' function statusText(){',start);
  assert.ok(start>0&&end>start);
- const source='let stage=4,mode=true,selectedPoint=0,latestCapture=null,'+
+ const source='const originalCaptureLabels=new Map();let stage=4,mode=true,selectedPoint=0,latestCapture=null,'+
   'lastCaptureRenderKey=null,pendingCapture=null,signature="test-plan";'+
   guided.slice(start,end)+
   ';return {renderCapture,observeCapture,getSelected:()=>selectedPoint};';
- const fn=new Function('$','document','window','plan','state','pointRecord','pointRow','setText','msg',source);
+ const fn=new Function('$','document','window','plan','state','pointRecord','pointRow','setText','msg','ELMOS_GUIDED_PLAN',source);
  const logic=fn($,document,window,plan,state,pointRecord,pointRow,setText,
-  (message,kind)=>messages.push({message,kind}));
+  (message,kind)=>messages.push({message,kind}),require('../guided-plan.js'));
  return {logic,$,rows,messages,records,
   store:r=>records.push(r),
   tick:()=>interval?.(),
@@ -60,7 +61,8 @@ test('captured point is confirmed in one line, next point becomes active',()=>{
  assert.equal(h.$('gwPointConfirmation').hidden,false);
  assert.equal(h.$('gwPointConfirmation').textContent,'✓ Messpunkt 1 aufgenommen');
  assert.match(h.$('gwCurrentSetpoint').textContent,/Als Nächstes: Messpunkt 2 messen/);
- assert.match(h.$('gwCurrentSetpoint').textContent,/10 bar und 25 °C/);
+ assert.match(h.$('gwCurrentSetpoint').textContent,/10 bar ein/);
+ assert.doesNotMatch(h.$('gwCurrentSetpoint').textContent,/°C/);
  assert.match(h.$('gwPointNav').children[0].textContent,/Aufgenommen/);
  assert.match(h.$('gwPointNav').children[1].textContent,/Jetzt messen/);
  assert.equal(h.rows[1].classList.current.has('gw-point-active'),true);

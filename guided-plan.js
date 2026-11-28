@@ -93,6 +93,56 @@ const ELMOS_GUIDED_PLAN=(()=>{
   }
   return null;
  }
- return {create,presets,captureDelta,sortReferences};
+ // Calculate end-to-end raw ADC spans from measured references only.
+ function captureSpans(entries){
+  const valid=entries.map((e,index)=>({index,record:e.record}))
+   .filter(e=>e.record&&Number.isFinite(e.record.pressure)&&Number.isFinite(e.record.temperature));
+  const out=[];
+  for(const kind of ['pressure','temperature']){
+   const fixed=kind==='pressure'?'temperature':'pressure',vary=kind==='pressure'?'pressure':'temperature';
+   const channel=kind==='pressure'?'adc_s':'adc_t',tolerance=kind==='pressure'?0.5:1e-6;
+   const groups=[];
+   for(const e of valid){
+    if(!Number.isFinite(e.record[channel]))continue;
+    let group=groups.find(g=>g.every(x=>Math.abs(x.record[fixed]-e.record[fixed])<=tolerance));
+    if(!group){group=[];groups.push(group)}
+    group.push(e);
+   }
+   for(const group of groups){
+    // Duplicate physical references use the latest successful capture (timestamp, then slot).
+    const epsilon=kind==='pressure'?1e-6:0.5;
+    const ordered=group.slice().sort((a,b)=>a.record[vary]-b.record[vary]||a.index-b.index);
+    const distinct=[];
+    for(const item of ordered){
+     let bucket=distinct.find(b=>b.every(x=>Math.abs(x.record[vary]-item.record[vary])<=epsilon));
+     if(!bucket){bucket=[];distinct.push(bucket)}bucket.push(item);
+    }
+    const latest=b=>b.reduce((x,y)=>{
+     const xt=Date.parse(x.record.at||''),yt=Date.parse(y.record.at||'');
+     return Number.isFinite(xt)&&Number.isFinite(yt)&&xt!==yt?(yt>xt?y:x):y.index>x.index?y:x;
+    });
+    const lo=latest(distinct[0]),hi=latest(distinct[distinct.length-1]);
+    if(hi.record[vary]-lo.record[vary]<=(kind==='pressure'?1e-6:0.5))continue;
+    const delta=hi.record[channel]-lo.record[channel];
+    out.push({kind,channel,fixed:lo.record[fixed],from:lo.record[vary],to:hi.record[vary],fromIndex:lo.index,toIndex:hi.index,delta,span:Math.abs(delta),rawMin:Math.min(lo.record[channel],hi.record[channel]),rawMax:Math.max(lo.record[channel],hi.record[channel])});
+   }
+  }
+  return out;
+ }
+ // Compare spans only over equal physical intervals, not incomplete ranges.
+ function summarizeSpans(spans){
+  const groups=[];
+  for(const s of spans){
+   const tolerance=s.kind==='pressure'?1e-6:0.5;
+   let group=groups.find(g=>g.kind===s.kind&&g.items.every(x=>Math.abs(x.from-s.from)<=tolerance&&Math.abs(x.to-s.to)<=tolerance));
+   if(!group){group={kind:s.kind,from:s.from,to:s.to,items:[]};groups.push(group)}
+   group.items.push(s);
+  }
+  return groups.filter(g=>g.items.length>1).map(g=>{
+   const values=g.items.map(x=>x.span),min=Math.min(...values),max=Math.max(...values);
+   return {kind:g.kind,from:g.from,to:g.to,count:values.length,min,max,delta:max-min};
+  });
+ }
+ return {create,presets,captureDelta,captureSpans,summarizeSpans,sortReferences};
 })();
 if(typeof module!=='undefined'&&module.exports)module.exports=ELMOS_GUIDED_PLAN;

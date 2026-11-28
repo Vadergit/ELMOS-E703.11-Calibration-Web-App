@@ -408,3 +408,69 @@ html[data-theme="dark"] #guidedWorkspace .gw-quick-connect{background:#382e1d;co
 /* A pressure-only fit has no selectable thermal model. */
 #guidedWorkspace #gwFitFields.gw-fit-without-temperature{grid-template-columns:repeat(2,minmax(0,1fr))}
 @media(max-width:520px){#guidedWorkspace #gwFitFields.gw-fit-without-temperature{grid-template-columns:1fr}}
+
+/* Shared temperature help: formula and corresponding example, not two copies. */
+
+/* Compact raw spans: no separate coloured status cards. */
+#guidedWorkspace .gw-capture-spans{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,190px),1fr));gap:6px 16px;margin-top:8px;padding-top:8px;border-top:1px solid var(--line);font-variant-numeric:tabular-nums}
+#guidedWorkspace .gw-capture-spans>div{display:grid;gap:2px;min-width:0;font-size:12px}
+#guidedWorkspace .gw-capture-spans strong{font-size:20px;line-height:1.15;color:inherit;white-space:nowrap}
+#guidedWorkspace .gw-capture-spans small{font-size:11px;opacity:.85}
+
+/* Comparable span variation: neutral, compact, no redundant status tiles. */
+#guidedWorkspace .gw-span-overview{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,220px),1fr));gap:8px 20px;margin-top:8px;font-variant-numeric:tabular-nums}
+#guidedWorkspace .gw-span-overview>div{display:grid;gap:2px;min-width:0}
+#guidedWorkspace .gw-span-overview strong{font-size:20px;line-height:1.15;color:inherit}
+#guidedWorkspace .gw-span-overview small,#guidedWorkspace .gw-span-overview span{font-size:12px}
+
+/* Compact guided workflow: quiet normal status; warnings and errors always visible. */
+#guidedWorkspace .gw-fit-help{margin:0;padding:10px;align-self:start;border:1px solid var(--line);border-radius:8px;font-size:12px}
+#guidedWorkspace .gw-afe-guide{padding:5px 0;margin:7px 0 0;background:transparent;border:0}
+#guidedWorkspace .gw-afe-guide>summary{font-size:12px;cursor:pointer}
+#guidedWorkspace #gwFitStatuses .callout.success,#guidedWorkspace #gwAFEMsg .callout.success,#guidedWorkspace #gwPointMessages .callout.success{background:transparent;border:0;padding:3px 0;margin:3px 0;font-size:11px}
+#guidedWorkspace #gwFitStatuses .callout:not(.warn):not(.error):not(.success){background:transparent;border:0;padding:3px 0;margin:3px 0}
+#guidedWorkspace .gw-capture-spans strong{font-size:18px}
+
+/* Temperature-dependent controls only when required by the guided plan. */
+#guidedWorkspace .ptc-offline-diagnostic{display:none!important}
+/* Preserve the temperature-source selector and any required external AFE controls.
+   Only hide the fit-order field when the selected plan and source are pressure-only. */
+html[data-temperature-source="internal"] #guidedWorkspace[data-temperature-compensation="off"] #gwFitFields label:has(#calTOrder){display:none!important}
+#guidedWorkspace[data-temperature-compensation="off"] #gwFitFields{grid-template-columns:repeat(2,minmax(0,1fr))}
+@media(max-width:630px){#guidedWorkspace[data-temperature-compensation="off"] #gwFitFields{grid-template-columns:1fr}}
+
+/* Guided polish: quieter normal status and shorter panels; never hide errors. */
+#guidedWorkspace .gw-inline-help{margin:5px 0;padding:5px 0;border:0;font-size:12px}
+#guidedWorkspace .gw-inline-help>summary{font-size:12px}
+#guidedWorkspace .gw-nvm-safety{align-self:start;border-left:3px solid var(--yellow);padding:8px 12px;font-size:12px;color:var(--ink)}
+#guidedWorkspace .gw-nvm-safety p{margin:5px 0;font-size:12px}
+#guidedWorkspace .gw-page .gw-tile{padding:13px 15px;border-radius:10px;box-shadow:none}
+#guidedWorkspace .gw-page .gw-tile p{margin:3px 0 6px}
+#guidedWorkspace .gw-summary:not(.gw-next-point){background:transparent;border:0;border-top:1px solid var(--line);border-radius:0;padding:7px 0;margin:8px 0;color:var(--ink)}
+#guidedWorkspace .gw-page :is(.gw-fieldnote,.gw-setup-hint){font-size:11px;line-height:1.4}
+#guidedWorkspace .gw-footer{margin-top:8px;padding-top:8px}
+#guidedWorkspace .gw-main{padding-block:13px 10px}
+#guidedWorkspace .gw-page{min-height:0}
+#guidedWorkspace .gw-desc{margin-bottom:8px}
+#guidedWorkspace :is(#gwOutputStatuses,#gwNvmMessages,#gwAFEMsg,#gwPointMessages,#gwVerifyStatuses) .callout:not(.warn):not(.error):not([role="alert"]){background:transparent;border:0;padding:3px 0;margin:3px 0;color:var(--ink);font-size:11px}
+@media(max-width:630px){#guidedWorkspace .gw-page .gw-tile{padding:10px}}
+
+/* Responsive guided navigation: allow the grid and its scrolling tracks to shrink
+   to the available viewport, without clipping labels or wrapping the whole page. */
+#guidedWorkspace,#guidedWorkspace .gw-shell,#guidedWorkspace .gw-sidebar,#guidedWorkspace .gw-sideitems,#guidedWorkspace .gw-main,#guidedWorkspace .gw-page{min-width:0;max-width:100%}
+#guidedWorkspace .gw-sideitems{grid-template-columns:minmax(0,1fr)}
+#guidedWorkspace .gw-sideitem>span:last-child{min-width:0;overflow-wrap:anywhere;white-space:normal}
+#guidedWorkspace .gw-topline,#guidedWorkspace .gw-footer .gw-actions{flex-wrap:wrap}
+#guidedWorkspace .gw-page button{max-width:100%;white-space:normal;overflow-wrap:anywhere}
+@media(max-width:790px){
+ #guidedWorkspace .gw-shell{grid-template-columns:minmax(0,1fr)}
+ #guidedWorkspace .gw-sideitems{overflow-x:auto;max-width:100%;overscroll-behavior-inline:contain}
+ #guidedWorkspace .gw-sideitem{flex:0 0 auto;min-width:100px;max-width:180px;width:auto}
+ #guidedWorkspace .gw-point-nav{min-width:0;max-width:100%}
+}
+
+/* Normal calibration: the original NVM is already secured at entry; keep a recovery action if it is not verified. Analog staging recalculates S0/S1 itself. Standalone output and classic view retain their controls. */
+#gwPage7.gw-output-no-reread #outputNvmRead,
+#gwPage7.gw-output-auto-analog #expertOutputPreset,
+#gwPage7.gw-output-calibration #gwOutputSkipAlarm { display:none !important; }
+#gwPage7.gw-output-calibration #gwOutputSkipAlarm:only-child { display:none !important; }

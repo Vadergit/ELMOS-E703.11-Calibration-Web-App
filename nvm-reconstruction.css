@@ -110,25 +110,25 @@
 #nvmReconstruction .nvmrecon-analog .nvmrecon-formula-trigger{margin:0}
 #nvmReconstruction .nvmrecon-formula-index{font-size:10.5px;text-decoration:none;font-weight:700;color:var(--blue)}
 #nvmReconstruction .nvmrecon-formula-index:hover{text-decoration:underline}
-#nvmReconstruction .nvmrecon-formula-dialog{position:fixed;inset:0;margin:auto;max-width:min(830px,calc(100vw - 30px));width:100%;max-height:min(87dvh,880px);padding:0;background:var(--paper);border:1px solid var(--line);border-radius:15px;color:var(--ink);box-shadow:0 20px 80px #0005;overflow:hidden}
-#nvmReconstruction .nvmrecon-formula-dialog::backdrop{background:rgba(7,22,38,.60)}
-#nvmReconstruction .nvmrecon-formula-close{position:absolute;top:12px;right:13px;z-index:3;min-height:30px;padding:5px 9px;border:1px solid var(--line);border-radius:7px;background:var(--paper);font-size:12px;font-weight:700;color:var(--ink)}
-#nvmReconstruction .nvmrecon-formula-content{max-height:min(87dvh,880px);overflow:auto;overscroll-behavior:contain;padding:24px 25px 30px}
-#nvmReconstruction .nvmrecon-formula-eyebrow{font-size:10px;color:var(--blue);font-weight:850;letter-spacing:.12em;text-transform:uppercase;margin-right:80px}
-#nvmReconstruction .nvmrecon-formula-title{font-size:22px;line-height:1.25;margin:5px 70px 8px 0;letter-spacing:-.02em;color:var(--ink)}
-#nvmReconstruction .nvmrecon-formula-summary{margin:0 0 11px;font-size:12.5px;line-height:1.5;color:var(--nv-muted)}
-#nvmReconstruction .nvmrecon-formula-final{display:inline-flex;max-width:100%;overflow-wrap:anywhere;align-items:center;padding:8px 12px;margin:3px 0 16px;border:1px solid var(--line);border-radius:9px;background:var(--blue-soft);font-size:16px;font-weight:800;line-height:1.45;font-variant-numeric:tabular-nums}
-#nvmReconstruction .nvmrecon-formula-steps{counter-reset:formula;list-style:none;display:grid;gap:8px;padding:0;margin:0}
-#nvmReconstruction .nvmrecon-formula-steps li{position:relative;padding:11px 12px 10px 41px;border:1px solid var(--nv-edge);border-radius:10px;background:var(--nv-soft)}
-#nvmReconstruction .nvmrecon-formula-steps li::before{counter-increment:formula;content:counter(formula);position:absolute;left:12px;top:12px;width:20px;height:20px;display:grid;place-items:center;border-radius:50%;background:var(--blue-soft);color:var(--blue);font-size:11px;font-weight:800}
-#nvmReconstruction .nvmrecon-formula-steps h3{font-size:12.5px;line-height:1.4;font-weight:800;margin:0 0 6px;color:var(--ink)}
-#nvmReconstruction .nvmrecon-formula-equation{display:block;padding:8px 10px;margin:5px 0;border:1px solid var(--line);border-radius:7px;background:var(--paper);font:600 12px/1.6 Consolas,Monaco,monospace;white-space:pre-wrap;overflow-wrap:anywhere;color:var(--ink)}
-#nvmReconstruction .nvmrecon-formula-values{font:600 11.5px/1.5 Consolas,Monaco,monospace;overflow-wrap:anywhere;color:var(--ink)}
-#nvmReconstruction .nvmrecon-formula-description{font-size:11.5px;color:var(--nv-muted);line-height:1.5;margin:5px 0 0}
-#nvmReconstruction .nvmrecon-formula-disclaimer{font-size:11px;color:var(--nv-muted);margin:12px 0;line-height:1.6}
-#nvmReconstruction .nvmrecon-formula-guide{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:750;color:var(--blue);text-decoration:none;padding:7px 0}
-#nvmReconstruction .nvmrecon-formula-guide:hover{text-decoration:underline}
-@media(max-width:630px){#nvmReconstruction .nvmrecon-formula-content{padding:18px 14px 24px}#nvmReconstruction .nvmrecon-formula-title{font-size:18px;margin-right:60px}#nvmReconstruction .nvmrecon-formula-dialog{width:calc(100vw - 14px);max-width:none;max-height:94dvh}#nvmReconstruction .nvmrecon-formula-content{max-height:94dvh}#nvmReconstruction .nvmrecon-formula-steps li{padding-left:38px}}
+:is(#nvmReconstruction .nvmrecon-formula-dialog,#ptcHelpDialog.nvmrecon-formula-dialog){position:fixed;inset:0;margin:auto;max-width:min(830px,calc(100vw - 30px));width:100%;max-height:min(87dvh,880px);padding:0;background:var(--paper);border:1px solid var(--line);border-radius:15px;color:var(--ink);box-shadow:0 20px 80px #0005;overflow:hidden}
+#nvmReconstruction .nvmrecon-formula-dialog::backdrop,#ptcHelpDialog.nvmrecon-formula-dialog::backdrop{background:rgba(7,22,38,.60)}
+:is(#nvmReconstruction,#ptcHelpDialog) .nvmrecon-formula-close{position:absolute;top:12px;right:13px;z-index:3;min-height:30px;padding:5px 9px;border:1px solid var(--line);border-radius:7px;background:var(--paper);font-size:12px;font-weight:700;color:var(--ink)}
+:is(#nvmReconstruction,#ptcHelpDialog) .nvmrecon-formula-content{max-height:min(87dvh,880px);overflow:auto;overscroll-behavior:contain;padding:24px 25px 30px}
+:is(#nvmReconstruction,#ptcHelpDialog) .nvmrecon-formula-eyebrow{font-size:10px;color:var(--blue);font-weight:850;letter-spacing:.12em;text-transform:uppercase;margin-right:80px}
+:is(#nvmReconstruction,#ptcHelpDialog) .nvmrecon-formula-title{font-size:22px;line-height:1.25;margin:5px 70px 8px 0;letter-spacing:-.02em;color:var(--ink)}
+:is(#nvmReconstruction,#ptcHelpDialog) .nvmrecon-formula-summary{margin:0 0 11px;font-size:12.5px;line-height:1.5;color:var(--nv-muted)}
+:is(#nvmReconstruction,#ptcHelpDialog) .nvmrecon-formula-final{display:inline-flex;max-width:100%;overflow-wrap:anywhere;align-items:center;padding:8px 12px;margin:3px 0 16px;border:1px solid var(--line);border-radius:9px;background:var(--blue-soft);font-size:16px;font-weight:800;line-height:1.45;font-variant-numeric:tabular-nums}
+:is(#nvmReconstruction,#ptcHelpDialog) .nvmrecon-formula-steps{counter-reset:formula;list-style:none;display:grid;gap:8px;padding:0;margin:0}
+:is(#nvmReconstruction,#ptcHelpDialog) .nvmrecon-formula-steps li{position:relative;padding:11px 12px 10px 41px;border:1px solid var(--nv-edge);border-radius:10px;background:var(--nv-soft)}
+:is(#nvmReconstruction,#ptcHelpDialog) .nvmrecon-formula-steps li::before{counter-increment:formula;content:counter(formula);position:absolute;left:12px;top:12px;width:20px;height:20px;display:grid;place-items:center;border-radius:50%;background:var(--blue-soft);color:var(--blue);font-size:11px;font-weight:800}
+:is(#nvmReconstruction,#ptcHelpDialog) .nvmrecon-formula-steps h3{font-size:12.5px;line-height:1.4;font-weight:800;margin:0 0 6px;color:var(--ink)}
+:is(#nvmReconstruction,#ptcHelpDialog) .nvmrecon-formula-equation{display:block;padding:8px 10px;margin:5px 0;border:1px solid var(--line);border-radius:7px;background:var(--paper);font:600 12px/1.6 Consolas,Monaco,monospace;white-space:pre-wrap;overflow-wrap:anywhere;color:var(--ink)}
+:is(#nvmReconstruction,#ptcHelpDialog) .nvmrecon-formula-values{font:600 11.5px/1.5 Consolas,Monaco,monospace;overflow-wrap:anywhere;color:var(--ink)}
+:is(#nvmReconstruction,#ptcHelpDialog) .nvmrecon-formula-description{font-size:11.5px;color:var(--nv-muted);line-height:1.5;margin:5px 0 0}
+:is(#nvmReconstruction,#ptcHelpDialog) .nvmrecon-formula-disclaimer{font-size:11px;color:var(--nv-muted);margin:12px 0;line-height:1.6}
+:is(#nvmReconstruction,#ptcHelpDialog) .nvmrecon-formula-guide{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:750;color:var(--blue);text-decoration:none;padding:7px 0}
+:is(#nvmReconstruction,#ptcHelpDialog) .nvmrecon-formula-guide:hover{text-decoration:underline}
+@media(max-width:630px){:is(#nvmReconstruction,#ptcHelpDialog) .nvmrecon-formula-content{padding:18px 14px 24px}:is(#nvmReconstruction,#ptcHelpDialog) .nvmrecon-formula-title{font-size:18px;margin-right:60px}:is(#nvmReconstruction .nvmrecon-formula-dialog,#ptcHelpDialog.nvmrecon-formula-dialog){width:calc(100vw - 14px);max-width:none;max-height:94dvh}:is(#nvmReconstruction,#ptcHelpDialog) .nvmrecon-formula-content{max-height:94dvh}:is(#nvmReconstruction,#ptcHelpDialog) .nvmrecon-formula-steps li{padding-left:38px}}
 
 /* Clear distinction between verified live EEPROM readings and local JSON files. */
 #nvmReconstruction .nvmrecon-read-sensor{font-size:12px;font-weight:800;min-height:36px;padding:8px 13px;border:1px solid var(--blue);border-radius:8px;background:var(--blue);color:#fff}
@@ -182,3 +182,11 @@
 #nvmReconstruction .nvmrecon-import-feedback.is-error{background:#fff0f0;border-color:#dc9ba1;color:#96313c}
 html[data-theme="dark"] #nvmReconstruction .nvmrecon-import-feedback{background:#173c2d;border-color:#3c795d;color:#c0f1d4}
 html[data-theme="dark"] #nvmReconstruction .nvmrecon-import-feedback.is-error{background:#41212b;border-color:#915360;color:#ffced5}
+
+#ptcHelpDialog{--nv-edge:var(--line);--nv-muted:var(--muted);--nv-soft:var(--panel-subtle,var(--bg))}
+#ptcHelpDialog .ptc-help-comparison{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin:6px 0}
+#ptcHelpDialog .ptc-help-comparison>div{min-width:0}
+#ptcHelpDialog .ptc-formula-label{font-size:11px;color:var(--nv-muted);font-weight:750}
+#ptcHelpDialog .nvmrecon-formula-equation{font:600 15px/1.7 Georgia,"Times New Roman",serif;white-space:pre-wrap}
+#ptcHelpDialog .nvmrecon-formula-values{white-space:pre-wrap;font-variant-numeric:tabular-nums;padding:8px 0}
+@media(max-width:630px){#ptcHelpDialog .ptc-help-comparison{grid-template-columns:1fr}}

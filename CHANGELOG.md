@@ -1,3 +1,9 @@
+## v0.7.207 – Geführte Oberfläche (UI-only)
+
+- Selektive Darstellung aus ui-ux-redesign auf Main v0.7.203: kompakte Hilfen, Messpunkt-Hubübersicht, responsives Layout und kontextbezogene Anzeige.
+- Bestehende Verbindungs-, Kalibrier-, RAM-/NVM- und Temperaturquellenlogik unverändert; keine Übernahme des Redesign-Branches oder der Fit-Automation. Erforderliche manuelle Aktionen bleiben verfügbar.
+- PTC/EOC-Hilfedialog mit Formeln und Rechenbeispielen. Hardware- und Browserprüfung stehen aus.
+
 ## v0.7.203 – PTC/EOC-Integration und automatisierte Abschlussprüfung
 
 - Übernahme des Integrationsbranches (Integration 13) in main, inklusive interner, Brücken-/PTC- und externer Temperaturquelle sowie DLL-Referenzdaten. PTC/EOC bleiben Beta-Funktionen; Hardwarevalidierung steht aus.
