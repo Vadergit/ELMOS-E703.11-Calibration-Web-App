@@ -1141,6 +1141,16 @@ if(typeof document!=='undefined') (function UI(){
  }
  function devTemperatureReady(source){return ptcDev&&(demoEnabled?!!demoPort?.ptcConfigured(source):!!hardwareTemperature(source));}
  function devTemperatureWords(){return demoEnabled?demoPort.ptcWords():hardwareTemperature();}
+ async function readFreshDevTemperature(addr,bit){
+  for(let attempt=0;attempt<20;attempt++){
+   if((await readReg(0x36))&bit){
+    const value=P.sign16(await readReg(addr)),status=await readReg(0x32);
+    if(status&bit)return {value,status};
+   }
+   await sleep(80);
+  }
+  throw Error('Keine neue '+(addr===0x28?'ADC_T':'DSP_T')+'-Konversion bestätigt (STATUS_SYNC).');
+ }
  async function configureHardwareTemperature(profile,code,temperature,onProgress){
   if(!ptcDev||demoEnabled||st.mode!=='usb'||st.iface!=='plc'||!(st.adapterKind==='ssp3'||(st.adapterKind==='bridge'&&st.bridgeGenericRam&&st.bridgeUserNvm)))throw Error('DEV Temperatur-AFE: SSP3 oder generische RAM-/User-NVM-Bridge über One-Wire erforderlich.');
   if(!hasCurrentNvmBackup())await nvmScan({expertRead:true});
@@ -1162,18 +1172,20 @@ if(typeof document!=='undefined') (function UI(){
    saved={4:boot[4],26:await readReg(0x1A),30:await readReg(0x1E)};
    const svddCode=bridgeSupplyCode(saved[26]);
    if(![0,1,2].includes(svddCode)||profile.svddCode!==svddCode)throw Error('SVDD seit AFE-Auslegung geändert.');
+   if(bridge&&(await readReg(0x66)!==original[11]||await readReg(0x68)!==original[12]))throw Error('G01/G2OFF im RAM stimmen nicht mit dem Factory-NVM überein. Sensor neu starten.');
    let target;
    const A=ELMOS_TEMPERATURE_AFE;
    const bridgeTarget=c=>A.merge({afe0:saved[26],afe2:saved[30],cfgEn:saved[4],code:c,svddCode});
    const writeTarget=async next=>{
-    if(((saved[26]^next.afe0)&~0xf0)!==0||((saved[30]^next.afe2)&~(bridge?0x08ff:0x0fff))!==0||((saved[4]^next.cfgEn)&~12)!==0||((original[29]^next.afe2)&~(bridge?0x08ff:0x0fff))!==0||(!bridge&&((original[27]^next.afe0)&0xf0)!==0))throw Error('DEV: nicht zulässige AFE-Bits oder ursprüngliches NVM-Profil.');
+    if(((saved[26]^next.afe0)&~0xf0)!==0||((saved[30]^next.afe2)&~0x0fff)!==0||((saved[4]^next.cfgEn)&~0x100c)!==0||((original[29]^next.afe2)&~0x0fff)!==0||(!bridge&&((original[27]^next.afe0)&0xf0)!==0))throw Error('DEV: nicht zulässige AFE-Bits oder ursprüngliches NVM-Profil.');
     if(await readCalibrationUid()!==uid||st.port!==port||st.sessionIndex!==session||selectedTemperatureSource()!==source)throw Error('Sensor oder Temperaturquelle gewechselt.');
     st.devTemperatureWrite={4:next.cfgEn,26:next.afe0,30:next.afe2};
     for(const addr of [0x1A,0x1E,4]){const v=st.devTemperatureWrite[addr];if(await readReg(addr)!==v){started=true;await maintWrite(addr,v);}if(await readReg(addr)!==v)throw Error('Temperatur-AFE Rücklesen fehlgeschlagen 0x'+h(addr));}
    };
    const probe=async next=>{
     await writeTarget(next);await sleep(300);
-    const samples=[];for(let i=0;i<7;i++){samples.push(P.sign16(await readReg(0x28)));if(i<6)await sleep(80);}
+    await readReg(0x28); // discard previous conversion / clear ADC_T update event
+    const samples=[];for(let i=0;i<7;i++){samples.push((await readFreshDevTemperature(0x28,0x0004)).value);if(i<6)await sleep(80);}
     const result=A.assessProbe({samples,svdd:A.SUPPLIES[svddCode],afe0:next.afe0,afe2:next.afe2});
     probes.push(result);logging('DEV RPGA '+result.code+' ADC_T '+result.adc+' · Streuung '+result.spread+' · '+(result.valid?'gültig':result.saturated?'Sättigung':'ausserhalb Bereich/instabil'));
     return result;
@@ -1189,7 +1201,7 @@ if(typeof document!=='undefined') (function UI(){
      if(!found)throw Error('Keine RPGA-Stufe mit stabilem ADC_T im spezifizierten Bereich gefunden. Brücke, PTC, SVDD und Messzyklus prüfen.');
      const uncertainty=Number(profile.measurementUncertainty??15);
      if(!Number.isFinite(uncertainty)||uncertainty<0||uncertainty>=100)throw Error('Ungültige Unsicherheit der Widerstandsschätzung.');
-     measurement={ohm:found.resistanceOhm,temp:temperature,uncertainty,adc:found.adc,current:found.current,code:found.code,spread:found.spread,source:'adc-t-estimate'};
+     measurement={ohm:found.resistanceOhm,temp:temperature,uncertainty,adc:found.adc,current:found.current,code:found.code,spread:found.spread,source:'adc-t-estimate',bounds:A.resistanceBounds({adc:found.adc,svddCode,afe0:bridgeTarget(found.code).afe0,afe2:bridgeTarget(found.code).afe2})};
      onProgress?.('Gesamtwiderstand ca. '+Math.round(measurement.ohm)+' Ω · RPGA '+found.code+' · Temperaturbereich wird berechnet …');
      plan=PTC_PROFILE.plan(profile,measurement);
      if(!plan.selection.best){const alt=PTC_PROFILE.plan({...profile,fullSupplyTolerance:false},measurement);if(alt.selection.best&&window.confirm('Kein RPGA deckt den gesamten geschätzten Widerstands- und SVDD-Toleranzbereich ab. Experimentell mit nominaler SVDD fortfahren? Temperaturgrenzen separat prüfen.')){plan=alt;nominalOnly=true;}}
@@ -1199,15 +1211,15 @@ if(typeof document!=='undefined') (function UI(){
      finalProbe=await probe(target);
      if(!finalProbe.valid)throw Error('Berechnete RPGA '+code+' liefert keinen gültigen stabilen ADC_T. AFE wurde nicht übernommen.');
      if(Math.abs(finalProbe.resistanceOhm/measurement.ohm-1)>Math.max(0.05,uncertainty/100))throw Error('Widerstandsschätzung nach RPGA-Wechsel nicht plausibel. Temperatur stabilisieren und Messung wiederholen.');
-    }else{target=bridgeTarget(A.rpga(code).code);}
+    }else{target=bridgeTarget(A.rpga(code).code);if(await readReg(0x0E)!==1)throw Error('Temperatur-AFE-Prüfung benötigt kontinuierliche Messung (CFG_PERIOD=1).');finalProbe=await probe(target);if(!finalProbe.valid)throw Error('Manuelle RPGA-Auslegung liefert keinen gültigen stabilen ADC_T.');}
 
    }else{
     const plan=ELMOS_EXTERNAL_AFE.plan(profile);
     if(!plan.best||plan.best.i!==code?.i||plan.best.j!==code?.j)throw Error('EOC-AFE-Vorschlag veraltet.');
-    target={afe0:saved[26],afe2:ELMOS_EXTERNAL_AFE.merge(saved[30],profile,code),cfgEn:(saved[4]&~12)|4};
+    target={afe0:saved[26],afe2:ELMOS_EXTERNAL_AFE.merge(saved[30],profile,code),cfgEn:(saved[4]&~0x100c)|0x1004};
    }
-   if(((saved[26]^target.afe0)&~0xf0)!==0||((saved[30]^target.afe2)&~(bridge?0x08ff:0x0fff))!==0||((saved[4]^target.cfgEn)&~12)!==0)throw Error('DEV: nicht zulässige AFE-Bits.');
-   if(((original[29]^target.afe2)&~(bridge?0x08ff:0x0fff))!==0||(!bridge&&((original[27]^target.afe0)&0xf0)!==0))throw Error('DEV: ursprüngliches NVM-Profil passt nicht zum Ziel.');
+   if(((saved[26]^target.afe0)&~0xf0)!==0||((saved[30]^target.afe2)&~0x0fff)!==0||((saved[4]^target.cfgEn)&~0x100c)!==0)throw Error('DEV: nicht zulässige AFE-Bits.');
+   if(((original[29]^target.afe2)&~0x0fff)!==0||(!bridge&&((original[27]^target.afe0)&0xf0)!==0))throw Error('DEV: ursprüngliches NVM-Profil passt nicht zum Ziel.');
    await writeTarget(target);
    const expectedBoot={...boot,4:target.cfgEn};if(!sameBoot(expectedBoot,await bootSnapshot())||await readCalibrationUid()!==uid)throw Error('Bootregister oder UID nach AFE-Übernahme verändert.');
    st.boot=expectedBoot;st.afe0=target.afe0;st.regs[0x1A]=target.afe0;st.regs[0x1E]=target.afe2;st.regs[4]=target.cfgEn;
@@ -1231,13 +1243,14 @@ if(typeof document!=='undefined') (function UI(){
   const selected=selectedTemperatureSource();
   if(ptcDev&&demoEnabled&&['bridge','external'].includes(selected)){
    if(!demoPort.ptcConfigured(selected))throw Error('Zuerst Temperatur-AFE im geführten AFE-Schritt einstellen.');
-   const afe2=await readReg(0x1E);if(CAL.temperatureSourceFromAfe2(afe2)!==selected||(selected==='bridge'&&(afe2&0xff)!==0x4a))throw Error('Simuliertes Temperatur-AFE nicht bestätigt');
+   const afe2=await readReg(0x1E);if(CAL.temperatureSourceFromAfe2(afe2)!==selected||(selected==='bridge'&&(afe2&0x0fff)!==0x014a))throw Error('Simuliertes Temperatur-AFE nicht bestätigt');
    return {temperatureSource:selected,afe2};
   }
   if(selected!=='internal'){
    const d=hardwareTemperature(selected);if(!d)throw Error('DEV: Temperatur-AFE zuerst am verbundenen Sensor einstellen.');
    const afe0=await readReg(0x1A),afe2=await readReg(0x1E),cfgEn=await readReg(4);
-   if(afe2!==d.afe2||((afe0^d.afe0)&0xf3)!==0||((cfgEn^d.cfgEn)&12)!==0)throw Error('DEV: Temperatur-AFE seit Übernahme verändert. Neu einstellen.');
+   if(afe2!==d.afe2||((afe0^d.afe0)&0xf3)!==0||((cfgEn^d.cfgEn)&0x100c)!==0)throw Error('DEV: Temperatur-AFE seit Übernahme verändert. Neu einstellen.');
+   if(selected==='bridge'&&((afe2&0x0fff)!==0x014a||await readReg(0x66)!==st.nvmBackup?.[11]||await readReg(0x68)!==st.nvmBackup?.[12]))throw Error('Werkstrimm-Konfiguration oder G01/G2OFF verändert.');
    return {temperatureSource:selected,afe2};
   }
   if(demoEnabled)return {temperatureSource:'internal',afe2:null};
@@ -1451,8 +1464,9 @@ if(typeof document!=='undefined') (function UI(){
     try{
      if(st.iface==='i2c'&&st.adapterKind==='bridge')await triggerSingleMeasurement({capture:true});
      value.s=P.sign16(await readReg(0x2A));
-     value.t=P.sign16(await readReg(0x28));
-     value.tc=P.sign16(await readReg(0x26));
+     if(ptcDev&&!demoEnabled&&sourceInfo.temperatureSource!=='internal'){
+      const fresh=await readFreshDevTemperature(0x28,0x0004);value.t=fresh.value;value.tc=P.sign16(await readReg(0x26));
+     }else{value.t=P.sign16(await readReg(0x28));value.tc=P.sign16(await readReg(0x26));}
     }catch(e){values.push(value);e.rawSamples=values.slice();throw e}
     values.push(value);
     if(ptcDev&&!demoEnabled&&sourceInfo.temperatureSource!=='internal'&&[value.s,value.t,...(sourceInfo.temperatureSource==='bridge'?[value.tc]:[])].some(v=>v===-32768||v===32767))throw Error('ADC-Sättigung bei DEV-Messpunkt. AFE bzw. Temperaturbereich prüfen.');
@@ -4373,7 +4387,7 @@ if(typeof document!=='undefined') (function UI(){
    const devTempWrite=ptcDev&&!demoEnabled&&st.ramWriteScope==='dev-temperature'&&st.devTemperatureWrite?.[addr]===word&&[0x04,0x1A,0x1E].includes(addr);
    const permitted=devTempWrite||calibrationPressureWrite||(st.ramWriteScope==='afe-filter'&&filterRegisters.includes(addr))||
    (st.ramWriteScope==='alarm'&&[0x04,0x08,0x9C,0x9E,0xA8,0xAA].includes(addr))||
-   (st.ramWriteScope==='dsp-verification'&&addr===0x36&&word===0x0408)||
+   (st.ramWriteScope==='dsp-verification'&&addr===0x36&&(word===0x0408||(ptcDev&&devPtcFit()&&word===0x0418)))||
    CAL_REGS.includes(addr)||addr===0x4A||addr===0x4E||addr===0x22;
   if(!permitted)throw Error(`Schreibzugriff 0x${h(addr)} ist gesperrt`);
   if(addr===0x22&&!([0xF75A,0x0CC7,0xD21E,0x62A2].includes(word)))throw Error('Nicht freigegebener RAM-Befehl');
@@ -4620,7 +4634,7 @@ if(typeof document!=='undefined') (function UI(){
     const previousStatus=await readReg(0x36);
     if(previousStatus&0x0400)logging('DSP-Verifikation: früheres Sättigungsereignis quittiert.');
     st.ramWriteScope='dsp-verification';
-    try{await maintWrite(0x36,0x0408)}finally{st.ramWriteScope=null}
+    try{await maintWrite(0x36,devPtcFit()?0x0418:0x0408)}finally{st.ramWriteScope=null}
     await triggerSingleMeasurement({capture:true});
     let fresh=false;
     for(let attempt=0;attempt<15;attempt++){
@@ -4662,11 +4676,10 @@ if(typeof document!=='undefined') (function UI(){
    // DSP_T is optional diagnostic data. A failing or uncalibrated
    // temperature read must not invalidate a successful DSP_S check.
    let measuredTemp=null,temperatureErrorC=null;
-   try{measuredTemp=P.sign16(await readReg(0x2E))}
-   catch(e){logging('Optionale DSP_T-Diagnose nicht lesbar: '+e.message)}
+   if(devPtcFit()&&!demoEnabled){await checkCalibrationTemperatureSource();const fresh=await readFreshDevTemperature(0x2E,0x0010);if(fresh.status&0x0400)throw Error('DSP_T: Sättigung während Temperaturprüfung.');measuredTemp=fresh.value;}
+   else{try{measuredTemp=P.sign16(await readReg(0x2E))}catch(e){logging('Optionale DSP_T-Diagnose nicht lesbar: '+e.message)}}
    if(devPtcFit()){
-    if(!demoEnabled)await checkCalibrationTemperatureSource();
-    const actualC=CAL.dspTemperatureCelsius(measuredTemp);
+    const actualC=measuredTemp===-32768||measuredTemp===32767?null:CAL.dspTemperatureCelsius(measuredTemp);
     if(actualC!==null)temperatureErrorC=actualC-temp;
     const tempTol=Number($('devTemperatureTolerance')?.value??2);
     if(!Number.isFinite(tempTol)||tempTol<=0)throw Error('Positive Temperatur-Prüftoleranz eingeben.');
@@ -4713,9 +4726,9 @@ if(typeof document!=='undefined') (function UI(){
  function devPtcFit(){const source=selectedTemperatureSource();return ptcDev&&['bridge','external'].includes(source)&&st.calfit?.temperatureSource===source&&devTemperatureReady(source);}
  function normalizeDevTemperature(before,after){
    const expected=devTemperatureWords(),source=selectedTemperatureSource();
-   if(!expected||after[29]!==expected.afe2||((after[27]^expected.afe0)&0xf0)!==0||(after[16]&12)!==(source==='external'?4:8)||((after[29]^before[29])&~(source==='external'?0x0fff:0x08ff))!==0||(source==='external'&&((after[27]^before[27])&0xf0)!==0))throw Error('DEV: unerwartetes Temperaturprofil im NVM-Plan.');
+   if(!expected||after[29]!==expected.afe2||((after[27]^expected.afe0)&0xf0)!==0||(after[16]&0x100c)!==(0x1000|(source==='external'?4:8))||((after[29]^before[29])&~0x0fff)!==0||(source==='external'&&((after[27]^before[27])&0xf0)!==0))throw Error('DEV: unerwartetes Temperaturprofil im NVM-Plan.');
    if(source==='external'&&((after[20]>>7)&3)===0&&(after[18]&0x0fff))throw Error('EOC als Temperatur-Eingang: STATUS-Ausgabe unzulässig.');
-   const checked=after.slice();checked[29]=before[29];checked[27]=(checked[27]&~0xf0)|(before[27]&0xf0);checked[16]=(checked[16]&~12)|(before[16]&12);checked[63]=CAL.crc16(checked);return checked;
+   const checked=after.slice();checked[29]=before[29];checked[27]=(checked[27]&~0xf0)|(before[27]&0xf0);checked[16]=(checked[16]&~0x100c)|(before[16]&0x100c);checked[63]=CAL.crc16(checked);return checked;
  }
  function validateDevRecoveryDiff(before,after,options){return CAL.validateRecoveryCalibrationDiff(before,devPtcFit()?normalizeDevTemperature(before,after):after,options);}
  function protectDevPtc(before,after,options){
@@ -4802,7 +4815,7 @@ if(typeof document!=='undefined') (function UI(){
    });
    if(devPtcFit()){
     const words=devTemperatureWords(),after=image.after.slice();
-    after[27]=(after[27]&~0xf0)|(words.afe0&0xf0);after[29]=words.afe2;after[16]=(after[16]&~12)|(selectedTemperatureSource()==='external'?4:8);after[63]=CAL.crc16(after);
+    after[27]=(after[27]&~0xf0)|(words.afe0&0xf0);after[29]=words.afe2;after[16]=(after[16]&~0x100c)|(0x1000|(selectedTemperatureSource()==='external'?4:8));after[63]=CAL.crc16(after);
     protectDevPtc(image.before,after,{allowSvdd:true,allowPressureCorrection:activatePressureCorrection,interfaceMode:st.iface,allowTimedOneWire:outputPlan?.timedOneWire===true});
     image={...image,after,changes:after.map((to,index)=>to===image.before[index]?null:{index,address:index*2,from:image.before[index],to}).filter(Boolean)};
    }
@@ -5098,7 +5111,7 @@ if(typeof document!=='undefined') (function UI(){
     if(!st.expertOutputPlan)throw Error('AODO-NVM-Änderung ohne geprüften Expertenvorschlag');
     const expected=CAL.prepareOutputConfig(initial,st.expertOutputPlan,outputOnly?st.outputOnlyPlan.limit:st.calfit.outputLimit,{interfaceMode:st.iface});
     for(const i of [16,22,57,58,59,60,...(timedOneWire?[17,18]:[])]){
-     const ignoreMask=i===16?((alarmIntegrated?((1<<5)|(1<<8)):0)|(allowPressureCorrection?3:0)|((operatingProfile?.temperatureEnable||allowDevTemperature)?12:0)):0;
+     const ignoreMask=i===16?((alarmIntegrated?((1<<5)|(1<<8)):0)|(allowPressureCorrection?3:0)|(allowDevTemperature?0x100c:operatingProfile?.temperatureEnable?12:0)):0;
       const mismatch=((modified[i]^expected[i])&~ignoreMask)!==0;
      if(mismatch)throw Error('Ausgangsregister entspricht nicht dem geprüften Vorschlag');
     }
