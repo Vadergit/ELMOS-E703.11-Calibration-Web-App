@@ -6708,10 +6708,16 @@ if(typeof document!=='undefined') (function UI(){
     nvm:async a=>{guard();return nvmReadWord(a);},grant:async()=>{guard();await ramGrant();},
     write:async(a,w)=>{guard();if(await readCalibrationUid()!==uid)throw Error('UID geändert.');bridgeV2Expected={a,w};try{await maintWrite(a,w);}finally{bridgeV2Expected=null;}},
     fresh:async()=>{guard();return (await readFreshDevTemperature(0x28,0x0004)).value;},pause:sleep,
-    restart:async()=>{guard();if(await bridgeAccess({power:true})!==false)throw Error('Kaltstart ohne RAM-Recovery nicht bestätigt.');},
+    restart:async()=>{
+     guard();
+     if(st.iface==='i2c'){
+      const reply=await exchange('I2C COLD START',6000);
+      if(!i2cColdStartReply(reply))throw Error('Direkter I²C-Kaltstart ohne RAM-Recovery nicht bestätigt.');
+     }else if(await bridgeAccess({power:true})!==false)throw Error('Kaltstart ohne RAM-Recovery nicht bestätigt.');
+    },
     unconfirmed:async m=>{failed=true;logging(m);}
    };
-   return await ELMOS_BRIDGE_V2.analyze(io,CAL,ELMOS_TEMPERATURE_AFE,{measure,allowRestart:st.adapterKind==='bridge'&&st.iface==='plc'&&st.sensorPowerEnabled&&st.bridgeGenericRam&&st.bridgePsscRam&&bridgeColdStartVerified(),progress});
+   return await ELMOS_BRIDGE_V2.analyze(io,CAL,ELMOS_TEMPERATURE_AFE,{measure,allowRestart:ELMOS_BRIDGE_V2.restartSupported({adapter:st.adapterKind,iface:st.iface,power:st.sensorPowerEnabled,genericRam:st.bridgeGenericRam,plcRam:st.bridgePsscRam,i2cNvm:i2cNvmSupported(),cold:bridgeColdStartVerified()}),progress});
   }finally{
    try{if(current())await ramLock();}finally{
     bridgeV2Expected=null;st.ramWriteScope=null;st.calTask=false;st.writing=false;

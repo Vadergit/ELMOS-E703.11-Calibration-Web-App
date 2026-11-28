@@ -20,7 +20,7 @@ const ELMOS_BRIDGE_V2=(()=>{
   const ram=await snap(),get=a=>ram[map.findIndex(x=>x[0]===a)],afe0=get(0x1a),svddCode=afe0&3;
   if(svddCode===3||get(0x0e)!==1){r.notice="Kein unterstützter kontinuierlicher Messmodus / SVDD.";return r;}
   let p;try{p=plan(get(0x1e),get(4));}catch(e){r.notice=e.message;return r;}
-  if(p.changed&&(!allowRestart||!map.every(([,i],j)=>ram[j]===words[i]))){r.notice="Umschaltung nicht freigegeben: bestätigter DIY-Kaltstart und NVM-identisches RAM erforderlich.";return r;}
+  if(p.changed&&(!allowRestart||!map.every(([,i],j)=>ram[j]===words[i]))){r.notice="Umschaltung nicht freigegeben: bestätigter DIY-Kaltstart (One-Wire oder I²C) und NVM-identisches RAM erforderlich.";return r;}
   let dirty=false,err=null;
   try{
    if(p.changed){await guard();await io.grant();for(const [a,w] of [[0x1e,p.afe],[4,p.cfg]])if(w!==get(a)){await guard();dirty=true;await io.write(a,w);if(await io.read(a)!==w)throw Error("RAM-Rücklesen fehlgeschlagen.");}}
@@ -54,6 +54,9 @@ const ELMOS_BRIDGE_V2=(()=>{
    }catch(e){status(e.message);}finally{busy=false;controls.forEach(id=>$(id).disabled=false);}
   };
  }
- return Object.freeze({map,plan,analyze,mount});
+ function restartSupported({adapter,iface,power,genericRam,plcRam,i2cNvm,cold}){
+  return adapter==='bridge'&&power===true&&genericRam===true&&cold===true&&((iface==='plc'&&plcRam===true)||(iface==='i2c'&&i2cNvm===true));
+ }
+ return Object.freeze({map,plan,analyze,mount,restartSupported});
 })();
 if(typeof module!=="undefined"&&module.exports)module.exports=ELMOS_BRIDGE_V2;

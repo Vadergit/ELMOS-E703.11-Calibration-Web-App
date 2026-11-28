@@ -1,3 +1,9 @@
+## v0.7.232 – Brückenrechner V2 Beta 2
+
+- DIY-I²C: vorhandener I2C COLD START mit direkter Startbestätigung und vollständigem RAM-/NVM-Vergleich, ohne NVM-Schreiben oder RPGA-Änderung.
+- Cache-Version der App wieder numerisch; sichtbare Version erhöht. V1 und regulärer Abgleich bleiben unverändert.
+- Reale Hardwarevalidierung und vollständige Regression offen.
+
 ## v0.7.231 – Unabhängige Chiptemperaturreferenz
 
 - ADC_TC (0x26) als unabhängige interne Chiptemperatur bei bestätigtem Brückentemperaturmodus mit aktivierter BS_RS-Temperaturkompensation und Standard-TC-Gains auswerten (25DS0170E.04 §§6.2.2.7, 6.5.1.1, 6.5.1.3, 6.5.3). ADC_T des PTC wird niemals als Chipdiode interpretiert.
