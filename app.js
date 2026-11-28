@@ -4382,6 +4382,31 @@ if(typeof document!=='undefined') (function UI(){
  }
  
  const shownDspRiskWarnings=new Set();
+ let dspRiskProposalContext=null;
+ function dspRiskContext(){
+  return {port:st.port,session:st.sessionIndex,uid:st.uid?.hex,points:JSON.stringify(st.calpoints),references:JSON.stringify(calibrationReferenceSnapshot()),limit:Number($('calDspLimit').value)};
+ }
+ function dspRiskContextMatches(saved){
+  const now=dspRiskContext();
+  return !!saved&&!!st.chip&&!!now.port&&saved.port===now.port&&saved.session===now.session&&saved.uid===now.uid&&saved.points===now.points&&saved.references===now.references&&saved.limit===now.limit;
+ }
+ function guidedDspRetryAvailable(){
+  return window.ELMOS_GUIDED?.canRetryDspLimit?.()===true;
+ }
+ function applySuggestedDspLimit(proposed){
+  if(st.calTask||st.writing||st.nvmWorking||st.closing||!st.chip)return;
+  if(!Number.isInteger(proposed)||proposed<1000||proposed>=Number($('calDspLimit').value))return;
+  if(guidedDspRetryAvailable()){
+   void window.ELMOS_GUIDED.retryDspLimit(proposed);return;
+  }
+  $('calDspLimit').value=String(proposed);
+  $('calDspLimit').dataset.userEdited='1';
+  $('calDspLimit').dispatchEvent(new Event('change',{bubbles:true}));
+  if(window.ELMOS_GUIDED?.isOpen?.())window.ELMOS_GUIDED.goToCoefficients?.();
+  else step(3);
+  calcCoefficients();
+  $('calDspLimit').focus({preventScroll:true});
+ }
  // Trigger only after explicit calculation, RAM staging or independent verification.
  // Never pop up in the 250 ms live loop. Keep existing visible warnings as well.
  function showDspRiskPopup({key,type,title,description,advice,suggestedLimit}){
@@ -4398,11 +4423,13 @@ if(typeof document!=='undefined') (function UI(){
    candidate<Number($('calDspLimit').value);
   apply.hidden=!canApply;
   apply.dataset.suggestedLimit=canApply?String(candidate):'';
-  if(canApply)apply.textContent='DSP-Endwert ±'+fmt(candidate)+' einsetzen und Koeffizienten berechnen';
+  dspRiskProposalContext=canApply?dspRiskContext():null;
+  if(canApply)apply.textContent='DSP-Endwert ±'+fmt(candidate)+' einsetzen, Koeffizienten berechnen'+(guidedDspRetryAvailable()?' und ins RAM schreiben':'');
   // RAM staging may still be inside the blocking operation dialog. Show this
   // modal only after that operation has closed, never behind another dialog.
+  const proposalContext=dspRiskProposalContext;
   const openWhenReady=()=>{
-   if(!dlg.isConnected)return;
+   if(!dlg.isConnected||(canApply&&(dspRiskProposalContext!==proposalContext||!dspRiskContextMatches(proposalContext))))return;
    if($('operationProgressDialog')?.open){
     window.setTimeout(openWhenReady,80);
     return;
@@ -4490,7 +4517,7 @@ if(typeof document!=='undefined') (function UI(){
      $('calDspProposalText').textContent='Der DSP-Koeffizient '+e.coefficient.name+' benötigt '+e.coefficient.value.toFixed(8)+
       ', zulässig sind maximal '+e.coefficient.max.toFixed(8)+'. Eine Neuberechnung mit ±'+fmt(proposal.outputLimit)+
       ' Digits ist numerisch möglich (mit Koeffizientenreserve). Die aufgenommenen Messpunkte bleiben erhalten. Anschliessend RAM und DSP prüfen.';
-     $('calDspProposalApply').textContent='±'+fmt(proposal.outputLimit)+' Digits übernehmen und neu berechnen';
+     $('calDspProposalApply').textContent='±'+fmt(proposal.outputLimit)+' Digits übernehmen und neu berechnen'+(guidedDspRetryAvailable()?' und ins RAM schreiben':'');
      $('calDspProposal').hidden=false;
      showDspRiskPopup({
       key:'coefficient-overflow:'+e.coefficient.name+':'+fitRequest.outputLimit,
@@ -5687,29 +5714,18 @@ if(typeof document!=='undefined') (function UI(){
  $('calDspLimit').addEventListener('input',()=>{$('calDspProposal').hidden=true;$('calDspLimit').dataset.userEdited='1';updateDSPOutputLimit();});
  $('dspRiskDismiss').addEventListener('click',()=>$('dspRiskDialog').close());
  $('dspRiskApplyLimit').addEventListener('click',()=>{
-  if(st.calTask||st.writing||st.nvmWorking)return;
+  if(st.calTask||st.writing||st.nvmWorking||window.ELMOS_GUIDED?.hasPendingOperation?.())return;
   const proposed=Number($('dspRiskApplyLimit').dataset.suggestedLimit);
-  if(!Number.isInteger(proposed)||proposed<1000||proposed>32000||
-     proposed>=Number($('calDspLimit').value))return;
+  if(!dspRiskContextMatches(dspRiskProposalContext)){
+   $('dspRiskDialog').close();show('calFitMsg','DSP-Vorschlag nicht mehr aktuell. Bitte neu berechnen.','warn');return;
+  }
   $('dspRiskDialog').close();
-  $('calDspLimit').value=String(proposed);
-  $('calDspLimit').dataset.userEdited='1';
-  // Reuse the existing handler: invalidate old fit, RAM validation and NVM
-  // proposal. No chip registers are modified; reference points survive.
-  $('calDspLimit').dispatchEvent(new Event('change',{bubbles:true}));
-  if(window.ELMOS_GUIDED?.isOpen?.())window.ELMOS_GUIDED.goToCoefficients?.();
-  else step(3);
-  calcCoefficients();
-  $('calDspLimit').focus({preventScroll:true});
+  dspRiskProposalContext=null;
+  applySuggestedDspLimit(proposed);
  });
  $('calDspProposalApply').addEventListener('click',()=>{
-  const suggested=Number($('calDspProposal').dataset.suggestedLimit);
-  if(!Number.isInteger(suggested)||suggested<1000||suggested>32000)return;
-  $('calDspLimit').value=String(suggested);
-  $('calDspLimit').dataset.userEdited='1';
-  updateDSPOutputLimit();
-  renderDSPLive();
-  calcCoefficients();
+  if(st.calTask||st.writing||st.nvmWorking||window.ELMOS_GUIDED?.hasPendingOperation?.()||$('calDspProposal').hidden)return;
+  applySuggestedDspLimit(Number($('calDspProposal').dataset.suggestedLimit));
  });
  updateDSPOutputLimit();
  fillIntermediateReferences();refreshUnitLabels();
@@ -6894,12 +6910,12 @@ if(typeof document!=='undefined') (function UI(){
  }
  // Orchestrate the existing manual calculation and RAM transaction. No new
  // register commands, no reconnect, no automatic NVM write.
- async function runGuidedFixedFit(expected,stillOnPage){
+ async function runGuidedFixedFit(expected,stillOnPage,explicitRetry=false){
   const port=st.port,session=st.sessionIndex,uid=st.uid?.hex||null;
   const current=()=>stillOnPage()&&!!st.chip&&!!port&&st.port===port&&st.sessionIndex===session&&(st.uid?.hex||null)===uid&&!st.closing&&!st.calTask&&!st.writing&&!st.nvmWorking&&!st.reinitRunning&&!st.powerCycleRunning&&!st.magicRunning&&!st.startupRunning&&!st.diagRunning&&!st.afeWriteActive&&!st.ramMeasurementStarting;
   const settings=()=>Number($('calSOrder').value)===expected.orderS&&Number($('calTOrder').value)===expected.orderT&&$('calFitMode').value===expected.fitMode&&Number($('calDspLimit').value)===expected.outputLimit&&st.calpoints.length===expected.total&&calEndpointsReady();
   const result=(state,reason)=>({state,reason});
-  if(!ELMOS_GUIDED_PLAN.fixedFitModel(expected)||!current()||!settings())return result('stopped','Abgleichplan oder Verbindung nicht bestätigt.');
+  if((!explicitRetry&&!ELMOS_GUIDED_PLAN.fixedFitModel(expected))||!current()||!settings())return result('stopped','Abgleichplan oder Verbindung nicht bestätigt.');
   if(st.calStaged&&coefficientSettingsCurrent())return result('stopped','Koeffizienten bereits im RAM. Bitte bisherigen Status prüfen.');
   const references=JSON.stringify(calibrationReferenceSnapshot()),points=JSON.stringify(st.calpoints);
   calcCoefficients();

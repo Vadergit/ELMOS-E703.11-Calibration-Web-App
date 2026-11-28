@@ -1010,14 +1010,30 @@ const ELMOS_GUIDED=(()=>{
  let fixedFitBusy=false;
  function fixedFitPage(){return mode&&stage===5&&task==='calibration'&&!connectionOpen&&!nextSensorPending;}
  function fixedFitModel(){return !!(plan&&ELMOS_GUIDED_PLAN.fixedFitModel(plan)&&appliedPlanForConfig());}
- async function runFixedFit(){
-  if(fixedFitBusy||!fixedFitPage()||!fixedFitModel())return;
-  const expected=plan;
+ function canRetryDspLimit(){
+  return mode&&task==='calibration'&&(stage===5||stage===6)&&!connectionOpen&&!nextSensorPending&&!!plan&&plan.points.every(p=>pointRecord(p));
+ }
+ async function retryDspLimit(limit){
+  if(fixedFitBusy||!canRetryDspLimit()||state().connectionBusy||!state().chip||!Number.isInteger(limit)||limit<1000||limit>=Number($('calDspLimit').value))return;
+  const previous=plan,previousSignature=signature;
+  const expected={...previous,outputLimit:limit,orderS:Number($('calSOrder').value),orderT:Number($('calTOrder').value),fitMode:$('calFitMode').value};
+  $('calDspLimit').dataset.userEdited='1';
+  fieldValue('calDspLimit',limit);
+  // A DSP range change is not a new physical measurement matrix.
+  // Preserve captured point order, slot assignments and the applied signature.
+  plan=Object.freeze({...previous,outputLimit:limit});
+  if(previousSignature===JSON.stringify(previous))signature=JSON.stringify(plan);
+  goto(5);
+  await runFixedFit(expected,true);
+ }
+ async function runFixedFit(expected=plan,explicitRetry=false){
+  if(fixedFitBusy||!fixedFitPage()||(!explicitRetry&&!fixedFitModel()))return;
+  const activePlan=plan;
   fixedFitBusy=true;updateUI();
   msg('Koeffizienten werden berechnet und bei erfolgreicher Prüfung ins RAM geschrieben …');
   try{
-   const result=await window.ELMOS_GUIDED_API.runGuidedFixedFit(expected,()=>fixedFitPage()&&plan===expected&&fixedFitBusy);
-   if(!fixedFitPage()||plan!==expected)return;
+   const result=await window.ELMOS_GUIDED_API.runGuidedFixedFit(expected,()=>fixedFitPage()&&plan===activePlan&&fixedFitBusy,explicitRetry);
+   if(!fixedFitPage()||plan!==activePlan)return;
    if(result.state==='ready'&&state().calStaged){msg('');goto(6);return}
    msg(result.reason||'Berechnung und RAM-Status prüfen.','warn');
   }catch(e){if(fixedFitPage())msg(e.message,'error')}
@@ -1350,7 +1366,7 @@ const ELMOS_GUIDED=(()=>{
      $('calUnit').value!==plan.unit)return null;
   return {pCount:plan.pCount,tCount:plan.tCount,fitMode:plan.fitMode};
  }
- return {init,open,close,openNvmCalculator,closeNvmCalculator,temperatureCompensationEnabled,temperatureSourceChanged,onNvmProgrammed,wantsAutomaticPostBoot,preferredView:()=>rememberedView()==='classic'?'classic':'guided',goToStart:()=>{if(mode&&!nextSensorPending)goto(0)},goToCoefficients:()=>{if(mode&&task==='calibration'&&!nextSensorPending)goto(5)},resetForHome,hasUnfinishedTask,hasPendingOperation,onConnected,onSensorReset,makePlan,planForPreset:()=>mode&&stage>=1&&stage<=2?makePlan():plan,isOpen:()=>mode,appliedPlanForConfig};
+ return {init,open,close,canRetryDspLimit,retryDspLimit,openNvmCalculator,closeNvmCalculator,temperatureCompensationEnabled,temperatureSourceChanged,onNvmProgrammed,wantsAutomaticPostBoot,preferredView:()=>rememberedView()==='classic'?'classic':'guided',goToStart:()=>{if(mode&&!nextSensorPending)goto(0)},goToCoefficients:()=>{if(mode&&task==='calibration'&&!nextSensorPending)goto(5)},resetForHome,hasUnfinishedTask,hasPendingOperation,onConnected,onSensorReset,makePlan,planForPreset:()=>mode&&stage>=1&&stage<=2?makePlan():plan,isOpen:()=>mode,appliedPlanForConfig};
 })();
 if(typeof window!=='undefined')window.ELMOS_GUIDED=ELMOS_GUIDED;
 if(typeof document!=='undefined'){

@@ -1,3 +1,9 @@
+## v0.7.211 – DSP-Vorschlag direkt übernehmen
+
+- Geführter Abgleich: bestätigten kleineren DSP-Endwert übernehmen, vorhandene Messpunkte erhalten, Koeffizienten erneut berechnen, bei erfolgreicher Prüfung ins RAM schreiben und direkt zur unabhängigen DSP-Verifikation wechseln. Auch bei manuell gewählter Polynomordnung bleibt die aktuelle Wahl erhalten.
+- Veraltete Vorschläge, Sensorwechsel, aktive Vorgänge, Berechnungswarnungen und RAM-Fehler stoppen den automatischen Ablauf. Klassische Bedienung bleibt manuell; kein automatisches NVM-Schreiben.
+- Hardware- und vollständige CI-Prüfung ausstehend.
+
 ## v0.7.210 – Ausgangskonfiguration vereinfacht
 
 - Normaler geführter Analogabgleich: ein Button berechnet S0/S1-Skalierung und prüft/merkt die Ausgangskonfiguration vor. PWM/FM, Expertenmodus und klassische Ansicht behalten den separaten Skalierungsvorschlag.
