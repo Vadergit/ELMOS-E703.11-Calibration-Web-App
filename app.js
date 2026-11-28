@@ -1978,6 +1978,9 @@ if(typeof document!=='undefined') (function UI(){
   if($('calRestoreDraft')){
    const available=!demoEnabled&&!!st.uid?.hex&&!!storedCalibrationCheckpoint(st.uid.hex);
    $('calRestoreDraft').hidden=!available||st.calpoints.length>0;
+   // The guided workflow only needs this panel to resolve a saved draft before measuring.
+   // Routine preflight runs automatically in measureCalibrationSamples().
+   $('calPreflightPanel')?.classList.toggle('guided-draft-recovery',available&&st.calpoints.length===0);
    $('calDiscardDraft').hidden=!available;
    $('calExportDraft').hidden=!available;
    for(const id of ['calRunPreflight','calRestoreDraft','calDiscardDraft','calExportDraft'])$(id).disabled=!!(st.calTask||st.writing||st.nvmWorking||!st.chip);

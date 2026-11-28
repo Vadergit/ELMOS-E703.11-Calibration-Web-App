@@ -380,3 +380,10 @@ html[data-theme="dark"] #guidedWorkspace .gw-connection-diagnostic{background:#1
  width:16px;height:16px;flex:0 0 auto;accent-color:var(--accent,#0877b9);
 }
 #guidedWorkspace .gw-connection-page #gwConnectionPowerHint[hidden]{display:none}
+
+/* Guided mode: automatic preflight stays active, routine maintenance UI does not. */
+.preflight-guided-title{display:none}
+html.guided-active #calPreflightPanel:not(.guided-draft-recovery){display:none!important}
+html.guided-active #calPreflightPanel .preflight-classic-title,html.guided-active #calRunPreflight{display:none!important}
+html.guided-active #calPreflightPanel .preflight-guided-title{display:block}
+html.guided-active #calPreflightPanel #calPreflightStatus:not(.error):not(.warn){display:none}
