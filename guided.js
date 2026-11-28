@@ -139,7 +139,7 @@ const ELMOS_GUIDED=(()=>{
    '<div id="gwPage9" class="gw-page" hidden><div class="gw-columns"><div class="gw-tile gw-control"><h3>Änderungen prüfen und bestätigen</h3><div id="gwNvmBackup"></div><div class="gw-panel-actions" id="gwNvmPrepare"></div><div id="gwNvmMessages"></div><div class="gw-panel-actions" id="gwNvmWrite"></div><div id="gwNvmDetails"></div></div><aside class="gw-nvm-safety"><strong>Vor dem Schreiben</strong><p>Chip-UID und Änderungen prüfen. Versorgung während der Programmierung nicht unterbrechen.</p><details><summary>Sicherheitshinweise</summary><p>Zuerst an einem entbehrlichen Testchip validieren. Ein Stromunterbruch kann den Sensor unbrauchbar machen. Die bestehende NVM-Sicherheitslogik entscheidet über die Schreibfreigabe.</p></details></aside></div></div>'+
    '<div id="gwPage10" class="gw-page gw-finish-page" hidden><section class="gw-finish-signal"><div class="gw-finish-top"><div><span class="gw-kicker">Live-Sensorsignal</span><h3>Aktueller Sensorausgang</h3></div><span id="gwFinishStatus" class="gw-live-badge">Warte auf Chipwerte</span></div><div class="gw-finish-number" aria-live="off"><strong id="gwFinishSignalValue">—</strong><span id="gwFinishSignalUnit">—</span></div><div id="gwFinishSource" class="gw-finish-caption">DSP_S wird vom Chip gelesen und auf den eingestellten Anzeigebereich bezogen.</div><div class="gw-finish-bar"><span id="gwFinishBar"></span></div><div class="gw-finish-limits"><span id="gwFinishRangeMin">—</span><span id="gwFinishRangeMax">—</span></div><div class="gw-finish-kpis"><div><span>DSP_S</span><strong id="gwFinishDsp">—</strong><small>Digits</small></div><div><span>ADC_S</span><strong id="gwFinishAdc">—</strong><small>Digits</small></div><div><span>ADC_T</span><strong id="gwFinishTemp">—</strong><small>Digits</small></div><div><span>Letzte Messung</span><strong id="gwFinishTime">—</strong></div></div></section>'+
     '<div class="gw-columns gw-finish-bottom"><section class="gw-tile"><div class="gw-section-head"><div><h3>Signalverlauf</h3><p>ADC_S im Zeitverlauf · letzte 60 Sekunden</p></div></div><div id="gwFinishChartHost" class="gw-finish-chart"></div></section><section class="gw-tile gw-finish-checklist"><h3>Abgleich und Freigabe</h3><div id="gwFinishCompletion" class="gw-alert">NVM-Status prüfen.</div><p id="gwFinishConfig">Gewünschte Ausgangseinstellungen werden hier als Sollwerte dargestellt.</p><p id="gwFinishWarning" class="gw-finish-warning">Vor der Freigabe den Ausgang mit einem Messgerät prüfen. Die Anzeige ersetzt keinen Hardwaretest.</p><div class="gw-panel-actions" id="gwPostBoot"></div><details class="gw-finish-more"><summary>Weitere Optionen</summary><button class="gw-secondary-link" id="gwBackClassic" type="button">Zur Expertenansicht wechseln</button></details></section></div></div>'+
-   '<section id="gwSwapPage" class="gw-tile" hidden><ol><li>Stecke den fertig abgeglichenen Sensor ab.</li><li>Schliesse den nächsten Sensor am Programmieradapter an.</li><li>Klicke auf «Neuen Sensor verbinden».</li></ol><p>Der Assistent übernimmt den Messplan und die Ausgangsvorgaben. Er schreibt die Frontend-Einstellungen ins RAM des neuen Sensors. Für ihn nimmst du danach neue Messwerte auf.</p><div class="gw-panel-actions"><button id="gwSwapConnect" class="primary" type="button">Neuen Sensor verbinden</button><button id="gwSwapChoose" type="button" hidden>USB-Port auswählen</button><button id="gwSwapCancel" type="button">Serie abbrechen</button></div></section>'+
+   '<section id="gwSwapPage" class="gw-tile" hidden><ol><li>Stecke den fertig abgeglichenen Sensor ab.</li><li>Schliesse den nächsten Sensor am Programmieradapter an.</li><li>Klicke auf «Neuen Sensor verbinden».</li></ol><p>Der Assistent übernimmt den Messplan und die Ausgangsvorgaben. Verstärkung, Brücke und bestätigten ADC-Tiefpass übernimmt er ins RAM. Offset und DSP-Ziel werden zurückgesetzt. Danach prüfst du direkt das Frontend und nimmst neue Messwerte auf.</p><div class="gw-panel-actions"><button id="gwSwapConnect" class="primary" type="button">Neuen Sensor verbinden</button><button id="gwSwapChoose" type="button" hidden>USB-Port auswählen</button><button id="gwSwapCancel" type="button">Serie abbrechen</button></div></section>'+
    '<section id="gwConnectionPage" class="gw-page gw-connection-page" hidden><div class="gw-panel-actions gw-connection-backbar"><button id="gwConnectionBackTop" type="button">← Zurück zum Assistenten</button></div><div class="gw-columns">'+
     '<section class="gw-tile"><h3>USB-Adapter und Chip-Protokoll</h3><p>Bei einem anderen Sensor kannst du 1-Wire, I²C oder SPI auswählen, ohne in die klassische Ansicht zu wechseln. Der bisherige USB-Port wird sicher geschlossen und mit dem neuen Protokoll neu initialisiert.</p>'+
     '<div class="gw-fields"><label>Programmieradapter<select id="gwConnectionAdapter"><option value="ssp3">Original ELMOS SSP3</option><option value="bridge">ESP32-C3 / Pro Micro</option></select></label><label>Chip-Schnittstelle<select id="gwConnectionInterface"><option value="plc">1-Wire · AODO</option><option value="i2c">I²C · SCL/SDA</option><option value="spi">SPI · Testmodus (SSP3)</option></select></label></div>'+ 
@@ -401,9 +401,13 @@ const ELMOS_GUIDED=(()=>{
   if(point.slot==='hi')return ['pointHiName','calHiTemp'];
   const k=point.extraSlot??point.index;return ['calExtra'+k+'Name','calExtra'+k+'Pressure','calExtra'+k+'Temp'];
  }
+ // DSP limits can be reset independently of the physical measurement matrix.
+ function seriesMatrixSignature(p){
+  return JSON.stringify([p.pCount,p.tCount,p.pmin,p.pmax,p.unit,p.temperatures,p.samples,p.orderS,p.orderT,p.fitMode]);
+ }
  function readPointSettings(matrix){
   const fields=matrix.points.flatMap(pointSettingIds).map(id=>[id,$(id).value]);
-  return {signature:JSON.stringify(matrix),fields};
+  return {signature:seriesMatrixSignature(matrix),fields,complexity:$('gwComplexity').value};
  }
  function applyFitPlan(p){
   // Release the old TK0 constraint before applying the new polynomial orders.
@@ -445,7 +449,7 @@ const ELMOS_GUIDED=(()=>{
     fieldValue('calExtra'+k+'Temp',point.temperature);
    }
   }
-  if(seriesPointFields?.signature===nextSignature){
+  if(seriesPointFields?.signature===seriesMatrixSignature(p)){
    for(const [id,value] of seriesPointFields.fields)fieldValue(id,value);
   }
   seriesPointFields=null;
@@ -1179,7 +1183,8 @@ const ELMOS_GUIDED=(()=>{
    if(seriesSettings){
     const current=state();
     if(!current.chip||current.uid!==s.uid)throw Error('Sensorverbindung hat sich geändert.');
-    await window.ELMOS_GUIDED_API.applySeriesSettings(seriesSettings);
+    const result=await window.ELMOS_GUIDED_API.applySeriesSettings(seriesSettings);
+    if(nextSensorPending)nextSensorPending.transfer=result;
    }
    msg('');
    if(task==='alarms'){goto(8);return}
@@ -1274,10 +1279,24 @@ const ELMOS_GUIDED=(()=>{
    task='calibration';stage=0;visited=new Set([0]);
    await next(pending.settings,pending.retryArchiveId||null);
    if(stage!==1)return;
-   nextSensorPending=null;
    seriesPointFields=pending.fields;
-   render();
-   msg('Einstellungen übernommen. Frontend im Sensor-RAM bestätigt.','success');
+   if(pending.fields&&seriesMatrixSignature(makePlan())===pending.fields.signature){
+    // Keep the selected automatic/expert presentation and exact physical setpoints.
+    $('gwComplexity').value=pending.fields.complexity;
+    window.ELMOS_PTC_DEV_UI?.validate?.(makePlan());
+    signature=null;
+    plan=applyPlan();
+    visited.add(1);visited.add(2);
+    nextSensorPending=null;
+    goto(3);
+    const warning=pending.transfer?.warning;
+    msg('Messplan übernommen. AFE-Offset auf 0, DSP-Ziel auf Standard zurückgesetzt. '+(warning||'Verstärkung, Brückeneinstellungen und ADC-Tiefpass übernommen. Bitte Offset und Signalhub am neuen Sensor prüfen.'),warning?'warn':'success');
+   }else{
+    // Output-only tasks or a non-matching matrix need explicit planning.
+    nextSensorPending=null;
+    render();
+    msg('Einstellungen übernommen. Messplan kontrollieren. '+(pending.transfer?.warning||''),pending.transfer?.warning?'warn':'success');
+   }
   }catch(e){
    const record=window.ELMOS_ARCHIVE?.current;
     if(record?.type==='calibration'&&record.chipUID===state().uid&&!state().points?.length&&!state().calStaged)pending.retryArchiveId=record.id;

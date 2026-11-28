@@ -6894,19 +6894,53 @@ if(typeof document!=='undefined') (function UI(){
    if(!uid)throw Error('Chipkennung fehlt.');
    if(!Number.isInteger(st.afe))throw Error('Frontend-Einstellungen konnten nicht bestätigt werden.');
    const settings=configFromUi(ELMOS_CONFIG.GROUPS,matrix);
-   await finishSensorArchive(uid);
-   if(st.port!==port||!st.chip||st.uid?.hex!==uid)
-    throw Error('Sensorverbindung hat sich geändert.');
+   // A series template contains targets, never sensor-specific offset or a reduced DSP limit.
+   settings.afe.offset=0;
+   const defaultLimit=Number($('calDspLimit').defaultValue);
+   if(!Number.isInteger(defaultLimit)||defaultLimit<1000||defaultLimit>32000)throw Error('Standard-DSP-Zielbereich ungültig.');
+   settings.dsp.dspLimit=defaultLimit;
+   if(settings.alarm?.mode==='edit')settings.alarm.settings.limit=defaultLimit;
+   const profile=ELMOS_CONFIG.validate(settings,CAL);
+   const session=st.sessionIndex,wasLive=st.live&&!st.manualLivePause;
    stopLive();
-   if(st.liveReadPromise)await st.liveReadPromise.catch(()=>{});
-   if(st.port!==port)throw Error('USB-Verbindung wurde unterbrochen.');
-   erasePoints();st.trend=[];st.profilePendingAFE=null;
-   $('nvmUserId').value='';
-   stopSeriesPreset();
-   return settings;
+   try{
+    if(st.liveReadPromise)await st.liveReadPromise.catch(()=>{});
+    const current=()=>st.port===port&&st.sessionIndex===session&&st.chip&&st.uid?.hex===uid&&!st.closing;
+    if(!current()||await readCalibrationUid()!==uid)throw Error('Sensorverbindung hat sich geändert.');
+    // Capture the actual filter register words, not the dropdown or a guessed preset.
+    const filterWords=await readFilterProfile();
+    if(!current()||await readCalibrationUid()!==uid)throw Error('Sensorverbindung während Filterlesung geändert.');
+    await finishSensorArchive(uid);
+    if(!current())throw Error('Sensorverbindung hat sich geändert.');
+    erasePoints();st.trend=[];st.profilePendingAFE=null;
+    $('nvmUserId').value='';
+    stopSeriesPreset();
+    return {profile,filterWords,temperatureSource:selectedTemperatureSource()};
+   }catch(error){if(wasLive&&st.chip&&!st.closing)startLive();throw error;}
   },true);
  }
 
+ // Use only the existing documented filter-write path and its readback checks.
+ async function applyNextSensorSettings(settings){
+  const {profile,filterWords,temperatureSource}=settings;
+  const port=st.port,session=st.sessionIndex,uid=st.uid?.hex;
+  const current=()=>!!uid&&st.port===port&&st.sessionIndex===session&&st.chip&&st.uid?.hex===uid&&!st.closing;
+  if(!current()||!hasCurrentNvmBackup())throw Error('Original-NVM des neuen Sensors nicht bestätigt.');
+  if(temperatureSource!==selectedTemperatureSource())throw Error('Temperaturmessquelle wurde während des Sensorwechsels geändert. Serie abbrechen oder ursprüngliche Quelle wieder wählen.');
+  await applySeriesConfig(profile,configIncluded(profile));
+  if(!current())throw Error('Sensorverbindung hat sich geändert.');
+  $('calDspLimit').dataset.userEdited='';
+  const same=words=>Array.isArray(words)&&words.length===filterWords.length&&filterWords.every((word,i)=>word===words[i]);
+  if(same(st.filterWords))return {filterConfirmed:true};
+  const index=filterProfiles.findIndex(([,words])=>same(words));
+  if(index<0)return {filterConfirmed:false,warning:'Der vorherige ADC-Tiefpass ist individuell. Automatische Übernahme nicht freigegeben. Filter am neuen Sensor prüfen und bei Bedarf einen dokumentierten Filter wählen.'};
+  renderFilterProfile();
+  if($('afeFilterProfile').disabled)return {filterConfirmed:false,warning:'ADC-Tiefpass kann mit dieser Verbindung nicht automatisch übernommen werden. Filter im Frontend prüfen.'};
+  await applyFilterProfile(index);
+  if(!current())throw Error('Sensorverbindung während Filterübernahme geändert.');
+  if(!same(st.filterWords))return {filterConfirmed:false,warning:'ADC-Tiefpass konnte nicht bestätigt werden. Filter im Frontend prüfen und erneut einstellen.'};
+  return {filterConfirmed:true};
+ }
  async function connectGuided({adapter,iface,choosePort=false}={}){
   // User-initiated reconnect only. Never reuse old measurements or grant NVM writes.
   if(demoEnabled)throw Error('Im Demo-Modus ist kein echter USB-Protokollwechsel möglich.');
@@ -7034,7 +7068,7 @@ if(typeof document!=='undefined') (function UI(){
   offerSeriesPreset,
   prepareNewCalibration,
   prepareNextSensor,
-  applySeriesSettings:profile=>applySeriesConfig(profile,configIncluded(profile)),
+  applySeriesSettings:applyNextSensorSettings,
   hasKnownSwapPort:async()=>{
    if(st.port&&st.readerAlive)return true;
    if(!navigator.serial)return false;
