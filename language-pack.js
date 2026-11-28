@@ -437,6 +437,8 @@ window.ELMOS_TRANSLATIONS_EN=Object.assign(window.ELMOS_TRANSLATIONS_EN||{}, {
  "Wähle den fehlerhaften Messpunkt, lösche ihn und nimm ihn neu auf.": "Select the incorrect point, delete it and capture it again.",
  "Bei Bedarf diesen Messpunkt löschen und neu aufnehmen oder einen anderen Punkt wählen.": "If needed, delete and retake this point or select another point.",
  "Messpunkte prüfen · Berechnung noch nicht freigegeben": "Check measurement points · calculation not yet authorised",
+ "Sensor-ID": "Sensor ID",
+ "Sensor-ID aus USER (0x6A) oder geprüftem NVM. Nicht die unveränderliche Chip-UID.": "Sensor ID from USER (0x6A) or verified NVM. Not the immutable chip UID.",
  "Sensor-ID – Dezimal": "Sensor ID – decimal",
  "Sensor-ID – Hex": "Sensor ID – hex",
  "Eingabeformat ändern": "Change input format",

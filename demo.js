@@ -29,6 +29,7 @@ const ELMOS_DEMO = {
 
   function reboot() {
    for (const [index, address] of bootRegisters) ram.set(address, nvm[index]);
+   ram.set(0x6A,nvm[30]);
    if(ptc)for(const [index,address] of betaRegs)ram.set(address,nvm[index]);
    writeEnabled = false;
   }

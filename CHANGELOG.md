@@ -1,3 +1,9 @@
+## v0.7.225 – Sensor-ID in der Live-Leiste
+
+- Zusätzliches Live-Kästchen mit dezimaler Sensor-ID und Hex-Wert, nur bei bestätigter ID ungleich 0. Wert 0 gilt als nicht vergeben (Anwendungskonvention; USER hat laut Datenblatt keinen separaten Leerstatus).
+- USER-Register 0x6A nach Chip-Erkennung lesen (DS 25DS0170E.04, §6.5.5.2), geprüftes aktuelles NVM hat Vorrang. Nach bestätigter NVM-Programmierung aktualisieren; an Port, Sitzung und Chip-UID gebunden. Keine zusätzlichen NVM-Schreibbefehle.
+- Softwaretests ergänzt, Hardwareprüfung ausstehend.
+
 ## v0.7.224 – Einzelne Messpunkte korrigieren
 
 - Aufgenommenen Referenzmesspunkt auswählen und einzeln löschen. Der ursprüngliche Aufnahmebutton erscheint wieder; alle anderen Druck- und Temperaturmesspunkte bleiben erhalten.

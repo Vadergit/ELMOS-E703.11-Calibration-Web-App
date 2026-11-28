@@ -958,7 +958,40 @@ if(typeof document!=='undefined') (function UI(){
   }
  });
  function dspNumber(n){return Number.isFinite(n)?n.toLocaleString('de-CH',{minimumFractionDigits:2,maximumFractionDigits:2}):'—'}
+ function liveUserIdContextMatches(proof){
+  return !!(proof&&st.port&&st.chip&&!st.closing&&!st.sensorLost&&st.uid?.hex&&proof.port===st.port&&proof.session===st.sessionIndex&&proof.uid===st.uid.hex);
+ }
+ function currentLiveUserId(){
+  if(!st.port||!st.chip||st.closing||st.sensorLost||!st.uid?.hex)return null;
+  const value=hasCurrentNvmBackup()?st.nvmBackup[30]:liveUserIdContextMatches(st.liveUserIdProof)?st.liveUserIdProof.value:null;
+  // USER has no assignment flag (DS 6.5.5.2). Application convention: 0 = not assigned.
+  return Number.isInteger(value)&&value>0&&value<=65535?value:null;
+ }
+ function renderLiveUserId(){
+  const card=$('liveUserIdCard');if(!card)return;
+  const value=currentLiveUserId(),visible=value!==null;
+  card.hidden=!visible;card.parentElement.classList.toggle('has-user-id',visible);
+  const decimal=visible?value.toLocaleString('de-CH'):'—';
+  const hex=visible?'0x'+value.toString(16).toUpperCase().padStart(4,'0'):'—';
+  if($('liveUserId').textContent!==decimal)$('liveUserId').textContent=decimal;
+  if($('liveUserIdHex').textContent!==hex)$('liveUserIdHex').textContent=hex;
+ }
+ async function readLiveUserId(){
+  const context={port:st.port,session:st.sessionIndex,uid:st.uid?.hex};
+  st.liveUserIdProof=null;
+  if(!liveUserIdContextMatches(context))return;
+  try{
+   // DS 25DS0170E.04 §6.5.5.2: USER is copied from NVM on start-up.
+   // Direct register reads only; no RAM unlock, NVM command or write.
+   const value=await readReg(0x6A,1350);
+   if(!liveUserIdContextMatches(context)||!Number.isInteger(value)||value<0||value>65535)return;
+   if(await readCalibrationUid()!==context.uid||!liveUserIdContextMatches(context))return;
+   st.liveUserIdProof={...context,value};
+  }catch(error){logging('Sensor-ID nicht verfügbar: '+error.message)}
+  finally{renderLiveUserId()}
+ }
  function renderLiveOverview(){
+  renderLiveUserId();
   const connected=!!st.port&&confirmedSensorForUi();
   const activeADC=connected&&st.adc&&Number.isFinite(st.adc.s);
   const activeDSP=connected&&st.dsp&&Number.isInteger(st.dsp.raw)&&!st.dspError;
@@ -2974,6 +3007,7 @@ if(typeof document!=='undefined') (function UI(){
    const backup=Object.freeze(words.slice());
    st.nvmBackup=backup;st.nvmBackupVerified=true;
    st.nvmBackupProof={port,session,uid,words:backup,readAt:new Date().toISOString(),source:'ram-initialization'};
+   st.liveUserIdProof={port,session,uid,value:backup[30]};renderLiveUserId();
    st.calImage=null;
    st.readOnlySensor=null;restored=true;
    // UI and local backup history only: no new USB transaction.
@@ -3077,6 +3111,7 @@ if(typeof document!=='undefined') (function UI(){
   st.plcAddress=previous;renderStatus();return false;
  }
  async function detect({requireUid=false}={}){
+  st.liveUserIdProof=null;renderLiveUserId();
   // AFE and ADC_S form the minimum real chip-presence proof.
   // Do not make the entire live display dependent on less reliable temperature
   // or DSP registers. A full calibration capture remains strict and separate.
@@ -3106,6 +3141,7 @@ if(typeof document!=='undefined') (function UI(){
    try{st.filterWords=await readFilterProfile()}
    catch(e){logging('ADC-Filter konnte nicht gelesen werden: '+e.message)}
    await expert.onDetect();
+   await readLiveUserId();
    // AODO RAM coefficients are already in st.regs after expert UID probing.
    // Render percentage immediately without waiting for an EEPROM scan.
    renderDSPLive();
@@ -3753,6 +3789,7 @@ if(typeof document!=='undefined') (function UI(){
    show('connMsg','Neuinitialisierung erst nach Abschluss des laufenden Chipvorgangs möglich.','warn');return;
   }
   cancelAutoReconnect();
+  st.liveUserIdProof=null;
   st.reinitRunning=true;st.ramRecoveryAttempted=false;st.ramRecoveryRetryable=false;
   st.psscRamRecovery=false;st.coldStartAfeRestored=false;st.calibrationPreflight=null;
   st.startupTrials=[];
@@ -3906,6 +3943,7 @@ if(typeof document!=='undefined') (function UI(){
   st.port=port;st.mode='usb';st.sensorLost=false;st.adapterNoReply=false;
   autoReconnectSuppressed=false;cancelAutoReconnect();
   autoPortInfo=port?.getInfo?.()||null;
+  st.liveUserIdProof=null;
   st.sessionIndex++;debugTrace=newDebugTrace();st.sessionStartedAt=new Date().toISOString();debugAppend('events',{kind:'sessionStart',step:currentStep});st.calibrationPreflight=null;
   st.nvmBackup=null;st.nvmBackupVerified=false;st.nvmBackupProof=null;
   st.psscRamRecovery=false;st.coldStartAfeRestored=false;st.calibrationPreflight=null;
@@ -4751,6 +4789,7 @@ if(typeof document!=='undefined') (function UI(){
     throw Error('Sensor oder USB-Sitzung während NVM-Lesung geändert');
    if(!debugTrace.originalNvm)debugTrace.originalNvm={words:words.slice(),at:new Date().toISOString(),uid,crc8Verified:true,crc16Verified:true};
    st.nvmBackup=words;st.nvmBackupVerified=true;st.nvmBackupProof={port,session,uid,words,readAt:new Date().toISOString()};st.calImage=null;
+   st.liveUserIdProof={port,session,uid,value:words[30]};renderLiveUserId();
    if((postBoot||expertRead)&&await restoreCalibrationDisplayProfile(words))
     logging('Anzeigebereich aus UID-/NVM-gebundener Referenz wiederhergestellt.');
    expert.refreshOutputReadOnly();expert.refreshEEPROMViewer();
@@ -5587,6 +5626,9 @@ if(typeof document!=='undefined') (function UI(){
    if(!sameBoot(beforeBoot,await bootSnapshot()))throw Error('Bootregister nach Programmierung abweichend');
    const verifiedOutputLimit=outputOnly?st.outputOnlyPlan?.limit:st.calfit?.outputLimit;
    st.nvmDone=true;st.temperatureBaseline=null;st.nvmBackup=after;st.nvmBackupVerified=true;
+   // Display only: do not grant NVM write permission or change the backup proof.
+   st.liveUserIdProof={port:st.port,session:st.sessionIndex,uid:id,value:after[30]};
+   renderLiveUserId();
     if(!restoring&&!outputOnly&&!alarmOnly){lsSet(checkpointKey(id),'');st.calibrationPreflight=null;}
    if(!restoring&&!outputOnly&&!alarmOnly&&st.calfit&&saveCalibrationDisplayProfile(after,id))
     logging('Druckeinheit und Messbereich lokal mit Chip-UID/NVM-CRC gespeichert (nicht im Sensor).');
