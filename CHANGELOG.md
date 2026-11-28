@@ -1,3 +1,8 @@
+## v0.7.206-uiux – AFE aufräumen
+
+- Separaten Temperatur-AFE-Rechner unabhängig von Temperaturquelle und Expertenmodus aus dem geführten Ablauf ausblenden; nur in der klassischen Expertenansicht verfügbar.
+- Browser-Regression für internen Sensor, PTC, EOC und Schnellabgleich ergänzt.
+
 ## v0.7.205-uiux – Geführter Ablauf
 
 - Temperaturfelder folgen der gewählten Kompensation statt der zuletzt verwendeten Quelle.
