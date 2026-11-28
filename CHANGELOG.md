@@ -1,3 +1,10 @@
+## v0.7.230 – SSC-Temperatur und Referenzwiederherstellung
+
+- Gültige ADC_T-Näherung wird bei fehlendem oder unplausiblem DSP_T nicht mehr durch ein erkanntes Kalibrierprofil unterdrückt. Unplausible Näherungen werden ausdrücklich als ausserhalb des Bereichs gekennzeichnet.
+- Temperaturquelle beim Verbindungsaufbau optional lesen; fehlende Antwort darf die Verbindung nicht blockieren. Bei eindeutig bestätigtem NVM derselben Sitzung darf dessen Quellenkonfiguration als Ersatz dienen. PTC/EOC ohne bekanntes Modell werden nicht fälschlich als interne Chiptemperatur angezeigt.
+- Einpunktreferenz aus bereits vorhandenen, UID-/CRC-geprüften lokalen Abgleichprofilen wiederherstellen; neue Referenz vor den Abschluss-Callbacks sichern und erst nach erfolgreicher NVM-Verifikation lokal speichern.
+- Tooltip zeigt CFG_AFE2, CFG_EN, ADC_T und DSP_T sowie tatsächliche Quelle. Keine Änderung an Temperaturregistern oder NVM-Schreibfreigaben. Hardwareprüfung offen.
+
 ## v0.7.229 – Verbindungsinitialisierung korrigiert
 
 - Behebt einen JavaScript-Abbruch bei App-Start ohne Sensor: Eine fehlende Temperaturreferenz und eine noch unbekannte UID dürfen nicht als gültige Referenz verglichen werden. Der Nullfall wird vor dem Zugriff auf Referenzdaten abgefangen.
