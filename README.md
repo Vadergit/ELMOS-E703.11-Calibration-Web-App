@@ -1,8 +1,8 @@
 # ELMOS E703.11 – Web-Kalibrierassistent
 
-**Ein geführter Kalibrierassistent für den ELMOS E703.11 und das SSP3-Eval-Board.** Ziel ist ein verständlicher Abgleich, der auch ohne tiefere Vorkenntnisse Schritt für Schritt funktioniert. Wer mehr benötigt, kann zusätzliche Messpunkte, DSP-Parameter und einen geschützten Expertenmodus verwenden.
+**Ein geführter Kalibrierassistent für den ELMOS E703.11 mit SSP3-Eval-Board, ESP32-C3 SuperMini oder Arduino Pro Micro.** Ziel ist ein verständlicher Abgleich, der auch ohne tiefere Vorkenntnisse Schritt für Schritt funktioniert. Wer mehr benötigt, kann zusätzliche Messpunkte, DSP-Parameter und einen geschützten Expertenmodus verwenden.
 
-**Version: v0.7.176 · Brückenspannung beim ESP32-Neuabgleich** · [Änderungsverlauf](CHANGELOG.md) · **[Geplante Funktionen](ROADMAP.md)**
+**Version: v0.7.203 · Erweiterter Temperaturabgleich und automatische Abschlussprüfung** · [Änderungsverlauf](CHANGELOG.md) · **[Geplante Funktionen](ROADMAP.md)**
 
 Der **Demo-Modus** wird in den Einstellungen erst nach Aktivierung von **Expertenparameter** angezeigt. Er simuliert Sensorwerte und Schreibvorgänge; die echte Hardware wird dabei nicht programmiert.
 
@@ -10,9 +10,46 @@ Der **Demo-Modus** wird in den Einstellungen erst nach Aktivierung von **Experte
 
 > **Entwicklungsstand: Laborprototyp.** Die vollständige Kalibrierung einschliesslich dauerhafter NVM-Programmierung ist **noch nicht mit einem echten E703.11 als Gesamtablauf freigegeben**. Hardwareverhalten, AODO-Ausgangsmodi und NVM-Wiederherstellung müssen am Testchip geprüft werden. Nicht für die Serienproduktion oder unersetzliche Sensoren einsetzen.
 
-> **Geführter Assistent:** Nach der bestätigten SSP3-Verbindung stehen die neue Schritt-für-Schritt-Führung, die klassische Ansicht und der optionale Kompaktmodus zur Verfügung. Ein E703.11-Chip muss für den Abgleich verbunden sein. Als DIY-Programmer sind ausschliesslich ESP32-C3 SuperMini (v0.12 Labor-Quellcode) und Arduino Pro Micro (v0.28 Labor-Quellcode) vorgesehen. Die originalen ELMOS SSP3-Adapter bleiben separat unterstützt. Der vollständige Hardwaretest der DIY-Programmer ist noch offen.
+> **Geführter Assistent:** Nach bestätigter Sensorverbindung stehen die Schritt-für-Schritt-Führung, die klassische Ansicht und der optionale Kompaktmodus zur Verfügung. Ein E703.11-Chip muss für den Abgleich verbunden sein. Als DIY-Programmer sind ESP32-C3 SuperMini und Arduino Pro Micro mit kompatibler Bridge-Firmware und integriertem Lastschalter vorgesehen. Die originalen ELMOS SSP3-Adapter bleiben separat unterstützt. Der vollständige Hardwaretest der DIY-Programmer ist noch offen.
 >
 > [Geführter Abgleich](docs/GEFUEHRTER_ASSISTENT.md) · [DIY-Programmer (ESP32-C3 / Pro Micro)](docs/USB_BRIDGE_GUIDE.md) · [Pinbelegung der zwei Boards](docs/ESP_BOARD_OPTIONS.md) · [DIY-Firmware-Installer](firmware-update.html)
+
+## Neu in v0.7.203 – 28.11.2026
+
+Die Erweiterungen aus dem Integrationsbranch `integration/ptc-eoc-beta` (Integration 13) sind jetzt Teil des Main-Branches. Die bestehende interne Temperaturquelle bleibt der Standard. Die zusätzlichen Temperaturpfade werden innerhalb desselben geführten Assistenten angeboten, ohne separate Web-App.
+
+### Erweiterter Druck- und Temperaturabgleich
+
+| Messquelle / Funktion | Beschreibung |
+| --- | --- |
+| Interner Temperatursensor | Bestehender Standard-Abgleich; auch reiner Druckabgleich ohne Temperaturkompensation möglich. |
+| Brückentemperatur / PTC (Beta) | Temperaturinformation aus Brückenwiderstand bzw. Brückenstrom, mit AFE-/RPGA-Auslegung und Korrekturmodell. |
+| Externer Temperaturfühler / EOC (Beta) | Alternativer Temperaturpfad mit passender AFE-Konfiguration und quellenabhängiger Koeffizientenberechnung. |
+| Alarm- und Fehlerkonfiguration | Integrierter optionaler Schritt; vorhandene Alarmregister bleiben beim Überspringen unverändert. |
+| ADC und DSP | Individuell einstellbarer DSP-Zielbereich, keine starre ADC-Grenze bei ±25'000 Digits; digitale ADC-Grenzen und DSP-Referenz werden getrennt dargestellt. |
+
+Die erweiterten Temperaturpfade verfügen über DLL-Referenzdaten und separate Software-Regressionstests. Eine vollständige numerische und reale Hardwarevalidierung aller Temperaturverfahren ist noch offen; PTC/EOC bleiben deshalb Beta-Funktionen.
+
+### Geführter Ablauf und Bedienung
+
+- Schnellverbindung direkt auf der Aufgabenauswahl mit SSP3, ESP32-C3 oder Pro Micro und Auswahl von 1-Wire/I²C.
+- Beim expliziten Start eines neuen Abgleichs: Sensorneustart bzw. manuelle Bestätigung, erneute UID-/CRC-geprüfte NVM-Lesung und Abgleich des Messprofils.
+- Sensorbrücken-Rechner direkt im geführten Modus mit Zurück-Funktion, ohne Verlust des laufenden Abgleichplans.
+- Temperaturmodell bei reinem Druckabgleich ausgeblendet; automatische Routine-Vorabprüfungen ohne zusätzlichen Bedienaufwand.
+- Kompakter Live-Kopfbereich und Abschlussseite mit Sensorwert und Messgraph.
+
+### Automatische NVM-Abschlussprüfung
+
+1. Kalibrierung dauerhaft ins NVM schreiben und alle 64 Wörter zurücklesen und prüfen.
+2. Bei ESP32-C3 und Arduino Pro Micro automatisch einen Kaltstart über den integrierten Lastschalter auslösen (GPIO10 bzw. D7). Die Lastschaltersteuerung ist fest aktiv; frühere deaktivierte Einstellungen werden nicht übernommen.
+3. Chip-UID, NVM, CRC8/CRC16, Bootregister, Brückenspannung und bei echtem Kalibrierabgleich die relevanten DSP-/Profilregister prüfen.
+4. Automatisch zur Abschlussprüfung wechseln und den tatsächlichen Neustartstatus anzeigen. Beim SSP3 bleibt die manuelle Kaltstartprüfung möglich. Fehler werden nicht als erfolgreiche Prüfung gewertet.
+
+Die elektrische Ausgangsmessung am Sensor bleibt erforderlich. Die automatische Neustartprüfung ersetzt keine Hardwarefreigabe. Die vollständige Testsuite nach dem Merge, die reale Hardwareprüfung der Erweiterungen und die Pages-Veröffentlichung wurden noch nicht verifiziert.
+
+[Änderungsverlauf](CHANGELOG.md) · [Integrations- und Testdokumentation](docs/PTC_EOC_INTEGRATION_TEST.md) · [Temperatur-AFE-Rechner](temperature-beta/temperature-afe.html)
+
+---
 
 ## v0.7.143 – Digitaler Sensorwert in Prozent
 
@@ -179,7 +216,7 @@ Die Koeffizienten werden weiterhin **zuerst nur ins RAM geschrieben**, rückgele
 
 **Hardwarestatus:** Die Berechnung wurde mit synthetischen Messpunkten getestet. Ein vollständiger realer E703.11-Test samt Temperaturmessung, RAM-/NVM-Rücklesung und Kaltstart ist vor der Freigabe weiterhin notwendig.
 
-## Funktionsumfang – aktueller Stand v0.7.77
+## Funktionsumfang – historischer Stand v0.7.77
 
 Die Software enthält die folgenden Bereiche; die verlinkten Anleitungen beschreiben die **aktuelle Bedienung**, während die nachfolgenden älteren Versionsabschnitte die Entwicklungshistorie dokumentieren:
 
