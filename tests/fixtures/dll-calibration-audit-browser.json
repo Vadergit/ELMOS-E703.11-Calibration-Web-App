@@ -1,0 +1,2157 @@
+{
+  "schema": 1,
+  "scope": "Browser mathematics and previously recorded v3.20 DLL fixture. No new native DLL run. Candidate 1.98 is in-memory only.",
+  "sourceBlobs": {
+    "calibration.js": "5c8554ce1ee2be639ddeb22c5a4e51057024580c",
+    "temperature-afe.js": "f6e99c58b88e2459e7c63f55ced2b58c897abe95",
+    "tests/fixtures/temperature-afe-dll.json": "4497ccd20167b08a357ad9acc8b4ebfb24c10537",
+    "tests/dll-calibration-matrix.cjs": "9ebb998ff8acbd3d0ccb04c023d703e1848ebb94"
+  },
+  "runs": [
+    {
+      "normalizationScale": 1.7,
+      "counts": {
+        "total": 94,
+        "success": 25,
+        "rejected": 69,
+        "verificationPointsOnSuccess": 276,
+        "uiPointLimitExceeded": 18,
+        "uiTemperatureOrderUnsupported": 12
+      },
+      "cases": [
+        {
+          "name": "internal-S1-T0-25000",
+          "ok": true,
+          "stats": {
+            "maxDigits": 0.40285399556159973,
+            "rmsDigits": 0.3019830703914362,
+            "maxTemperatureDigits": null,
+            "rangeDigits": 33000,
+            "maxNormalized": 0.9900662004947662,
+            "maxOutput": 0.7629517472532825
+          },
+          "uiPointLimitExceeded": false,
+          "uiTemperatureOrderUnsupported": false
+        },
+        {
+          "name": "internal-S1-T1-25000",
+          "ok": false,
+          "error": "T1 ausserhalb Q0.15: -1.1488439425825243 (zulässig -1 bis 0.999969482421875)",
+          "uiPointLimitExceeded": false,
+          "uiTemperatureOrderUnsupported": false
+        },
+        {
+          "name": "internal-S1-T2-25000",
+          "ok": false,
+          "error": "T1 ausserhalb Q0.15: -1.1488392328077583 (zulässig -1 bis 0.999969482421875)",
+          "uiPointLimitExceeded": false,
+          "uiTemperatureOrderUnsupported": false
+        },
+        {
+          "name": "internal-S1-T3-25000",
+          "ok": false,
+          "error": "T1 ausserhalb Q0.15: -1.1472437024648863 (zulässig -1 bis 0.999969482421875)",
+          "uiPointLimitExceeded": false,
+          "uiTemperatureOrderUnsupported": false
+        },
+        {
+          "name": "internal-S2-T0-25000",
+          "ok": true,
+          "stats": {
+            "maxDigits": 0.4479038715362549,
+            "rmsDigits": 0.33876756518611745,
+            "maxTemperatureDigits": null,
+            "rangeDigits": 33000,
+            "maxNormalized": 0.9900662004947662,
+            "maxOutput": 0.7629510107950185
+          },
+          "uiPointLimitExceeded": false,
+          "uiTemperatureOrderUnsupported": false
+        },
+        {
+          "name": "internal-S2-T1-25000",
+          "ok": false,
+          "error": "T1 ausserhalb Q0.15: -1.1488439425825248 (zulässig -1 bis 0.999969482421875)",
+          "uiPointLimitExceeded": false,
+          "uiTemperatureOrderUnsupported": false
+        },
+        {
+          "name": "internal-S2-T2-25000",
+          "ok": false,
+          "error": "T1 ausserhalb Q0.15: -1.1488392328077588 (zulässig -1 bis 0.999969482421875)",
+          "uiPointLimitExceeded": false,
+          "uiTemperatureOrderUnsupported": false
+        },
+        {
+          "name": "internal-S2-T3-25000",
+          "ok": false,
+          "error": "T1 ausserhalb Q0.15: -1.1472437024648854 (zulässig -1 bis 0.999969482421875)",
+          "uiPointLimitExceeded": true,
+          "uiTemperatureOrderUnsupported": false
+        },
+        {
+          "name": "internal-S3-T0-25000",
+          "ok": true,
+          "stats": {
+            "maxDigits": 0.6113622187331202,
+            "rmsDigits": 0.35603050202154973,
+            "maxTemperatureDigits": null,
+            "rangeDigits": 33000,
+            "maxNormalized": 0.9900662004947662,
+            "maxOutput": 0.7629330916011431
+          },
+          "uiPointLimitExceeded": false,
+          "uiTemperatureOrderUnsupported": false
+        },
+        {
+          "name": "internal-S3-T1-25000",
+          "ok": false,
+          "error": "T1 ausserhalb Q0.15: -1.148843942582524 (zulässig -1 bis 0.999969482421875)",
+          "uiPointLimitExceeded": false,
+          "uiTemperatureOrderUnsupported": false
+        },
+        {
+          "name": "internal-S3-T2-25000",
+          "ok": false,
+          "error": "T1 ausserhalb Q0.15: -1.1488392328077581 (zulässig -1 bis 0.999969482421875)",
+          "uiPointLimitExceeded": true,
+          "uiTemperatureOrderUnsupported": false
+        },
+        {
+          "name": "internal-S3-T3-25000",
+          "ok": false,
+          "error": "T1 ausserhalb Q0.15: -1.147243702464886 (zulässig -1 bis 0.999969482421875)",
+          "uiPointLimitExceeded": true,
+          "uiTemperatureOrderUnsupported": false
+        },
+        {
+          "name": "internal-TK0-25000",
+          "ok": true,
+          "stats": {
+            "maxDigits": 0.652277946472168,
+            "rmsDigits": 0.3962000421000916,
+            "maxTemperatureDigits": 0.22573935985565186,
+            "rangeDigits": 30000,
+            "maxNormalized": 0.989958643913269,
+            "maxOutput": 0.7629593590681907
+          },
+          "uiPointLimitExceeded": false,
+          "uiTemperatureOrderUnsupported": false
+        },
+        {
+          "name": "internal-S1-T0-32000",
+          "ok": true,
+          "stats": {
+            "maxDigits": 0.8758781254291534,
+            "rmsDigits": 0.6226149630996324,
+            "maxTemperatureDigits": null,
+            "rangeDigits": 33000,
+            "maxNormalized": 0.9900662004947662,
+            "maxOutput": 0.9765597472714944
+          },
+          "uiPointLimitExceeded": false,
+          "uiTemperatureOrderUnsupported": false
+        },
+        {
+          "name": "internal-S1-T1-32000",
+          "ok": false,
+          "error": "S4 ausserhalb Q0.15: 1.0315486136823457 (zulässig -1 bis 0.999969482421875)",
+          "uiPointLimitExceeded": false,
+          "uiTemperatureOrderUnsupported": false
+        },
+        {
+          "name": "internal-S1-T2-32000",
+          "ok": false,
+          "error": "S4 ausserhalb Q0.15: 1.0324179679509442 (zulässig -1 bis 0.999969482421875)",
+          "uiPointLimitExceeded": false,
+          "uiTemperatureOrderUnsupported": false
+        },
+        {
+          "name": "internal-S1-T3-32000",
+          "ok": false,
+          "error": "S4 ausserhalb Q0.15: 1.0328420029640648 (zulässig -1 bis 0.999969482421875)",
+          "uiPointLimitExceeded": false,
+          "uiTemperatureOrderUnsupported": false
+        },
+        {
+          "name": "internal-S2-T0-32000",
+          "ok": true,
+          "stats": {
+            "maxDigits": 0.5568483540082525,
+            "rmsDigits": 0.3602959829495726,
+            "maxTemperatureDigits": null,
+            "rangeDigits": 33000,
+            "maxNormalized": 0.9900662004947662,
+            "maxOutput": 0.9765794936631472
+          },
+          "uiPointLimitExceeded": false,
+          "uiTemperatureOrderUnsupported": false
+        },
+        {
+          "name": "internal-S2-T1-32000",
+          "ok": false,
+          "error": "S4 ausserhalb Q0.15: 1.0293733847877085 (zulässig -1 bis 0.999969482421875)",
+          "uiPointLimitExceeded": false,
+          "uiTemperatureOrderUnsupported": false
+        },
+        {
+          "name": "internal-S2-T2-32000",
+          "ok": false,
+          "error": "S4 ausserhalb Q0.15: 1.030117094247726 (zulässig -1 bis 0.999969482421875)",
+          "uiPointLimitExceeded": false,
+          "uiTemperatureOrderUnsupported": false
+        },
+        {
+          "name": "internal-S2-T3-32000",
+          "ok": false,
+          "error": "S4 ausserhalb Q0.15: 1.0305470110443766 (zulässig -1 bis 0.999969482421875)",
+          "uiPointLimitExceeded": true,
+          "uiTemperatureOrderUnsupported": false
+        },
+        {
+          "name": "internal-S3-T0-32000",
+          "ok": true,
+          "stats": {
+            "maxDigits": 0.549652759298624,
+            "rmsDigits": 0.3198814788966812,
+            "maxTemperatureDigits": null,
+            "rangeDigits": 33000,
+            "maxNormalized": 0.9900662004947662,
+            "maxOutput": 0.9765561987111092
+          },
+          "uiPointLimitExceeded": false,
+          "uiTemperatureOrderUnsupported": false
+        },
+        {
+          "name": "internal-S3-T1-32000",
+          "ok": false,
+          "error": "S4 ausserhalb Q0.15: 1.0282417213904014 (zulässig -1 bis 0.999969482421875)",
+          "uiPointLimitExceeded": false,
+          "uiTemperatureOrderUnsupported": false
+        },
+        {
+          "name": "internal-S3-T2-32000",
+          "ok": false,
+          "error": "S4 ausserhalb Q0.15: 1.0289362379454634 (zulässig -1 bis 0.999969482421875)",
+          "uiPointLimitExceeded": true,
+          "uiTemperatureOrderUnsupported": false
+        },
+        {
+          "name": "internal-S3-T3-32000",
+          "ok": false,
+          "error": "S4 ausserhalb Q0.15: 1.0293266539372583 (zulässig -1 bis 0.999969482421875)",
+          "uiPointLimitExceeded": true,
+          "uiTemperatureOrderUnsupported": false
+        },
+        {
+          "name": "internal-TK0-32000",
+          "ok": true,
+          "stats": {
+            "maxDigits": 0.5601334571838379,
+            "rmsDigits": 0.39833824588325306,
+            "maxTemperatureDigits": 0.22573935985565186,
+            "rangeDigits": 30000,
+            "maxNormalized": 0.989958643913269,
+            "maxOutput": 0.97657959391654
+          },
+          "uiPointLimitExceeded": false,
+          "uiTemperatureOrderUnsupported": false
+        },
+        {
+          "name": "bridge-S1-T0-25000",
+          "ok": true,
+          "stats": {
+            "maxDigits": 0.40285399556159973,
+            "rmsDigits": 0.3019830703914362,
+            "maxTemperatureDigits": null,
+            "rangeDigits": 33000,
+            "maxNormalized": 0.9900662004947662,
+            "maxOutput": 0.7629517472532825
+          },
+          "uiPointLimitExceeded": false,
+          "uiTemperatureOrderUnsupported": true
+        },
+        {
+          "name": "bridge-S1-T1-25000",
+          "ok": false,
+          "error": "T1 ausserhalb Q0.15: -1.148948903726483 (zulässig -1 bis 0.999969482421875)",
+          "uiPointLimitExceeded": false,
+          "uiTemperatureOrderUnsupported": false
+        },
+        {
+          "name": "bridge-S1-T2-25000",
+          "ok": false,
+          "error": "T1 ausserhalb Q0.15: -1.148948879154062 (zulässig -1 bis 0.999969482421875)",
+          "uiPointLimitExceeded": false,
+          "uiTemperatureOrderUnsupported": false
+        },
+        {
+          "name": "bridge-S1-T3-25000",
+          "ok": false,
+          "error": "T1 ausserhalb Q0.15: -1.1482180344191122 (zulässig -1 bis 0.999969482421875)",
+          "uiPointLimitExceeded": false,
+          "uiTemperatureOrderUnsupported": false
+        },
+        {
+          "name": "bridge-S2-T0-25000",
+          "ok": true,
+          "stats": {
+            "maxDigits": 0.4479038715362549,
+            "rmsDigits": 0.33876756518611745,
+            "maxTemperatureDigits": null,
+            "rangeDigits": 33000,
+            "maxNormalized": 0.9900662004947662,
+            "maxOutput": 0.7629510107950185
+          },
+          "uiPointLimitExceeded": false,
+          "uiTemperatureOrderUnsupported": true
+        },
+        {
+          "name": "bridge-S2-T1-25000",
+          "ok": false,
+          "error": "T1 ausserhalb Q0.15: -1.1489489037264835 (zulässig -1 bis 0.999969482421875)",
+          "uiPointLimitExceeded": false,
+          "uiTemperatureOrderUnsupported": false
+        },
+        {
+          "name": "bridge-S2-T2-25000",
+          "ok": false,
+          "error": "T1 ausserhalb Q0.15: -1.1489488791540623 (zulässig -1 bis 0.999969482421875)",
+          "uiPointLimitExceeded": false,
+          "uiTemperatureOrderUnsupported": false
+        },
+        {
+          "name": "bridge-S2-T3-25000",
+          "ok": false,
+          "error": "T1 ausserhalb Q0.15: -1.148218034419112 (zulässig -1 bis 0.999969482421875)",
+          "uiPointLimitExceeded": true,
+          "uiTemperatureOrderUnsupported": false
+        },
+        {
+          "name": "bridge-S3-T0-25000",
+          "ok": true,
+          "stats": {
+            "maxDigits": 0.6113622187331202,
+            "rmsDigits": 0.35603050202154973,
+            "maxTemperatureDigits": null,
+            "rangeDigits": 33000,
+            "maxNormalized": 0.9900662004947662,
+            "maxOutput": 0.7629330916011431
+          },
+          "uiPointLimitExceeded": false,
+          "uiTemperatureOrderUnsupported": true
+        },
+        {
+          "name": "bridge-S3-T1-25000",
+          "ok": false,
+          "error": "T1 ausserhalb Q0.15: -1.148948903726483 (zulässig -1 bis 0.999969482421875)",
+          "uiPointLimitExceeded": false,
+          "uiTemperatureOrderUnsupported": false
+        },
+        {
+          "name": "bridge-S3-T2-25000",
+          "ok": false,
+          "error": "T1 ausserhalb Q0.15: -1.148948879154062 (zulässig -1 bis 0.999969482421875)",
+          "uiPointLimitExceeded": true,
+          "uiTemperatureOrderUnsupported": false
+        },
+        {
+          "name": "bridge-S3-T3-25000",
+          "ok": false,
+          "error": "T1 ausserhalb Q0.15: -1.1482180344191122 (zulässig -1 bis 0.999969482421875)",
+          "uiPointLimitExceeded": true,
+          "uiTemperatureOrderUnsupported": false
+        },
+        {
+          "name": "bridge-TK0-25000",
+          "ok": true,
+          "stats": {
+            "maxDigits": 0.5361570455133915,
+            "rmsDigits": 0.35335295134587447,
+            "maxTemperatureDigits": 0.07150794379413128,
+            "rangeDigits": 30000,
+            "maxNormalized": 0.989958643913269,
+            "maxOutput": 0.7629558153395237
+          },
+          "uiPointLimitExceeded": false,
+          "uiTemperatureOrderUnsupported": false
+        },
+        {
+          "name": "bridge-S1-T0-32000",
+          "ok": true,
+          "stats": {
+            "maxDigits": 0.8758781254291534,
+            "rmsDigits": 0.6226149630996324,
+            "maxTemperatureDigits": null,
+            "rangeDigits": 33000,
+            "maxNormalized": 0.9900662004947662,
+            "maxOutput": 0.9765597472714944
+          },
+          "uiPointLimitExceeded": false,
+          "uiTemperatureOrderUnsupported": true
+        },
+        {
+          "name": "bridge-S1-T1-32000",
+          "ok": false,
+          "error": "S4 ausserhalb Q0.15: 1.0315452236477138 (zulässig -1 bis 0.999969482421875)",
+          "uiPointLimitExceeded": false,
+          "uiTemperatureOrderUnsupported": false
+        },
+        {
+          "name": "bridge-S1-T2-32000",
+          "ok": false,
+          "error": "S4 ausserhalb Q0.15: 1.0321358217746228 (zulässig -1 bis 0.999969482421875)",
+          "uiPointLimitExceeded": false,
+          "uiTemperatureOrderUnsupported": false
+        },
+        {
+          "name": "bridge-S1-T3-32000",
+          "ok": false,
+          "error": "S4 ausserhalb Q0.15: 1.0325583222909442 (zulässig -1 bis 0.999969482421875)",
+          "uiPointLimitExceeded": false,
+          "uiTemperatureOrderUnsupported": false
+        },
+        {
+          "name": "bridge-S2-T0-32000",
+          "ok": true,
+          "stats": {
+            "maxDigits": 0.5568483540082525,
+            "rmsDigits": 0.3602959829495726,
+            "maxTemperatureDigits": null,
+            "rangeDigits": 33000,
+            "maxNormalized": 0.9900662004947662,
+            "maxOutput": 0.9765794936631472
+          },
+          "uiPointLimitExceeded": false,
+          "uiTemperatureOrderUnsupported": true
+        },
+        {
+          "name": "bridge-S2-T1-32000",
+          "ok": false,
+          "error": "S4 ausserhalb Q0.15: 1.0293701586240447 (zulässig -1 bis 0.999969482421875)",
+          "uiPointLimitExceeded": false,
+          "uiTemperatureOrderUnsupported": false
+        },
+        {
+          "name": "bridge-S2-T2-32000",
+          "ok": false,
+          "error": "S4 ausserhalb Q0.15: 1.0298485905624808 (zulässig -1 bis 0.999969482421875)",
+          "uiPointLimitExceeded": false,
+          "uiTemperatureOrderUnsupported": false
+        },
+        {
+          "name": "bridge-S2-T3-32000",
+          "ok": false,
+          "error": "S4 ausserhalb Q0.15: 1.0302771301040745 (zulässig -1 bis 0.999969482421875)",
+          "uiPointLimitExceeded": true,
+          "uiTemperatureOrderUnsupported": false
+        },
+        {
+          "name": "bridge-S3-T0-32000",
+          "ok": true,
+          "stats": {
+            "maxDigits": 0.549652759298624,
+            "rmsDigits": 0.3198814788966812,
+            "maxTemperatureDigits": null,
+            "rangeDigits": 33000,
+            "maxNormalized": 0.9900662004947662,
+            "maxOutput": 0.9765561987111092
+          },
+          "uiPointLimitExceeded": false,
+          "uiTemperatureOrderUnsupported": true
+        },
+        {
+          "name": "bridge-S3-T1-32000",
+          "ok": false,
+          "error": "S4 ausserhalb Q0.15: 1.0282385040963853 (zulässig -1 bis 0.999969482421875)",
+          "uiPointLimitExceeded": false,
+          "uiTemperatureOrderUnsupported": false
+        },
+        {
+          "name": "bridge-S3-T2-32000",
+          "ok": false,
+          "error": "S4 ausserhalb Q0.15: 1.0286684901462997 (zulässig -1 bis 0.999969482421875)",
+          "uiPointLimitExceeded": true,
+          "uiTemperatureOrderUnsupported": false
+        },
+        {
+          "name": "bridge-S3-T3-32000",
+          "ok": false,
+          "error": "S4 ausserhalb Q0.15: 1.0290587898772563 (zulässig -1 bis 0.999969482421875)",
+          "uiPointLimitExceeded": true,
+          "uiTemperatureOrderUnsupported": false
+        },
+        {
+          "name": "bridge-TK0-32000",
+          "ok": true,
+          "stats": {
+            "maxDigits": 0.4402621097397059,
+            "rmsDigits": 0.422392530236655,
+            "maxTemperatureDigits": 0.07150794379413128,
+            "rangeDigits": 30000,
+            "maxNormalized": 0.989958643913269,
+            "maxOutput": 0.9765759357333295
+          },
+          "uiPointLimitExceeded": false,
+          "uiTemperatureOrderUnsupported": false
+        },
+        {
+          "name": "external-S1-T0-25000",
+          "ok": true,
+          "stats": {
+            "maxDigits": 0.40285399556159973,
+            "rmsDigits": 0.3019830703914362,
+            "maxTemperatureDigits": null,
+            "rangeDigits": 33000,
+            "maxNormalized": 0.9900662004947662,
+            "maxOutput": 0.7629517472532825
+          },
+          "uiPointLimitExceeded": false,
+          "uiTemperatureOrderUnsupported": true
+        },
+        {
+          "name": "external-S1-T1-25000",
+          "ok": false,
+          "error": "T1 ausserhalb Q0.15: -1.148956355121969 (zulässig -1 bis 0.999969482421875)",
+          "uiPointLimitExceeded": false,
+          "uiTemperatureOrderUnsupported": false
+        },
+        {
+          "name": "external-S1-T2-25000",
+          "ok": false,
+          "error": "T1 ausserhalb Q0.15: -1.1489598569508663 (zulässig -1 bis 0.999969482421875)",
+          "uiPointLimitExceeded": false,
+          "uiTemperatureOrderUnsupported": false
+        },
+        {
+          "name": "external-S1-T3-25000",
+          "ok": false,
+          "error": "T1 ausserhalb Q0.15: -1.1483508535054259 (zulässig -1 bis 0.999969482421875)",
+          "uiPointLimitExceeded": false,
+          "uiTemperatureOrderUnsupported": false
+        },
+        {
+          "name": "external-S2-T0-25000",
+          "ok": true,
+          "stats": {
+            "maxDigits": 0.4479038715362549,
+            "rmsDigits": 0.33876756518611745,
+            "maxTemperatureDigits": null,
+            "rangeDigits": 33000,
+            "maxNormalized": 0.9900662004947662,
+            "maxOutput": 0.7629510107950185
+          },
+          "uiPointLimitExceeded": false,
+          "uiTemperatureOrderUnsupported": true
+        },
+        {
+          "name": "external-S2-T1-25000",
+          "ok": false,
+          "error": "T1 ausserhalb Q0.15: -1.1489563551219697 (zulässig -1 bis 0.999969482421875)",
+          "uiPointLimitExceeded": false,
+          "uiTemperatureOrderUnsupported": false
+        },
+        {
+          "name": "external-S2-T2-25000",
+          "ok": false,
+          "error": "T1 ausserhalb Q0.15: -1.1489598569508666 (zulässig -1 bis 0.999969482421875)",
+          "uiPointLimitExceeded": false,
+          "uiTemperatureOrderUnsupported": false
+        },
+        {
+          "name": "external-S2-T3-25000",
+          "ok": false,
+          "error": "T1 ausserhalb Q0.15: -1.1483508535054252 (zulässig -1 bis 0.999969482421875)",
+          "uiPointLimitExceeded": true,
+          "uiTemperatureOrderUnsupported": false
+        },
+        {
+          "name": "external-S3-T0-25000",
+          "ok": true,
+          "stats": {
+            "maxDigits": 0.6113622187331202,
+            "rmsDigits": 0.35603050202154973,
+            "maxTemperatureDigits": null,
+            "rangeDigits": 33000,
+            "maxNormalized": 0.9900662004947662,
+            "maxOutput": 0.7629330916011431
+          },
+          "uiPointLimitExceeded": false,
+          "uiTemperatureOrderUnsupported": true
+        },
+        {
+          "name": "external-S3-T1-25000",
+          "ok": false,
+          "error": "T1 ausserhalb Q0.15: -1.1489563551219695 (zulässig -1 bis 0.999969482421875)",
+          "uiPointLimitExceeded": false,
+          "uiTemperatureOrderUnsupported": false
+        },
+        {
+          "name": "external-S3-T2-25000",
+          "ok": false,
+          "error": "T1 ausserhalb Q0.15: -1.1489598569508659 (zulässig -1 bis 0.999969482421875)",
+          "uiPointLimitExceeded": true,
+          "uiTemperatureOrderUnsupported": false
+        },
+        {
+          "name": "external-S3-T3-25000",
+          "ok": false,
+          "error": "T1 ausserhalb Q0.15: -1.1483508535054257 (zulässig -1 bis 0.999969482421875)",
+          "uiPointLimitExceeded": true,
+          "uiTemperatureOrderUnsupported": false
+        },
+        {
+          "name": "external-TK0-25000",
+          "ok": true,
+          "stats": {
+            "maxDigits": 0.609752893447876,
+            "rmsDigits": 0.3772137639620136,
+            "maxTemperatureDigits": 0.44002346992783714,
+            "rangeDigits": 30000,
+            "maxNormalized": 0.989958643913269,
+            "maxOutput": 0.7629580613065627
+          },
+          "uiPointLimitExceeded": false,
+          "uiTemperatureOrderUnsupported": false
+        },
+        {
+          "name": "external-S1-T0-32000",
+          "ok": true,
+          "stats": {
+            "maxDigits": 0.8758781254291534,
+            "rmsDigits": 0.6226149630996324,
+            "maxTemperatureDigits": null,
+            "rangeDigits": 33000,
+            "maxNormalized": 0.9900662004947662,
+            "maxOutput": 0.9765597472714944
+          },
+          "uiPointLimitExceeded": false,
+          "uiTemperatureOrderUnsupported": true
+        },
+        {
+          "name": "external-S1-T1-32000",
+          "ok": false,
+          "error": "S4 ausserhalb Q0.15: 1.0315409813933363 (zulässig -1 bis 0.999969482421875)",
+          "uiPointLimitExceeded": false,
+          "uiTemperatureOrderUnsupported": false
+        },
+        {
+          "name": "external-S1-T2-32000",
+          "ok": false,
+          "error": "S4 ausserhalb Q0.15: 1.0319237889298494 (zulässig -1 bis 0.999969482421875)",
+          "uiPointLimitExceeded": false,
+          "uiTemperatureOrderUnsupported": false
+        },
+        {
+          "name": "external-S1-T3-32000",
+          "ok": false,
+          "error": "S4 ausserhalb Q0.15: 1.0323461795478444 (zulässig -1 bis 0.999969482421875)",
+          "uiPointLimitExceeded": false,
+          "uiTemperatureOrderUnsupported": false
+        },
+        {
+          "name": "external-S2-T0-32000",
+          "ok": true,
+          "stats": {
+            "maxDigits": 0.5568483540082525,
+            "rmsDigits": 0.3602959829495726,
+            "maxTemperatureDigits": null,
+            "rangeDigits": 33000,
+            "maxNormalized": 0.9900662004947662,
+            "maxOutput": 0.9765794936631472
+          },
+          "uiPointLimitExceeded": false,
+          "uiTemperatureOrderUnsupported": true
+        },
+        {
+          "name": "external-S2-T1-32000",
+          "ok": false,
+          "error": "S4 ausserhalb Q0.15: 1.029366121436106 (zulässig -1 bis 0.999969482421875)",
+          "uiPointLimitExceeded": false,
+          "uiTemperatureOrderUnsupported": false
+        },
+        {
+          "name": "external-S2-T2-32000",
+          "ok": false,
+          "error": "S4 ausserhalb Q0.15: 1.0296467975613672 (zulässig -1 bis 0.999969482421875)",
+          "uiPointLimitExceeded": false,
+          "uiTemperatureOrderUnsupported": false
+        },
+        {
+          "name": "external-S2-T3-32000",
+          "ok": false,
+          "error": "S4 ausserhalb Q0.15: 1.0300752941253437 (zulässig -1 bis 0.999969482421875)",
+          "uiPointLimitExceeded": true,
+          "uiTemperatureOrderUnsupported": false
+        },
+        {
+          "name": "external-S3-T0-32000",
+          "ok": true,
+          "stats": {
+            "maxDigits": 0.549652759298624,
+            "rmsDigits": 0.3198814788966812,
+            "maxTemperatureDigits": null,
+            "rangeDigits": 33000,
+            "maxNormalized": 0.9900662004947662,
+            "maxOutput": 0.9765561987111092
+          },
+          "uiPointLimitExceeded": false,
+          "uiTemperatureOrderUnsupported": true
+        },
+        {
+          "name": "external-S3-T1-32000",
+          "ok": false,
+          "error": "S4 ausserhalb Q0.15: 1.028234478007833 (zulässig -1 bis 0.999969482421875)",
+          "uiPointLimitExceeded": false,
+          "uiTemperatureOrderUnsupported": false
+        },
+        {
+          "name": "external-S3-T2-32000",
+          "ok": false,
+          "error": "S4 ausserhalb Q0.15: 1.02846726268631 (zulässig -1 bis 0.999969482421875)",
+          "uiPointLimitExceeded": true,
+          "uiTemperatureOrderUnsupported": false
+        },
+        {
+          "name": "external-S3-T3-32000",
+          "ok": false,
+          "error": "S4 ausserhalb Q0.15: 1.02885846125013 (zulässig -1 bis 0.999969482421875)",
+          "uiPointLimitExceeded": true,
+          "uiTemperatureOrderUnsupported": false
+        },
+        {
+          "name": "external-TK0-32000",
+          "ok": true,
+          "stats": {
+            "maxDigits": 0.5056866407394409,
+            "rmsDigits": 0.40081507142682155,
+            "maxTemperatureDigits": 0.44002346992783714,
+            "rangeDigits": 30000,
+            "maxNormalized": 0.989958643913269,
+            "maxOutput": 0.9765779323315655
+          },
+          "uiPointLimitExceeded": false,
+          "uiTemperatureOrderUnsupported": false
+        },
+        {
+          "name": "internal-linear",
+          "ok": false,
+          "error": "T1 ausserhalb Q0.15: -1.1485635987735057 (zulässig -1 bis 0.999969482421875)",
+          "uiPointLimitExceeded": false,
+          "uiTemperatureOrderUnsupported": false
+        },
+        {
+          "name": "internal-reverse",
+          "ok": false,
+          "error": "T1 ausserhalb Q0.15: -1.1485635987735057 (zulässig -1 bis 0.999969482421875)",
+          "uiPointLimitExceeded": false,
+          "uiTemperatureOrderUnsupported": false
+        },
+        {
+          "name": "internal-small",
+          "ok": false,
+          "error": "ADC-Signalhub zu klein für eine numerisch stabile Kalibrierung. AFE anpassen.",
+          "uiPointLimitExceeded": false,
+          "uiTemperatureOrderUnsupported": false
+        },
+        {
+          "name": "internal-noise",
+          "ok": false,
+          "error": "T1 ausserhalb Q0.15: -1.149066210176968 (zulässig -1 bis 0.999969482421875)",
+          "uiPointLimitExceeded": false,
+          "uiTemperatureOrderUnsupported": false
+        },
+        {
+          "name": "bridge-linear",
+          "ok": false,
+          "error": "T1 ausserhalb Q0.15: -1.1487818688444393 (zulässig -1 bis 0.999969482421875)",
+          "uiPointLimitExceeded": false,
+          "uiTemperatureOrderUnsupported": false
+        },
+        {
+          "name": "bridge-reverse",
+          "ok": false,
+          "error": "T1 ausserhalb Q0.15: -1.1487818688444393 (zulässig -1 bis 0.999969482421875)",
+          "uiPointLimitExceeded": false,
+          "uiTemperatureOrderUnsupported": false
+        },
+        {
+          "name": "bridge-small",
+          "ok": false,
+          "error": "ADC-Signalhub zu klein für eine numerisch stabile Kalibrierung. AFE anpassen.",
+          "uiPointLimitExceeded": false,
+          "uiTemperatureOrderUnsupported": false
+        },
+        {
+          "name": "bridge-noise",
+          "ok": false,
+          "error": "T1 ausserhalb Q0.15: -1.1492828159920239 (zulässig -1 bis 0.999969482421875)",
+          "uiPointLimitExceeded": false,
+          "uiTemperatureOrderUnsupported": false
+        },
+        {
+          "name": "external-linear",
+          "ok": false,
+          "error": "T1 ausserhalb Q0.15: -1.1488548339047484 (zulässig -1 bis 0.999969482421875)",
+          "uiPointLimitExceeded": false,
+          "uiTemperatureOrderUnsupported": false
+        },
+        {
+          "name": "external-reverse",
+          "ok": false,
+          "error": "T1 ausserhalb Q0.15: -1.1488548339047484 (zulässig -1 bis 0.999969482421875)",
+          "uiPointLimitExceeded": false,
+          "uiTemperatureOrderUnsupported": false
+        },
+        {
+          "name": "external-small",
+          "ok": false,
+          "error": "ADC-Signalhub zu klein für eine numerisch stabile Kalibrierung. AFE anpassen.",
+          "uiPointLimitExceeded": false,
+          "uiTemperatureOrderUnsupported": false
+        },
+        {
+          "name": "external-noise",
+          "ok": false,
+          "error": "T1 ausserhalb Q0.15: -1.1490764826977478 (zulässig -1 bis 0.999969482421875)",
+          "uiPointLimitExceeded": false,
+          "uiTemperatureOrderUnsupported": false
+        },
+        {
+          "name": "internal-rank-deficient",
+          "ok": false,
+          "error": "ADC-Signalhub zu klein für eine numerisch stabile Kalibrierung. AFE anpassen.",
+          "uiPointLimitExceeded": false,
+          "uiTemperatureOrderUnsupported": false
+        },
+        {
+          "name": "bridge-rank-deficient",
+          "ok": false,
+          "error": "ADC-Signalhub zu klein für eine numerisch stabile Kalibrierung. AFE anpassen.",
+          "uiPointLimitExceeded": false,
+          "uiTemperatureOrderUnsupported": false
+        },
+        {
+          "name": "external-rank-deficient",
+          "ok": false,
+          "error": "ADC-Signalhub zu klein für eine numerisch stabile Kalibrierung. AFE anpassen.",
+          "uiPointLimitExceeded": false,
+          "uiTemperatureOrderUnsupported": false
+        },
+        {
+          "name": "historical-DLL-v3.20",
+          "ok": true,
+          "stats": {
+            "maxDigits": 0.33053159713745117,
+            "rmsDigits": 0.33053159713745117,
+            "maxTemperatureDigits": 41.6908065457701,
+            "rangeDigits": 30000,
+            "maxNormalized": 0.989958643913269,
+            "maxOutput": 0.7812600870238384
+          },
+          "uiPointLimitExceeded": false,
+          "uiTemperatureOrderUnsupported": false
+        }
+      ],
+      "historical": {
+        "source": "Native Elmos PSSC GUI v3.20 64-bit configuration DLL, synthetic resistance ranges, 2026-11-28; not hardware validation",
+        "pointResults": [
+          {
+            "input": {
+              "adc_s": -15000,
+              "adc_t": 20000,
+              "adc_tc": 10000,
+              "temperature": -19.999999999999996,
+              "pressure": 0,
+              "temperatureSource": "bridge",
+              "targetS": -25600,
+              "targetT": -24242.6
+            },
+            "js": {
+              "s": -25600.330531597137,
+              "t": -24283.846860752103
+            },
+            "dllS": -25600.89111328125,
+            "dllT": -24283.909786856348
+          },
+          {
+            "input": {
+              "adc_s": 15000,
+              "adc_t": 20000,
+              "adc_tc": 10000,
+              "temperature": -19.999999999999996,
+              "pressure": 100,
+              "temperatureSource": "bridge",
+              "targetS": 25600,
+              "targetT": -24242.6
+            },
+            "js": {
+              "s": 25600.330531597137,
+              "t": -24283.846860752103
+            },
+            "dllS": 25600.89111328125,
+            "dllT": -24283.909786856348
+          },
+          {
+            "input": {
+              "adc_s": -15000,
+              "adc_t": 10000,
+              "adc_tc": 5200,
+              "temperature": 20,
+              "pressure": 0,
+              "temperatureSource": "bridge",
+              "targetS": -25600,
+              "targetT": -8727.4
+            },
+            "js": {
+              "s": -25600.330531597137,
+              "t": -8685.70919345423
+            },
+            "dllS": -25600.89111328125,
+            "dllT": -8684.958567308648
+          },
+          {
+            "input": {
+              "adc_s": 15000,
+              "adc_t": 10000,
+              "adc_tc": 5200,
+              "temperature": 20,
+              "pressure": 100,
+              "temperatureSource": "bridge",
+              "targetS": 25600,
+              "targetT": -8727.4
+            },
+            "js": {
+              "s": 25600.330531597137,
+              "t": -8685.70919345423
+            },
+            "dllS": 25600.89111328125,
+            "dllT": -8684.958567308648
+          },
+          {
+            "input": {
+              "adc_s": -15000,
+              "adc_t": 0,
+              "adc_tc": 400,
+              "temperature": 60,
+              "pressure": 0,
+              "temperatureSource": "bridge",
+              "targetS": -25600,
+              "targetT": 6787.799999999999
+            },
+            "js": {
+              "s": -25600.330531597137,
+              "t": 6826.887266641474
+            },
+            "dllS": -25600.89111328125,
+            "dllT": 6828.446983463131
+          },
+          {
+            "input": {
+              "adc_s": 15000,
+              "adc_t": 0,
+              "adc_tc": 400,
+              "temperature": 60,
+              "pressure": 100,
+              "temperatureSource": "bridge",
+              "targetS": 25600,
+              "targetT": 6787.799999999999
+            },
+            "js": {
+              "s": 25600.330531597137,
+              "t": 6826.887266641474
+            },
+            "dllS": 25600.89111328125,
+            "dllT": 6828.446983463131
+          },
+          {
+            "input": {
+              "adc_s": -15000,
+              "adc_t": -10000,
+              "adc_tc": -4400,
+              "temperature": 100,
+              "pressure": 0,
+              "temperatureSource": "bridge",
+              "targetS": -25600,
+              "targetT": 22303
+            },
+            "js": {
+              "s": -25600.330531597137,
+              "t": 22261.546152358376
+            },
+            "dllS": -25600.89111328125,
+            "dllT": 22263.910894865126
+          },
+          {
+            "input": {
+              "adc_s": 15000,
+              "adc_t": -10000,
+              "adc_tc": -4400,
+              "temperature": 100,
+              "pressure": 100,
+              "temperatureSource": "bridge",
+              "targetS": 25600,
+              "targetT": 22303
+            },
+            "js": {
+              "s": 25600.330531597137,
+              "t": 22261.546152358376
+            },
+            "dllS": 25600.89111328125,
+            "dllT": 22263.910894865126
+          }
+        ],
+        "jsWords": {
+          "31": 64246,
+          "32": 7412,
+          "33": 0,
+          "34": 8858,
+          "35": 0,
+          "36": 0,
+          "37": 0,
+          "38": 0,
+          "39": 25860,
+          "40": 0,
+          "41": 0,
+          "42": 0,
+          "43": 0,
+          "44": 0,
+          "45": 0,
+          "46": 0,
+          "47": 0,
+          "48": 0,
+          "49": 0,
+          "50": 0,
+          "51": 64524,
+          "52": 38158,
+          "53": 0,
+          "54": 0
+        },
+        "dllWords": [
+          62328,
+          18432,
+          0,
+          18432,
+          0,
+          0,
+          0,
+          0,
+          12428,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          64525,
+          54526,
+          0,
+          0
+        ]
+      }
+    },
+    {
+      "normalizationScale": 1.98,
+      "counts": {
+        "total": 94,
+        "success": 61,
+        "rejected": 33,
+        "verificationPointsOnSuccess": 1788,
+        "uiPointLimitExceeded": 18,
+        "uiTemperatureOrderUnsupported": 12
+      },
+      "cases": [
+        {
+          "name": "internal-S1-T0-25000",
+          "ok": true,
+          "stats": {
+            "maxDigits": 0.40285399556159973,
+            "rmsDigits": 0.3019830703914362,
+            "maxTemperatureDigits": null,
+            "rangeDigits": 33000,
+            "maxNormalized": 0.9900662004947662,
+            "maxOutput": 0.7629517472532825
+          },
+          "uiPointLimitExceeded": false,
+          "uiTemperatureOrderUnsupported": false
+        },
+        {
+          "name": "internal-S1-T1-25000",
+          "ok": true,
+          "stats": {
+            "maxDigits": 0.9203221307361673,
+            "rmsDigits": 0.5979765229212731,
+            "maxTemperatureDigits": 0.49955527782367426,
+            "rangeDigits": 34765,
+            "maxNormalized": 0.9900720119476318,
+            "maxOutput": 0.7629675391275249
+          },
+          "uiPointLimitExceeded": false,
+          "uiTemperatureOrderUnsupported": false
+        },
+        {
+          "name": "internal-S1-T2-25000",
+          "ok": true,
+          "stats": {
+            "maxDigits": 1.0542432118600118,
+            "rmsDigits": 0.5745203936691535,
+            "maxTemperatureDigits": 0.35251668252021773,
+            "rangeDigits": 34821,
+            "maxNormalized": 0.9901094436645508,
+            "maxOutput": 0.7629716260745807
+          },
+          "uiPointLimitExceeded": false,
+          "uiTemperatureOrderUnsupported": false
+        },
+        {
+          "name": "internal-S1-T3-25000",
+          "ok": true,
+          "stats": {
+            "maxDigits": 1.0376531246802188,
+            "rmsDigits": 0.5982041154074733,
+            "maxTemperatureDigits": 0.43146127251384314,
+            "rangeDigits": 34833,
+            "maxNormalized": 0.9899887219071388,
+            "maxOutput": 0.7629711197852991
+          },
+          "uiPointLimitExceeded": false,
+          "uiTemperatureOrderUnsupported": false
+        },
+        {
+          "name": "internal-S2-T0-25000",
+          "ok": true,
+          "stats": {
+            "maxDigits": 0.4479038715362549,
+            "rmsDigits": 0.33876756518611745,
+            "maxTemperatureDigits": null,
+            "rangeDigits": 33000,
+            "maxNormalized": 0.9900662004947662,
+            "maxOutput": 0.7629510107950185
+          },
+          "uiPointLimitExceeded": false,
+          "uiTemperatureOrderUnsupported": false
+        },
+        {
+          "name": "internal-S2-T1-25000",
+          "ok": true,
+          "stats": {
+            "maxDigits": 1.0291741825712961,
+            "rmsDigits": 0.6433406556306198,
+            "maxTemperatureDigits": 0.49955527782367426,
+            "rangeDigits": 34765,
+            "maxNormalized": 0.9900720119476318,
+            "maxOutput": 0.7629607197669008
+          },
+          "uiPointLimitExceeded": false,
+          "uiTemperatureOrderUnsupported": false
+        },
+        {
+          "name": "internal-S2-T2-25000",
+          "ok": true,
+          "stats": {
+            "maxDigits": 1.6869769488475868,
+            "rmsDigits": 0.7460126092168838,
+            "maxTemperatureDigits": 0.35251668252021773,
+            "rangeDigits": 34821,
+            "maxNormalized": 0.9901094436645508,
+            "maxOutput": 0.7629909355758315
+          },
+          "uiPointLimitExceeded": false,
+          "uiTemperatureOrderUnsupported": false
+        },
+        {
+          "name": "internal-S2-T3-25000",
+          "ok": true,
+          "stats": {
+            "maxDigits": 1.547120546365477,
+            "rmsDigits": 0.7298100191227095,
+            "maxTemperatureDigits": 0.43146127251384314,
+            "rangeDigits": 34833,
+            "maxNormalized": 0.9899887219071388,
+            "maxOutput": 0.7629866674971425
+          },
+          "uiPointLimitExceeded": true,
+          "uiTemperatureOrderUnsupported": false
+        },
+        {
+          "name": "internal-S3-T0-25000",
+          "ok": true,
+          "stats": {
+            "maxDigits": 0.6113622187331202,
+            "rmsDigits": 0.35603050202154973,
+            "maxTemperatureDigits": null,
+            "rangeDigits": 33000,
+            "maxNormalized": 0.9900662004947662,
+            "maxOutput": 0.7629330916011431
+          },
+          "uiPointLimitExceeded": false,
+          "uiTemperatureOrderUnsupported": false
+        },
+        {
+          "name": "internal-S3-T1-25000",
+          "ok": true,
+          "stats": {
+            "maxDigits": 1.5186238024762133,
+            "rmsDigits": 0.7796952287299179,
+            "maxTemperatureDigits": 0.49955527782367426,
+            "rangeDigits": 34765,
+            "maxNormalized": 0.9900720119476318,
+            "maxOutput": 0.7629626742170271
+          },
+          "uiPointLimitExceeded": false,
+          "uiTemperatureOrderUnsupported": false
+        },
+        {
+          "name": "internal-S3-T2-25000",
+          "ok": true,
+          "stats": {
+            "maxDigits": 1.4408609796664678,
+            "rmsDigits": 0.6564372211851162,
+            "maxTemperatureDigits": 0.35251668252021773,
+            "rangeDigits": 34821,
+            "maxNormalized": 0.9901094436645508,
+            "maxOutput": 0.7629834247125142
+          },
+          "uiPointLimitExceeded": true,
+          "uiTemperatureOrderUnsupported": false
+        },
+        {
+          "name": "internal-S3-T3-25000",
+          "ok": true,
+          "stats": {
+            "maxDigits": 0.5075524081530602,
+            "rmsDigits": 0.30703148240003136,
+            "maxTemperatureDigits": 0.43146127251384314,
+            "rangeDigits": 34833,
+            "maxNormalized": 0.9899887219071388,
+            "maxOutput": 0.7629541708843317
+          },
+          "uiPointLimitExceeded": true,
+          "uiTemperatureOrderUnsupported": false
+        },
+        {
+          "name": "internal-TK0-25000",
+          "ok": true,
+          "stats": {
+            "maxDigits": 0.48508763313293457,
+            "rmsDigits": 0.3648740560136569,
+            "maxTemperatureDigits": 0.6478710174560547,
+            "rangeDigits": 30000,
+            "maxNormalized": 0.989958643913269,
+            "maxOutput": 0.7629542568247416
+          },
+          "uiPointLimitExceeded": false,
+          "uiTemperatureOrderUnsupported": false
+        },
+        {
+          "name": "internal-S1-T0-32000",
+          "ok": true,
+          "stats": {
+            "maxDigits": 0.8758781254291534,
+            "rmsDigits": 0.6226149630996324,
+            "maxTemperatureDigits": null,
+            "rangeDigits": 33000,
+            "maxNormalized": 0.9900662004947662,
+            "maxOutput": 0.9765597472714944
+          },
+          "uiPointLimitExceeded": false,
+          "uiTemperatureOrderUnsupported": false
+        },
+        {
+          "name": "internal-S1-T1-32000",
+          "ok": false,
+          "error": "S4 ausserhalb Q0.15: 1.0315433249819024 (zulässig -1 bis 0.999969482421875)",
+          "uiPointLimitExceeded": false,
+          "uiTemperatureOrderUnsupported": false
+        },
+        {
+          "name": "internal-S1-T2-32000",
+          "ok": false,
+          "error": "S4 ausserhalb Q0.15: 1.0324126709319246 (zulässig -1 bis 0.999969482421875)",
+          "uiPointLimitExceeded": false,
+          "uiTemperatureOrderUnsupported": false
+        },
+        {
+          "name": "internal-S1-T3-32000",
+          "ok": false,
+          "error": "S4 ausserhalb Q0.15: 1.0328367066744804 (zulässig -1 bis 0.999969482421875)",
+          "uiPointLimitExceeded": false,
+          "uiTemperatureOrderUnsupported": false
+        },
+        {
+          "name": "internal-S2-T0-32000",
+          "ok": true,
+          "stats": {
+            "maxDigits": 0.5568483540082525,
+            "rmsDigits": 0.3602959829495726,
+            "maxTemperatureDigits": null,
+            "rangeDigits": 33000,
+            "maxNormalized": 0.9900662004947662,
+            "maxOutput": 0.9765794936631472
+          },
+          "uiPointLimitExceeded": false,
+          "uiTemperatureOrderUnsupported": false
+        },
+        {
+          "name": "internal-S2-T1-32000",
+          "ok": false,
+          "error": "S4 ausserhalb Q0.15: 1.0293683517378867 (zulässig -1 bis 0.999969482421875)",
+          "uiPointLimitExceeded": false,
+          "uiTemperatureOrderUnsupported": false
+        },
+        {
+          "name": "internal-S2-T2-32000",
+          "ok": false,
+          "error": "S4 ausserhalb Q0.15: 1.0301120520028904 (zulässig -1 bis 0.999969482421875)",
+          "uiPointLimitExceeded": false,
+          "uiTemperatureOrderUnsupported": false
+        },
+        {
+          "name": "internal-S2-T3-32000",
+          "ok": false,
+          "error": "S4 ausserhalb Q0.15: 1.0305419730354286 (zulässig -1 bis 0.999969482421875)",
+          "uiPointLimitExceeded": true,
+          "uiTemperatureOrderUnsupported": false
+        },
+        {
+          "name": "internal-S3-T0-32000",
+          "ok": true,
+          "stats": {
+            "maxDigits": 0.549652759298624,
+            "rmsDigits": 0.3198814788966812,
+            "maxTemperatureDigits": null,
+            "rangeDigits": 33000,
+            "maxNormalized": 0.9900662004947662,
+            "maxOutput": 0.9765561987111092
+          },
+          "uiPointLimitExceeded": false,
+          "uiTemperatureOrderUnsupported": false
+        },
+        {
+          "name": "internal-S3-T1-32000",
+          "ok": false,
+          "error": "S4 ausserhalb Q0.15: 1.0282367021778749 (zulässig -1 bis 0.999969482421875)",
+          "uiPointLimitExceeded": false,
+          "uiTemperatureOrderUnsupported": false
+        },
+        {
+          "name": "internal-S3-T2-32000",
+          "ok": false,
+          "error": "S4 ausserhalb Q0.15: 1.0289312096205547 (zulässig -1 bis 0.999969482421875)",
+          "uiPointLimitExceeded": true,
+          "uiTemperatureOrderUnsupported": false
+        },
+        {
+          "name": "internal-S3-T3-32000",
+          "ok": false,
+          "error": "S4 ausserhalb Q0.15: 1.0293216649147565 (zulässig -1 bis 0.999969482421875)",
+          "uiPointLimitExceeded": true,
+          "uiTemperatureOrderUnsupported": false
+        },
+        {
+          "name": "internal-TK0-32000",
+          "ok": true,
+          "stats": {
+            "maxDigits": 0.8153280019760132,
+            "rmsDigits": 0.6022532018722786,
+            "maxTemperatureDigits": 0.6478710174560547,
+            "rangeDigits": 30000,
+            "maxNormalized": 0.989958643913269,
+            "maxOutput": 0.9765873818359978
+          },
+          "uiPointLimitExceeded": false,
+          "uiTemperatureOrderUnsupported": false
+        },
+        {
+          "name": "bridge-S1-T0-25000",
+          "ok": true,
+          "stats": {
+            "maxDigits": 0.40285399556159973,
+            "rmsDigits": 0.3019830703914362,
+            "maxTemperatureDigits": null,
+            "rangeDigits": 33000,
+            "maxNormalized": 0.9900662004947662,
+            "maxOutput": 0.7629517472532825
+          },
+          "uiPointLimitExceeded": false,
+          "uiTemperatureOrderUnsupported": true
+        },
+        {
+          "name": "bridge-S1-T1-25000",
+          "ok": true,
+          "stats": {
+            "maxDigits": 0.7870249165425776,
+            "rmsDigits": 0.5404651574819551,
+            "maxTemperatureDigits": 0.6640933663693431,
+            "rangeDigits": 34765,
+            "maxNormalized": 0.9900720119476318,
+            "maxOutput": 0.7629634712193769
+          },
+          "uiPointLimitExceeded": false,
+          "uiTemperatureOrderUnsupported": false
+        },
+        {
+          "name": "bridge-S1-T2-25000",
+          "ok": true,
+          "stats": {
+            "maxDigits": 0.6887679477767961,
+            "rmsDigits": 0.4308156187092238,
+            "maxTemperatureDigits": 0.5640571672993246,
+            "rangeDigits": 34821,
+            "maxNormalized": 0.9901094436645508,
+            "maxOutput": 0.7629604726546563
+          },
+          "uiPointLimitExceeded": false,
+          "uiTemperatureOrderUnsupported": false
+        },
+        {
+          "name": "bridge-S1-T3-25000",
+          "ok": true,
+          "stats": {
+            "maxDigits": 1.7391560265568842,
+            "rmsDigits": 1.0031319364697386,
+            "maxTemperatureDigits": 1.0112892858196574,
+            "rangeDigits": 34833,
+            "maxNormalized": 0.9899887219071388,
+            "maxOutput": 0.762992527954912
+          },
+          "uiPointLimitExceeded": false,
+          "uiTemperatureOrderUnsupported": false
+        },
+        {
+          "name": "bridge-S2-T0-25000",
+          "ok": true,
+          "stats": {
+            "maxDigits": 0.4479038715362549,
+            "rmsDigits": 0.33876756518611745,
+            "maxTemperatureDigits": null,
+            "rangeDigits": 33000,
+            "maxNormalized": 0.9900662004947662,
+            "maxOutput": 0.7629510107950185
+          },
+          "uiPointLimitExceeded": false,
+          "uiTemperatureOrderUnsupported": true
+        },
+        {
+          "name": "bridge-S2-T1-25000",
+          "ok": true,
+          "stats": {
+            "maxDigits": 1.0335999636699853,
+            "rmsDigits": 0.6103588491531818,
+            "maxTemperatureDigits": 0.6640933663693431,
+            "rangeDigits": 34765,
+            "maxNormalized": 0.9900720119476318,
+            "maxOutput": 0.7629574100497324
+          },
+          "uiPointLimitExceeded": false,
+          "uiTemperatureOrderUnsupported": false
+        },
+        {
+          "name": "bridge-S2-T2-25000",
+          "ok": true,
+          "stats": {
+            "maxDigits": 1.502228680972621,
+            "rmsDigits": 0.6459514879030855,
+            "maxTemperatureDigits": 0.5640571672993246,
+            "rangeDigits": 34821,
+            "maxNormalized": 0.9901094436645508,
+            "maxOutput": 0.7629597441557164
+          },
+          "uiPointLimitExceeded": false,
+          "uiTemperatureOrderUnsupported": false
+        },
+        {
+          "name": "bridge-S2-T3-25000",
+          "ok": true,
+          "stats": {
+            "maxDigits": 1.13523148022432,
+            "rmsDigits": 0.6120041876976233,
+            "maxTemperatureDigits": 1.0112892858196574,
+            "rangeDigits": 34833,
+            "maxNormalized": 0.9899887219071388,
+            "maxOutput": 0.7629740976403877
+          },
+          "uiPointLimitExceeded": true,
+          "uiTemperatureOrderUnsupported": false
+        },
+        {
+          "name": "bridge-S3-T0-25000",
+          "ok": true,
+          "stats": {
+            "maxDigits": 0.6113622187331202,
+            "rmsDigits": 0.35603050202154973,
+            "maxTemperatureDigits": null,
+            "rangeDigits": 33000,
+            "maxNormalized": 0.9900662004947662,
+            "maxOutput": 0.7629330916011431
+          },
+          "uiPointLimitExceeded": false,
+          "uiTemperatureOrderUnsupported": true
+        },
+        {
+          "name": "bridge-S3-T1-25000",
+          "ok": true,
+          "stats": {
+            "maxDigits": 1.5230774553310766,
+            "rmsDigits": 0.7625870094487396,
+            "maxTemperatureDigits": 0.6640933663693431,
+            "rangeDigits": 34765,
+            "maxNormalized": 0.9900720119476318,
+            "maxOutput": 0.7629624060169975
+          },
+          "uiPointLimitExceeded": false,
+          "uiTemperatureOrderUnsupported": false
+        },
+        {
+          "name": "bridge-S3-T2-25000",
+          "ok": true,
+          "stats": {
+            "maxDigits": 1.9614010113182303,
+            "rmsDigits": 0.6315476302730463,
+            "maxTemperatureDigits": 0.5640571672993246,
+            "rangeDigits": 34821,
+            "maxNormalized": 0.9901094436645508,
+            "maxOutput": 0.7629522254327381
+          },
+          "uiPointLimitExceeded": true,
+          "uiTemperatureOrderUnsupported": false
+        },
+        {
+          "name": "bridge-S3-T3-25000",
+          "ok": true,
+          "stats": {
+            "maxDigits": 1.0095455014488834,
+            "rmsDigits": 0.45879570494607164,
+            "maxTemperatureDigits": 1.0112892858196574,
+            "rangeDigits": 34833,
+            "maxNormalized": 0.9899887219071388,
+            "maxOutput": 0.7629584566647222
+          },
+          "uiPointLimitExceeded": true,
+          "uiTemperatureOrderUnsupported": false
+        },
+        {
+          "name": "bridge-TK0-25000",
+          "ok": true,
+          "stats": {
+            "maxDigits": 0.4286053404211998,
+            "rmsDigits": 0.3538979232734023,
+            "maxTemperatureDigits": 0.46979374438524246,
+            "rangeDigits": 30000,
+            "maxNormalized": 0.989958643913269,
+            "maxOutput": 0.7629525331219611
+          },
+          "uiPointLimitExceeded": false,
+          "uiTemperatureOrderUnsupported": false
+        },
+        {
+          "name": "bridge-S1-T0-32000",
+          "ok": true,
+          "stats": {
+            "maxDigits": 0.8758781254291534,
+            "rmsDigits": 0.6226149630996324,
+            "maxTemperatureDigits": null,
+            "rangeDigits": 33000,
+            "maxNormalized": 0.9900662004947662,
+            "maxOutput": 0.9765597472714944
+          },
+          "uiPointLimitExceeded": false,
+          "uiTemperatureOrderUnsupported": true
+        },
+        {
+          "name": "bridge-S1-T1-32000",
+          "ok": false,
+          "error": "S4 ausserhalb Q0.15: 1.0315455542558538 (zulässig -1 bis 0.999969482421875)",
+          "uiPointLimitExceeded": false,
+          "uiTemperatureOrderUnsupported": false
+        },
+        {
+          "name": "bridge-S1-T2-32000",
+          "ok": false,
+          "error": "S4 ausserhalb Q0.15: 1.0321361529026503 (zulässig -1 bis 0.999969482421875)",
+          "uiPointLimitExceeded": false,
+          "uiTemperatureOrderUnsupported": false
+        },
+        {
+          "name": "bridge-S1-T3-32000",
+          "ok": false,
+          "error": "S4 ausserhalb Q0.15: 1.0325586534438145 (zulässig -1 bis 0.999969482421875)",
+          "uiPointLimitExceeded": false,
+          "uiTemperatureOrderUnsupported": false
+        },
+        {
+          "name": "bridge-S2-T0-32000",
+          "ok": true,
+          "stats": {
+            "maxDigits": 0.5568483540082525,
+            "rmsDigits": 0.3602959829495726,
+            "maxTemperatureDigits": null,
+            "rangeDigits": 33000,
+            "maxNormalized": 0.9900662004947662,
+            "maxOutput": 0.9765794936631472
+          },
+          "uiPointLimitExceeded": false,
+          "uiTemperatureOrderUnsupported": true
+        },
+        {
+          "name": "bridge-S2-T1-32000",
+          "ok": false,
+          "error": "S4 ausserhalb Q0.15: 1.0293704732509097 (zulässig -1 bis 0.999969482421875)",
+          "uiPointLimitExceeded": false,
+          "uiTemperatureOrderUnsupported": false
+        },
+        {
+          "name": "bridge-S2-T2-32000",
+          "ok": false,
+          "error": "S4 ausserhalb Q0.15: 1.0298489057639815 (zulässig -1 bis 0.999969482421875)",
+          "uiPointLimitExceeded": false,
+          "uiTemperatureOrderUnsupported": false
+        },
+        {
+          "name": "bridge-S2-T3-32000",
+          "ok": false,
+          "error": "S4 ausserhalb Q0.15: 1.0302774450854544 (zulässig -1 bis 0.999969482421875)",
+          "uiPointLimitExceeded": true,
+          "uiTemperatureOrderUnsupported": false
+        },
+        {
+          "name": "bridge-S3-T0-32000",
+          "ok": true,
+          "stats": {
+            "maxDigits": 0.549652759298624,
+            "rmsDigits": 0.3198814788966812,
+            "maxTemperatureDigits": null,
+            "rangeDigits": 33000,
+            "maxNormalized": 0.9900662004947662,
+            "maxOutput": 0.9765561987111092
+          },
+          "uiPointLimitExceeded": false,
+          "uiTemperatureOrderUnsupported": true
+        },
+        {
+          "name": "bridge-S3-T1-32000",
+          "ok": false,
+          "error": "S4 ausserhalb Q0.15: 1.0282388178582507 (zulässig -1 bis 0.999969482421875)",
+          "uiPointLimitExceeded": false,
+          "uiTemperatureOrderUnsupported": false
+        },
+        {
+          "name": "bridge-S3-T2-32000",
+          "ok": false,
+          "error": "S4 ausserhalb Q0.15: 1.0286688044776264 (zulässig -1 bis 0.999969482421875)",
+          "uiPointLimitExceeded": true,
+          "uiTemperatureOrderUnsupported": false
+        },
+        {
+          "name": "bridge-S3-T3-32000",
+          "ok": false,
+          "error": "S4 ausserhalb Q0.15: 1.0290591017893247 (zulässig -1 bis 0.999969482421875)",
+          "uiPointLimitExceeded": true,
+          "uiTemperatureOrderUnsupported": false
+        },
+        {
+          "name": "bridge-TK0-32000",
+          "ok": true,
+          "stats": {
+            "maxDigits": 0.7429660074412823,
+            "rmsDigits": 0.5907184162315942,
+            "maxTemperatureDigits": 0.46979374438524246,
+            "rangeDigits": 30000,
+            "maxNormalized": 0.989958643913269,
+            "maxOutput": 0.9765851735231763
+          },
+          "uiPointLimitExceeded": false,
+          "uiTemperatureOrderUnsupported": false
+        },
+        {
+          "name": "external-S1-T0-25000",
+          "ok": true,
+          "stats": {
+            "maxDigits": 0.40285399556159973,
+            "rmsDigits": 0.3019830703914362,
+            "maxTemperatureDigits": null,
+            "rangeDigits": 33000,
+            "maxNormalized": 0.9900662004947662,
+            "maxOutput": 0.7629517472532825
+          },
+          "uiPointLimitExceeded": false,
+          "uiTemperatureOrderUnsupported": true
+        },
+        {
+          "name": "external-S1-T1-25000",
+          "ok": true,
+          "stats": {
+            "maxDigits": 0.708849484064558,
+            "rmsDigits": 0.47033834326304674,
+            "maxTemperatureDigits": 0.5408036589615222,
+            "rangeDigits": 34765,
+            "maxNormalized": 0.9900720119476318,
+            "maxOutput": 0.7629610854945088
+          },
+          "uiPointLimitExceeded": false,
+          "uiTemperatureOrderUnsupported": false
+        },
+        {
+          "name": "external-S1-T2-25000",
+          "ok": true,
+          "stats": {
+            "maxDigits": 1.2855215164017864,
+            "rmsDigits": 0.7476638690707318,
+            "maxTemperatureDigits": 0.6064080277101311,
+            "rangeDigits": 34821,
+            "maxNormalized": 0.9901094436645508,
+            "maxOutput": 0.7629348110005872
+          },
+          "uiPointLimitExceeded": false,
+          "uiTemperatureOrderUnsupported": false
+        },
+        {
+          "name": "external-S1-T3-25000",
+          "ok": true,
+          "stats": {
+            "maxDigits": 1.3160160994739272,
+            "rmsDigits": 0.7121475848976282,
+            "maxTemperatureDigits": 1.6973115250912088,
+            "rangeDigits": 34833,
+            "maxNormalized": 0.9899887219071388,
+            "maxOutput": 0.7629796147491295
+          },
+          "uiPointLimitExceeded": false,
+          "uiTemperatureOrderUnsupported": false
+        },
+        {
+          "name": "external-S2-T0-25000",
+          "ok": true,
+          "stats": {
+            "maxDigits": 0.4479038715362549,
+            "rmsDigits": 0.33876756518611745,
+            "maxTemperatureDigits": null,
+            "rangeDigits": 33000,
+            "maxNormalized": 0.9900662004947662,
+            "maxOutput": 0.7629510107950185
+          },
+          "uiPointLimitExceeded": false,
+          "uiTemperatureOrderUnsupported": true
+        },
+        {
+          "name": "external-S2-T1-25000",
+          "ok": true,
+          "stats": {
+            "maxDigits": 1.042976496351912,
+            "rmsDigits": 0.5651101889345311,
+            "maxTemperatureDigits": 0.5408036589615222,
+            "rangeDigits": 34765,
+            "maxNormalized": 0.9900720119476318,
+            "maxOutput": 0.7629532980427249
+          },
+          "uiPointLimitExceeded": false,
+          "uiTemperatureOrderUnsupported": false
+        },
+        {
+          "name": "external-S2-T2-25000",
+          "ok": true,
+          "stats": {
+            "maxDigits": 1.333100928211934,
+            "rmsDigits": 0.7113407631484135,
+            "maxTemperatureDigits": 0.6064080277101311,
+            "rangeDigits": 34821,
+            "maxNormalized": 0.9901094436645508,
+            "maxOutput": 0.7629712208439855
+          },
+          "uiPointLimitExceeded": false,
+          "uiTemperatureOrderUnsupported": false
+        },
+        {
+          "name": "external-S2-T3-25000",
+          "ok": true,
+          "stats": {
+            "maxDigits": 2.2733305545480107,
+            "rmsDigits": 0.944506753277502,
+            "maxTemperatureDigits": 1.6973115250912088,
+            "rangeDigits": 34833,
+            "maxNormalized": 0.9899887219071388,
+            "maxOutput": 0.7629645128056335
+          },
+          "uiPointLimitExceeded": true,
+          "uiTemperatureOrderUnsupported": false
+        },
+        {
+          "name": "external-S3-T0-25000",
+          "ok": true,
+          "stats": {
+            "maxDigits": 0.6113622187331202,
+            "rmsDigits": 0.35603050202154973,
+            "maxTemperatureDigits": null,
+            "rangeDigits": 33000,
+            "maxNormalized": 0.9900662004947662,
+            "maxOutput": 0.7629330916011431
+          },
+          "uiPointLimitExceeded": false,
+          "uiTemperatureOrderUnsupported": true
+        },
+        {
+          "name": "external-S3-T1-25000",
+          "ok": true,
+          "stats": {
+            "maxDigits": 1.5325130375822482,
+            "rmsDigits": 0.741782477666201,
+            "maxTemperatureDigits": 0.5408036589615222,
+            "rangeDigits": 34765,
+            "maxNormalized": 0.9900720119476318,
+            "maxOutput": 0.7629620607985453
+          },
+          "uiPointLimitExceeded": false,
+          "uiTemperatureOrderUnsupported": false
+        },
+        {
+          "name": "external-S3-T2-25000",
+          "ok": true,
+          "stats": {
+            "maxDigits": 1.3353338871929736,
+            "rmsDigits": 0.6363698396368731,
+            "maxTemperatureDigits": 0.6064080277101311,
+            "rangeDigits": 34821,
+            "maxNormalized": 0.9901094436645508,
+            "maxOutput": 0.7629636920044062
+          },
+          "uiPointLimitExceeded": true,
+          "uiTemperatureOrderUnsupported": false
+        },
+        {
+          "name": "external-S3-T3-25000",
+          "ok": true,
+          "stats": {
+            "maxDigits": 1.9797396496178408,
+            "rmsDigits": 0.793854317134363,
+            "maxTemperatureDigits": 1.6973115250912088,
+            "rangeDigits": 34833,
+            "maxNormalized": 0.9899887219071388,
+            "maxOutput": 0.7629734259508675
+          },
+          "uiPointLimitExceeded": true,
+          "uiTemperatureOrderUnsupported": false
+        },
+        {
+          "name": "external-TK0-25000",
+          "ok": true,
+          "stats": {
+            "maxDigits": 0.45594918727874756,
+            "rmsDigits": 0.3610511531008182,
+            "maxTemperatureDigits": 0.24565814733796287,
+            "rangeDigits": 30000,
+            "maxNormalized": 0.989958643913269,
+            "maxOutput": 0.7629533675899438
+          },
+          "uiPointLimitExceeded": false,
+          "uiTemperatureOrderUnsupported": false
+        },
+        {
+          "name": "external-S1-T0-32000",
+          "ok": true,
+          "stats": {
+            "maxDigits": 0.8758781254291534,
+            "rmsDigits": 0.6226149630996324,
+            "maxTemperatureDigits": null,
+            "rangeDigits": 33000,
+            "maxNormalized": 0.9900662004947662,
+            "maxOutput": 0.9765597472714944
+          },
+          "uiPointLimitExceeded": false,
+          "uiTemperatureOrderUnsupported": true
+        },
+        {
+          "name": "external-S1-T1-32000",
+          "ok": false,
+          "error": "S4 ausserhalb Q0.15: 1.0315490098875018 (zulässig -1 bis 0.999969482421875)",
+          "uiPointLimitExceeded": false,
+          "uiTemperatureOrderUnsupported": false
+        },
+        {
+          "name": "external-S1-T2-32000",
+          "ok": false,
+          "error": "S4 ausserhalb Q0.15: 1.0319318300454277 (zulässig -1 bis 0.999969482421875)",
+          "uiPointLimitExceeded": false,
+          "uiTemperatureOrderUnsupported": false
+        },
+        {
+          "name": "external-S1-T3-32000",
+          "ok": false,
+          "error": "S4 ausserhalb Q0.15: 1.0323542189114068 (zulässig -1 bis 0.999969482421875)",
+          "uiPointLimitExceeded": false,
+          "uiTemperatureOrderUnsupported": false
+        },
+        {
+          "name": "external-S2-T0-32000",
+          "ok": true,
+          "stats": {
+            "maxDigits": 0.5568483540082525,
+            "rmsDigits": 0.3602959829495726,
+            "maxTemperatureDigits": null,
+            "rangeDigits": 33000,
+            "maxNormalized": 0.9900662004947662,
+            "maxOutput": 0.9765794936631472
+          },
+          "uiPointLimitExceeded": false,
+          "uiTemperatureOrderUnsupported": true
+        },
+        {
+          "name": "external-S2-T1-32000",
+          "ok": false,
+          "error": "S4 ausserhalb Q0.15: 1.0293737618406937 (zulässig -1 bis 0.999969482421875)",
+          "uiPointLimitExceeded": false,
+          "uiTemperatureOrderUnsupported": false
+        },
+        {
+          "name": "external-S2-T2-32000",
+          "ok": false,
+          "error": "S4 ausserhalb Q0.15: 1.0296544519162913 (zulässig -1 bis 0.999969482421875)",
+          "uiPointLimitExceeded": false,
+          "uiTemperatureOrderUnsupported": false
+        },
+        {
+          "name": "external-S2-T3-32000",
+          "ok": false,
+          "error": "S4 ausserhalb Q0.15: 1.0300829404924665 (zulässig -1 bis 0.999969482421875)",
+          "uiPointLimitExceeded": true,
+          "uiTemperatureOrderUnsupported": false
+        },
+        {
+          "name": "external-S3-T0-32000",
+          "ok": true,
+          "stats": {
+            "maxDigits": 0.549652759298624,
+            "rmsDigits": 0.3198814788966812,
+            "maxTemperatureDigits": null,
+            "rangeDigits": 33000,
+            "maxNormalized": 0.9900662004947662,
+            "maxOutput": 0.9765561987111092
+          },
+          "uiPointLimitExceeded": false,
+          "uiTemperatureOrderUnsupported": true
+        },
+        {
+          "name": "external-S3-T1-32000",
+          "ok": false,
+          "error": "S4 ausserhalb Q0.15: 1.02824209740676 (zulässig -1 bis 0.999969482421875)",
+          "uiPointLimitExceeded": false,
+          "uiTemperatureOrderUnsupported": false
+        },
+        {
+          "name": "external-S3-T2-32000",
+          "ok": false,
+          "error": "S4 ausserhalb Q0.15: 1.0284748959097771 (zulässig -1 bis 0.999969482421875)",
+          "uiPointLimitExceeded": true,
+          "uiTemperatureOrderUnsupported": false
+        },
+        {
+          "name": "external-S3-T3-32000",
+          "ok": false,
+          "error": "S4 ausserhalb Q0.15: 1.028866032973918 (zulässig -1 bis 0.999969482421875)",
+          "uiPointLimitExceeded": true,
+          "uiTemperatureOrderUnsupported": false
+        },
+        {
+          "name": "external-TK0-32000",
+          "ok": true,
+          "stats": {
+            "maxDigits": 0.7779974341392517,
+            "rmsDigits": 0.5883873266724992,
+            "maxTemperatureDigits": 0.24565814733796287,
+            "rangeDigits": 30000,
+            "maxNormalized": 0.989958643913269,
+            "maxOutput": 0.9765862425974774
+          },
+          "uiPointLimitExceeded": false,
+          "uiTemperatureOrderUnsupported": false
+        },
+        {
+          "name": "internal-linear",
+          "ok": true,
+          "stats": {
+            "maxDigits": 0.41559338569641113,
+            "rmsDigits": 0.33933057847729736,
+            "maxTemperatureDigits": 577.4864927291856,
+            "rangeDigits": 30000,
+            "maxNormalized": 0.989958643913269,
+            "maxOutput": 0.7629521360286162
+          },
+          "uiPointLimitExceeded": false,
+          "uiTemperatureOrderUnsupported": false
+        },
+        {
+          "name": "internal-reverse",
+          "ok": true,
+          "stats": {
+            "maxDigits": 530.7308664207928,
+            "rmsDigits": 298.1966164226278,
+            "maxTemperatureDigits": 577.4864927291856,
+            "rangeDigits": 34821,
+            "maxNormalized": 0.9901094436645508,
+            "maxOutput": 0.7709957751432476
+          },
+          "uiPointLimitExceeded": false,
+          "uiTemperatureOrderUnsupported": false
+        },
+        {
+          "name": "internal-small",
+          "ok": false,
+          "error": "ADC-Signalhub zu klein für eine numerisch stabile Kalibrierung. AFE anpassen.",
+          "uiPointLimitExceeded": false,
+          "uiTemperatureOrderUnsupported": false
+        },
+        {
+          "name": "internal-noise",
+          "ok": true,
+          "stats": {
+            "maxDigits": 476.2844251441023,
+            "rmsDigits": 269.35433152847673,
+            "maxTemperatureDigits": 560.3405712604508,
+            "rangeDigits": 34821,
+            "maxNormalized": 0.9900953769683838,
+            "maxOutput": 0.770598344416921
+          },
+          "uiPointLimitExceeded": false,
+          "uiTemperatureOrderUnsupported": false
+        },
+        {
+          "name": "bridge-linear",
+          "ok": true,
+          "stats": {
+            "maxDigits": 0.41559338569641113,
+            "rmsDigits": 0.33933057847729736,
+            "maxTemperatureDigits": 445.6006641410362,
+            "rangeDigits": 30000,
+            "maxNormalized": 0.989958643913269,
+            "maxOutput": 0.7629521360286162
+          },
+          "uiPointLimitExceeded": false,
+          "uiTemperatureOrderUnsupported": false
+        },
+        {
+          "name": "bridge-reverse",
+          "ok": true,
+          "stats": {
+            "maxDigits": 526.8839600569007,
+            "rmsDigits": 297.4182146274473,
+            "maxTemperatureDigits": 445.6006641410362,
+            "rangeDigits": 34821,
+            "maxNormalized": 0.9901094436645508,
+            "maxOutput": 0.7708847437931977
+          },
+          "uiPointLimitExceeded": false,
+          "uiTemperatureOrderUnsupported": false
+        },
+        {
+          "name": "bridge-small",
+          "ok": false,
+          "error": "ADC-Signalhub zu klein für eine numerisch stabile Kalibrierung. AFE anpassen.",
+          "uiPointLimitExceeded": false,
+          "uiTemperatureOrderUnsupported": false
+        },
+        {
+          "name": "bridge-noise",
+          "ok": true,
+          "stats": {
+            "maxDigits": 472.3420837049526,
+            "rmsDigits": 268.4472556961286,
+            "maxTemperatureDigits": 427.2890718190156,
+            "rangeDigits": 34821,
+            "maxNormalized": 0.9900953769683838,
+            "maxOutput": 0.7704647935320521
+          },
+          "uiPointLimitExceeded": false,
+          "uiTemperatureOrderUnsupported": false
+        },
+        {
+          "name": "external-linear",
+          "ok": true,
+          "stats": {
+            "maxDigits": 0.41559338569641113,
+            "rmsDigits": 0.33933057847729736,
+            "maxTemperatureDigits": 347.7845047771916,
+            "rangeDigits": 30000,
+            "maxNormalized": 0.989958643913269,
+            "maxOutput": 0.7629521360286162
+          },
+          "uiPointLimitExceeded": false,
+          "uiTemperatureOrderUnsupported": false
+        },
+        {
+          "name": "external-reverse",
+          "ok": true,
+          "stats": {
+            "maxDigits": 523.5074971900134,
+            "rmsDigits": 296.86784434454916,
+            "maxTemperatureDigits": 347.7845047771916,
+            "rangeDigits": 34821,
+            "maxNormalized": 0.9901094436645508,
+            "maxOutput": 0.7707980488647754
+          },
+          "uiPointLimitExceeded": false,
+          "uiTemperatureOrderUnsupported": false
+        },
+        {
+          "name": "external-small",
+          "ok": false,
+          "error": "ADC-Signalhub zu klein für eine numerisch stabile Kalibrierung. AFE anpassen.",
+          "uiPointLimitExceeded": false,
+          "uiTemperatureOrderUnsupported": false
+        },
+        {
+          "name": "external-noise",
+          "ok": true,
+          "stats": {
+            "maxDigits": 469.30107364762,
+            "rmsDigits": 267.8872923295182,
+            "maxTemperatureDigits": 333.9222529813633,
+            "rangeDigits": 34821,
+            "maxNormalized": 0.9900953769683838,
+            "maxOutput": 0.7704026982908463
+          },
+          "uiPointLimitExceeded": false,
+          "uiTemperatureOrderUnsupported": false
+        },
+        {
+          "name": "internal-rank-deficient",
+          "ok": false,
+          "error": "ADC-Signalhub zu klein für eine numerisch stabile Kalibrierung. AFE anpassen.",
+          "uiPointLimitExceeded": false,
+          "uiTemperatureOrderUnsupported": false
+        },
+        {
+          "name": "bridge-rank-deficient",
+          "ok": false,
+          "error": "ADC-Signalhub zu klein für eine numerisch stabile Kalibrierung. AFE anpassen.",
+          "uiPointLimitExceeded": false,
+          "uiTemperatureOrderUnsupported": false
+        },
+        {
+          "name": "external-rank-deficient",
+          "ok": false,
+          "error": "ADC-Signalhub zu klein für eine numerisch stabile Kalibrierung. AFE anpassen.",
+          "uiPointLimitExceeded": false,
+          "uiTemperatureOrderUnsupported": false
+        },
+        {
+          "name": "historical-DLL-v3.20",
+          "ok": true,
+          "stats": {
+            "maxDigits": 0.33053159713745117,
+            "rmsDigits": 0.33053159713745117,
+            "maxTemperatureDigits": 41.639550108799085,
+            "rangeDigits": 30000,
+            "maxNormalized": 0.989958643913269,
+            "maxOutput": 0.7812600870238384
+          },
+          "uiPointLimitExceeded": false,
+          "uiTemperatureOrderUnsupported": false
+        }
+      ]
+    }
+  ]
+}
