@@ -1198,6 +1198,7 @@ if(typeof document!=='undefined') (function UI(){
      onProgress?.('Optimale RPGA '+code+' wird eingestellt und rückgemessen …');
      finalProbe=await probe(target);
      if(!finalProbe.valid)throw Error('Berechnete RPGA '+code+' liefert keinen gültigen stabilen ADC_T. AFE wurde nicht übernommen.');
+     if(Math.abs(finalProbe.resistanceOhm/measurement.ohm-1)>Math.max(0.05,uncertainty/100))throw Error('Widerstandsschätzung nach RPGA-Wechsel nicht plausibel. Temperatur stabilisieren und Messung wiederholen.');
     }else{target=bridgeTarget(A.rpga(code).code);}
 
    }else{
