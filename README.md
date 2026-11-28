@@ -2,7 +2,9 @@
 
 **Ein geführter Kalibrierassistent für den ELMOS E703.11 mit SSP3-Eval-Board, ESP32-C3 SuperMini oder Arduino Pro Micro.** Ziel ist ein verständlicher Abgleich, der auch ohne tiefere Vorkenntnisse Schritt für Schritt funktioniert. Wer mehr benötigt, kann zusätzliche Messpunkte, DSP-Parameter und einen geschützten Expertenmodus verwenden.
 
-**Version: v0.7.227 · Sensorwert-Details per Hover** · [Änderungsverlauf](CHANGELOG.md) · **[Geplante Funktionen](ROADMAP.md)**
+**Version: v0.7.228 · Dynamische SSC-Temperaturanzeige** · [Änderungsverlauf](CHANGELOG.md) · **[Geplante Funktionen](ROADMAP.md)**
+
+Die SSC-Temperatur wird auch ohne Temperaturabgleich aus ADC_T anhand der typischen Elmos-Beispielkennlinie geschätzt. Ein reiner Druckabgleich kann die gemessene Temperaturreferenz zur Einpunkt-Offsetkorrektur verwenden. Die Referenz wird nach erfolgreicher NVM-Programmierung pro Chip-UID im Browser gespeichert; bestehende Temperaturregister bleiben unverändert. Ein erkannter vollständiger Temperaturabgleich hat Vorrang. Näherungen sind keine individuell validierte Temperaturmessung.
 
 Die optionale Sensor-ID (USER-ID) wird standardmässig dezimal (0–65535) eingegeben. Der umgerechnete Hex-Wert steht direkt darunter; per Umschaltung ist auch die direkte Hex-Eingabe möglich. Das aktive Format ist direkt im Feldtitel sichtbar; die Umschaltung ist optisch getrennt. Ungültige Eingaben werden beim Tippen und Einfügen abgewiesen, ohne sie in einen anderen Zahlenwert umzudeuten. Eine leere Eingabe erhält die bisherige ID, die Chip-UID bleibt unverändert.
 
