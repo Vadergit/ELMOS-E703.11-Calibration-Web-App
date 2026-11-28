@@ -1265,6 +1265,72 @@ if(typeof document!=='undefined') (function UI(){
  }
 
  const temperatureSourceLabels={internal:'Interne Chipdiode (ADC_T)',bridge:'Brückenwiderstand (ADC_T und ADC_TC)',external:'Externer EOC-Sensor (ADC_T)',reserved:'Reservierter Modus (ungültig)'};
+ // Recover a temporary non-internal RAM profile only from this chip's verified
+ // internal-source EEPROM. Never invent internal trim or silently convert NVM.
+ function internalTemperatureRestorePlan(original,ram){
+  const actual=CAL.temperatureSourceFromAfe2(ram[0x1E]),stored=CAL.temperatureSourceFromAfe2(original[29]);
+  if(stored!=='internal')throw Error('Im EEPROM ist '+temperatureSourceLabels[stored]+' gespeichert. Ein Wechsel auf intern benötigt eine separate vollständige Neukalibrierung des Temperaturprofils; EEPROM bleibt unverändert.');
+  if(actual==='internal')return null;
+  if(!['bridge','external'].includes(actual))throw Error('CFG_AFE2: reservierte Temperaturquelle im RAM. Keine automatische Änderung.');
+  if(![0,4].includes(original[16]&12))throw Error('EEPROM: interner Temperaturmodus und CFG_EN.t_cor_en passen nicht zusammen.');
+  const target={};
+  for(const [addr,index,mask] of [[0x1A,27,0x00f0],[0x1E,29,0x0fff],[4,16,0x100c]]){
+   if(!Number.isInteger(ram[addr])||ram[addr]<0||ram[addr]>65535)throw Error('Temperaturregister nicht zuverlässig gelesen.');
+   target[addr]=(ram[addr]&~mask)|(original[index]&mask);
+  }
+  for(let i=0;i<CAL_REGS.length;i++)target[CAL_REGS[i]]=original[31+i];
+  return target;
+ }
+ async function ensureInternalTemperatureProfile(){
+  if(!ptcDev||demoEnabled||selectedTemperatureSource()!=='internal')return;
+  if(!st.chip||!st.port||st.calTask||st.writing||st.nvmWorking||st.closing)throw Error('Temperaturquelle: zuerst freien, verbundenen Sensor sicherstellen.');
+  const actual=await readReg(0x1E);
+  st.regs[0x1E]=actual;
+  if(CAL.temperatureSourceFromAfe2(actual)==='internal'){
+   if(hasCurrentNvmBackup()&&CAL.temperatureSourceFromAfe2(st.nvmBackup[29])!=='internal')throw Error('RAM ist intern, EEPROM enthält ein anderes Temperaturprofil. Keine automatische NVM-Umstellung.');
+   return;
+  }
+  if(st.calpoints.length||st.calStaged)throw Error('Temperaturquelle im Chip geändert. Aktive Messpunkte zuerst sichern und neuen Abgleich starten.');
+  if(st.iface!=='plc'||!(st.adapterKind==='ssp3'||(st.adapterKind==='bridge'&&st.bridgeGenericRam&&st.bridgeUserNvm)))throw Error('Interne Temperaturquelle: RAM-Wiederherstellung nur mit unterstütztem One-Wire-Programmer. Sensor neu starten, falls EEPROM bereits intern ist.');
+  if(!hasCurrentNvmBackup())await nvmScan({expertRead:true});
+  if(!hasCurrentNvmBackup())throw Error('Interne Temperaturquelle: Original-EEPROM mit UID und CRC nicht bestätigt.');
+  const uid=st.uid.hex,port=st.port,session=st.sessionIndex,original=st.nvmBackup.slice();
+  const sameChip=()=>st.port===port&&st.sessionIndex===session&&st.uid?.hex===uid&&st.chip&&!st.closing&&hasCurrentNvmBackup()&&CAL.sameNvmImage(original,st.nvmBackup);
+  const resume=st.live&&!st.manualLivePause;stopLive();st.calTask=true;st.writing=true;st.ramWriteScope='dev-temperature';st.temperatureRestoring=true;
+  let saved=null,started=false;
+  try{
+   if(st.liveReadPromise)await st.liveReadPromise.catch(()=>{});
+   if(!sameChip()||await readCalibrationUid()!==uid)throw Error('Sensor oder EEPROM gewechselt.');
+   const boot=await bootSnapshot();
+   saved={4:boot[4],26:await readReg(0x1A),30:await readReg(0x1E)};
+   for(const addr of CAL_REGS)saved[addr]=await readReg(addr);
+   const target=internalTemperatureRestorePlan(original,saved);
+   if(!target)return;
+   if(selectedTemperatureSource()!=='internal'||!sameChip())throw Error('Temperaturquelle oder Sensor gewechselt.');
+   st.devTemperatureWrite=target;await ramGrant();
+   for(const addr of [0x1A,0x1E,...CAL_REGS,4]){
+    if(!sameChip()||selectedTemperatureSource()!=='internal')throw Error('Sensor oder Temperaturquelle gewechselt.');
+    if(saved[addr]!==target[addr]){started=true;await maintWrite(addr,target[addr]);}
+    if(await readReg(addr)!==target[addr])throw Error('Rücklesen fehlgeschlagen: 0x'+h(addr));
+   }
+   const verifiedBoot=await bootSnapshot();
+   if(!sameBoot({...boot,4:target[4]},verifiedBoot)||await readCalibrationUid()!==uid)throw Error('Bootregister oder Chip-UID geändert.');
+   st.boot=verifiedBoot;Object.assign(st.regs,target);st.afe0=target[26];st.ptcHardware=null;st.temperatureBaseline=null;st.calibrationPreflight=null;
+   st.trend=[];st.history=[];
+   logging('Interne Temperaturquelle aus verifiziertem Original-EEPROM ins RAM zurückgesetzt. Kein NVM-Schreiben.');
+   await readADC();
+  }catch(e){
+   if(started){
+    try{
+     if(!sameChip()||await readCalibrationUid()!==uid)throw Error('Sensor nicht mehr bestätigt.');
+     st.devTemperatureWrite=saved;await ramGrant();
+     for(const addr of [0x1A,0x1E,...CAL_REGS,4]){if(!sameChip())throw Error('Sensor gewechselt.');if(await readReg(addr)!==saved[addr])await maintWrite(addr,saved[addr]);if(await readReg(addr)!==saved[addr])throw Error('Rücklesen fehlgeschlagen.');}
+     st.boot=await bootSnapshot();Object.assign(st.regs,saved);st.afe0=saved[26];
+    }catch(rollback){markSensorUnavailable('Temperatur-RAM-Rücksetzung nicht bestätigt: '+rollback.message);throw Error(e.message+'; RAM-Zustand nicht bestätigt. Sensor stromlos machen und neu verbinden.');}
+   }
+   throw e;
+  }finally{try{await ramLock();}finally{st.devTemperatureWrite=null;st.temperatureRestoring=false;st.ramWriteScope=null;st.calTask=false;st.writing=false;renderStatus();if(resume&&st.chip&&!st.closing)startLive();}}
+ }
  async function checkCalibrationTemperatureSource(){
   const selected=selectedTemperatureSource();
   if(ptcDev&&demoEnabled&&['bridge','external'].includes(selected)){
@@ -1409,6 +1475,7 @@ if(typeof document!=='undefined') (function UI(){
    if(st.port!==port||st.sessionIndex!==session||st.uid?.hex!==uid||!hasCurrentNvmBackup()||!CAL.sameNvmImage(words,st.nvmBackup))throw Error('Sensor oder Original-NVM während Vorabprüfung geändert.');
    const allowBridgeSupplyChange=!recovery||st.adapterKind==='bridge'&&bridgeCombinedRecoveryReady();
    const source=selectedTemperatureSource(),temperature=source==='internal'?null:hardwareTemperature(source);
+    if(source==='internal'&&(ram[0x1e]&3)!==0)throw Error('Interne Temperaturquelle ausgewählt, RAM verwendet '+temperatureSourceLabels[CAL.temperatureSourceFromAfe2(ram[0x1e])]+'. Im AFE-Schritt zurücksetzen oder Messpunkt erneut starten.');
    if(source!=='internal'&&!temperature)throw Error('DEV: Temperatur-AFE vor erster Messung einstellen.');
    const plan=CAL.planCalibrationProfile(words,ram,{orderT:Number($('calTOrder').value),recovery,allowOperatingChanges,allowBridgeSupplyChange,allowSingleMeasurement:st.iface==='i2c'&&st.adapterKind==='bridge',filterCatalog:filterProfiles.map(f=>f[1]),devTemperature:temperature});
    const previous=activePreflight();
@@ -1470,6 +1537,7 @@ if(typeof document!=='undefined') (function UI(){
  }
 
  async function measureCalibrationSamples(label){
+  await ensureInternalTemperatureProfile();
   await calibrationPreflight();
   const required=chosenCalibrationSamples();
   if(st.calTask||st.writing||st.nvmWorking)throw Error('Ein Mess- oder Wartungsvorgang läuft');
@@ -6811,6 +6879,7 @@ if(typeof document!=='undefined') (function UI(){
   },
   clearPtcDev:()=>{if(selectedTemperatureSource()==='internal')return;if(demoEnabled&&demoPort.ptcConfigured()){demoPort.clearPtcProfile();erasePoints();st.trend=[];}else if(!demoEnabled){st.ptcHardware=null;st.calibrationPreflight=null;invalidateCalculation('Temperaturprofil geändert. AFE erneut ins RAM übernehmen.');}},
   ptcDevHardwareReady:()=>!!hardwareTemperature(),
+  ensureInternalTemperatureProfile,
 
   afeStats:since=>guidedAfeStats(since),
   redraw:()=>draw(),

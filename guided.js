@@ -921,7 +921,7 @@ const ELMOS_GUIDED=(()=>{
    return;
   }
   if(stage===3){
-   try{window.ELMOS_PTC_DEV_UI?.requireAfe?.();if(!plan)plan=applyPlan();goto(4)}catch(e){msg(e.message,'error')}
+   try{window.ELMOS_PTC_DEV_UI?.requireAfe?.();if(!plan)plan=applyPlan();await window.ELMOS_GUIDED_API?.ensureInternalTemperatureProfile?.();goto(4)}catch(e){msg(e.message,'error')}
    return;
   }
   if(stage===4){
