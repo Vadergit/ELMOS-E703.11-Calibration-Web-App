@@ -946,6 +946,14 @@ const ELMOS_GUIDED=(()=>{
   if(mode&&restoreScroll){updateUI();apiRedraw();}
   return true;
  }
+ function onNvmProgrammed(result){
+  if(!result?.verified||!mode||stage!==9||connectionOpen||nextSensorPending||calculatorOrigin)return false;
+  const s=state();
+  if(!s.chip||!s.nvmDone||s.critical)return false;
+  goto(10);
+  if(result.archiveWarning)msg('NVM erfolgreich verifiziert. Komplette Abgleichdatei nicht bestätigt: Bitte Archiv prüfen.','warn');
+  return true;
+ }
  function goto(n){
   if(stage===11&&window.ELMOS_TEST_LOGGER?.isBusy()){
    msg('Bitte zuerst die laufende Testaufzeichnung beenden.','warn');return;
@@ -1257,7 +1265,7 @@ const ELMOS_GUIDED=(()=>{
      $('calUnit').value!==plan.unit)return null;
   return {pCount:plan.pCount,tCount:plan.tCount,fitMode:plan.fitMode};
  }
- return {init,open,close,openNvmCalculator,closeNvmCalculator,temperatureSourceChanged,preferredView:()=>rememberedView()==='classic'?'classic':'guided',goToStart:()=>{if(mode&&!nextSensorPending)goto(0)},goToCoefficients:()=>{if(mode&&task==='calibration'&&!nextSensorPending)goto(5)},resetForHome,hasUnfinishedTask,hasPendingOperation,onConnected,onSensorReset,makePlan,planForPreset:()=>mode&&stage>=1&&stage<=2?makePlan():plan,isOpen:()=>mode,appliedPlanForConfig};
+ return {init,open,close,openNvmCalculator,closeNvmCalculator,temperatureSourceChanged,onNvmProgrammed,preferredView:()=>rememberedView()==='classic'?'classic':'guided',goToStart:()=>{if(mode&&!nextSensorPending)goto(0)},goToCoefficients:()=>{if(mode&&task==='calibration'&&!nextSensorPending)goto(5)},resetForHome,hasUnfinishedTask,hasPendingOperation,onConnected,onSensorReset,makePlan,planForPreset:()=>mode&&stage>=1&&stage<=2?makePlan():plan,isOpen:()=>mode,appliedPlanForConfig};
 })();
 if(typeof window!=='undefined')window.ELMOS_GUIDED=ELMOS_GUIDED;
 if(typeof document!=='undefined'){
