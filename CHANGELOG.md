@@ -1,3 +1,8 @@
+## v0.7.229 – Verbindungsinitialisierung korrigiert
+
+- Behebt einen JavaScript-Abbruch bei App-Start ohne Sensor: Eine fehlende Temperaturreferenz und eine noch unbekannte UID dürfen nicht als gültige Referenz verglichen werden. Der Nullfall wird vor dem Zugriff auf Referenzdaten abgefangen.
+- Regressionstest für fehlende Referenz und unbekannte UID. Keine Änderung an ESP32-/SSP3-Kommunikation, Firmware oder NVM.
+
 ## v0.7.228 – Dynamische SSC-Temperaturanzeige
 
 - Interne Temperatur auch ohne bekanntes Kalibrierprofil als ausdrücklich gekennzeichnete ADC_T-Näherung aus der dokumentierten Elmos-Beispielkennlinie anzeigen.
