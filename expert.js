@@ -485,10 +485,12 @@ const ELMOS_EXPERT=(()=>{
     manualScaling=false;invalidateOutputPlan();show('expertOutputMsg','Scaling für '+(mode===4?'PWM':'FM')+' vorgeschlagen. Bitte prüfen und vormerken.','warn');
    }catch(e){show('expertOutputMsg',e.message,'error');if(isAnalog($('expertOutputMode').value)){$('psscScalingPreview').textContent=e.message;$('psscScalingPreview').classList.add('invalid')}}
   }
-  function propose(){
+  function propose(event){
    try{
-    // Ausgangskonfiguration ist für alle Benutzer zugänglich.
-    if(isAnalog($('expertOutputMode').value)&&!manualScaling)calculateAnalogScaling();
+    // In the normal guided analogue workflow the single confirmation also
+    // recalculates S0/S1. Expert/manual and standalone modes retain their options.
+    const guidedAnalog=event?.currentTarget?.closest?.('#gwPage7.gw-output-auto-analog')&&!$('expertMode').checked;
+    if(isAnalog($('expertOutputMode').value)&&(!manualScaling||guidedAnalog))calculateAnalogScaling();
    const values=outputValues();
    if(isAnalog(values.mode)){
     const diagnostic=renderOutputPreview();

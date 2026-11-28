@@ -119,7 +119,7 @@ const ELMOS_GUIDED=(()=>{
        <div class="gw-panel-actions" id="gwScalingActions"></div>
       </div>
       <div class="gw-advanced" id="gwAdvancedOutput" hidden><details><summary>Expertenparameter · AODO Gain/Offset</summary><div class="gw-fields" id="gwExpertOutputFields"></div></details></div>
-      <div id="gwOutputClipping"></div><div class="gw-panel-actions" id="gwOutputActions"></div><div class="gw-panel-actions"><button id="gwOutputSkipAlarm" type="button">Ohne Alarmänderung weiter zur NVM-Programmierung</button></div>
+      <div id="gwOutputClipping"></div><div class="gw-panel-actions" id="gwOutputActions"></div><div class="gw-panel-actions" id="gwOutputSkipActions"><button id="gwOutputSkipAlarm" type="button">Ohne Alarm- und Fehleränderung weiter zum NVM</button></div>
      </section>
      <section class="gw-tile is-soft gw-output-review">
       <div class="gw-section-head"><div><h3>Vorschau und Status</h3><p>Ausgelesene Werte, Skalierung und Startschutz</p></div></div>
@@ -274,9 +274,7 @@ const ELMOS_GUIDED=(()=>{
    if(!$('gwUseAlarms').checked)window.ELMOS_GUIDED_API?.skipAlarms?.();
    updateUI();
   });
-  $('gwOutputSkipAlarm').addEventListener('click',()=>{
-   window.ELMOS_GUIDED_API?.skipAlarms?.();goto(9);
-  });
+  $('gwOutputSkipAlarm').addEventListener('click',()=>continueFromOutput(true));
   $('gwSkipAlarm').addEventListener('click',()=>{
    $('gwUseAlarms').checked=false;$('gwAlarmConfigArea').hidden=true;
    window.ELMOS_GUIDED_API?.skipAlarms?.();goto(9);
@@ -512,8 +510,11 @@ const ELMOS_GUIDED=(()=>{
   const page=$('gwPage7'),calibration=task==='calibration';
   page.classList.toggle('gw-output-calibration',calibration);
   page.classList.toggle('gw-output-no-reread',calibration&&s.nvmBackupVerified);
-  // Keep the existing manual Scaling action whenever required or not yet verified.
-  page.classList.toggle('gw-output-auto-analog',calibration&&s.outputReady&&!s.outputScalingRequired&&!$('expertMode').checked&&['1','2','3'].includes($('expertOutputMode').value));
+  const simpleAnalog=calibration&&!$('expertMode').checked&&['1','2','3'].includes($('expertOutputMode').value);
+  page.classList.toggle('gw-output-auto-analog',simpleAnalog);
+  $('gwOutputSkipActions').hidden=!calibration;
+  $('gwOutputSkipAlarm').disabled=!s.chip||!s.calVerified||s.connectionBusy;
+  if(stage===7)$('gwNext').textContent=calibration?'Weiter zu Alarmen & Fehlern':'Weiter';
  }
  function captureNumber(value){
   return Number.isFinite(value)?Number(value).toLocaleString('de-CH',{maximumFractionDigits:1}):'—';
@@ -1029,6 +1030,26 @@ const ELMOS_GUIDED=(()=>{
   stage=Math.max(0,Math.min(11,n));visited.add(stage);render();
   root.scrollIntoView({behavior:'smooth',block:'start'});
  }
+ // Both navigation choices share the same output checks. Skipping means
+ // preserve existing alarm/error settings, not turn them off.
+ function continueFromOutput(skip){
+  if(!mode||stage!==7||connectionOpen||nextSensorPending||fixedFitBusy)return false;
+  const s=state();
+  if(!s.chip||s.connectionBusy){msg('Zuerst einen freien, verbundenen Sensor bestätigen.','warn');return false;}
+  if(task==='calibration'){
+   if(!s.calVerified){msg('Zuerst die unabhängige DSP-Prüfung abschliessen.','warn');return false;}
+   if(s.outputScalingRequired||!s.calibrationOutputConfirmed){
+    msg('Bitte zuerst «Ausgangskonfiguration prüfen und vormerken» erfolgreich abschliessen. Die Messpunkte bleiben erhalten.','warn');return false;
+   }
+  }
+  if(skip){
+   if(task!=='calibration')return false;
+   $('gwUseAlarms').checked=false;$('gwAlarmConfigArea').hidden=true;
+   window.ELMOS_GUIDED_API.skipAlarms();
+   goto(9);return true;
+  }
+  goto(8);return true;
+ }
  async function next(seriesSettings=null){
   if(fixedFitBusy)return;
   if(stage===0&&(task==='archive'||task==='verification')){
@@ -1090,12 +1111,7 @@ const ELMOS_GUIDED=(()=>{
   }
   if(stage===5){if(!s.calStaged){msg('Bitte die Koeffizienten zuerst berechnen und ins RAM übertragen.','warn');return}goto(6);return}
   if(stage===6){if(!s.calVerified){msg('Die unabhängige DSP-Prüfung muss erfolgreich abgeschlossen sein.','warn');return}goto(7);return}
-  if(stage===7){
-   if(task==='calibration'&&s.outputScalingRequired){
-    msg('Die alte Ausgangsskalierung passt nicht zum aktuellen DSP-Zielbereich. Bitte «Scaling berechnen und aktivieren» und danach «Ausgangskonfiguration prüfen und vormerken» anklicken. Die Messpunkte und RAM-Kalibrierung bleiben erhalten.','warn');return;
-   }
-   goto(8);return
-  }
+  if(stage===7){continueFromOutput(false);return}
   if(stage===8){
    if(task!=='alarms'&&!$('gwUseAlarms').checked){window.ELMOS_GUIDED_API?.skipAlarms?.();goto(9);return}
    if(!window.ELMOS_GUIDED_API?.alarmPending?.()&&!window.ELMOS_GUIDED_API?.alarmStandaloneReady?.()){

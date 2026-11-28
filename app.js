@@ -6925,6 +6925,7 @@ if(typeof document!=='undefined') (function UI(){
    calStaged:!!st.calStaged,calVerified:verificationComplete(),nvmDone:!!st.nvmDone,
    postBootVerified:!!(st.nvmDone&&st.chip&&st.postBootProof&&st.postBootProof.port===st.port&&st.postBootProof.session===st.sessionIndex&&st.postBootProof.uid===st.uid?.hex),
    nvmBackupVerified:!!st.nvmBackupVerified,outputReady:expert.outputReady(),
+   calibrationOutputConfirmed:verificationComplete()&&$('expertOutputMsg').classList.contains('success')&&($('expertOutputMode').value==='keep'||!!st.expertOutputPlan&&String(st.expertOutputPlan.mode)===$('expertOutputMode').value),
    outputScalingRequired:outputScalingPreflight().required
   }),
   navigate:n=>step(n),

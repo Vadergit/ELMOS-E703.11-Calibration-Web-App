@@ -1,3 +1,9 @@
+## v0.7.210 – Ausgangskonfiguration vereinfacht
+
+- Normaler geführter Analogabgleich: ein Button berechnet S0/S1-Skalierung und prüft/merkt die Ausgangskonfiguration vor. PWM/FM, Expertenmodus und klassische Ansicht behalten den separaten Skalierungsvorschlag.
+- Direkter Weg zum NVM ohne Alarm-/Fehleränderung; bestehende Alarmwerte bleiben unverändert. Beide Weiter-Wege prüfen DSP und bestätigten Ausgang; keine automatische NVM-Programmierung.
+- Keine Änderung an Kommunikation, Registern oder Kalibrieralgorithmen; Hardware- und vollständige CI-Prüfung ausstehend.
+
 ## v0.7.209 – Automatischer eindeutiger Fit im geführten Ablauf
 
 - Nach «Weiter» von den Messpunkten: eindeutiger 2-Punkt-Druckfit sowie festgelegte TK0-/lineare TK0+TKE-Modelle automatisch berechnen und mit vorhandener RAM-Rückleseprüfung übernehmen. Bei Warnungen, Fehlern oder mehreren sinnvollen Polynomordnungen bleibt die manuelle Bedienung erhalten.

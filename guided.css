@@ -471,9 +471,11 @@ html[data-theme="dark"] #guidedWorkspace .gw-quick-connect{background:#382e1d;co
 
 /* Normal calibration: the original NVM is already secured at entry; keep a recovery action if it is not verified. Analog staging recalculates S0/S1 itself. Standalone output and classic view retain their controls. */
 #gwPage7.gw-output-no-reread #outputNvmRead,
-#gwPage7.gw-output-auto-analog #expertOutputPreset,
-#gwPage7.gw-output-calibration #gwOutputSkipAlarm { display:none !important; }
-#gwPage7.gw-output-calibration #gwOutputSkipAlarm:only-child { display:none !important; }
+#gwPage7.gw-output-auto-analog #expertOutputPreset { display:none !important; }
+#gwPage7 #gwOutputSkipActions[hidden]{display:none!important}
+#gwPage7 #gwOutputSkipActions{justify-content:flex-end;margin-top:10px}
+#gwPage7 #gwOutputSkipAlarm{white-space:normal;text-align:center}
+
 
 /* Unique guided fit: retain manual recovery actions, never conceal warnings. */
 #guidedWorkspace.gw-fixed-fit #gwFitFields{display:none!important}
