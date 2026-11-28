@@ -180,7 +180,14 @@ async function runFlow(p,v,dir,record){
  await snapshot(p,dir,'06-dsp-verified',record);
  await click(p,'gwNext');await stage(p,7);
  await visible(p,'gwAdvancedOutput',expert);
- await click(p,'expertOutputPreset');await click(p,'expertOutputStage');
+ const outputMode=await check(p,'expertOutputMode').inputValue();
+ const autoAnalog=!expert&&['1','2','3'].includes(outputMode);
+ await visible(p,'expertOutputPreset',!autoAnalog);
+ await visible(p,'gwOutputSkipAlarm',false);
+ const backedUp=await p.evaluate(()=>window.ELMOS_GUIDED_API.state().nvmBackupVerified);
+ await visible(p,'outputNvmRead',!backedUp);
+ if(!autoAnalog&&await check(p,'expertOutputPreset').isEnabled())await click(p,'expertOutputPreset');
+ await click(p,'expertOutputStage');
  await state(p,()=>!window.ELMOS_GUIDED_API.state().outputScalingRequired);
  await snapshot(p,dir,'07-output',record);
  await click(p,'gwNext');await stage(p,8);
