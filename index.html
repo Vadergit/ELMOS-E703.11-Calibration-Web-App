@@ -790,7 +790,7 @@ html.guided-task-open #guidedHomeTop{display:inline-flex}
 #guidedHomeConfirmStatus[hidden]{display:none!important}
 @media(max-width:700px){.guided-home-top{padding:6px 10px;font-size:12px}}
 </style><link rel="stylesheet" href="guided.css?v=0.7.202"><link rel="stylesheet" href="interface.css?v=0.7.101"><link rel="stylesheet" href="theme.css?v=0.7.9"><link rel="stylesheet" href="verification-guide.css?v=0.7.78"><link rel="stylesheet" href="calibration-graph.css?v=0.7.83"><link rel="stylesheet" href="archive-photos.css?v=0.7.73"><link rel="stylesheet" href="settings-refresh.css?v=0.7.77"><link rel="stylesheet" href="classic-compact.css?v=0.7.100"><link rel="stylesheet" href="eeprom-config-overview.css?v=0.7.121"><link rel="stylesheet" href="nvm-reconstruction.css?v=0.7.142">
-</head><body data-app-version="0.7.202"><style>#gwPtcFields[hidden],#gwPtcTol[hidden],#gwEocFields[hidden],#gwEocTol[hidden]{display:none!important}</style><script>window.ELMOS_PTC_DEV=true;</script><div style="padding:7px 15px;background:#744d10;color:white;font:600 12px system-ui;text-align:center">DEV · PTC · Simulation – keine Verbindung zu realer Hardware</div><div class="wrap"><header class="top">
+<style>#guidedWorkspace .ptc-offline-diagnostic{display:none!important}</style></head><body data-app-version="0.7.202"><style>#gwPtcFields[hidden],#gwPtcTol[hidden],#gwEocFields[hidden],#gwEocTol[hidden]{display:none!important}</style><script>window.ELMOS_PTC_DEV=true;</script><div style="padding:7px 15px;background:#744d10;color:white;font:600 12px system-ui;text-align:center">DEV · PTC · Simulation – keine Verbindung zu realer Hardware</div><div class="wrap"><header class="top">
 <div class="brand"><div class="logo" aria-hidden="true">E</div><div><div class="eyebrow">E703.11 · PSSC · v0.7.202</div><h1>Kalibrierassistent</h1></div></div>
 <div class="live-overview" role="group" aria-label="Live-Sensorwerte: zuerst Temperatur, danach Druck und Sensorwert">
   <div class="live-kpi" title="ADC_T · Temperatur-Rohwert, keine direkte Temperatur in °C."><span class="live-kpi-label">ADC_T</span><span class="live-kpi-reading" id="liveAdcT">—</span><span class="live-kpi-unit">Digits</span></div>
@@ -1098,7 +1098,7 @@ html.guided-task-open #guidedHomeTop{display:inline-flex}
   <span class="afe-bridge-status" id="brSupplyStatus" role="status"></span>
  </div>
 </div>
-<div class="afe-step-row"><div class="afe-step-description"><div class="afe-step-title">Temperatur-AFE / Parallelwiderstand</div><span class="afe-step-subtitle">Berechnung und Diagnose · Entwicklungsstand</span></div><a href="temperature-afe.html" target="_blank" rel="noopener" class="button">Temperatur-AFE-Rechner öffnen</a></div>
+<div class="afe-step-row ptc-offline-diagnostic"><div class="afe-step-description"><div class="afe-step-title">Temperatur-AFE · Offline-Diagnose</div><span class="afe-step-subtitle">Optionaler Rechner für Vergleich und Fehlersuche</span></div><a href="temperature-afe.html" target="_blank" rel="noopener" class="button">Diagnoserechner öffnen</a></div>
 <div class="afe-step-row afe-polarity-row">
  <div class="afe-step-description"><div class="afe-step-title" id="bridgePolarityLabel">Brückenpolarität <span class="help" data-help="bridgePolarity">?</span></div><span class="afe-step-subtitle">SIP / SIN · vor PGA1</span></div>
  <div class="afe-polarity-control" role="group" aria-labelledby="bridgePolarityLabel">
