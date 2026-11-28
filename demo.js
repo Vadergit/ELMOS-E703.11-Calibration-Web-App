@@ -6,11 +6,11 @@ const ELMOS_DEMO = {
   const nvm = Array(64).fill(0);
   nvm[0] = 0xDE01;
   nvm[1] = 0x600D;
-  nvm[16] = typeof window!=='undefined'&&window.ELMOS_PTC_DEV?0x0202:0x0200;
+  nvm[16] = typeof window!=='undefined'&&window.ELMOS_PTC_DEV?0x0212:0x0200;
   nvm[18] = 2 << 12;
   nvm[19] = 0x0980;
   nvm[calibration.SVDD_INDEX] = typeof window!=='undefined'&&window.ELMOS_PTC_DEV?0x0C42:0x0C40;
-  if(typeof window!=='undefined'&&window.ELMOS_PTC_DEV)nvm[28]=0x0800;
+  if(typeof window!=='undefined'&&window.ELMOS_PTC_DEV){nvm[28]=0x0800;nvm[29]=0x1154;}
   nvm[15] = calibration.crc8(nvm) << 8;
   nvm[63] = calibration.crc16(nvm);
 
