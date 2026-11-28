@@ -86,12 +86,12 @@ test('A successful guided opening and explicit classic switch update the saved v
  let busy=false;
  const root={hidden:true,replaceChildren(){}};
  const context={
-  mode:false,nextSensorPending:null,
+  mode:false,nextSensorPending:null,fitAutomationBusy:false,
   stage:0,task:'calibration',visited:new Set([0]),plan:null,signature:null,
   seriesPointFields:null,selectedPoint:0,latestCapture:null,lastCaptureRenderKey:null,
   subscriptions:[],poll:null,pendingCapture:null,root,
-  $:()=>({checked:false}),
-  build(){},render(){},restore(){},updateUI(){},syncTopMode(){},msg(){},
+  $:()=>({checked:false,closest:()=>null}),
+  build(){},render(){},restore(){},updateUI(){},syncTopMode(){},msg(){},closeNvmCalculator(){},
   saveView:value=>saved.push(value),
   console:{error(){}},
   document:{documentElement:{classList:{
