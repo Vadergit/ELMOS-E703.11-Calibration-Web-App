@@ -10,7 +10,7 @@
  const field=(key,label)=>'<label><span>'+label+' '+help(key)+'</span><input type="number" step="any" data-ptc-key="'+key+'" value="'+(settings[key]??'')+'"></label>';
  function model(){const code=window.ELMOS_GUIDED_API?.telemetry?.()?.svddCode;return {...settings,source:external()?'external':'bridge',svddCode:[0,1,2].includes(code)?code:2};}
  function mount(){
-  $('gwPtcSetup').innerHTML='<div class="gw-subheading" id="gwTempModelTitle">PTC · Auslegung</div><div class="gw-panel-actions"><button type="button" data-ptc-help="method">Temperaturberechnung</button></div><div id="gwPtcFields" class="gw-fields gw-3">'+field('bridgeOhm','Messbrücke bei 25 °C (Ω)')+field('parallelOhm','PTC bei 25 °C (Ω)')+field('ptcTcr','PTC TKR (ppm/K)')+'</div><div id="gwEocFields" class="gw-fields gw-3">'+field('eocMv','EOC bei 25 °C (mV)')+field('eocSlope','Steigung (mV/K)')+'<label><span>Sensorversorgung '+help('eocBias')+'</span><select data-ptc-key="eocBias"><option value="0">Externe Spannung / Teiler</option><option value="1">Diode · interne 10 µA</option></select></label></div><div class="gw-fields gw-3">'+field('minTemp','Betrieb min. (°C)')+field('maxTemp','Betrieb max. (°C)')+'</div><details><summary>Erweiterte Einstellungen</summary><div class="gw-fields gw-3">'+ '<div id="gwPtcTol" class="gw-fields">'+field('bridgeTolerance','Brücke ± %')+field('bridgePressureVariation','Druckeinfluss Brücke (%)')+field('parallelTolerance','PTC ± %')+field('ptcTcrTolerance','TKR ± %')+'</div><div id="gwEocTol">'+field('eocTolerance','EOC-Spannung ± mV')+'</div>'+field('tk0',demo?'Demo TK0 (Digits/K)':'TK0-Annahme (Digits/K)')+field('tke',demo?'Demo TKE (ppm/K)':'TKE-Annahme (ppm/K)')+'</div></details><p id="gwPtcPreview" class="gw-fieldnote"></p>';
+  $('gwPtcSetup').innerHTML='<div class="gw-subheading"><span id="gwTempModelTitle">PTC · Auslegung</span> '+help('method')+'</div><div id="gwPtcFields" class="gw-fields gw-3">'+field('bridgeOhm','Messbrücke bei 25 °C (Ω)')+field('parallelOhm','PTC bei 25 °C (Ω)')+field('ptcTcr','PTC TKR (ppm/K)')+'</div><div id="gwEocFields" class="gw-fields gw-3">'+field('eocMv','EOC bei 25 °C (mV)')+field('eocSlope','Steigung (mV/K)')+'<label><span>Sensorversorgung '+help('eocBias')+'</span><select data-ptc-key="eocBias"><option value="0">Externe Spannung / Teiler</option><option value="1">Diode · interne 10 µA</option></select></label></div><div class="gw-fields gw-3">'+field('minTemp','Betrieb min. (°C)')+field('maxTemp','Betrieb max. (°C)')+'</div><details><summary>Erweiterte Einstellungen</summary><div class="gw-fields gw-3">'+ '<div id="gwPtcTol" class="gw-fields">'+field('bridgeTolerance','Brücke ± %')+field('bridgePressureVariation','Druckeinfluss Brücke (%)')+field('parallelTolerance','PTC ± %')+field('ptcTcrTolerance','TKR ± %')+'</div><div id="gwEocTol">'+field('eocTolerance','EOC-Spannung ± mV')+'</div>'+field('tk0',demo?'Demo TK0 (Digits/K)':'TK0-Annahme (Digits/K)')+field('tke',demo?'Demo TKE (ppm/K)':'TKE-Annahme (ppm/K)')+'</div></details><p id="gwPtcPreview" class="gw-fieldnote"></p>';
   $('gwPtcControls').innerHTML='<div class="gw-subheading"><span id="gwTempAfeTitle">Temperatur-AFE · PTC</span> <button type="button" class="ptc-help" data-ptc-help="method" aria-label="Temperaturberechnung" title="Temperaturberechnung">?</button></div><p id="gwPtcStatus" class="gw-fieldnote"></p><div id="gwPtcCurrent" class="gw-fieldnote"></div> <div class="gw-panel-actions"><button type="button" id="gwPtcConfigure" class="primary">Gesamtwiderstand messen &amp; AFE einstellen</button></div><div id="gwPtcRealAnchor"><div class="gw-fields">'+field('measuredTemp','Aktuelle Referenztemperatur (°C)')+'</div><details><summary>Erweitert · Widerstand und Unsicherheit</summary><div class="gw-fields gw-3">'+field('measuredOhm','R gesamt extern gemessen (Ω, optional)')+field('measurementUncertainty','Unsicherheit R-Schätzung (%)')+'</div><small>Leer = automatische ADC_T-Rückrechnung. Externen Widerstand nur bei stromlosem Sensor messen.</small></details></div><p id="gwPtcRealHint" class="gw-fieldnote">Die Software sucht selbst eine gültige RPGA-Stufe, schätzt R gesamt aus ADC_T und SVDD und prüft die berechnete Einstellung erneut. Danach realen Druck min/max anlegen.</p><p id="gwPtcMeasured" class="gw-fieldnote" role="status" hidden></p><div id="gwPtcDemoPressure"><p class="gw-fieldnote">Demo-Sensor · Referenzdruck anlegen:</p><div class="gw-panel-actions"><button type="button" id="gwPtcLow">P min</button><button type="button" id="gwPtcHigh">P max</button></div></div><p id="gwPtcMessage" class="gw-fieldnote" role="status"></p>';
   $('gwPtcPlot').innerHTML='<div class="gw-subheading">ADC_T · erwarteter Temperaturhub</div><div id="gwPtcSvg"></div><p class="gw-fieldnote" id="gwPtcStats"></p><p id="gwPtcPressureWarning" class="gw-afe-quality is-warning" role="status" hidden></p><div class="gw-chart-legend"><span style="color:#d0a331">■ Modellprognose / Reserve</span><span style="color:#398aca">● Aufgenommener ADC_T</span></div>';
   const onInput=e=>{const k=e.target.dataset.ptcKey;if(!k)return;settings[k]=e.target.value===''?(k==='measuredOhm'?null:NaN):Number(e.target.value);configured=null;observed=null;if(!demo)window.ELMOS_GUIDED_API?.clearPtcDev?.();refresh();};
@@ -133,27 +133,40 @@
    add('Alarm und Fehlerreaktionen','Druckalarm vergleicht DSP_S mit ALARM_LO/HI und Hysterese. ERR_MASK erlaubt bei dokumentierten Fehlern Ersatzwerte oder High-Z. Frei einstellbare Stromüberwachung wäre separate Softwarelogik; in dieser DEV-Version werden keine Stromalarme am Chip programmiert.');
    return {title:'Brückenstrom, Diagnosen und Alarme',sections};
   }
-  const f=fields[key];if(f){add(f[0],f[1],f[2]);return {title:f[0],sections};}return {title:heading,sections};
+  const examples={parallelOhm:'R₂₅ = 7 000 Ω; TKR = 2 000 ppm/K; T = 75 °C\nR = 7 000 · (1 + 0,1) = 7 700 Ω',tk0:'Offset₂₅ = 100 Digits; TK0 = 25 Digits/K; T = 75 °C\nOffset = 100 + 25 · 50 = 1 350 Digits',tke:'Hub₂₅ = 20 000 Digits; TKE = 300 ppm/K; T = 75 °C\nHub = 20 000 · (1 + 0,015) = 20 300 Digits'};
+  const f=fields[key];if(f){add(f[0],f[1],f[2],examples[key]);return {title:f[0],sections};}return {title:heading,sections};
+ }
+ function formulaText(host,value){
+  const parts=String(value).split(/([A-Za-zΑ-Ωα-ω]+_(?:[A-Za-z0-9]+)|\bT[0-3]\b)/g);
+  for(const part of parts){
+   const match=part.match(/^([A-Za-zΑ-Ωα-ω]+)_([A-Za-z0-9]+)$/)||part.match(/^(T)([0-3])$/);
+   if(!match){host.append(document.createTextNode(part));continue;}
+   const sub=document.createElement('sub');sub.textContent=match[2];host.append(document.createTextNode(match[1]),sub);
+  }
  }
  function showHelp(key){
-  let d=$('ptcHelpDialog');if(!d){d=document.createElement('dialog');d.id='ptcHelpDialog';d.setAttribute('aria-labelledby','ptcHelpTitle');document.body.appendChild(d);}
-  const {title,sections}=contentFor(key);d.replaceChildren();const h=document.createElement('h3');h.id='ptcHelpTitle';h.textContent=title;d.append(h);
+  let d=$('ptcHelpDialog');
+  if(!d){d=document.createElement('dialog');d.id='ptcHelpDialog';d.className='nvmrecon-formula-dialog';d.setAttribute('aria-labelledby','ptcHelpTitle');d.addEventListener('click',e=>{if(e.target===d)d.close()});document.body.appendChild(d);}
+  const {title,sections}=contentFor(key);d.replaceChildren();
+  const el=(tag,text,cls)=>{const node=document.createElement(tag);if(text)node.textContent=text;if(cls)node.className=cls;return node;};
+  const close=el('button','Schliessen ×','nvmrecon-formula-close');close.type='button';close.onclick=()=>d.close();
+  const content=el('div','','nvmrecon-formula-content');
+  const h=el('h2',title,'nvmrecon-formula-title');h.id='ptcHelpTitle';
+  content.append(el('div','SO WIRD DER WERT BERECHNET','nvmrecon-formula-eyebrow'),h);
+  const list=el('ol','','nvmrecon-formula-steps');
   for(const item of sections){
-   const section=document.createElement('section'),heading=document.createElement('h4'),p=document.createElement('p');
-   heading.textContent=item.title;p.textContent=item.body;section.append(heading);
+   const li=el('li');li.append(el('h3',item.title));
    if(item.formula){
-    const grid=document.createElement('div');grid.className='ptc-help-comparison';
-    for(const [label,value] of [['Formel',item.formula],['Rechenbeispiel',item.example]]){
-     if(!value)continue;
-     const col=document.createElement('div'),name=document.createElement('strong'),pre=document.createElement('pre');
-     name.textContent=label;pre.textContent=value;col.append(name,pre);grid.append(col);
-    }
-    section.append(grid);
+    const grid=el('div','','ptc-help-comparison'),left=el('div'),right=el('div');
+    left.append(el('strong','Formel','ptc-formula-label'));
+    const formula=el('div','','nvmrecon-formula-equation');formulaText(formula,item.formula);left.append(formula);grid.append(left);
+    if(item.example){right.append(el('strong','Rechenbeispiel','ptc-formula-label'));const example=el('div','','nvmrecon-formula-values');formulaText(example,item.example);right.append(example);grid.append(right);}
+    li.append(grid);
    }
-   section.append(p);d.append(section);
+   li.append(el('p',item.body,'nvmrecon-formula-description'));list.append(li);
   }
-  const cite=document.createElement('p');cite.className='muted small';cite.textContent='Grundlage: Elmos 25DS0170E.04, Kap. 3.3, 4.4, 4.5.2–3, 6.2.2–3, 6.3 und 7.2.1. Modellannahmen sind keine Hardwarefreigabe.';d.append(cite);
-  const close=document.createElement('button');close.type='button';close.textContent='Schliessen';close.onclick=()=>d.close();d.append(close);if(!d.open)d.showModal();close.focus();
+  content.append(list,el('p','Grundlage: Elmos 25DS0170E.04, Kap. 3.3, 4.4, 4.5.2–3, 6.2.2–3, 6.3 und 7.2.1. Modellannahmen sind keine Hardwarefreigabe.','nvmrecon-formula-disclaimer'));
+  d.append(close,content);if(!d.open)d.showModal();close.focus();
  }
  document.addEventListener('click',e=>{const b=e.target.closest?.('[data-ptc-help]');if(!b)return;e.preventDefault();e.stopPropagation();showHelp(b.dataset.ptcHelp);});
 

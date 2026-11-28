@@ -11,7 +11,7 @@ const ELMOS_GUIDED=(()=>{
   ['Sensor vorbereiten','Sensor und Referenzen definieren','Druckbereich, Temperaturbedingungen und DSP-Endwert für den Abgleich festlegen.'],
   ['Frontend einstellen','AFE optimal einstellen','Brückenpolarität, PGA1, Offset und PGA2 einstellen. Änderungen gehen nur ins RAM und werden rückgelesen.'],
   ['Messpunkte','Jetzt die Referenzen messen','Stelle die angezeigte Temperatur und den Druck ein. Nimm jeden Punkt erst nach dem Stabilisieren auf.'],
-  ['Koeffizienten','Kalibrierung berechnen','Die Messwerte ergeben die DSP-Kennlinie. Zuerst berechnen, dann ins Chip-RAM übertragen.'],
+  ['Koeffizienten','Kalibrierung berechnen','Berechnung und RAM-Rücklesung laufen automatisch. Bei Warnungen prüfen.'],
   ['DSP verifizieren','Ergebnis unabhängig prüfen','Prüfe echte Druck- und Temperaturbedingungen. Erst erfolgreiche Prüfungen geben NVM frei.'],
   ['Ausgang','Ausgang und Skalierung','Kontrolliere AODO-Ausgangsart, Versorgungsspannung und Zielspannungen.'],
   ['Alarme','Alarme & Fehler (optional)','Ohne Änderungen weitergehen oder Alarme für diesen Sensor konfigurieren, anschliessend im RAM bestätigen.'],
@@ -79,7 +79,7 @@ const ELMOS_GUIDED=(()=>{
      '<label>Temperaturbedingungen<select id="gwTemperatureCount"><option value="1">1 · keine Temperaturkorrektur</option><option value="2">2 · lineare Temperaturkorrektur</option><option value="3">3 · quadratische Temperaturkorrektur</option></select></label>'+
      '<label>Abgleichart<select id="gwComplexity"><option value="simple">Automatisch · empfohlen</option><option value="advanced">Experte · Polynomordnung selber wählen</option></select></label>'+
     '</div><div class="gw-fields gw-3" id="gwThermalFitRow" hidden><label>Temperaturmodell<select id="gwThermalFit"><option value="full">TK0 + TKE · 4 Messpunkte</option><option value="tk0">Nur TK0 · 3 Messpunkte</option></select></label></div><div class="gw-fields gw-3 gw-advanced" id="gwOrderFields" hidden><label>Druckpolynomordnung<select id="gwSOrder"><option value="1">1 · Linear</option><option value="2">2 · Quadratisch</option><option value="3">3 · Kubisch</option></select></label><label>Temperaturordnung<select id="gwTOrder"><option value="0">0 · Keine</option><option value="1">1 · Linear</option><option value="2">2 · Quadratisch</option></select></label></div>'+
-    '<div class="gw-fieldnote">Standard: vollständige Druck-Temperatur-Matrix. Bei 2 Druckpunkten und 2 Temperaturstufen kann TK0 allein mit 3 Messungen abgeglichen werden (ohne TKE).</div></div>'+
+    '<details class="gw-inline-help"><summary>Messmatrix und TK0/TKE</summary><p>Standard: vollständige Druck-Temperatur-Matrix. TK0 allein ist mit 3 Messungen möglich.</p></details></div>'+
     '<div id="gwPlanPreview" class="gw-summary"></div></div>'+
    `<div id="gwPage2" class="gw-page gw-setup-page" hidden>
     <div class="gw-columns gw-setup-grid">
@@ -100,7 +100,7 @@ const ELMOS_GUIDED=(()=>{
     '<section class="gw-tile gw-afe-monitor"><div class="gw-monitor-head"><div><h3>ADC_S · Live-Verlauf</h3><p>Rohsignal der Druckmesskette · letzte 60 Sekunden</p></div><span id="gwAfeLiveBadge" class="gw-live-badge">Warte auf Werte</span></div><div class="gw-afe-current"><strong id="gwAfeAdcValue" aria-live="off">—</strong><span>Digits</span></div><div class="gw-afe-chart" id="gwAfeChartHost"></div><div class="gw-chart-legend"><span class="gw-legend-limit">16-Bit-Darstellungsgrenzen</span><span class="gw-legend-dsp">DSP-Ziel: <b id="gwAfeDspTarget">—</b> (Referenz, keine ADC-Grenze)</span><span class="gw-legend-zero">Nulllinie</span><span class="gw-legend-line">ADC_S live</span></div>'+
     '<div class="gw-afe-kpis"><div><span>Minimum</span><strong id="gwAfeMin">—</strong></div><div><span>Maximum</span><strong id="gwAfeMax">—</strong></div><div><span>Hub (Max − Min)</span><strong id="gwAfeHub">—</strong></div></div>'+
     '<div class="gw-monitor-actions"><div id="gwAfeLiveActions"></div><button type="button" id="gwAfeReset" class="gw-secondary-btn">Min/Max zurücksetzen</button></div><div id="gwAfeQuality" class="gw-afe-quality" role="status">Min/Max werden ab dem Start dieses AFE-Schritts erfasst.</div><div id="gwAfeMessage"></div><div id="gwPtcPlot"></div></section></div></div>'+
-   '<div id="gwPage4" class="gw-page" hidden><div class="gw-points-layout"><div class="gw-point-nav" id="gwPointNav"></div><div class="gw-tile gw-control"><div id="gwPointConfirmation" class="gw-point-confirmation" hidden role="status" aria-live="polite"></div><div id="gwCurrentSetpoint" class="gw-summary gw-next-point"></div><div id="gwPointHost"></div><div id="gwSampleStatus"></div><div id="gwPointMessages"></div></div></div><div class="gw-alert">Der angezeigte Druck und die Temperatur sind <b>Referenz-Sollwerte</b>. Sie werden nicht automatisch erzeugt. Wähle den tatsächlichen Sollwert am Druckkalibrator und stelle die Temperaturkammer stabil ein, bevor du auf «aufnehmen» klickst.</div></div>'+
+   '<div id="gwPage4" class="gw-page" hidden><div class="gw-points-layout"><div class="gw-point-nav" id="gwPointNav"></div><div class="gw-tile gw-control"><div id="gwPointConfirmation" class="gw-point-confirmation" hidden role="status" aria-live="polite"></div><div id="gwCurrentSetpoint" class="gw-summary gw-next-point"></div><div id="gwPointHost"></div><div id="gwSampleStatus"></div><div id="gwPointMessages"></div></div></div><details class="gw-inline-help"><summary>Hinweise zur Referenzmessung</summary><p>Referenzen am Prüfstand einstellen und erst bei stabilen Bedingungen aufnehmen.</p></details></div>'+
    '<div id="gwPage5" class="gw-page" hidden><div class="gw-columns"><div class="gw-tile gw-control"><h3>Polynom und DSP-Ziel</h3><div class="gw-fields gw-3" id="gwFitFields"></div><div class="gw-panel-actions" id="gwFitActions"></div><div id="gwFitStatuses"></div><div id="gwFitDetails"></div></div><details class="gw-fit-help"><summary>Ablauf und Sicherheit</summary><p>Berechnung → RAM-Rücklesung → unabhängige DSP-Prüfung. Bei Warnungen bleibt dieser Schritt offen. Keine NVM-Programmierung.</p></details></div></div>'+
    '<div id="gwPage6" class="gw-page" hidden><div class="gw-columns"><div class="gw-tile gw-control"><h3>Unabhängige Prüfpunkte</h3><div class="gw-fields gw-3" id="gwVerifyFields"></div><div class="gw-panel-actions" id="gwVerifyActions"></div><div id="gwVerifyStatuses"></div><details><summary>Prüfprotokoll</summary><div id="gwVerifyDetails"></div></details></div><details class="gw-fit-help"><summary>Was prüfe ich hier?</summary><p>Prüfe die gewünschte Anzahl Punkte neu, auch an den Druckendpunkten. Bereits ein bestandener Prüfpunkt genügt für diesen Nachprüfschritt – auch bei TK0/TKE. Weitere Druck- und Temperaturpunkte sind freiwillig und erhöhen die Aussagekraft.</p><div class="gw-alert warn">Die Live-Anzeige allein zählt nicht als Prüfung. Verwende «Prüfwert aus DSP_S lesen» und kontrolliere die tatsächliche Abweichung.</div></details></div></div>'+
    `<div id="gwPage7" class="gw-page" hidden>
@@ -115,7 +115,7 @@ const ELMOS_GUIDED=(()=>{
         <div class="gw-voltage-endpoint"><span class="gw-voltage-label">S0 · untere Spannung</span><div id="gwS0Holder"></div></div>
         <div class="gw-voltage-endpoint"><span class="gw-voltage-label">S1 · obere Spannung</span><div id="gwS1Holder"></div></div>
        </div>
-       <p class="gw-setup-hint">Für ratiometrischen Betrieb liegen die Zielspannungen bei 10–90 % von VDD. Bei 5 V entspricht das 0,5–4,5 V.</p>
+       <details class="gw-inline-help"><summary>Standard-Skalierung</summary><p>10–90 % VDD, bei 5 V: 0,5–4,5 V.</p></details>
        <div class="gw-panel-actions" id="gwScalingActions"></div>
       </div>
       <div class="gw-advanced" id="gwAdvancedOutput" hidden><details><summary>Expertenparameter · AODO Gain/Offset</summary><div class="gw-fields" id="gwExpertOutputFields"></div></details></div>
@@ -134,7 +134,7 @@ const ELMOS_GUIDED=(()=>{
     '<div id="gwAlarmConfigArea" hidden><div class="gw-panel-actions" id="gwAlarmRead"></div><div id="gwAlarmDiagnostic"></div><div id="gwAlarmHost"></div></div>'+
     '<div class="gw-panel-actions"><button id="gwSkipAlarm" type="button">Ohne Alarmänderung zur NVM-Programmierung</button></div>'+
     '<p class="muted small">Beim Überspringen bleiben bereits vorhandene Alarmregister unverändert. Alarme deaktivieren erfordert eine ausdrücklich vorgemerkte Einstellung.</p></div></div>'+
-   '<div id="gwPage9" class="gw-page" hidden><div class="gw-columns"><div class="gw-tile gw-control"><h3>Änderungen prüfen und bestätigen</h3><div id="gwNvmBackup"></div><div class="gw-panel-actions" id="gwNvmPrepare"></div><div id="gwNvmMessages"></div><div class="gw-panel-actions" id="gwNvmWrite"></div><div id="gwNvmDetails"></div></div><div class="gw-tile is-warning"><h3>Wichtig vor dem NVM-Schreiben</h3><p>Ein Stromunterbruch während der Programmierung kann den Sensor unbrauchbar machen.</p><p>Prüfe Chip-UID und die Änderungsübersicht. Zuerst an einem entbehrlichen Testchip validieren.</p><p>Der Button ist nur freigegeben, wenn die bestehende Sicherheitslogik alle Voraussetzungen bestätigt.</p></div></div></div>'+
+   '<div id="gwPage9" class="gw-page" hidden><div class="gw-columns"><div class="gw-tile gw-control"><h3>Änderungen prüfen und bestätigen</h3><div id="gwNvmBackup"></div><div class="gw-panel-actions" id="gwNvmPrepare"></div><div id="gwNvmMessages"></div><div class="gw-panel-actions" id="gwNvmWrite"></div><div id="gwNvmDetails"></div></div><aside class="gw-nvm-safety"><strong>Vor dem Schreiben</strong><p>Chip-UID und Änderungen prüfen. Versorgung während der Programmierung nicht unterbrechen.</p><details><summary>Sicherheitshinweise</summary><p>Zuerst an einem entbehrlichen Testchip validieren. Ein Stromunterbruch kann den Sensor unbrauchbar machen. Die bestehende NVM-Sicherheitslogik bleibt aktiv.</p></details></aside></div></div>'+
    '<div id="gwPage10" class="gw-page gw-finish-page" hidden><section class="gw-finish-signal"><div class="gw-finish-top"><div><span class="gw-kicker">Live-Sensorsignal</span><h3>Aktueller Sensorausgang</h3></div><span id="gwFinishStatus" class="gw-live-badge">Warte auf Chipwerte</span></div><div class="gw-finish-number" aria-live="off"><strong id="gwFinishSignalValue">—</strong><span id="gwFinishSignalUnit">—</span></div><div id="gwFinishSource" class="gw-finish-caption">DSP_S wird vom Chip gelesen und auf den eingestellten Anzeigebereich bezogen.</div><div class="gw-finish-bar"><span id="gwFinishBar"></span></div><div class="gw-finish-limits"><span id="gwFinishRangeMin">—</span><span id="gwFinishRangeMax">—</span></div><div class="gw-finish-kpis"><div><span>DSP_S</span><strong id="gwFinishDsp">—</strong><small>Digits</small></div><div><span>ADC_S</span><strong id="gwFinishAdc">—</strong><small>Digits</small></div><div><span>ADC_T</span><strong id="gwFinishTemp">—</strong><small>Digits</small></div><div><span>Letzte Messung</span><strong id="gwFinishTime">—</strong></div></div></section>'+
     '<div class="gw-columns gw-finish-bottom"><section class="gw-tile"><div class="gw-section-head"><div><h3>Signalverlauf</h3><p>ADC_S im Zeitverlauf · letzte 60 Sekunden</p></div></div><div id="gwFinishChartHost" class="gw-finish-chart"></div></section><section class="gw-tile gw-finish-checklist"><h3>Abgleich und Freigabe</h3><div id="gwFinishCompletion" class="gw-alert">NVM-Status prüfen.</div><p id="gwFinishConfig">Gewünschte Ausgangseinstellungen werden hier als Sollwerte dargestellt.</p><p id="gwFinishWarning" class="gw-finish-warning">Vor der Freigabe den Ausgang mit einem Messgerät prüfen. Die Anzeige ersetzt keinen Hardwaretest.</p><div class="gw-panel-actions" id="gwPostBoot"></div><button class="gw-secondary-link" id="gwBackClassic" type="button">Zur vollständigen Expertenansicht wechseln</button></section></div></div>'+
    '<section id="gwSwapPage" class="gw-tile" hidden><ol><li>Stecke den fertig abgeglichenen Sensor ab.</li><li>Schliesse den nächsten Sensor am Programmieradapter an.</li><li>Klicke auf «Neuen Sensor verbinden».</li></ol><p>Der Assistent übernimmt den Messplan und die Ausgangsvorgaben. Er schreibt die Frontend-Einstellungen ins RAM des neuen Sensors. Für ihn nimmst du danach neue Messwerte auf.</p><div class="gw-panel-actions"><button id="gwSwapConnect" class="primary" type="button">Neuen Sensor verbinden</button><button id="gwSwapChoose" type="button" hidden>USB-Port auswählen</button><button id="gwSwapCancel" type="button">Serie abbrechen</button></div></section>'+
@@ -369,11 +369,11 @@ const ELMOS_GUIDED=(()=>{
    if(!thermalEligible)$('gwThermalFit').value='full';
   try{
    const candidate=makePlan();plan=candidate;
-   const tags=candidate.points.map(p=>'<span><b>'+p.label+'</b>'+p.pressure+' '+candidate.unit+(candidate.tempComp?' · '+p.temperature+' °C':'')+'</span>').join('');
-   $('gwPlanPreview').innerHTML='<strong>'+candidate.pCount+' Druckpunkte'+(candidate.tempComp?' / '+candidate.tCount+' Temperaturstufen':'')+' · '+candidate.total+' Messungen</strong><p>'+(candidate.fitMode==='tk0'?'TK0 ohne TKE · 3 Koeffizienten':'Druckpolynom '+candidate.orderS+'. Ordnung'+(candidate.tempComp?' · Temperaturpolynom '+candidate.orderT+'. Ordnung':' · ohne Temperaturkorrektur'))+' · '+candidate.samples+' Samples je Messung</p><div class="gw-matrix">'+tags+'</div>';
+   const tags=candidate.points.map(p=>'<span><b>'+p.label+'</b>'+p.pressure+' '+candidate.unit+(candidate.tCount>1?' · '+p.temperature+' °C':'')+'</span>').join('');
+   $('gwPlanPreview').innerHTML='<strong>'+candidate.pCount+' Druckpunkte'+(candidate.tCount>1?' / '+candidate.tCount+' Temperaturstufen':'')+' · '+candidate.total+' Messungen</strong><p>'+(candidate.fitMode==='tk0'?'TK0 ohne TKE · 3 Koeffizienten':'Druckpolynom '+candidate.orderS+'. Ordnung'+(candidate.tempComp?' · Temperaturpolynom '+candidate.orderT+'. Ordnung':' · ohne Temperaturkorrektur'))+' · '+candidate.samples+' Samples je Messung</p><div class="gw-matrix">'+tags+'</div>';
    $('gwPlanPreview').className='gw-summary';
    const setup=$('gwSetupPreview');
-   if(setup)setup.textContent='Geplant: '+candidate.total+' Messungen · '+candidate.pmin+'–'+candidate.pmax+' '+candidate.unit+(candidate.tempComp?' · Temperatur '+candidate.temperatures.join(' / ')+' °C':'');
+   if(setup)setup.textContent='Geplant: '+candidate.total+' Messungen · '+candidate.pmin+'–'+candidate.pmax+' '+candidate.unit+(candidate.tCount>1?' · Temperatur '+candidate.temperatures.join(' / ')+' °C':'');
    msg('');
   }catch(e){
    plan=null;$('gwPlanPreview').textContent=e.message;$('gwPlanPreview').className='gw-alert error';
@@ -535,7 +535,7 @@ const ELMOS_GUIDED=(()=>{
    btn.className=(index===selectedPoint?'gw-selected ':'')+(record?'gw-done':'gw-pending');
    btn.setAttribute('aria-current',index===selectedPoint?'step':'false');
    const label=document.createElement('span');label.className='gw-point-nav-label';
-   label.textContent=(record?'✓  ':'')+(index+1)+'. '+point.pressure+' '+plan.unit+(plan.tempComp?' · '+point.temperature+' °C':'');
+   label.textContent=(record?'✓  ':'')+(index+1)+'. '+point.pressure+' '+plan.unit+(plan.tCount>1?' · '+point.temperature+' °C':'');
    const status=document.createElement('span');status.className='gw-point-nav-state';
    status.textContent=record?'Aufgenommen · '+captureTime(record):index===selectedPoint?'Jetzt messen':'Noch offen';
    btn.append(label,status);
@@ -587,7 +587,7 @@ const ELMOS_GUIDED=(()=>{
   text.className='gw-next-detail';
   text.textContent=allDone?'Alle '+plan.total+' Referenzen wurden gespeichert. Weiter zur Koeffizientenberechnung.':
    record?'Wähle einen noch offenen Punkt, um die Messreihe fortzusetzen.':
-   'Stelle '+currentPoint.pressure+' '+plan.unit+(plan.tempComp?' und '+currentPoint.temperature+' °C':'')+' ein. Bei stabilen Bedingungen aufnehmen.';
+   'Stelle '+currentPoint.pressure+' '+plan.unit+(plan.tCount>1?' und '+currentPoint.temperature+' °C':'')+' ein. Bei stabilen Bedingungen aufnehmen.';
   current.append(heading,text);
   const spans=ELMOS_GUIDED_PLAN.captureSpans(points);
   if(spans.length){
@@ -909,7 +909,7 @@ const ELMOS_GUIDED=(()=>{
   $('gwTitle').textContent=connectionOpen?'Sensor verbinden und Protokoll prüfen':swapping?'Nächsten Sensor anschliessen':loggerPage?'Test / Logging':steps[stage][1];
   $('gwDesc').textContent=connectionOpen?'USB-Adapter, Chip-Schnittstelle und Diagnose direkt im geführten Modus bedienen.':swapping?'Wechsle den Sensor, um den Serienabgleich fortzusetzen.':loggerPage?
    'Sensorwerte in frei wählbaren Intervallen aufzeichnen, mitteln und mit Notizen archivieren.':
-   (!temperatureCompensationEnabled()&&stage===4?'Referenzdruck einstellen und bei stabilen Bedingungen aufnehmen.':!temperatureCompensationEnabled()&&stage===6?'DSP an unabhängigen Druckpunkten prüfen.':steps[stage][2]);
+   (plan?.tCount===1&&stage===4?'Referenzdruck einstellen und bei stabilen Bedingungen aufnehmen.':!temperatureCompensationEnabled()&&stage===6?'DSP an unabhängigen Druckpunkten prüfen.':steps[stage][2]);
   $('gwProgress').style.width=(loggerPage?100:(stage+1)/steps.length*100).toFixed(1)+'%';
   $('gwPrevious').disabled=stage===0;
   $('gwTasks').hidden=stage!==10;

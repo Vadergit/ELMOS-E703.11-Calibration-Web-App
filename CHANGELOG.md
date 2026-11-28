@@ -1,3 +1,9 @@
+## v0.7.205-uiux – Geführter Ablauf
+
+- Temperaturfelder folgen der gewählten Kompensation statt der zuletzt verwendeten Quelle.
+- Gemeinsames Formel-Dialogdesign mit Sensorbrücken-Rechner; mathematische Indizes und Rechenbeispiele.
+- Kompaktere Schrittseiten und neutrale Statuszeilen; Sicherheitswarnungen bleiben aktiv.
+
 ## v0.7.204-uiux – UI/UX-Testbranch
 
 - Automatische Koeffizientenberechnung und RAM-Rücklesung nach Messpunktkontrolle, mit Halt bei DSP-Warnungen oder Fehlern.

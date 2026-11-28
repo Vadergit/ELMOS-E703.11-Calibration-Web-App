@@ -410,11 +410,6 @@ html[data-theme="dark"] #guidedWorkspace .gw-quick-connect{background:#382e1d;co
 @media(max-width:520px){#guidedWorkspace #gwFitFields.gw-fit-without-temperature{grid-template-columns:1fr}}
 
 /* Shared temperature help: formula and corresponding example, not two copies. */
-#ptcHelpDialog{max-width:min(1000px,calc(100vw - 28px));box-sizing:border-box}
-#ptcHelpDialog section+section{border-top:1px solid var(--line);margin-top:12px;padding-top:8px}
-#ptcHelpDialog .ptc-help-comparison{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,310px),1fr));gap:12px;margin:8px 0}
-#ptcHelpDialog .ptc-help-comparison>div{min-width:0}
-#ptcHelpDialog .ptc-help-comparison pre{font:inherit;font-variant-numeric:tabular-nums;line-height:1.5;margin:5px 0;overflow-wrap:anywhere}
 
 /* Compact raw spans: no separate coloured status cards. */
 #guidedWorkspace .gw-capture-spans{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,190px),1fr));gap:6px 16px;margin-top:8px;padding-top:8px;border-top:1px solid var(--line);font-variant-numeric:tabular-nums}
@@ -440,3 +435,19 @@ html[data-theme="dark"] #guidedWorkspace .gw-quick-connect{background:#382e1d;co
 #guidedWorkspace[data-temperature-compensation="off"] :is(#gwPtcSetup,#gwPtcControls,#gwPtcPlot,#gwFitFields label:has(#calTOrder),#gwFitFields label:has(#calFitMode),#gwDspFields label:has(#calTempSource),.ptc-offline-diagnostic,#betaTemperatureToleranceLabel,#betaAlarmHelp,#ptcAlarmCurrent){display:none!important}
 #guidedWorkspace[data-temperature-compensation="off"] #gwFitFields{grid-template-columns:repeat(2,minmax(0,1fr))}
 @media(max-width:630px){#guidedWorkspace[data-temperature-compensation="off"] #gwFitFields{grid-template-columns:1fr}}
+
+/* Guided polish: quieter normal status and shorter panels; never hide errors. */
+#guidedWorkspace .gw-inline-help{margin:5px 0;padding:5px 0;border:0;font-size:12px}
+#guidedWorkspace .gw-inline-help>summary{font-size:12px}
+#guidedWorkspace .gw-nvm-safety{align-self:start;border-left:3px solid var(--yellow);padding:8px 12px;font-size:12px;color:var(--ink)}
+#guidedWorkspace .gw-nvm-safety p{margin:5px 0;font-size:12px}
+#guidedWorkspace .gw-page .gw-tile{padding:13px 15px;border-radius:10px;box-shadow:none}
+#guidedWorkspace .gw-page .gw-tile p{margin:3px 0 6px}
+#guidedWorkspace .gw-summary:not(.gw-next-point){background:transparent;border:0;border-top:1px solid var(--line);border-radius:0;padding:7px 0;margin:8px 0;color:var(--ink)}
+#guidedWorkspace .gw-page :is(.gw-fieldnote,.gw-setup-hint){font-size:11px;line-height:1.4}
+#guidedWorkspace .gw-footer{margin-top:8px;padding-top:8px}
+#guidedWorkspace .gw-main{padding-block:13px 10px}
+#guidedWorkspace .gw-page{min-height:0}
+#guidedWorkspace .gw-desc{margin-bottom:8px}
+#guidedWorkspace :is(#gwOutputStatuses,#gwNvmMessages,#gwAFEMsg,#gwPointMessages,#gwVerifyStatuses) .callout:not(.warn):not(.error):not([role="alert"]){background:transparent;border:0;padding:3px 0;margin:3px 0;color:var(--ink);font-size:11px}
+@media(max-width:630px){#guidedWorkspace .gw-page .gw-tile{padding:10px}}
