@@ -1,5 +1,8 @@
 # ELMOS E703.11 – Web-Kalibrierassistent
 
+## Brückenrechner V2 (Beta 1)
+Separates Diagnosefenster im klassischen und geführten Brückenrechner. NVM-Analyse mit CRC8/CRC16; nominale ADC_T-Widerstandsschätzung. Temporäre Umschaltung nur bei NVM-identischem Konfigurations-RAM, kontinuierlicher Messung und bestätigtem DIY-One-Wire-Kaltstart. Keine RPGA-Änderung, kein NVM-Schreiben. Rückprüfung aller 64 NVM-Wörter und 62 gemappter RAM-Register. Noch nicht hardwarevalidiert; SSP3/I²C nur lesende Analyse oder bereits kompatibler ADC_T-Pfad. Nur am Prüfplatz verwenden.
+
 **Ein geführter Kalibrierassistent für den ELMOS E703.11 mit SSP3-Eval-Board, ESP32-C3 SuperMini oder Arduino Pro Micro.** Ziel ist ein verständlicher Abgleich, der auch ohne tiefere Vorkenntnisse Schritt für Schritt funktioniert. Wer mehr benötigt, kann zusätzliche Messpunkte, DSP-Parameter und einen geschützten Expertenmodus verwenden.
 
 **Version: v0.7.231 · Unabhängige Chiptemperaturreferenz** · [Änderungsverlauf](CHANGELOG.md) · **[Geplante Funktionen](ROADMAP.md)**
