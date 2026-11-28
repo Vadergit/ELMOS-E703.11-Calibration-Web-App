@@ -103,7 +103,7 @@ if(typeof document!=='undefined') (function UI(){
   return {uid,afe2,temperature:avg(valid.map(p=>p.temperature)),adc:avg(valid.map(p=>p.adc_t))};
  }
  function validInternalReference(record,uid,afe2){
-  return record?.uid===uid&&record.afe2===afe2&&Number.isFinite(record.temperature)&&
+  return !!record&&!!temperatureStorageKey('reference',uid)&&record.uid===uid&&record.afe2===afe2&&Number.isFinite(record.temperature)&&
    record.temperature>=-40&&record.temperature<=125&&Number.isFinite(nominalInternalCelsius(record.adc));
  }
  function estimateInternalTemperature(adc,reference,factoryProfile){
