@@ -421,3 +421,9 @@ html[data-theme="dark"] #guidedWorkspace .gw-quick-connect{background:#382e1d;co
 #guidedWorkspace .gw-capture-spans>div{display:grid;gap:2px;min-width:0;font-size:12px}
 #guidedWorkspace .gw-capture-spans strong{font-size:20px;line-height:1.15;color:inherit;white-space:nowrap}
 #guidedWorkspace .gw-capture-spans small{font-size:11px;opacity:.85}
+
+/* Comparable span variation: neutral, compact, no redundant status tiles. */
+#guidedWorkspace .gw-span-overview{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,220px),1fr));gap:8px 20px;margin-top:8px;font-variant-numeric:tabular-nums}
+#guidedWorkspace .gw-span-overview>div{display:grid;gap:2px;min-width:0}
+#guidedWorkspace .gw-span-overview strong{font-size:20px;line-height:1.15;color:inherit}
+#guidedWorkspace .gw-span-overview small,#guidedWorkspace .gw-span-overview span{font-size:12px}

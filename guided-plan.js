@@ -113,11 +113,25 @@ const ELMOS_GUIDED_PLAN=(()=>{
     const lo=group[0],hi=group[group.length-1];
     if(hi.record[vary]-lo.record[vary]<=(kind==='pressure'?1e-6:0.5))continue;
     const delta=hi.record[channel]-lo.record[channel];
-    out.push({kind,channel,fixed:lo.record[fixed],from:lo.record[vary],to:hi.record[vary],fromIndex:lo.index,toIndex:hi.index,delta,span:Math.abs(delta)});
+    out.push({kind,channel,fixed:lo.record[fixed],from:lo.record[vary],to:hi.record[vary],fromIndex:lo.index,toIndex:hi.index,delta,span:Math.abs(delta),rawMin:Math.min(lo.record[channel],hi.record[channel]),rawMax:Math.max(lo.record[channel],hi.record[channel])});
    }
   }
   return out;
  }
- return {create,presets,captureDelta,captureSpans,sortReferences};
+ // Compare spans only over equal physical intervals, not incomplete ranges.
+ function summarizeSpans(spans){
+  const groups=[];
+  for(const s of spans){
+   const tolerance=s.kind==='pressure'?1e-6:0.5;
+   let group=groups.find(g=>g.kind===s.kind&&g.items.every(x=>Math.abs(x.from-s.from)<=tolerance&&Math.abs(x.to-s.to)<=tolerance));
+   if(!group){group={kind:s.kind,from:s.from,to:s.to,items:[]};groups.push(group)}
+   group.items.push(s);
+  }
+  return groups.filter(g=>g.items.length>1).map(g=>{
+   const values=g.items.map(x=>x.span),min=Math.min(...values),max=Math.max(...values);
+   return {kind:g.kind,from:g.from,to:g.to,count:values.length,min,max,delta:max-min};
+  });
+ }
+ return {create,presets,captureDelta,captureSpans,summarizeSpans,sortReferences};
 })();
 if(typeof module!=='undefined'&&module.exports)module.exports=ELMOS_GUIDED_PLAN;

@@ -586,6 +586,19 @@ const ELMOS_GUIDED=(()=>{
   current.append(heading,text);
   const spans=ELMOS_GUIDED_PLAN.captureSpans(points);
   if(spans.length){
+   const totals=ELMOS_GUIDED_PLAN.summarizeSpans(spans);
+   if(totals.length){
+    const overview=document.createElement('div');overview.className='gw-span-overview';
+    for(const range of totals){
+     const group=document.createElement('div'),label=document.createElement('small'),value=document.createElement('strong'),detail=document.createElement('span');
+     const unit=range.kind==='pressure'?plan.unit:'°C';
+     label.textContent=(range.kind==='pressure'?'Druckhub · ADC_S':'Temperaturhub · ADC_T')+' · '+captureNumber(range.from)+'–'+captureNumber(range.to)+' '+unit;
+     value.textContent='Δ '+captureNumber(range.delta)+' Digits';
+     detail.textContent='Min. '+captureNumber(range.min)+' · Max. '+captureNumber(range.max)+' Digits';
+     group.append(label,value,detail);overview.append(group);
+    }
+    current.append(overview);
+   }
    const summary=document.createElement('div');summary.className='gw-capture-spans';
    for(const span of spans){
     const line=document.createElement('div'),name=document.createElement('span'),value=document.createElement('strong'),detail=document.createElement('small');
@@ -595,7 +608,9 @@ const ELMOS_GUIDED=(()=>{
     value.textContent=captureNumber(span.span)+' Digits';
     detail.textContent=captureNumber(span.from)+' → '+captureNumber(span.to)+' '+unit+' · bei '+fixed;
     line.title='Messpunkt '+(span.fromIndex+1)+' → '+(span.toIndex+1)+' · Δ '+(span.delta>=0?'+':'−')+captureNumber(Math.abs(span.delta))+' Digits';
-    line.append(name,value,detail);summary.append(line);
+    const raw=document.createElement('small');
+    raw.textContent='ADC-Endpunkte: '+captureNumber(span.rawMin)+' … '+captureNumber(span.rawMax)+' Digits';
+    line.append(name,value,detail,raw);summary.append(line);
    }
    current.append(summary);
   }
