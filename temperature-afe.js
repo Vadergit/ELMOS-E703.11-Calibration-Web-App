@@ -114,7 +114,7 @@ function buildTemperatureAFE(){
    check(!(sda===2&&(bus===1||bus===2)),'EOC ist gleichzeitig I²C-SDA.');
    // Inactive routing with zero status mask is reported, not treated as
    // proven electrical contention. Active conflicts are blocked.
-   if(route===0){if(pads0&0x0fff)errors.push('Aktive EoC-Statusausgabe kollidiert mit externem Temperatureingang.');else warnings.push('EoC-Ausgang ist auf EOC geroutet, aber Statusmaske ist 0. Datenblatt empfiehlt anderen freien Pin; keine aktive Statusausgabe nachgewiesen.');}
+   if(route===0){if(pads0&0x0fff)errors.push('Aktive EoC-Statusausgabe kollidiert mit externem Temperatureingang.');else warnings.push('EoC-Ausgang auf EOC geroutet, Statusmaske 0. Datenblatt erlaubt diese Pinzuordnung bei Temperatureingang nicht ausdrücklich; DEV-RAM-Test möglich, vor NVM freie EoC-Pinzuordnung prüfen.');}
    check(!(route===1&&(pads0&0x0fff)&&(bus===1||bus===3)),'EoC-Ausgang NCS/SA0 kollidiert mit I²C/SPI.');
    check(!(route===2&&(pads0&0x0fff)&&(bus===3||((bus===1||bus===2)&&sda===1))),'EoC-Ausgang MOSI kollidiert mit I²C/SPI.');
    check(!(route===3&&((cfgEn>>9)&7)!==0),'EoC-Ausgang AODO kollidiert mit konfiguriertem AODO-Ausgang.');
