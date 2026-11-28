@@ -40,11 +40,20 @@ function buildTemperatureAFE(){
  function estimate({adc,svdd,afe0,afe2}){
   assert(Number.isInteger(adc)&&adc>=-32768&&adc<=32767,'ADC_T muss ein signed 16-Bit-Wert sein.');
   pos(svdd,'SVDD');assert(Number.isInteger(afe0)&&afe0>=0&&afe0<=65535&&Number.isInteger(afe2)&&afe2>=0&&afe2<=65535,'Gültige AFE-Register erforderlich.');
-  assert((afe2&0xff)===0x4a,'Brückentemperatur benötigt t_adc_src=2, TPGA1=2, TPGA2=1 sowie ADC_TC-Standardgains.');
+  assert((afe2&0x0fff)===0x014a,'Brückentemperatur benötigt t_adc_src=2, TPGA1=2, TPGA2=1 sowie ADC_TC-Standardgains.');
   const code=(afe0>>4)&15,g=rpga(code),mux=REF+adc/(ADC_SCALE*2),current=mux*1000/g.i2u;
-  return {mux,current,resistanceOhm:current>0?svdd/current*1000:null,valid:mux>=MUX_MIN&&mux<=MUX_MAX&&current>=g.minCurrent&&current<=g.maxCurrent,code};
+  return {mux,current,resistanceOhm:current>0?svdd/current*1000:null,valid:adc!==-32768&&adc!==32767&&mux>=MUX_MIN&&mux<=MUX_MAX&&current>=g.minCurrent&&current<=g.maxCurrent,code};
  }
  // Automatic probing uses raw ADC_T, not DSP_T or a simulated model value.
+ // Independent datasheet limits, not a statistical confidence interval.
+ function resistanceBounds({adc,svddCode,afe0,afe2}){
+  const nominal=estimate({adc,svdd:SUPPLIES[svddCode],afe0,afe2});
+  assert(nominal.valid,'Nur gültiger ADC_T für Widerstandsgrenzen.');
+  const [vMin,vMax]=SUPPLY_LIMITS[svddCode],g=rpga(nominal.code),d=adc/65536;
+  const voltages=[.6,.7].flatMap(ref=>[.96*.96,1.04*1.04].map(gain=>ref+d/gain));
+  const lo=Math.min(...voltages),hi=Math.max(...voltages);
+  return {minOhm:vMin*g.i2u*(8/9)/hi,maxOhm:vMax*g.i2u*(10/9)/lo,nominalOhm:nominal.resistanceOhm};
+ }
  function probeOrder({svddCode,resistanceOhm}){
   assert([0,1,2].includes(svddCode),'Ungültiger SVDD-Code.');
   const candidates=Array.from({length:16},(_,i)=>rpga(i));
@@ -72,7 +81,7 @@ function buildTemperatureAFE(){
    const headroom=Math.min(muxMin-MUX_MIN,MUX_MAX-muxMax),currentOK=iMin>=g.minCurrent&&iMax<=g.maxCurrent;
    const valid=currentOK&&headroom>=0;
    return {...g,iMin,iMax,muxMin,muxMax,adcMin:Math.round((muxMin-REF)*2*ADC_SCALE),adcMax:Math.round((muxMax-REF)*2*ADC_SCALE),headroom,currentOK,valid,
-    afe0Bits:(code<<4)|svddCode,afe2Bits:0x004a,correctionBits:0x0008};
+    afe0Bits:(code<<4)|svddCode,afe2Bits:0x014a,correctionBits:0x1008};
   });
   const eligible=candidates.filter(x=>x.valid).sort((a,b)=>b.headroom-a.headroom||(b.adcMax-b.adcMin)-(a.adcMax-a.adcMin)||a.code-b.code);
   return {svdd:v,vMin,vMax,iMin,iMax,best:eligible[0]||null,candidates};
@@ -80,7 +89,7 @@ function buildTemperatureAFE(){
  function merge({afe0,afe2,cfgEn,code,svddCode}){
   [afe0,afe2,cfgEn].forEach(v=>assert(Number.isInteger(v)&&v>=0&&v<=65535,'Register ungültig.'));
   rpga(code);assert([0,1,2].includes(svddCode),'Ungültiger SVDD-Code.');
-  return {afe0:(afe0&~0x00f3)|(code<<4)|svddCode,afe2:(afe2&~0x08ff)|0x004a,cfgEn:(cfgEn&~0x000c)|0x0008};
+  return {afe0:(afe0&~0x00f3)|(code<<4)|svddCode,afe2:(afe2&~0x0fff)|0x014a,cfgEn:(cfgEn&~0x100c)|0x1008};
  }
  function correctedBridgeTemperature(adcT,adcTC,g01,g2off){
  if(![adcT,adcTC].every(v=>Number.isFinite(v)&&v>=-32768&&v<=32767))throw RangeError("ADC_T und ADC_TC als gültige signed 16-Bit-Rohwerte erforderlich.");
@@ -91,7 +100,7 @@ function buildTemperatureAFE(){
  return adcT+(adcT+goff*32768)*k;
 }
 function fitBridgeOffline(points,opts={},factory,fit){
- if(!factory||!Number.isInteger(factory.afe2)||(factory.afe2&255)!==0x4a||
+ if(!factory||!Number.isInteger(factory.afe2)||(factory.afe2&0x0fff)!==0x014a||
     !Number.isInteger(factory.cfgEn)||(factory.cfgEn&12)!==8)
   throw Error("Brückenquelle, werkseitige TPGA/ADC_TC-Gains und Shunt-Kompensation erforderlich.");
  if(typeof fit!=="function")throw Error("Druck-/Temperatur-Fitfunktion fehlt.");
@@ -104,7 +113,7 @@ function fitBridgeOffline(points,opts={},factory,fit){
  const result=fit(adjusted,opts);
  return {...result,temperatureSource:"bridge",temperatureCorrection:"dll-reference-float-model",correctedTemperatureDigits:adjusted.map(x=>x.adc_t),rawTemperatureDigits:adjusted.map(x=>x.rawAdcT),factoryWords:{g01:factory.g01,g2off:factory.g2off},offlineOnly:true};
 }
- return Object.freeze({SUPPLIES,SUPPLY_LIMITS,rpga,equivalent,linearRange,signal,estimate,probeOrder,assessProbe,plan,merge,correctedBridgeTemperature,fitBridgeOffline});
+ return Object.freeze({SUPPLIES,SUPPLY_LIMITS,rpga,equivalent,linearRange,signal,estimate,resistanceBounds,probeOrder,assessProbe,plan,merge,correctedBridgeTemperature,fitBridgeOffline});
 }
 const ELMOS_TEMPERATURE_AFE=buildTemperatureAFE();
 if(typeof module!=="undefined"&&module.exports)module.exports=ELMOS_TEMPERATURE_AFE;
