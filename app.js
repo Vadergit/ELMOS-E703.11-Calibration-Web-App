@@ -4286,6 +4286,7 @@ if(typeof document!=='undefined') (function UI(){
    throw Error('Alarm-RAM-Test benötigt SSP3 oder eine DIY-Bridge mit BRIDGE_GENERIC_RAM_V1 über 1-Wire.');
   if(st.calTask||st.writing||st.nvmWorking||st.reinitRunning||st.powerCycleRunning)
    throw Error('Alarm-RAM-Test: Ein anderer Chipvorgang läuft.');
+  if(ptcDev&&demoEnabled&&selectedTemperatureSource()==='external'&&demoPort.ptcConfigured('external')&&((plan.after[20]>>7)&3)===0&&(plan.after[18]&0x0fff))throw Error('EOC ist im RAM als Temperatur-Eingang belegt. Keine STATUS-Ausgabe auf diesem Pin zulässig.');
   ELMOS_ALARM_CONFIG.validateDiff(st.nvmBackup,plan.after,CAL.crc16);
   const recomputed=ELMOS_ALARM_CONFIG.prepare(st.nvmBackup,plan.settings,CAL.crc16);
   if(recomputed.after.some((w,i)=>w!==plan.after[i]))
@@ -4596,6 +4597,7 @@ if(typeof document!=='undefined') (function UI(){
  function protectDevPtc(before,after,options){
   if(!devPtcFit()||before[29]===after[29]&&((before[27]^after[27])&0xf0)===0&&((before[16]^after[16])&12)===0)return CAL.protectStartupCommunication(before,after,options);
   const expected=demoPort.ptcWords();
+  if(selectedTemperatureSource()==='external'&&((after[20]>>7)&3)===0&&(after[18]&0x0fff))throw Error('EOC als Temperatur-Eingang: STATUS-Ausgabe auf demselben Pin unzulässig. Alarmmaske prüfen.');
   if(after[29]!==expected.afe2||((after[27]^expected.afe0)&0xf0)!==0||(after[16]&12)!==(selectedTemperatureSource()==='external'?4:8)||((after[29]^before[29])&~(selectedTemperatureSource()==='external'?0x0fff:0x08ff))!==0)throw Error('DEV PTC: unerwartetes Temperaturprofil im NVM-Plan.');
   const checked=after.slice();checked[29]=before[29];checked[27]=(checked[27]&~0xf0)|(before[27]&0xf0);checked[16]=(checked[16]&~12)|(before[16]&12);checked[63]=CAL.crc16(checked);
   return CAL.protectStartupCommunication(before,checked,options);
@@ -6227,7 +6229,7 @@ if(typeof document!=='undefined') (function UI(){
   const dsp=online&&st.dsp&&nowMs-st.dsp.time<5000&&!st.dspError?st.dsp:null;
   const ref=effectiveMeasurementReference(), sensor=measurementValue(dsp?.raw??null,ref).sensorPercent;
   return {
-   online,live:!!st.live,mode:st.mode,adcS:adc?.s??null,adcT:adc?.t??null,adcTC:adc?.tc??null,
+   online,live:!!st.live,mode:st.mode,adcS:adc?.s??null,adcT:adc?.t??null,adcTC:adc?.tc??null,svddCode:bridgeSupplyCode(st.afe0),afe0:st.afe0,afe2:st.regs[0x1E]??null,
    adcTime:adc?.time??null,dspRaw:dsp?.raw??null,dspTime:dsp?.time??null,
    sensorValue:sensor,unit:sensor===null?null:'%',outputLimit:ref.limit,
    range:ref.source?{min:0,max:100,kind:ref.source}:null,

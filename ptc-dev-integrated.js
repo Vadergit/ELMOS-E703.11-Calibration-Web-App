@@ -5,11 +5,12 @@
  let configured=null,latest=null,observed=null,settings={bridgeOhm:10000,parallelOhm:7000,ptcTcr:2000,minTemp:-40,maxTemp:125,bridgeTolerance:10,parallelTolerance:20,ptcTcrTolerance:20,tk0:25,tke:300,eocMv:650,eocSlope:-1.8,eocTolerance:10,eocBias:0};
  const external=()=>$('calTempSource')?.value==='external';
  const active=()=>['bridge','external'].includes($('calTempSource')?.value);
- const field=(key,label)=>'<label>'+label+'<input type="number" step="any" data-ptc-key="'+key+'" value="'+settings[key]+'"></label>';
- function model(){return {...settings,source:external()?'external':'bridge',svddCode:2};}
+ const help=key=>'<button type="button" class="ptc-help" data-ptc-help="'+key+'" aria-label="Erklärung">?</button>';
+ const field=(key,label)=>'<label><span>'+label+' '+help(key)+'</span><input type="number" step="any" data-ptc-key="'+key+'" value="'+settings[key]+'"></label>';
+ function model(){const code=window.ELMOS_GUIDED_API?.telemetry?.()?.svddCode;return {...settings,source:external()?'external':'bridge',svddCode:[0,1,2].includes(code)?code:2};}
  function mount(){
-  $('gwPtcSetup').innerHTML='<div class="gw-subheading" id="gwTempModelTitle">PTC · Auslegung</div><div id="gwPtcFields" class="gw-fields gw-3">'+field('bridgeOhm','Messbrücke bei 25 °C (Ω)')+field('parallelOhm','PTC bei 25 °C (Ω)')+field('ptcTcr','PTC TKR (ppm/K)')+'</div><div id="gwEocFields" class="gw-fields gw-3">'+field('eocMv','EOC bei 25 °C (mV)')+field('eocSlope','Steigung (mV/K)')+'<label>Sensorversorgung<select data-ptc-key="eocBias"><option value="0">Externe Spannung / Teiler</option><option value="1">Diode · interne 10 µA</option></select></label></div><div class="gw-fields gw-3">'+field('minTemp','Betrieb min. (°C)')+field('maxTemp','Betrieb max. (°C)')+'</div><details><summary>Erweiterte Einstellungen</summary><div class="gw-fields gw-3">'+ '<div id="gwPtcTol" class="gw-fields">'+field('bridgeTolerance','Brücke ± %')+field('parallelTolerance','PTC ± %')+field('ptcTcrTolerance','TKR ± %')+'</div><div id="gwEocTol">'+field('eocTolerance','EOC-Spannung ± mV')+'</div>'+field('tk0','Demo TK0 (Digits/K)')+field('tke','Demo TKE (ppm/K)')+'</div></details><p id="gwPtcPreview" class="gw-fieldnote"></p>';
-  $('gwPtcControls').innerHTML='<div class="gw-subheading" id="gwTempAfeTitle">Temperatur-AFE · PTC</div><p id="gwPtcStatus" class="gw-fieldnote"></p><div class="gw-panel-actions"><button type="button" id="gwPtcConfigure" class="primary">Gesamtwiderstand messen &amp; AFE einstellen</button></div><p class="gw-fieldnote">Demo-Sensor · Referenzdruck anlegen:</p><div class="gw-panel-actions"><button type="button" id="gwPtcLow">P min</button><button type="button" id="gwPtcHigh">P max</button></div><p id="gwPtcMessage" class="gw-fieldnote" role="status"></p>';
+  $('gwPtcSetup').innerHTML='<div class="gw-subheading" id="gwTempModelTitle">PTC · Auslegung</div><div class="gw-panel-actions"><button type="button" data-ptc-help="method">Messprinzip und Berechnung erklären</button></div><div id="gwPtcFields" class="gw-fields gw-3">'+field('bridgeOhm','Messbrücke bei 25 °C (Ω)')+field('parallelOhm','PTC bei 25 °C (Ω)')+field('ptcTcr','PTC TKR (ppm/K)')+'</div><div id="gwEocFields" class="gw-fields gw-3">'+field('eocMv','EOC bei 25 °C (mV)')+field('eocSlope','Steigung (mV/K)')+'<label><span>Sensorversorgung '+help('eocBias')+'</span><select data-ptc-key="eocBias"><option value="0">Externe Spannung / Teiler</option><option value="1">Diode · interne 10 µA</option></select></label></div><div class="gw-fields gw-3">'+field('minTemp','Betrieb min. (°C)')+field('maxTemp','Betrieb max. (°C)')+'</div><details><summary>Erweiterte Einstellungen</summary><div class="gw-fields gw-3">'+ '<div id="gwPtcTol" class="gw-fields">'+field('bridgeTolerance','Brücke ± %')+field('parallelTolerance','PTC ± %')+field('ptcTcrTolerance','TKR ± %')+'</div><div id="gwEocTol">'+field('eocTolerance','EOC-Spannung ± mV')+'</div>'+field('tk0','Demo TK0 (Digits/K)')+field('tke','Demo TKE (ppm/K)')+'</div></details><p id="gwPtcPreview" class="gw-fieldnote"></p>';
+  $('gwPtcControls').innerHTML='<div class="gw-subheading" id="gwTempAfeTitle">Temperatur-AFE · PTC</div><p id="gwPtcStatus" class="gw-fieldnote"></p><div id="gwPtcCurrent" class="gw-fieldnote"></div><div class="gw-panel-actions"><button type="button" data-ptc-help="afe">AFE-Berechnung erklären</button></div><div class="gw-panel-actions"><button type="button" id="gwPtcConfigure" class="primary">Gesamtwiderstand messen &amp; AFE einstellen</button></div><p class="gw-fieldnote">Demo-Sensor · Referenzdruck anlegen:</p><div class="gw-panel-actions"><button type="button" id="gwPtcLow">P min</button><button type="button" id="gwPtcHigh">P max</button></div><p id="gwPtcMessage" class="gw-fieldnote" role="status"></p>';
   $('gwPtcPlot').innerHTML='<div class="gw-subheading">ADC_T · erwarteter Temperaturhub</div><div id="gwPtcSvg"></div><p class="gw-fieldnote" id="gwPtcStats"></p><p id="gwPtcPressureWarning" class="gw-afe-quality is-warning" role="status" hidden></p><div class="gw-chart-legend"><span style="color:#d0a331">■ Modellprognose / Reserve</span><span style="color:#398aca">● Aufgenommener ADC_T</span></div>';
   $('gwPtcSetup').addEventListener('input',e=>{const k=e.target.dataset.ptcKey;if(!k)return;settings[k]=e.target.value===''?NaN:Number(e.target.value);configured=null;observed=null;refresh();});
   $('calTempSource').addEventListener('change',()=>{configured=null;observed=null;window.ELMOS_GUIDED_API?.clearPtcDev?.();refresh();});
@@ -37,8 +38,9 @@
  function requireAfe(){if(active()&&!configured)throw Error('Zuerst Gesamtwiderstand messen und Temperatur-AFE einstellen.');if(active()&&(!observed||observed.hub<4000))throw Error('Zuerst P min und P max im AFE-Monitor aufnehmen.');// The estimated temperature envelope is advisory, not a navigation gate.
  }
  function pressureBand(){if(!active()||!configured||!observed||observed.hub<4000)return null;const mid=(observed.min+observed.max)/2,half=observed.hub/2,vals=[settings.minTemp,25,settings.maxTemp].flatMap(t=>[-1,1].map(sign=>mid+(t-25)*settings.tk0+sign*half*(1+(t-25)*settings.tke/1e6)));return {min:Math.min(...vals),max:Math.max(...vals)};}
- function update(t,stats){latest=t;if(active()&&configured){observed=stats?.count?stats:null;renderPlot();}}
+ function update(t,stats){latest=t;if(active()&&configured){if(!external()&&[0,1,2].includes(t.svddCode)&&configured.p.svddCode!==t.svddCode){configured=null;observed=null;message('SVDD geändert. Temperatur-AFE neu auslegen.');refresh();return;}observed=stats?.count?stats:null;renderPlot();}renderCurrent();}
  function renderPlot(){
+  renderCurrent();
   const warning=$('gwPtcPressureWarning'),bandNow=pressureBand();if(warning){const exceeds=!!bandNow&&(bandNow.min< -25000||bandNow.max>25000);warning.hidden=!exceeds;warning.textContent=exceeds?'Prognose ADC_S '+fmt(bandNow.min)+' … '+fmt(bandNow.max)+' Digits: ausserhalb des Richtwerts ±25’000. Gain/Offset und analoge Aussteuerung prüfen. Weiter ist möglich. Prognose allein ist kein Nachweis einer Sättigung.':'';}
   const el=$('gwPtcSvg'),label=$('gwPtcStats');if(!el||!active())return;
   if(!configured){el.textContent='Noch keine Temperatur-AFE-Auswahl.';label.textContent='';return;}
@@ -50,5 +52,80 @@
   el.innerHTML='<svg viewBox="0 0 490 160" width="100%" role="img" aria-label="ADC_T Modellprognose"><polygon points="'+band+'" fill="#d6a62a" opacity=".24"/>'+[-32768,0,32767].map(v=>'<line x1="55" x2="475" y1="'+y(v)+'" y2="'+y(v)+'" stroke="currentColor" opacity=".15"/><text x="50" y="'+(y(v)+3)+'" text-anchor="end" font-size="10" fill="currentColor">'+fmt(v)+'</text>').join('')+limits.map(v=>'<line x1="55" x2="475" y1="'+y(v)+'" y2="'+y(v)+'" stroke="#d66a55" stroke-dasharray="4 3"/>').join('')+'<polyline points="'+line+'" stroke="#d6a62a" stroke-width="2" fill="none"/>'+(Number.isFinite(latest?.adcT)?'<circle cx="'+x(25)+'" cy="'+y(latest.adcT)+'" r="4.5" fill="#398aca"/>':'')+[p.minTemp,25,p.maxTemp].map(t=>'<text x="'+x(t)+'" y="153" font-size="10" fill="currentColor" text-anchor="middle">'+t+' °C</text>').join('')+'</svg>';
   const all=samples.flatMap(r=>[r.lo,r.hi]),pb=pressureBand();label.textContent='ADC_T prognostiziert: '+fmt(Math.min(...all))+' … '+fmt(Math.max(...all))+' Digits'+(pb?' · ADC_S mit TK0/TKE-Annahme: '+fmt(pb.min)+' … '+fmt(pb.max)+' Digits':' · Druckprognose nach Min/Max-Aufnahme');
  }
- window.ELMOS_PTC_DEV_UI={mount,active,refresh,validate,requireAfe,update,pressureBand};
+ 
+ function currentInfo(){
+  if($('calTempSource')?.value!=='bridge')return null;
+  const p=model(),r=configured?.plan||P.range(p),s=A.SUPPLIES[p.svddCode],bounds=A.SUPPLY_LIMITS[p.svddCode];
+  const info={svdd:s,nom:s/r.nominalOhm*1000,min:bounds[0]/r.maxOhm*1000,max:bounds[1]/r.minOhm*1000};
+  if(configured){const g=A.rpga(configured.code);info.allowedMin=g.minCurrent;info.allowedMax=g.maxCurrent;info.code=configured.code;
+    if(Number.isInteger(latest?.adcT)&&Number.isInteger(latest?.afe0)&&Number.isInteger(latest?.afe2)&&((latest.afe0>>4)&15)===configured.code){
+      try{const x=A.estimate({adc:latest.adcT,svdd:s,afe0:latest.afe0,afe2:latest.afe2});if(x.valid){info.live=x.current;info.liveR=x.resistanceOhm;}}catch(_){}
+    }
+  }return info;
+ }
+ const ma=x=>Number.isFinite(x)?(x*1000).toLocaleString('de-CH',{maximumFractionDigits:1})+' µA':'—';
+ function renderCurrent(){
+  const el=$('gwPtcCurrent'),alarm=$('ptcAlarmCurrent');let i=null;try{i=currentInfo()}catch(_){}
+  const desc=i?'SVDD nominal '+i.svdd.toFixed(1)+' V · Gesamtstrom bei 25 °C '+ma(i.nom)+' · Auslegungsbereich '+ma(i.min)+' bis '+ma(i.max)+(i.code!==undefined?' · RPGA '+i.code+': spezifiziert '+ma(i.allowedMin)+' bis '+ma(i.allowedMax):'')+(i.live!==undefined?' · aus ADC_T geschätzt '+ma(i.live)+' / '+fmt(i.liveR)+' Ω':''):'';
+  if(el){el.hidden=!i;el.textContent=desc;}
+  if(alarm)alarm.textContent=(desc?desc+'. ':'')+'Brückenstrombereich ist eine AFE-Auslegungsgrösse, keine frei einstellbare Chip-Stromalarmschwelle. BS/BC/ACD sind separate Hardwarediagnosen.';
+ }
+ function contentFor(key){
+  const source=$('calTempSource')?.value||'internal';
+  const heading=source==='bridge'?'Brückentemperatur / PTC':source==='external'?'Externer Temperatursensor (EOC)':'Interner Temperatursensor';
+  const sections=[],add=(title,body,formula)=>sections.push({title,body,formula});
+  if(key==='source'||key==='method'||key==='afe'){
+   if(key==='source')add('Drei Temperaturquellen','Intern: Chipdiode ohne Zusatzbauteil. Brücke: temperaturabhängiger Gesamtstrom liefert ADC_T; ADC_TC erfasst zusätzlich die Chiptemperatur. Extern: temperaturabhängige Spannung am EOC-Pin. Die Quelle muss während des Abgleichs gleich bleiben.');
+   if(source==='internal'){
+    add('Messprinzip','Die integrierte Diode erfasst die Chiptemperatur, nicht zwingend die Temperatur der Membran. Empfohlen: TPGA1 ×1,5 und TPGA2 ×2.');
+    add('ADC und DSP','ADC_T ist kein direktes °C-Signal. Der Temperatur-Fit ermittelt T_F, T_O und T0–T3. Die Druckkoeffizienten nutzen die normierte Temperatur zur TK0/TKE-Kompensation.','T = T_F · ADC_T / 32768 + T_O\nDSP_T = T0 + T1·T + T2·T² + T3·T³');
+   }else if(source==='bridge'){
+    add('Widerstand und Temperatur','Der PTC liegt parallel zur Messbrücke. Die temperaturabhängigen Widerstände bilden den Gesamtwiderstand. Elektrischer Brücken-TKR und PTC-TKR sind nicht TK0/TKE der Druckkennlinie.','R_PTC(T) = R25 · [1 + α·(T−25)/10⁶]\nR_ges = R_B · R_PTC / (R_B + R_PTC)\nI_B = SVDD / R_ges');
+    add('Strommessung und RPGA','Der Chip bildet aus dem Gesamtstrom eine Spannung über einen virtuellen 9-kΩ-Strommesswiderstand. br_gain bestimmt den I/U-Faktor. Die Auswahl berücksichtigt den spezifizierten Strombereich sowie TPGA1 ×2 / TPGA2 ×1 (MUX nominal 0,425–1,000 V).','I/U = 9000 / (RPGA1 · RPGA2) [Ω]\nU_MUX = I_B · I/U\nADC_T ≈ (U_MUX − 0,65 V) · 2 · 32768');
+    add('Einzelmessung und Werkstrimm','Der DEV-Messwert wird simuliert aus dem Modell erzeugt. Bei realer Hardware ist eine Abschätzung aus ADC_T, bekanntem br_gain und SVDD möglich; Genauigkeit hängt von realer SVDD und Werkstrimm ab. G01/G2OFF und ADC_TC korrigieren die Drift des virtuellen Messwiderstands. Der Demo-Fit nutzt Null-Trimmwerte.','I_B ≈ (0,65 + ADC_T/65536) / (I/U)\nR_ges ≈ SVDD / I_B');
+    try{const r=P.range(model()),i=currentInfo();add('Aktuelles Beispiel','PTC nominal '+fmt(r.ptcMinOhm)+'–'+fmt(r.ptcMaxOhm)+' Ω; R gesamt bei 25 °C '+fmt(r.nominalOhm)+' Ω. Bei SVDD '+i.svdd.toFixed(1)+' V fliessen nominal '+ma(i.nom)+'. Toleranzbereich '+ma(i.min)+'–'+ma(i.max)+'.');}catch(_){}
+   }else{
+    add('Spannungsmessung','EOC erfasst eine temperaturabhängige Spannung, z. B. von einem NTC/PTC-Spannungsteiler oder einer Diode. Die Diode kann über die interne Stromquelle (nominal 10 µA) gespeist werden. EOC darf nicht gleichzeitig STATUS-Ausgang oder I²C-SDA sein.','U_EOC(T) = U25 + Steigung · (T−25)\nADC_T ≈ (U_EOC − 0,65 V) · TPGA1 · TPGA2 · 32768');
+    add('AFE-Auswahl','Alle 16 TPGA-Kombinationen werden gegen Eingang 0,2–1,2 V, TPGA1-Ausgang −0,45 bis +0,75 V und ADC-Eingang ±0,7 V geprüft. Referenz- und Gain-Toleranz werden berücksichtigt. Ein NTC-Spannungsteiler ist im Allgemeinen nichtlinear; das lineare Modell ist eine Näherung.');
+    try{const r=E.plan(model());add('Aktuelles Beispiel','EOC-Spannungsbereich inkl. Toleranz '+fmt(r.min*1000)+'–'+fmt(r.max*1000)+' mV. '+(r.best?'Vorschlag: TPGA1 ×'+r.best.g1+' / TPGA2 ×'+r.best.g2+'.':'Keine passende Verstärkung.'));}catch(_){}
+   }
+   add('Gelber Bereich','Modellprognose über Betriebstemperatur. Blau: aufgenommene Demo-Rohwerte. ADC_S-Drift (TK0/TKE) ist von der Temperaturquelle getrennt. ±25’000 Digits sind ein Richtwert, keine harte Sperre. Prognosen ersetzen keine Temperaturmessung.');
+   return {title:key==='source'?'Temperaturmessquelle · '+heading:heading+' · Berechnung',sections};
+  }
+  const fields={
+   bridgeOhm:['Messbrückenwiderstand','Widerstand zwischen SVDD und SVSS der Brücke ohne PTC bei 25 °C. Nicht mit dem Drucksignal in mV/V verwechseln.'],
+   parallelOhm:['PTC-Widerstand','Parallelwiderstand bei 25 °C. 7 kΩ ist ein Auslegungswert, keine bestätigte Fertigungsspezifikation.','R(T) = R25 · [1 + TKR·(T−25)/10⁶]'],
+   ptcTcr:['PTC-TKR','Relative elektrische Widerstandsänderung in ppm/K. 2’000 ppm/K = +0,2 % pro Kelvin, bei 7 kΩ nominal 14 Ω/K.'],
+   minTemp:['Betriebstemperatur','Untere Grenze der AFE-Auslegung, nicht zwingend eine Kalibriertemperatur.'],
+   maxTemp:['Betriebstemperatur','Obere Grenze der AFE-Auslegung. Kalibriertemperaturen müssen innerhalb des Betriebsbereichs liegen.'],
+   bridgeTolerance:['Brückentoleranz','Fertigungsstreuung bei 25 °C. Bleibt als Unsicherheit bei der PTC-Rückrechnung bestehen.'],
+   parallelTolerance:['PTC-Toleranz','Fertigungsstreuung bei 25 °C. Bei Einzelmessung des Gesamtwiderstands wird sie durch die Messunsicherheit ersetzt.'],
+   ptcTcrTolerance:['TKR-Toleranz','Unsicherheit der PTC-Steigung, bleibt bis zur Temperaturmessung bestehen.'],
+   tk0:['TK0 · Druck-Nullpunkt','Simulierte Verschiebung des ADC_S-Nullpunkts pro Kelvin. Nicht aus dem PTC ableitbar.','Offset(T) = Offset25 + TK0·(T−25)'],
+   tke:['TKE · Druckspanne','Simulierte relative Druckhubänderung in ppm/K. Nicht identisch mit elektrischem Brücken-TKR.','Hub(T) = Hub25 · [1 + TKE·(T−25)/10⁶]'],
+   eocMv:['EOC-Referenzspannung','Sensor-Ausgangsspannung bei 25 °C. 650 mV ist ein Modellbeispiel.'],
+   eocSlope:['EOC-Steigung','Spannungsänderung pro Kelvin. Positive und negative Steigungen möglich. NTC-/PTC-Teiler können nichtlinear sein.'],
+   eocTolerance:['Spannungstoleranz','Zusätzliche absolute Spannungstoleranz in mV über den modellierten Temperaturbereich.'],
+   eocBias:['Sensorversorgung','Externe Spannung/Teiler: interne Diodenstromquelle aus. Diode: interne Stromquelle nominal 10 µA (8–12 µA); die Spannungskennlinie muss für diese Beschaltung bekannt sein.']
+  };
+  if(key==='diagnostics'){
+   add('Brückenstrom und RPGA','Die Stromgrenzen pro RPGA-Code in Tabelle 4.4-1 sind der spezifizierte Messbereich, keine einstellbaren Stromalarmgrenzen. ADC_T erlaubt eine Stromabschätzung nur im Brückenmodus.');
+   add('BS · Brückenversorgung','STATUS.bs_fail meldet nach Integralfilter eine nicht mehr ausreichend geregelte SVDD, z. B. Überlast/Kurzschluss oder zu tiefe VDD. Datenblatt: Abweichungsschwelle −100 bis −3 mV, kein definierter µA-Schwellwert.');
+   add('BC · Brückenprüfung','SIP/SIN-Fensterkomparatoren: nominal 0,25 / 0,75 × SVDD. Schwache Stromsenken können offene Eingänge erkennbar machen. Ein PTC-Unterbruch parallel zur intakten Brücke wird nicht zwingend erkannt.');
+   add('ACD · Messkette','Automatischer Nullsignal-Test der Druckmesskette (CFG_EN.s_acd_en), reduziert Abtastrate um Faktor sechs. BS/BC nutzen Integralfilter CFG_SBC_INTF.');
+   add('Alarm und Fehlerreaktionen','Druckalarm vergleicht DSP_S mit ALARM_LO/HI und Hysterese. ERR_MASK erlaubt bei dokumentierten Fehlern Ersatzwerte oder High-Z. Frei einstellbare Stromüberwachung wäre separate Softwarelogik; in dieser DEV-Version werden keine Stromalarme am Chip programmiert.');
+   return {title:'Brückenstrom, Diagnosen und Alarme',sections};
+  }
+  const f=fields[key];if(f){add(f[0],f[1],f[2]);return {title:f[0],sections};}return {title:heading,sections};
+ }
+ function showHelp(key){
+  let d=$('ptcHelpDialog');if(!d){d=document.createElement('dialog');d.id='ptcHelpDialog';d.setAttribute('aria-labelledby','ptcHelpTitle');document.body.appendChild(d);}
+  const {title,sections}=contentFor(key);d.replaceChildren();const h=document.createElement('h3');h.id='ptcHelpTitle';h.textContent=title;d.append(h);
+  for(const item of sections){const h=document.createElement('h4');h.textContent=item.title;const p=document.createElement('p');p.textContent=item.body;d.append(h,p);if(item.formula){const pre=document.createElement('pre');pre.textContent=item.formula;d.append(pre);}}
+  const cite=document.createElement('p');cite.className='muted small';cite.textContent='Grundlage: Elmos 25DS0170E.04, Kap. 3.3, 4.4, 4.5.2–3, 6.2.2–3, 6.3 und 7.2.1. Modellannahmen sind keine Hardwarefreigabe.';d.append(cite);
+  const close=document.createElement('button');close.type='button';close.textContent='Schliessen';close.onclick=()=>d.close();d.append(close);if(!d.open)d.showModal();close.focus();
+ }
+ document.addEventListener('click',e=>{const b=e.target.closest?.('[data-ptc-help]');if(!b)return;e.preventDefault();e.stopPropagation();showHelp(b.dataset.ptcHelp);});
+
+ window.ELMOS_PTC_DEV_UI={mount,active,refresh,validate,requireAfe,update,pressureBand,currentInfo};
 })();

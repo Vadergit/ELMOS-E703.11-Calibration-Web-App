@@ -790,7 +790,7 @@ html.guided-task-open #guidedHomeTop{display:inline-flex}
 #guidedHomeConfirmStatus[hidden]{display:none!important}
 @media(max-width:700px){.guided-home-top{padding:6px 10px;font-size:12px}}
 </style><link rel="stylesheet" href="guided.css?v=0.7.202"><link rel="stylesheet" href="interface.css?v=0.7.101"><link rel="stylesheet" href="theme.css?v=0.7.9"><link rel="stylesheet" href="verification-guide.css?v=0.7.78"><link rel="stylesheet" href="calibration-graph.css?v=0.7.83"><link rel="stylesheet" href="archive-photos.css?v=0.7.73"><link rel="stylesheet" href="settings-refresh.css?v=0.7.77"><link rel="stylesheet" href="classic-compact.css?v=0.7.100"><link rel="stylesheet" href="eeprom-config-overview.css?v=0.7.121"><link rel="stylesheet" href="nvm-reconstruction.css?v=0.7.142">
-<style>#guidedWorkspace .ptc-offline-diagnostic{display:none!important}</style></head><body data-app-version="0.7.202"><style>#gwPtcFields[hidden],#gwPtcTol[hidden],#gwEocFields[hidden],#gwEocTol[hidden]{display:none!important}</style><script>window.ELMOS_PTC_DEV=true;</script><div style="padding:7px 15px;background:#744d10;color:white;font:600 12px system-ui;text-align:center">DEV · PTC · Simulation – keine Verbindung zu realer Hardware</div><div class="wrap"><header class="top">
+<style>#guidedWorkspace .ptc-offline-diagnostic{display:none!important}</style><style>.ptc-help{display:inline-grid;place-items:center;vertical-align:middle;width:20px;height:20px;padding:0;border-radius:50%;font-size:12px;line-height:1;color:var(--blue);background:var(--paper);border:1px solid var(--line);cursor:pointer}#ptcHelpDialog{color:var(--ink);background:var(--paper);border:1px solid var(--line);border-radius:14px;padding:20px;max-width:min(650px,calc(100vw - 28px));width:100%;max-height:85vh;overflow:auto}#ptcHelpDialog::backdrop{background:#0007}#ptcHelpDialog h3{margin:0 0 12px}#ptcHelpDialog h4{margin:14px 0 4px}#ptcHelpDialog p{margin:6px 0;white-space:pre-line}#ptcHelpDialog pre{background:var(--bg);border:1px solid var(--line);border-radius:7px;padding:10px;white-space:pre-wrap}#gwPtcCurrent{margin:8px 0;line-height:1.5}</style></head><body data-app-version="0.7.202"><style>#gwPtcFields[hidden],#gwPtcTol[hidden],#gwEocFields[hidden],#gwEocTol[hidden]{display:none!important}</style><script>window.ELMOS_PTC_DEV=true;</script><div style="padding:7px 15px;background:#744d10;color:white;font:600 12px system-ui;text-align:center">DEV · PTC · Simulation – keine Verbindung zu realer Hardware</div><div class="wrap"><header class="top">
 <div class="brand"><div class="logo" aria-hidden="true">E</div><div><div class="eyebrow">E703.11 · PSSC · v0.7.202</div><h1>Kalibrierassistent</h1></div></div>
 <div class="live-overview" role="group" aria-label="Live-Sensorwerte: zuerst Temperatur, danach Druck und Sensorwert">
   <div class="live-kpi" title="ADC_T · Temperatur-Rohwert, keine direkte Temperatur in °C."><span class="live-kpi-label">ADC_T</span><span class="live-kpi-reading" id="liveAdcT">—</span><span class="live-kpi-unit">Digits</span></div>
@@ -1156,7 +1156,7 @@ html.guided-task-open #guidedHomeTop{display:inline-flex}
 <label>Samples / Punkt
 <input type="number" id="calSampleCount" aria-label="Samples pro Messpunkt" min="1" max="100" step="1" value="12">
 </label>
-<label class="cal-temp-source">Temperaturmessquelle <span class="help" data-help="tempsource" role="note" aria-label="Information zur Temperaturmessquelle">?</span>
+<label class="cal-temp-source">Temperaturmessquelle <button type="button" class="ptc-help" data-ptc-help="source" aria-label="Information zur Temperaturmessquelle">?</button>
 <select id="calTempSource">
 <option value="internal" selected>Interner Temperatursensor · ADC_T</option>
 <option value="bridge">Brückenwiderstand / PTC · DEV</option>
@@ -1638,7 +1638,7 @@ html.guided-task-open #guidedHomeTop{display:inline-flex}
 <label><input id="alarmErrorEnable" type="checkbox"> Fehlerreaktionen einschalten</label>
 </div>
 <div class="fieldrow"><button type="button" id="alarmReactivateAll">Alle Fehler reaktivieren</button><button type="button" id="alarmDisableAll">Alle Alarm- und Fehlerfunktionen deaktivieren (explizite Änderung)</button></div>
-<h4>EOC-/Alarm-Verknüpfungen (ODER)</h4>
+<h4>EOC-/Alarm-Verknüpfungen (ODER) <button type="button" class="ptc-help" data-ptc-help="diagnostics" aria-label="Brückendiagnose erklären">?</button></h4><p id="ptcAlarmCurrent" class="muted small"></p>
 <p class="muted small">Nur die ausgewählten STATUS-Bits werden logisch ODER-verknüpft. Der EOC-Pin muss bereits auf den gewünschten Ausgang geroutet sein. Das physische Pinrouting wird nicht verändert.</p>
 <p class="muted small">Wähle die Statusbedingungen, die auf den <b>bereits konfigurierten</b> EOC-Ausgang wirken. Eine Änderung der Pinbelegung erfolgt hier bewusst nicht.</p>
 <div class="fieldrow" id="alarmEocOptions" style="margin:8px 0"></div>
