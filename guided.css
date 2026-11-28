@@ -435,3 +435,8 @@ html[data-theme="dark"] #guidedWorkspace .gw-quick-connect{background:#382e1d;co
 #guidedWorkspace #gwFitStatuses .callout.success,#guidedWorkspace #gwAFEMsg .callout.success,#guidedWorkspace #gwPointMessages .callout.success{background:transparent;border:0;padding:3px 0;margin:3px 0;font-size:11px}
 #guidedWorkspace #gwFitStatuses .callout:not(.warn):not(.error):not(.success){background:transparent;border:0;padding:3px 0;margin:3px 0}
 #guidedWorkspace .gw-capture-spans strong{font-size:18px}
+
+/* Temperature-dependent controls only when required by the guided plan. */
+#guidedWorkspace[data-temperature-compensation="off"] :is(#gwPtcSetup,#gwPtcControls,#gwPtcPlot,#gwFitFields label:has(#calTOrder),#gwFitFields label:has(#calFitMode),#gwDspFields label:has(#calTempSource),.ptc-offline-diagnostic,#betaTemperatureToleranceLabel,#betaAlarmHelp,#ptcAlarmCurrent){display:none!important}
+#guidedWorkspace[data-temperature-compensation="off"] #gwFitFields{grid-template-columns:repeat(2,minmax(0,1fr))}
+@media(max-width:630px){#guidedWorkspace[data-temperature-compensation="off"] #gwFitFields{grid-template-columns:1fr}}

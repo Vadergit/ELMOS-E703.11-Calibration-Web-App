@@ -5,7 +5,7 @@
  let configured=null,latest=null,observed=null,settings={bridgeOhm:10000,parallelOhm:7000,ptcTcr:2000,minTemp:-40,maxTemp:125,bridgeTolerance:10,bridgePressureVariation:0.1,parallelTolerance:20,ptcTcrTolerance:20,tk0:25,tke:300,eocMv:650,eocSlope:-1.8,eocTolerance:10,eocBias:0,measuredOhm:null,measuredTemp:25,measurementUncertainty:15};
  const external=()=>$('calTempSource')?.value==='external';
  const demo=new URLSearchParams(location.search).get('demo')==='1';
- const active=()=>['bridge','external'].includes($('calTempSource')?.value);
+ const active=()=>['bridge','external'].includes($('calTempSource')?.value)&&(!window.ELMOS_GUIDED?.isOpen?.()||window.ELMOS_GUIDED.temperatureCompensationEnabled());
  const help=key=>'<button type="button" class="ptc-help" data-ptc-help="'+key+'" aria-label="Erklärung">?</button>';
  const field=(key,label)=>'<label><span>'+label+' '+help(key)+'</span><input type="number" step="any" data-ptc-key="'+key+'" value="'+(settings[key]??'')+'"></label>';
  function model(){const code=window.ELMOS_GUIDED_API?.telemetry?.()?.svddCode;return {...settings,source:external()?'external':'bridge',svddCode:[0,1,2].includes(code)?code:2};}
@@ -16,7 +16,7 @@
   const onInput=e=>{const k=e.target.dataset.ptcKey;if(!k)return;settings[k]=e.target.value===''?(k==='measuredOhm'?null:NaN):Number(e.target.value);configured=null;observed=null;if(!demo)window.ELMOS_GUIDED_API?.clearPtcDev?.();refresh();};
   $('gwPtcSetup').addEventListener('input',onInput);$('gwPtcControls').addEventListener('input',onInput);
   
-  $('gwPtcConfigure').onclick=async()=>{const b=$('gwPtcConfigure');b.disabled=true;const inputs=[...$('gwPtcControls').querySelectorAll('input,select'),...$('gwPtcSetup').querySelectorAll('input,select'),$('calTempSource')].filter(Boolean);const disabled=inputs.map(x=>x.disabled);inputs.forEach(x=>x.disabled=true);try{
+  $('gwPtcConfigure').onclick=async()=>{if(!active())return;const b=$('gwPtcConfigure');b.disabled=true;const inputs=[...$('gwPtcControls').querySelectorAll('input,select'),...$('gwPtcSetup').querySelectorAll('input,select'),$('calTempSource')].filter(Boolean);const disabled=inputs.map(x=>x.disabled);inputs.forEach(x=>x.disabled=true);try{
     const p=model();if(external()){const plan=E.plan(p),gain=plan.best||plan.candidates.find(g=>g.i===0&&g.j===0);if(demo&&!plan.best)throw Error('Demo: kein TPGA deckt das Modell ab.');const result=await window.ELMOS_GUIDED_API.configurePtcDev(p,gain,25,message);const actual=result?.plan?.best||gain;configured={p,plan:result?.plan||plan,code:actual,finalProbe:result?.finalProbe,warnings:result?.warnings||[]};observed=null;message((demo?'Simuliertes':'Reales')+' RAM bestätigt · TPGA1 ×'+actual.g1+' / TPGA2 ×'+actual.g2+(result?.finalProbe?' · ADC_T '+fmt(result.finalProbe.adc):'')+(configured.warnings.length?' · '+configured.warnings.join(' · '):''));$('gwAfeReset')?.click();return;}
     if(!demo&&settings.measuredOhm===null){
      message('Automatische RPGA-Suche läuft …');
@@ -47,7 +47,7 @@
   try{const r=configured?.plan||P.range(model());if($('gwPtcPreview'))$('gwPtcPreview').textContent='PTC nominal '+fmt(r.ptcMinOhm)+'–'+fmt(r.ptcMaxOhm)+' Ω · R gesamt bei 25 °C '+fmt(r.nominalOhm)+' Ω · effektiver TKR '+fmt(r.effectiveCold)+'–'+fmt(r.effectiveHot)+' ppm/K · geschätzter Druckeinfluss auf Temperatur ±'+r.pressureTemperatureErrorC.toFixed(2)+' °C'+(Math.min(r.effectiveCold,r.effectiveHot)<1000||Math.max(r.effectiveCold,r.effectiveHot)>3700?' · TKR ausserhalb Elmos-Empfehlung 1’000–3’700 ppm/K':'');if($('gwPtcStatus'))$('gwPtcStatus').textContent=configured?'RPGA '+configured.code+' · '+fmt(configured.plan.selection.best.i2u)+' mV/mA · '+(configured.anchor?'Einzelmessung '+fmt(configured.anchor.ohm)+' Ω':'Modellauslegung')+(configured.nominalOnly?' · SVDD nominal, Temperaturgrenzen messen':''):'Auslegung '+fmt(r.minOhm)+'–'+fmt(r.maxOhm)+' Ω · Einzelmessung vor AFE-Auswahl empfohlen.';}catch(e){if($('gwPtcPreview'))$('gwPtcPreview').textContent=e.message}
   renderPlot();
  }
- function validate(plan){if(!active())return;if(external()){E.plan(model());}else P.range(model());if(settings.minTemp< -40||settings.maxTemp>125||settings.minTemp>=settings.maxTemp)throw Error('Betriebsbereich innerhalb −40…125 °C und min < max wählen.');if(plan.tCount<2||plan.orderT<1)throw Error('Für den externen/Brücken-Temperaturabgleich mindestens zwei Temperaturstufen wählen.');if(plan.temperatures.some(t=>t<settings.minTemp||t>settings.maxTemp))throw Error('Kalibriertemperaturen liegen ausserhalb des Betriebsbereichs.');}
+ function validate(plan){if(!plan.tempComp||!active())return;if(external()){E.plan(model());}else P.range(model());if(settings.minTemp< -40||settings.maxTemp>125||settings.minTemp>=settings.maxTemp)throw Error('Betriebsbereich innerhalb −40…125 °C und min < max wählen.');if(plan.tCount<2||plan.orderT<1)throw Error('Für den externen/Brücken-Temperaturabgleich mindestens zwei Temperaturstufen wählen.');if(plan.temperatures.some(t=>t<settings.minTemp||t>settings.maxTemp))throw Error('Kalibriertemperaturen liegen ausserhalb des Betriebsbereichs.');}
  function requireAfe(){if(active()&&(!configured||(!demo&&!window.ELMOS_GUIDED_API?.ptcDevHardwareReady?.())))throw Error('Zuerst Temperatur-AFE am verbundenen Sensor einstellen.');if(active()&&(!observed||observed.hub<1))throw Error('Zuerst unterschiedliche Druckwerte P min und P max im AFE-Monitor aufnehmen.');// The estimated temperature envelope is advisory, not a navigation gate.
  }
  function pressureBand(){if(!active()||!configured||!observed||observed.hub<4000)return null;const mid=(observed.min+observed.max)/2,half=observed.hub/2,vals=[settings.minTemp,25,settings.maxTemp].flatMap(t=>[-1,1].map(sign=>mid+(t-25)*settings.tk0+sign*half*(1+(t-25)*settings.tke/1e6)));return {min:Math.min(...vals),max:Math.max(...vals)};}
@@ -67,7 +67,7 @@
  }
  
  function currentInfo(){
-  if($('calTempSource')?.value!=='bridge')return null;
+  if(!active()||$('calTempSource')?.value!=='bridge')return null;
   const p=model(),r=configured?.plan||P.range(p),s=A.SUPPLIES[p.svddCode],bounds=A.SUPPLY_LIMITS[p.svddCode];
   const info={svdd:s,nom:s/r.nominalOhm*1000,min:bounds[0]/r.maxOhm*1000,max:bounds[1]/r.minOhm*1000};
   if(configured){const g=A.rpga(configured.code);info.allowedMin=g.minCurrent;info.allowedMax=g.maxCurrent;info.code=configured.code;

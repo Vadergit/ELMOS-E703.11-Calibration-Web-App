@@ -5613,14 +5613,14 @@ if(typeof document!=='undefined') (function UI(){
   }catch(e){markSensorUnavailable('Temperatur-RAM-Rücksetzung nicht bestätigt: '+e.message);throw e;}
   finally{try{await ramLock();}finally{st.devTemperatureWrite=null;st.temperatureRestoring=false;st.ramWriteScope=null;st.calTask=false;st.writing=false;renderStatus();if(resume&&st.chip&&!st.closing)startLive();}}
  }
- $('calTempSource').addEventListener('change',async event=>{
-  const select=$('calTempSource'),wanted=select.value,previous=acceptedTemperatureSource;
-  if(wanted===previous)return;
-  event.stopImmediatePropagation();
-  if(temperatureSwitchBusy||st.calTask||st.writing||st.nvmWorking||st.closing){select.value=previous;return;}
+ async function changeTemperatureSource(wanted){
+  const select=$('calTempSource'),previous=acceptedTemperatureSource;
+  if(wanted===previous){select.value=previous;return true;}
+  if(!['internal','bridge','external'].includes(wanted))return false;
+  if(temperatureSwitchBusy||st.calTask||st.writing||st.nvmWorking||st.closing){select.value=previous;return false;}
   const hasPoints=st.calpoints.length>0||st.calStaged;
-  if(hasPoints&&!window.confirm('Temperaturmessquelle ändern? Bisherige Messpunkte und DSP-Prüfung werden verworfen.')){select.value=previous;return;}
-  temperatureSwitchBusy=true;select.disabled=true;
+  if(hasPoints&&!window.confirm('Temperaturmessquelle ändern? Bisherige Messpunkte und DSP-Prüfung werden verworfen.')){select.value=previous;return false;}
+  select.value=wanted;temperatureSwitchBusy=true;select.disabled=true;
   try{
    if(demoEnabled&&demoPort.ptcConfigured()){demoPort.clearPtcProfile();for(const addr of [4,0x1A,0x1E])st.regs[addr]=await readReg(addr);st.afe0=st.regs[0x1A];}
    else if(previous!=='internal'&&st.temperatureBaseline&&st.chip)await restoreTemperatureRam();
@@ -5629,10 +5629,11 @@ if(typeof document!=='undefined') (function UI(){
    acceptedTemperatureSource=wanted;
    st.trend=[];st.history=[];
    invalidateCalculation('Temperaturmessquelle geändert. AFE im nächsten Schritt einstellen; USB bleibt verbunden.');
-   renderCalibrationPlan();window.ELMOS_PTC_DEV_UI?.sourceChanged?.();window.ELMOS_GUIDED?.temperatureSourceChanged?.();renderStatus();
-  }catch(e){select.value=previous;show('calFitMsg',e.message,'error');window.ELMOS_PTC_DEV_UI?.refresh?.();}
+   renderCalibrationPlan();window.ELMOS_PTC_DEV_UI?.sourceChanged?.();window.ELMOS_GUIDED?.temperatureSourceChanged?.();renderStatus();return true;
+  }catch(e){select.value=previous;show('calFitMsg',e.message,'error');window.ELMOS_PTC_DEV_UI?.refresh?.();return false;}
   finally{select.disabled=false;temperatureSwitchBusy=false;}
- },true);
+ }
+ $('calTempSource').addEventListener('change',event=>{event.stopImmediatePropagation();void changeTemperatureSource($('calTempSource').value);},true);
  function alignTk0Ui(){
   const active=$('calFitMode').value==='tk0';
   for(const id of ['calSOrder','calTOrder']){
@@ -6982,6 +6983,7 @@ if(typeof document!=='undefined') (function UI(){
   },
   clearPtcDev:()=>{if(selectedTemperatureSource()==='internal')return;if(demoEnabled&&demoPort.ptcConfigured()){demoPort.clearPtcProfile();erasePoints();st.trend=[];}else if(!demoEnabled){st.ptcHardware=null;st.calibrationPreflight=null;invalidateCalculation('Temperaturprofil geändert. AFE erneut ins RAM übernehmen.');}},
   ptcDevHardwareReady:()=>!!hardwareTemperature(),
+  changeTemperatureSource,
   ensureInternalTemperatureProfile,
 
   afeStats:since=>guidedAfeStats(since),

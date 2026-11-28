@@ -12,6 +12,7 @@ const ELMOS_GUIDED_PLAN=(()=>{
    tke:{label:'TK0 + TKE · 4 Punkte',pCount:2,tCount:2,pmin:0,pmax:100,unit:'%',complex:false,tempComp:true,fitMode:'full',temperatures:[25,75]},
   custom:{label:'Individuell',pCount:3,tCount:2,pmin:0,pmax:100,unit:'%',complex:true,tempComp:true}
  });
+ function temperatureCompensationEnabled(count,complexity,order){return Number(count)>1&&(complexity!=='advanced'||Number(order)>0)}
  function create(spec={}){
   const pCount=Number(spec.pCount??2),tCount=Number(spec.tCount??1),pmin=number(spec.pmin??0,'Unterer Druck'),pmax=number(spec.pmax??100,'Oberer Druck');
    const fitMode=spec.fitMode??'full';
@@ -143,6 +144,6 @@ const ELMOS_GUIDED_PLAN=(()=>{
    return {kind:g.kind,from:g.from,to:g.to,count:values.length,min,max,delta:max-min};
   });
  }
- return {create,presets,captureDelta,captureSpans,summarizeSpans,sortReferences};
+ return {create,presets,temperatureCompensationEnabled,captureDelta,captureSpans,summarizeSpans,sortReferences};
 })();
 if(typeof module!=='undefined'&&module.exports)module.exports=ELMOS_GUIDED_PLAN;

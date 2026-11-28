@@ -88,7 +88,7 @@ const ELMOS_GUIDED=(()=>{
       <div class="gw-fields gw-setup-pressure" id="gwSensorFields"></div>
      </section>
      <section class="gw-tile gw-setup-tile">
-      <div class="gw-section-head"><div><h3>Temperatur und DSP</h3><p>Temperaturstufen und digitaler Zielbereich</p></div></div>
+      <div class="gw-section-head"><div><h3 id="gwSetupThermalHeading">Temperatur und DSP</h3><p id="gwSetupThermalNote">Temperaturstufen und digitaler Zielbereich</p></div></div>
       <div class="gw-fields gw-setup-temps" id="gwTemperatures"></div>
       <div class="gw-subheading">Zielbereich der Kalibrierung</div>
       <div class="gw-fields gw-dsp-fields" id="gwDspFields"></div><div id="gwPtcSetup"></div>
@@ -281,7 +281,7 @@ const ELMOS_GUIDED=(()=>{
    $('gwUseAlarms').checked=false;$('gwAlarmConfigArea').hidden=true;
    window.ELMOS_GUIDED_API?.skipAlarms?.();goto(9);
   });
-  document.querySelectorAll('[data-gw-side]').forEach(button=>button.addEventListener('click',()=>{const index=Number(button.dataset.gwSide);if(!fitAutomationBusy&&visited.has(index)){stage=index;render()}}));
+  document.querySelectorAll('[data-gw-side]').forEach(button=>button.addEventListener('click',()=>{const index=Number(button.dataset.gwSide);if(!fitAutomationBusy&&!setupBusy&&visited.has(index)){stage=index;render()}}));
   for(const id of ['calTOrder','calFitMode'])subscribe($(id),'change',syncFitModelVisibility);
   subscribe(document,'elmos-config-applied',syncImportedConfig);
   subscribe($('expertMode'),'change',renderOutputOptions);
@@ -332,14 +332,19 @@ const ELMOS_GUIDED=(()=>{
   if(fields.length!==n)setTemperatureInputs(n);
   return [...$('gwTemperatures').querySelectorAll('input')].map(x=>x.value);
  }
- let automaticThermalPlan=null;
- const thermalPair=t=>[Number.isFinite(Number(t))?Number(t):25,Number(t)===80?25:80];
- function temperatureSourceChanged(){
-  const count=$('gwTemperatureCount');if(!count)return;
-  if(window.ELMOS_PTC_DEV_UI?.active?.()&&Number(count.value)<2){automaticThermalPlan={count:count.value,temps:tempValues(Number(count.value)),order:$('gwTOrder').value};count.value='2';$('gwTOrder').value='1';setTemperatureInputs(2,thermalPair(automaticThermalPlan.temps[0]));}
-  else if(!window.ELMOS_PTC_DEV_UI?.active?.()&&automaticThermalPlan){if(count.value==='2'&&JSON.stringify(tempValues(2).map(Number))===JSON.stringify(thermalPair(automaticThermalPlan.temps[0]))){count.value=automaticThermalPlan.count;$('gwTOrder').value=automaticThermalPlan.order;setTemperatureInputs(Number(count.value),automaticThermalPlan.temps);}automaticThermalPlan=null;}
-  renderPlan();window.ELMOS_PTC_DEV_UI?.refresh?.();
+ let setupBusy=false;
+ function temperatureCompensationEnabled(){
+  const count=$('gwTemperatureCount');if(!count)return true;
+  return ELMOS_GUIDED_PLAN.temperatureCompensationEnabled(count.value,$('gwComplexity')?.value,$('gwTOrder')?.value);
  }
+ function syncTemperatureVisibility(){
+  const enabled=temperatureCompensationEnabled();
+  root.dataset.temperatureCompensation=enabled?'on':'off';
+  setText('gwSetupThermalHeading',enabled?'Temperatur und DSP':'DSP-Zielbereich');
+  setText('gwSetupThermalNote',enabled?'Temperaturstufen und digitaler Zielbereich':'Referenztemperatur · ohne Temperaturkorrektur');
+  window.ELMOS_PTC_DEV_UI?.refresh?.();
+ }
+ function temperatureSourceChanged(){if($('gwTemperatureCount'))renderPlan();}
  function makePlan(){
   const pCount=Number($('gwPressureCount').value),tCount=Number($('gwTemperatureCount').value);
   const complex=$('gwComplexity').value==='advanced';
@@ -364,15 +369,16 @@ const ELMOS_GUIDED=(()=>{
    if(!thermalEligible)$('gwThermalFit').value='full';
   try{
    const candidate=makePlan();plan=candidate;
-   const tags=candidate.points.map(p=>'<span><b>'+p.label+'</b>'+p.pressure+' '+candidate.unit+' · '+p.temperature+' °C</span>').join('');
-   $('gwPlanPreview').innerHTML='<strong>'+candidate.pCount+' Druckpunkte / '+candidate.tCount+' Temperaturstufen = '+candidate.total+' echte Messungen</strong><p>'+(candidate.fitMode==='tk0'?'TK0 ohne TKE · 3 Koeffizienten':'Druckpolynom '+candidate.orderS+'. Ordnung · Temperaturpolynom '+candidate.orderT+'. Ordnung')+' · '+candidate.samples+' Samples je Messung</p><div class="gw-matrix">'+tags+'</div>';
+   const tags=candidate.points.map(p=>'<span><b>'+p.label+'</b>'+p.pressure+' '+candidate.unit+(candidate.tempComp?' · '+p.temperature+' °C':'')+'</span>').join('');
+   $('gwPlanPreview').innerHTML='<strong>'+candidate.pCount+' Druckpunkte'+(candidate.tempComp?' / '+candidate.tCount+' Temperaturstufen':'')+' · '+candidate.total+' Messungen</strong><p>'+(candidate.fitMode==='tk0'?'TK0 ohne TKE · 3 Koeffizienten':'Druckpolynom '+candidate.orderS+'. Ordnung'+(candidate.tempComp?' · Temperaturpolynom '+candidate.orderT+'. Ordnung':' · ohne Temperaturkorrektur'))+' · '+candidate.samples+' Samples je Messung</p><div class="gw-matrix">'+tags+'</div>';
    $('gwPlanPreview').className='gw-summary';
    const setup=$('gwSetupPreview');
-   if(setup)setup.textContent='Geplant: '+candidate.total+' Messungen · '+candidate.pmin+'–'+candidate.pmax+' '+candidate.unit+' · Temperatur '+candidate.temperatures.join(' / ')+' °C';
+   if(setup)setup.textContent='Geplant: '+candidate.total+' Messungen · '+candidate.pmin+'–'+candidate.pmax+' '+candidate.unit+(candidate.tempComp?' · Temperatur '+candidate.temperatures.join(' / ')+' °C':'');
    msg('');
   }catch(e){
    plan=null;$('gwPlanPreview').textContent=e.message;$('gwPlanPreview').className='gw-alert error';
   }
+  syncTemperatureVisibility();
   document.querySelectorAll('[data-gw-preset]').forEach(btn=>{
    const p=ELMOS_GUIDED_PLAN.presets[btn.dataset.gwPreset];
    btn.setAttribute('aria-pressed',String(p.pCount===pCount&&p.tCount===tCount&&p.complex===advanced&&(p.fitMode||'full')===(plan?.fitMode||'full')));
@@ -529,7 +535,7 @@ const ELMOS_GUIDED=(()=>{
    btn.className=(index===selectedPoint?'gw-selected ':'')+(record?'gw-done':'gw-pending');
    btn.setAttribute('aria-current',index===selectedPoint?'step':'false');
    const label=document.createElement('span');label.className='gw-point-nav-label';
-   label.textContent=(record?'✓  ':'')+(index+1)+'. '+point.pressure+' '+plan.unit+' · '+point.temperature+' °C';
+   label.textContent=(record?'✓  ':'')+(index+1)+'. '+point.pressure+' '+plan.unit+(plan.tempComp?' · '+point.temperature+' °C':'');
    const status=document.createElement('span');status.className='gw-point-nav-state';
    status.textContent=record?'Aufgenommen · '+captureTime(record):index===selectedPoint?'Jetzt messen':'Noch offen';
    btn.append(label,status);
@@ -581,8 +587,7 @@ const ELMOS_GUIDED=(()=>{
   text.className='gw-next-detail';
   text.textContent=allDone?'Alle '+plan.total+' Referenzen wurden gespeichert. Weiter zur Koeffizientenberechnung.':
    record?'Wähle einen noch offenen Punkt, um die Messreihe fortzusetzen.':
-   'Stelle '+currentPoint.pressure+' '+plan.unit+' und '+currentPoint.temperature+
-    ' °C ein, warte auf stabile Bedingungen und klicke dann auf «aufnehmen».';
+   'Stelle '+currentPoint.pressure+' '+plan.unit+(plan.tempComp?' und '+currentPoint.temperature+' °C':'')+' ein. Bei stabilen Bedingungen aufnehmen.';
   current.append(heading,text);
   const spans=ELMOS_GUIDED_PLAN.captureSpans(points);
   if(spans.length){
@@ -842,7 +847,7 @@ const ELMOS_GUIDED=(()=>{
   if(!field||!host)return;
   const label=field.closest('label');
   if(!label)return;
-  const enabled=Number($('calTOrder').value)>0;
+  const enabled=temperatureCompensationEnabled()&&Number($('calTOrder').value)>0;
   label.hidden=!enabled;
   host.classList.toggle('gw-fit-without-temperature',!enabled);
  }
@@ -863,12 +868,12 @@ const ELMOS_GUIDED=(()=>{
    setText('gwFooterHint',text);
   }
   const ready=stage===4?!!plan&&plan.points.every(p=>pointRecord(p)):stage===5?!!s.calStaged:stage===6?!!s.calVerified:stage===9?!!s.nvmDone:true;
-  $('gwPrevious').disabled=stage===0||fitAutomationBusy;
-  $('gwConnectionToggle').disabled=fitAutomationBusy;
-  for(const side of root.querySelectorAll('[data-gw-side]'))side.disabled=fitAutomationBusy||connectionOpen||nextSensorPending;
+  $('gwPrevious').disabled=stage===0||fitAutomationBusy||setupBusy;
+  $('gwConnectionToggle').disabled=fitAutomationBusy||setupBusy;
+  for(const side of root.querySelectorAll('[data-gw-side]'))side.disabled=fitAutomationBusy||setupBusy||connectionOpen||nextSensorPending;
   if($('calCalculate'))$('calCalculate').disabled=fitAutomationBusy;
   if(fitAutomationBusy&&$('calApplyRam'))$('calApplyRam').disabled=true;
-  $('gwNext').disabled=fitAutomationBusy||!s.chip||(stage===10?nextSensorBusy||!s.nvmDone:!ready);
+  $('gwNext').disabled=fitAutomationBusy||setupBusy||!s.chip||(stage===10?nextSensorBusy||!s.nvmDone:!ready);
   if(stage===3)updateAfeTelemetry();
   if(stage===10)updateFinishTelemetry();
   if(stage===3||stage===10)apiRedraw();
@@ -904,7 +909,7 @@ const ELMOS_GUIDED=(()=>{
   $('gwTitle').textContent=connectionOpen?'Sensor verbinden und Protokoll prüfen':swapping?'Nächsten Sensor anschliessen':loggerPage?'Test / Logging':steps[stage][1];
   $('gwDesc').textContent=connectionOpen?'USB-Adapter, Chip-Schnittstelle und Diagnose direkt im geführten Modus bedienen.':swapping?'Wechsle den Sensor, um den Serienabgleich fortzusetzen.':loggerPage?
    'Sensorwerte in frei wählbaren Intervallen aufzeichnen, mitteln und mit Notizen archivieren.':
-   steps[stage][2];
+   (!temperatureCompensationEnabled()&&stage===4?'Referenzdruck einstellen und bei stabilen Bedingungen aufnehmen.':!temperatureCompensationEnabled()&&stage===6?'DSP an unabhängigen Druckpunkten prüfen.':steps[stage][2]);
   $('gwProgress').style.width=(loggerPage?100:(stage+1)/steps.length*100).toFixed(1)+'%';
   $('gwPrevious').disabled=stage===0;
   $('gwTasks').hidden=stage!==10;
@@ -1006,7 +1011,7 @@ const ELMOS_GUIDED=(()=>{
   root.scrollIntoView({behavior:'smooth',block:'start'});
  }
  async function next(seriesSettings=null){
-  if(fitAutomationBusy)return;
+  if(fitAutomationBusy||setupBusy)return;
   if(stage===0&&(task==='archive'||task==='verification')){
    if(window.ELMOS_TEST_LOGGER?.isBusy()){
     msg('Bitte zuerst eine laufende Testaufzeichnung beenden.','warn');return;
@@ -1053,7 +1058,15 @@ const ELMOS_GUIDED=(()=>{
   }
   if(stage===1){try{makePlan();goto(2)}catch(e){msg(e.message,'error')}return}
   if(stage===2){
-   try{window.ELMOS_PTC_DEV_UI?.validate?.(makePlan());plan=applyPlan();goto(3)}catch(e){msg(e.message,'error')}
+   setupBusy=true;updateUI();
+   try{
+    const candidate=makePlan();
+    if(!candidate.tempComp&&$('calTempSource').value!=='internal'){
+     msg('Temperaturquelle für Druckabgleich zurücksetzen …');
+     if(!await window.ELMOS_GUIDED_API.changeTemperatureSource('internal'))throw Error('Temperaturquelle konnte nicht sicher zurückgesetzt werden.');
+    }
+    window.ELMOS_PTC_DEV_UI?.validate?.(makePlan());plan=applyPlan();goto(3);
+   }catch(e){msg(e.message,'error')}finally{setupBusy=false;updateUI();}
    return;
   }
   if(stage===3){
@@ -1159,7 +1172,7 @@ const ELMOS_GUIDED=(()=>{
   }
  }
  function previous(){
-  if(fitAutomationBusy||stage===0)return;
+  if(fitAutomationBusy||setupBusy||stage===0)return;
   if(stage===11){goto(0);return}
   if((task==='output'&&stage===7)||(task==='alarms'&&stage===8)){goto(0);return}
   goto(stage-1);
@@ -1244,7 +1257,7 @@ const ELMOS_GUIDED=(()=>{
   return true;
  }
  function hasUnfinishedTask(){return !!(mode&&((stage>0&&stage!==10)||nextSensorPending))}
- function hasPendingOperation(){return !!(mode&&(taskOpening||nextSensorBusy||connectionBusy||fitAutomationBusy))}
+ function hasPendingOperation(){return !!(mode&&(taskOpening||nextSensorBusy||connectionBusy||fitAutomationBusy||setupBusy))}
  function onSensorReset({portDisconnected=false}={}){
   if(!mode||nextSensorPending)return;
   if(pendingCapture){window.clearInterval(pendingCapture);pendingCapture=null}
@@ -1310,7 +1323,7 @@ const ELMOS_GUIDED=(()=>{
      $('calUnit').value!==plan.unit)return null;
   return {pCount:plan.pCount,tCount:plan.tCount,fitMode:plan.fitMode};
  }
- return {init,open,close,openNvmCalculator,closeNvmCalculator,temperatureSourceChanged,onNvmProgrammed,wantsAutomaticPostBoot,preferredView:()=>rememberedView()==='classic'?'classic':'guided',goToStart:()=>{if(mode&&!nextSensorPending)goto(0)},goToCoefficients:()=>{if(mode&&task==='calibration'&&!nextSensorPending)goto(5)},resetForHome,hasUnfinishedTask,hasPendingOperation,isFitPage,runFitAutomation,onConnected,onSensorReset,makePlan,planForPreset:()=>mode&&stage>=1&&stage<=2?makePlan():plan,isOpen:()=>mode,appliedPlanForConfig};
+ return {init,open,close,openNvmCalculator,closeNvmCalculator,temperatureCompensationEnabled,temperatureSourceChanged,onNvmProgrammed,wantsAutomaticPostBoot,preferredView:()=>rememberedView()==='classic'?'classic':'guided',goToStart:()=>{if(mode&&!nextSensorPending)goto(0)},goToCoefficients:()=>{if(mode&&task==='calibration'&&!nextSensorPending)goto(5)},resetForHome,hasUnfinishedTask,hasPendingOperation,isFitPage,runFitAutomation,onConnected,onSensorReset,makePlan,planForPreset:()=>mode&&stage>=1&&stage<=2?makePlan():plan,isOpen:()=>mode,appliedPlanForConfig};
 })();
 if(typeof window!=='undefined')window.ELMOS_GUIDED=ELMOS_GUIDED;
 if(typeof document!=='undefined'){
