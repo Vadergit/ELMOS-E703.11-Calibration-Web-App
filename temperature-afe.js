@@ -91,3 +91,23 @@ function fitBridgeOffline(points,opts={},factory,fit){
 const ELMOS_TEMPERATURE_AFE=buildTemperatureAFE();
 if(typeof module!=="undefined"&&module.exports)module.exports=ELMOS_TEMPERATURE_AFE;
 if(typeof window!=="undefined")window.ELMOS_TEMPERATURE_AFE=ELMOS_TEMPERATURE_AFE;
+
+// EOC source: DS 25DS0170E.04 sections 3.3, 4.5.2, 6.2.2.3–7 and 7.2.1.
+// Nominal voltage-to-ADC model with conservative reference/gain bounds for selection.
+const ELMOS_EXTERNAL_AFE=(()=>{
+ const g1=[1,1.5,2,3],g2=[1,2,3,5];
+ const voltage=(p,t)=>(p.eocMv+(t-25)*p.eocSlope)/1000;
+ function signal(v,i,j){return Math.round((v-.65)*g1[i]*g2[j]*32768);}
+ function plan(p){
+  if(![p.eocMv,p.eocSlope,p.eocTolerance,p.minTemp,p.maxTemp].every(Number.isFinite)||p.eocSlope===0||p.eocTolerance<0||p.minTemp>=p.maxTemp)throw Error('EOC: gültige Spannung, Steigung, Toleranz und Temperaturgrenzen eingeben.');
+  const endpoints=[voltage(p,p.minTemp),voltage(p,p.maxTemp)],min=Math.min(...endpoints)-p.eocTolerance/1000,max=Math.max(...endpoints)+p.eocTolerance/1000;
+  const candidates=[];for(let i=0;i<4;i++)for(let j=0;j<4;j++){const a=g1[i]*1.04,b=g2[j]*1.04,low=Math.max(.2,.7-.45/a,.7-.7/(a*b)),high=Math.min(1.2,.6+.75/a,.6+.7/(a*b));candidates.push({i,j,g1:g1[i],g2:g2[j],low,high,valid:min>=low&&max<=high,reserve:Math.min(min-low,high-max)});}
+  const best=candidates.filter(c=>c.valid).sort((a,b)=>b.g1*b.g2-a.g1*a.g2||b.g1-a.g1||b.reserve-a.reserve)[0]||null;
+  const samples=Array.from({length:33},(_,i)=>{const temp=p.minTemp+(p.maxTemp-p.minTemp)*i/32;return {temp,voltage:voltage(p,temp)}});
+  return {min,max,best,candidates,samples};
+ }
+ function envelope(p,v,g){const values=[];for(const vref of [.6,.7])for(const u of [v-p.eocTolerance/1000,v+p.eocTolerance/1000])for(const a of [.96,1.04])for(const b of [.96,1.04])values.push(Math.round((u-vref)*g.g1*a*g.g2*b*32768));return {lo:Math.min(...values),hi:Math.max(...values),nom:signal(v,g.i,g.j)};}
+ function merge(afe2,p,g){return (afe2&~0x0fff)|0x0140|(p.eocBias?0x0800:0)|(g.j<<4)|(g.i<<2)|3;}
+ return {plan,voltage,signal,envelope,merge};
+})();
+if(typeof window!=='undefined')window.ELMOS_EXTERNAL_AFE=ELMOS_EXTERNAL_AFE;

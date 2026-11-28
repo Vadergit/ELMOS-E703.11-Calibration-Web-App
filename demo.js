@@ -40,7 +40,7 @@ const ELMOS_DEMO = {
    if(dev&&ptc){
     const a=ELMOS_TEMPERATURE_AFE,v=a.SUPPLIES[(ram.get(0x1A)||0)&3],code=((ram.get(0x1A)||0)>>4)&15;
     const b=ptc.bridgeOhm*(1+(temperature-25)*(temperature<25?120:180)/1e6),p=ptc.parallelOhm*(1+(temperature-25)*ptc.ptcTcr/1e6);
-    const t=a.signal({resistanceOhm:a.equivalent(b,p),svdd:v,code}).adc;
+    const t=ptc.source==='external'?ELMOS_EXTERNAL_AFE.signal(ELMOS_EXTERNAL_AFE.voltage(ptc,temperature),((ram.get(0x1E)||0)>>2)&3,((ram.get(0x1E)||0)>>4)&3):a.signal({resistanceOhm:a.equivalent(b,p),svdd:v,code}).adc;
     const s=(gain.bridgeInvert?-1:1)*(fraction-.5)*20000*(1+gain.pga1*.25+gain.pga2*.12)*(1+(temperature-25)*ptc.tke/1e6)+gain.offset*750+(temperature-25)*ptc.tk0;
     if(address===0x26)return word((temperature-25)*100);
     if(address===0x28)return word(t);
@@ -84,12 +84,19 @@ const ELMOS_DEMO = {
    async open() { opened = true; },
    async close() { opened = false; },
    setReference(value, temp = temperature) { pressure = value; temperature = temp; },
-   ptcConfigured(){return !!ptc;},
+   ptcConfigured(source){return !!ptc&&(!source||(ptc.source||'bridge')===source);},
    ptcWords(){return {afe0:ram.get(0x1A),afe2:ram.get(0x1E),cfgEn:ram.get(4)};},
    setPtcProfile(profile,code){
     if(!dev)throw Error('Nur DEV-Simulation');
-    ptc={...profile};const words=ELMOS_TEMPERATURE_AFE.merge({afe0:ram.get(0x1A)||0,afe2:ram.get(0x1E)||0,cfgEn:ram.get(4)||0,code,svddCode:profile.svddCode});
+    ptc={...profile,source:'bridge'};const words=ELMOS_TEMPERATURE_AFE.merge({afe0:ram.get(0x1A)||0,afe2:ram.get(0x1E)||0,cfgEn:ram.get(4)||0,code,svddCode:profile.svddCode});
     ram.set(0x1A,words.afe0);ram.set(0x1E,words.afe2);ram.set(4,words.cfgEn);
+    for(const addr of [0x6C,0x6E,0x70,0x72,...Array.from({length:16},(_,i)=>0x74+2*i),0x94,0x96,0x98,0x9A])ram.set(addr,0);
+   },
+   setExternalProfile(profile,gain){
+    if(!dev)throw Error('Nur DEV-Simulation');
+    const best=ELMOS_EXTERNAL_AFE.plan(profile).best;
+    if(!best||best.i!==gain.i||best.j!==gain.j)throw Error('Ungültige externe AFE-Auswahl.');
+    ptc={...profile,source:'external'};ram.set(0x1E,ELMOS_EXTERNAL_AFE.merge(ram.get(0x1E)||0,profile,gain));ram.set(4,((ram.get(4)||0)&~12)|4);
     for(const addr of [0x6C,0x6E,0x70,0x72,...Array.from({length:16},(_,i)=>0x74+2*i),0x94,0x96,0x98,0x9A])ram.set(addr,0);
    },
    clearPtcProfile(){if(dev){ptc=null;ram.set(0x1A,nvm[27]);ram.set(0x1E,nvm[29]);ram.set(4,nvm[16]);}},
