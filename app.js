@@ -1209,8 +1209,8 @@ if(typeof document!=='undefined') (function UI(){
      if(!Number.isFinite(uncertainty)||uncertainty<0||uncertainty>=100)throw Error('Ungültige Unsicherheit der Widerstandsschätzung.');
      measurement={ohm:found.resistanceOhm,temp:temperature,uncertainty,adc:found.adc,current:found.current,code:found.code,spread:found.spread,source:'adc-t-estimate',bounds:A.resistanceBounds({adc:found.adc,svddCode,afe0:bridgeTarget(found.code).afe0,afe2:bridgeTarget(found.code).afe2})};
      onProgress?.('Gesamtwiderstand ca. '+Math.round(measurement.ohm)+' Ω · RPGA '+found.code+' · Temperaturbereich wird berechnet …');
-     plan=PTC_PROFILE.plan(profile,measurement);
-     if(!plan.selection.best){const alt=PTC_PROFILE.plan({...profile,fullSupplyTolerance:false},measurement);if(alt.selection.best&&window.confirm('Kein RPGA deckt den gesamten geschätzten Widerstands- und SVDD-Toleranzbereich ab. Experimentell mit nominaler SVDD fortfahren? Temperaturgrenzen separat prüfen.')){plan=alt;nominalOnly=true;}}
+     try{plan=PTC_PROFILE.plan(profile,measurement);}catch(e){warnings.push('PTC-Modell passt nicht zur gemessenen Widerstandsschätzung: '+e.message+' · gemessene RPGA-Stufe bleibt verfügbar.');plan={...PTC_PROFILE.plan(profile),selection:{...PTC_PROFILE.plan(profile).selection,best:A.rpga(found.code)}};nominalOnly=true;measurement.modelMismatch=true;}
+     if(!plan.selection.best){const alt=PTC_PROFILE.plan({...profile,fullSupplyTolerance:false},measurement);if(alt.selection.best){plan=alt;nominalOnly=true;warnings.push('RPGA-Auslegung nur mit nominaler SVDD möglich. Temperaturgrenzen separat prüfen.');}}
      if(!plan.selection.best){plan={...plan,selection:{...plan.selection,best:A.rpga(found.code)}};nominalOnly=true;warnings.push('Kein RPGA deckt die gesamte modellierte Temperaturhülle ab. Aktuell gemessene Stufe wird verwendet; Temperaturgrenzen real prüfen.');}
      code=plan.selection.best.code;target=bridgeTarget(code);
      onProgress?.('Optimale RPGA '+code+' wird eingestellt und rückgemessen …');
