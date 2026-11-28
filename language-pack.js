@@ -1,5 +1,8 @@
 /* Static English text for the E703.11 interface. */
 window.ELMOS_TRANSLATIONS_EN=Object.assign(window.ELMOS_TRANSLATIONS_EN||{}, {
+ "DSP-Ziel:": "DSP target:",
+ "(Referenz, keine ADC-Grenze)": "(reference, not an ADC limit)",
+ "ADC-Verlauf mit gewähltem DSP-Ziel als Vergleichslinie": "ADC trace with selected DSP target as reference line",
  "ADC_S ist der unkompensierte 16-Bit-Druck-ADC. Der digitale Darstellungsbereich ist −32’768 bis +32’767 Digits. Der analoge Linearbereich ist davon unabhängig; die nötige Reserve hängt vom Sensor ab.": "ADC_S is the uncompensated 16-bit pressure ADC. Its digital representation ranges from −32,768 to +32,767 digits. The analog linear range is separate; required headroom depends on the sensor.",
  "ADC_S an der digitalen Darstellungsgrenze. Mögliche Sättigung; Gain, Offset und analogen Linearbereich prüfen.": "ADC_S at the digital representation limit. Possible saturation; check gain, offset and analog linear range.",
  "16-Bit-Darstellungsgrenzen": "16-bit representation limits",
