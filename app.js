@@ -5495,14 +5495,17 @@ if(typeof document!=='undefined') (function UI(){
   try{
    if(st.liveReadPromise)await st.liveReadPromise.catch(()=>{});
    if(await readCalibrationUid()!==baseline.uid)throw Error('Sensor gewechselt.');
-   st.devTemperatureWrite=baseline.registers;await ramGrant();
+   const target={...baseline.registers};
+   // Preserve unrelated pressure, output and communication config bits.
+   for(const [addr,mask] of [[0x1A,0x00f0],[0x1E,0x0fff],[4,0x100c]])target[addr]=((await readReg(addr))&~mask)|(baseline.registers[addr]&mask);
+   st.devTemperatureWrite=target;await ramGrant();
    for(const addr of [0x1A,0x1E,...CAL_REGS,4]){
     if(st.port!==baseline.port||st.sessionIndex!==baseline.session)throw Error('Sensorverbindung geändert.');
-    const value=baseline.registers[addr];if(await readReg(addr)!==value)await maintWrite(addr,value);
+    const value=target[addr];if(await readReg(addr)!==value)await maintWrite(addr,value);
     if(await readReg(addr)!==value)throw Error('RAM-Rücklesen fehlgeschlagen: 0x'+h(addr));
     st.regs[addr]=value;
    }
-   st.boot=await bootSnapshot();st.afe0=baseline.registers[26];st.temperatureBaseline=null;st.ptcHardware=null;st.calibrationPreflight=null;
+   st.boot=await bootSnapshot();st.afe0=target[26];st.temperatureBaseline=null;st.ptcHardware=null;st.calibrationPreflight=null;
    logging('Temperaturquelle gewechselt: ursprüngliche RAM-Temperatur-/DSP-Konfiguration bestätigt. Kein NVM-Schreiben.');
   }catch(e){markSensorUnavailable('Temperatur-RAM-Rücksetzung nicht bestätigt: '+e.message);throw e;}
   finally{try{await ramLock();}finally{st.devTemperatureWrite=null;st.temperatureRestoring=false;st.ramWriteScope=null;st.calTask=false;st.writing=false;renderStatus();if(resume&&st.chip&&!st.closing)startLive();}}
@@ -5516,11 +5519,12 @@ if(typeof document!=='undefined') (function UI(){
   if(hasPoints&&!window.confirm('Temperaturmessquelle ändern? Bisherige Messpunkte und DSP-Prüfung werden verworfen.')){select.value=previous;return;}
   temperatureSwitchBusy=true;select.disabled=true;
   try{
-   if(demoEnabled&&demoPort.ptcConfigured())demoPort.clearPtcProfile();
+   if(demoEnabled&&demoPort.ptcConfigured()){demoPort.clearPtcProfile();for(const addr of [4,0x1A,0x1E])st.regs[addr]=await readReg(addr);st.afe0=st.regs[0x1A];}
    else if(previous!=='internal'&&st.temperatureBaseline&&st.chip)await restoreTemperatureRam();
    st.ptcHardware=null;st.calibrationPreflight=null;
    if(hasPoints){erasePoints();if(st.uid?.hex)lsSet(checkpointKey(st.uid.hex),'');}
    acceptedTemperatureSource=wanted;
+   st.trend=[];st.history=[];
    invalidateCalculation('Temperaturmessquelle geändert. AFE im nächsten Schritt einstellen; USB bleibt verbunden.');
    renderCalibrationPlan();window.ELMOS_PTC_DEV_UI?.sourceChanged?.();window.ELMOS_GUIDED?.temperatureSourceChanged?.();renderStatus();
   }catch(e){select.value=previous;show('calFitMsg',e.message,'error');window.ELMOS_PTC_DEV_UI?.refresh?.();}

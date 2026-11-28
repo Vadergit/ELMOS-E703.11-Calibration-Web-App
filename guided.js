@@ -328,10 +328,11 @@ const ELMOS_GUIDED=(()=>{
   return [...$('gwTemperatures').querySelectorAll('input')].map(x=>x.value);
  }
  let automaticThermalPlan=null;
+ const thermalPair=t=>[Number.isFinite(Number(t))?Number(t):25,Number(t)===80?25:80];
  function temperatureSourceChanged(){
   const count=$('gwTemperatureCount');if(!count)return;
-  if(window.ELMOS_PTC_DEV_UI?.active?.()&&Number(count.value)<2){automaticThermalPlan={count:count.value,temps:tempValues(Number(count.value)),order:$('gwTOrder').value};count.value='2';$('gwTOrder').value='1';setTemperatureInputs(2,[Number(automaticThermalPlan.temps[0])||25,80]);}
-  else if(!window.ELMOS_PTC_DEV_UI?.active?.()&&automaticThermalPlan){if(count.value==='2'&&JSON.stringify(tempValues(2).map(Number))===JSON.stringify([Number(automaticThermalPlan.temps[0])||25,80])){count.value=automaticThermalPlan.count;$('gwTOrder').value=automaticThermalPlan.order;setTemperatureInputs(Number(count.value),automaticThermalPlan.temps);}automaticThermalPlan=null;}
+  if(window.ELMOS_PTC_DEV_UI?.active?.()&&Number(count.value)<2){automaticThermalPlan={count:count.value,temps:tempValues(Number(count.value)),order:$('gwTOrder').value};count.value='2';$('gwTOrder').value='1';setTemperatureInputs(2,thermalPair(automaticThermalPlan.temps[0]));}
+  else if(!window.ELMOS_PTC_DEV_UI?.active?.()&&automaticThermalPlan){if(count.value==='2'&&JSON.stringify(tempValues(2).map(Number))===JSON.stringify(thermalPair(automaticThermalPlan.temps[0]))){count.value=automaticThermalPlan.count;$('gwTOrder').value=automaticThermalPlan.order;setTemperatureInputs(Number(count.value),automaticThermalPlan.temps);}automaticThermalPlan=null;}
   renderPlan();window.ELMOS_PTC_DEV_UI?.refresh?.();
  }
  function makePlan(){
