@@ -12,6 +12,7 @@ const width=Number(process.env.E2E_WIDTH||1440);
 const height=Number(process.env.E2E_HEIGHT||900);
 const theme=process.env.E2E_THEME||'light';
 const expert=process.env.E2E_EXPERT==='true';
+const fullGallery=process.env.E2E_FULL_GALLERY==='true';
 const base='http://127.0.0.1:8765/';
 const scenarios=[
  {preset:'quick',source:'internal',total:2,thermal:false},
@@ -77,7 +78,7 @@ async function snapshot(p,dir,name,record){
   });
  });
  record.stages.push({name,inventory});
- await p.screenshot({path:path.join(dir,name+'.png'),fullPage:true,animations:'disabled',timeout:12000});
+ if(fullGallery)await p.screenshot({path:path.join(dir,name+'.png'),fullPage:true,animations:'disabled',timeout:12000});
  const widthAudit=await p.evaluate(()=>({actual:document.documentElement.scrollWidth,viewport:innerWidth}));
  assert.ok(widthAudit.actual<=widthAudit.viewport+2,'Page horizontal overflow: '+JSON.stringify(widthAudit));
 }
@@ -209,7 +210,7 @@ async function runFlow(p,v,dir,record){
    results.push(record);
    const context=await browser.newContext({viewport:{width,height}});
    await installFolder(context);
-   await context.tracing.start({screenshots:true,snapshots:true});
+   await context.tracing.start({screenshots:fullGallery,snapshots:true});
    const p=await context.newPage();
    p.setDefaultTimeout(12000);
    p.on('pageerror',e=>record.errors.push(e.message));
@@ -222,7 +223,9 @@ async function runFlow(p,v,dir,record){
     record.message=await p.locator('#gwMessage').innerText({timeout:1000}).catch(()=>null);
     await p.screenshot({path:path.join(dir,'FAILED.png'),fullPage:true,timeout:5000}).catch(()=>{});
    }finally{
-    await context.tracing.stop({path:path.join(dir,'trace.zip')}).catch(()=>{});
+    if(record.status==='failed'||fullGallery){
+     await context.tracing.stop({path:path.join(dir,'trace.zip')}).catch(()=>{});
+    }else await context.tracing.stop().catch(()=>{});
     await context.close();
     fs.writeFileSync(path.join(out,'results.json'),JSON.stringify(results,null,2));
     console.log(id+': '+record.status+(record.failure?' '+record.failure.split('\n').slice(0,5).join('\n'):''));

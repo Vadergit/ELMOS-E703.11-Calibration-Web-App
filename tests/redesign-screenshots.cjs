@@ -1,5 +1,6 @@
 'use strict';
 const {chromium}=require('playwright'),fs=require('node:fs'),path=require('node:path');
+const fullGallery=process.env.UI_FULL_GALLERY==='true';
 async function installFolder(context){
  await context.addInitScript(()=>{
   const files=new Map();
@@ -33,8 +34,25 @@ async function installFolder(context){
    `+marker)});
  });
  const shot=async(name,note,fn)=>{
-  try{await fn();await page.waitForTimeout(250);await page.screenshot({path:'screenshots/'+name+'.png',fullPage:true,animations:'disabled',timeout:8000});records.push({name,note});}
-  catch(e){records.push({name,error:String(e)});try{await page.screenshot({path:'screenshots/'+name+'-FAILED.png',fullPage:true,animations:'disabled',timeout:5000});}catch(_){}}
+  const record={name,note};
+  records.push(record);
+  try{
+   await fn();
+   // Keep all DOM/layout assertions independent of image generation.
+   if(fullGallery){
+    await page.waitForTimeout(250);
+    const image=name+'.png';
+    await page.screenshot({path:'screenshots/'+image,fullPage:true,animations:'disabled',timeout:8000});
+    record.image=image;
+   }
+  }catch(e){
+   record.error=String(e);
+   try{
+    const image=name+'-FAILED.png';
+    await page.screenshot({path:'screenshots/'+image,fullPage:true,animations:'disabled',timeout:5000});
+    record.image=image;
+   }catch(screenshotError){record.screenshotError=String(screenshotError)}
+  }
  };
  const go=n=>page.evaluate(n=>window.__screenPreview.go(n),n);
  const reset=async()=>{await page.goto('http://127.0.0.1:8765/?demo=1');await page.waitForFunction(()=>window.ELMOS_GUIDED_API?.state()?.chip&&window.ELMOS_GUIDED?.isOpen?.(),{},{timeout:20000});};
@@ -210,9 +228,9 @@ async function installFolder(context){
   }
  }finally{
   fs.writeFileSync('screenshots/button-audit.json',JSON.stringify(checks,null,2));
-  fs.writeFileSync('screenshots/manifest.json',JSON.stringify({records,errors},null,2));
+  fs.writeFileSync('screenshots/manifest.json',JSON.stringify({fullGallery,records,errors},null,2));
   const esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-  fs.writeFileSync('screenshots/index.html','<!doctype html><html lang="de"><meta charset="utf-8"><title>ELMOS UIUX Screenshots</title><style>body{font:16px system-ui;max-width:1500px;margin:24px auto;padding:0 20px;color:#24374b}img{max-width:100%;border:1px solid #c9d2da;border-radius:6px}section{margin:25px 0}small{color:#58697b}</style><h1>ELMOS v0.7.206 – UI/UX</h1><p>Demo und Layoutvorschau. Erzwungene Navigation dient nur der Ansicht, nicht als Kalibrierungsnachweis.</p>'+records.map(r=>'<section><h2>'+esc(r.name)+'</h2>'+ (r.error?'<p>'+esc(r.error)+'</p>':'<small>'+esc(r.note)+'</small><p><a href="'+r.name+'.png"><img loading="lazy" src="'+r.name+'.png"></a></p>')+'</section>').join(''));
+  fs.writeFileSync('screenshots/index.html','<!doctype html><html lang="de"><meta charset="utf-8"><title>ELMOS UIUX Screenshots</title><style>body{font:16px system-ui;max-width:1500px;margin:24px auto;padding:0 20px;color:#24374b}img{max-width:100%;border:1px solid #c9d2da;border-radius:6px}section{margin:25px 0}small{color:#58697b}</style><h1>ELMOS – Geführte Layoutprüfung</h1><p>Demo und Layoutvorschau. Erzwungene Navigation dient nur der Ansicht, nicht als Kalibrierungsnachweis.</p>'+records.map(r=>'<section><h2>'+esc(r.name)+'</h2>'+ (r.error?'<p>'+esc(r.error)+'</p>':'<small>Bestanden · '+esc(r.note)+'</small>')+(r.image?'<p><a href="'+esc(r.image)+'"><img loading="lazy" src="'+esc(r.image)+'"></a></p>':'')+'</section>').join(''));
   console.log(JSON.stringify({records,errors},null,2));await browser.close();
   if(records.some(r=>r.error)||errors.length)process.exitCode=1;
  }

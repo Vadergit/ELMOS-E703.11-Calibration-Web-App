@@ -5,6 +5,11 @@ on:
   pull_request:
     branches: [main]
   workflow_dispatch:
+    inputs:
+      full_gallery:
+        description: 'Save screenshots and traces for successful demo flows too'
+        type: boolean
+        default: false
 jobs:
   guided-e2e:
     name: Demo UI ${{ matrix.view.name }} / expert=${{ matrix.expert }}
@@ -33,6 +38,7 @@ jobs:
           npx playwright install --with-deps chromium
       - name: Execute independent demo calibration flows
         env:
+          E2E_FULL_GALLERY: ${{ github.event_name == 'workflow_dispatch' && inputs.full_gallery }}
           E2E_WIDTH: ${{ matrix.view.width }}
           E2E_HEIGHT: ${{ matrix.view.height }}
           E2E_THEME: ${{ matrix.view.theme }}
