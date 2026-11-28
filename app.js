@@ -6672,7 +6672,7 @@ if(typeof document!=='undefined') (function UI(){
    if(!ptcDev||!demoEnabled||!st.chip||st.calTask||st.writing||st.nvmWorking)throw Error('Kein freier DEV-Demosensor.');
    demoPort.setReference(pressure,temperature);if(st.liveReadPromise)await st.liveReadPromise.catch(()=>{});await readADC();
   },
-  clearPtcDev:()=>{if(ptcDev&&demoEnabled&&demoPort.ptcConfigured()){demoPort.clearPtcProfile();erasePoints();st.trend=[];}},
+  clearPtcDev:()=>{if(ptcDev&&demoEnabled&&demoPort.ptcConfigured()){demoPort.clearPtcProfile();erasePoints();st.trend=[];}else if(ptcDev&&!demoEnabled){st.ptcHardware=null;st.calibrationPreflight=null;invalidateCalculation('DEV Temperaturprofil geändert. AFE erneut ins RAM übernehmen.');}},
   ptcDevHardwareReady:()=>!!hardwareTemperature(),
 
   afeStats:since=>guidedAfeStats(since),
