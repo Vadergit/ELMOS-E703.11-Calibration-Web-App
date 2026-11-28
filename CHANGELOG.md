@@ -1,3 +1,10 @@
+## v0.7.203 – PTC/EOC-Integration und automatisierte Abschlussprüfung
+
+- Übernahme des Integrationsbranches (Integration 13) in main, inklusive interner, Brücken-/PTC- und externer Temperaturquelle sowie DLL-Referenzdaten. PTC/EOC bleiben Beta-Funktionen; Hardwarevalidierung steht aus.
+- Geführter Abgleich: Sensorneustart und frische NVM-Prüfung beim Start, Schnellverbindung, integrierter Sensorbrücken-Rechner, temperaturabhängige Anzeige der Koeffizienten und flexible ADC-/DSP-Bereichsanzeige.
+- Nach bestätigtem NVM-Schreiben automatische Neustartprüfung mit ESP32-C3 bzw. Pro Micro (integrierter Lastschalter), danach Wechsel zur Abschlussprüfung. SSP3: manueller Kaltstart weiterhin möglich. Elektrische Ausgangsmessung bleibt erforderlich.
+- Versionsanzeige, interne Versionskennung und Cache-Parameter auf v0.7.203 vereinheitlicht. Vollständige Testsuite, reale Hardwaretests und Pages-Veröffentlichung noch nicht bestätigt.
+
 ## v0.7.202 – SSP3: Startmodus 0x6C05 bei NVM-Freigabe
 
 - Feldprotokoll v0.7.201: geprüfter SSP3-Abgleich mit Original-NVM 0x6C06, CFG_PADS0 0x4000 und RAM 0x6C05 scheitert an der alten 4-ms-Freigabe. SSP3 nutzt jetzt dieselbe eng begrenzte Registerprüfung wie ESP32. Debug zeigt den Registervergleich auch für SSP3.
