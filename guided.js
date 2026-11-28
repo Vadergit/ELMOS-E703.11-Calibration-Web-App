@@ -500,6 +500,13 @@ const ELMOS_GUIDED=(()=>{
   $('gwAdvancedOutput').hidden=!$('expertMode').checked;
   const analog=['keep','1','2','3'].includes($('expertOutputMode').value);
   $('gwOutputVoltage').hidden=!analog;
+  updateOutputActionVisibility();
+ }
+ function updateOutputActionVisibility(s=state()){
+  const page=$('gwPage7'),calibration=task==='calibration';
+  page.classList.toggle('gw-output-calibration',calibration);
+  page.classList.toggle('gw-output-no-reread',calibration&&s.nvmBackupVerified);
+  page.classList.toggle('gw-output-auto-analog',calibration&&!$('expertMode').checked&&['1','2','3'].includes($('expertOutputMode').value));
  }
  function captureNumber(value){
   return Number.isFinite(value)?Number(value).toLocaleString('de-CH',{maximumFractionDigits:1}):'—';
@@ -857,6 +864,7 @@ const ELMOS_GUIDED=(()=>{
   const s=state();
   renderQuickConnect(s);
   if(stage===5)syncFitModelVisibility();
+  if(stage===7)updateOutputActionVisibility(s);
   if(connectionOpen){renderConnectionStatus();return}
   if(nextSensorPending){void refreshSwapPort();return}
   $('gwChipStatus').textContent=statusText();
@@ -1014,7 +1022,7 @@ const ELMOS_GUIDED=(()=>{
  }
  function outputStepReady(){
   if(task==='calibration'&&state().outputScalingRequired){
-   msg('Die alte Ausgangsskalierung passt nicht zum aktuellen DSP-Zielbereich. Bitte «Scaling berechnen und aktivieren» und danach «Ausgangskonfiguration prüfen und vormerken» anklicken. Die Messpunkte und RAM-Kalibrierung bleiben erhalten.','warn');return false;
+   msg('Die alte Ausgangsskalierung passt nicht zum aktuellen DSP-Zielbereich. Bitte die Zielwerte prüfen und «Ausgangskonfiguration prüfen und vormerken» anklicken. Bei PWM/FM oder manueller Skalierung gegebenenfalls zuerst das Scaling berechnen. Die Messpunkte und RAM-Kalibrierung bleiben erhalten.','warn');return false;
   }
   return true;
  }
