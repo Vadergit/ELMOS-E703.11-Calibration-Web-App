@@ -474,3 +474,8 @@ html[data-theme="dark"] #guidedWorkspace .gw-quick-connect{background:#382e1d;co
 #gwPage7.gw-output-auto-analog #expertOutputPreset,
 #gwPage7.gw-output-calibration #gwOutputSkipAlarm { display:none !important; }
 #gwPage7.gw-output-calibration #gwOutputSkipAlarm:only-child { display:none !important; }
+
+/* Unique guided fit: retain manual recovery actions, never conceal warnings. */
+#guidedWorkspace.gw-fixed-fit #gwFitFields{display:none!important}
+#guidedWorkspace.gw-fixed-fit-busy #gwFitActions{visibility:hidden;pointer-events:none}
+#guidedWorkspace.gw-fixed-fit-busy .gw-sideitems{pointer-events:none}

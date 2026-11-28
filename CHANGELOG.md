@@ -1,3 +1,9 @@
+## v0.7.209 – Automatischer eindeutiger Fit im geführten Ablauf
+
+- Nach «Weiter» von den Messpunkten: eindeutiger 2-Punkt-Druckfit sowie festgelegte TK0-/lineare TK0+TKE-Modelle automatisch berechnen und mit vorhandener RAM-Rückleseprüfung übernehmen. Bei Warnungen, Fehlern oder mehreren sinnvollen Polynomordnungen bleibt die manuelle Bedienung erhalten.
+- Automatik endet bei unabhängiger DSP-Prüfung; kein automatisches NVM-Schreiben, keine Änderung an Adapter-/Kommunikationsroutinen oder Fit-Mathematik. Archivierung, Messprofil und Sensorverbindung werden geprüft.
+- Hardware- und vollständige CI-Prüfung ausstehend.
+
 ## v0.7.208 – Schnellabgleich ohne erzwungenes internes Temperaturprofil
 
 - Reiner Druckabgleich mit unverändertem gültigem internem, Brücken- oder EOC-Temperaturprofil. RAM/NVM-Übereinstimmung, UID/CRC, DSP-Prüfung und NVM-Schutz bleiben Pflicht. Keine automatische Umstellung der Temperaturquelle; bestehende Temperaturkoeffizienten bleiben erhalten. Druck-TK-Koeffizienten werden beim reinen Druckfit wie bisher ersetzt (Bestätigung bei vorhandener TK).

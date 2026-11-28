@@ -4411,7 +4411,9 @@ if(typeof document!=='undefined') (function UI(){
   };
   window.setTimeout(openWhenReady,0);
  }
+ let guidedFitArchivePromise=null;
  function calcCoefficients(){
+  guidedFitArchivePromise=null;
   $('calDspProposal').hidden=true;
   $('calTempFallback').hidden=true;
   let fitRequest=null;
@@ -4447,7 +4449,7 @@ if(typeof document!=='undefined') (function UI(){
     // gain/offset must be recalculated against this exact DSP end range.
     st.expertOutputPlan=null;st.outputOnlyPlan=null;
     st.calfit=solution;st.calImage=null;st.calStaged=false;st.calVerified=false;st.calValidation=[];renderDSPLive();
-    if(window.ELMOS_ARCHIVE?.active)void window.ELMOS_ARCHIVE.event('coefficient_fit',{solution,AFE:{...st.staged}}).catch(e=>show('calFitMsg','Archivfehler: '+e.message,'error'));
+    if(window.ELMOS_ARCHIVE?.active)guidedFitArchivePromise=window.ELMOS_ARCHIVE.event('coefficient_fit',{solution,AFE:{...st.staged}}).then(()=>true).catch(e=>{show('calFitMsg','Archivfehler: '+e.message,'error');return false});
    const r=solution.registers;
    $('calCoeffList').textContent='S_O 0x'+h(r.so,2)+' (Q3.12)  S_F 0x'+h(r.sf,2)+' (Q3.12)\n'+r.coeffs.map((x,i)=>'S'+String(i).padEnd(2)+' 0x'+h(x,2)+'    '+CAL.fromQ(x,15).toFixed(7)).join('\n')+(r.tcoeffs?'\nT_O '+h(r.to,2)+' T_F '+h(r.tf,2)+'\n'+r.tcoeffs.map((x,i)=>'T'+i+': 0x'+h(x,2)).join('\n'):'\nTemperaturpfad bleibt unverändert.');
    const note='DSP-Ziel ±'+fmt(solution.outputLimit)+' Digits (Reserve bis +32’767: '+fmt(32767-solution.outputLimit)+' Digits). Max. Fitfehler '+solution.stats.maxDigits.toFixed(2)+' Digits · RMS '+solution.stats.rmsDigits.toFixed(2)+' Digits.';
@@ -6890,7 +6892,29 @@ if(typeof document!=='undefined') (function UI(){
   }
   throw Error('Unbekannte Diagnosefunktion.');
  }
+ // Orchestrate the existing manual calculation and RAM transaction. No new
+ // register commands, no reconnect, no automatic NVM write.
+ async function runGuidedFixedFit(expected,stillOnPage){
+  const port=st.port,session=st.sessionIndex,uid=st.uid?.hex||null;
+  const current=()=>stillOnPage()&&!!st.chip&&!!port&&st.port===port&&st.sessionIndex===session&&(st.uid?.hex||null)===uid&&!st.closing&&!st.calTask&&!st.writing&&!st.nvmWorking&&!st.reinitRunning&&!st.powerCycleRunning&&!st.magicRunning&&!st.startupRunning&&!st.diagRunning&&!st.afeWriteActive&&!st.ramMeasurementStarting;
+  const settings=()=>Number($('calSOrder').value)===expected.orderS&&Number($('calTOrder').value)===expected.orderT&&$('calFitMode').value===expected.fitMode&&Number($('calDspLimit').value)===expected.outputLimit&&st.calpoints.length===expected.total&&calEndpointsReady();
+  const result=(state,reason)=>({state,reason});
+  if(!ELMOS_GUIDED_PLAN.fixedFitModel(expected)||!current()||!settings())return result('stopped','Abgleichplan oder Verbindung nicht bestätigt.');
+  if(st.calStaged&&coefficientSettingsCurrent())return result('stopped','Koeffizienten bereits im RAM. Bitte bisherigen Status prüfen.');
+  const references=JSON.stringify(calibrationReferenceSnapshot()),points=JSON.stringify(st.calpoints);
+  calcCoefficients();
+  const fit=st.calfit;
+  if(guidedFitArchivePromise&&!await guidedFitArchivePromise)return result('stopped','Archivierung der Berechnung nicht bestätigt.');
+  if(!current()||!settings()||st.calfit!==fit||!coefficientSettingsCurrent()||JSON.stringify(calibrationReferenceSnapshot())!==references||JSON.stringify(st.calpoints)!==points)return result('stopped','Berechnung oder Messprofil nicht bestätigt.');
+  if($('calFitMsg').classList.contains('warn')||$('calFitMsg').classList.contains('error')||$('dspRiskDialog')?.open||!$('calTempFallback').hidden||!$('calDspProposal').hidden||fit.outputLimit>=31000||fit.stats.maxDigits>100||fit.stats.lowSignalHubWarning||fit.ignoredTemperaturePoints>0)return result('stopped','Berechnung enthält einen Hinweis oder eine Warnung. Bitte prüfen.');
+  if($('calApplyRam').disabled)return result('stopped','RAM-Übernahme derzeit nicht freigegeben.');
+  await applyCalRam();
+  if(!current()||!settings()||st.calfit!==fit||!st.calStaged||!coefficientSettingsCurrent())return result('stopped','RAM-Übernahme nicht bestätigt.');
+  if(!$('calRamStageMsg').classList.contains('success')||$('dspRiskDialog')?.open)return result('stopped','RAM-Status prüfen, bevor es weitergeht.');
+  return result('ready','RAM erfolgreich rückgelesen.');
+ }
  window.ELMOS_GUIDED_API=Object.freeze({
+  runGuidedFixedFit,
   state:()=>({
    chip:!!st.chip,diagnosticUid:st.readOnlySensor||null,usbReady:!!(st.port&&st.readerAlive),usbConnected:!!st.port,demo:demoEnabled,mode:st.mode,adapter:st.adapterKind,bridgeBoard:st.bridgeBoard||null,iface:st.iface,uid:st.uid?.hex||null,
    connectionBusy:!!(usbConnectBusy||st.closing||st.reinitRunning||st.powerCycleRunning||st.magicRunning||st.startupRunning||st.diagRunning||st.writing||st.nvmWorking||st.calTask||st.afeWriteActive||st.ramMeasurementStarting),

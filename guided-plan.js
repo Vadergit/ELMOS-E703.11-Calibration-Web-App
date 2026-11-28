@@ -143,6 +143,14 @@ const ELMOS_GUIDED_PLAN=(()=>{
    return {kind:g.kind,from:g.from,to:g.to,count:values.length,min,max,delta:max-min};
   });
  }
- return {create,presets,captureDelta,captureSpans,summarizeSpans,sortReferences};
+ // Only automate a unique model within the explicitly chosen calibration intent.
+ function fixedFitModel(plan){
+  if(!plan||plan.pCount!==2||plan.orderS!==1)return false;
+  if(plan.fitMode==='tk0')return plan.tCount===2&&plan.orderT===1&&plan.total===3;
+  if(plan.fitMode!=='full')return false;
+  return (plan.tCount===1&&plan.orderT===0&&plan.total===2)||
+   (plan.tCount===2&&plan.orderT===1&&plan.tempComp===true&&plan.total===4);
+ }
+ return {create,presets,captureDelta,captureSpans,summarizeSpans,sortReferences,fixedFitModel};
 })();
 if(typeof module!=='undefined'&&module.exports)module.exports=ELMOS_GUIDED_PLAN;

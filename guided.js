@@ -233,7 +233,7 @@ const ELMOS_GUIDED=(()=>{
   $('gwSwapConnect').addEventListener('click',()=>connectNextSensor(false));
   $('gwSwapChoose').addEventListener('click',()=>connectNextSensor(true));
   $('gwSwapCancel').addEventListener('click',returnToTasks);
-  $('gwConnectionToggle').addEventListener('click',()=>connectionOpen?closeConnectionPanel():openConnectionPanel());
+  $('gwConnectionToggle').addEventListener('click',()=>{if(!fixedFitBusy)(connectionOpen?closeConnectionPanel():openConnectionPanel())});
   const initial=state();
   $('gwQuickBoard').value=initial.adapter==='bridge'?(/pro micro/i.test(initial.bridgeBoard||'')?'promicro':'esp32'):'ssp3';
   $('gwQuickInterface').value=initial.iface==='i2c'?'i2c':'plc';
@@ -281,7 +281,7 @@ const ELMOS_GUIDED=(()=>{
    $('gwUseAlarms').checked=false;$('gwAlarmConfigArea').hidden=true;
    window.ELMOS_GUIDED_API?.skipAlarms?.();goto(9);
   });
-  document.querySelectorAll('[data-gw-side]').forEach(button=>button.addEventListener('click',()=>{const index=Number(button.dataset.gwSide);if(visited.has(index)){stage=index;render()}}));
+  document.querySelectorAll('[data-gw-side]').forEach(button=>button.addEventListener('click',()=>{const index=Number(button.dataset.gwSide);if(!fixedFitBusy&&visited.has(index)){stage=index;render()}}));
   for(const id of ['calTOrder','calFitMode'])subscribe($(id),'change',syncFitModelVisibility);
   subscribe(document,'elmos-config-applied',syncImportedConfig);
   subscribe($('expertMode'),'change',renderOutputOptions);
@@ -871,6 +871,12 @@ const ELMOS_GUIDED=(()=>{
   const s=state();
   renderQuickConnect(s);
   if(stage===5)syncFitModelVisibility();
+  root.classList.toggle('gw-fixed-fit',stage===5&&fixedFitModel());
+  root.classList.toggle('gw-fixed-fit-busy',fixedFitBusy);
+  $('gwPrevious').disabled=stage===0||fixedFitBusy;
+  $('gwConnectionToggle').disabled=fixedFitBusy;
+  if(fixedFitBusy)for(const side of root.querySelectorAll('[data-gw-side]'))side.disabled=true;
+  else for(const side of root.querySelectorAll('[data-gw-side]'))side.disabled=!!nextSensorPending||connectionOpen;
   if(stage===7)updateOutputPresentation(s);
   if(connectionOpen){renderConnectionStatus();return}
   if(nextSensorPending){void refreshSwapPort();return}
@@ -884,7 +890,7 @@ const ELMOS_GUIDED=(()=>{
    setText('gwFooterHint',text);
   }
   const ready=stage===4?!!plan&&plan.points.every(p=>pointRecord(p)):stage===5?!!s.calStaged:stage===6?!!s.calVerified:stage===9?!!s.nvmDone:true;
-  $('gwNext').disabled=!s.chip||(stage===10?nextSensorBusy||!s.nvmDone:!ready);
+  $('gwNext').disabled=fixedFitBusy||!s.chip||(stage===10?nextSensorBusy||!s.nvmDone:!ready);
   if(stage===3)updateAfeTelemetry();
   if(stage===10)updateFinishTelemetry();
   if(stage===3||stage===10)apiRedraw();
@@ -1000,6 +1006,22 @@ const ELMOS_GUIDED=(()=>{
   if(result.archiveWarning)msg('NVM erfolgreich verifiziert. Komplette Abgleichdatei nicht bestätigt: Bitte Archiv prüfen.','warn');
   return true;
  }
+ let fixedFitBusy=false;
+ function fixedFitPage(){return mode&&stage===5&&task==='calibration'&&!connectionOpen&&!nextSensorPending;}
+ function fixedFitModel(){return !!(plan&&ELMOS_GUIDED_PLAN.fixedFitModel(plan)&&appliedPlanForConfig());}
+ async function runFixedFit(){
+  if(fixedFitBusy||!fixedFitPage()||!fixedFitModel())return;
+  const expected=plan;
+  fixedFitBusy=true;updateUI();
+  msg('Koeffizienten werden berechnet und bei erfolgreicher Prüfung ins RAM geschrieben …');
+  try{
+   const result=await window.ELMOS_GUIDED_API.runGuidedFixedFit(expected,()=>fixedFitPage()&&plan===expected&&fixedFitBusy);
+   if(!fixedFitPage()||plan!==expected)return;
+   if(result.state==='ready'&&state().calStaged){msg('');goto(6);return}
+   msg(result.reason||'Berechnung und RAM-Status prüfen.','warn');
+  }catch(e){if(fixedFitPage())msg(e.message,'error')}
+  finally{fixedFitBusy=false;if(mode){window.ELMOS_GUIDED_API?.refresh?.();updateUI();}}
+ }
  function goto(n){
   if(stage===11&&window.ELMOS_TEST_LOGGER?.isBusy()){
    msg('Bitte zuerst die laufende Testaufzeichnung beenden.','warn');return;
@@ -1008,6 +1030,7 @@ const ELMOS_GUIDED=(()=>{
   root.scrollIntoView({behavior:'smooth',block:'start'});
  }
  async function next(seriesSettings=null){
+  if(fixedFitBusy)return;
   if(stage===0&&(task==='archive'||task==='verification')){
    if(window.ELMOS_TEST_LOGGER?.isBusy()){
     msg('Bitte zuerst eine laufende Testaufzeichnung beenden.','warn');return;
@@ -1063,7 +1086,7 @@ const ELMOS_GUIDED=(()=>{
   }
   if(stage===4){
    if(!plan||!plan.points.every(p=>pointRecord(p))){msg('Bitte zuerst alle '+(plan?.total||0)+' Messpunkte erfolgreich aufnehmen.','warn');return}
-   goto(5);return;
+   goto(5);if(fixedFitModel())await runFixedFit();return;
   }
   if(stage===5){if(!s.calStaged){msg('Bitte die Koeffizienten zuerst berechnen und ins RAM übertragen.','warn');return}goto(6);return}
   if(stage===6){if(!s.calVerified){msg('Die unabhängige DSP-Prüfung muss erfolgreich abgeschlossen sein.','warn');return}goto(7);return}
@@ -1160,7 +1183,7 @@ const ELMOS_GUIDED=(()=>{
   }
  }
  function previous(){
-  if(stage===0)return;
+  if(fixedFitBusy||stage===0)return;
   if(stage===11){goto(0);return}
   if((task==='output'&&stage===7)||(task==='alarms'&&stage===8)){goto(0);return}
   goto(stage-1);
@@ -1212,7 +1235,7 @@ const ELMOS_GUIDED=(()=>{
   window.scrollTo({top:0,behavior:'auto'});
  }
  function close({preservePreference=false}={}){
-  if(!mode||nextSensorPending)return;
+  if(!mode||nextSensorPending||fixedFitBusy)return;
   if(window.ELMOS_TEST_LOGGER?.isBusy()){
    msg('Bitte die Testaufzeichnung zuerst beenden, bevor du die Ansicht wechselst.','warn');return;
   }
@@ -1245,7 +1268,7 @@ const ELMOS_GUIDED=(()=>{
   return true;
  }
  function hasUnfinishedTask(){return !!(mode&&((stage>0&&stage!==10)||nextSensorPending))}
- function hasPendingOperation(){return !!(mode&&(taskOpening||nextSensorBusy||connectionBusy))}
+ function hasPendingOperation(){return !!(mode&&(taskOpening||nextSensorBusy||connectionBusy||fixedFitBusy))}
  function onSensorReset({portDisconnected=false}={}){
   if(!mode||nextSensorPending)return;
   if(pendingCapture){window.clearInterval(pendingCapture);pendingCapture=null}
