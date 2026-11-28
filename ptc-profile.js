@@ -1,12 +1,13 @@
 "use strict";
 function buildPtcProfile(A){
- const defaults=Object.freeze({bridgeOhm:10000,bridgeTolerance:10,parallelOhm:10000,parallelTolerance:40,bridgeCold:120,bridgeHot:180,ptcTcr:2000,ptcTcrTolerance:20,minTemp:-40,maxTemp:125,svddCode:2,fullSupplyTolerance:true});
+ const defaults=Object.freeze({bridgeOhm:10000,bridgeTolerance:10,parallelOhm:null,parallelTolerance:0,bridgeCold:120,bridgeHot:180,ptcTcr:2000,ptcTcrTolerance:20,minTemp:-40,maxTemp:125,svddCode:2,fullSupplyTolerance:true});
  const check=(b,m)=>{if(!b)throw new RangeError(m)};
  const pos=(v,m)=>{check(Number.isFinite(v)&&v>0,m);return v};
  const limits=(v,t)=>[v*(1-t/100),v*(1+t/100)];
  const unique=a=>[...new Set(a)];
  function validate(p){
-  for(const k of ['bridgeOhm','parallelOhm'])pos(p[k],k+' muss positiv sein.');
+  pos(p.bridgeOhm,'Brückenwiderstand muss positiv sein.');
+  if(p.parallelOhm!==null)pos(p.parallelOhm,'PTC-Widerstand muss positiv sein.');
   for(const k of ['bridgeTolerance','parallelTolerance','ptcTcrTolerance'])check(Number.isFinite(p[k])&&p[k]>=0&&p[k]<100,k+' muss zwischen 0 und unter 100 % liegen.');
   for(const k of ['bridgeCold','bridgeHot','ptcTcr'])check(Number.isFinite(p[k])&&p[k]>=0,k+' muss nichtnegativ sein (PTC-Modell).');
   check(Number.isFinite(p.minTemp)&&Number.isFinite(p.maxTemp)&&p.minTemp<p.maxTemp,'Ungültiger Temperaturbereich.');
@@ -16,7 +17,8 @@ function buildPtcProfile(A){
  function resistance(t,b,p,cold,hot,pt){return A.equivalent(b*factor(t,cold,hot),p*factor(t,pt))}
  function range(input={},anchor=null){
   const p={...defaults,...input};validate(p);
-  const bs=unique(limits(p.bridgeOhm,p.bridgeTolerance)),ps=unique(limits(p.parallelOhm,p.parallelTolerance)),ts=unique(limits(p.ptcTcr,p.ptcTcrTolerance));
+  check(anchor!==null||p.parallelOhm!==null,'PTC-Widerstand eingeben oder Gesamtwiderstand messen. Kein voreingestellter PTC-Widerstand.');
+  const bs=unique(limits(p.bridgeOhm,p.bridgeTolerance)),ps=p.parallelOhm===null?[]:unique(limits(p.parallelOhm,p.parallelTolerance)),ts=unique(limits(p.ptcTcr,p.ptcTcrTolerance));
   const scenarios=[];let inferred=null;
   if(anchor!==null){
    pos(anchor.ohm,'Gemessener Gesamtwiderstand muss positiv sein.');
@@ -38,7 +40,7 @@ function buildPtcProfile(A){
   const nominalAt=t=>resistance(t,nominalB,nominalP,p.bridgeCold,p.bridgeHot,p.ptcTcr);
   const tcr=bT=>(nominalP*bT+nominalB*p.ptcTcr)/(nominalB+nominalP);
   const samples=Array.from({length:33},(_,i)=>{const temp=p.minTemp+(p.maxTemp-p.minTemp)*i/32;const values=scenarios.map(s=>resistance(temp,s.b,s.p,p.bridgeCold,p.bridgeHot,s.pt));return {temp,min:Math.min(...values),max:Math.max(...values),nominal:nominalAt(temp)}});
-  return {minOhm:Math.min(...endpoints),maxOhm:Math.max(...endpoints),nominalOhm:nominalAt(25),nominalPtcOhm:nominalP,effectiveCold:tcr(p.bridgeCold),effectiveHot:tcr(p.bridgeHot),inferred,profileMismatch:!!inferred&&(inferred.min<ps[0]||inferred.max>ps[ps.length-1]),samples};
+  return {minOhm:Math.min(...endpoints),maxOhm:Math.max(...endpoints),nominalOhm:nominalAt(25),nominalPtcOhm:nominalP,effectiveCold:tcr(p.bridgeCold),effectiveHot:tcr(p.bridgeHot),inferred,profileMismatch:!!inferred&&ps.length>0&&(inferred.min<ps[0]||inferred.max>ps[ps.length-1]),samples};
  }
  function plan(input={},anchor=null){
   const p={...defaults,...input};const r=range(p,anchor);return {...r,selection:A.plan({minOhm:r.minOhm,maxOhm:r.maxOhm,svddCode:p.svddCode,fullSupplyTolerance:p.fullSupplyTolerance})};

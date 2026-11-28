@@ -43,11 +43,14 @@ assert.throws(()=>t.fitBridgeOffline([{...pts[0],adc_tc:null}],{},fac,CAL.fit));
 console.log('63 native DLL simulation samples match the shunt correction model; offline synthetic bridge fit passed');
 
 const ptc=require('../ptc-profile.js');
-const nominal=ptc.range({bridgeTolerance:0,parallelTolerance:0,ptcTcrTolerance:0});
+assert.equal(ptc.defaults.parallelOhm,null);
+assert.throws(()=>ptc.range());
+// Synthetic test values, not a product specification.
+const nominal=ptc.range({parallelOhm:10000,bridgeTolerance:0,parallelTolerance:0,ptcTcrTolerance:0});
 near(nominal.nominalOhm,5000);
 near(nominal.effectiveCold,1060);
 near(nominal.effectiveHot,1090);
-const wide=ptc.range();
+const wide=ptc.range({parallelOhm:10000,parallelTolerance:40});
 assert.ok(wide.minOhm<nominal.minOhm&&wide.maxOhm>nominal.maxOhm);
 const anchored=ptc.range({bridgeTolerance:0,ptcTcrTolerance:0},{ohm:5000,temp:25,uncertainty:0});
 near(anchored.nominalPtcOhm,10000);
@@ -58,7 +61,7 @@ near(ptc.range({bridgeTolerance:0,ptcTcrTolerance:0},{ohm:hotR,temp:50,uncertain
 assert.throws(()=>ptc.range({}, {ohm:11000,temp:25,uncertainty:0}));
 assert.throws(()=>ptc.range({ptcTcr:-1}));
 assert.throws(()=>ptc.range({minTemp:125,maxTemp:-40}));
-assert.ok(ptc.plan().selection.candidates.length===16);
+assert.ok(ptc.plan({parallelOhm:5000}).selection.candidates.length===16);
 assert.equal(ptc.checkPoint({adc:-14724,adcTC:0,adcS:1000,svdd:2,afe0:0x0d72,afe2:0x114a}).valid,true);
 assert.equal(ptc.checkPoint({adc:-14724,adcTC:32767,adcS:1000,svdd:2,afe0:0x0d72,afe2:0x114a}).valid,false);
 console.log('PTC 560 profile, piecewise TCR, uncertainty, measured anchor and ADC checks passed');
