@@ -141,8 +141,8 @@ const ELMOS_GUIDED=(()=>{
    '<section id="gwConnectionPage" class="gw-page gw-connection-page" hidden><div class="gw-panel-actions gw-connection-backbar"><button id="gwConnectionBackTop" type="button">← Zurück zum Assistenten</button></div><div class="gw-columns">'+
     '<section class="gw-tile"><h3>USB-Adapter und Chip-Protokoll</h3><p>Bei einem anderen Sensor kannst du 1-Wire, I²C oder SPI auswählen, ohne in die klassische Ansicht zu wechseln. Der bisherige USB-Port wird sicher geschlossen und mit dem neuen Protokoll neu initialisiert.</p>'+
     '<div class="gw-fields"><label>Programmieradapter<select id="gwConnectionAdapter"><option value="ssp3">Original ELMOS SSP3</option><option value="bridge">ESP32-C3 / Pro Micro</option></select></label><label>Chip-Schnittstelle<select id="gwConnectionInterface"><option value="plc">1-Wire · AODO</option><option value="i2c">I²C · SCL/SDA</option><option value="spi">SPI · Testmodus (SSP3)</option></select></label></div>'+ 
-    '<label id="gwConnectionPowerWrap" class="gw-connection-power" hidden><input id="gwConnectionPowerCycle" type="checkbox"> Sensorversorgung über Adapter steuern (ESP32 GPIO10 / Pro Micro D7)</label>'+
-    '<p id="gwConnectionPowerHint" class="gw-connection-hint" hidden>Nur mit angeschlossenem Lastschalter. Die Einstellung gilt beim nächsten Verbindungsaufbau und startet den Sensor neu; kein NVM-Schreiben.</p>'+
+    '<label id="gwConnectionPowerWrap" class="gw-connection-power" hidden><input id="gwConnectionPowerCycle" type="checkbox" checked disabled> Sensorversorgung automatisch gesteuert (ESP32 GPIO10 / Pro Micro D7)</label>'+
+    '<p id="gwConnectionPowerHint" class="gw-connection-hint" hidden>Der integrierte Lastschalter ermöglicht den automatischen Sensorneustart. Kein zusätzliches NVM-Schreiben.</p>'+
     '<div class="gw-panel-actions"><button id="gwConnectionApply" class="primary" type="button">Protokoll übernehmen &amp; verbinden</button><button id="gwConnectionChoose" type="button">Anderen USB-Port auswählen</button></div><p class="gw-connection-hint">Ein neuer Sensor erhält eine neue Chip-UID-Prüfung. Ein bisheriger Abgleich wird vor dem Wechsel separat abgeschlossen oder als unvollständig archiviert. Keine NVM-Programmierung.</p>'+
     '<div class="gw-alert" id="gwConnectionStatus" role="status">Verbindungsstatus wird abgefragt.</div></section>'+
     '<section class="gw-tile"><h3>Verbindung beheben</h3><p>Falls der Adapter verbunden ist, aber der Sensor nicht antwortet, kannst du die Register nur lesend prüfen und das USB-Protokoll zur Fehlersuche speichern.</p>'+
@@ -749,7 +749,7 @@ const ELMOS_GUIDED=(()=>{
   if(!connectionOpen)return;
   updateConnectionChoices();
   const expert=$('expertMode').checked;
-  $('gwConnectionPowerCycle').disabled=connectionBusy||state().connectionBusy;
+  $('gwConnectionPowerCycle').disabled=true;
   for(const id of ['gwConnectionAdvanced','gwConnectionDiagnose','gwConnectionStartup'])$(id).hidden=!expert;
   if(!expert){
    $('gwConnectionAdvanced').open=false;
