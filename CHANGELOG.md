@@ -1,3 +1,10 @@
+## v0.7.228 – Dynamische SSC-Temperaturanzeige
+
+- Interne Temperatur auch ohne bekanntes Kalibrierprofil als ausdrücklich gekennzeichnete ADC_T-Näherung aus der dokumentierten Elmos-Beispielkennlinie anzeigen.
+- Reiner Druckabgleich: aufgenommene Referenztemperatur und ADC_T für eine dynamische Einpunkt-Offsetnäherung nutzen. Erkannte Werkskennlinie innerhalb 5 °C am Referenzpunkt unverändert anzeigen.
+- Temperaturreferenz und bestätigtes AN0203-Profil pro Chip-UID lokal speichern; Temperaturquelle und AFE2 müssen zur Referenz passen. Vorhandene NVM-Temperaturregister und alle Schreibfreigaben bleiben unverändert.
+- Bei fehlendem ADC_T oder unbestätigter Temperaturquelle keine vorgetäuschte °C-Anzeige. PTC/externe Fühler benötigen weiterhin ein geeignetes Kalibrierprofil. Hardwaregenauigkeit noch nicht validiert.
+
 ## v0.7.227 – Sensorwert-Details per Hover
 
 - Fragezeichen in der Sensorwert-Kachel vollständig entfernt. Berechnungsdetails werden beim Überfahren der ganzen Kachel bzw. beim Tastaturfokus als frei positionierter Tooltip angezeigt; keine zusätzliche Layoutzeile, kein Einfluss auf die Messwertausrichtung.
