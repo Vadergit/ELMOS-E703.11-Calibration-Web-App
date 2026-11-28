@@ -3646,11 +3646,11 @@ if(typeof document!=='undefined') (function UI(){
   renderStatus();
   scheduleAutoReconnect();
  }
- async function reinitializeSensor(){
+ async function reinitializeSensor(options={}){
   if(!uiReady)return show('connMsg','Softwareinitialisierung nicht abgeschlossen. Seite vollständig neu laden.','error');
-  return withProgress('Sensor wird initialisiert',()=>reinitializeSensorOperation(),true);
+  return withProgress('Sensor wird initialisiert',()=>reinitializeSensorOperation(options),true);
  }
- async function reinitializeSensorOperation(){
+ async function reinitializeSensorOperation({newCalibrationStart=null}={}){
   const port=st.port;
   if(!port||st.closing||st.reinitRunning)return;
   // Manual recovery has priority over background auto probes. Stop future
@@ -3673,6 +3673,7 @@ if(typeof document!=='undefined') (function UI(){
   st.reinitRunning=true;st.ramRecoveryAttempted=false;st.ramRecoveryRetryable=false;
   st.psscRamRecovery=false;st.coldStartAfeRestored=false;st.calibrationPreflight=null;
   st.startupTrials=[];
+  if(newCalibrationStart){st.bridgeColdStart=null;st.magicResult=null;st.ptcHardware=null;st.temperatureBaseline=null;st.nvmBackupProof=null;}
   st.chip=false;st.readOnlySensor=null;st.plcAddressVerified=false;st.plcAddressProbes=[];stopLive();
   if(st.liveReadPromise)await st.liveReadPromise.catch(()=>{});
   st.adc=null;st.dsp=null;st.dspError=null;st.dspT=null;st.dspTError=null;st.afe=null;st.afe0=null;st.boot=null;st.regs={};
@@ -3691,8 +3692,12 @@ if(typeof document!=='undefined') (function UI(){
     // Same guarded VSUPPLY / PLC P/T / Magic-Cookie sequence used at first connect.
     // Only volatile RAM configuration is touched; no automatic NVM writes.
     $('plcPowerConfirm').checked=true;
-    if(!await probePlcAddresses('Neuinitialisierung ohne Power-Cycle',true))
+    if(newCalibrationStart==='ssp3-power'){
      await startSsp3WithBoundedRetry();
+    }else if(!await probePlcAddresses('Neuinitialisierung ohne Power-Cycle',true)){
+     if(newCalibrationStart==='manual')throw Error('Manueller Neustart: keine gültige Chipantwort im Startfenster.');
+     await startSsp3WithBoundedRetry();
+    }
    }else{
     if(st.adapterKind==='bridge'){
      const ready=await bridgeHello();
@@ -3718,7 +3723,7 @@ if(typeof document!=='undefined') (function UI(){
    st.reinitRunning=false;renderStatus();
    if(!st.chip&&!st.adapterNoReply)scheduleAutoReconnect();
   }
-  if(st.port===port&&st.adapterNoReply&&!st.closing)await reopenSsp3Port();
+  if(!newCalibrationStart&&st.port===port&&st.adapterNoReply&&!st.closing)await reopenSsp3Port();
  }
  // Reopen the SAME previously authorised Web Serial port, without F5
  // or requesting fresh permissions. Only invoked by a deliberate click.
@@ -6705,6 +6710,69 @@ if(typeof document!=='undefined') (function UI(){
   }
  }
 
+ // New calibration only: a fresh power-start is distinct from a communication retry.
+ function newCalibrationPowerPath({adapter,iface,powerEnabled,ssp3Confirmed}){
+  if(adapter==='ssp3'&&iface==='plc'&&ssp3Confirmed)return 'ssp3-power';
+  if(adapter==='bridge'&&['plc','i2c'].includes(iface)&&powerEnabled)return 'bridge-power';
+  return 'manual';
+ }
+ function newCalibrationRestartProven(path,{port,session,uid,trials=[],powerResult,bridgeProof,manualConfirmed=false}){
+  const matching=x=>x?.port===port&&x.session===session;
+  if(path==='ssp3-power')return [...trials,powerResult].some(x=>matching(x)&&x.powerRestored===true&&x.readVerified===true&&x.verifiedUid===uid);
+  if(path==='bridge-power')return !!(matching(bridgeProof)&&bridgeProof.uid===uid);
+  return path==='manual'&&manualConfirmed===true;
+ }
+ let newCalibrationBusy=false;
+ async function prepareNewCalibration(){
+  if(newCalibrationBusy||!st.chip||!st.port||st.closing||st.calTask||st.writing||st.nvmWorking||st.reinitRunning||st.powerCycleRunning||st.afeWriteActive||st.magicRunning||st.startupRunning||st.diagRunning||st.ramMeasurementStarting||window.ELMOS_TEST_LOGGER?.isBusy())throw Error('Zuerst laufenden Sensorvorgang abschliessen.');
+  newCalibrationBusy=true;
+  const priorPause=st.manualLivePause;
+  const priorUid=st.uid?.hex,port=st.port,session=st.sessionIndex;
+  try{
+   if(demoEnabled){
+    demoPort.clearPtcProfile();demoPort.reboot();
+    st.ptcHardware=null;st.temperatureBaseline=null;st.calibrationPreflight=null;st.nvmDone=false;st.trend=[];st.history=[];erasePoints();
+    await readADC();logging('Neuer Demo-Abgleich: Sensor-RAM simuliert neu gestartet.');
+    return;
+   }
+   if(!priorUid)throw Error('Sensor-UID fehlt.');
+   const archive=window.ELMOS_ARCHIVE;
+   if(archive?.active){
+    if(archive.current?.type!=='calibration'||archive.current?.chipUID!==priorUid)throw Error('Offenes Prüfprotokoll zuerst abschliessen.');
+    if(!st.nvmDone&&!window.confirm('Bisherigen Abgleich abschliessen und einen neuen beginnen? Nicht gespeicherte RAM-Änderungen werden beim Neustart verworfen.'))throw Error('Neuer Abgleich abgebrochen.');
+   }
+   const draft=storedCalibrationCheckpoint(priorUid);
+   if(draft&&!window.confirm('Für diesen Sensor existieren gesicherte Messpunkte. Neuen Abgleich beginnen und bisherigen Messpunktentwurf nach erfolgreichem Neustart verwerfen?'))throw Error('Messpunktentwurf bleibt erhalten.');
+   if(st.adapterKind==='ssp3'&&st.iface==='plc'&&!$('plcPowerConfirm').checked){
+    if(window.confirm('Wird der Sensor ausschliesslich über die schaltbare SSP3-VSUPPLY versorgt? Dann kann der Sensor automatisch neu gestartet werden.'))$('plcPowerConfirm').checked=true;
+   }
+   const path=newCalibrationPowerPath({adapter:st.adapterKind,iface:st.iface,powerEnabled:st.sensorPowerEnabled&&$('plcPowerCycle').checked,ssp3Confirmed:$('plcPowerConfirm').checked});
+   st.manualLivePause=true;stopLive();if(st.liveReadPromise)await st.liveReadPromise.catch(()=>{});
+   let manualConfirmed=false;
+   if(path==='manual'){
+    manualConfirmed=window.confirm('Sensor jetzt vollständig stromlos machen (nicht nur USB-Kommunikation trennen), kurz warten und wieder einschalten. Erst danach OK wählen. Bei Abbrechen bleibt der neue Abgleich ungestartet.');
+    if(!manualConfirmed)throw Error('Neustart nicht bestätigt.');
+   }
+   if(archive?.active)await finishSensorArchive(priorUid);
+   await reinitializeSensor({newCalibrationStart:path});
+   if(st.port!==port||st.sessionIndex!==session||!st.chip||st.uid?.hex!==priorUid)throw Error('Sensor nach Neustart nicht mit derselben UID bestätigt. Verbindung prüfen.');
+   if(!newCalibrationRestartProven(path,{port,session,uid:priorUid,trials:st.startupTrials,powerResult:st.powerCycleResult,bridgeProof:st.bridgeColdStart,manualConfirmed}))throw Error('Sensorneustart nicht bestätigt. Keine neue Kalibrierung gestartet.');
+   st.nvmBackup=null;st.nvmBackupVerified=false;st.nvmBackupProof=null;
+   if(!await nvmScan({expertRead:true})||!hasCurrentNvmBackup())throw Error('Original-NVM konnte nach dem Neustart nicht vollständig mit UID und CRC gelesen werden.');
+   if(st.port!==port||st.sessionIndex!==session||await readCalibrationUid()!==priorUid)throw Error('Sensor nach NVM-Lesung gewechselt.');
+   const profile=await readCalibrationProfile(),words=st.nvmBackup;
+   if(profile[0x1E]!==words[29]||((profile[0x1A]^words[27])&0xf0)!==0)throw Error('Temperatur-AFE im RAM stimmt nach Neustart nicht mit dem NVM überein. Versorgung und Startsequenz prüfen.');
+   // Startup recovery may legitimately enable measurement/communication bits.
+   // Keep the existing startup and calibration preflight guards authoritative.
+   Object.assign(st.regs,profile);st.boot=await bootSnapshot();st.afe0=profile[0x1A];
+   st.ptcHardware=null;st.temperatureBaseline=null;st.calibrationPreflight=null;st.trend=[];st.history=[];
+   if(draft)lsSet(checkpointKey(priorUid),'');
+   window.ELMOS_PTC_DEV_UI?.sourceChanged?.();
+   logging('Neuer Abgleich: '+path+' · UID '+priorUid+' · 64 NVM-Wörter CRC8/CRC16 und RAM-Profil frisch gelesen. Kein NVM-Schreiben.');
+   show('connMsg','Neuer Abgleich bereit: Sensor neu gestartet, NVM und RAM geprüft.','success');
+  }finally{newCalibrationBusy=false;st.manualLivePause=priorPause;if(!priorPause&&st.chip&&!st.closing)startLive();renderStatus();}
+ }
+
  async function prepareNextSensor(matrix){
   if(demoEnabled||!st.port||!st.chip||!st.nvmDone||st.closing||
      st.calTask||st.nvmWorking||st.writing||st.powerCycleRunning||st.ramMeasurementStarting)
@@ -6826,6 +6894,7 @@ if(typeof document!=='undefined') (function UI(){
   alarmStandaloneReady:()=>ELMOS_ALARM_EDITOR.ready(),
   alarmProfile:()=>ELMOS_ALARM_EDITOR.profileFromUi(),
   offerSeriesPreset,
+  prepareNewCalibration,
   prepareNextSensor,
   applySeriesSettings:profile=>applySeriesConfig(profile,configIncluded(profile)),
   hasKnownSwapPort:async()=>{

@@ -894,6 +894,11 @@ const ELMOS_GUIDED=(()=>{
   if(stage===0){
    if(task==='inspect'){close({preservePreference:true});if(mode)return;window.ELMOS_GUIDED_API?.navigate?.(7);return}
    if(task==='testlog'){goto(11);return}
+   if(task==='calibration'){
+    msg('Sensor wird neu gestartet. Original-NVM und RAM werden frisch ausgelesen …','warn');
+    try{await window.ELMOS_GUIDED_API.prepareNewCalibration();}
+    catch(e){msg('Neuer Abgleich konnte nicht vorbereitet werden: '+e.message,'error');return;}
+   }
    if(task==='calibration'&&!seriesSettings){
     try{await window.ELMOS_GUIDED_API?.offerSeriesPreset?.()}
     catch(e){msg('Vorlage konnte nicht übernommen werden. '+e.message,'error');return}
