@@ -44,6 +44,10 @@ console.log('63 native DLL simulation samples match the shunt correction model; 
 
 const ptc=require('../ptc-profile.js');
 assert.equal(ptc.defaults.parallelOhm,7000);
+assert.equal(ptc.defaults.parallelTolerance,20);
+near(ptc.range().ptcMinOhm,6090);
+near(ptc.range().ptcMaxOhm,8400);
+assert.ok(ptc.range({parallelTolerance:30}).minOhm<ptc.range().minOhm);
 near(ptc.range().nominalOhm,70000/17);
 assert.throws(()=>ptc.range({parallelOhm:null}));
 near(ptc.range({parallelOhm:5000}).nominalOhm,10000/3);

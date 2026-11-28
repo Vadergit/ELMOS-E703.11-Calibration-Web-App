@@ -1,6 +1,6 @@
 "use strict";
 function buildPtcProfile(A){
- const defaults=Object.freeze({bridgeOhm:10000,bridgeTolerance:10,parallelOhm:7000,parallelTolerance:0,bridgeCold:120,bridgeHot:180,ptcTcr:2000,ptcTcrTolerance:20,minTemp:-40,maxTemp:125,svddCode:2,fullSupplyTolerance:true});
+ const defaults=Object.freeze({bridgeOhm:10000,bridgeTolerance:10,parallelOhm:7000,parallelTolerance:20,bridgeCold:120,bridgeHot:180,ptcTcr:2000,ptcTcrTolerance:20,minTemp:-40,maxTemp:125,svddCode:2,fullSupplyTolerance:true});
  const check=(b,m)=>{if(!b)throw new RangeError(m)};
  const pos=(v,m)=>{check(Number.isFinite(v)&&v>0,m);return v};
  const limits=(v,t)=>[v*(1-t/100),v*(1+t/100)];
@@ -40,7 +40,7 @@ function buildPtcProfile(A){
   const nominalAt=t=>resistance(t,nominalB,nominalP,p.bridgeCold,p.bridgeHot,p.ptcTcr);
   const tcr=bT=>(nominalP*bT+nominalB*p.ptcTcr)/(nominalB+nominalP);
   const samples=Array.from({length:33},(_,i)=>{const temp=p.minTemp+(p.maxTemp-p.minTemp)*i/32;const values=scenarios.map(s=>resistance(temp,s.b,s.p,p.bridgeCold,p.bridgeHot,s.pt));return {temp,min:Math.min(...values),max:Math.max(...values),nominal:nominalAt(temp)}});
-  return {minOhm:Math.min(...endpoints),maxOhm:Math.max(...endpoints),nominalOhm:nominalAt(25),nominalPtcOhm:nominalP,effectiveCold:tcr(p.bridgeCold),effectiveHot:tcr(p.bridgeHot),inferred,profileMismatch:!!inferred&&ps.length>0&&(inferred.min<ps[0]||inferred.max>ps[ps.length-1]),samples};
+  return {minOhm:Math.min(...endpoints),maxOhm:Math.max(...endpoints),nominalOhm:nominalAt(25),nominalPtcOhm:nominalP,ptcMinOhm:nominalP*factor(p.minTemp,p.ptcTcr),ptcMaxOhm:nominalP*factor(p.maxTemp,p.ptcTcr),nominalMinOhm:nominalAt(p.minTemp),nominalMaxOhm:nominalAt(p.maxTemp),effectiveCold:tcr(p.bridgeCold),effectiveHot:tcr(p.bridgeHot),inferred,profileMismatch:!!inferred&&ps.length>0&&(inferred.min<ps[0]||inferred.max>ps[ps.length-1]),samples};
  }
  function plan(input={},anchor=null){
   const p={...defaults,...input};const r=range(p,anchor);return {...r,selection:A.plan({minOhm:r.minOhm,maxOhm:r.maxOhm,svddCode:p.svddCode,fullSupplyTolerance:p.fullSupplyTolerance})};
