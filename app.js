@@ -1151,6 +1151,11 @@ if(typeof document!=='undefined') (function UI(){
   }
   throw Error('Keine neue '+(addr===0x28?'ADC_T':'DSP_T')+'-Konversion bestätigt (STATUS_SYNC).');
  }
+ function validateDevTemperatureConfiguration(words,boot,biasMode){
+  const result=ELMOS_TEMPERATURE_AFE.validateProfile({...words,pads0:boot[8],pads1:boot[10],pads2:boot[12],spiI2c:boot[6],biasMode});
+  if(result.errors.length)throw Error(result.errors.join(' · '));
+  return result.warnings;
+ }
  async function configureHardwareTemperature(profile,code,temperature,onProgress){
   if(!ptcDev||demoEnabled||st.mode!=='usb'||st.iface!=='plc'||!(st.adapterKind==='ssp3'||(st.adapterKind==='bridge'&&st.bridgeGenericRam&&st.bridgeUserNvm)))throw Error('DEV Temperatur-AFE: SSP3 oder generische RAM-/User-NVM-Bridge über One-Wire erforderlich.');
   if(!hasCurrentNvmBackup())await nvmScan({expertRead:true});
@@ -1158,13 +1163,13 @@ if(typeof document!=='undefined') (function UI(){
   const uid=st.uid.hex,port=st.port,session=st.sessionIndex,original=st.nvmBackup.slice();
   const source=profile.source,bridge=source==='bridge';
   if(!['bridge','external'].includes(source)||source!==selectedTemperatureSource())throw Error('Temperaturquelle nicht eindeutig.');
-  if(!bridge&&((original[20]>>7)&3)===0&&(original[18]&0x0fff))throw Error('EOC ist als STATUS-Ausgang konfiguriert. Erst kompatible Pin-/Alarmkonfiguration herstellen.');
+
   if(st.calpoints.length||storedCalibrationCheckpoint(uid)){
    if(!window.confirm('Temperatur-AFE ändern? Vorhandene Kalibriermesspunkte und gespeicherter Entwurf werden verworfen.'))throw Error('Abgebrochen; bisherige Messpunkte bleiben erhalten.');
   }
   if(!window.confirm('Experimentelles Temperaturprofil auf Sensor '+uid+' ins RAM schreiben? Nur RAM, kein NVM. Original-EEPROM bleibt erhalten.'))throw Error('Abgebrochen.');
   const resume=st.live&&!st.manualLivePause;stopLive();st.calTask=true;st.writing=true;st.ramWriteScope='dev-temperature';
-  let saved=null,started=false,measurement=null,plan=null,nominalOnly=false,finalProbe=null,probes=[];
+  let saved=null,started=false,measurement=null,plan=null,nominalOnly=false,finalProbe=null,probes=[],warnings=[];
   try{
    if(st.liveReadPromise)await st.liveReadPromise.catch(()=>{});
    if(await readCalibrationUid()!==uid||st.port!==port||st.sessionIndex!==session)throw Error('Sensor gewechselt.');
@@ -1177,6 +1182,7 @@ if(typeof document!=='undefined') (function UI(){
    const A=ELMOS_TEMPERATURE_AFE;
    const bridgeTarget=c=>A.merge({afe0:saved[26],afe2:saved[30],cfgEn:saved[4],code:c,svddCode});
    const writeTarget=async next=>{
+    warnings=[...new Set([...warnings,...validateDevTemperatureConfiguration({source,...next},boot,bridge?0:profile.eocBias),...validateDevTemperatureConfiguration({source,...next,cfgEn:(original[16]&~0x100c)|(next.cfgEn&0x100c)},{6:original[17],8:original[18],10:original[19],12:original[20]},bridge?0:profile.eocBias)])];
     if(((saved[26]^next.afe0)&~0xf0)!==0||((saved[30]^next.afe2)&~0x0fff)!==0||((saved[4]^next.cfgEn)&~0x100c)!==0||((original[29]^next.afe2)&~0x0fff)!==0||(!bridge&&((original[27]^next.afe0)&0xf0)!==0))throw Error('DEV: nicht zulässige AFE-Bits oder ursprüngliches NVM-Profil.');
     if(await readCalibrationUid()!==uid||st.port!==port||st.sessionIndex!==session||selectedTemperatureSource()!==source)throw Error('Sensor oder Temperaturquelle gewechselt.');
     st.devTemperatureWrite={4:next.cfgEn,26:next.afe0,30:next.afe2};
@@ -1205,29 +1211,39 @@ if(typeof document!=='undefined') (function UI(){
      onProgress?.('Gesamtwiderstand ca. '+Math.round(measurement.ohm)+' Ω · RPGA '+found.code+' · Temperaturbereich wird berechnet …');
      plan=PTC_PROFILE.plan(profile,measurement);
      if(!plan.selection.best){const alt=PTC_PROFILE.plan({...profile,fullSupplyTolerance:false},measurement);if(alt.selection.best&&window.confirm('Kein RPGA deckt den gesamten geschätzten Widerstands- und SVDD-Toleranzbereich ab. Experimentell mit nominaler SVDD fortfahren? Temperaturgrenzen separat prüfen.')){plan=alt;nominalOnly=true;}}
-     if(!plan.selection.best)throw Error('Gesamtwiderstand ca. '+Math.round(measurement.ohm)+' Ω ermittelt, aber kein RPGA für den gewählten Temperatur-/Toleranzbereich. Betriebsbereich und Modellunsicherheit prüfen.');
+     if(!plan.selection.best){const point=PTC_PROFILE.plan({...profile,fullSupplyTolerance:false,minTemp:Math.max(profile.minTemp,temperature-0.01),maxTemp:Math.min(profile.maxTemp,temperature+0.01)},{...measurement,uncertainty:0});plan={...plan,selection:{...plan.selection,best:point.selection.best||A.rpga(found.code)}};nominalOnly=true;warnings.push('Kein RPGA deckt die gesamte modellierte Temperaturhülle ab. Aktuell gemessene Stufe wird verwendet; Temperaturgrenzen real prüfen.');}
      code=plan.selection.best.code;target=bridgeTarget(code);
      onProgress?.('Optimale RPGA '+code+' wird eingestellt und rückgemessen …');
      finalProbe=await probe(target);
-     if(!finalProbe.valid)throw Error('Berechnete RPGA '+code+' liefert keinen gültigen stabilen ADC_T. AFE wurde nicht übernommen.');
+     if(!finalProbe.valid&&code!==found.code){warnings.push('Vorgeschlagene RPGA-Stufe bei aktueller Temperatur ungeeignet; Rückkehr zur gültig gemessenen Stufe.');code=found.code;target=bridgeTarget(code);finalProbe=await probe(target);plan={...plan,selection:{...plan.selection,best:A.rpga(code)}};nominalOnly=true;}
+     if(!finalProbe.valid)throw Error('Keine gültige stabile ADC_T-Messung nach Einstellung.');
      if(Math.abs(finalProbe.resistanceOhm/measurement.ohm-1)>Math.max(0.05,uncertainty/100))throw Error('Widerstandsschätzung nach RPGA-Wechsel nicht plausibel. Temperatur stabilisieren und Messung wiederholen.');
     }else{target=bridgeTarget(A.rpga(code).code);if(await readReg(0x0E)!==1)throw Error('Temperatur-AFE-Prüfung benötigt kontinuierliche Messung (CFG_PERIOD=1).');finalProbe=await probe(target);if(!finalProbe.valid)throw Error('Manuelle RPGA-Auslegung liefert keinen gültigen stabilen ADC_T.');}
 
    }else{
-    const plan=ELMOS_EXTERNAL_AFE.plan(profile);
-    if(!plan.best||plan.best.i!==code?.i||plan.best.j!==code?.j)throw Error('EOC-AFE-Vorschlag veraltet.');
+    plan=ELMOS_EXTERNAL_AFE.plan(profile);
+    if(!code||!plan.candidates.some(g=>g.i===code.i&&g.j===code.j))throw Error('EOC-AFE-Vorschlag ungültig.');
+    if(!plan.best||!code.valid)warnings.push('EOC-Modell deckt den vollständigen Temperatur-/Toleranzbereich nicht ab. Reale Messung erforderlich.');
+    if(profile.eocBias===1&&!window.confirm('Interne 10-µA-Stromquelle einschalten? Nur für passiven Diodenfühler bzw. dafür ausgelegte Beschaltung.'))throw Error('Diodenstrom nicht bestätigt.');
     target={afe0:saved[26],afe2:ELMOS_EXTERNAL_AFE.merge(saved[30],profile,code),cfgEn:(saved[4]&~0x100c)|0x1004};
+    await writeTarget(target);await sleep(300);await readReg(0x28);
+    const samples=[];for(let i=0;i<7;i++){samples.push((await readFreshDevTemperature(0x28,0x0004)).value);if(i<6)await sleep(80);}
+    finalProbe=ELMOS_EXTERNAL_AFE.assessSamples(samples);
+    if(finalProbe.saturated)throw Error('EOC ADC_T gesättigt. Geringere TPGA-Verstärkung oder Eingangsspannung prüfen.');
+    if(finalProbe.outsideRecommended)warnings.push('EOC ADC_T ausserhalb empfohlenem Linearbereich ±23593 Digits.');
+    if(finalProbe.unstable)warnings.push('EOC ADC_T noch instabil. Temperatur vor Messpunkt stabilisieren.');
    }
    if(((saved[26]^target.afe0)&~0xf0)!==0||((saved[30]^target.afe2)&~0x0fff)!==0||((saved[4]^target.cfgEn)&~0x100c)!==0)throw Error('DEV: nicht zulässige AFE-Bits.');
    if(((original[29]^target.afe2)&~0x0fff)!==0||(!bridge&&((original[27]^target.afe0)&0xf0)!==0))throw Error('DEV: ursprüngliches NVM-Profil passt nicht zum Ziel.');
    await writeTarget(target);
    const expectedBoot={...boot,4:target.cfgEn};if(!sameBoot(expectedBoot,await bootSnapshot())||await readCalibrationUid()!==uid)throw Error('Bootregister oder UID nach AFE-Übernahme verändert.');
    st.boot=expectedBoot;st.afe0=target.afe0;st.regs[0x1A]=target.afe0;st.regs[0x1E]=target.afe2;st.regs[4]=target.cfgEn;
-   st.ptcHardware={port,session,uid,source,words:{source,...target}};
+   st.ptcHardware={port,session,uid,source,biasMode:bridge?0:profile.eocBias,words:{source,...target}};
    st.calibrationPreflight=null;lsSet(checkpointKey(uid),'');erasePoints();st.trend=[];st.history=[];
    renderAFEStepperState();await readADC();
    if(measurement){try{await window.ELMOS_ARCHIVE?.event('dev_temperature_afe_auto',{uid,profile,measurement,finalProbe,probes,nominalOnly,registers:target});}catch(e){logging('DEV AFE-Protokoll: '+e.message);}}
-   return {...target,uid,experimental:true,measurement,plan,nominalOnly,finalProbe,probes};
+   warnings.forEach(w=>logging('DEV Temperatur-AFE Hinweis: '+w));
+   return {...target,uid,experimental:true,measurement,plan,nominalOnly,finalProbe,probes,warnings};
   }catch(error){
    st.ptcHardware=null;st.calibrationPreflight=null;
    if(started&&saved&&st.port===port&&st.sessionIndex===session&&await readCalibrationUid().catch(()=>null)===uid){
@@ -1250,6 +1266,7 @@ if(typeof document!=='undefined') (function UI(){
    const d=hardwareTemperature(selected);if(!d)throw Error('DEV: Temperatur-AFE zuerst am verbundenen Sensor einstellen.');
    const afe0=await readReg(0x1A),afe2=await readReg(0x1E),cfgEn=await readReg(4);
    if(afe2!==d.afe2||((afe0^d.afe0)&0xf3)!==0||((cfgEn^d.cfgEn)&0x100c)!==0)throw Error('DEV: Temperatur-AFE seit Übernahme verändert. Neu einstellen.');
+   validateDevTemperatureConfiguration({source:selected,afe0,afe2,cfgEn},await bootSnapshot(),st.ptcHardware?.biasMode);
    if(selected==='bridge'&&((afe2&0x0fff)!==0x014a||await readReg(0x66)!==st.nvmBackup?.[11]||await readReg(0x68)!==st.nvmBackup?.[12]))throw Error('Werkstrimm-Konfiguration oder G01/G2OFF verändert.');
    return {temperatureSource:selected,afe2};
   }
@@ -4729,7 +4746,7 @@ if(typeof document!=='undefined') (function UI(){
  function normalizeDevTemperature(before,after){
    const expected=devTemperatureWords(),source=selectedTemperatureSource();
    if(!expected||after[29]!==expected.afe2||((after[27]^expected.afe0)&0xf0)!==0||(after[16]&0x100c)!==(0x1000|(source==='external'?4:8))||((after[29]^before[29])&~0x0fff)!==0||(source==='external'&&((after[27]^before[27])&0xf0)!==0))throw Error('DEV: unerwartetes Temperaturprofil im NVM-Plan.');
-   if(source==='external'&&((after[20]>>7)&3)===0&&(after[18]&0x0fff))throw Error('EOC als Temperatur-Eingang: STATUS-Ausgabe unzulässig.');
+   validateDevTemperatureConfiguration({source,afe0:after[27],afe2:after[29],cfgEn:after[16]},{6:after[17],8:after[18],10:after[19],12:after[20]},st.ptcHardware?.biasMode);
    const checked=after.slice();checked[29]=before[29];checked[27]=(checked[27]&~0xf0)|(before[27]&0xf0);checked[16]=(checked[16]&~0x100c)|(before[16]&0x100c);checked[63]=CAL.crc16(checked);return checked;
  }
  function validateDevRecoveryDiff(before,after,options){return CAL.validateRecoveryCalibrationDiff(before,devPtcFit()?normalizeDevTemperature(before,after):after,options);}
@@ -5211,6 +5228,7 @@ if(typeof document!=='undefined') (function UI(){
     const actualAfe2=await readReg(0x1E),actualAfe0=await readReg(0x1A),actualEn=await readReg(0x04);
     if(actualAfe2!==modified[29]||((actualAfe0^modified[27])&0x00f3)!==0||((actualEn^modified[16])&0x100c)!==0)
      throw Error('DEV Temperaturprofil im RAM stimmt nicht mit dem NVM-Plan überein. AFE und DSP erneut prüfen.');
+    validateDevTemperatureConfiguration({source:selectedTemperatureSource(),afe0:actualAfe0,afe2:actualAfe2,cfgEn:actualEn},await bootSnapshot(),st.ptcHardware?.biasMode);
     if(selectedTemperatureSource()==='bridge'&&(await readReg(0x66)!==initial[11]||await readReg(0x68)!==initial[12]))throw Error('DEV: Werkstrimm im RAM wurde verändert. NVM-Schreiben gesperrt.');
    }
    // Only USER region access is authorized; NEVER unlock factory calibration area.
