@@ -97,3 +97,16 @@ const withoutPressure=ptc.range({bridgePressureVariation:0}),withPressure=ptc.ra
 assert.ok(withPressure.minOhm<withoutPressure.minOhm&&withPressure.maxOhm>withoutPressure.maxOhm);
 assert.ok(withPressure.pressureTemperatureErrorC>0);
 console.log('Factory TPGA masks, resistance envelope and pressure dependence passed');
+
+// DS 25DS0170E.04 compatibility: distinguish warnings from active conflicts.
+const validPTC={source:'bridge',afe0:0x0d72,afe2:0x114a,cfgEn:0x12da,pads0:0x4000,pads1:0x099f,pads2:0x000f,spiI2c:0x6c06,biasMode:0};
+assert.deepEqual(t.validateProfile(validPTC).errors,[]);
+for(const patch of [{afe0:0xd73},{afe0:0x0d76},{afe2:0x014a},{afe2:0x154a},{cfgEn:0x02da},{cfgEn:0x12db}])assert.ok(t.validateProfile({...validPTC,...patch}).errors.length);
+const validEOC={...validPTC,source:'external',afe2:0x1153,cfgEn:0x12d6};
+assert.deepEqual(t.validateProfile(validEOC).errors,[]);
+assert.ok(t.validateProfile(validEOC).warnings.length);
+assert.ok(t.validateProfile({...validEOC,pads0:0x4004}).errors.length);
+assert.ok(t.validateProfile({...validEOC,pads2:0x040f}).errors.length);
+assert.ok(t.validateProfile({...validEOC,afe2:0x1953}).errors.length);
+assert.deepEqual(t.validateProfile({...validEOC,afe2:0x1953,biasMode:1}).errors,[]);
+console.log('Temperature source compatibility: valid settings, reserved bits and active EOC conflicts passed');
