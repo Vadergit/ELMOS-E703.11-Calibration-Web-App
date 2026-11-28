@@ -381,3 +381,14 @@ test('live temperature: internal nominal curve, per-UID single-point reference a
  assert.match(app,/writeTemperatureRecord\('profile',id,temperatureRecord\)/);
  assert.match(app,/writeTemperatureRecord\('reference',id,reference\)/);
 });
+
+
+test('offline startup without UID or temperature reference never throws',()=>{
+ const app=require('node:fs').readFileSync(require('node:path').join(__dirname,'../app.js'),'utf8');
+ const start=app.indexOf(' function temperatureStorageKey('),end=app.indexOf(' const GAINS1=',start);
+ assert.ok(start>=0&&end>start);
+ const h=new Function('const demoEnabled=false;'+app.slice(start,end)+';return {validInternalReference}')();
+ for(const uid of [undefined,null,'0020018B39FA']){
+  for(const record of [undefined,null,{}])assert.equal(h.validInternalReference(record,uid,undefined),false);
+ }
+});
