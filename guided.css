@@ -408,3 +408,10 @@ html[data-theme="dark"] #guidedWorkspace .gw-quick-connect{background:#382e1d;co
 /* A pressure-only fit has no selectable thermal model. */
 #guidedWorkspace #gwFitFields.gw-fit-without-temperature{grid-template-columns:repeat(2,minmax(0,1fr))}
 @media(max-width:520px){#guidedWorkspace #gwFitFields.gw-fit-without-temperature{grid-template-columns:1fr}}
+
+/* Shared temperature help: formula and corresponding example, not two copies. */
+#ptcHelpDialog{max-width:min(1000px,calc(100vw - 28px));box-sizing:border-box}
+#ptcHelpDialog section+section{border-top:1px solid var(--line);margin-top:12px;padding-top:8px}
+#ptcHelpDialog .ptc-help-comparison{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,310px),1fr));gap:12px;margin:8px 0}
+#ptcHelpDialog .ptc-help-comparison>div{min-width:0}
+#ptcHelpDialog .ptc-help-comparison pre{font:inherit;font-variant-numeric:tabular-nums;line-height:1.5;margin:5px 0;overflow-wrap:anywhere}
