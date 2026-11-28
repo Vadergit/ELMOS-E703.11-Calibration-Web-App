@@ -26,7 +26,7 @@ function setup(){
  const $=id=>{if(!ids.has(id))ids.set(id,element(id));return ids.get(id)};
  const points=[{index:0,slot:'lo',pressure:0,temperature:25},
   {index:1,slot:'hi',pressure:10,temperature:25}];
- const plan={total:2,unit:'bar',points};
+ const plan={total:2,tCount:1,tempComp:false,unit:'bar',points};
  const records=[];
  const rows=points.map(()=>element('original-cal-row'));
  let interval=null;
@@ -61,7 +61,8 @@ test('captured point is confirmed in one line, next point becomes active',()=>{
  assert.equal(h.$('gwPointConfirmation').hidden,false);
  assert.equal(h.$('gwPointConfirmation').textContent,'✓ Messpunkt 1 aufgenommen');
  assert.match(h.$('gwCurrentSetpoint').textContent,/Als Nächstes: Messpunkt 2 messen/);
- assert.match(h.$('gwCurrentSetpoint').textContent,/10 bar und 25 °C/);
+ assert.match(h.$('gwCurrentSetpoint').textContent,/10 bar ein/);
+ assert.doesNotMatch(h.$('gwCurrentSetpoint').textContent,/°C/);
  assert.match(h.$('gwPointNav').children[0].textContent,/Aufgenommen/);
  assert.match(h.$('gwPointNav').children[1].textContent,/Jetzt messen/);
  assert.equal(h.rows[1].classList.current.has('gw-point-active'),true);

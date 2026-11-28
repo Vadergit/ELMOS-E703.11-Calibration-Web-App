@@ -8,7 +8,7 @@ const ELMOS_GUIDED=(()=>{
  const steps=[
   ['Aufgabe','Was möchtest du machen?','Wähle dein Ziel. Danach stelle ich nur die dafür benötigten Fragen.'],
   ['Abgleich planen','Wie genau möchtest du abgleichen?','Lege zuerst fest, wie viele Druckpunkte und Temperaturstufen du benötigst.'],
-  ['Sensor vorbereiten','Sensor und Referenzen definieren','Druckbereich, Temperaturbedingungen und DSP-Endwert für den Abgleich festlegen.'],
+  ['Sensor vorbereiten','Sensor und Referenzen definieren','Druckbereich, Referenzbedingungen und DSP-Endwert festlegen.'],
   ['Frontend einstellen','AFE optimal einstellen','Brückenpolarität, PGA1, Offset und PGA2 einstellen. Änderungen gehen nur ins RAM und werden rückgelesen.'],
   ['Messpunkte','Jetzt die Referenzen messen','Stelle die angezeigte Temperatur und den Druck ein. Nimm jeden Punkt erst nach dem Stabilisieren auf.'],
   ['Koeffizienten','Kalibrierung berechnen','Berechnung und RAM-Rücklesung laufen automatisch. Bei Warnungen prüfen.'],
