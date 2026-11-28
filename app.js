@@ -117,6 +117,22 @@ if(typeof document!=='undefined') (function UI(){
   }
   return {value:nominal,mode:factoryProfile?'factory':'nominal'};
  }
+ // Select a real live sample, never substitute a fixed room temperature.
+ // If DSP_T is unavailable, a known internal source still supports ADC_T.
+ function chooseLiveTemperature(ownTemp,estimate,ownCalibration){
+  const plausible=v=>Number.isFinite(v)&&v>=-40&&v<=125;
+  if(ownCalibration&&plausible(ownTemp))return {value:ownTemp,mode:'an0203'};
+  if(Number.isFinite(estimate?.value))return {...estimate,outOfRange:!plausible(estimate.value),dspFallback:!!ownCalibration};
+  return {value:null,mode:'unavailable'};
+ }
+ function referenceFromDisplayProfile(profile,uid,afe2,confirmedCrc){
+  if(!profile||profile.uid!==uid||!Number.isInteger(afe2)||(afe2&3)!==0||
+   !Number.isInteger(confirmedCrc)||profile.crc!==confirmedCrc||profile.nvmWords?.[29]!==afe2)return null;
+  const r=profile.reference;
+  if(!r||r.tempModel==='an0203'||Number.isFinite(r.tb))return null;
+  const ref={uid,afe2,temperature:r.ta,adc:r.adcT1};
+  return validInternalReference(ref,uid,afe2)?ref:null;
+ }
  const GAINS1=[3.5,6,8.5,11],GAINS2=[2,2.22,2.5,2.86,3.33,4,5,6.67,10];
  const LOCKED=[4,6,8,10,12,16],R_AFE=0x1C,R_BRIDGE=0x1A;
  const BRIDGE_VOLTAGES=[2.4,1.6,2.0];
@@ -1051,7 +1067,13 @@ if(typeof document!=='undefined') (function UI(){
   if(percent?.source==='standard'&&ref.source==='ram-aodo')percent.source='ram-aodo';
   $('liveAdcS').textContent=activeADC?fmt(st.adc.s):'—';
   $('liveAdcT').textContent=activeADC&&Number.isFinite(st.adc.t)?fmt(st.adc.t):'—';
-  const internalSource=connected&&Number.isInteger(st.regs[0x1E])&&CAL.temperatureSourceFromAfe2(st.regs[0x1E])==='internal';
+  const uid=st.uid?.hex;
+  const ramAfe2=st.regs[0x1E];
+  // Only use an NVM source fallback from this exact verified sensor/session.
+  // A live RAM register, if available, always takes priority.
+  const afe2=Number.isInteger(ramAfe2)?ramAfe2:connected&&hasCurrentNvmBackup()?st.nvmBackup[29]:null;
+  const source=connected&&Number.isInteger(afe2)&&afe2>=0&&afe2<=65535?CAL.temperatureSourceFromAfe2(afe2):null;
+  const internalSource=source==='internal';
   const devBridgeSource=connected&&devTemperatureReady(selectedTemperatureSource())&&['bridge','external'].includes(selectedTemperatureSource());
   const absoluteEnabled=Number.isInteger(st.regs[0x04])&&!!(st.regs[0x04]&0x1000);
   const factoryProfile=internalSource&&CAL.isFactoryTemperatureProfile(st.regs);
@@ -1065,25 +1087,32 @@ if(typeof document!=='undefined') (function UI(){
   // from the factory example coefficients. Never apply the AN0203 formula to an
   // unknown or factory DSP_T register.
   const ownTemp=ownCalibration&&validDsp?CAL.dspTemperatureCelsius(st.dspT.raw):null;
-  const uid=st.uid?.hex,afe2=st.regs[0x1E];
   const captured=internalSource&&pressureOnlyCalibration()?internalReference(st.calpoints.filter(capturedReferenceMatches),uid,afe2):null;
   const saved=internalSource?readTemperatureRecord('reference',uid):null;
-  const reference=captured||(validInternalReference(saved,uid,afe2)?saved:null);
-  const estimate=internalSource&&activeADC?estimateInternalTemperature(st.adc.t,reference,factoryProfile):{value:null,mode:'unavailable'};
-  const plausible=v=>Number.isFinite(v)&&v>=-40&&v<=125;
-  // Never replace a recognised calibrated reading with a plausible-looking
-  // nominal estimate when its DSP sample is missing or out of range.
-  const measuredTemp=ownCalibration?ownTemp:estimate.value;
-  const hasTemp=plausible(measuredTemp);
-  const tempMode=ownCalibration?'an0203':estimate.mode;
+  const diag=displayReferenceDiagnostic;
+  const confirmedCrc=connected&&hasCurrentNvmBackup()?st.nvmBackup[63]:
+   connected&&diag?.port===st.port&&diag?.session===st.sessionIndex&&diag?.uid===uid?diag.crc:null;
+  const recovered=internalSource&&uid&&Number.isInteger(confirmedCrc)?
+   referenceFromDisplayProfile(storedDisplayProfile(uid),uid,afe2,confirmedCrc):null;
+  const reference=captured||(validInternalReference(saved,uid,afe2)?saved:null)||recovered;
+  const adcT=connected&&Number.isFinite(st.adc?.t)?st.adc.t:null;
+  const estimate=internalSource?estimateInternalTemperature(adcT,reference,factoryProfile):{value:null,mode:'unavailable'};
+  const reading=chooseLiveTemperature(ownTemp,estimate,ownCalibration);
+  const measuredTemp=reading.value,hasTemp=Number.isFinite(measuredTemp),tempMode=reading.mode;
   $('liveTempC').textContent=hasTemp?'≈'+measuredTemp.toLocaleString('de-CH',{minimumFractionDigits:1,maximumFractionDigits:1}):'—';
-  $('liveTempUnit').textContent=!connected?'°C · nicht verbunden':!hasTemp?(internalSource||ownCalibration?'°C · Messwert fehlt':'°C · Quelle unbekannt'):
+  $('liveTempUnit').textContent=!connected?'°C · nicht verbunden':!hasTemp?
+   (!source?'°C · Quelle wird geprüft':source==='reserved'?'°C · Quelle ungültig':source!=='internal'?'°C · '+(source==='bridge'?'PTC':'Extern')+' unkalibriert':'°C · ADC_T fehlt'):
+   reading.outOfRange?'°C · ausserhalb Bereich':
    tempMode==='an0203'?(nvmProfile?'°C · NVM-Abgleich':'°C · RAM-Abgleich'):
    tempMode==='factory'?'°C · Werksnäherung':tempMode==='reference'?'°C · Referenznäherung':'°C · Typ. Kennlinie';
   $('liveTempC').parentElement.title=
-   'Temperaturquelle: '+(internalSource?'intern':devBridgeSource?'PTC / extern':'nicht bestätigt')+
-   ' · ADC_T: '+(activeADC?fmt(st.adc.t):'—')+
+   'Temperaturquelle: '+(source||'noch nicht gelesen')+
+   ' · CFG_AFE2: '+(Number.isInteger(afe2)?'0x'+h(afe2,2)+(Number.isInteger(ramAfe2)?' RAM':' NVM'):'—')+
+   ' · CFG_EN: '+(Number.isInteger(st.regs[4])?'0x'+h(st.regs[4],2):'—')+
+   ' · ADC_T: '+(Number.isFinite(adcT)?fmt(adcT):'—')+
    ' · DSP_T: '+(validDsp?fmt(st.dspT.raw):'—')+
+   (reading.dspFallback?' · DSP_T nicht plausibel/aktuell, ADC_T-Näherung als Ersatz.':'')+
+   (reading.outOfRange?' · Berechneter Näherungswert ausserhalb −40…125 °C; Messquelle und Referenz prüfen.':'')+
    (tempMode==='an0203'?' · AN0203-Temperaturskalierung; unabhängig prüfen.':
     tempMode==='reference'?' · Einpunkt-Näherung aus gemessener ADC_T-Referenz bei '+reference.temperature.toFixed(1)+' °C und typischer Elmos-Beispielkennlinie. Nur Anzeige, keine Temperaturkompensation.':
     tempMode==='factory'?' · Erkanntes Elmos-Werksbeispiel; keine Produktionskalibrierung.':
@@ -3195,6 +3224,11 @@ if(typeof document!=='undefined') (function UI(){
    }catch(e){
     logging('Erster Live-Messzyklus teilweise fehlgeschlagen: '+e.message);
     show('adcMsg','ADC_S erkannt; weitere Live-Register sind noch nicht verfügbar: '+e.message,'warn');
+   }
+   // Temperature-source identification is optional; an unreadable register
+   // must never abort the connection or pressure acquisition.
+   if(!Number.isInteger(st.regs[0x1E])){
+    try{await readReg(0x1E,1100)}catch(e){logging('Temperaturquelle CFG_AFE2 noch nicht lesbar: '+e.message)}
    }
    try{st.filterWords=await readFilterProfile()}
    catch(e){logging('ADC-Filter konnte nicht gelesen werden: '+e.message)}
@@ -5471,6 +5505,11 @@ if(typeof document!=='undefined') (function UI(){
    const id=st.uid?.hex;
    if(!id||st.uid.ser0!==st.nvmBackup[0]||st.uid.ser1!==st.nvmBackup[1])throw Error('48-Bit-Chip-UID muss vor dem Schreiben verifiziert werden');
    const initial=st.calImage.before,modified=st.calImage.after;
+   // Freeze the measured reference before other archive/UI callbacks can
+   // change the active fit or clear the current calibration points.
+   const temperatureFitOrder=st.calfit?.orderT;
+   const pendingTemperatureReference=!restoring&&!outputOnly&&!alarmOnly&&temperatureFitOrder===0?
+    internalReference(st.calpoints,id,modified[29]):null;
    if(alarmOnly){
     if(!(st.adapterKind==='ssp3'||st.bridgeUserNvm)||st.sessionIndex!==st.alarmOnlyPlan.session||
        st.alarmOnlyPlan.uid!==id||!st.alarmOnlyPlan.ramVerified)
@@ -5728,8 +5767,10 @@ if(typeof document!=='undefined') (function UI(){
    writeTemperatureRecord('profile',id,temperatureRecord);
    if(restoring)writeTemperatureRecord('reference',id,null);
    else if(!outputOnly&&!alarmOnly){
-    const reference=st.calfit?.orderT===0?internalReference(st.calpoints,id,after[29]):null;
-    if(reference||st.calfit?.orderT>0)writeTemperatureRecord('reference',id,reference);
+    const reference=validInternalReference(pendingTemperatureReference,id,after[29])?pendingTemperatureReference:null;
+    if(reference||temperatureFitOrder>0)writeTemperatureRecord('reference',id,reference);
+    if(reference)logging('SSC-Temperaturreferenz gespeichert: '+reference.temperature.toFixed(1)+' °C bei ADC_T '+reference.adc+' · UID '+id);
+    else if(temperatureFitOrder===0)logging('SSC-Temperatur: keine gültige interne Einpunktreferenz vorhanden. Quelle/ADC_T prüfen.');
    }
    ca('nvmMsg',restoring?'Backup-Wiederherstellung abgeschlossen, NVM rückgelesen und CRC16 bestätigt. Sensor neu starten und erneut prüfen.':outputOnly?'AODO-Ausgangseinstellungen dauerhaft gespeichert, NVM rückgelesen und CRC16 bestätigt. Sensor neu starten und Ausgabefunktion prüfen.':alarmOnly?'Alarm-/EOC- und Fehlerregister dauerhaft gespeichert und 64/64 NVM-Wörter verifiziert. Sensor neu starten, Alarmschwellen elektrisch prüfen.':'NVM-Programmierung und vollständiges Rücklesen/CRC16 erfolgreich. Sensor neu starten und Schnittstelle erneut prüfen.','success');
    if(!restoring&&!outputOnly&&!alarmOnly&&completeExportSaved)
