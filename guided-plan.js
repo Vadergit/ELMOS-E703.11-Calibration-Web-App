@@ -109,8 +109,19 @@ const ELMOS_GUIDED_PLAN=(()=>{
     group.push(e);
    }
    for(const group of groups){
-    group.sort((a,b)=>a.record[vary]-b.record[vary]||a.index-b.index);
-    const lo=group[0],hi=group[group.length-1];
+    // Duplicate physical references use the latest successful capture (timestamp, then slot).
+    const epsilon=kind==='pressure'?1e-6:0.5;
+    const ordered=group.slice().sort((a,b)=>a.record[vary]-b.record[vary]||a.index-b.index);
+    const distinct=[];
+    for(const item of ordered){
+     let bucket=distinct.find(b=>b.every(x=>Math.abs(x.record[vary]-item.record[vary])<=epsilon));
+     if(!bucket){bucket=[];distinct.push(bucket)}bucket.push(item);
+    }
+    const latest=b=>b.reduce((x,y)=>{
+     const xt=Date.parse(x.record.at||''),yt=Date.parse(y.record.at||'');
+     return Number.isFinite(xt)&&Number.isFinite(yt)&&xt!==yt?(yt>xt?y:x):y.index>x.index?y:x;
+    });
+    const lo=latest(distinct[0]),hi=latest(distinct[distinct.length-1]);
     if(hi.record[vary]-lo.record[vary]<=(kind==='pressure'?1e-6:0.5))continue;
     const delta=hi.record[channel]-lo.record[channel];
     out.push({kind,channel,fixed:lo.record[fixed],from:lo.record[vary],to:hi.record[vary],fromIndex:lo.index,toIndex:hi.index,delta,span:Math.abs(delta),rawMin:Math.min(lo.record[channel],hi.record[channel]),rawMax:Math.max(lo.record[channel],hi.record[channel])});

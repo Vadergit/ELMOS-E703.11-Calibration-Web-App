@@ -96,13 +96,13 @@ const ELMOS_GUIDED=(()=>{
     </div>`+
     '<div id="gwSetupPreview" class="gw-summary gw-setup-summary"></div></div>'+
    '<div id="gwPage3" class="gw-page gw-afe-page" hidden><div class="gw-columns gw-afe-layout">'+
-    '<section class="gw-tile gw-control gw-afe-controls"><div class="gw-section-head"><span class="gw-section-no">01</span><div><h3>Verstärkung und Offset</h3><p>Änderungen werden direkt ins Chip-RAM übernommen</p></div></div><div id="gwAFEPanel"></div><div id="gwGain"></div><div id="gwAFEMsg"></div><div id="gwConfigAFE"></div><div id="gwPtcControls"></div><div class="gw-afe-guide"><strong>AFE richtig einstellen</strong><ol><li>Minimalen und maximalen Referenzdruck anlegen.</li><li>PGA1, Offset und PGA2 anpassen. Ziel: grosser Hub ohne Übersteuerung.</li><li>Digitalen Darstellungsbereich und analogen Linearbereich beachten. Die erforderliche Reserve hängt vom Sensor und seiner Temperaturdrift ab.</li></ol><small>Änderst du die AFE nach einer Messung, müssen bereits erfasste Messpunkte neu aufgenommen werden.</small></div></section>'+
+    '<section class="gw-tile gw-control gw-afe-controls"><div class="gw-section-head"><span class="gw-section-no">01</span><div><h3>Verstärkung und Offset</h3><p>Änderungen werden direkt ins Chip-RAM übernommen</p></div></div><div id="gwAFEPanel"></div><div id="gwGain"></div><div id="gwAFEMsg"></div><div id="gwConfigAFE"></div><div id="gwPtcControls"></div><details class="gw-afe-guide"><summary>AFE richtig einstellen</summary><ol><li>Minimalen und maximalen Referenzdruck anlegen.</li><li>PGA1, Offset und PGA2 anpassen. Ziel: grosser Hub ohne Übersteuerung.</li><li>Digitalen Darstellungsbereich und analogen Linearbereich beachten. Die erforderliche Reserve hängt vom Sensor und seiner Temperaturdrift ab.</li></ol><small>Änderst du die AFE nach einer Messung, müssen bereits erfasste Messpunkte neu aufgenommen werden.</small></details></section>'+
     '<section class="gw-tile gw-afe-monitor"><div class="gw-monitor-head"><div><h3>ADC_S · Live-Verlauf</h3><p>Rohsignal der Druckmesskette · letzte 60 Sekunden</p></div><span id="gwAfeLiveBadge" class="gw-live-badge">Warte auf Werte</span></div><div class="gw-afe-current"><strong id="gwAfeAdcValue" aria-live="off">—</strong><span>Digits</span></div><div class="gw-afe-chart" id="gwAfeChartHost"></div><div class="gw-chart-legend"><span class="gw-legend-limit">16-Bit-Darstellungsgrenzen</span><span class="gw-legend-dsp">DSP-Ziel: <b id="gwAfeDspTarget">—</b> (Referenz, keine ADC-Grenze)</span><span class="gw-legend-zero">Nulllinie</span><span class="gw-legend-line">ADC_S live</span></div>'+
     '<div class="gw-afe-kpis"><div><span>Minimum</span><strong id="gwAfeMin">—</strong></div><div><span>Maximum</span><strong id="gwAfeMax">—</strong></div><div><span>Hub (Max − Min)</span><strong id="gwAfeHub">—</strong></div></div>'+
     '<div class="gw-monitor-actions"><div id="gwAfeLiveActions"></div><button type="button" id="gwAfeReset" class="gw-secondary-btn">Min/Max zurücksetzen</button></div><div id="gwAfeQuality" class="gw-afe-quality" role="status">Min/Max werden ab dem Start dieses AFE-Schritts erfasst.</div><div id="gwAfeMessage"></div><div id="gwPtcPlot"></div></section></div></div>'+
    '<div id="gwPage4" class="gw-page" hidden><div class="gw-points-layout"><div class="gw-point-nav" id="gwPointNav"></div><div class="gw-tile gw-control"><div id="gwPointConfirmation" class="gw-point-confirmation" hidden role="status" aria-live="polite"></div><div id="gwCurrentSetpoint" class="gw-summary gw-next-point"></div><div id="gwPointHost"></div><div id="gwSampleStatus"></div><div id="gwPointMessages"></div></div></div><div class="gw-alert">Der angezeigte Druck und die Temperatur sind <b>Referenz-Sollwerte</b>. Sie werden nicht automatisch erzeugt. Wähle den tatsächlichen Sollwert am Druckkalibrator und stelle die Temperaturkammer stabil ein, bevor du auf «aufnehmen» klickst.</div></div>'+
-   '<div id="gwPage5" class="gw-page" hidden><div class="gw-columns"><div class="gw-tile gw-control"><h3>Polynom und DSP-Ziel</h3><div class="gw-fields gw-3" id="gwFitFields"></div><div class="gw-panel-actions" id="gwFitActions"></div><div id="gwFitStatuses"></div><div id="gwFitDetails"></div></div><div class="gw-tile is-soft"><h3>Sicherer Ablauf</h3><p>1. Koeffizienten aus den gemessenen Punkten berechnen.</p><p>2. Zahlenbereich und Fehler kontrollieren.</p><p>3. Berechnete Werte nur ins RAM übertragen und rücklesen.</p><div class="gw-alert">Der berechnete Fit ist noch keine Hardware-Verifikation. Im nächsten Schritt wird DSP_S an unabhängigen Punkten geprüft.</div></div></div></div>'+
-   '<div id="gwPage6" class="gw-page" hidden><div class="gw-columns"><div class="gw-tile gw-control"><h3>Unabhängige Prüfpunkte</h3><div class="gw-fields gw-3" id="gwVerifyFields"></div><div class="gw-panel-actions" id="gwVerifyActions"></div><div id="gwVerifyStatuses"></div><details><summary>Prüfprotokoll</summary><div id="gwVerifyDetails"></div></details></div><div class="gw-tile is-soft"><h3>Was prüfe ich hier?</h3><p>Prüfe die gewünschte Anzahl Punkte neu, auch an den Druckendpunkten. Bereits ein bestandener Prüfpunkt genügt für diesen Nachprüfschritt – auch bei TK0/TKE. Weitere Druck- und Temperaturpunkte sind freiwillig und erhöhen die Aussagekraft.</p><div class="gw-alert warn">Die Live-Anzeige allein zählt nicht als Prüfung. Verwende «Prüfwert aus DSP_S lesen» und kontrolliere die tatsächliche Abweichung.</div></div></div></div>'+
+   '<div id="gwPage5" class="gw-page" hidden><div class="gw-columns"><div class="gw-tile gw-control"><h3>Polynom und DSP-Ziel</h3><div class="gw-fields gw-3" id="gwFitFields"></div><div class="gw-panel-actions" id="gwFitActions"></div><div id="gwFitStatuses"></div><div id="gwFitDetails"></div></div><details class="gw-fit-help"><summary>Ablauf und Sicherheit</summary><p>Berechnung → RAM-Rücklesung → unabhängige DSP-Prüfung. Bei Warnungen bleibt dieser Schritt offen. Keine NVM-Programmierung.</p></details></div></div>'+
+   '<div id="gwPage6" class="gw-page" hidden><div class="gw-columns"><div class="gw-tile gw-control"><h3>Unabhängige Prüfpunkte</h3><div class="gw-fields gw-3" id="gwVerifyFields"></div><div class="gw-panel-actions" id="gwVerifyActions"></div><div id="gwVerifyStatuses"></div><details><summary>Prüfprotokoll</summary><div id="gwVerifyDetails"></div></details></div><details class="gw-fit-help"><summary>Was prüfe ich hier?</summary><p>Prüfe die gewünschte Anzahl Punkte neu, auch an den Druckendpunkten. Bereits ein bestandener Prüfpunkt genügt für diesen Nachprüfschritt – auch bei TK0/TKE. Weitere Druck- und Temperaturpunkte sind freiwillig und erhöhen die Aussagekraft.</p><div class="gw-alert warn">Die Live-Anzeige allein zählt nicht als Prüfung. Verwende «Prüfwert aus DSP_S lesen» und kontrolliere die tatsächliche Abweichung.</div></details></div></div>'+
    `<div id="gwPage7" class="gw-page" hidden>
     <div class="gw-columns gw-output-layout">
      <section class="gw-tile gw-control">
@@ -863,7 +863,10 @@ const ELMOS_GUIDED=(()=>{
    setText('gwFooterHint',text);
   }
   const ready=stage===4?!!plan&&plan.points.every(p=>pointRecord(p)):stage===5?!!s.calStaged:stage===6?!!s.calVerified:stage===9?!!s.nvmDone:true;
-  $('gwNext').disabled=!s.chip||(stage===10?nextSensorBusy||!s.nvmDone:!ready);
+  $('gwPrevious').disabled=stage===0||fitAutomationBusy;
+  $('gwConnectionToggle').disabled=fitAutomationBusy;
+  for(const id of ['calCalculate','calApplyRam'])if(fitAutomationBusy&&$(id))$(id).disabled=true;
+  $('gwNext').disabled=fitAutomationBusy||!s.chip||(stage===10?nextSensorBusy||!s.nvmDone:!ready);
   if(stage===3)updateAfeTelemetry();
   if(stage===10)updateFinishTelemetry();
   if(stage===3||stage===10)apiRedraw();
@@ -977,7 +980,23 @@ const ELMOS_GUIDED=(()=>{
   if(result.archiveWarning)msg('NVM erfolgreich verifiziert. Komplette Abgleichdatei nicht bestätigt: Bitte Archiv prüfen.','warn');
   return true;
  }
+ let fitAutomationBusy=false;
+ function isFitPage(){return !!(mode&&stage===5&&!connectionOpen&&!nextSensorPending&&!calculatorOrigin)}
+ async function runFitAutomation({calculate=true,manual=false}={}){
+  if(fitAutomationBusy||!isFitPage())return false;
+  const expectedUid=state().uid;
+  fitAutomationBusy=true;updateUI();
+  msg('Koeffizienten und RAM werden geprüft …');
+  try{
+   const result=await window.ELMOS_GUIDED_API.fitAutomation({calculate,manual,expectedUid});
+   if(!isFitPage()||state().uid!==expectedUid)return false;
+   if(result.state==='ready'&&state().calStaged){goto(6);return true;}
+   msg('Bitte Berechnung oder RAM-Status prüfen.','warn');return false;
+  }catch(e){if(isFitPage())msg(e.message,'error');return false;}
+  finally{fitAutomationBusy=false;window.ELMOS_GUIDED_API?.refresh?.();if(mode)updateUI();}
+ }
  function goto(n){
+  if(fitAutomationBusy&&n!==6)return;
   if(stage===11&&window.ELMOS_TEST_LOGGER?.isBusy()){
    msg('Bitte zuerst die laufende Testaufzeichnung beenden.','warn');return;
   }
@@ -985,6 +1004,7 @@ const ELMOS_GUIDED=(()=>{
   root.scrollIntoView({behavior:'smooth',block:'start'});
  }
  async function next(seriesSettings=null){
+  if(fitAutomationBusy)return;
   if(stage===0&&(task==='archive'||task==='verification')){
    if(window.ELMOS_TEST_LOGGER?.isBusy()){
     msg('Bitte zuerst eine laufende Testaufzeichnung beenden.','warn');return;
@@ -1040,7 +1060,7 @@ const ELMOS_GUIDED=(()=>{
   }
   if(stage===4){
    if(!plan||!plan.points.every(p=>pointRecord(p))){msg('Bitte zuerst alle '+(plan?.total||0)+' Messpunkte erfolgreich aufnehmen.','warn');return}
-   goto(5);return;
+   goto(5);await runFitAutomation();return;
   }
   if(stage===5){if(!s.calStaged){msg('Bitte die Koeffizienten zuerst berechnen und ins RAM übertragen.','warn');return}goto(6);return}
   if(stage===6){if(!s.calVerified){msg('Die unabhängige DSP-Prüfung muss erfolgreich abgeschlossen sein.','warn');return}goto(7);return}
@@ -1137,7 +1157,7 @@ const ELMOS_GUIDED=(()=>{
   }
  }
  function previous(){
-  if(stage===0)return;
+  if(fitAutomationBusy||stage===0)return;
   if(stage===11){goto(0);return}
   if((task==='output'&&stage===7)||(task==='alarms'&&stage===8)){goto(0);return}
   goto(stage-1);
@@ -1222,7 +1242,7 @@ const ELMOS_GUIDED=(()=>{
   return true;
  }
  function hasUnfinishedTask(){return !!(mode&&((stage>0&&stage!==10)||nextSensorPending))}
- function hasPendingOperation(){return !!(mode&&(taskOpening||nextSensorBusy||connectionBusy))}
+ function hasPendingOperation(){return !!(mode&&(taskOpening||nextSensorBusy||connectionBusy||fitAutomationBusy))}
  function onSensorReset({portDisconnected=false}={}){
   if(!mode||nextSensorPending)return;
   if(pendingCapture){window.clearInterval(pendingCapture);pendingCapture=null}
@@ -1288,7 +1308,7 @@ const ELMOS_GUIDED=(()=>{
      $('calUnit').value!==plan.unit)return null;
   return {pCount:plan.pCount,tCount:plan.tCount,fitMode:plan.fitMode};
  }
- return {init,open,close,openNvmCalculator,closeNvmCalculator,temperatureSourceChanged,onNvmProgrammed,wantsAutomaticPostBoot,preferredView:()=>rememberedView()==='classic'?'classic':'guided',goToStart:()=>{if(mode&&!nextSensorPending)goto(0)},goToCoefficients:()=>{if(mode&&task==='calibration'&&!nextSensorPending)goto(5)},resetForHome,hasUnfinishedTask,hasPendingOperation,onConnected,onSensorReset,makePlan,planForPreset:()=>mode&&stage>=1&&stage<=2?makePlan():plan,isOpen:()=>mode,appliedPlanForConfig};
+ return {init,open,close,openNvmCalculator,closeNvmCalculator,temperatureSourceChanged,onNvmProgrammed,wantsAutomaticPostBoot,preferredView:()=>rememberedView()==='classic'?'classic':'guided',goToStart:()=>{if(mode&&!nextSensorPending)goto(0)},goToCoefficients:()=>{if(mode&&task==='calibration'&&!nextSensorPending)goto(5)},resetForHome,hasUnfinishedTask,hasPendingOperation,isFitPage,runFitAutomation,onConnected,onSensorReset,makePlan,planForPreset:()=>mode&&stage>=1&&stage<=2?makePlan():plan,isOpen:()=>mode,appliedPlanForConfig};
 })();
 if(typeof window!=='undefined')window.ELMOS_GUIDED=ELMOS_GUIDED;
 if(typeof document!=='undefined'){

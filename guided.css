@@ -427,3 +427,11 @@ html[data-theme="dark"] #guidedWorkspace .gw-quick-connect{background:#382e1d;co
 #guidedWorkspace .gw-span-overview>div{display:grid;gap:2px;min-width:0}
 #guidedWorkspace .gw-span-overview strong{font-size:20px;line-height:1.15;color:inherit}
 #guidedWorkspace .gw-span-overview small,#guidedWorkspace .gw-span-overview span{font-size:12px}
+
+/* Compact guided workflow: quiet normal status; warnings and errors always visible. */
+#guidedWorkspace .gw-fit-help{margin:0;padding:10px;align-self:start;border:1px solid var(--line);border-radius:8px;font-size:12px}
+#guidedWorkspace .gw-afe-guide{padding:5px 0;margin:7px 0 0;background:transparent;border:0}
+#guidedWorkspace .gw-afe-guide>summary{font-size:12px;cursor:pointer}
+#guidedWorkspace #gwFitStatuses .callout.success,#guidedWorkspace #gwAFEMsg .callout.success,#guidedWorkspace #gwPointMessages .callout.success{background:transparent;border:0;padding:3px 0;margin:3px 0;font-size:11px}
+#guidedWorkspace #gwFitStatuses .callout:not(.warn):not(.error):not(.success){background:transparent;border:0;padding:3px 0;margin:3px 0}
+#guidedWorkspace .gw-capture-spans strong{font-size:18px}

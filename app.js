@@ -4393,7 +4393,9 @@ if(typeof document!=='undefined') (function UI(){
   };
   window.setTimeout(openWhenReady,0);
  }
+ let guidedFitArchiveWrite=null;
  function calcCoefficients(){
+  guidedFitArchiveWrite=null;
   $('calDspProposal').hidden=true;
   $('calTempFallback').hidden=true;
   let fitRequest=null;
@@ -4429,7 +4431,7 @@ if(typeof document!=='undefined') (function UI(){
     // gain/offset must be recalculated against this exact DSP end range.
     st.expertOutputPlan=null;st.outputOnlyPlan=null;
     st.calfit=solution;st.calImage=null;st.calStaged=false;st.calVerified=false;st.calValidation=[];renderDSPLive();
-    if(window.ELMOS_ARCHIVE?.active)void window.ELMOS_ARCHIVE.event('coefficient_fit',{solution,AFE:{...st.staged}}).catch(e=>show('calFitMsg','Archivfehler: '+e.message,'error'));
+    if(window.ELMOS_ARCHIVE?.active)guidedFitArchiveWrite=window.ELMOS_ARCHIVE.event('coefficient_fit',{solution,AFE:{...st.staged}}).then(()=>true).catch(e=>{show('calFitMsg','Archivfehler: '+e.message,'error');return false});
    const r=solution.registers;
    $('calCoeffList').textContent='S_O 0x'+h(r.so,2)+' (Q3.12)  S_F 0x'+h(r.sf,2)+' (Q3.12)\n'+r.coeffs.map((x,i)=>'S'+String(i).padEnd(2)+' 0x'+h(x,2)+'    '+CAL.fromQ(x,15).toFixed(7)).join('\n')+(r.tcoeffs?'\nT_O '+h(r.to,2)+' T_F '+h(r.tf,2)+'\n'+r.tcoeffs.map((x,i)=>'T'+i+': 0x'+h(x,2)).join('\n'):'\nTemperaturpfad bleibt unverändert.');
    const note='DSP-Ziel ±'+fmt(solution.outputLimit)+' Digits (Reserve bis +32’767: '+fmt(32767-solution.outputLimit)+' Digits). Max. Fitfehler '+solution.stats.maxDigits.toFixed(2)+' Digits · RMS '+solution.stats.rmsDigits.toFixed(2)+' Digits.';
@@ -6157,7 +6159,7 @@ if(typeof document!=='undefined') (function UI(){
  $('calExportDraft')?.addEventListener('click',()=>{const draft=storedCalibrationCheckpoint(st.uid?.hex);if(draft)download('ELMOS_Messpunktentwurf_'+draft.uid+'.json',JSON.stringify(draft,null,2));});
  $('calPointClear').addEventListener('click',()=>{erasePoints();ca('calPointsMsg','Alle Kalibriermesspunkte verworfen.');});
  $('calCalculate').addEventListener('click',calcCoefficients);
- $('calApplyRam').addEventListener('click',applyCalRam);
+ $('calApplyRam').addEventListener('click',()=>window.ELMOS_GUIDED?.isFitPage?.()?window.ELMOS_GUIDED.runFitAutomation({calculate:false,manual:true}):applyCalRam());
  const firstVerifyRow=$('calVerifyRows').firstElementChild;
  for(let slot=1;slot<10;slot++){
   const row=firstVerifyRow.cloneNode(true);
@@ -6883,6 +6885,24 @@ if(typeof document!=='undefined') (function UI(){
    nvmBackupVerified:!!st.nvmBackupVerified,outputReady:expert.outputReady(),
    outputScalingRequired:outputScalingPreflight().required
   }),
+  fitAutomation:async ({calculate=false,manual=false,expectedUid}={})=>{
+   const valid=()=>!!(st.chip&&st.port&&st.uid?.hex===expectedUid&&!st.calTask&&!st.writing&&!st.nvmWorking&&!st.reinitRunning&&!st.closing);
+   if(!valid())return {state:'stopped',reason:'connection'};
+   if(calculate)calcCoefficients();
+   if(guidedFitArchiveWrite&&!await guidedFitArchiveWrite)return {state:'stopped',reason:'archive'};
+   if(!valid()||!coefficientSettingsCurrent())return {state:'stopped',reason:'fit'};
+   // Warnings are explicit decisions. A manual RAM click after reviewing them is the only override.
+   if(!manual&&(st.calfit.outputLimit>=31000||st.calfit.stats.maxDigits>100||
+    st.calfit.stats.lowSignalHubWarning||(st.calfit.pressureOnly&&st.calfit.ignoredTemperaturePoints>0)||
+    $('calFitMsg').classList.contains('warn')||$('calFitMsg').classList.contains('error')))
+    return {state:'stopped',reason:'warning'};
+   if(!window.ELMOS_GUIDED?.isFitPage?.()||!valid()||$('dspRiskDialog')?.open)return {state:'stopped',reason:'navigation'};
+   if(!st.calStaged)await applyCalRam();
+   if(!valid()||!st.calStaged)return {state:'stopped',reason:'ram'};
+   if($('calRamStageMsg').classList.contains('warn')||$('calRamStageMsg').classList.contains('error'))
+    return {state:'stopped',reason:'ram-warning'};
+   return {state:'ready'};
+  },
   navigate:n=>step(n),
   refreshNvmCalculator:()=>expert.refreshEEPROMViewer(),
   closeSettings:()=>toggleSettings(false),
