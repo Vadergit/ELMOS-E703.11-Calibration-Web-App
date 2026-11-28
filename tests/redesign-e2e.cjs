@@ -88,6 +88,8 @@ async function runFlow(p,v,dir,record){
  await state(p,()=>window.ELMOS_GUIDED_API?.state()?.chip&&window.ELMOS_GUIDED_API.state().demo&&window.ELMOS_GUIDED?.isOpen?.());
  await settings(p);
  await stage(p,0);
+ const tasks=await p.locator('#gwPage0 [data-gw-task]').evaluateAll(es=>es.map(e=>e.dataset.gwTask).sort());
+ assert.deepEqual(tasks,['alarms','archive','calibration','inspect','nvm','output','testlog','verification']);
  await visible(p,'gwNext',false);await visible(p,'gwPrevious',false);
  await snapshot(p,dir,'00-home',record);
  const task=p.locator('[data-gw-task="calibration"]');
@@ -98,6 +100,14 @@ async function runFlow(p,v,dir,record){
  await p.locator('#gwPage1 [data-gw-preset="'+v.preset+'"]').click();
  if(v.zeroOrder)await check(p,'gwTOrder').selectOption('0');
  await snapshot(p,dir,'01-plan',record);
+ // Illegal pressure/temperature matrix must not advance even if Weiter is present.
+ if(v.preset==='quick'){
+  await check(p,'gwPressureCount').selectOption('5');await check(p,'gwTemperatureCount').selectOption('3');
+  assert.match(await check(p,'gwPlanPreview').innerText(),/10/);
+  if(await check(p,'gwNext').isEnabled())await check(p,'gwNext').click();
+  await stage(p,1);await visible(p,'gwPage2',false);
+  await p.locator('#gwPage1 [data-gw-preset="quick"]').click();
+ }
  await click(p,'gwNext');await stage(p,2);
  await visible(p,'calTempSource',v.thermal);
  if(v.thermal){
@@ -146,6 +156,7 @@ async function runFlow(p,v,dir,record){
  assert.equal(s.calStaged,true);assert.equal(s.calVerified,false);assert.equal(s.nvmDone,false);
  await ready(p,'gwNext',false);
  await snapshot(p,dir,'06-dsp-before',record);
+ await visible(p,'nvmProgram',false);
  await click(p,'calVerifyRam');
  await state(p,()=>window.ELMOS_GUIDED_API.state().calVerified===true);
  await snapshot(p,dir,'06-dsp-verified',record);
