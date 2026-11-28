@@ -51,7 +51,8 @@ const PROTOCOL = (() => {
 if(typeof module!=='undefined'&&module.exports)module.exports=PROTOCOL;
 if(typeof document!=='undefined') (function UI(){
  const $=id=>document.getElementById(id),P=PROTOCOL;
- const demoEnabled=new URLSearchParams(location.search).get('demo')==='1';
+ const ptcDev=window.ELMOS_PTC_DEV===true;
+ const demoEnabled=ptcDev||new URLSearchParams(location.search).get('demo')==='1';
  const lsGet=k=>{try{return demoEnabled?sessionStorage.getItem('demo-'+k):localStorage.getItem(k)}catch{return null}};
  const lsSet=(k,v)=>{try{if(demoEnabled)sessionStorage.setItem('demo-'+k,v);else localStorage.setItem(k,v)}catch{}};
  // Legacy versions already persisted the last CRC-tested 64-word NVM image.
@@ -968,11 +969,12 @@ if(typeof document!=='undefined') (function UI(){
   $('liveAdcS').textContent=activeADC?fmt(st.adc.s):'—';
   $('liveAdcT').textContent=activeADC&&Number.isFinite(st.adc.t)?fmt(st.adc.t):'—';
   const internalSource=connected&&Number.isInteger(st.regs[0x1E])&&CAL.temperatureSourceFromAfe2(st.regs[0x1E])==='internal';
+  const devBridgeSource=ptcDev&&demoEnabled&&connected&&demoPort.ptcConfigured()&&selectedTemperatureSource()==='bridge';
   const absoluteEnabled=Number.isInteger(st.regs[0x04])&&!!(st.regs[0x04]&0x1000);
   const factoryProfile=internalSource&&CAL.isFactoryTemperatureProfile(st.regs);
   const nvmProfile=internalSource&&absoluteEnabled&&st.uid?.hex&&
    CAL.programmedTemperatureProfileMatches(storedProgrammedNvm(),st.uid.hex,st.regs);
-  const ownCalibration=internalSource&&absoluteEnabled&&
+  const ownCalibration=(internalSource||devBridgeSource)&&(absoluteEnabled||devBridgeSource)&&
    ((st.calStaged&&st.calfit?.orderT>0)||nvmProfile);
   const validDsp=!!st.dspT&&!st.dspTError&&Date.now()-st.dspT.time<10000;
   // Two manufacturers' mappings exist: the AN0203 software-fit target differs
@@ -1136,6 +1138,11 @@ if(typeof document!=='undefined') (function UI(){
  const temperatureSourceLabels={internal:'Interne Chipdiode (ADC_T)',bridge:'Brückenwiderstand (ADC_T und ADC_TC)',external:'Externer EOC-Sensor (ADC_T)',reserved:'Reservierter Modus (ungültig)'};
  async function checkCalibrationTemperatureSource(){
   const selected=selectedTemperatureSource();
+  if(ptcDev&&demoEnabled&&selected==='bridge'){
+   if(!demoPort.ptcConfigured())throw Error('Zuerst Temperatur-AFE im geführten AFE-Schritt einstellen.');
+   const afe2=await readReg(0x1E);if((afe2&0xff)!==0x4a)throw Error('Simuliertes Temperatur-AFE nicht bestätigt');
+   return {temperatureSource:'bridge',afe2};
+  }
   if(selected!=='internal')throw Error('Temperaturmessquelle '+(temperatureSourceLabels[selected]||selected)+' ist noch nicht für die Kalibrierung implementiert. Keine Messung oder Registeränderung.');
   if(demoEnabled)return {temperatureSource:'internal',afe2:null};
   const afe2=await readReg(0x1E);
@@ -4079,7 +4086,7 @@ if(typeof document!=='undefined') (function UI(){
  }
 
  function draw(){const c=$('chart');if(!c||c.closest('[hidden]'))return;const d=window.devicePixelRatio||1,w=Math.round(c.clientWidth*d),h=Math.round(c.clientHeight*d);if(w<20)return;if(c.width!==w||c.height!==h){c.width=w;c.height=h}const g=c.getContext('2d');g.clearRect(0,0,w,h);
- const dark=document.documentElement.dataset.theme==='dark';const x0=55*d,y0=10*d,yh=h-20*d,y=v=>y0+(32768-v)/65536*(yh-y0);g.font=`${11*d}px sans-serif`;for(const v of [25000,0,-25000]){g.beginPath();g.strokeStyle=v?(dark?'#d9ab71':'#e3c9aa'):(dark?'#536e84':'#d7e4ef');g.setLineDash(v?[5*d,4*d]:[]);g.moveTo(x0,y(v));g.lineTo(w-8*d,y(v));g.stroke();g.setLineDash([]);g.fillStyle=dark?'#d7e5f0':'#74849a';g.fillText((v>0?'+':'')+v,5*d,y(v)+4*d)}if(st.trend.length<1)return;const left=Date.now()-60000,x=t=>x0+(w-x0-10*d)*Math.max(0,Math.min(1,(t-left)/60000));g.beginPath();g.strokeStyle=dark?'#9bddff':'#2867a6';g.lineWidth=2*d;st.trend.forEach((p,i)=>i?g.lineTo(x(p.x),y(p.y)):g.moveTo(x(p.x),y(p.y)));g.stroke()}
+ const dark=document.documentElement.dataset.theme==='dark';const x0=55*d,y0=10*d,yh=h-20*d,y=v=>y0+(32768-v)/65536*(yh-y0);g.font=`${11*d}px sans-serif`;for(const v of [25000,0,-25000]){g.beginPath();g.strokeStyle=v?(dark?'#d9ab71':'#e3c9aa'):(dark?'#536e84':'#d7e4ef');g.setLineDash(v?[5*d,4*d]:[]);g.moveTo(x0,y(v));g.lineTo(w-8*d,y(v));g.stroke();g.setLineDash([]);g.fillStyle=dark?'#d7e5f0':'#74849a';g.fillText((v>0?'+':'')+v,5*d,y(v)+4*d)}const prediction=ptcDev?window.ELMOS_PTC_DEV_UI?.pressureBand?.():null;if(prediction){g.save();g.fillStyle='rgba(222,173,46,.18)';g.fillRect(x0,y(Math.min(32768,prediction.max)),w-x0-8*d,y(Math.max(-32768,prediction.min))-y(Math.min(32768,prediction.max)));g.strokeStyle='#d9a72e';g.setLineDash([4*d,3*d]);for(const v of [prediction.min,prediction.max])if(Math.abs(v)<=32768){g.beginPath();g.moveTo(x0,y(v));g.lineTo(w-8*d,y(v));g.stroke()}g.restore()}if(st.trend.length<1)return;const left=Date.now()-60000,x=t=>x0+(w-x0-10*d)*Math.max(0,Math.min(1,(t-left)/60000));g.beginPath();g.strokeStyle=dark?'#9bddff':'#2867a6';g.lineWidth=2*d;st.trend.forEach((p,i)=>i?g.lineTo(x(p.x),y(p.y)):g.moveTo(x(p.x),y(p.y)));g.stroke()}
  function download(name,txt,mime='application/json'){let b=new Blob([txt],{type:mime}),u=URL.createObjectURL(b),a=document.createElement('a');a.href=u;a.download=(demoEnabled?'DEMO_':'')+name;a.click();setTimeout(()=>URL.revokeObjectURL(u),2000)}
  const report=()=>({tool:'ELMOS E703.11 Kalibrierassistent v0.7.131',created:new Date().toISOString(),connection:demoEnabled?'Demo':st.port?'USB':'offline',hardwareValidated:false,unit:pressureUnit(),pointNames:{lower:pointName('lo'),upper:pointName('hi')},interface:st.iface,firmware:st.firmware,bootProtection:'Boot-/Werks-NVM-Schreiben gesperrt; kalibrierungsbezogenes User-NVM mit Bestätigung freigegeben',ramWriteActive:!!st.ramWriteScope,registers:st.regs,bootSnapshot:st.boot,chipUID:st.uid?.hex||null,expertOutput:st.expertOutputPlan,AFE:st.afe,gains:st.staged,low:st.points.lo,high:st.points.hi,verification:st.verify,calibrationPoints:st.calpoints,plannedCalibrationPointCount:calibrationPointCount(),requestedSamplesPerPoint:Number($('calSampleCount').value),requestedDSPOutputLimit:Number($('calDspLimit').value),coefficientFit:st.calfit,calRamVerified:st.calVerified,lastDSP:st.dsp,chipDiagnostic:st.chipDiag,lastPlcReply:st.lastPlcReply,displayRange:getActiveDSPRange(),nvmState:{backupVerified:st.nvmBackupVerified,programmed:st.nvmDone},samples:st.history.slice(-1500),trace:st.log});
 
@@ -4164,7 +4171,9 @@ if(typeof document!=='undefined') (function UI(){
    if(!calEndpointsReady())throw Error(calibrationReadinessReason());
    const pmin=Number($('pmin').value),pmax=Number($('pmax').value);
    if(st.calpoints.some(p=>JSON.stringify(p.gains)!==JSON.stringify(st.staged)))throw Error('Gain wurde nach der Aufnahme geändert. Messpunkte erneut erfassen');
-   if(selectedTemperatureSource()!=='internal'||st.calpoints.some(p=>p.temperatureSource!=='internal'))throw Error('Temperaturquelle der Kalibriermessungen muss mit internem Chipmodus übereinstimmen. Brücken-/EOC-Verfahren sind noch nicht implementiert.');
+   const selectedSource=selectedTemperatureSource();
+   const ptcFit=ptcDev&&demoEnabled&&selectedSource==='bridge'&&demoPort.ptcConfigured();
+   if((selectedSource!=='internal'&&!ptcFit)||st.calpoints.some(p=>p.temperatureSource!==selectedSource))throw Error('Temperaturquelle der Messungen stimmt nicht überein.');
    const orderS=Number($('calSOrder').value),orderT=Number($('calTOrder').value),outputLimit=Number($('calDspLimit').value);
    if(!Number.isInteger(outputLimit)||outputLimit<1000||outputLimit>32000)throw Error('DSP-Endwert muss zwischen 1’000 und 32’000 Digits liegen');
    const fitMode=$('calFitMode').value;
@@ -4172,7 +4181,8 @@ if(typeof document!=='undefined') (function UI(){
     if(fitMode==='tk0'&&(orderS!==1||orderT!==1))throw Error('3-Punkte-TK0 benötigt linearen Druck UND Temperaturordnung 1. Temperaturordnung 0 würde die TK0-Messung ignorieren.');
     const required=fitMode==='tk0'?3:(orderS+1)*(orderT+1);
     if(st.calpoints.length<required)throw Error('Für diese Polynom- und Temperaturordnung sind mindestens '+required+' unabhängige Messpunkte nötig. Anzahl in Schritt 3 erhöhen.');
-   const solution=CAL.fit(st.calpoints,{pmin,pmax,orderS,orderT,fitMode,outputLimit});
+   const options={pmin,pmax,orderS,orderT,fitMode,outputLimit};
+   const solution=ptcFit?ELMOS_TEMPERATURE_AFE.fitBridgeOffline(st.calpoints,options,{afe2:0x114a,cfgEn:8,g01:0,g2off:0},CAL.fit):CAL.fit(st.calpoints,options);
    solution.displayReference=Object.freeze({min:pmin,max:pmax,unit:pressureUnit(),
     selected:$('calUnit').value,customUnit:$('calUnitOther').value.trim()});
    if(fitMode==='tk0'&&(solution.pressureOnly||solution.ignoredTemperaturePoints!==0||
@@ -4580,6 +4590,14 @@ if(typeof document!=='undefined') (function UI(){
  async function prepareNvm(){
   return withProgress('NVM-Änderungsliste wird vorbereitet',()=>prepareNvmOperation());
  }
+ function devPtcFit(){return ptcDev&&demoEnabled&&selectedTemperatureSource()==='bridge'&&st.calfit?.temperatureSource==='bridge'&&demoPort.ptcConfigured();}
+ function protectDevPtc(before,after,options){
+  if(!devPtcFit()||before[29]===after[29]&&((before[27]^after[27])&0xf0)===0&&((before[16]^after[16])&12)===0)return CAL.protectStartupCommunication(before,after,options);
+  const expected=demoPort.ptcWords();
+  if(after[29]!==expected.afe2||((after[27]^expected.afe0)&0xf0)!==0||(after[16]&12)!==8||((after[29]^before[29])&~0x08ff)!==0)throw Error('DEV PTC: unerwartetes Temperaturprofil im NVM-Plan.');
+  const checked=after.slice();checked[29]=before[29];checked[27]=(checked[27]&~0xf0)|(before[27]&0xf0);checked[16]=(checked[16]&~12)|(before[16]&12);checked[63]=CAL.crc16(checked);
+  return CAL.protectStartupCommunication(before,checked,options);
+ }
  async function prepareNvmOperation(){
   try{
    if(st.calTask||st.writing||st.nvmWorking)throw Error('Anderer Chipvorgang läuft');
@@ -4658,6 +4676,12 @@ if(typeof document!=='undefined') (function UI(){
     output:recovery?(recoveryCombined?explicitOutputPlan:null):outputPlan,
     bridgeSupply,userId:requestedNvmUserId(),interfaceMode:st.iface
    });
+   if(devPtcFit()){
+    const words=demoPort.ptcWords(),after=image.after.slice();
+    after[27]=(after[27]&~0xf0)|(words.afe0&0xf0);after[29]=words.afe2;after[16]=(after[16]&~12)|8;after[63]=CAL.crc16(after);
+    protectDevPtc(image.before,after,{allowSvdd:true,allowPressureCorrection:activatePressureCorrection,interfaceMode:st.iface,allowTimedOneWire:outputPlan?.timedOneWire===true});
+    image={...image,after,changes:after.map((to,index)=>to===image.before[index]?null:{index,address:index*2,from:image.before[index],to}).filter(Boolean)};
+   }
    image.recoveryCombined=recoveryCombined;
     image.activatePressureCorrection=activatePressureCorrection;
      image.operatingProfile=operatingProfile;
@@ -4676,7 +4700,7 @@ if(typeof document!=='undefined') (function UI(){
      throw Error('Bei Alarmänderungen ist das automatische Original-NVM-Backup Pflicht.');
     const normalized=ELMOS_ALARM_CONFIG.prepare(image.after,alarmPlan.settings,CAL.crc16);
     ELMOS_ALARM_CONFIG.validateDiff(image.after,normalized.after,CAL.crc16);
-    CAL.protectStartupCommunication(image.before,normalized.after,{allowSvdd:true,allowAlarmMask:true,allowPressureCorrection:activatePressureCorrection,operatingProfile,interfaceMode:st.iface});
+    protectDevPtc(image.before,normalized.after,{allowSvdd:true,allowAlarmMask:true,allowPressureCorrection:activatePressureCorrection,operatingProfile,interfaceMode:st.iface});
     image={...image,after:normalized.after,
      changes:normalized.after.map((to,index)=>to===image.before[index]?null:
       {index,address:index*2,from:image.before[index],to}).filter(Boolean),
@@ -4701,7 +4725,7 @@ if(typeof document!=='undefined') (function UI(){
     throw Error('Für diesen NVM-Plan fehlt der bestätigte Kaltstart. '+psscRecoveryEvidence());
    const recoveryBlock=psscNvmBlock(image.before,image.after,false,false,false,recoveryCombined);
    if(recoveryBlock)throw Error(recoveryBlock);
-   if(image.changes.some(c=>(c.index<28&&![16,22,CAL.SVDD_INDEX,...(operatingProfile?CAL.PROFILE_WORDS:[]),...(includeAlarms?[18]:[]),...(timedOneWire?[17,18]:[])].includes(c.index))||c.index===29))throw Error('Unzulässiges NVM-Register im Änderungsplan');
+   if(image.changes.some(c=>(c.index<28&&![16,22,CAL.SVDD_INDEX,...(operatingProfile?CAL.PROFILE_WORDS:[]),...(includeAlarms?[18]:[]),...(timedOneWire?[17,18]:[])].includes(c.index))||(c.index===29&&!devPtcFit())))throw Error('Unzulässiges NVM-Register im Änderungsplan');
    if(!image.changes.length)throw Error('Keine NVM-Änderungen nötig');
    if(st.coldStartAfeRestored||(!demoEnabled&&!!activePreflight())){
     const port=st.port,session=st.sessionIndex,uid=st.uid.hex;
@@ -4905,7 +4929,7 @@ if(typeof document!=='undefined') (function UI(){
      throw Error('DSP-Druckkorrektur: unzulässiger NVM-Übergang');
    if(st.adapterKind==='bridge'&&!st.bridgeUserNvm&&modified[CAL.SVDD_INDEX]!==initial[CAL.SVDD_INDEX])
     throw Error('Brückenspannung dauerhaft speichern wird derzeit nur mit SSP3 unterstützt.');
-   CAL.protectStartupCommunication(initial,modified,{allowSvdd,allowAlarmMask:alarmOnly||alarmIntegrated,allowPressureCorrection,operatingProfile,interfaceMode:st.iface,allowTimedOneWire:timedOneWire});
+   protectDevPtc(initial,modified,{allowSvdd,allowAlarmMask:alarmOnly||alarmIntegrated,allowPressureCorrection,operatingProfile,interfaceMode:st.iface,allowTimedOneWire:timedOneWire});
    const startup=CAL.oneWireStartupStatus(initial);
    const liveSsp3Calibration=!restoring&&!outputOnly&&!alarmOnly&&(st.coldStartAfeRestored||!psscRecoveryProven())&&
     ssp3CalibrationWithoutRestart(initial,modified,!!st.calImage.recoveryCombined);
@@ -5016,7 +5040,7 @@ if(typeof document!=='undefined') (function UI(){
    }
    const finalRecoveryBlock=psscNvmBlock(initial,modified,restoring,outputOnly,alarmOnly,!!st.calImage?.recoveryCombined);
    if(finalRecoveryBlock)throw Error(finalRecoveryBlock);
-   CAL.protectStartupCommunication(initial,modified,{allowSvdd,allowAlarmMask:alarmOnly||alarmIntegrated,allowPressureCorrection,operatingProfile,interfaceMode:st.iface,allowTimedOneWire:timedOneWire});
+   protectDevPtc(initial,modified,{allowSvdd,allowAlarmMask:alarmOnly||alarmIntegrated,allowPressureCorrection,operatingProfile,interfaceMode:st.iface,allowTimedOneWire:timedOneWire});
    for(let i=0;i<28;i++)if(modified[i]!==initial[i]&&(restoring||![16,...(timedOneWire?[17,18]:[]),...((alarmOnly||alarmIntegrated)?[18,22]:[22]),...(allowSvdd?[CAL.SVDD_INDEX]:[]),...(operatingProfile?CAL.PROFILE_WORDS:[])].includes(i)))throw Error('Boot-/Werksbereich verändert');
    if(liveSsp3Calibration){
     if(st.coldStartAfeRestored)await verifyRecoveredCalibrationProfile(modified);
@@ -5982,6 +6006,7 @@ if(typeof document!=='undefined') (function UI(){
  $('expertMode').addEventListener('change',syncDemoExpertVisibility);
  syncDemoExpertVisibility();
  async function changeDemoMode(enabled){
+  if(ptcDev){demoMode.checked=true;return;}
   demoMode.disabled=true;
   try{
    if(st.closing||(st.port&&!await disconnect())){
@@ -6212,7 +6237,7 @@ if(typeof document!=='undefined') (function UI(){
  function guidedAfeStats(since){
   const start=Number.isFinite(since)?since:Date.now();
   const selected=st.history.filter(item=>Date.parse(item.time)>=start&&
-   item.source==='usb'&&Number.isFinite(item.adc_s)&&
+   (item.source==='usb'||(ptcDev&&demoEnabled&&item.source==='demo'))&&Number.isFinite(item.adc_s)&&
    item.gains?.pga1===st.staged.pga1&&item.gains?.pga2===st.staged.pga2&&item.gains?.offset===st.staged.offset&&item.gains?.bridgeInvert===st.staged.bridgeInvert);
   if(!selected.length)return {count:0,min:null,max:null,hub:null,limitExceeded:false};
   const readings=selected.map(item=>item.adc_s);
@@ -6538,6 +6563,21 @@ if(typeof document!=='undefined') (function UI(){
   },
   refresh:()=>{renderCalPoints();renderFlowState();renderStatus()},
   telemetry:()=>guidedTelemetry(),
+  configurePtcDev:async(profile,code,temperature)=>{
+   if(!ptcDev||!demoEnabled||!st.port||!st.chip||st.calTask||st.writing||st.nvmWorking)throw Error('Nur am verbundenen DEV-Demosensor verfügbar.');
+   if(selectedTemperatureSource()!=='bridge')throw Error('Brückentemperatur auswählen.');
+   if(st.liveReadPromise)await st.liveReadPromise.catch(()=>{});
+   demoPort.setPtcProfile(profile,code);
+   st.afe0=await readReg(0x1A);st.regs[0x1A]=st.afe0;st.regs[0x1E]=await readReg(0x1E);st.regs[4]=await readReg(4);
+   erasePoints();st.trend=[];demoPort.setReference((Number($('pmin').value)+Number($('pmax').value))/2,temperature);
+   renderAFEStepperState();await readADC();renderStatus();return {afe0:st.afe0,afe2:st.regs[0x1E],cfgEn:st.regs[4]};
+  },
+  setPtcDevReference:async(pressure,temperature)=>{
+   if(!ptcDev||!demoEnabled||!st.chip||st.calTask||st.writing||st.nvmWorking)throw Error('Kein freier DEV-Demosensor.');
+   demoPort.setReference(pressure,temperature);if(st.liveReadPromise)await st.liveReadPromise.catch(()=>{});await readADC();
+  },
+  clearPtcDev:()=>{if(ptcDev&&demoEnabled&&demoPort.ptcConfigured()){demoPort.clearPtcProfile();erasePoints();st.trend=[];}},
+
   afeStats:since=>guidedAfeStats(since),
   redraw:()=>draw(),
 
