@@ -1,3 +1,9 @@
+## v0.7.221 – Sensor-ID in Dezimal oder Hex
+
+- Dezimal als Standard (0–65535), Live-Hex-Vorschau und Umschaltung auf Hex mit Dezimalvorschau. Formatwechsel erhält den numerischen Wert und eine bereits geprüfte Änderungsliste; echte Eingabeänderungen verwerfen den Plan wie bisher.
+- Leere Eingabe behält die bisherige USER-ID, beim Sensorwechsel wird die Eingabe auf Dezimal zurückgesetzt. Chip-UID, NVM-Wort 30, Schreibprüfung und Archivformat bleiben unverändert.
+- Softwaretests für die Konvertierung und Formatwechsel; reale Hardwareprüfung ausstehend.
+
 ## v0.7.220 – Automatische Koeffizientenberechnung im Serienabgleich
 
 - Messpunktabschluss und Archivierung vor dem automatischen Fit abwarten; bekannte Lesevorgänge begrenzt abwarten. Keine fremden Sperren aufheben.

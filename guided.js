@@ -974,6 +974,7 @@ const ELMOS_GUIDED=(()=>{
   page.classList.toggle('gw-nvm-busy',busy);
    $('gwNvmIdentification').hidden=$('nvmUserIdField').hidden;
    $('nvmUserId').disabled=busy||!!s.nvmDone;
+   $('nvmUserIdSwitch').disabled=$('nvmUserId').disabled||$('nvmUserId').getAttribute('aria-invalid')==='true';
   const summary=$('gwNvmSummary');
   const text=ready?'Änderungen geprüft · bereit zum Speichern':busy?'Sensorvorgang läuft …':s.nvmPlanPrepared?'Schreibfreigabe prüfen':'Änderungen prüfen, danach dauerhaft speichern.';
   if(summary.textContent!==text)summary.textContent=text;

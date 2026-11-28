@@ -2136,6 +2136,11 @@ if(typeof document!=='undefined') (function UI(){
    'Ausgangsänderungen ohne neuen Druckabgleich: Original-NVM und UID prüfen, Änderungsliste kontrollieren und erst danach gezielt speichern.':
    'Nach erfolgreicher DSP-Prüfung das aktuelle NVM lesen und die Änderungen prüfen. Anschliessend kann die Kalibrierung dauerhaft gespeichert werden.';
   $('nvmUserIdField').hidden=outputPlanSelected||alarmPlanSelected;
+  if($('nvmUserIdSwitch')){
+   const userIdInput=$('nvmUserId');
+   userIdInput.disabled=!!(st.nvmWorking||st.writing||st.calTask||st.nvmAttempting||st.nvmRechecking||st.nvmDone);
+   $('nvmUserIdSwitch').disabled=userIdInput.disabled||userIdInput.getAttribute('aria-invalid')==='true';
+  }
   const confirmHeading=document.querySelector('.panel[data-panel="6"] .nvm-confirm-section h3');
   if(confirmHeading)confirmHeading.textContent=alarmPlanSelected?
    '2. Alarm- und Fehlerkonfiguration dauerhaft speichern':outputPlanSelected?
@@ -4905,11 +4910,53 @@ if(typeof document!=='undefined') (function UI(){
   }catch(e){if(visualAttempt){visualAttempt.status='failed';visualAttempt.reason=e.message;}st.calVerified=false;st.calImage=null;if(ptcDev&&isChecking&&devPtcFit())st.calValidation=st.calValidation.filter(p=>p.slot!==slot);try{await window.ELMOS_ARCHIVE?.event('error',{stage:'dsp_verification',slot,message:e.message})}catch(_){}ca('calRamMsg','DSP-Verifikation: '+e.message,'error')}
   finally{if(isChecking)st.calTask=false;renderFlowState()}
  }
- function requestedNvmUserId(){
-  const value=$('nvmUserId').value.trim();
+ function parseNvmUserId(raw,format){
+  const value=raw.trim();
   if(!value)return undefined;
-  if(!/^(?:0x)?[0-9a-f]{1,4}$/i.test(value))throw Error('USER-ID: 1 bis 4 Hex-Ziffern eingeben, z. B. 00AF');
-  return Number.parseInt(value,16);
+  if(format==='hex'){
+   if(!/^(?:0x)?[0-9a-f]{1,4}$/i.test(value))throw Error('USER-ID: 1 bis 4 Hex-Ziffern eingeben, z. B. 00AF');
+   return Number.parseInt(value,16);
+  }
+  if(!/^\d+$/.test(value)||Number(value)>65535)throw Error('Sensor-ID: Ganzzahl von 0 bis 65535 eingeben.');
+  return Number(value);
+ }
+ function formatNvmUserId(value,format){
+  return value===undefined?'':format==='hex'?value.toString(16).toUpperCase().padStart(4,'0'):String(value);
+ }
+ function requestedNvmUserId(){
+  const input=$('nvmUserId');
+  return parseNvmUserId(input.value,input.dataset.format);
+ }
+ function refreshNvmUserIdPreview(){
+  const input=$('nvmUserId'),hex=input.dataset.format==='hex';
+  let value,invalid=false;
+  try{value=requestedNvmUserId()}catch(_){invalid=true}
+  input.setAttribute('aria-invalid',String(invalid));
+  $('nvmUserIdError').hidden=!invalid;
+  $('nvmUserIdFormat').textContent=hex?'Hex (0000–FFFF)':'Dezimal (0–65535)';
+  $('nvmUserIdPreviewLabel').textContent=hex?'Dezimalwert:':'Hex-Wert:';
+  $('nvmUserIdPreview').textContent=invalid||value===undefined?'—':hex?formatNvmUserId(value,'decimal'):'0x'+formatNvmUserId(value,'hex');
+  $('nvmUserIdSwitch').textContent=hex?'Dezimal eingeben':'Hex eingeben';
+  $('nvmUserIdSwitch').disabled=input.disabled||invalid;
+ }
+ function setNvmUserIdFormat(format,value){
+  const input=$('nvmUserId');
+  input.dataset.format=format;
+  input.inputMode=format==='hex'?'text':'numeric';
+  input.placeholder=format==='hex'?'z. B. 00AF':'z. B. 175';
+  input.value=formatNvmUserId(value,format);
+  refreshNvmUserIdPreview();
+ }
+ function switchNvmUserIdFormat(){
+  const input=$('nvmUserId');
+  if(input.disabled)return;
+  let value;
+  try{value=requestedNvmUserId()}catch(_){return}
+  setNvmUserIdFormat(input.dataset.format==='hex'?'decimal':'hex',value);
+  // No input event: switching the representation does not change the NVM word.
+ }
+ function resetNvmUserId(){
+  setNvmUserIdFormat('decimal',undefined);
  }
  async function readNvmBridgeSupply(expectedWord){
   const ram=await readReg(R_BRIDGE);
@@ -6276,7 +6323,10 @@ if(typeof document!=='undefined') (function UI(){
  // Backup ist aus Sicherheitsgründen bei jedem neuen Browserdurchlauf standardmässig aktiviert.
  $('nvmAutoBackup').checked=true;
  $('nvmAutoBackup').addEventListener('change',renderFlowState);
+ $('nvmUserIdSwitch').addEventListener('click',switchNvmUserIdFormat);
+ refreshNvmUserIdPreview();
  $('nvmUserId').addEventListener('input',()=>{
+  refreshNvmUserIdPreview();
   if(st.calImage&&st.calImage!==st.restorePlan&&st.calImage!==st.outputOnlyPlan){
    st.calImage=null;
    $('nvmDiff').textContent='USER-ID geändert. Änderungsliste erneut vorbereiten.';
@@ -6680,9 +6730,9 @@ if(typeof document!=='undefined') (function UI(){
   let userId=null;
   const word=st.nvmBackup?.[30];
   if(Number.isInteger(word))userId='0x'+h(word,2);
-  const input=$('nvmUserId')?.value?.trim();
-  if(!userId&&input&&/^(?:0x)?[0-9a-f]{1,4}$/i.test(input))
-   userId='0x'+parseInt(input,16).toString(16).padStart(4,'0').toUpperCase();
+  if(!userId){
+   try{const value=requestedNvmUserId();if(value!==undefined)userId='0x'+formatNvmUserId(value,'hex')}catch(_){}
+  }
   return {
    online:!!st.chip,uid:st.uid?.hex||null,customUID:userId,nvmDone:!!st.nvmDone,calVerified:!!st.calVerified,
    software:{version:document.body.dataset.appVersion||'nicht angegeben',url:location.href,
@@ -6920,7 +6970,7 @@ if(typeof document!=='undefined') (function UI(){
     await finishSensorArchive(uid);
     if(!current())throw Error('Sensorverbindung hat sich geändert.');
     erasePoints();st.trend=[];st.profilePendingAFE=null;
-    $('nvmUserId').value='';
+    resetNvmUserId();
     stopSeriesPreset();
     return {profile,filterWords,temperatureSource:selectedTemperatureSource()};
    }catch(error){if(wasLive&&st.chip&&!st.closing)startLive();throw error;}
@@ -7129,7 +7179,7 @@ if(typeof document!=='undefined') (function UI(){
     return withProgress('Abgleich wird abgeschlossen',async()=>{
      await finishSensorArchive(st.uid?.hex);
      erasePoints();
-     $('nvmUserId').value='';
+     resetNvmUserId();
     },true);
    }
    if(!st.chip||!st.port||!st.readerAlive)return;

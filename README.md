@@ -2,7 +2,9 @@
 
 **Ein geführter Kalibrierassistent für den ELMOS E703.11 mit SSP3-Eval-Board, ESP32-C3 SuperMini oder Arduino Pro Micro.** Ziel ist ein verständlicher Abgleich, der auch ohne tiefere Vorkenntnisse Schritt für Schritt funktioniert. Wer mehr benötigt, kann zusätzliche Messpunkte, DSP-Parameter und einen geschützten Expertenmodus verwenden.
 
-**Version: v0.7.220 · Automatische Koeffizientenberechnung im Serienabgleich** · [Änderungsverlauf](CHANGELOG.md) · **[Geplante Funktionen](ROADMAP.md)**
+**Version: v0.7.221 · Sensor-ID in Dezimal oder Hex** · [Änderungsverlauf](CHANGELOG.md) · **[Geplante Funktionen](ROADMAP.md)**
+
+Die optionale Sensor-ID (USER-ID) wird standardmässig dezimal (0–65535) eingegeben. Der umgerechnete Hex-Wert steht direkt darunter; per Umschaltung ist auch die direkte Hex-Eingabe möglich. Eine leere Eingabe erhält die bisherige ID, die Chip-UID bleibt unverändert.
 
 Der **Demo-Modus** wird in den Einstellungen erst nach Aktivierung von **Expertenparameter** angezeigt. Er simuliert Sensorwerte und Schreibvorgänge; die echte Hardware wird dabei nicht programmiert.
 
