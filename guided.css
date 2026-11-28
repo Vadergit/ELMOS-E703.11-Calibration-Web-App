@@ -527,13 +527,19 @@ html[data-theme="dark"] #guidedWorkspace .gw-quick-connect{background:#382e1d;co
 #guidedWorkspace #gwNvmAlerts .callout{margin:5px 0} #guidedWorkspace #gwNvmRecovery:empty{display:none}
 @media(max-width:650px){#guidedWorkspace .gw-series-grid{grid-template-columns:1fr}}
 
-/* v0.7.218: optional USER-ID remains visible before the NVM actions. */
-#guidedWorkspace #gwNvmIdentification #nvmUserIdField{display:flex;flex-wrap:wrap;align-items:end;gap:6px 16px;margin:0;padding:0}
-#guidedWorkspace #gwNvmIdentification #nvmUserIdField[hidden],#guidedWorkspace #gwNvmIdentification[hidden]{display:none!important}
-#guidedWorkspace #gwNvmIdentification #nvmUserIdField label{display:grid;gap:4px;min-width:0;width:220px;max-width:100%}
-#guidedWorkspace #gwNvmIdentification #nvmUserId{width:100%;box-sizing:border-box}
-#guidedWorkspace #gwNvmIdentification #nvmUserIdHint{margin:0 0 7px;max-width:100%;font-size:12px}
-
+/* v0.7.222: clearly distinguish the active input from the format switch. */
+#nvmUserIdField,#guidedWorkspace #gwNvmIdentification #nvmUserIdField{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:start;gap:8px 24px;margin:0;padding:0}
+#nvmUserIdField[hidden],#guidedWorkspace #gwNvmIdentification[hidden]{display:none!important}
+#nvmUserIdField .nvm-id-entry{min-width:0}
+#nvmUserIdField #nvmUserIdLabel{display:block;width:auto;color:var(--ink);font-weight:700}
+#nvmUserIdField #nvmUserId{display:block;width:240px;max-width:100%;box-sizing:border-box;margin-top:5px;font-variant-numeric:tabular-nums}
+#nvmUserIdField .nvm-id-preview{margin-top:5px}
+#nvmUserIdField .nvm-id-mode{display:grid;justify-items:start;gap:5px;border-left:1px solid var(--line);padding-left:20px}
+#nvmUserIdField .nvm-id-mode button{padding:8px 12px}
+#nvmUserIdField #nvmUserIdHint{grid-column:1/-1;margin:0;font-size:12px}
+#nvmUserIdField #nvmUserIdError{margin:5px 0 0}
+@media(max-width:600px){#nvmUserIdField,#guidedWorkspace #gwNvmIdentification #nvmUserIdField{grid-template-columns:minmax(0,1fr);gap:10px}#nvmUserIdField .nvm-id-mode{border-left:0;border-top:1px solid var(--line);padding:8px 0 0}}
+ 
 /* v0.7.219: sensor swap instructions on the left, transfer preferences on the right. */
 #guidedWorkspace #gwSwapPage:not([hidden]){display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);align-items:start;gap:14px}
 #guidedWorkspace #gwSwapPage[hidden]{display:none!important}

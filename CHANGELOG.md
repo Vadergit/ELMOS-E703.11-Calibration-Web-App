@@ -1,3 +1,9 @@
+## v0.7.222 – Eindeutige Sensor-ID-Eingabe mit Eingabeschutz
+
+- Aktives Format direkt im Feldtitel, separater Bereich für die Formatumschaltung, Wertebereich und umgerechneter Wert unter dem Feld; responsive Darstellung.
+- Unzulässige Zeichen und Werte werden bei der Eingabe oder beim Einfügen abgewiesen. Ein Fallback stellt bei nicht abbrechbaren Eingabeereignissen die letzte gültige Eingabe wieder her. Kein Abschneiden, keine automatische Begrenzung auf einen anderen Wert.
+- Nur echte numerische Änderungen verwerfen die vorhandene Änderungsliste. Leeres Feld, NVM-Wort 30, Chip-UID und Schreibprüfungen unverändert. Hardwareprüfung ausstehend.
+
 ## v0.7.221 – Sensor-ID in Dezimal oder Hex
 
 - Dezimal als Standard (0–65535), Live-Hex-Vorschau und Umschaltung auf Hex mit Dezimalvorschau. Formatwechsel erhält den numerischen Wert und eine bereits geprüfte Änderungsliste; echte Eingabeänderungen verwerfen den Plan wie bisher.

@@ -4910,6 +4910,40 @@ if(typeof document!=='undefined') (function UI(){
   }catch(e){if(visualAttempt){visualAttempt.status='failed';visualAttempt.reason=e.message;}st.calVerified=false;st.calImage=null;if(ptcDev&&isChecking&&devPtcFit())st.calValidation=st.calValidation.filter(p=>p.slot!==slot);try{await window.ELMOS_ARCHIVE?.event('error',{stage:'dsp_verification',slot,message:e.message})}catch(_){}ca('calRamMsg','DSP-Verifikation: '+e.message,'error')}
   finally{if(isChecking)st.calTask=false;renderFlowState()}
  }
+ function validNvmUserIdInput(raw,format){
+  if(raw==='')return true;
+  return format==='hex'?/^(?:0x)?[0-9a-f]{1,4}$/i.test(raw):/^[0-9]{1,5}$/.test(raw)&&Number(raw)<=65535;
+ }
+ function rejectNvmUserIdInput(){
+  const hex=$('nvmUserId').dataset.format==='hex',error=$('nvmUserIdError');
+  error.textContent=hex?'Eingabe abgewiesen. Nur Hex-Ziffern von 0000 bis FFFF.':'Eingabe abgewiesen. Nur ganze Zahlen von 0 bis 65535.';
+  error.hidden=false;
+ }
+ function guardNvmUserIdBeforeInput(event){
+  const input=$('nvmUserId');
+  if(input.disabled){if(event.cancelable)event.preventDefault();return;}
+  if(!event.cancelable||!event.inputType?.startsWith('insert')||event.isComposing)return;
+  const inserted=event.data??event.dataTransfer?.getData('text/plain');
+  if(typeof inserted!=='string'||input.selectionStart===null||input.selectionEnd===null)return;
+  const candidate=input.value.slice(0,input.selectionStart)+inserted+input.value.slice(input.selectionEnd);
+  if(!validNvmUserIdInput(candidate,input.dataset.format)){
+   event.preventDefault();
+   rejectNvmUserIdInput();
+  }
+ }
+ function acceptNvmUserIdInput(){
+  const input=$('nvmUserId'),previous=input.dataset.accepted??'';
+  if(input.disabled||!validNvmUserIdInput(input.value,input.dataset.format)){
+   input.value=previous;
+   refreshNvmUserIdPreview();
+   rejectNvmUserIdInput();
+   return false;
+  }
+  const changed=parseNvmUserId(input.value,input.dataset.format)!==parseNvmUserId(previous,input.dataset.format);
+  input.dataset.accepted=input.value;
+  refreshNvmUserIdPreview();
+  return changed;
+ }
  function parseNvmUserId(raw,format){
   const value=raw.trim();
   if(!value)return undefined;
@@ -4917,7 +4951,7 @@ if(typeof document!=='undefined') (function UI(){
    if(!/^(?:0x)?[0-9a-f]{1,4}$/i.test(value))throw Error('USER-ID: 1 bis 4 Hex-Ziffern eingeben, z. B. 00AF');
    return Number.parseInt(value,16);
   }
-  if(!/^\d+$/.test(value)||Number(value)>65535)throw Error('Sensor-ID: Ganzzahl von 0 bis 65535 eingeben.');
+  if(!/^[0-9]{1,5}$/.test(value)||Number(value)>65535)throw Error('Sensor-ID: Ganzzahl von 0 bis 65535 eingeben.');
   return Number(value);
  }
  function formatNvmUserId(value,format){
@@ -4933,10 +4967,11 @@ if(typeof document!=='undefined') (function UI(){
   try{value=requestedNvmUserId()}catch(_){invalid=true}
   input.setAttribute('aria-invalid',String(invalid));
   $('nvmUserIdError').hidden=!invalid;
-  $('nvmUserIdFormat').textContent=hex?'Hex (0000–FFFF)':'Dezimal (0–65535)';
+  $('nvmUserIdLabel').textContent=hex?'Sensor-ID – Hex (optional)':'Sensor-ID – Dezimal (optional)';
+  $('nvmUserIdFormat').textContent=hex?'Zulässig: 0000–FFFF':'Zulässig: 0–65535';
   $('nvmUserIdPreviewLabel').textContent=hex?'Dezimalwert:':'Hex-Wert:';
   $('nvmUserIdPreview').textContent=invalid||value===undefined?'—':hex?formatNvmUserId(value,'decimal'):'0x'+formatNvmUserId(value,'hex');
-  $('nvmUserIdSwitch').textContent=hex?'Dezimal eingeben':'Hex eingeben';
+  $('nvmUserIdSwitch').textContent=hex?'Auf Dezimal umschalten':'Auf Hex umschalten';
   $('nvmUserIdSwitch').disabled=input.disabled||invalid;
  }
  function setNvmUserIdFormat(format,value){
@@ -4945,6 +4980,7 @@ if(typeof document!=='undefined') (function UI(){
   input.inputMode=format==='hex'?'text':'numeric';
   input.placeholder=format==='hex'?'z. B. 00AF':'z. B. 175';
   input.value=formatNvmUserId(value,format);
+  input.dataset.accepted=input.value;
   refreshNvmUserIdPreview();
  }
  function switchNvmUserIdFormat(){
@@ -6325,8 +6361,9 @@ if(typeof document!=='undefined') (function UI(){
  $('nvmAutoBackup').addEventListener('change',renderFlowState);
  $('nvmUserIdSwitch').addEventListener('click',switchNvmUserIdFormat);
  refreshNvmUserIdPreview();
+ $('nvmUserId').addEventListener('beforeinput',guardNvmUserIdBeforeInput);
  $('nvmUserId').addEventListener('input',()=>{
-  refreshNvmUserIdPreview();
+  if(!acceptNvmUserIdInput())return;
   if(st.calImage&&st.calImage!==st.restorePlan&&st.calImage!==st.outputOnlyPlan){
    st.calImage=null;
    $('nvmDiff').textContent='USER-ID geändert. Änderungsliste erneut vorbereiten.';
