@@ -34,3 +34,9 @@ test('equal hubs produce a zero difference',()=>{
  const totals=summarizeSpans(captureSpans([row(0,25,0,100),row(10,25,1000,100),row(0,75,0,600),row(10,75,1000,600)]));
  assert.deepEqual(totals.map(x=>x.delta),[0,0]);
 });
+
+test('repeated reference uses newest successful capture, not last array slot',()=>{
+ const a=row(0,25,0,0),b=row(10,25,1200,0),c=row(10,25,1000,0);
+ b.record.at='2026-11-28T16:02:00Z';c.record.at='2026-11-28T16:01:00Z';
+ assert.equal(captureSpans([a,b,c])[0].span,1200);
+});

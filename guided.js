@@ -940,7 +940,7 @@ const ELMOS_GUIDED=(()=>{
  // tool is open. Move the existing calculator, never clone its inputs/listeners.
  let calculatorOrigin=null,calculatorTitle=null,calculatorScroll=0;
  function openNvmCalculator(){
-  if(!mode||nextSensorPending)return false;
+  if(!mode||nextSensorPending||fitAutomationBusy)return false;
   if(window.ELMOS_TEST_LOGGER?.isBusy()){msg('Bitte zuerst die laufende Testaufzeichnung beenden.','warn');return false;}
   const workspace=$('guidedNvmWorkspace'),node=$('nvmReconstruction'),host=$('guidedNvmHost');
   if(!workspace||!node||!host)return false;
@@ -1211,7 +1211,7 @@ const ELMOS_GUIDED=(()=>{
   window.scrollTo({top:0,behavior:'auto'});
  }
  function close({preservePreference=false}={}){
-  if(!mode||nextSensorPending)return;
+  if(!mode||nextSensorPending||fitAutomationBusy)return;
   if(window.ELMOS_TEST_LOGGER?.isBusy()){
    msg('Bitte die Testaufzeichnung zuerst beenden, bevor du die Ansicht wechselst.','warn');return;
   }

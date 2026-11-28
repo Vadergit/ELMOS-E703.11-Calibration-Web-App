@@ -5679,7 +5679,7 @@ if(typeof document!=='undefined') (function UI(){
   $('calDspLimit').dispatchEvent(new Event('change',{bubbles:true}));
   if(window.ELMOS_GUIDED?.isOpen?.())window.ELMOS_GUIDED.goToCoefficients?.();
   else step(3);
-  calcCoefficients();
+  if(window.ELMOS_GUIDED?.isFitPage?.())void window.ELMOS_GUIDED.runFitAutomation();else calcCoefficients();
   $('calDspLimit').focus({preventScroll:true});
  });
  $('calDspProposalApply').addEventListener('click',()=>{
@@ -5689,7 +5689,7 @@ if(typeof document!=='undefined') (function UI(){
   $('calDspLimit').dataset.userEdited='1';
   updateDSPOutputLimit();
   renderDSPLive();
-  calcCoefficients();
+  if(window.ELMOS_GUIDED?.isFitPage?.())void window.ELMOS_GUIDED.runFitAutomation();else calcCoefficients();
  });
  updateDSPOutputLimit();
  fillIntermediateReferences();refreshUnitLabels();
@@ -6158,7 +6158,7 @@ if(typeof document!=='undefined') (function UI(){
  $('calDiscardDraft')?.addEventListener('click',discardCalibrationCheckpoint);
  $('calExportDraft')?.addEventListener('click',()=>{const draft=storedCalibrationCheckpoint(st.uid?.hex);if(draft)download('ELMOS_Messpunktentwurf_'+draft.uid+'.json',JSON.stringify(draft,null,2));});
  $('calPointClear').addEventListener('click',()=>{erasePoints();ca('calPointsMsg','Alle Kalibriermesspunkte verworfen.');});
- $('calCalculate').addEventListener('click',calcCoefficients);
+ $('calCalculate').addEventListener('click',()=>window.ELMOS_GUIDED?.isFitPage?.()?window.ELMOS_GUIDED.runFitAutomation():calcCoefficients());
  $('calApplyRam').addEventListener('click',()=>window.ELMOS_GUIDED?.isFitPage?.()?window.ELMOS_GUIDED.runFitAutomation({calculate:false,manual:true}):applyCalRam());
  const firstVerifyRow=$('calVerifyRows').firstElementChild;
  for(let slot=1;slot<10;slot++){
