@@ -392,3 +392,26 @@ test('offline startup without UID or temperature reference never throws',()=>{
   for(const record of [undefined,null,{}])assert.equal(h.validInternalReference(record,uid,undefined),false);
  }
 });
+
+
+test('live Celsius remains available when the recognised DSP profile has no usable sample',()=>{
+ const app=require('node:fs').readFileSync(require('node:path').join(__dirname,'../app.js'),'utf8');
+ const start=app.indexOf(' function temperatureStorageKey('),end=app.indexOf(' const GAINS1=',start);
+ assert.ok(start>=0&&end>start);
+ const h=new Function('const demoEnabled=false;'+app.slice(start,end)+';return {chooseLiveTemperature,estimateInternalTemperature,referenceFromDisplayProfile}')();
+ const uid='0020018B39FA',afe2=0x1154,words=Array(64).fill(0);words[29]=afe2;
+ const profile={uid,crc:123,nvmWords:words,reference:{ta:25,adcT1:4483}};
+ const ref=h.referenceFromDisplayProfile(profile,uid,afe2,123);
+ assert.ok(ref);
+ const estimate=h.estimateInternalTemperature(4483,ref,false);
+ assert.equal(h.chooseLiveTemperature(null,estimate,true).value,25);
+ assert.equal(h.chooseLiveTemperature(200,estimate,true).mode,'reference');
+ assert.equal(h.chooseLiveTemperature(26,estimate,true).mode,'an0203');
+ assert.equal(h.chooseLiveTemperature(26,estimate,false).value,25);
+ assert.equal(h.chooseLiveTemperature(null,{value:null},false).value,null);
+ assert.equal(h.chooseLiveTemperature(null,{value:140,mode:'nominal'},false).outOfRange,true);
+ assert.equal(h.referenceFromDisplayProfile(profile,uid,afe2,124),null);
+ assert.equal(h.referenceFromDisplayProfile(profile,uid,afe2|2,123),null);
+ assert.equal(h.referenceFromDisplayProfile(profile,'0020018B39FB',afe2,123),null);
+ assert.equal(h.referenceFromDisplayProfile({...profile,reference:{...profile.reference,tb:75}},uid,afe2,123),null);
+});
