@@ -275,6 +275,7 @@ const ELMOS_GUIDED=(()=>{
    updateUI();
   });
   $('gwOutputSkipAlarm').addEventListener('click',()=>{
+   if(fitAutomationBusy||setupBusy||!state().chip||!outputStepReady())return;
    window.ELMOS_GUIDED_API?.skipAlarms?.();goto(9);
   });
   $('gwSkipAlarm').addEventListener('click',()=>{
@@ -870,7 +871,7 @@ const ELMOS_GUIDED=(()=>{
   const ready=stage===4?!!plan&&plan.points.every(p=>pointRecord(p)):stage===5?!!s.calStaged:stage===6?!!s.calVerified:stage===9?!!s.nvmDone:true;
   $('gwPrevious').disabled=stage===0||fitAutomationBusy||setupBusy;
   $('gwConnectionToggle').disabled=fitAutomationBusy||setupBusy;
-  for(const side of root.querySelectorAll('[data-gw-side]'))side.disabled=fitAutomationBusy||setupBusy||connectionOpen||nextSensorPending;
+  for(const side of root.querySelectorAll('[data-gw-side]'))side.disabled=fitAutomationBusy||setupBusy||connectionOpen||!!nextSensorPending||!visited.has(Number(side.dataset.gwSide));
   if($('calCalculate'))$('calCalculate').disabled=fitAutomationBusy;
   if(fitAutomationBusy&&$('calApplyRam'))$('calApplyRam').disabled=true;
   $('gwNext').disabled=fitAutomationBusy||setupBusy||!s.chip||(stage===10?nextSensorBusy||!s.nvmDone:!ready);
@@ -900,7 +901,7 @@ const ELMOS_GUIDED=(()=>{
   for(let i=0;i<steps.length;i++){
    $('gwPage'+i).hidden=connectionOpen||swapping||i!==stage;
    const side=document.querySelector('[data-gw-side="'+i+'"]');
-   side.disabled=swapping||connectionOpen||fitAutomationBusy;
+   side.disabled=swapping||connectionOpen||fitAutomationBusy||setupBusy||!visited.has(i);
    side.classList.toggle('is-active',i===stage);
    side.classList.toggle('is-done',visited.has(i)&&i!==stage);
    side.setAttribute('aria-current',i===stage?'step':'false');
@@ -911,7 +912,8 @@ const ELMOS_GUIDED=(()=>{
    'Sensorwerte in frei wählbaren Intervallen aufzeichnen, mitteln und mit Notizen archivieren.':
    (plan?.tCount===1&&stage===4?'Referenzdruck einstellen und bei stabilen Bedingungen aufnehmen.':!temperatureCompensationEnabled()&&stage===6?'DSP an unabhängigen Druckpunkten prüfen.':steps[stage][2]);
   $('gwProgress').style.width=(loggerPage?100:(stage+1)/steps.length*100).toFixed(1)+'%';
-  $('gwPrevious').disabled=stage===0;
+  $('gwPrevious').hidden=stage===0;
+   $('gwPrevious').disabled=stage===0;
   $('gwTasks').hidden=stage!==10;
   $('gwNext').hidden=loggerPage||stage===0||(stage===10&&state().demo); // A card click now enters the chosen task immediately.
   $('gwNext').textContent=stage===8?'Weiter zum NVM':stage===9?'Abschluss prüfen':stage===10?'Nächsten Sensor abgleichen':'Weiter';
@@ -923,7 +925,7 @@ const ELMOS_GUIDED=(()=>{
    void refreshSwapPort();
    return;
   }
-  if(stage===0)setText('gwFooterHint','E703.11 · Kalibrierassistent');
+  setText('gwFooterHint','E703.11 · Kalibrierassistent');
   if(stage===0)document.querySelectorAll('[data-gw-task]').forEach(x=>{
    x.setAttribute('aria-pressed',String(x.dataset.gwTask===task));
   });
@@ -1010,6 +1012,12 @@ const ELMOS_GUIDED=(()=>{
   stage=Math.max(0,Math.min(11,n));visited.add(stage);render();
   root.scrollIntoView({behavior:'smooth',block:'start'});
  }
+ function outputStepReady(){
+  if(task==='calibration'&&state().outputScalingRequired){
+   msg('Die alte Ausgangsskalierung passt nicht zum aktuellen DSP-Zielbereich. Bitte «Scaling berechnen und aktivieren» und danach «Ausgangskonfiguration prüfen und vormerken» anklicken. Die Messpunkte und RAM-Kalibrierung bleiben erhalten.','warn');return false;
+  }
+  return true;
+ }
  async function next(seriesSettings=null){
   if(fitAutomationBusy||setupBusy)return;
   if(stage===0&&(task==='archive'||task==='verification')){
@@ -1081,9 +1089,7 @@ const ELMOS_GUIDED=(()=>{
   if(stage===5){if(!s.calStaged){msg('Bitte die Koeffizienten zuerst berechnen und ins RAM übertragen.','warn');return}goto(6);return}
   if(stage===6){if(!s.calVerified){msg('Die unabhängige DSP-Prüfung muss erfolgreich abgeschlossen sein.','warn');return}goto(7);return}
   if(stage===7){
-   if(task==='calibration'&&s.outputScalingRequired){
-    msg('Die alte Ausgangsskalierung passt nicht zum aktuellen DSP-Zielbereich. Bitte «Scaling berechnen und aktivieren» und danach «Ausgangskonfiguration prüfen und vormerken» anklicken. Die Messpunkte und RAM-Kalibrierung bleiben erhalten.','warn');return;
-   }
+   if(!outputStepReady())return;
    goto(8);return
   }
   if(stage===8){
