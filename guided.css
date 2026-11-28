@@ -533,3 +533,18 @@ html[data-theme="dark"] #guidedWorkspace .gw-quick-connect{background:#382e1d;co
 #guidedWorkspace #gwNvmIdentification #nvmUserIdField label{display:grid;gap:4px;min-width:0;width:220px;max-width:100%}
 #guidedWorkspace #gwNvmIdentification #nvmUserId{width:100%;box-sizing:border-box}
 #guidedWorkspace #gwNvmIdentification #nvmUserIdHint{margin:0 0 7px;max-width:100%;font-size:12px}
+
+/* v0.7.219: sensor swap instructions on the left, transfer preferences on the right. */
+#guidedWorkspace #gwSwapPage:not([hidden]){display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);align-items:start;gap:14px}
+#guidedWorkspace #gwSwapPage[hidden]{display:none!important}
+#guidedWorkspace #gwSwapPage .gw-tile{min-width:0;padding:16px 19px}
+#guidedWorkspace .gw-swap-instructions ol{padding-left:22px;margin:12px 0 16px;line-height:1.65}
+#guidedWorkspace .gw-swap-instructions p{font-size:13px;line-height:1.55;margin:8px 0}
+#guidedWorkspace .gw-swap-instructions .gw-panel-actions{margin-top:16px}
+#guidedWorkspace .gw-swap-settings .gw-series-options{margin:0;border:0;padding:0;background:transparent}
+#guidedWorkspace .gw-swap-settings .gw-series-options legend{padding:0;font-size:14px}
+#guidedWorkspace .gw-swap-settings .gw-series-grid{grid-template-columns:minmax(0,1fr);gap:0}
+#guidedWorkspace .gw-swap-settings .gw-series-option{padding:5px 0;align-items:center}
+#guidedWorkspace .gw-swap-settings .gw-series-option:last-child{border-bottom:0}
+#guidedWorkspace .gw-swap-settings .gw-series-option small{font-weight:400;line-height:1.25}
+@media(max-width:850px){#guidedWorkspace #gwSwapPage:not([hidden]){grid-template-columns:minmax(0,1fr)} }

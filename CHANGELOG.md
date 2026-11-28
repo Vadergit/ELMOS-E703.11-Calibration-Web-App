@@ -1,3 +1,8 @@
+## v0.7.219 – Sensorwechsel in zwei Spalten
+
+- Links die Schritt-für-Schritt-Anleitung und Verbindungsaktionen, rechts die vollständige kompakte Liste der Übernahmeoptionen. Auf schmalen Bildschirmen untereinander.
+- Alle bestehenden Checkboxen, gespeicherten Präferenzen, Übernahmeregeln und Hardwareprüfungen unverändert.
+
 ## v0.7.218 – USER-ID direkt auf der NVM-Seite
 
 - Optionales USER-ID-Feld im geführten Kalibrierablauf direkt vor der NVM-Prüfung sichtbar; leer lassen erhält die vorhandene ID. Änderungen an der Eingabe verwerfen weiterhin den alten Änderungsplan und erfordern die erneute Prüfung.
