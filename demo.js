@@ -96,7 +96,7 @@ const ELMOS_DEMO = {
     if(!dev)throw Error('Nur DEV-Simulation');
     const best=ELMOS_EXTERNAL_AFE.plan(profile).best;
     if(!best||best.i!==gain.i||best.j!==gain.j)throw Error('Ungültige externe AFE-Auswahl.');
-    ptc={...profile,source:'external'};ram.set(0x1E,ELMOS_EXTERNAL_AFE.merge(ram.get(0x1E)||0,profile,gain));ram.set(4,((ram.get(4)||0)&~12)|4);
+    ptc={...profile,source:'external'};ram.set(0x1E,ELMOS_EXTERNAL_AFE.merge(ram.get(0x1E)||0,profile,gain));ram.set(4,((ram.get(4)||0)&~0x100c)|0x1004);
     for(const addr of [0x6C,0x6E,0x70,0x72,...Array.from({length:16},(_,i)=>0x74+2*i),0x94,0x96,0x98,0x9A])ram.set(addr,0);
    },
    clearPtcProfile(){if(dev){ptc=null;ram.set(0x1A,nvm[27]);ram.set(0x1E,nvm[29]);ram.set(4,nvm[16]);}},
