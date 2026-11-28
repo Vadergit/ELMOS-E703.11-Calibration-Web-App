@@ -6237,7 +6237,7 @@ if(typeof document!=='undefined') (function UI(){
  function guidedAfeStats(since){
   const start=Number.isFinite(since)?since:Date.now();
   const selected=st.history.filter(item=>Date.parse(item.time)>=start&&
-   (item.source==='usb'||(ptcDev&&demoEnabled&&item.source==='demo'))&&Number.isFinite(item.adc_s)&&
+   (item.source==='usb'||(ptcDev&&demoEnabled&&item.source==='Demo'))&&Number.isFinite(item.adc_s)&&
    item.gains?.pga1===st.staged.pga1&&item.gains?.pga2===st.staged.pga2&&item.gains?.offset===st.staged.offset&&item.gains?.bridgeInvert===st.staged.bridgeInvert);
   if(!selected.length)return {count:0,min:null,max:null,hub:null,limitExceeded:false};
   const readings=selected.map(item=>item.adc_s);
