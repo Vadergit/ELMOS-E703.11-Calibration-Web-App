@@ -68,6 +68,9 @@ assert.throws(()=>ptc.range({}, {ohm:11000,temp:25,uncertainty:0}));
 assert.throws(()=>ptc.range({ptcTcr:-1}));
 assert.throws(()=>ptc.range({minTemp:125,maxTemp:-40}));
 assert.ok(ptc.plan({parallelOhm:5000}).selection.candidates.length===16);
-assert.equal(ptc.checkPoint({adc:-14724,adcTC:0,adcS:1000,svdd:2,afe0:0x0d72,afe2:0x114a}).valid,true);
+// Code 7 requires at least 0.360 mA; the 0.348 mA example is below that limit.
+assert.equal(ptc.checkPoint({adc:-14724,adcTC:0,adcS:1000,svdd:2,afe0:0x0d72,afe2:0x114a}).valid,false);
+const inRange=t.signal({resistanceOhm:2/.00038,svdd:2,code:7}).adc;
+assert.equal(ptc.checkPoint({adc:inRange,adcTC:0,adcS:1000,svdd:2,afe0:0x0d72,afe2:0x114a}).valid,true);
 assert.equal(ptc.checkPoint({adc:-14724,adcTC:32767,adcS:1000,svdd:2,afe0:0x0d72,afe2:0x114a}).valid,false);
 console.log('PTC 560 profile, piecewise TCR, uncertainty, measured anchor and ADC checks passed');
