@@ -15,3 +15,11 @@ test('optional values and size limits',()=>{
  assert.equal(normalize(wrap({operator:'x'.repeat(200)})).defaults.operator.length,120);
  assert.equal(normalize(wrap({})).defaults.location,'');
 });
+test('reject array defaults and invalid preference structure',()=>{
+ assert.throws(()=>normalize(wrap([])));
+ assert.throws(()=>normalize({...wrap({}),preferences:{verificationSamples:0}}));
+ assert.throws(()=>normalize({...wrap({}),preferences:{pressureUnit:'bad'}}));
+});
+test('only permitted preferences survive',()=>{
+ assert.deepEqual(normalize({...wrap({}),preferences:{theme:'dark',language:'de',pressureUnit:'bar',verificationCycles:2,verificationSamples:15,verificationMode:'pressure',nvm:true}}).preferences,{theme:'dark',language:'de',pressureUnit:'bar',verificationMode:'pressure',verificationCycles:2,verificationSamples:15});
+});

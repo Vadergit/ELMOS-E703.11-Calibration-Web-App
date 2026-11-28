@@ -1,3 +1,11 @@
+## v0.7.204-uiux – UI/UX-Testbranch
+
+- Automatische Koeffizientenberechnung und RAM-Rücklesung nach Messpunktkontrolle, mit Halt bei DSP-Warnungen oder Fehlern.
+- Kompaktere geführte Ansicht und Temperaturhilfe; vergleichbare ADC-Hübe und eindeutige Behandlung wiederholter Referenzpunkte.
+- Lokales persönliches Profil mit sicheren Nachmessungs-Standards, Sprach-/Farbauswahl und Schutz vor veralteter Ordnerdatei.
+- Korrektur einer undefinierten Variable in der Nachmessung; Cache-Version und Dokumentation aktualisiert.
+- Browser-/Hardwarefreigabe ausstehend.
+
 ## v0.7.203 – PTC/EOC-Integration und automatisierte Abschlussprüfung
 
 - Übernahme des Integrationsbranches (Integration 13) in main, inklusive interner, Brücken-/PTC- und externer Temperaturquelle sowie DLL-Referenzdaten. PTC/EOC bleiben Beta-Funktionen; Hardwarevalidierung steht aus.

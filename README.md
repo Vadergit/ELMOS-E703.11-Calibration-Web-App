@@ -2,7 +2,7 @@
 
 **Ein geführter Kalibrierassistent für den ELMOS E703.11 mit SSP3-Eval-Board, ESP32-C3 SuperMini oder Arduino Pro Micro.** Ziel ist ein verständlicher Abgleich, der auch ohne tiefere Vorkenntnisse Schritt für Schritt funktioniert. Wer mehr benötigt, kann zusätzliche Messpunkte, DSP-Parameter und einen geschützten Expertenmodus verwenden.
 
-**Version: v0.7.203 · Erweiterter Temperaturabgleich und automatische Abschlussprüfung** · [Änderungsverlauf](CHANGELOG.md) · **[Geplante Funktionen](ROADMAP.md)**
+**Version: v0.7.204-uiux · Separater UI/UX-Testbranch** · [Änderungsverlauf](CHANGELOG.md) · **[Geplante Funktionen](ROADMAP.md)**
 
 Der **Demo-Modus** wird in den Einstellungen erst nach Aktivierung von **Expertenparameter** angezeigt. Er simuliert Sensorwerte und Schreibvorgänge; die echte Hardware wird dabei nicht programmiert.
 
@@ -13,6 +13,13 @@ Der **Demo-Modus** wird in den Einstellungen erst nach Aktivierung von **Experte
 > **Geführter Assistent:** Nach bestätigter Sensorverbindung stehen die Schritt-für-Schritt-Führung, die klassische Ansicht und der optionale Kompaktmodus zur Verfügung. Ein E703.11-Chip muss für den Abgleich verbunden sein. Als DIY-Programmer sind ESP32-C3 SuperMini und Arduino Pro Micro mit kompatibler Bridge-Firmware und integriertem Lastschalter vorgesehen. Die originalen ELMOS SSP3-Adapter bleiben separat unterstützt. Der vollständige Hardwaretest der DIY-Programmer ist noch offen.
 >
 > [Geführter Abgleich](docs/GEFUEHRTER_ASSISTENT.md) · [DIY-Programmer (ESP32-C3 / Pro Micro)](docs/USB_BRIDGE_GUIDE.md) · [Pinbelegung der zwei Boards](docs/ESP_BOARD_OPTIONS.md) · [DIY-Firmware-Installer](firmware-update.html)
+
+## Neu in v0.7.204-uiux – 28.11.2026
+
+- Nach bestätigten Messpunkten: Berechnung und verifizierte RAM-Übernahme automatisch; Warnungen unterbrechen den Ablauf. Unabhängige DSP-Prüfung und dauerhaftes NVM-Schreiben bleiben manuell.
+- Kompaktere Hinweise, ADC_S-/ADC_T-Hübe mit Min/Max und Differenz vergleichbarer Intervalle; Wiederholungsmessung: neuester gültiger Referenzwert.
+- Persönliche Angaben, Sprache, Farbmodus und Nachmessungsstandards im Browser und optional im Archivordner als `user-settings.json`. Keine Sensorregister, Messwerte oder Schreibfreigaben im Profil.
+- Testbranch: vollständiger Browser- und Hardwaretest noch erforderlich; Main bleibt unverändert.
 
 ## Neu in v0.7.203 – 28.11.2026
 

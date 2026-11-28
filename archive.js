@@ -16,7 +16,7 @@ const ELMOS_ARCHIVE=(()=>{
  // Whitelist only optional report metadata. Never restore calibration settings,
  // sensor identifiers, measurements, thresholds or hardware write permissions.
  function normalizePersonalProfile(raw){
-  if(!raw||raw.schema!==1||raw.kind!=='elmos-personal-profile'||!raw.defaults||typeof raw.defaults!=='object')
+  if(!raw||raw.schema!==1||raw.kind!=='elmos-personal-profile'||!raw.defaults||typeof raw.defaults!=='object'||Array.isArray(raw.defaults))
    throw Error('Unbekanntes persönliches Profil.');
   const defaults={};
   for(const [key,,,limit] of PROFILE_FIELDS){
@@ -24,13 +24,63 @@ const ELMOS_ARCHIVE=(()=>{
    if(value!=null&&typeof value!=='string')throw Error('Ungültiges Profilfeld: '+key);
    defaults[key]=(value||'').trim().slice(0,limit);
   }
-  return {schema:1,kind:'elmos-personal-profile',defaults};
+  const result={schema:1,kind:'elmos-personal-profile',defaults};
+  if(raw.preferences!==undefined){
+   const p=raw.preferences;
+   if(!p||typeof p!=='object'||Array.isArray(p))throw Error('Ungültige Profileinstellungen.');
+   const preferences={};
+   for(const [key,allowed] of Object.entries({theme:['light','dark'],language:['de','en'],pressureUnit:['bar','mbar','kPa','MPa','psi'],verificationMode:['pressure','temperature','combined']})){
+    if(p[key]===undefined)continue;
+    if(!allowed.includes(p[key]))throw Error('Ungültige Profileinstellung: '+key);
+    preferences[key]=p[key];
+   }
+   for(const [key,max] of [['verificationCycles',30],['verificationSamples',100]]){
+    if(p[key]===undefined)continue;
+    if(!Number.isInteger(p[key])||p[key]<1||p[key]>max)throw Error('Ungültige Profileinstellung: '+key);
+    preferences[key]=p[key];
+   }
+   result.preferences=preferences;
+  }
+  return result;
  }
- let profile=null,profileRevision=0,profileBusy=false,profileDirty=false;
+ const PROFILE_PENDING=PROFILE_KEY+'-pending';
+ let profile=null,profileRevision=0,profileBusy=false,profileDirty=false,profilePending=false,verificationStarted=false;
+ const profilePrefs=[['pressureUnit','settingsProfileUnit','arPressureUnit'],['verificationMode','settingsProfileMode','arMode'],['verificationCycles','settingsProfileCycles','arCycles'],['verificationSamples','settingsProfileSamples','arSamples']];
+ function applyDisplayPreferences(value){
+  for(const [key,id,storage] of [['theme','settingsTheme','elmos-ui-theme-v1'],['language','uiLanguage','elmos-ui-language-v1']]){
+   const next=value?.preferences?.[key],field=$(id);
+   if(!next||!field)continue;
+   field.value=next;
+   try{localStorage.setItem(storage,next)}catch(_){}
+   field.dispatchEvent(new Event('change',{bubbles:true}));
+  }
+ }
+ function resetVerificationProfile(){
+  if(S.record)return;
+  lastAppliedProfile.clear();
+  for(const [key,,id] of PROFILE_FIELDS){const field=$(id);if(field){field.value=profile?.defaults[key]||'';lastAppliedProfile.set(id,field.value)}}
+  for(const id of ['arVerificationName','arVerificationNotes'])if($(id))$(id).value='';
+  const p=profile?.preferences||{};
+  for(const [key,,id] of profilePrefs){
+   if(p[key]===undefined||!$(id))continue;
+   // A known sensor range has priority over a personal display-unit preference.
+   if(key==='pressureUnit'&&bridge()?.digitalRange?.()?.unit)continue;
+   $(id).value=String(p[key]);$(id).dispatchEvent(new Event('change',{bubbles:true}));
+  }
+  if($('arPressureScaleConfirmed'))$('arPressureScaleConfirmed').checked=false;
+  if($('arTempConversionConfirmed'))$('arTempConversionConfirmed').checked=false;
+  if($('arEnableTolerance')){$('arEnableTolerance').checked=false;$('arEnableTolerance').dispatchEvent(new Event('change',{bubbles:true}))}
+  S.pendingPhotos=[];S.photoPanels?.setup.refresh();verificationStarted=false;
+ }
+ function setProfilePending(pending){
+  profilePending=pending;
+  try{localStorage.setItem(PROFILE_PENDING,pending?'1':'0')}catch(_){}
+ }
  const lastAppliedProfile=new Map();
  function profileStatus(message){text('settingsProfileStatus',message)}
  function applyProfile(value,{settings=true}={}){
   profile=value;
+  if(settings){for(const [key,id] of profilePrefs)if($(id)&&value?.preferences?.[key]!==undefined)$(id).value=String(value.preferences[key]);applyDisplayPreferences(value);}
   for(const [key,settingId,reportId] of PROFILE_FIELDS){
    const input=$(settingId),report=$(reportId),next=value?.defaults[key]||'';
    if(settings&&input)input.value=next;
@@ -44,17 +94,19 @@ const ELMOS_ARCHIVE=(()=>{
  }
  function cacheProfile(value){try{localStorage.setItem(PROFILE_KEY,JSON.stringify(value));return true}catch(_){return false}}
  function restoreBrowserProfile(){
-  try{const value=localStorage.getItem(PROFILE_KEY);if(value){applyProfile(normalizePersonalProfile(JSON.parse(value)));profileStatus('Profil aus Browser geladen.');}}catch(_){profileStatus('Browserprofil nicht lesbar.');}
+  try{profilePending=localStorage.getItem(PROFILE_PENDING)==='1';const value=localStorage.getItem(PROFILE_KEY);if(value){applyProfile(normalizePersonalProfile(JSON.parse(value)));profileStatus('Profil aus Browser geladen.');}}catch(_){profileStatus('Browserprofil nicht lesbar.');}
  }
- async function loadFolderProfile(dir=S.dir){
+ async function loadFolderProfile(dir=S.dir,{explicit=false}={}){
   if(!dir||profileDirty||profileBusy)return false;
+  if(profilePending&&!explicit){profileStatus('Browserprofil neuer oder noch nicht als Datei gespeichert. Profil speichern oder ausdrücklich aus Ordner laden.');return false;}
   const revision=++profileRevision;
   try{
    if(await dir.queryPermission({mode:'read'})!=='granted')return false;
    const handle=await dir.getFileHandle(PROFILE_FILE);
-   const value=normalizePersonalProfile(JSON.parse(await (await handle.getFile()).text()));
+   const file=await handle.getFile();if(file.size>65536)throw Error('Profildatei zu gross.');
+   const value=normalizePersonalProfile(JSON.parse(await file.text()));
    if(S.dir!==dir||revision!==profileRevision||profileDirty)return false;
-   applyProfile(value);cacheProfile(value);profileStatus('Profil aus Archivordner geladen.');return true;
+   applyProfile(value);cacheProfile(value);setProfilePending(false);profileStatus('Profil aus Archivordner geladen.');return true;
   }catch(e){
    if(S.dir!==dir||revision!==profileRevision)return false;
    if(e.name==='NotFoundError')profileStatus('Keine Profildatei im Ordner. Browserprofil bleibt verfügbar.');
@@ -66,11 +118,13 @@ const ELMOS_ARCHIVE=(()=>{
   if(profileBusy)return;
   profileBusy=true;++profileRevision;
   const button=$('settingsProfileSave');if(button)button.disabled=true;
-  const value=normalizePersonalProfile({schema:1,kind:'elmos-personal-profile',defaults:Object.fromEntries(PROFILE_FIELDS.map(([key,id])=>[key,$(id)?.value||'']))});
   const dir=S.dir;
   try{
+   const preferences={theme:$('settingsTheme')?.value||'light',language:$('uiLanguage')?.value||'de'};
+   for(const [key,id] of profilePrefs){const value=$(id)?.value;if(value!==undefined)preferences[key]=/Cycles|Samples/.test(key)?Number(value):value;}
+   const value=normalizePersonalProfile({schema:1,kind:'elmos-personal-profile',defaults:Object.fromEntries(PROFILE_FIELDS.map(([key,id])=>[key,$(id)?.value||''])),preferences});
    applyProfile(value);profileDirty=false;
-   const cached=cacheProfile(value);
+   const cached=cacheProfile(value);setProfilePending(true);
    profileStatus(cached?'Im Browser gespeichert.':'Browser-Speicherung nicht verfügbar.');
    if(!dir||await dir.queryPermission({mode:'readwrite'})!=='granted'){
     profileStatus((cached?'Im Browser gespeichert. ':'Nicht gespeichert. ')+'Archivordner nicht freigegeben; Datei später über Speichern aktualisieren.');return;
@@ -79,20 +133,22 @@ const ELMOS_ARCHIVE=(()=>{
    const handle=await dir.getFileHandle(PROFILE_FILE,{create:true}),writer=await handle.createWritable();
    try{await writer.write(JSON.stringify(value,null,2));await writer.close()}
    catch(e){try{await writer.abort()}catch(_){}throw e}
-   profileStatus(cached?'Im Browser und als user-settings.json gespeichert.':'Als user-settings.json gespeichert.');
+   setProfilePending(false);profileStatus(cached?'Im Browser und als user-settings.json gespeichert.':'Als user-settings.json gespeichert.');
   }catch(e){profileStatus('Datei nicht gespeichert: '+e.message+' · Browserprofil prüfen.')}
   finally{profileBusy=false;if(button)button.disabled=false}
  }
  function initPersonalProfile(){
   restoreBrowserProfile();
+  queueMicrotask(()=>{if(profile)applyDisplayPreferences(profile)});
   $('settingsProfileSave')?.addEventListener('click',savePersonalProfile);
   $('settingsProfileLoad')?.addEventListener('click',async()=>{
    if(profileBusy)return;
-   if(profileDirty&&!window.confirm('Ungespeicherte Profiländerungen verwerfen?'))return;
-   profileDirty=false;
    if(!S.dir){profileStatus('Zuerst einen Archivordner auswählen.');return;}
-   if(!await loadFolderProfile())profileStatus('Keine gültige Profildatei geladen. Ordnerzugriff und Datei prüfen.');
+   if((profileDirty||profilePending)&&!window.confirm('Lokales Profil durch die Datei ersetzen?'))return;
+   const dirty=profileDirty;profileDirty=false;
+   if(!await loadFolderProfile(S.dir,{explicit:true})){profileDirty=dirty;profileStatus('Keine gültige Profildatei geladen. Ordnerzugriff und Datei prüfen.');}
   });
+  for(const [,id] of profilePrefs)$(id)?.addEventListener('input',()=>{profileDirty=true;++profileRevision});
   for(const [,id,reportId] of PROFILE_FIELDS){
    $(id)?.addEventListener('input',()=>{profileDirty=true;++profileRevision});
    $(reportId)?.addEventListener('input',()=>lastAppliedProfile.set(reportId,Symbol('manual')));
@@ -1685,7 +1741,7 @@ const ELMOS_ARCHIVE=(()=>{
     (mode==='temperature'?' · '+ui('Temperaturabweichung ','Temperature deviation ')+(errT===null?'–':errT.toFixed(3)+' °C'):
     ' · '+ui('Druckabweichung ','Pressure deviation ')+(errPercent===null?'–':errPercent.toFixed(4)+' % FS')+
       (toleranceEnabled?' / '+tolerancePercent+' % FS':''))+
-    (!matchingUnit&&mode!=='temperature'?' · '+ui('Einheiten nicht identisch: ','Units differ: ')+(sample.pressureUnit||'–')+' / '+expectedUnit:''),
+    (!matchingUnit&&mode!=='temperature'?' · '+ui('Einheiten nicht identisch: ','Units differ: ')+(sample.pressureUnit||'–')+' / '+pressureReference.pressureUnit:''),
     pass===false);
   }catch(e){
    try{await event('error',{stage:'verification_measurement',stepIndex:S.step,attempt:attempts+1,message:e.message,rawSamples:e.rawSamples||null,partialReadErrors:e.partialReadErrors||null})}
@@ -1735,7 +1791,7 @@ const ELMOS_ARCHIVE=(()=>{
    S.pendingPhotos=[];
    S.photoPanels?.setup.refresh();S.photoPanels?.active.refresh();
   }
-  S.record.verificationMetadata=optionalVerificationMetadata();
+  S.record.verificationMetadata=optionalVerificationMetadata();verificationStarted=true;
   S.record.calibrationTool=calibrationToolFromMeta(bridge()?.meta?.());
   S.record.verificationConfig={toleranceEnabled:enabled,pressureTolerancePercent:percent,pressureSpan:span,
    calibrationMin:calibrated.min,calibrationMax:calibrated.max,
@@ -1899,7 +1955,7 @@ const ELMOS_ARCHIVE=(()=>{
   }
   S.view=view==='verification'?'verification':'archive';
   $('archiveWorkspace').classList.toggle('ar-guided-verification',S.view==='verification');
-  if(S.view==='verification'){refreshDetectedCalibrationTool();autoCalibrationRange();}
+  if(S.view==='verification'){refreshDetectedCalibrationTool();autoCalibrationRange();if(!S.record&&(verificationStarted||!S.finishedReview&&!S.profileOpened)){resetVerificationProfile();S.profileOpened=true;}}
   text('arViewTitle',S.view==='verification'?'Nachmessung':'Kalibrierarchiv');
   text('arViewSubtitle',S.view==='verification'?
    'Druck- und Temperaturprüfpläne mit Hysterese und vollständigem lokalen Protokoll':

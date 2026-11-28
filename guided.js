@@ -281,7 +281,7 @@ const ELMOS_GUIDED=(()=>{
    $('gwUseAlarms').checked=false;$('gwAlarmConfigArea').hidden=true;
    window.ELMOS_GUIDED_API?.skipAlarms?.();goto(9);
   });
-  document.querySelectorAll('[data-gw-side]').forEach(button=>button.addEventListener('click',()=>{const index=Number(button.dataset.gwSide);if(visited.has(index)){stage=index;render()}}));
+  document.querySelectorAll('[data-gw-side]').forEach(button=>button.addEventListener('click',()=>{const index=Number(button.dataset.gwSide);if(!fitAutomationBusy&&visited.has(index)){stage=index;render()}}));
   for(const id of ['calTOrder','calFitMode'])subscribe($(id),'change',syncFitModelVisibility);
   subscribe(document,'elmos-config-applied',syncImportedConfig);
   subscribe($('expertMode'),'change',renderOutputOptions);
@@ -865,7 +865,9 @@ const ELMOS_GUIDED=(()=>{
   const ready=stage===4?!!plan&&plan.points.every(p=>pointRecord(p)):stage===5?!!s.calStaged:stage===6?!!s.calVerified:stage===9?!!s.nvmDone:true;
   $('gwPrevious').disabled=stage===0||fitAutomationBusy;
   $('gwConnectionToggle').disabled=fitAutomationBusy;
-  for(const id of ['calCalculate','calApplyRam'])if(fitAutomationBusy&&$(id))$(id).disabled=true;
+  for(const side of root.querySelectorAll('[data-gw-side]'))side.disabled=fitAutomationBusy||connectionOpen||nextSensorPending;
+  if($('calCalculate'))$('calCalculate').disabled=fitAutomationBusy;
+  if(fitAutomationBusy&&$('calApplyRam'))$('calApplyRam').disabled=true;
   $('gwNext').disabled=fitAutomationBusy||!s.chip||(stage===10?nextSensorBusy||!s.nvmDone:!ready);
   if(stage===3)updateAfeTelemetry();
   if(stage===10)updateFinishTelemetry();
@@ -893,7 +895,7 @@ const ELMOS_GUIDED=(()=>{
   for(let i=0;i<steps.length;i++){
    $('gwPage'+i).hidden=connectionOpen||swapping||i!==stage;
    const side=document.querySelector('[data-gw-side="'+i+'"]');
-   side.disabled=swapping||connectionOpen;
+   side.disabled=swapping||connectionOpen||fitAutomationBusy;
    side.classList.toggle('is-active',i===stage);
    side.classList.toggle('is-done',visited.has(i)&&i!==stage);
    side.setAttribute('aria-current',i===stage?'step':'false');

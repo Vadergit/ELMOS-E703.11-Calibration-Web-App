@@ -2056,3 +2056,33 @@ window.ELMOS_TRANSLATIONS_EN=Object.assign(window.ELMOS_TRANSLATIONS_EN||{}, {
  "Merken": "Save",
  "Der Browser zeigt nur den Ordnernamen. Ein hier eingetragener Pfad dient ausschliesslich der Anzeige und ändert den tatsächlichen Speicherort nicht.": "The browser only reveals the folder name. A manually entered path is for display only and does not change the actual storage folder."
 });
+
+// UI/UX redesign profile and workflow labels.
+window.ELMOS_TRANSLATIONS_EN=Object.assign(window.ELMOS_TRANSLATIONS_EN||{}, {
+  "Persönliches Profil": "Personal profile",
+  "Standardangaben für Prüfprotokolle": "Default report metadata",
+  "Benutzer / Prüfer": "User / examiner",
+  "Firma / Labor / Prüfort": "Company / laboratory / test location",
+  "Auftrag / Projekt (optional)": "Order / project (optional)",
+  "Prüfmittel / Zertifikat (optional)": "Test equipment / certificate (optional)",
+  "Bevorzugte Druckeinheit": "Preferred pressure unit",
+  "Standard-Nachmessung": "Default verification mode",
+  "Standardzyklen": "Default cycles",
+  "Samples pro Prüfpunkt": "Samples per verification point",
+  "Profil speichern": "Save profile",
+  "Aus Ordner laden": "Load from folder",
+  "Lokal im Browser und bei freigegebenem Archivordner als user-settings.json. Sprache und Farbmodus werden ebenfalls übernommen.": "Stored locally in the browser and as user-settings.json when the archive folder is authorized. Language and theme are included.",
+  "Profil aus Browser geladen.": "Profile loaded from browser.",
+  "Profil aus Archivordner geladen.": "Profile loaded from archive folder.",
+  "Im Browser gespeichert.": "Saved in browser.",
+  "Im Browser und als user-settings.json gespeichert.": "Saved in browser and as user-settings.json.",
+  "Als user-settings.json gespeichert.": "Saved as user-settings.json.",
+  "Ablauf und Sicherheit": "Workflow and safety",
+  "Koeffizienten und RAM werden geprüft …": "Checking coefficients and RAM …",
+  "Bitte Berechnung oder RAM-Status prüfen.": "Review calculation or RAM status.",
+  "Berechnung → RAM-Rücklesung → unabhängige DSP-Prüfung. Bei Warnungen bleibt dieser Schritt offen. Keine NVM-Programmierung.": "Calculation → RAM readback → independent DSP verification. Warnings pause this step. No NVM programming.",
+  "Temperaturberechnung": "Temperature calculation",
+  "Formel": "Formula",
+  "Rechenbeispiel": "Worked example",
+  "Browserprofil neuer oder noch nicht als Datei gespeichert. Profil speichern oder ausdrücklich aus Ordner laden.": "Browser profile is newer or not yet saved to a file. Save the profile or explicitly load it from the folder."
+});
