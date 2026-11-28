@@ -43,8 +43,10 @@ assert.throws(()=>t.fitBridgeOffline([{...pts[0],adc_tc:null}],{},fac,CAL.fit));
 console.log('63 native DLL simulation samples match the shunt correction model; offline synthetic bridge fit passed');
 
 const ptc=require('../ptc-profile.js');
-assert.equal(ptc.defaults.parallelOhm,null);
-assert.throws(()=>ptc.range());
+assert.equal(ptc.defaults.parallelOhm,7000);
+near(ptc.range().nominalOhm,70000/17);
+assert.throws(()=>ptc.range({parallelOhm:null}));
+near(ptc.range({parallelOhm:5000}).nominalOhm,10000/3);
 // Synthetic test values, not a product specification.
 const nominal=ptc.range({parallelOhm:10000,bridgeTolerance:0,parallelTolerance:0,ptcTcrTolerance:0});
 near(nominal.nominalOhm,5000);

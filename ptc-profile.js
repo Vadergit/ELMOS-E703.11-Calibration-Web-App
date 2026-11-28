@@ -1,6 +1,6 @@
 "use strict";
 function buildPtcProfile(A){
- const defaults=Object.freeze({bridgeOhm:10000,bridgeTolerance:10,parallelOhm:null,parallelTolerance:0,bridgeCold:120,bridgeHot:180,ptcTcr:2000,ptcTcrTolerance:20,minTemp:-40,maxTemp:125,svddCode:2,fullSupplyTolerance:true});
+ const defaults=Object.freeze({bridgeOhm:10000,bridgeTolerance:10,parallelOhm:7000,parallelTolerance:0,bridgeCold:120,bridgeHot:180,ptcTcr:2000,ptcTcrTolerance:20,minTemp:-40,maxTemp:125,svddCode:2,fullSupplyTolerance:true});
  const check=(b,m)=>{if(!b)throw new RangeError(m)};
  const pos=(v,m)=>{check(Number.isFinite(v)&&v>0,m);return v};
  const limits=(v,t)=>[v*(1-t/100),v*(1+t/100)];
@@ -17,7 +17,7 @@ function buildPtcProfile(A){
  function resistance(t,b,p,cold,hot,pt){return A.equivalent(b*factor(t,cold,hot),p*factor(t,pt))}
  function range(input={},anchor=null){
   const p={...defaults,...input};validate(p);
-  check(anchor!==null||p.parallelOhm!==null,'PTC-Widerstand eingeben oder Gesamtwiderstand messen. Kein voreingestellter PTC-Widerstand.');
+  check(anchor!==null||p.parallelOhm!==null,'PTC-Widerstand eingeben oder Gesamtwiderstand messen. ');
   const bs=unique(limits(p.bridgeOhm,p.bridgeTolerance)),ps=p.parallelOhm===null?[]:unique(limits(p.parallelOhm,p.parallelTolerance)),ts=unique(limits(p.ptcTcr,p.ptcTcrTolerance));
   const scenarios=[];let inferred=null;
   if(anchor!==null){
