@@ -1211,13 +1211,13 @@ if(typeof document!=='undefined') (function UI(){
      onProgress?.('Gesamtwiderstand ca. '+Math.round(measurement.ohm)+' Ω · RPGA '+found.code+' · Temperaturbereich wird berechnet …');
      plan=PTC_PROFILE.plan(profile,measurement);
      if(!plan.selection.best){const alt=PTC_PROFILE.plan({...profile,fullSupplyTolerance:false},measurement);if(alt.selection.best&&window.confirm('Kein RPGA deckt den gesamten geschätzten Widerstands- und SVDD-Toleranzbereich ab. Experimentell mit nominaler SVDD fortfahren? Temperaturgrenzen separat prüfen.')){plan=alt;nominalOnly=true;}}
-     if(!plan.selection.best){const point=PTC_PROFILE.plan({...profile,fullSupplyTolerance:false,minTemp:Math.max(profile.minTemp,temperature-0.01),maxTemp:Math.min(profile.maxTemp,temperature+0.01)},{...measurement,uncertainty:0});plan={...plan,selection:{...plan.selection,best:point.selection.best||A.rpga(found.code)}};nominalOnly=true;warnings.push('Kein RPGA deckt die gesamte modellierte Temperaturhülle ab. Aktuell gemessene Stufe wird verwendet; Temperaturgrenzen real prüfen.');}
+     if(!plan.selection.best){plan={...plan,selection:{...plan.selection,best:A.rpga(found.code)}};nominalOnly=true;warnings.push('Kein RPGA deckt die gesamte modellierte Temperaturhülle ab. Aktuell gemessene Stufe wird verwendet; Temperaturgrenzen real prüfen.');}
      code=plan.selection.best.code;target=bridgeTarget(code);
      onProgress?.('Optimale RPGA '+code+' wird eingestellt und rückgemessen …');
      finalProbe=await probe(target);
      if(!finalProbe.valid&&code!==found.code){warnings.push('Vorgeschlagene RPGA-Stufe bei aktueller Temperatur ungeeignet; Rückkehr zur gültig gemessenen Stufe.');code=found.code;target=bridgeTarget(code);finalProbe=await probe(target);plan={...plan,selection:{...plan.selection,best:A.rpga(code)}};nominalOnly=true;}
      if(!finalProbe.valid)throw Error('Keine gültige stabile ADC_T-Messung nach Einstellung.');
-     if(Math.abs(finalProbe.resistanceOhm/measurement.ohm-1)>Math.max(0.05,uncertainty/100))throw Error('Widerstandsschätzung nach RPGA-Wechsel nicht plausibel. Temperatur stabilisieren und Messung wiederholen.');
+     if(Math.abs(finalProbe.resistanceOhm/measurement.ohm-1)>Math.max(0.05,uncertainty/100))warnings.push('R-Schätzungen nach RPGA-Wechsel weichen ab. Modell nicht als präzise Widerstandsmessung verwenden; reale Temperaturpunkte prüfen.');
     }else{target=bridgeTarget(A.rpga(code).code);if(await readReg(0x0E)!==1)throw Error('Temperatur-AFE-Prüfung benötigt kontinuierliche Messung (CFG_PERIOD=1).');finalProbe=await probe(target);if(!finalProbe.valid)throw Error('Manuelle RPGA-Auslegung liefert keinen gültigen stabilen ADC_T.');}
 
    }else{
@@ -1229,7 +1229,16 @@ if(typeof document!=='undefined') (function UI(){
     await writeTarget(target);await sleep(300);await readReg(0x28);
     const samples=[];for(let i=0;i<7;i++){samples.push((await readFreshDevTemperature(0x28,0x0004)).value);if(i<6)await sleep(80);}
     finalProbe=ELMOS_EXTERNAL_AFE.assessSamples(samples);
-    if(finalProbe.saturated)throw Error('EOC ADC_T gesättigt. Geringere TPGA-Verstärkung oder Eingangsspannung prüfen.');
+    if(finalProbe.saturated){
+     for(const g of plan.candidates.filter(g=>g.g1*g.g2<code.g1*code.g2).sort((a,b)=>b.g1*b.g2-a.g1*a.g2||b.g1-a.g1)){
+      onProgress?.('EOC: niedrigere Verstärkung '+g.g1+' × '+g.g2+' wird gemessen …');
+      target={...target,afe2:ELMOS_EXTERNAL_AFE.merge(saved[30],profile,g)};await writeTarget(target);await sleep(300);await readReg(0x28);
+      const trial=[];for(let i=0;i<7;i++){trial.push((await readFreshDevTemperature(0x28,0x0004)).value);if(i<6)await sleep(80);}
+      finalProbe=ELMOS_EXTERNAL_AFE.assessSamples(trial);if(!finalProbe.saturated){code=g;warnings.push('EOC: geringere Verstärkung nach realer ADC-Sättigung gewählt.');break;}
+     }
+     if(finalProbe.saturated)throw Error('EOC ADC_T auch bei getesteten niedrigeren Verstärkungen gesättigt. Eingangsspannung prüfen.');
+    }
+    plan={...plan,best:code};
     if(finalProbe.outsideRecommended)warnings.push('EOC ADC_T ausserhalb empfohlenem Linearbereich ±23593 Digits.');
     if(finalProbe.unstable)warnings.push('EOC ADC_T noch instabil. Temperatur vor Messpunkt stabilisieren.');
    }
