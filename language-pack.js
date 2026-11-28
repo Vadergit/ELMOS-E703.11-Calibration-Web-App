@@ -1,5 +1,10 @@
 /* Static English text for the E703.11 interface. */
 window.ELMOS_TRANSLATIONS_EN=Object.assign(window.ELMOS_TRANSLATIONS_EN||{}, {
+ "Programmieradapter verbinden": "Connect programmer",
+ "Adapter angeschlossen? Board und Schnittstelle wählen, dann den USB-Port öffnen.": "Programmer plugged in? Select board and interface, then open the USB port.",
+ "Board": "Board",
+ "USB-Port auswählen & verbinden": "Select USB port & connect",
+ "Sensor verbunden. Wähle die gewünschte Aufgabe.": "Sensor connected. Select the desired task.",
  "← Zurück zur Aufgabenauswahl": "← Back to task selection",
  "DSP-Ziel:": "DSP target:",
  "(Referenz, keine ADC-Grenze)": "(reference, not an ADC limit)",

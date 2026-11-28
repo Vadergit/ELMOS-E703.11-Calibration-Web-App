@@ -58,7 +58,7 @@ const ELMOS_GUIDED=(()=>{
  function UI(){
   const sides=steps.map((v,i)=>'<button type="button" class="gw-sideitem" data-gw-side="'+i+'"><span class="gw-no">'+(i+1)+'</span><span>'+v[0]+'</span></button>').join('');
   return '<div class="gw-shell"><aside class="gw-sidebar"><div class="gw-backlogo"><span>◆</span> E703.11 · Geführter Abgleich</div><nav class="gw-sideitems">'+sides+'</nav><div class="gw-sidebar-footer">Die Originalsoftware bleibt jederzeit über «Klassisch» erreichbar.<div style="margin-top:9px">Laborversion · keine Hardwarefreigabe für NVM</div></div></aside><main class="gw-main"><div class="gw-topline"><span id="gwKicker" class="gw-kicker">Schritt 1</span><div class="gw-connection-top-actions"><span id="gwChipStatus" class="gw-chipstatus"></span><button type="button" id="gwConnectionToggle" class="gw-connection-link">Verbindung &amp; Diagnose</button></div></div><div class="gw-progressbar"><span id="gwProgress"></span></div><div class="gw-heading-row"><div><h2 class="gw-title" id="gwTitle"></h2><p class="gw-desc" id="gwDesc"></p></div><button class="gw-preset gw-preset-launch" id="gwPresetLaunch" type="button" aria-haspopup="dialog" aria-controls="gwPresetDialog" hidden><strong>Preset laden</strong></button></div>'+
-   '<div id="gwPage0" class="gw-page"><div class="gw-columns gw-six">'+
+   '<div id="gwPage0" class="gw-page"><div id="gwQuickConnect" class="sensor-reconnect gw-quick-connect" hidden><div class="gw-quick-copy"><strong>Programmieradapter verbinden</strong><span>Adapter angeschlossen? Board und Schnittstelle wählen, dann den USB-Port öffnen.</span></div><div class="gw-quick-actions"><label>Board<select id="gwQuickBoard"><option value="ssp3">ELMOS SSP3</option><option value="esp32">ESP32-C3 SuperMini</option><option value="promicro">Arduino Pro Micro</option></select></label><label>Schnittstelle<select id="gwQuickInterface"><option value="plc">1-Wire</option><option value="i2c">I²C</option></select></label><button type="button" id="gwQuickConnectButton">USB-Port auswählen &amp; verbinden</button></div></div><div class="gw-columns gw-six">'+
     '<button class="gw-choice" data-gw-task="calibration"><span class="gw-choice-icon">◉</span><strong>Sensor neu abgleichen</strong><small>Von der Messung über die DSP-Prüfung bis zur sicheren NVM-Programmierung.</small></button>'+
     '<button class="gw-choice" data-gw-task="alarms"><span class="gw-choice-icon">⚑</span><strong>Alarme und Fehler ändern</strong><small>Bestehenden Sensor auslesen, Fehlerreaktionen einzeln anpassen und separat speichern.</small></button>'+
     '<button class="gw-choice" data-gw-task="output"><span class="gw-choice-icon">↗</span><strong>Nur Ausgang ändern</strong><small>Bereits kalibrierten Sensor prüfen und AODO-Ausgang neu konfigurieren.</small></button>'+
@@ -234,6 +234,10 @@ const ELMOS_GUIDED=(()=>{
   $('gwSwapChoose').addEventListener('click',()=>connectNextSensor(true));
   $('gwSwapCancel').addEventListener('click',returnToTasks);
   $('gwConnectionToggle').addEventListener('click',()=>connectionOpen?closeConnectionPanel():openConnectionPanel());
+  const initial=state();
+  $('gwQuickBoard').value=initial.adapter==='bridge'?(/pro micro/i.test(initial.bridgeBoard||'')?'promicro':'esp32'):'ssp3';
+  $('gwQuickInterface').value=initial.iface==='i2c'?'i2c':'plc';
+  $('gwQuickConnectButton').addEventListener('click',quickConnect);
   $('gwConnectionClose').addEventListener('click',closeConnectionPanel);
   $('gwConnectionBackTop').addEventListener('click',closeConnectionPanel);
   $('gwConnectionAdapter').addEventListener('change',updateConnectionChoices);
@@ -685,6 +689,26 @@ const ELMOS_GUIDED=(()=>{
    'NVM-Schreibbestätigung fehlt. Keine Hardwarefreigabe.';
  }
 
+ function quickConnectVisible(s){return !s.demo&&!s.usbConnected&&!s.chip;}
+ function quickConnectAdapter(board){return board==='ssp3'?'ssp3':'bridge';}
+ function renderQuickConnect(s=state()){
+  const box=$('gwQuickConnect');if(!box)return;
+  box.hidden=!quickConnectVisible(s);
+  const busy=connectionBusy||taskOpening||!!s.connectionBusy;
+  for(const id of ['gwQuickBoard','gwQuickInterface','gwQuickConnectButton'])$(id).disabled=busy;
+ }
+ async function quickConnect(){
+  const s=state();if(!mode||!quickConnectVisible(s)||connectionBusy||taskOpening||s.connectionBusy)return;
+  const board=$('gwQuickBoard').value,iface=$('gwQuickInterface').value;
+  if(!['ssp3','esp32','promicro'].includes(board)||!['plc','i2c'].includes(iface))return;
+  openConnectionPanel();
+  $('gwConnectionAdapter').value=quickConnectAdapter(board);
+  $('gwConnectionInterface').value=iface;
+  updateConnectionChoices();
+  // The serial picker must run within the original click's user activation.
+  const connected=await connectGuidedSensor(true);
+  if(connected&&state().chip){closeConnectionPanel();msg('Sensor verbunden. Wähle die gewünschte Aufgabe.','success');}
+ }
  function updateConnectionChoices(){
   const adapter=$('gwConnectionAdapter').value,iface=$('gwConnectionInterface');
   const spi=iface.querySelector('option[value="spi"]');
@@ -754,8 +778,9 @@ const ELMOS_GUIDED=(()=>{
    });
    $('gwConnectionDiagnosticResult').hidden=true;
    msg('Sensor '+result.uid+' über '+(result.iface==='plc'?'1-Wire':result.iface==='i2c'?'I²C':'SPI')+' erkannt. Du kannst einen neuen Abgleich starten.','success');
-  }catch(error){msg('Verbindung fehlgeschlagen: '+String(error.message||error),'error')}
-  finally{connectionBusy=false;renderConnectionStatus()}
+   return true;
+  }catch(error){msg('Verbindung fehlgeschlagen: '+String(error.message||error),'error');return false}
+  finally{connectionBusy=false;renderConnectionStatus();renderQuickConnect()}
  }
  async function guidedConnectionDiagnostic(action){
   if(connectionBusy&&action!=='export')return;
@@ -789,6 +814,7 @@ const ELMOS_GUIDED=(()=>{
  function updateUI(){
   if(!mode)return;
   const s=state();
+  renderQuickConnect(s);
   if(connectionOpen){renderConnectionStatus();return}
   if(nextSensorPending){void refreshSwapPort();return}
   $('gwChipStatus').textContent=statusText();
@@ -851,6 +877,7 @@ const ELMOS_GUIDED=(()=>{
    void refreshSwapPort();
    return;
   }
+  if(stage===0)setText('gwFooterHint','E703.11 · Kalibrierassistent');
   if(stage===0)document.querySelectorAll('[data-gw-task]').forEach(x=>{
    x.setAttribute('aria-pressed',String(x.dataset.gwTask===task));
   });
