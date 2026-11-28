@@ -1,9 +1,25 @@
 'use strict';
 const {chromium}=require('playwright'),fs=require('node:fs'),path=require('node:path');
+async function installFolder(context){
+ await context.addInitScript(()=>{
+  const files=new Map();
+  const handle=name=>({kind:'file',name,
+   async getFile(){if(!files.has(name))throw new DOMException('Missing','NotFoundError');return new File([files.get(name)],name)},
+   async createWritable(){let data=files.get(name)||'';return {async write(v){data=String(v)},async close(){files.set(name,data)},async abort(){}}}
+  });
+  const dir={name:'E2E simulated archive',kind:'directory',
+   async queryPermission(){return 'granted'},async requestPermission(){return 'granted'},
+   async getFileHandle(name,{create=false}={}){if(!files.has(name)){if(!create)throw new DOMException('Missing','NotFoundError');files.set(name,'')}return handle(name)},
+   async *entries(){for(const name of files.keys())yield [name,handle(name)]}
+  };
+  Object.defineProperty(window,'showDirectoryPicker',{configurable:true,writable:true,value:async()=>dir});
+ });
+}
 (async()=>{
  fs.mkdirSync('screenshots',{recursive:true});
  const browser=await chromium.launch({headless:true});
  const page=await browser.newPage({viewport:{width:1440,height:900},deviceScaleFactor:1});
+ await installFolder(page.context());
  const records=[],errors=[],checks=[];
  page.on('pageerror',e=>errors.push(e.message));page.on('dialog',d=>d.dismiss());
  // Preview-only hook in served JS; no source or hardware protections changed.
@@ -41,7 +57,9 @@ const {chromium}=require('playwright'),fs=require('node:fs'),path=require('node:
   await reset();
   await shot('14-Einstellungen','Actual settings',async()=>{await page.locator('#settingsOpen').click();});
   await shot('15-Persoenliches-Profil','Actual profile fields, expanded',async()=>{
-   await page.evaluate(()=>{const p=document.getElementById('settingsPanel');p.hidden=false;const e=document.getElementById('settingsProfileOperator');e.closest('details').open=true;e.scrollIntoView({block:'center'});});
+   const details=page.locator('#settingsPanel details').filter({has:page.locator('#settingsProfileOperator')});
+   if(!await details.evaluate(e=>e.open))await details.locator('summary').click();
+   await page.locator('#settingsProfileOperator').waitFor({state:'visible'});
   });
   await reset();
   await shot('16-Nachmessung','Actual verification planner',()=>page.evaluate(()=>window.ELMOS_ARCHIVE.open('verification')));

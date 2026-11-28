@@ -25,8 +25,11 @@ const assert=require('node:assert/strict');
   await page.goto('http://127.0.0.1:8765/?demo=1');
   await page.waitForFunction(()=>window.ELMOS_GUIDED_API?.state()?.chip&&window.ELMOS_GUIDED?.isOpen?.(),{},{timeout:30000});
   const openProfile=async()=>{
-   await page.locator('#settingsOpen').click();
-   await page.locator('#settingsProfileOperator').evaluate(e=>e.closest('details').open=true);
+   if(!await page.locator('#settingsPanel').isVisible())await page.locator('#settingsOpen').click();
+   await page.locator('#settingsPanel').waitFor({state:'visible'});
+   const details=page.locator('#settingsPanel details').filter({has:page.locator('#settingsProfileOperator')});
+   if(!await details.evaluate(e=>e.open))await details.locator('summary').click();
+   await page.locator('#settingsProfileOperator').waitFor({state:'visible'});
   };
   await openProfile();
   await page.locator('#settingsProfileOperator').fill('Browser test operator');

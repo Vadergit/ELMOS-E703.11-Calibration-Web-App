@@ -32,9 +32,11 @@ async function visible(p,id,expected=true){
 async function ready(p,id,expected=true){
  await visible(p,id);
  const el=check(p,id);
- await p.waitForFunction(({id,expected})=>{
+ try{await p.waitForFunction(({id,expected})=>{
   const e=document.getElementById(id);return e&&(!e.disabled)===expected;
- },{id,expected},{timeout:15000});
+ },{id,expected},{timeout:15000});}catch(e){
+  throw Error(id+' expected enabled='+expected+'; actual='+await el.isEnabled()+'; guided message='+await p.locator('#gwMessage').innerText().catch(()=>''),{cause:e});
+ }
  assert.equal(await el.isEnabled(),expected,id+' enabled');
  if(expected)await el.click({trial:true,timeout:8000});
 }
@@ -60,7 +62,7 @@ async function installFolder(context){
    async getFileHandle(name,{create=false}={}){if(!files.has(name)){if(!create)throw new DOMException('Missing','NotFoundError');files.set(name,'')}return handle(name)},
    async *entries(){for(const name of files.keys())yield [name,handle(name)]}
   };
-  window.showDirectoryPicker=async()=>dir;
+  Object.defineProperty(window,'showDirectoryPicker',{configurable:true,writable:true,value:async()=>dir});
  });
 }
 async function snapshot(p,dir,name,record){
@@ -85,8 +87,9 @@ async function settings(p){
  await visible(p,'settingsPanel');
  await check(p,'settingsTheme').selectOption(theme);
  await check(p,'expertMode').setChecked(expert);
+ await visible(p,'settingsPanel');
  await click(p,'settingsArchiveChoose');
- await state(p,()=>document.querySelector('#settingsArchiveFolder').textContent.includes('E2E simulated archive'));
+ await state(p,()=>document.querySelector('#settingsArchiveFolder').textContent.includes('E2E simulated archive')&&document.querySelector('#settingsArchiveAccess').dataset.state==='granted');
  if(await check(p,'settingsPanel').isVisible())await click(p,'settingsOpen');
  await visible(p,'settingsPanel',false);
 }
@@ -222,7 +225,7 @@ async function runFlow(p,v,dir,record){
     await context.tracing.stop({path:path.join(dir,'trace.zip')}).catch(()=>{});
     await context.close();
     fs.writeFileSync(path.join(out,'results.json'),JSON.stringify(results,null,2));
-    console.log(id+': '+record.status+(record.failure?' '+record.failure.split('\n')[0]:''));
+    console.log(id+': '+record.status+(record.failure?' '+record.failure.split('\n').slice(0,5).join('\n'):''));
    }
   }
  }finally{await browser.close()}
