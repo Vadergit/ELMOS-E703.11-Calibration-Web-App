@@ -4771,12 +4771,12 @@ if(typeof document!=='undefined') (function UI(){
   if(!st.calTask||!st.port||!st.chip||!st.ramWriteScope)throw Error('Technischer Wartungszugriff nur während gewählter Schreib-/Backup-Aktion erlaubt');
   if(!Number.isInteger(word)||word<0||word>65535||!Number.isInteger(addr)||addr%2)throw Error('Ungültige Registerdaten');
   if(st.ramWriteScope==='bridge-v2'){
-   const config=(addr===4||addr===0x1e)&&bridgeV2Expected?.a===addr&&bridgeV2Expected.w===word;
+   const config=(addr===4||addr===0x1e||addr===0x1a)&&bridgeV2Expected?.a===addr&&bridgeV2Expected.w===word;
    const nvmReadOnly=addr===0x4e&&(word&0xff80)===0x4c00&&(word&1)===0;
    const grantOnly=addr===0x22&&[0xF75A,0x0CC7,0xD21E,0x62A2].includes(word);
    if(!(config||nvmReadOnly||grantOnly))throw Error('V2: nicht erlaubter Registerzugriff.');
    if(config){const previous=await readReg(addr);
-    if(((previous^word)&~(addr===4?0x000c:0x0fff))!==0)throw Error('V2: nicht erlaubte Registerbits.');
+    if(((previous^word)&~(addr===4?0x000c:addr===0x1a?0x00f0:0x0fff))!==0)throw Error('V2: nicht erlaubte Registerbits.');
     if(addr===4&&(word&12)!==4||addr===0x1e&&(word&0x0fff)!==0x014a)throw Error('V2: ungültiger Messpfad.');
    }
    const cmd=st.iface==='plc'?P.plcHostCommand(P.plcWrite(addr,word,st.plcAddress),st.plcHostFormat):st.iface==='i2c'?i2cWriteCommand(addr,word):P.spiWrite(addr,word);
@@ -6690,11 +6690,11 @@ if(typeof document!=='undefined') (function UI(){
  document.querySelectorAll('[data-open-nvm]').forEach(el=>el.addEventListener('click',openNvmCalculator));
  // V2 opt-in only, independent of original calculator.
  let bridgeV2Expected=null;
- async function bridgeV2Run(measure,status){
+ async function bridgeV2Run(measure,status,{expectedOhm=null,verified=false}={}){
   if(demoEnabled||!st.port||!st.chip||st.mode!=='usb'||!nvmTransportSupported())throw Error('Echter Sensor mit unterstütztem NVM-Lesezugriff erforderlich.');
   if(newCalibrationBlocker()||st.calCapturePending)throw Error('Ein anderer Sensorvorgang läuft.');
   if(measure&&(st.calpoints.length&&!st.nvmDone||st.calStaged&&!st.nvmDone||storedCalibrationCheckpoint(st.uid?.hex)||st.temperatureBaseline||window.ELMOS_ARCHIVE?.active))throw Error('Laufenden Abgleich oder Prüfprotokoll zuerst abschliessen. NVM-Analyse allein bleibt verfügbar.');
-  if(measure&&!window.confirm('Nur am Prüfplatz messen. Der Analogausgang kann vorübergehend abweichen; bei nötiger RAM-Umschaltung startet der Sensor neu. Fortfahren?'))return null;
+  if(measure&&!window.confirm('Nur am Prüfplatz messen. Der Analogausgang kann vorübergehend abweichen; bei nötiger RAM-Umschaltung startet der Sensor neu.'+(verified?' Der unabhängig gemessene Gesamtwiderstand dient zur sicheren RPGA-Auswahl.':' RPGA bleibt unverändert.')+' Fortfahren?'))return null;
   const port=st.port,session=st.sessionIndex,uid=st.uid?.hex,resume=st.live&&!st.manualLivePause;
   const current=()=>!!uid&&st.port===port&&st.sessionIndex===session&&st.chip&&st.uid?.hex===uid&&!st.closing;
   const guard=()=>{if(!current())throw Error('Sensor oder Sitzung gewechselt.');};
@@ -6706,7 +6706,12 @@ if(typeof document!=='undefined') (function UI(){
    const io={
     uid:async()=>{guard();return readCalibrationUid();},read:async a=>{guard();return readReg(a);},
     nvm:async a=>{guard();return nvmReadWord(a);},grant:async()=>{guard();await ramGrant();},
-    write:async(a,w)=>{guard();if(await readCalibrationUid()!==uid)throw Error('UID geändert.');bridgeV2Expected={a,w};try{await maintWrite(a,w);}finally{bridgeV2Expected=null;}},
+    write:async(a,w)=>{guard();if(await readCalibrationUid()!==uid)throw Error('UID geändert.');
+     if(a===0x1a){const current0=await readReg(0x1a),selection=ELMOS_BRIDGE_V2.rangeSelection(ELMOS_TEMPERATURE_AFE,current0&3,expectedOhm,verified);
+      if(!selection?.verified||!selection.validCodes.includes((w>>4)&15)||((current0^w)&~0xf0)!==0)throw Error('V2: RPGA nur mit unabhängig bestätigtem Gesamtwiderstand.');
+     }
+     bridgeV2Expected={a,w};try{await maintWrite(a,w);}finally{bridgeV2Expected=null;}},
+
     fresh:async()=>{guard();return (await readFreshDevTemperature(0x28,0x0004)).value;},pause:sleep,
     restart:async()=>{
      guard();
@@ -6717,7 +6722,7 @@ if(typeof document!=='undefined') (function UI(){
     },
     unconfirmed:async m=>{failed=true;logging(m);}
    };
-   return await ELMOS_BRIDGE_V2.analyze(io,CAL,ELMOS_TEMPERATURE_AFE,{measure,allowRestart:ELMOS_BRIDGE_V2.restartSupported({adapter:st.adapterKind,iface:st.iface,power:st.sensorPowerEnabled,genericRam:st.bridgeGenericRam,plcRam:st.bridgePsscRam,i2cNvm:i2cNvmSupported(),cold:bridgeColdStartVerified()}),progress});
+   return await ELMOS_BRIDGE_V2.analyze(io,CAL,ELMOS_TEMPERATURE_AFE,{measure,allowRestart:ELMOS_BRIDGE_V2.restartSupported({adapter:st.adapterKind,iface:st.iface,power:st.sensorPowerEnabled,genericRam:st.bridgeGenericRam,plcRam:st.bridgePsscRam,i2cNvm:i2cNvmSupported(),cold:bridgeColdStartVerified()}),expectedOhm,verified,progress});
   }finally{
    try{if(current())await ramLock();}finally{
     bridgeV2Expected=null;st.ramWriteScope=null;st.calTask=false;st.writing=false;

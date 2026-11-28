@@ -1,11 +1,11 @@
 # ELMOS E703.11 – Web-Kalibrierassistent
 
-## Brückenrechner V2 (Beta 2)
-Separates Diagnosefenster im klassischen und geführten Brückenrechner. NVM-Analyse mit CRC8/CRC16; nominale ADC_T-Widerstandsschätzung. Temporäre Umschaltung nur bei NVM-identischem Konfigurations-RAM, kontinuierlicher Messung und bestätigtem DIY-Kaltstart über One-Wire oder I²C. Keine RPGA-Änderung, kein NVM-Schreiben. Rückprüfung aller 64 NVM-Wörter und 62 gemappter RAM-Register. Noch nicht hardwarevalidiert; SSP3 zunächst nur lesende Analyse oder bereits kompatibler ADC_T-Pfad; DIY-I²C nutzt I2C COLD START mit RAM_ENABLE=0 und COLD_START=1. Nur am Prüfplatz verwenden.
+## Brückenrechner V2 (Beta 3)
+Separates Diagnosefenster im klassischen und geführten Brückenrechner. NVM-Analyse mit CRC8/CRC16; nominale ADC_T-Widerstandsschätzung. Temporäre Umschaltung nur bei NVM-identischem Konfigurations-RAM, kontinuierlicher Messung und bestätigtem DIY-Kaltstart über One-Wire oder I²C. RPGA bleibt ohne unabhängige Referenzmessung unverändert. Mit unabhängig gemessenem Gesamtwiderstand ist eine temporäre, datenblattgeprüfte RPGA-Auswahl möglich; SVDD bleibt unverändert. Kein NVM-Schreiben. Rückprüfung aller 64 NVM-Wörter und 62 gemappter RAM-Register. Noch nicht hardwarevalidiert; SSP3 zunächst nur lesende Analyse oder bereits kompatibler ADC_T-Pfad; DIY-I²C nutzt I2C COLD START mit RAM_ENABLE=0 und COLD_START=1. Nur am Prüfplatz verwenden.
 
 **Ein geführter Kalibrierassistent für den ELMOS E703.11 mit SSP3-Eval-Board, ESP32-C3 SuperMini oder Arduino Pro Micro.** Ziel ist ein verständlicher Abgleich, der auch ohne tiefere Vorkenntnisse Schritt für Schritt funktioniert. Wer mehr benötigt, kann zusätzliche Messpunkte, DSP-Parameter und einen geschützten Expertenmodus verwenden.
 
-**Version: v0.7.232 · Brückenrechner V2 Beta 2 (I²C)** · [Änderungsverlauf](CHANGELOG.md) · **[Geplante Funktionen](ROADMAP.md)**
+**Version: v0.7.233 · Brückenrechner V2 Beta 3** · [Änderungsverlauf](CHANGELOG.md) · **[Geplante Funktionen](ROADMAP.md)**
 
 Die SSC-Temperatur wird auch ohne Temperaturabgleich aus dem internen ADC_T oder, bei bestätigtem PTC-Modus mit aktiver interner Diodenmessung und Standardgains, aus ADC_TC anhand der typischen Elmos-Beispielkennlinie geschätzt. Der reine Druckfit bleibt temperaturunabhängig. Ein reiner Druckabgleich kann die gemessene Temperaturreferenz zur Einpunkt-Offsetkorrektur verwenden. Die Referenz wird nach erfolgreicher NVM-Programmierung pro Chip-UID im Browser gespeichert; bestehende Temperaturregister bleiben unverändert. Ein erkannter vollständiger Temperaturabgleich hat Vorrang. Näherungen sind keine individuell validierte Temperaturmessung.
 

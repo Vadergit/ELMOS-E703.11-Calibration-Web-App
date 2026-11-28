@@ -1,3 +1,10 @@
+## v0.7.233 – Brückenrechner V2 Beta 3
+
+- Separate Ergebnis-Kacheln und aufklappbare Rohregister-/Modellhinweise.
+- Erwarteten Gesamtwiderstand optional eingeben; unplausible Schätzung explizit kennzeichnen. RPGA-Auswahl nur mit unabhängig gemessenem Gesamtwiderstand, spezifiziertem Strom-/MUX-Bereich und verifiziertem Kaltstart; SVDD unverändert.
+- Messregister und HW_DIAG prüfen; ursprüngliches NVM und Konfigurations-RAM nach jeder temporären Änderung rückprüfen. Keine NVM-Schreiboperation.
+- Hardwarevalidierung weiterhin offen.
+
 ## v0.7.232 – Brückenrechner V2 Beta 2
 
 - DIY-I²C: vorhandener I2C COLD START mit direkter Startbestätigung und vollständigem RAM-/NVM-Vergleich, ohne NVM-Schreiben oder RPGA-Änderung.
