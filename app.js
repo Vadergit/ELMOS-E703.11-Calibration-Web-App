@@ -6273,8 +6273,9 @@ if(typeof document!=='undefined') (function UI(){
  function openNvmCalculator(){
   window.ELMOS_ARCHIVE?.close?.();
   if(window.ELMOS_GUIDED?.isOpen()){
-   window.ELMOS_GUIDED.close({preservePreference:true});
-   if(window.ELMOS_GUIDED.isOpen())return; // running test logger prevents view switch
+   toggleSettings(false);
+   window.ELMOS_GUIDED.openNvmCalculator();
+   return;
   }
   if(typeof ELMOS_COMPACT!=='undefined')ELMOS_COMPACT.set(false);
   if($('compactMode'))$('compactMode').checked=false;
@@ -6871,6 +6872,7 @@ if(typeof document!=='undefined') (function UI(){
    outputScalingRequired:outputScalingPreflight().required
   }),
   navigate:n=>step(n),
+  refreshNvmCalculator:()=>expert.refreshEEPROMViewer(),
   closeSettings:()=>toggleSettings(false),
   navigationSafety:()=>({
    critical:!!(st.closing||st.writing||st.nvmWorking||st.nvmAttempting||

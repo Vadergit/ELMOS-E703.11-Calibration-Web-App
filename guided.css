@@ -387,3 +387,10 @@ html.guided-active #calPreflightPanel:not(.guided-draft-recovery){display:none!i
 html.guided-active #calPreflightPanel .preflight-classic-title,html.guided-active #calRunPreflight{display:none!important}
 html.guided-active #calPreflightPanel .preflight-guided-title{display:block}
 html.guided-active #calPreflightPanel #calPreflightStatus:not(.error):not(.warn){display:none}
+
+/* Read-only guided calculator overlay: guided workspace remains mounted. */
+#guidedNvmWorkspace[hidden],html.guided-nvm-active #guidedWorkspace,html.archive-active #guidedNvmWorkspace{display:none!important}
+#guidedNvmWorkspace{margin:15px auto 0;max-width:1220px;min-width:0;padding:clamp(14px,2vw,28px)}
+#guidedNvmWorkspace .guided-tool-toolbar{display:flex;align-items:center;justify-content:flex-start;margin-bottom:16px}
+#guidedNvmWorkspace .guided-tool-toolbar button{background:var(--paper);color:var(--blue);border:1px solid var(--line);font-weight:750}
+#guidedNvmWorkspace #nvmReconstruction{min-width:0}

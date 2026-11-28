@@ -1,5 +1,6 @@
 /* Static English text for the E703.11 interface. */
 window.ELMOS_TRANSLATIONS_EN=Object.assign(window.ELMOS_TRANSLATIONS_EN||{}, {
+ "← Zurück zur Aufgabenauswahl": "← Back to task selection",
  "DSP-Ziel:": "DSP target:",
  "(Referenz, keine ADC-Grenze)": "(reference, not an ADC limit)",
  "ADC-Verlauf mit gewähltem DSP-Ziel als Vergleichslinie": "ADC trace with selected DSP target as reference line",

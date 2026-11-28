@@ -868,6 +868,41 @@ const ELMOS_GUIDED=(()=>{
   msg('');
   updateUI();
  }
+ // Keep the guided DOM, active plan and USB session intact while a read-only
+ // tool is open. Move the existing calculator, never clone its inputs/listeners.
+ let calculatorOrigin=null,calculatorTitle=null,calculatorScroll=0;
+ function openNvmCalculator(){
+  if(!mode||nextSensorPending)return false;
+  if(window.ELMOS_TEST_LOGGER?.isBusy()){msg('Bitte zuerst die laufende Testaufzeichnung beenden.','warn');return false;}
+  const workspace=$('guidedNvmWorkspace'),node=$('nvmReconstruction'),host=$('guidedNvmHost');
+  if(!workspace||!node||!host)return false;
+  if(calculatorOrigin)return true;
+  const marker=document.createComment('guided-calculator-origin');
+  node.parentNode.replaceChild(marker,node);
+  calculatorOrigin=marker;calculatorTitle=document.title;calculatorScroll=window.scrollY;
+  host.appendChild(node);
+  $('guidedNvmBack').textContent=stage===0&&!connectionOpen?'← Zurück zur Aufgabenauswahl':'← Zurück zum Assistenten';
+  workspace.hidden=false;document.documentElement.classList.add('guided-nvm-active');
+  document.title='Sensorbrücken-Rechner · ELMOS E703.11';
+  window.ELMOS_GUIDED_API?.refreshNvmCalculator?.();
+  window.scrollTo({top:0,behavior:'auto'});
+  $('guidedNvmBack').focus({preventScroll:true});
+  return true;
+ }
+ function closeNvmCalculator({restoreScroll=true}={}){
+  if(!calculatorOrigin)return false;
+  const node=$('nvmReconstruction');
+  if(node&&calculatorOrigin.parentNode)calculatorOrigin.parentNode.replaceChild(node,calculatorOrigin);
+  calculatorOrigin=null;
+  $('guidedNvmWorkspace').hidden=true;
+  document.documentElement.classList.remove('guided-nvm-active');
+  document.title=calculatorTitle||'ELMOS E703.11 – Kalibrierassistent';
+  calculatorTitle=null;
+  if(location.hash==='#nvm-rechner')history.replaceState(history.state,'',location.pathname+location.search);
+  if(restoreScroll)window.scrollTo({top:calculatorScroll,behavior:'auto'});
+  if(mode&&restoreScroll){updateUI();apiRedraw();}
+  return true;
+ }
  function goto(n){
   if(stage===11&&window.ELMOS_TEST_LOGGER?.isBusy()){
    msg('Bitte zuerst die laufende Testaufzeichnung beenden.','warn');return;
@@ -888,7 +923,7 @@ const ELMOS_GUIDED=(()=>{
    window.ELMOS_ARCHIVE.open(task==='verification'?'verification':'archive');
    return;
   }
-  if(stage===0&&task==='nvm'){close({preservePreference:true});if(mode)return;window.ELMOS_GUIDED_API?.navigate?.(10);return}
+  if(stage===0&&task==='nvm'){openNvmCalculator();return}
   const s=state();
   if(!s.chip){msg('Zuerst den E703.11 über USB verbinden. Eine reine USB-CDC-Verbindung ohne Chipzugriff genügt nicht.','warn');return}
   if(stage===0){
@@ -1084,6 +1119,7 @@ const ELMOS_GUIDED=(()=>{
   if(window.ELMOS_TEST_LOGGER?.isBusy()){
    msg('Bitte die Testaufzeichnung zuerst beenden, bevor du die Ansicht wechselst.','warn');return;
   }
+  closeNvmCalculator({restoreScroll:false});
   window.ELMOS_TEST_LOGGER?.unmount();
   mode=false;connectionOpen=false;
   if(poll){window.clearInterval(poll);poll=null}
@@ -1100,6 +1136,7 @@ const ELMOS_GUIDED=(()=>{
  // an unfinished task. Pure navigation: no sensor writes or USB changes.
  function resetForHome(){
   if(!mode)return false;
+  closeNvmCalculator({restoreScroll:false});
   if(pendingCapture){window.clearInterval(pendingCapture);pendingCapture=null}
   nextSensorPending=null;nextSensorBusy=false;connectionOpen=false;connectionBusy=false;
   task='calibration';stage=0;visited=new Set([0]);
@@ -1140,10 +1177,11 @@ const ELMOS_GUIDED=(()=>{
   else renderConnectionStatus();
  }
  function init(){
+  $('guidedNvmBack')?.addEventListener('click',()=>closeNvmCalculator());
   $('guidedLaunch')?.addEventListener('click',open);
   $('guidedLaunchTop')?.addEventListener('click',toggleTopView);
   const restorePreferredView=()=>{
-   if(location.hash==='#nvm-rechner'){if(mode)close({preservePreference:true});else syncTopMode();return}
+   if(location.hash==='#nvm-rechner'){if(rememberedView()!=='classic'){if(!mode)open();if(mode)openNvmCalculator();}else syncTopMode();return}
    // No saved choice: use the guided start screen. An explicit classic choice
    // always wins, including after a reload and reconnect.
    if(rememberedView()==='classic'){
@@ -1175,7 +1213,7 @@ const ELMOS_GUIDED=(()=>{
      $('calUnit').value!==plan.unit)return null;
   return {pCount:plan.pCount,tCount:plan.tCount,fitMode:plan.fitMode};
  }
- return {init,open,close,temperatureSourceChanged,preferredView:()=>rememberedView()==='classic'?'classic':'guided',goToStart:()=>{if(mode&&!nextSensorPending)goto(0)},goToCoefficients:()=>{if(mode&&task==='calibration'&&!nextSensorPending)goto(5)},resetForHome,hasUnfinishedTask,hasPendingOperation,onConnected,onSensorReset,makePlan,planForPreset:()=>mode&&stage>=1&&stage<=2?makePlan():plan,isOpen:()=>mode,appliedPlanForConfig};
+ return {init,open,close,openNvmCalculator,closeNvmCalculator,temperatureSourceChanged,preferredView:()=>rememberedView()==='classic'?'classic':'guided',goToStart:()=>{if(mode&&!nextSensorPending)goto(0)},goToCoefficients:()=>{if(mode&&task==='calibration'&&!nextSensorPending)goto(5)},resetForHome,hasUnfinishedTask,hasPendingOperation,onConnected,onSensorReset,makePlan,planForPreset:()=>mode&&stage>=1&&stage<=2?makePlan():plan,isOpen:()=>mode,appliedPlanForConfig};
 })();
 if(typeof window!=='undefined')window.ELMOS_GUIDED=ELMOS_GUIDED;
 if(typeof document!=='undefined'){
