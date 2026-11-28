@@ -74,3 +74,15 @@ const inRange=t.signal({resistanceOhm:2/.00038,svdd:2,code:7}).adc;
 assert.equal(ptc.checkPoint({adc:inRange,adcTC:0,adcS:1000,svdd:2,afe0:0x0d72,afe2:0x114a}).valid,true);
 assert.equal(ptc.checkPoint({adc:-14724,adcTC:32767,adcS:1000,svdd:2,afe0:0x0d72,afe2:0x114a}).valid,false);
 console.log('PTC 560 profile, piecewise TCR, uncertainty, measured anchor and ADC checks passed');
+
+// Automatic RPGA probing: reject clipped, out-of-range and unstable samples.
+for(const resistanceOhm of [2100,3300,4100,5000]){
+ const order=t.probeOrder({svddCode:0,resistanceOhm:4100});
+ assert.equal(new Set(order).size,16);
+ const probes=order.map(code=>{const adc=Math.max(-32768,Math.min(32767,t.signal({resistanceOhm,svdd:2.4,code}).adc));return t.assessProbe({samples:Array(7).fill(adc),svdd:2.4,afe0:code<<4,afe2:0x114a});});
+ const valid=probes.find(p=>p.valid);assert.ok(valid);near(valid.resistanceOhm,resistanceOhm,1);
+ if(resistanceOhm===2100)assert.equal(probes[0].valid,false);
+}
+assert.equal(t.assessProbe({samples:Array(7).fill(32767),svdd:2.4,afe0:0x70,afe2:0x114a}).valid,false);
+assert.equal(t.assessProbe({samples:[0,0,0,0,0,0,1000],svdd:2.4,afe0:0x70,afe2:0x114a}).valid,false);
+console.log('Automatic RPGA probing: saturation, stability and resistance reconstruction passed');
