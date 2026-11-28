@@ -1,0 +1,54 @@
+name: Redesign demo end-to-end contracts
+on:
+  push:
+    branches: [ui-ux-redesign]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+jobs:
+  guided-e2e:
+    name: Demo UI ${{ matrix.view.name }} / expert=${{ matrix.expert }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 55
+    strategy:
+      fail-fast: false
+      matrix:
+        expert: ['false', 'true']
+        view:
+          - {name: desktop-light, width: 1440, height: 900, theme: light}
+          - {name: desktop-dark, width: 1440, height: 900, theme: dark}
+          - {name: laptop-light, width: 1024, height: 768, theme: light}
+          - {name: tablet-light, width: 768, height: 1024, theme: light}
+          - {name: mobile-light, width: 390, height: 844, theme: light}
+          - {name: mobile-dark, width: 390, height: 844, theme: dark}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install browser
+        run: |
+          node --check tests/redesign-e2e.cjs
+          npm install --no-save playwright
+          npx playwright install --with-deps chromium
+      - name: Execute independent demo calibration flows
+        env:
+          E2E_WIDTH: ${{ matrix.view.width }}
+          E2E_HEIGHT: ${{ matrix.view.height }}
+          E2E_THEME: ${{ matrix.view.theme }}
+          E2E_EXPERT: ${{ matrix.expert }}
+        run: |
+          python3 -m http.server 8765 --bind 127.0.0.1 >/tmp/elmos-e2e-http.log 2>&1 &
+          for i in {1..40}; do
+            if curl -fsS http://127.0.0.1:8765/ >/dev/null; then break; fi
+            sleep 0.25
+          done
+          node tests/redesign-e2e.cjs
+      - name: Preserve test evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: demo-e2e-${{ matrix.view.name }}-expert-${{ matrix.expert }}
+          path: e2e-report/
+          if-no-files-found: error
+          retention-days: 14
