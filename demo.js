@@ -20,10 +20,16 @@ const ELMOS_DEMO = {
   let writeEnabled = false;
   let pressure;
   let temperature = 25;
+  let ptc=null;
+  const dev=typeof window!=='undefined'&&window.ELMOS_PTC_DEV===true;
+  let betaSnapshot=null;
+  function beginBeta(){if(!betaSnapshot)betaSnapshot=new Map(ram);}
+  const betaRegs=[[28,0x1C],[29,0x1E],[31,0x6C],[32,0x6E],[33,0x70],[34,0x72],...Array.from({length:16},(_,i)=>[35+i,0x74+2*i]),...Array.from({length:4},(_,i)=>[51+i,0x94+2*i])];
   const word = value => Math.max(-32768, Math.min(32767, Math.round(value))) & 0xFFFF;
 
   function reboot() {
    for (const [index, address] of bootRegisters) ram.set(address, nvm[index]);
+   if(ptc)for(const [index,address] of betaRegs)ram.set(address,nvm[index]);
    writeEnabled = false;
   }
   reboot();
@@ -33,6 +39,23 @@ const ELMOS_DEMO = {
    const span = upper - lower;
    const fraction = span > 0 ? ((pressure ?? (lower + upper) / 2) - lower) / span : 0.5;
    const gain = protocol.decAFE(ram.get(0x1C));
+   if(dev&&ptc){
+    const a=ELMOS_TEMPERATURE_AFE,v=a.SUPPLIES[(ram.get(0x1A)||0)&3],code=((ram.get(0x1A)||0)>>4)&15;
+    const b=ptc.bridgeOhm*(1+(temperature-25)*(temperature<25?120:180)/1e6),p=ptc.parallelOhm*(1+(temperature-25)*ptc.ptcTcr/1e6);
+    const t=ptc.source==='external'?ELMOS_EXTERNAL_AFE.signal(ELMOS_EXTERNAL_AFE.voltage(ptc,temperature),((ram.get(0x1E)||0)>>2)&3,((ram.get(0x1E)||0)>>4)&3):a.signal({resistanceOhm:a.equivalent(b,p),svdd:v,code}).adc;
+    const s=(gain.bridgeInvert?-1:1)*(fraction-.5)*20000*(1+gain.pga1*.25+gain.pga2*.12)*(1+(temperature-25)*ptc.tke/1e6)+gain.offset*750+(temperature-25)*ptc.tk0;
+    if(address===0x26)return word((temperature-25)*100);
+    if(address===0x28)return word(t);
+    if(address===0x2A)return word(s);
+    if((address===0x30||address===0x2E)&&(ram.get(0x72)||0)){
+     const q=(addr,bits)=>calibration.fromQ(ram.get(addr)||0,bits);
+     const ns=q(0x72,12)*(word(s)>=32768?word(s)-65536:word(s))/32768+q(0x70,12),nt=q(0x6E,12)*(word(t)>=32768?word(t)-65536:word(t))/32768+q(0x6C,12);
+     let value=0;
+     if(address===0x30){for(let i=0;i<16;i++)value+=q(0x74+2*i,15)*ns**Math.floor(i/4)*nt**(i%4);}
+     else {for(let i=0;i<4;i++)value+=q(0x94+2*i,15)*nt**i;}
+     return word(value*32768);
+    }
+   }
    switch (address) {
     case 0x26:
     case 0x28:
@@ -63,6 +86,23 @@ const ELMOS_DEMO = {
    async open() { opened = true; },
    async close() { opened = false; },
    setReference(value, temp = temperature) { pressure = value; temperature = temp; },
+   ptcConfigured(source){return !!ptc&&(!source||(ptc.source||'bridge')===source);},
+   ptcWords(){return {afe0:ram.get(0x1A),afe2:ram.get(0x1E),cfgEn:ram.get(4)};},
+   setPtcProfile(profile,code){
+    if(!dev)throw Error('Nur DEV-Simulation');
+    beginBeta();ptc={...profile,source:'bridge'};ram.set(0x1E,0x1154);ram.set(4,(ram.get(4)||0)|0x12);const words=ELMOS_TEMPERATURE_AFE.merge({afe0:ram.get(0x1A)||0,afe2:ram.get(0x1E)||0,cfgEn:ram.get(4)||0,code,svddCode:profile.svddCode});
+    ram.set(0x1A,words.afe0);ram.set(0x1E,words.afe2);ram.set(4,words.cfgEn);
+    for(const addr of [0x6C,0x6E,0x70,0x72,...Array.from({length:16},(_,i)=>0x74+2*i),0x94,0x96,0x98,0x9A])ram.set(addr,0);
+   },
+   setExternalProfile(profile,gain){
+    if(!dev)throw Error('Nur DEV-Simulation');
+    const best=ELMOS_EXTERNAL_AFE.plan(profile).best;
+    if(!best||best.i!==gain.i||best.j!==gain.j)throw Error('Ungültige externe AFE-Auswahl.');
+    beginBeta();ptc={...profile,source:'external'};ram.set(4,(ram.get(4)||0)|0x12);ram.set(0x0C,0x0080);ram.set(0x1E,ELMOS_EXTERNAL_AFE.merge(0x1154,profile,gain));ram.set(4,((ram.get(4)||0)&~0x100c)|0x1004);
+    for(const addr of [0x6C,0x6E,0x70,0x72,...Array.from({length:16},(_,i)=>0x74+2*i),0x94,0x96,0x98,0x9A])ram.set(addr,0);
+   },
+   clearPtcProfile(){if(dev){ptc=null;if(betaSnapshot){ram.clear();for(const [addr,value] of betaSnapshot)ram.set(addr,value);betaSnapshot=null;}}},
+
    reboot,
    exchange(command) {
     if (!opened) throw Error('Demo-Verbindung ist geschlossen');

@@ -790,7 +790,7 @@ html.guided-task-open #guidedHomeTop{display:inline-flex}
 #guidedHomeConfirmStatus[hidden]{display:none!important}
 @media(max-width:700px){.guided-home-top{padding:6px 10px;font-size:12px}}
 </style><link rel="stylesheet" href="guided.css?v=0.7.202"><link rel="stylesheet" href="interface.css?v=0.7.101"><link rel="stylesheet" href="theme.css?v=0.7.9"><link rel="stylesheet" href="verification-guide.css?v=0.7.78"><link rel="stylesheet" href="calibration-graph.css?v=0.7.83"><link rel="stylesheet" href="archive-photos.css?v=0.7.73"><link rel="stylesheet" href="settings-refresh.css?v=0.7.77"><link rel="stylesheet" href="classic-compact.css?v=0.7.100"><link rel="stylesheet" href="eeprom-config-overview.css?v=0.7.121"><link rel="stylesheet" href="nvm-reconstruction.css?v=0.7.142">
-</head><body data-app-version="0.7.202"><div class="wrap"><header class="top">
+<style>html[data-temperature-source="bridge"] #guidedWorkspace .ptc-offline-diagnostic,html[data-temperature-source="external"] #guidedWorkspace .ptc-offline-diagnostic{display:none!important}</style><style>.ptc-help{display:inline-grid;place-items:center;vertical-align:middle;width:20px;height:20px;padding:0;border-radius:50%;font-size:12px;line-height:1;color:var(--blue);background:var(--paper);border:1px solid var(--line);cursor:pointer}#ptcHelpDialog{color:var(--ink);background:var(--paper);border:1px solid var(--line);border-radius:14px;padding:20px;max-width:min(650px,calc(100vw - 28px));width:100%;max-height:85vh;overflow:auto}#ptcHelpDialog::backdrop{background:#0007}#ptcHelpDialog h3{margin:0 0 12px}#ptcHelpDialog h4{margin:14px 0 4px}#ptcHelpDialog p{margin:6px 0;white-space:pre-line}#ptcHelpDialog pre{background:var(--bg);border:1px solid var(--line);border-radius:7px;padding:10px;white-space:pre-wrap}#gwPtcCurrent{margin:8px 0;line-height:1.5}</style></head><body data-app-version="0.7.202"><style>#gwPtcFields[hidden],#gwPtcTol[hidden],#gwEocFields[hidden],#gwEocTol[hidden],#gwPtcRealAnchor[hidden],#gwPtcRealHint[hidden],#gwPtcDemoPressure[hidden]{display:none!important}</style><script>window.ELMOS_PTC_DEV=true;</script><div class="wrap"><header class="top">
 <div class="brand"><div class="logo" aria-hidden="true">E</div><div><div class="eyebrow">E703.11 · PSSC · v0.7.202</div><h1>Kalibrierassistent</h1></div></div>
 <div class="live-overview" role="group" aria-label="Live-Sensorwerte: zuerst Temperatur, danach Druck und Sensorwert">
   <div class="live-kpi" title="ADC_T · Temperatur-Rohwert, keine direkte Temperatur in °C."><span class="live-kpi-label">ADC_T</span><span class="live-kpi-reading" id="liveAdcT">—</span><span class="live-kpi-unit">Digits</span></div>
@@ -833,6 +833,7 @@ html.guided-task-open #guidedHomeTop{display:inline-flex}
  <span id="browserNoticeText" role="status"></span>
  <button type="button" id="browserNoticeClose">Hinweis schliessen</button>
 </div>
+
 <div id="demoNotice" class="demo-notice" hidden><span><strong>Demo-Modus</strong> · Simulierte Messwerte und Schreibvorgänge</span><button type="button" id="demoExit">Demo beenden</button></div>
 <section class="settings-panel" id="settingsPanel" hidden aria-label="App-Einstellungen">
  <div class="settings-panel-head">
@@ -1098,7 +1099,7 @@ html.guided-task-open #guidedHomeTop{display:inline-flex}
   <span class="afe-bridge-status" id="brSupplyStatus" role="status"></span>
  </div>
 </div>
-<div class="afe-step-row"><div class="afe-step-description"><div class="afe-step-title">Temperatur-AFE / Parallelwiderstand</div><span class="afe-step-subtitle">Berechnung und Diagnose · Entwicklungsstand</span></div><a href="temperature-afe.html" target="_blank" rel="noopener" class="button">Temperatur-AFE-Rechner öffnen</a></div>
+<div class="afe-step-row ptc-offline-diagnostic"><div class="afe-step-description"><div class="afe-step-title">Temperatur-AFE / Parallelwiderstand</div><span class="afe-step-subtitle">Berechnung und Diagnose · Entwicklungsstand</span></div><a href="temperature-afe.html" target="_blank" rel="noopener" class="button">Temperatur-AFE-Rechner öffnen</a></div>
 <div class="afe-step-row afe-polarity-row">
  <div class="afe-step-description"><div class="afe-step-title" id="bridgePolarityLabel">Brückenpolarität <span class="help" data-help="bridgePolarity">?</span></div><span class="afe-step-subtitle">SIP / SIN · vor PGA1</span></div>
  <div class="afe-polarity-control" role="group" aria-labelledby="bridgePolarityLabel">
@@ -1156,11 +1157,11 @@ html.guided-task-open #guidedHomeTop{display:inline-flex}
 <label>Samples / Punkt
 <input type="number" id="calSampleCount" aria-label="Samples pro Messpunkt" min="1" max="100" step="1" value="12">
 </label>
-<label class="cal-temp-source">Temperaturmessquelle <span class="help" data-help="tempsource" role="note" aria-label="Information zur Temperaturmessquelle">?</span>
+<label class="cal-temp-source">Temperaturmessquelle <button type="button" class="ptc-help" data-ptc-help="source" aria-label="Information zur Temperaturmessquelle">?</button>
 <select id="calTempSource">
 <option value="internal" selected>Interner Temperatursensor · ADC_T</option>
-<option value="bridge" disabled>Brückenwiderstand · ADC_T/ADC_TC (in Vorbereitung)</option>
-<option value="external" disabled>Externer Sensor am EOC-Pin (in Vorbereitung)</option>
+<option value="bridge">Brückenwiderstand / PTC · Beta</option>
+<option value="external">Externer Sensor am EOC-Pin · Beta</option>
 </select>
 </label>
 <label>Einheit <span class="help" data-help="pressureunit">?</span>
@@ -1345,6 +1346,7 @@ html.guided-task-open #guidedHomeTop{display:inline-flex}
 <p class="muted small" id="calVerifyProgress">0 von 1 Prüfpunkten erfolgreich.</p>
 <div class="fieldrow" id="calVerifyOptions">
 <label>Maximale Abweichung (<span data-cal-unit>%</span>)<input type="number" id="calVerifyTolerance" step="any" min="0.000001" value="0.2"></label>
+<label id="betaTemperatureToleranceLabel" hidden>Temperaturtoleranz (°C) · Beta<input type="number" id="devTemperatureTolerance" step="any" min="0.01" value="2"></label>
 </div>
 <div id="calVerifyRows">
 <div class="verify-point fieldrow">
@@ -1638,7 +1640,7 @@ html.guided-task-open #guidedHomeTop{display:inline-flex}
 <label><input id="alarmErrorEnable" type="checkbox"> Fehlerreaktionen einschalten</label>
 </div>
 <div class="fieldrow"><button type="button" id="alarmReactivateAll">Alle Fehler reaktivieren</button><button type="button" id="alarmDisableAll">Alle Alarm- und Fehlerfunktionen deaktivieren (explizite Änderung)</button></div>
-<h4>EOC-/Alarm-Verknüpfungen (ODER)</h4>
+<h4>EOC-/Alarm-Verknüpfungen (ODER) <button type="button" class="ptc-help" data-ptc-help="diagnostics" aria-label="Brückendiagnose erklären" id="betaAlarmHelp" hidden>?</button></h4><p id="ptcAlarmCurrent" class="muted small" hidden></p>
 <p class="muted small">Nur die ausgewählten STATUS-Bits werden logisch ODER-verknüpft. Der EOC-Pin muss bereits auf den gewünschten Ausgang geroutet sein. Das physische Pinrouting wird nicht verändert.</p>
 <p class="muted small">Wähle die Statusbedingungen, die auf den <b>bereits konfigurierten</b> EOC-Ausgang wirken. Eine Änderung der Pinbelegung erfolgt hier bewusst nicht.</p>
 <div class="fieldrow" id="alarmEocOptions" style="margin:8px 0"></div>
@@ -1668,4 +1670,4 @@ html.guided-task-open #guidedHomeTop{display:inline-flex}
 </section>
 
 </section></main></div></div>
-<div id="tip" class="tooltip"></div><script src="calibration.js?v=0.7.202&amp;release=0.7.202"></script><script src="eeprom-help.js?v=0.7.111&amp;release=0.7.202"></script><script src="elmos-settings.js?v=0.7.122&amp;release=0.7.202"></script><script src="eeprom-config-overview.js?v=0.7.202&amp;release=0.7.202"></script><script src="nvm-reference-profile.js?v=0.7.120&amp;release=0.7.202"></script><script src="nvm-reconstruction.js?v=0.7.142&amp;release=0.7.202"></script><script src="nvm-reconstruction-trace.js?v=0.1.2&amp;release=0.7.202"></script><script src="elmos-alarm-view.js?v=0.7.115&amp;release=0.7.202"></script><script src="alarm-config.js?v=0.7.202&amp;release=0.7.202"></script><script src="alarm-editor.js?v=0.7.119&amp;release=0.7.202"></script><script src="expert.js?v=0.7.202&amp;release=0.7.202"></script><script src="config.js?v=0.7.118&amp;release=0.7.202"></script><script src="guided-plan.js?v=0.7.94&amp;release=0.7.202"></script><script src="demo.js?v=0.7.202&amp;release=0.7.202"></script><script src="archive-core.js?v=0.7.82&amp;release=0.7.202"></script><script src="test-logger-core.js?v=0.7.39&amp;release=0.7.202"></script><script src="archive-analysis.js?v=0.7.80&amp;release=0.7.202"></script><script src="verification-graph.js?v=0.7.78&amp;release=0.7.202"></script><script src="calibration-graph.js?v=0.7.83&amp;release=0.7.202"></script><script src="archive-photos.js?v=0.7.73&amp;release=0.7.202"></script><script src="verification-report.js?v=0.7.80&amp;release=0.7.202"></script><script src="calibration-report.js?v=0.7.89&amp;release=0.7.202"></script><script src="archive-readable-csv.js?v=0.7.78&amp;release=0.7.202"></script><script src="logging-report.js?v=0.7.74&amp;release=0.7.202"></script><script src="calibration-complete.js?v=0.7.120&amp;release=0.7.202"></script><script src="archive.js?v=0.7.121&amp;release=0.7.202"></script><script src="live-polling.js?v=0.7.74&amp;release=0.7.202"></script><script src="app.js?v=0.7.202&amp;nav=10&amp;verify=6&amp;feedback=1&amp;digital=2&amp;release=0.7.202"></script><script src="compact.js?v=0.7.202&amp;release=0.7.202"></script><script src="test-logger.js?v=0.7.75&amp;release=0.7.202"></script><script src="guided.js?v=0.7.202&amp;nav=10&amp;verify=5&amp;docs=1&amp;release=0.7.202"></script><script src="home-navigation.js?v=0.7.134&amp;release=0.7.202"></script><script src="language-pack.js?v=0.7.202&amp;verify=6&amp;feedback=1&amp;release=0.7.202"></script><script src="language.js?v=0.7.57&amp;release=0.7.202"></script><script src="temperature-beta-router.js?v=integration-01"></script></body></html>
+<div id="tip" class="tooltip"></div><script src="calibration.js?v=0.7.202"></script><script src="temperature-beta/calibration.js?v=integration-02"></script><script src="temperature-source-dispatch.js?v=integration-02"></script><script src="eeprom-help.js?v=0.7.111&amp;release=0.7.202"></script><script src="elmos-settings.js?v=0.7.122&amp;release=0.7.202"></script><script src="eeprom-config-overview.js?v=0.7.202&amp;release=0.7.202"></script><script src="nvm-reference-profile.js?v=0.7.120&amp;release=0.7.202"></script><script src="nvm-reconstruction.js?v=0.7.142&amp;release=0.7.202"></script><script src="nvm-reconstruction-trace.js?v=0.1.2&amp;release=0.7.202"></script><script src="elmos-alarm-view.js?v=0.7.115&amp;release=0.7.202"></script><script src="alarm-config.js?v=0.7.202&amp;release=0.7.202"></script><script src="alarm-editor.js?v=integration-02"></script><script src="expert.js?v=0.7.202&amp;release=0.7.202"></script><script src="config.js?v=0.7.118&amp;release=0.7.202"></script><script src="guided-plan.js?v=0.7.94&amp;release=0.7.202"></script><script src="temperature-beta/temperature-afe.js?v=integration-02"></script><script src="temperature-beta/ptc-profile.js?v=integration-02"></script><script src="demo.js?v=integration-02"></script><script src="archive-core.js?v=0.7.82&amp;release=0.7.202"></script><script src="test-logger-core.js?v=0.7.39&amp;release=0.7.202"></script><script src="archive-analysis.js?v=0.7.80&amp;release=0.7.202"></script><script src="verification-graph.js?v=0.7.78&amp;release=0.7.202"></script><script src="calibration-graph.js?v=0.7.83&amp;release=0.7.202"></script><script src="archive-photos.js?v=0.7.73&amp;release=0.7.202"></script><script src="verification-report.js?v=0.7.80&amp;release=0.7.202"></script><script src="calibration-report.js?v=0.7.89&amp;release=0.7.202"></script><script src="archive-readable-csv.js?v=0.7.78&amp;release=0.7.202"></script><script src="logging-report.js?v=0.7.74&amp;release=0.7.202"></script><script src="calibration-complete.js?v=0.7.120&amp;release=0.7.202"></script><script src="archive.js?v=0.7.121&amp;release=0.7.202"></script><script src="live-polling.js?v=0.7.74&amp;release=0.7.202"></script><script src="app.js?v=integration-02"></script><script src="compact.js?v=0.7.202&amp;release=0.7.202"></script><script src="test-logger.js?v=0.7.75&amp;release=0.7.202"></script><script src="temperature-beta/ptc-dev-integrated.js?v=integration-02"></script><script src="guided.js?v=integration-02"></script><script src="home-navigation.js?v=0.7.134&amp;release=0.7.202"></script><script src="language-pack.js?v=0.7.202&amp;verify=6&amp;feedback=1&amp;release=0.7.202"></script><script src="language.js?v=0.7.57&amp;release=0.7.202"></script></body></html>

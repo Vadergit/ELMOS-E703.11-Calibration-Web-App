@@ -3,7 +3,7 @@
  * Its fixed-point results MUST be verified on the target before NVM programming.
  */
 'use strict';
-const ELMOS_CAL = (() => {
+const ELMOS_CAL_TEMPERATURE = (() => {
  const q = (x,f,name='Koeffizient')=> {
   if(!Number.isFinite(x))throw Error('Ungültiger Koeffizient: '+name);
   const n=Math.round(x*2**f);
@@ -668,4 +668,4 @@ const ELMOS_CAL = (() => {
    point?.slot===slot&&Number.isFinite(point.errorBar))).every(Boolean);
  return {planOneWireReconnectTest,PROFILE_REGS,PROFILE_WORDS,uncalibratedPressureBlank,uncalibratedAfeBlank,planCalibrationProfile,sameMeasurementProfile,sameNvmImage,checkpointMatches,hasPressureTemperatureCompensation,SVDD_INDEX,SVDD_MASK,fit,suggestDspLimit,solveFit,crc16,crc8,configFrom,clippingThresholds,prepareOutputConfig,validateRecoveryCalibrationDiff,protectStartupCommunication,aodoPinBlocked,AODO_PLC_CONFLICT,i2cBootRegisterMatches,timedPlcRamMatches,oneWireBootRegisterMatches,oneWireStartupStatus,oneWireOnlyStatus,analogScaling,analogOutputStatus,elmosDspTarget,elmosTemperatureTarget,fromQ,q,signed,independentVerificationPoint,verificationPointsSufficient,temperatureSourceFromAfe2,dspTemperatureCelsius,isFactoryTemperatureProfile,factoryInternalTemperatureCelsius,factoryTemperatureAddresses,programmedTemperatureAddresses,programmedTemperatureProfileMatches};
 })();
-if(typeof module!=='undefined'&&module.exports)module.exports=ELMOS_CAL;
+if(typeof module!=='undefined'&&module.exports)module.exports=ELMOS_CAL_TEMPERATURE;

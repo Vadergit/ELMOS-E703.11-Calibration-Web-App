@@ -91,15 +91,15 @@ const ELMOS_GUIDED=(()=>{
       <div class="gw-section-head"><div><h3>Temperatur und DSP</h3><p>Temperaturstufen und digitaler Zielbereich</p></div></div>
       <div class="gw-fields gw-setup-temps" id="gwTemperatures"></div>
       <div class="gw-subheading">Zielbereich der Kalibrierung</div>
-      <div class="gw-fields gw-dsp-fields" id="gwDspFields"></div>
+      <div class="gw-fields gw-dsp-fields" id="gwDspFields"></div><div id="gwPtcSetup"></div>
      </section>
     </div>`+
     '<div id="gwSetupPreview" class="gw-summary gw-setup-summary"></div></div>'+
    '<div id="gwPage3" class="gw-page gw-afe-page" hidden><div class="gw-columns gw-afe-layout">'+
-    '<section class="gw-tile gw-control gw-afe-controls"><div class="gw-section-head"><span class="gw-section-no">01</span><div><h3>Verstärkung und Offset</h3><p>Änderungen werden direkt ins Chip-RAM übernommen</p></div></div><div id="gwAFEPanel"></div><div id="gwGain"></div><div id="gwAFEMsg"></div><div id="gwConfigAFE"></div><div class="gw-afe-guide"><strong>AFE richtig einstellen</strong><ol><li>Minimalen und maximalen Referenzdruck anlegen.</li><li>PGA1, Offset und PGA2 anpassen. Ziel: grosser Hub ohne Übersteuerung.</li><li>Die rote Grenze bei ±25’000 Digits nicht überschreiten.</li></ol><small>Änderst du die AFE nach einer Messung, müssen bereits erfasste Messpunkte neu aufgenommen werden.</small></div></section>'+
-    '<section class="gw-tile gw-afe-monitor"><div class="gw-monitor-head"><div><h3>ADC_S · Live-Verlauf</h3><p>Rohsignal der Druckmesskette · letzte 60 Sekunden</p></div><span id="gwAfeLiveBadge" class="gw-live-badge">Warte auf Werte</span></div><div class="gw-afe-current"><strong id="gwAfeAdcValue" aria-live="off">—</strong><span>Digits</span></div><div class="gw-afe-chart" id="gwAfeChartHost"></div><div class="gw-chart-legend"><span class="gw-legend-limit">Grenzen ±25’000</span><span class="gw-legend-zero">Nulllinie</span><span class="gw-legend-line">ADC_S live</span></div>'+
+    '<section class="gw-tile gw-control gw-afe-controls"><div class="gw-section-head"><span class="gw-section-no">01</span><div><h3>Verstärkung und Offset</h3><p>Änderungen werden direkt ins Chip-RAM übernommen</p></div></div><div id="gwAFEPanel"></div><div id="gwGain"></div><div id="gwAFEMsg"></div><div id="gwConfigAFE"></div><div id="gwPtcControls"></div><div class="gw-afe-guide"><strong>AFE richtig einstellen</strong><ol><li>Minimalen und maximalen Referenzdruck anlegen.</li><li>PGA1, Offset und PGA2 anpassen. Ziel: grosser Hub ohne Übersteuerung.</li><li>±25’000 Digits als Richtwert nutzen. Bei grösserem Hub die Aussteuerungsreserve prüfen.</li></ol><small>Änderst du die AFE nach einer Messung, müssen bereits erfasste Messpunkte neu aufgenommen werden.</small></div></section>'+
+    '<section class="gw-tile gw-afe-monitor"><div class="gw-monitor-head"><div><h3>ADC_S · Live-Verlauf</h3><p>Rohsignal der Druckmesskette · letzte 60 Sekunden</p></div><span id="gwAfeLiveBadge" class="gw-live-badge">Warte auf Werte</span></div><div class="gw-afe-current"><strong id="gwAfeAdcValue" aria-live="off">—</strong><span>Digits</span></div><div class="gw-afe-chart" id="gwAfeChartHost"></div><div class="gw-chart-legend"><span class="gw-legend-limit">Richtwert ±25’000</span><span class="gw-legend-zero">Nulllinie</span><span class="gw-legend-line">ADC_S live</span></div>'+
     '<div class="gw-afe-kpis"><div><span>Minimum</span><strong id="gwAfeMin">—</strong></div><div><span>Maximum</span><strong id="gwAfeMax">—</strong></div><div><span>Hub (Max − Min)</span><strong id="gwAfeHub">—</strong></div></div>'+
-    '<div class="gw-monitor-actions"><div id="gwAfeLiveActions"></div><button type="button" id="gwAfeReset" class="gw-secondary-btn">Min/Max zurücksetzen</button></div><div id="gwAfeQuality" class="gw-afe-quality" role="status">Min/Max werden ab dem Start dieses AFE-Schritts erfasst.</div><div id="gwAfeMessage"></div></section></div></div>'+
+    '<div class="gw-monitor-actions"><div id="gwAfeLiveActions"></div><button type="button" id="gwAfeReset" class="gw-secondary-btn">Min/Max zurücksetzen</button></div><div id="gwAfeQuality" class="gw-afe-quality" role="status">Min/Max werden ab dem Start dieses AFE-Schritts erfasst.</div><div id="gwAfeMessage"></div><div id="gwPtcPlot"></div></section></div></div>'+
    '<div id="gwPage4" class="gw-page" hidden><div class="gw-points-layout"><div class="gw-point-nav" id="gwPointNav"></div><div class="gw-tile gw-control"><div id="gwPointConfirmation" class="gw-point-confirmation" hidden role="status" aria-live="polite"></div><div id="gwCurrentSetpoint" class="gw-summary gw-next-point"></div><div id="gwPointHost"></div><div id="gwSampleStatus"></div><div id="gwPointMessages"></div></div></div><div class="gw-alert">Der angezeigte Druck und die Temperatur sind <b>Referenz-Sollwerte</b>. Sie werden nicht automatisch erzeugt. Wähle den tatsächlichen Sollwert am Druckkalibrator und stelle die Temperaturkammer stabil ein, bevor du auf «aufnehmen» klickst.</div></div>'+
    '<div id="gwPage5" class="gw-page" hidden><div class="gw-columns"><div class="gw-tile gw-control"><h3>Polynom und DSP-Ziel</h3><div class="gw-fields gw-3" id="gwFitFields"></div><div class="gw-panel-actions" id="gwFitActions"></div><div id="gwFitStatuses"></div><div id="gwFitDetails"></div></div><div class="gw-tile is-soft"><h3>Sicherer Ablauf</h3><p>1. Koeffizienten aus den gemessenen Punkten berechnen.</p><p>2. Zahlenbereich und Fehler kontrollieren.</p><p>3. Berechnete Werte nur ins RAM übertragen und rücklesen.</p><div class="gw-alert">Der berechnete Fit ist noch keine Hardware-Verifikation. Im nächsten Schritt wird DSP_S an unabhängigen Punkten geprüft.</div></div></div></div>'+
    '<div id="gwPage6" class="gw-page" hidden><div class="gw-columns"><div class="gw-tile gw-control"><h3>Unabhängige Prüfpunkte</h3><div class="gw-fields gw-3" id="gwVerifyFields"></div><div class="gw-panel-actions" id="gwVerifyActions"></div><div id="gwVerifyStatuses"></div><details><summary>Prüfprotokoll</summary><div id="gwVerifyDetails"></div></details></div><div class="gw-tile is-soft"><h3>Was prüfe ich hier?</h3><p>Prüfe die gewünschte Anzahl Punkte neu, auch an den Druckendpunkten. Bereits ein bestandener Prüfpunkt genügt für diesen Nachprüfschritt – auch bei TK0/TKE. Weitere Druck- und Temperaturpunkte sind freiwillig und erhöhen die Aussagekraft.</p><div class="gw-alert warn">Die Live-Anzeige allein zählt nicht als Prüfung. Verwende «Prüfwert aus DSP_S lesen» und kontrolliere die tatsächliche Abweichung.</div></div></div></div>'+
@@ -164,6 +164,7 @@ const ELMOS_GUIDED=(()=>{
   moveLabel('calDspLimit','gwDspFields');
   if($('calDspExplanation'))moveId('calDspExplanation','gwDspFields');
   moveLabel('calTempSource','gwDspFields');
+  window.ELMOS_PTC_DEV_UI?.mount?.();
   for(const id of ['configLabel','configPreset','configFile'])moveLabel(id,'gwConfigFields');
   moveId('configPresetSource','gwConfigSource');
   moveId('configGroups','gwConfigGroups');moveId('configImportEffect','gwConfigEffect');
@@ -184,7 +185,7 @@ const ELMOS_GUIDED=(()=>{
   for(const id of ['calCalculate','calApplyRam'])moveId(id,'gwFitActions');
   for(const id of ['calFitMsg','calTempFallback','calDspProposal','calRamPrereq','calRamStageMsg'])moveId(id,'gwFitStatuses');
   move($('calCoeffList').closest('details'),'gwFitDetails');
-  for(const id of ['calVerifyCount','calVerifyTolerance'])moveLabel(id,'gwVerifyFields');
+  for(const id of ['calVerifyCount','calVerifyTolerance','devTemperatureTolerance'])if($(id))moveLabel(id,'gwVerifyFields');
   moveId('calVerifyRows','gwVerifyActions');
   for(const id of ['calVerifyCoverage','calVerifyProgress','calRamMsg'])moveId(id,'gwVerifyStatuses');
   moveId('calVerifyList','gwVerifyDetails');
@@ -309,7 +310,7 @@ const ELMOS_GUIDED=(()=>{
   setTemperatureInputs(p.tCount,p.temperatures);
   renderPlan();
  }
- function defaultTemperatures(n){return n===1?[25]:n===2?[10,60]:[-10,25,65]}
+ function defaultTemperatures(n){return window.ELMOS_PTC_DEV_UI?.active?.()?(n===1?[25]:n===2?[25,80]:[0,25,80]):(n===1?[25]:n===2?[10,60]:[-10,25,65])}
  function setTemperatureInputs(n,values){
   const parent=$('gwTemperatures'),existing=[...parent.querySelectorAll('input')].map(el=>Number(el.value));
   const target=values||(existing.length===n?existing:defaultTemperatures(n));
@@ -325,6 +326,13 @@ const ELMOS_GUIDED=(()=>{
   const fields=[...$('gwTemperatures').querySelectorAll('input')];
   if(fields.length!==n)setTemperatureInputs(n);
   return [...$('gwTemperatures').querySelectorAll('input')].map(x=>x.value);
+ }
+ let automaticThermalPlan=null;
+ function temperatureSourceChanged(){
+  const count=$('gwTemperatureCount');if(!count)return;
+  if(window.ELMOS_PTC_DEV_UI?.active?.()&&Number(count.value)<2){automaticThermalPlan={count:count.value,temps:tempValues(Number(count.value)),order:$('gwTOrder').value};count.value='2';$('gwTOrder').value='1';setTemperatureInputs(2,[Number(automaticThermalPlan.temps[0])||25,80]);}
+  else if(!window.ELMOS_PTC_DEV_UI?.active?.()&&automaticThermalPlan){if(count.value==='2'&&JSON.stringify(tempValues(2).map(Number))===JSON.stringify([Number(automaticThermalPlan.temps[0])||25,80])){count.value=automaticThermalPlan.count;$('gwTOrder').value=automaticThermalPlan.order;setTemperatureInputs(Number(count.value),automaticThermalPlan.temps);}automaticThermalPlan=null;}
+  renderPlan();window.ELMOS_PTC_DEV_UI?.refresh?.();
  }
  function makePlan(){
   const pCount=Number($('gwPressureCount').value),tCount=Number($('gwTemperatureCount').value);
@@ -379,7 +387,8 @@ const ELMOS_GUIDED=(()=>{
   return {signature:JSON.stringify(matrix),fields};
  }
  function applyPlan(){
-  const p=makePlan();
+  let p=makePlan();
+  if(window.ELMOS_PTC_DEV_UI?.active?.()){const first=[...p.temperatures].sort((a,b)=>Math.abs(a-25)-Math.abs(b-25))[0];p={...p,points:p.points.slice().sort((a,b)=>(a.temperature===first?0:1)-(b.temperature===first?0:1)||a.temperature-b.temperature||a.pressure-b.pressure).map((x,index)=>({...x,extraSlot:x.slot.startsWith('extra')?(x.extraSlot??x.index):x.extraSlot,index}))};}
   const nextSignature=JSON.stringify(p);
   if(signature===nextSignature)return p;
   if(signature!==null&&(state().points||[]).length){
@@ -618,6 +627,7 @@ const ELMOS_GUIDED=(()=>{
   const signature=JSON.stringify(t.gains||{});
   if(signature!==afeGainSignature){afeStatsStart=Date.now();afeGainSignature=signature}
   const stats=api.afeStats?.(afeStatsStart)||{count:0};
+  window.ELMOS_PTC_DEV_UI?.update?.(t,stats);
   setText('gwAfeAdcValue',measurementNumber(t.adcS));
   setText('gwAfeMin',measurementNumber(stats.min));
   setText('gwAfeMax',measurementNumber(stats.max));
@@ -628,10 +638,10 @@ const ELMOS_GUIDED=(()=>{
   const quality=$('gwAfeQuality');
   quality.className='gw-afe-quality';
   if(!stats.count){
-   quality.textContent='Noch keine Messungen. Min-/Max-Druck anlegen; die Grafik markiert ±25’000 Digits.';
+   quality.textContent=window.ELMOS_PTC_DEV_UI?.active?.()?'Noch keine Messungen. Min-/Max-Druck anlegen; die Grafik markiert den Richtwert ±25’000 Digits.':'Noch keine Messungen. Min-/Max-Druck anlegen; die Grafik markiert ±25’000 Digits.';
   }else if(stats.limitExceeded||Math.abs(t.adcS??0)>25000){
    quality.classList.add('is-warning');
-   quality.textContent='Grenze ±25’000 Digits überschritten. PGA/Offset anpassen und den Messbereich erneut abfahren.';
+   quality.textContent=window.ELMOS_PTC_DEV_UI?.active?.()?'Richtwert ±25’000 Digits überschritten. Aussteuerung prüfen; Weiter ist möglich.':'Grenze ±25’000 Digits überschritten. PGA/Offset anpassen und den Messbereich erneut abfahren.';
   }else if(stats.count>=2&&stats.hub<4000){
    quality.classList.add('is-warning');
    quality.textContent='Signalhub zu klein: '+measurementNumber(stats.hub)+' von mindestens 4’000 Digits. Minimalen und maximalen Druck anlegen. Bleibt der Hub zu klein, PGA-Verstärkung erhöhen und erneut prüfen.';
@@ -844,8 +854,8 @@ const ELMOS_GUIDED=(()=>{
    x.setAttribute('aria-pressed',String(x.dataset.gwTask===task));
   });
   if(stage===1)renderPlan();
-  if(stage===2)renderPlan()
-  if(stage===3){$('gwAfeChartHost').appendChild($('chart'));startAfeWindow()}
+  if(stage===2){renderPlan();window.ELMOS_PTC_DEV_UI?.refresh?.();}
+  if(stage===3){$('gwAfeChartHost').appendChild($('chart'));startAfeWindow();window.ELMOS_PTC_DEV_UI?.refresh?.();}
   if(stage===10){$('gwFinishChartHost').appendChild($('chart'))}
   if(stage===4)renderCapture();
   if(stage===7)renderOutputOptions();
@@ -906,11 +916,11 @@ const ELMOS_GUIDED=(()=>{
   }
   if(stage===1){try{makePlan();goto(2)}catch(e){msg(e.message,'error')}return}
   if(stage===2){
-   try{plan=applyPlan();goto(3)}catch(e){msg(e.message,'error')}
+   try{window.ELMOS_PTC_DEV_UI?.validate?.(makePlan());plan=applyPlan();goto(3)}catch(e){msg(e.message,'error')}
    return;
   }
   if(stage===3){
-   try{if(!plan)plan=applyPlan();goto(4)}catch(e){msg(e.message,'error')}
+   try{window.ELMOS_PTC_DEV_UI?.requireAfe?.();if(!plan)plan=applyPlan();goto(4)}catch(e){msg(e.message,'error')}
    return;
   }
   if(stage===4){
@@ -1159,7 +1169,7 @@ const ELMOS_GUIDED=(()=>{
      $('calUnit').value!==plan.unit)return null;
   return {pCount:plan.pCount,tCount:plan.tCount,fitMode:plan.fitMode};
  }
- return {init,open,close,preferredView:()=>rememberedView()==='classic'?'classic':'guided',goToStart:()=>{if(mode&&!nextSensorPending)goto(0)},goToCoefficients:()=>{if(mode&&task==='calibration'&&!nextSensorPending)goto(5)},resetForHome,hasUnfinishedTask,hasPendingOperation,onConnected,onSensorReset,makePlan,planForPreset:()=>mode&&stage>=1&&stage<=2?makePlan():plan,isOpen:()=>mode,appliedPlanForConfig};
+ return {init,open,close,temperatureSourceChanged,preferredView:()=>rememberedView()==='classic'?'classic':'guided',goToStart:()=>{if(mode&&!nextSensorPending)goto(0)},goToCoefficients:()=>{if(mode&&task==='calibration'&&!nextSensorPending)goto(5)},resetForHome,hasUnfinishedTask,hasPendingOperation,onConnected,onSensorReset,makePlan,planForPreset:()=>mode&&stage>=1&&stage<=2?makePlan():plan,isOpen:()=>mode,appliedPlanForConfig};
 })();
 if(typeof window!=='undefined')window.ELMOS_GUIDED=ELMOS_GUIDED;
 if(typeof document!=='undefined'){

@@ -15,7 +15,7 @@
   $('gwPtcPlot').innerHTML='<div class="gw-subheading">ADC_T · erwarteter Temperaturhub</div><div id="gwPtcSvg"></div><p class="gw-fieldnote" id="gwPtcStats"></p><p id="gwPtcPressureWarning" class="gw-afe-quality is-warning" role="status" hidden></p><div class="gw-chart-legend"><span style="color:#d0a331">■ Modellprognose / Reserve</span><span style="color:#398aca">● Aufgenommener ADC_T</span></div>';
   const onInput=e=>{const k=e.target.dataset.ptcKey;if(!k)return;settings[k]=e.target.value===''?(k==='measuredOhm'?null:NaN):Number(e.target.value);configured=null;observed=null;if(!demo)window.ELMOS_GUIDED_API?.clearPtcDev?.();refresh();};
   $('gwPtcSetup').addEventListener('input',onInput);$('gwPtcControls').addEventListener('input',onInput);
-  $('calTempSource').addEventListener('change',()=>{configured=null;observed=null;window.ELMOS_GUIDED_API?.clearPtcDev?.();refresh();});
+  
   $('gwPtcConfigure').onclick=async()=>{const b=$('gwPtcConfigure');b.disabled=true;const inputs=[...$('gwPtcControls').querySelectorAll('input,select'),...$('gwPtcSetup').querySelectorAll('input,select'),$('calTempSource')].filter(Boolean);const disabled=inputs.map(x=>x.disabled);inputs.forEach(x=>x.disabled=true);try{
     const p=model();if(external()){const plan=E.plan(p),gain=plan.best||plan.candidates.find(g=>g.i===0&&g.j===0);if(demo&&!plan.best)throw Error('Demo: kein TPGA deckt das Modell ab.');const result=await window.ELMOS_GUIDED_API.configurePtcDev(p,gain,25,message);const actual=result?.plan?.best||gain;configured={p,plan:result?.plan||plan,code:actual,finalProbe:result?.finalProbe,warnings:result?.warnings||[]};observed=null;message((demo?'Simuliertes':'Reales')+' RAM bestätigt · TPGA1 ×'+actual.g1+' / TPGA2 ×'+actual.g2+(result?.finalProbe?' · ADC_T '+fmt(result.finalProbe.adc):'')+(configured.warnings.length?' · '+configured.warnings.join(' · '):''));$('gwAfeReset')?.click();return;}
     if(!demo&&settings.measuredOhm===null){
@@ -33,7 +33,10 @@
   $('gwPtcLow').onclick=()=>set('pmin');$('gwPtcHigh').onclick=()=>set('pmax');refresh();
  }
  function message(t){if($('gwPtcMessage'))$('gwPtcMessage').textContent=t}
+ function sourceChanged(){configured=null;observed=null;refresh();}
  function refresh(){
+  document.documentElement.dataset.temperatureSource=$('calTempSource')?.value||'internal';
+  for(const id of ['betaTemperatureToleranceLabel','betaAlarmHelp','ptcAlarmCurrent'])if($(id))$(id).hidden=!active();
   for(const id of ['gwPtcSetup','gwPtcControls','gwPtcPlot'])if($(id))$(id).hidden=!active();
   if(!active())return;
   for(const id of ['gwPtcFields','gwPtcTol'])$(id).hidden=external();for(const id of ['gwEocFields','gwEocTol'])$(id).hidden=!external();
@@ -141,5 +144,5 @@
  }
  document.addEventListener('click',e=>{const b=e.target.closest?.('[data-ptc-help]');if(!b)return;e.preventDefault();e.stopPropagation();showHelp(b.dataset.ptcHelp);});
 
- window.ELMOS_PTC_DEV_UI={mount,active,refresh,validate,requireAfe,update,pressureBand,currentInfo};
+ window.ELMOS_PTC_DEV_UI={mount,active,refresh,sourceChanged,validate,requireAfe,update,pressureBand,currentInfo};
 })();
