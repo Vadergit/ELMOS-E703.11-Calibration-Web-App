@@ -1,0 +1,16 @@
+'use strict';
+const test=require('node:test'),assert=require('node:assert/strict'),fs=require('node:fs'),path=require('node:path'),P=require('../guided-plan.js');
+const read=n=>fs.readFileSync(path.join(__dirname,'..',n),'utf8'),app=read('app.js'),guide=read('guided.js'),html=read('index.html');
+const sig=new Function(guide.slice(guide.indexOf(' function seriesMatrixSignature'),guide.indexOf(' function readPointSettings'))+'return seriesMatrixSignature')();
+test('DSP reset does not discard setpoints for any supported matrix',()=>{for(const [pCount,tCount,fitMode] of [[2,1,'full'],[2,2,'tk0'],[2,2,'full'],[2,3,'full'],[3,2,'full'],[5,2,'full']]){const p=P.create({pCount,tCount,fitMode,temperatures:[25,60,85].slice(0,tCount),outputLimit:28000});assert.equal(sig(p),sig({...p,outputLimit:32000}));assert.notEqual(sig(p),sig({...p,pmax:120}));}});
+test('series capture resets offset and uses actual default, preserves safe restart and navigation',()=>{assert.match(app,/settings\.afe\.offset=0/);assert.match(app,/Number\(\$\('calDspLimit'\)\.defaultValue\)/);assert.match(app,/settings\.dsp\.dspLimit=defaultLimit/);assert.match(html,/id="calDspLimit"[^>]*value="32000"/);assert.match(guide,/plan=applyPlan\(\);\s*visited\.add\(1\);visited\.add\(2\);\s*nextSensorPending=null;\s*goto\(3\)/);assert.match(guide,/seriesPointFields\?\.signature===seriesMatrixSignature\(p\)/);assert.match(guide,/requireAfe\?\.\(\)/);});
+const transferSrc=app.slice(app.indexOf(' async function applyNextSensorSettings'),app.indexOf(' async function connectGuided'));
+function fixture({actual=[1,2,3],wanted=[4,5,6],disabled=false,verified=true,changed=false,fail=false}={}){
+ const st={port:{},sessionIndex:1,chip:true,uid:{hex:'new'},filterWords:actual};let written=0,imported=0;
+ const el={dataset:{},disabled},deps={st,hasCurrentNvmBackup:()=>verified,selectedTemperatureSource:()=> 'internal',applySeriesConfig:async()=>{imported++;if(changed)st.uid.hex='other'},configIncluded:()=>[],renderFilterProfile:()=>{},filterProfiles:[['known',[4,5,6]]],applyFilterProfile:async()=>{written++;if(!fail)st.filterWords=[4,5,6]},$:()=>el};
+ const fn=new Function(...Object.keys(deps),transferSrc+'return applyNextSensorSettings')(...Object.values(deps));
+ return {run:()=>fn({profile:{},filterWords:wanted,temperatureSource:'internal'}),counts:()=>[imported,written]};
+}
+test('documented ADC filter is transferred; identical filter needs no write',async()=>{let f=fixture();assert.equal((await f.run()).filterConfirmed,true);assert.deepEqual(f.counts(),[1,1]);f=fixture({actual:[4,5,6]});assert.equal((await f.run()).filterConfirmed,true);assert.deepEqual(f.counts(),[1,0]);});
+test('unknown or unavailable filter is never blindly written; failed readback is not confirmed',async()=>{for(const opts of [{wanted:[7,8,9]},{disabled:true},{fail:true}]){const f=fixture(opts),result=await f.run();assert.equal(result.filterConfirmed,false);assert.ok(result.warning);assert.equal(f.counts()[1],opts.fail?1:0);}});
+test('UID change and unverified original NVM block filter transfer',async()=>{for(const opts of [{verified:false},{changed:true}]){const f=fixture(opts);await assert.rejects(f.run(),/nicht bestätigt|geändert/);assert.equal(f.counts()[1],0);}});

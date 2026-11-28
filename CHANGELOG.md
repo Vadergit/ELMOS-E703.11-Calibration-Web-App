@@ -1,3 +1,10 @@
+## v0.7.216 – Serienabgleich direkt zum Frontend
+
+- Nach bestätigtem Sensorwechsel Messplan, Druck-/Temperatur-Sollwerte und Ausgangsvorgaben übernehmen und bei unveränderter Messmatrix direkt zu Schritt 4 «Frontend einstellen» wechseln. Zurücknavigation zu Planung und Vorbereitung bleibt möglich.
+- PGA1/PGA2, Brückenpolarität und bestätigte Brückenspannung übernehmen; Offset auf 0 und DSP-Zielbereich auf HTML-Standard ±32’000 Digits zurücksetzen. Individuelle Messpunktfelder bleiben trotz geändertem DSP-Ziel erhalten.
+- ADC-Tiefpass am vorherigen Sensor rücklesen; dokumentierte Filter über bestehenden RAM-Schreibpfad am neuen Sensor übernehmen und rücklesen. Individuelle unbekannte Filter nur bei identischen Registerwerten akzeptieren, sonst deutlichen Hinweis zur manuellen Prüfung geben.
+- Temperatur-AFE, neue Messwerte, DSP-Verifikation und NVM-Freigabe bleiben sensorbezogen. Keine automatische EEPROM-Programmierung. Hardwareprüfung ausstehend.
+
 ## v0.7.215 – Serienabgleich und Startwiederholung
 
 - Analoge Ausgangsvorgaben bei Kalibriervorlagen übernehmen, ohne einen bestätigten DSP-Endwert des neuen Sensors vorauszusetzen; Skalierung erst beim Ausgangsschritt berechnen und bestätigen.
