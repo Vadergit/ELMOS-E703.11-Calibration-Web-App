@@ -1,3 +1,10 @@
+## v0.7.215 – Serienabgleich und Startwiederholung
+
+- Analoge Ausgangsvorgaben bei Kalibriervorlagen übernehmen, ohne einen bestätigten DSP-Endwert des neuen Sensors vorauszusetzen; Skalierung erst beim Ausgangsschritt berechnen und bestätigen.
+- Auf laufende Verbindungs-/NVM-Lesevorgänge begrenzt warten. Bei blockierenden Tätigkeiten konkrete Ursache, Wiederholen, Abbrechen des wartenden Starts und Diagnose anbieten. Keine aktiven Schreibvorgänge abbrechen oder Sicherheitsflags zurücksetzen.
+- Wiederholung eines fehlgeschlagenen Serienimports ohne unnötige Abfrage für das leere, zugehörige Wiederholungsprotokoll. UID-, CRC-, DSP- und NVM-Prüfungen bleiben erhalten.
+- Hardwareprüfung ausstehend.
+
 ## v0.7.214 – DSP-Verifikation weiter vereinfacht
 
 - Hinweise zur Prüfabdeckung, Fortschritt und ausführliche DSP-Meldungen im standardmässig geschlossenen Bereich «Prüfprotokoll und Hinweise». Das Diagramm und die kurzen Prüfpunktbestätigungen bleiben sichtbar.
