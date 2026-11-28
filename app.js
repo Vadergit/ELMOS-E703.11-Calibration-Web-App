@@ -1121,7 +1121,7 @@ if(typeof document!=='undefined') (function UI(){
   const measuredTemp=reading.value,hasTemp=Number.isFinite(measuredTemp),tempMode=reading.mode;
   $('liveTempC').textContent=hasTemp?'≈'+measuredTemp.toLocaleString('de-CH',{minimumFractionDigits:1,maximumFractionDigits:1}):'—';
   $('liveTempUnit').textContent=!connected?'°C · nicht verbunden':!hasTemp?
-   (!source?'°C · Quelle wird geprüft':source==='reserved'?'°C · Quelle ungültig':source!=='internal'?'°C · '+(source==='bridge'?'PTC':'Extern')+' unkalibriert':'°C · ADC_T fehlt'):
+   (!source?'°C · Quelle wird geprüft':chipChannel==='ADC_TC'?'°C · ADC_TC fehlt':source==='reserved'?'°C · Quelle ungültig':source!=='internal'?'°C · '+(source==='bridge'?'PTC':'Extern')+' unkalibriert':'°C · ADC_T fehlt'):
    reading.outOfRange?'°C · ausserhalb Bereich':
    chipChannel==='ADC_TC'&&tempMode!=='an0203'?(tempMode==='reference'?'°C · Chipreferenz (TC)':'°C · Chipnäherung (TC)'):
    tempMode==='an0203'?(nvmProfile?'°C · NVM-Abgleich':'°C · RAM-Abgleich'):
@@ -4581,7 +4581,7 @@ if(typeof document!=='undefined') (function UI(){
   if(x.kind==='lo'||x.kind==='hi')st.calpoints=st.calpoints.filter(p=>p.kind!==x.kind);
   else st.calpoints=st.calpoints.filter(p=>!(p.kind==='extra'&&p.slot===x.slot));
   x.temperatureUid=st.uid?.hex||null;
-  x.temperatureDisplaySource=selectedTemperatureSource();
+  x.temperatureDisplaySource=pressureOnlyCalibration()?'internal':selectedTemperatureSource();
   x.temperatureCfgEn=st.regs[4]??null;
   st.nvmDone=false;st.calpoints.push(x);invalidateCalculation('Messpunkte geändert. DSP-Koeffizienten erneut berechnen.');
   saveCalibrationCheckpoint();
