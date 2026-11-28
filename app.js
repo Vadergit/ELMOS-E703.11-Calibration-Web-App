@@ -5143,6 +5143,12 @@ if(typeof document!=='undefined') (function UI(){
   }
   // Navigate only after a verified write and completion of all maintenance/UI cleanup.
   if(result?.verified&&st.nvmDone){
+   try{
+    // Reuse the guarded cold-start operation only for the active guided NVM step.
+    if(window.ELMOS_GUIDED?.wantsAutomaticPostBoot?.()&&(st.sensorPowerEnabled||demoEnabled)){
+     result.postBootVerified=await postBootCheck(true)===true;
+    }
+   }catch(e){logging('Automatische Neustartprüfung: '+e.message)}
    try{window.ELMOS_GUIDED?.onNvmProgrammed?.(result)}catch(e){logging('Abschlussprüfung konnte nicht automatisch geöffnet werden: '+e.message)}
   }
   return result;
@@ -5272,7 +5278,7 @@ if(typeof document!=='undefined') (function UI(){
    }else{
     ca('backupMsg','Ohne Backup ausgewählt. Das alte NVM wurde zum sicheren Vergleich gelesen, aber nicht dauerhaft gesichert.','warn');
    }
-   st.nvmDone=false;
+   st.nvmDone=false;st.postBootProof=null;
    $('nvmRestartStatus').hidden=true;
    $('nvmRebootConfirm').checked=false;
    standardDisplayRange=null;
@@ -5452,6 +5458,7 @@ if(typeof document!=='undefined') (function UI(){
  async function postBootCheckOperation(automatic){
   if(st.closing||st.calTask||st.writing||st.nvmWorking)return;
   let checkingBoot=false;
+  st.postBootProof=null;
   const reportBootCheck=(text,type)=>{
    $('nvmRestartStatus').hidden=false;
    show('nvmRestartStatus',text,type);
@@ -5532,6 +5539,8 @@ if(typeof document!=='undefined') (function UI(){
    await window.ELMOS_ARCHIVE?.event('post_boot_verified',{uid:st.uid?.hex,nvm:st.nvmBackup?.slice(),boot,svddCode:actualSvdd});
    reportBootCheck(success,'success');
    ca('nvmMsg',success,'success');
+   st.postBootProof={port:st.port,session:st.sessionIndex,uid:expected.id};
+   return true;
   }catch(e){try{await window.ELMOS_ARCHIVE?.event('error',{stage:'post_boot_check',message:e.message})}catch(_){}
    reportBootCheck('Neustartprüfung fehlgeschlagen. '+e.message,'error');
   }finally{
@@ -6875,6 +6884,7 @@ if(typeof document!=='undefined') (function UI(){
    points:st.calpoints.map(x=>({kind:x.kind,slot:x.slot,at:x.at,pressure:x.pressure,temperature:x.temperature,
     adc_s:x.adc_s,adc_t:x.adc_t,adc_tc:x.adc_tc,spread:x.spread,sampleCount:x.sampleCount,temperatureSource:x.temperatureSource})),
    calStaged:!!st.calStaged,calVerified:verificationComplete(),nvmDone:!!st.nvmDone,
+   postBootVerified:!!(st.nvmDone&&st.chip&&st.postBootProof&&st.postBootProof.port===st.port&&st.postBootProof.session===st.sessionIndex&&st.postBootProof.uid===st.uid?.hex),
    nvmBackupVerified:!!st.nvmBackupVerified,outputReady:expert.outputReady(),
    outputScalingRequired:outputScalingPreflight().required
   }),
