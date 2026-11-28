@@ -4,3 +4,5 @@ Die Standardmodule bleiben bytegenau unverändert. index.html erhält ausschlies
 Start lokal: Repository/Branch auschecken, im Wurzelordner `python3 -m http.server 8000`, Chrome/Edge http://localhost:8000/ öffnen. Für direkten Beta-Start: http://localhost:8000/temperature-beta.html?source=bridge oder ?source=external; &demo=1 simuliert.
 Test: `node temperature-beta/manufacturer-audit.cjs` (gespeicherte DLL-Referenz; kein neuer DLL-Lauf).
 Abnahme: Standard 2P/3P/TK0/TKE, Demo, SSP3 und ESP32; Beta PTC und EOC jeweils Demo und reale One-Wire-Hardware; NVM-Original sichern, RAM/EEPROM-Readback, Kaltstart und Nachmessung. Keine Freigabe/kein Merge vor Benutzerabnahme. Browser-End-to-End und Hardware nicht durch die statischen/numerischen Tests ersetzt.
+
+Router- und Abhängigkeitstest: `node tests/temperature-beta-router.test.cjs`. Der Test simuliert DOM-/Navigationsereignisse und prüft die Dateiverweise, er ersetzt keinen echten Browserlauf. Die Standardversion behält ihre Original-DSP-, USB-, NVM-, Demo- und Alarmmodule; gemeinsamer Code entspricht dem Dev-Stand, abweichende Module sind ausschliesslich im Beta-Ordner gespeichert.
