@@ -16,6 +16,13 @@ assert.equal(baseline(words,ram,{...dsp,0x74:1}),false);
 assert.equal(baseline(words,ram,{}),false);
 assert.equal(baseline(words,{...ram,4:2,14:1},dsp),false);
 assert.equal(baseline(words,{...ram,4:2,14:1},dsp,{recovery:true}),true);
-assert.match(app,/newCalibrationFailedRestart\?\.port===port&&newCalibrationFailedRestart\.uid===priorUid&&path==='ssp3-power'\)\{\s*path='manual'/);
+assert.match(app,/newCalibrationFailedRestart\?\.port===port&&newCalibrationFailedRestart\.uid===priorUid&&path!=='manual'/);
 assert.match(app,/baseline&&sameSession\(\)&&await readCalibrationUid\(\)===priorUid/);
 console.log('9 clean-baseline and repeated restart checks passed');
+
+assert.match(app,/st\.adapterKind==='bridge'&&bridgeColdStartVerified\(\)&&nvmTransportSupported\(\)/);
+assert.match(app,/if\(path==='bridge-power'\)\{[\s\S]*?throw Error\('Automatischer Board-Neustart zuvor fehlgeschlagen/);
+const reinit=app.slice(app.indexOf(' async function reinitializeSensorOperation'),app.indexOf(' async function reopenSsp3Port'));
+assert.ok(reinit.indexOf('await bridgeHello()')<reinit.indexOf('await firmware()'));
+assert.equal((reinit.match(/await bridgeHello\(\)/g)||[]).length,1);
+console.log('Bridge verified-session and handshake checks passed');
