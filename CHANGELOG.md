@@ -1,3 +1,9 @@
+## v0.7.231 – Unabhängige Chiptemperaturreferenz
+
+- ADC_TC (0x26) als unabhängige interne Chiptemperatur bei bestätigtem Brückentemperaturmodus mit aktivierter BS_RS-Temperaturkompensation und Standard-TC-Gains auswerten (25DS0170E.04 §§6.2.2.7, 6.5.1.1, 6.5.1.3, 6.5.3). ADC_T des PTC wird niemals als Chipdiode interpretiert.
+- Beim reinen Druckabgleich interne Temperaturreferenz unabhängig von der physischen Druckkorrekturquelle erfassen; Referenz ist an UID, AFE2 und Messkanal gebunden und wird nach verifiziertem NVM-Schreiben im Browser gespeichert.
+- Keine Änderung an Druckfit, TK0/TKE, Chipregistern, Firmware oder NVM-Schreibfreigaben. Die Einpunktreferenz ist nicht im Chip-NVM gespeichert. Hardwarevalidierung offen.
+
 ## v0.7.230 – SSC-Temperatur und Referenzwiederherstellung
 
 - Gültige ADC_T-Näherung wird bei fehlendem oder unplausiblem DSP_T nicht mehr durch ein erkanntes Kalibrierprofil unterdrückt. Unplausible Näherungen werden ausdrücklich als ausserhalb des Bereichs gekennzeichnet.
