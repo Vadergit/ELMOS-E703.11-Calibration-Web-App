@@ -6738,7 +6738,24 @@ if(typeof document!=='undefined') (function UI(){
   if(path==='bridge-power')return !!(matching(bridgeProof)&&bridgeProof.uid===uid);
   return path==='manual'&&manualConfirmed===true;
  }
+ // A clean, freshly read RAM image is a valid starting baseline without
+ // a second SSP3 power cycle. Never equate mere live ADC data with this proof.
+ function newCalibrationBaselineMatches(words,profile,dsp,{recovery=false}={}){
+  if(!Array.isArray(words)||words.length!==64)return false;
+  for(const [addr,index] of CAL.PROFILE_REGS){
+   const actual=profile[addr],expected=words[index];
+   if(!Number.isInteger(actual)||!Number.isInteger(expected))return false;
+   if(actual===expected)continue;
+   // Documented startup-only pressure enable / continuous measurement / blank AFE repair.
+   if(recovery&&((index===16&&(expected&3)===0&&actual===((expected&~3)|2))||
+      (index===21&&expected===0&&actual===1)||
+      (index===28&&CAL.uncalibratedAfeBlank(words)&&actual===0x0800)))continue;
+   return false;
+  }
+  return CAL_REGS.every((addr,i)=>Number.isInteger(dsp[addr])&&dsp[addr]===words[31+i]);
+ }
  let newCalibrationBusy=false;
+ let newCalibrationFailedRestart=null;
  async function prepareNewCalibration(){
   if(newCalibrationBusy||!st.chip||!st.port||st.closing||st.calTask||st.writing||st.nvmWorking||st.reinitRunning||st.powerCycleRunning||st.afeWriteActive||st.magicRunning||st.startupRunning||st.diagRunning||st.ramMeasurementStarting||window.ELMOS_TEST_LOGGER?.isBusy())throw Error('Zuerst laufenden Sensorvorgang abschliessen.');
   newCalibrationBusy=true;
@@ -6762,8 +6779,37 @@ if(typeof document!=='undefined') (function UI(){
    if(st.adapterKind==='ssp3'&&st.iface==='plc'&&!$('plcPowerConfirm').checked){
     if(window.confirm('Wird der Sensor ausschliesslich über die schaltbare SSP3-VSUPPLY versorgt? Dann kann der Sensor automatisch neu gestartet werden.'))$('plcPowerConfirm').checked=true;
    }
-   const path=newCalibrationPowerPath({adapter:st.adapterKind,iface:st.iface,powerEnabled:st.sensorPowerEnabled,ssp3Confirmed:$('plcPowerConfirm').checked});
+   let path=newCalibrationPowerPath({adapter:st.adapterKind,iface:st.iface,powerEnabled:st.sensorPowerEnabled,ssp3Confirmed:$('plcPowerConfirm').checked});
    st.manualLivePause=true;stopLive();if(st.liveReadPromise)await st.liveReadPromise.catch(()=>{});
+   const sameSession=()=>st.port===port&&st.sessionIndex===session&&st.chip&&st.uid?.hex===priorUid&&!st.closing;
+   const cleanCandidate=st.adapterKind==='ssp3'&&st.iface==='plc'&&!archive?.active&&!draft&&
+    !st.calpoints.length&&!st.calStaged&&!st.calfit&&!st.calibrationPreflight&&!st.nvmDone;
+   if(cleanCandidate){
+    try{
+     st.nvmBackup=null;st.nvmBackupVerified=false;st.nvmBackupProof=null;
+     if(!await nvmScan({expertRead:true})||!hasCurrentNvmBackup()||!sameSession()||await readCalibrationUid()!==priorUid)
+      throw Error('NVM/UID nicht bestätigt');
+     const words=st.nvmBackup,profile=await readCalibrationProfile(),dsp={};
+     for(const addr of CAL_REGS)dsp[addr]=await readReg(addr);
+     const start=CAL.oneWireStartupStatus(words);
+     const recovery=psscRecoveryProven();
+     const baseline=newCalibrationBaselineMatches(words,profile,dsp,{recovery});
+     if(start.ok&&(!start.requiresCookie||recovery)&&baseline&&sameSession()&&await readCalibrationUid()===priorUid){
+      Object.assign(st.regs,profile);st.boot=await bootSnapshot();st.afe0=profile[0x1A];
+      st.ptcHardware=null;st.temperatureBaseline=null;st.calibrationPreflight=null;
+      st.trend=[];st.history=[];erasePoints();newCalibrationFailedRestart=null;
+      window.ELMOS_PTC_DEV_UI?.sourceChanged?.();
+      logging('Neuer Abgleich: bestehende SSP3-Sitzung durch UID, CRC8/CRC16 und RAM/NVM-Baseline bestätigt. Kein zusätzlicher Power-Cycle.');
+      show('connMsg','Neuer Abgleich bereit: bestehende Sensorsitzung, NVM und RAM geprüft.','success');return;
+     }
+     logging('Neuer Abgleich: RAM/NVM-Baseline nicht identisch oder Startnachweis fehlt; Neustart erforderlich.');
+    }catch(e){logging('Neuer Abgleich: Baseline-Prüfung fehlgeschlagen: '+e.message);}
+    if(!sameSession())throw Error('Sensorverbindung während der Vorprüfung verloren. Bitte neu initialisieren.');
+   }
+   if(newCalibrationFailedRestart?.port===port&&newCalibrationFailedRestart.uid===priorUid&&path==='ssp3-power'){
+    path='manual';
+    logging('Automatischer SSP3-Neustart bereits fehlgeschlagen; kein erneuter automatischer Neustart in Schleife.');
+   }
    let manualConfirmed=false;
    if(path==='manual'){
     manualConfirmed=window.confirm('Sensor jetzt vollständig stromlos machen (nicht nur USB-Kommunikation trennen), kurz warten und wieder einschalten. Erst danach OK wählen. Bei Abbrechen bleibt der neue Abgleich ungestartet.');
@@ -6771,8 +6817,11 @@ if(typeof document!=='undefined') (function UI(){
    }
    if(archive?.active)await finishSensorArchive(priorUid);
    await reinitializeSensor({newCalibrationStart:path});
-   if(st.port!==port||st.sessionIndex!==session||!st.chip||st.uid?.hex!==priorUid)throw Error('Sensor nach Neustart nicht mit derselben UID bestätigt. Verbindung prüfen.');
-   if(!newCalibrationRestartProven(path,{port,session,uid:priorUid,trials:st.startupTrials,powerResult:st.powerCycleResult,bridgeProof:st.bridgeColdStart,manualConfirmed}))throw Error('Sensorneustart nicht bestätigt. Keine neue Kalibrierung gestartet.');
+   if(!sameSession()||!newCalibrationRestartProven(path,{port,session,uid:priorUid,trials:st.startupTrials,powerResult:st.powerCycleResult,bridgeProof:st.bridgeColdStart,manualConfirmed})){
+    if(path==='ssp3-power')newCalibrationFailedRestart={port,uid:priorUid};
+    throw Error('Sensorneustart oder gleiche UID nicht bestätigt. Sensor neu initialisieren; beim nächsten Abgleich wird eine geprüfte Sitzung verwendet oder ein manueller Neustart angeboten. Keine NVM-Änderung.');
+   }
+   newCalibrationFailedRestart=null;
    st.nvmBackup=null;st.nvmBackupVerified=false;st.nvmBackupProof=null;
    if(!await nvmScan({expertRead:true})||!hasCurrentNvmBackup())throw Error('Original-NVM konnte nach dem Neustart nicht vollständig mit UID und CRC gelesen werden.');
    if(st.port!==port||st.sessionIndex!==session||await readCalibrationUid()!==priorUid)throw Error('Sensor nach NVM-Lesung gewechselt.');
