@@ -36,3 +36,21 @@ jobs:
           node --check language-pack.js
       - name: Run calibration, NVM reconstruction and offline UI tests
         run: node --test tests/timed-onewire-planning.test.cjs tests/ssp3-ram-recovery.test.cjs tests/nvm-preflight.test.cjs tests/safety.test.cjs tests/elmos-calibration.test.cjs tests/nvm-reconstruction.test.cjs tests/nvm-rechner-offline.test.cjs tests/nvm-formula-trace.test.cjs tests/nvm-reference-profile.test.cjs tests/calibration-complete.test.cjs tests/archive-descriptive-filenames.test.cjs tests/verification-reference.test.cjs tests/logging-report.test.cjs tests/archive-photos.test.cjs tests/archive.test.cjs tests/test-logger.test.cjs tests/eeprom-config-overview.test.cjs tests/elmos-settings.test.cjs tests/guided-connection.test.cjs tests/home-navigation.test.cjs tests/view-persistence.test.cjs tests/guided-capture-feedback.test.cjs tests/guided-capture-spans.test.cjs tests/personal-profile.test.cjs tests/guided-fit-automation.test.cjs
+
+  redesign-browser-smoke:
+    if: github.ref_name == 'ui-ux-redesign'
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install Chromium
+        run: |
+          npm install --no-save playwright
+          npx playwright install --with-deps chromium
+      - name: Browser demo and profile smoke test
+        run: |
+          python3 -m http.server 8765 --bind 127.0.0.1 > /tmp/elmos-http.log 2>&1 &
+          node tests/redesign-browser-smoke.cjs
