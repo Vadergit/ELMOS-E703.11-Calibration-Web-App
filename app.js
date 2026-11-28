@@ -1424,6 +1424,10 @@ if(typeof document!=='undefined') (function UI(){
     }catch(e){values.push(value);e.rawSamples=values.slice();throw e}
     values.push(value);
     if(ptcDev&&!demoEnabled&&sourceInfo.temperatureSource!=='internal'&&[value.s,value.t,...(sourceInfo.temperatureSource==='bridge'?[value.tc]:[])].some(v=>v===-32768||v===32767))throw Error('ADC-Sättigung bei DEV-Messpunkt. AFE bzw. Temperaturbereich prüfen.');
+    if(ptcDev&&!demoEnabled&&sourceInfo.temperatureSource==='bridge'){
+     const d=hardwareTemperature('bridge'),actual=ELMOS_TEMPERATURE_AFE.estimate({adc:value.t,svdd:ELMOS_TEMPERATURE_AFE.SUPPLIES[d.afe0&3],afe0:d.afe0,afe2:d.afe2});
+     if(!actual.valid)throw Error('ADC_T: gemessener Brückenstrom ausserhalb des spezifizierten RPGA-/MUX-Bereichs. Temperatur-AFE anpassen.');
+    }
     if(homeNavigationAbortRequested)throw Error('Messpunktaufnahme für die Rückkehr zur Hauptseite abgebrochen.');
     operation.update(label+' wird aufgenommen',i+1,required);
     progress.textContent=label+': '+(i+1)+' / '+required+' Samples aufgenommen';
@@ -4255,7 +4259,7 @@ if(typeof document!=='undefined') (function UI(){
    const factory=ptcFit?{afe2:words.afe2,cfgEn:demoEnabled?8:words.cfgEn,g01:demoEnabled?0:proof.words[11],g2off:demoEnabled?0:proof.words[12]}:null;
    const solution=ptcFit?ELMOS_TEMPERATURE_AFE.fitBridgeOffline(st.calpoints,options,factory,CAL.fit):CAL.fit(st.calpoints,options);
    if(ptcFit&&!demoEnabled){solution.offlineOnly=false;solution.experimentalHardware=true;}
-   if(extFit)solution.temperatureSource='external';
+   if(extFit){solution.temperatureSource='external';if(!demoEnabled)solution.experimentalHardware=true;}
    solution.displayReference=Object.freeze({min:pmin,max:pmax,unit:pressureUnit(),
     selected:$('calUnit').value,customUnit:$('calUnitOther').value.trim()});
    if(fitMode==='tk0'&&(solution.pressureOnly||solution.ignoredTemperaturePoints!==0||
@@ -4625,20 +4629,29 @@ if(typeof document!=='undefined') (function UI(){
    }
    // DSP_T is optional diagnostic data. A failing or uncalibrated
    // temperature read must not invalidate a successful DSP_S check.
-   let measuredTemp=null;
+   let measuredTemp=null,temperatureErrorC=null;
    try{measuredTemp=P.sign16(await readReg(0x2E))}
    catch(e){logging('Optionale DSP_T-Diagnose nicht lesbar: '+e.message)}
+   if(devPtcFit()){
+    if(!demoEnabled)await checkCalibrationTemperatureSource();
+    const actualC=CAL.dspTemperatureCelsius(measuredTemp);
+    if(actualC!==null)temperatureErrorC=actualC-temp;
+    const tempTol=Number($('devTemperatureTolerance')?.value??2);
+    if(!Number.isFinite(tempTol)||tempTol<=0)throw Error('Positive Temperatur-Prüftoleranz eingeben.');
+    await window.ELMOS_ARCHIVE?.event('dev_temperature_verification',{slot,referenceC:temp,dspT:measuredTemp,actualC,errorC:temperatureErrorC,toleranceC:tempTol,pass:temperatureErrorC!==null&&Math.abs(temperatureErrorC)<=tempTol});
+    if(temperatureErrorC===null||Math.abs(temperatureErrorC)>tempTol){st.calValidation=[];throw Error('DEV DSP_T: '+(actualC===null?'kein gültiger Temperaturwert':actualC.toFixed(2)+' °C statt '+temp+' °C')+' · Temperaturtoleranz ±'+tempTol+' °C. Referenz, AFE und Temperaturkoeffizienten prüfen.');}
+   }
    if(required!==verificationRequiredCount()||tol!==Number($('calVerifyTolerance').value))
     throw Error('Prüfeinstellungen wurden während der Messung geändert');
    st.calValidation=st.calValidation.filter(point=>point.slot!==slot);
-   st.calValidation.push({slot,pressure:p,actual:got,expected:target,errorBar,temperature:temp,measuredTemp});
+   st.calValidation.push({slot,pressure:p,actual:got,expected:target,errorBar,temperature:temp,measuredTemp,temperatureErrorC});
    st.calValidation.sort((a,b)=>a.slot-b.slot);
    // Single-point verification is a valid scope selected by the user, even
    // when TK0/TKE is calibrated. Do NOT require a second temperature.
    // Additional pressure/temperature points are independent optional checks.
    st.calVerified=CAL.verificationPointsSufficient(st.calValidation,required);
    st.calImage=null; // Nach jeder neuen Prüfung muss der NVM-Plan neu erstellt werden.
-   $('calVerifyList').textContent=st.calValidation.map(v=>(v.slot+1)+'. '+v.pressure+' '+pressureUnit()+' · DSP_S '+v.actual+' · Abweichung '+v.errorBar.toFixed(5)+' '+pressureUnit()).join('\n');
+   $('calVerifyList').textContent=st.calValidation.map(v=>(v.slot+1)+'. '+v.pressure+' '+pressureUnit()+' · DSP_S '+v.actual+' · Abweichung '+v.errorBar.toFixed(5)+' '+pressureUnit()+(Number.isFinite(v.temperatureErrorC)?' · DSP_T '+CAL.dspTemperatureCelsius(v.measuredTemp).toFixed(2)+' °C · ΔT '+v.temperatureErrorC.toFixed(2)+' °C':'')).join('\n');
    const remaining=Math.max(0,required-st.calValidation.length);
    const scopeNote=st.calfit.orderT>0?
     ' Die Temperaturkompensation ist durch diese DSP-Nachprüfung nicht vollständig verifiziert.':' Der weitere Druckbereich wurde nicht vollständig verifiziert.';
@@ -5943,7 +5956,7 @@ if(typeof document!=='undefined') (function UI(){
    renderFlowState();
   }));
  });
- for(const id of ['calVerifyCount','calVerifyTolerance'])$(id).addEventListener('input',()=>{
+ for(const id of ['calVerifyCount','calVerifyTolerance',...(ptcDev&&$('devTemperatureTolerance')?['devTemperatureTolerance']:[])])$(id).addEventListener('input',()=>{
   st.calValidation=[];st.calVerified=false;st.calImage=null;
   $('calVerifyList').textContent='Noch kein Prüfpunkt aufgenommen.';
   ca('calRamMsg','Prüfeinstellungen geändert. Punkte erneut prüfen.','warn');
