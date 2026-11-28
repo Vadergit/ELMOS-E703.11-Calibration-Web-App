@@ -159,6 +159,20 @@ const ELMOS_GUIDED_PLAN=(()=>{
   const x=v=>24+352*(v/extent+1)/2;
   return {extent,left:x(-tolerance),right:x(tolerance),zero:x(0),point:Number.isFinite(error)?x(error):null};
  }
- return {create,presets,captureDelta,captureSpans,summarizeSpans,sortReferences,fixedFitModel,verificationPlot};
+ // One common signed-error axis, measurement slots left to right.
+ function verificationSeriesPlot(tolerance,points){
+  if(!Number.isFinite(tolerance)||tolerance<=0||!Array.isArray(points)||!points.length)return null;
+  const width=Math.max(440,80+points.length*58),height=240,left=76,right=width-18,top=16,bottom=195;
+  const maxError=Math.max(0,...points.map(p=>Number.isFinite(p.error)?Math.abs(p.error):0));
+  const extent=Math.max(tolerance*1.35,maxError*1.12);
+  const y=v=>top+(1-v/extent)*(bottom-top)/2;
+  const marks=points.map((p,i)=>({x:left+(right-left)*(i+.5)/points.length,y:Number.isFinite(p.error)?y(p.error):null}));
+  return {width,height,left,right,top,bottom,extent,zero:y(0),upper:y(tolerance),lower:y(-tolerance),marks};
+ }
+ function finishPresentation(s){
+  const verified=!!(s.nvmDone&&s.postBootVerified&&s.chip);
+  return {verified,showRestart:!verified,status:verified?'NVM und Kaltstartprüfung erfolgreich.':s.nvmDone?'NVM gespeichert. Kaltstartprüfung ausstehend.':'NVM-Schreibbestätigung fehlt. Keine Hardwarefreigabe.',warning:verified?'Elektrischen Ausgang vor Freigabe extern messen.':'Kaltstart bestätigen und Ausgang extern messen.'};
+ }
+ return {create,presets,captureDelta,captureSpans,summarizeSpans,sortReferences,fixedFitModel,verificationPlot,verificationSeriesPlot,finishPresentation};
 })();
 if(typeof module!=='undefined'&&module.exports)module.exports=ELMOS_GUIDED_PLAN;

@@ -102,7 +102,7 @@ const ELMOS_GUIDED=(()=>{
     '<div class="gw-monitor-actions"><div id="gwAfeLiveActions"></div><button type="button" id="gwAfeReset" class="gw-secondary-btn">Min/Max zurücksetzen</button></div><div id="gwAfeQuality" class="gw-afe-quality" role="status">Min/Max werden ab dem Start dieses AFE-Schritts erfasst.</div><div id="gwAfeMessage"></div><div id="gwPtcPlot"></div></section></div></div>'+
    '<div id="gwPage4" class="gw-page" hidden><div class="gw-points-layout"><div class="gw-point-nav" id="gwPointNav"></div><div class="gw-tile gw-control"><div id="gwPointConfirmation" class="gw-point-confirmation" hidden role="status" aria-live="polite"></div><div id="gwCurrentSetpoint" class="gw-summary gw-next-point"></div><div id="gwPointHost"></div><div id="gwSampleStatus"></div><div id="gwPointMessages"></div></div></div><details class="gw-inline-help"><summary>Hinweise zur Referenzmessung</summary><p>Druck und Temperatur sind Referenz-Sollwerte und werden nicht automatisch erzeugt. Am Prüfstand einstellen und erst bei stabilen Bedingungen aufnehmen.</p></details></div>'+
    '<div id="gwPage5" class="gw-page" hidden><div class="gw-columns"><div class="gw-tile gw-control"><h3>Polynom und DSP-Ziel</h3><div class="gw-fields gw-3" id="gwFitFields"></div><div class="gw-panel-actions" id="gwFitActions"></div><div id="gwFitStatuses"></div><div id="gwFitDetails"></div></div><details class="gw-fit-help"><summary>Ablauf und Sicherheit</summary><p>Koeffizienten berechnen, Zahlenbereich und Fehler prüfen, dann separat ins RAM übertragen und rücklesen. Anschliessend unabhängige DSP-Prüfung. Keine NVM-Programmierung.</p></details></div></div>'+
-   '<div id="gwPage6" class="gw-page" hidden><div class="gw-columns"><div class="gw-tile gw-control"><h3>Unabhängige Prüfpunkte</h3><div class="gw-fields gw-3" id="gwVerifyFields"></div><div class="gw-panel-actions" id="gwVerifyActions"></div><div id="gwVerifyStatuses"></div><details><summary>Prüfprotokoll</summary><div id="gwVerifyDetails"></div></details></div><div class="gw-verify-side"><section class="gw-tile gw-verify-chart"><div class="gw-section-head"><div><h3>Prüfergebnis und Toleranz</h3><p>Abweichung vom Referenzdruck · jeder Prüfpunkt einzeln</p></div></div><div id="gwVerifyPlot" aria-live="polite"></div></section><details class="gw-fit-help"><summary>Was prüfe ich hier?</summary><p>Prüfe die gewünschte Anzahl Punkte neu, auch an den Druckendpunkten. Bereits ein bestandener Prüfpunkt genügt für diesen Nachprüfschritt – auch bei TK0/TKE. Weitere Druck- und Temperaturpunkte sind freiwillig und erhöhen die Aussagekraft.</p><div class="gw-alert warn">Die Live-Anzeige allein zählt nicht als Prüfung. Verwende «Prüfwert aus DSP_S lesen» und kontrolliere die tatsächliche Abweichung.</div></details></div></div></div>'+
+   '<div id="gwPage6" class="gw-page" hidden><div class="gw-columns"><div class="gw-tile gw-control"><h3>Unabhängige Prüfpunkte</h3><div class="gw-fields gw-3" id="gwVerifyFields"></div><div class="gw-panel-actions" id="gwVerifyActions"></div><div id="gwVerifyStatuses"></div><details><summary>Prüfprotokoll</summary><div id="gwVerifyDetails"></div></details></div><div class="gw-verify-side"><section class="gw-tile gw-verify-chart"><div class="gw-section-head"><div><h3>Prüfergebnis und Toleranz</h3><p>Abweichung vom Referenzdruck</p></div></div><div id="gwVerifyPlot" aria-live="polite"></div></section><details class="gw-fit-help"><summary>Was prüfe ich hier?</summary><p>Prüfe die gewünschte Anzahl Punkte neu, auch an den Druckendpunkten. Bereits ein bestandener Prüfpunkt genügt für diesen Nachprüfschritt – auch bei TK0/TKE. Weitere Druck- und Temperaturpunkte sind freiwillig und erhöhen die Aussagekraft.</p><div class="gw-alert warn">Die Live-Anzeige allein zählt nicht als Prüfung. Verwende «Prüfwert aus DSP_S lesen» und kontrolliere die tatsächliche Abweichung.</div></details></div></div></div>'+
    `<div id="gwPage7" class="gw-page" hidden>
     <div class="gw-columns gw-output-layout">
      <section class="gw-tile gw-control">
@@ -136,7 +136,7 @@ const ELMOS_GUIDED=(()=>{
     '<p class="muted small">Beim Überspringen bleiben bereits vorhandene Alarmregister unverändert. Alarme deaktivieren erfordert eine ausdrücklich vorgemerkte Einstellung.</p></div></div>'+
    '<div id="gwPage9" class="gw-page" hidden><div class="gw-columns"><div class="gw-tile gw-control"><h3>Änderungen prüfen und bestätigen</h3><div id="gwNvmBackup"></div><div class="gw-panel-actions" id="gwNvmPrepare"></div><div id="gwNvmMessages"></div><div class="gw-panel-actions" id="gwNvmWrite"></div><div id="gwNvmDetails"></div></div><aside class="gw-nvm-safety"><strong>Vor dem Schreiben</strong><p>Chip-UID und Änderungen prüfen. Versorgung während der Programmierung nicht unterbrechen.</p><details><summary>Sicherheitshinweise</summary><p>Zuerst an einem entbehrlichen Testchip validieren. Ein Stromunterbruch kann den Sensor unbrauchbar machen. Die bestehende NVM-Sicherheitslogik entscheidet über die Schreibfreigabe.</p></details></aside></div></div>'+
    '<div id="gwPage10" class="gw-page gw-finish-page" hidden><section class="gw-finish-signal"><div class="gw-finish-top"><div><span class="gw-kicker">Live-Sensorsignal</span><h3>Aktueller Sensorausgang</h3></div><span id="gwFinishStatus" class="gw-live-badge">Warte auf Chipwerte</span></div><div class="gw-finish-number" aria-live="off"><strong id="gwFinishSignalValue">—</strong><span id="gwFinishSignalUnit">—</span></div><div id="gwFinishSource" class="gw-finish-caption">DSP_S wird vom Chip gelesen und auf den eingestellten Anzeigebereich bezogen.</div><div class="gw-finish-bar"><span id="gwFinishBar"></span></div><div class="gw-finish-limits"><span id="gwFinishRangeMin">—</span><span id="gwFinishRangeMax">—</span></div><div class="gw-finish-kpis"><div><span>DSP_S</span><strong id="gwFinishDsp">—</strong><small>Digits</small></div><div><span>ADC_S</span><strong id="gwFinishAdc">—</strong><small>Digits</small></div><div><span>ADC_T</span><strong id="gwFinishTemp">—</strong><small>Digits</small></div><div><span>Letzte Messung</span><strong id="gwFinishTime">—</strong></div></div></section>'+
-    '<div class="gw-columns gw-finish-bottom"><section class="gw-tile"><div class="gw-section-head"><div><h3>Signalverlauf</h3><p>ADC_S im Zeitverlauf · letzte 60 Sekunden</p></div></div><div id="gwFinishChartHost" class="gw-finish-chart"></div></section><section class="gw-tile gw-finish-checklist"><h3>Abgleich und Freigabe</h3><div id="gwFinishCompletion" class="gw-alert">NVM-Status prüfen.</div><p id="gwFinishConfig">Gewünschte Ausgangseinstellungen werden hier als Sollwerte dargestellt.</p><p id="gwFinishWarning" class="gw-finish-warning">Vor der Freigabe den Ausgang mit einem Messgerät prüfen. Die Anzeige ersetzt keinen Hardwaretest.</p><div class="gw-panel-actions" id="gwPostBoot"></div><button class="gw-secondary-link" id="gwBackClassic" type="button">Zur vollständigen Expertenansicht wechseln</button></section></div></div>'+
+    '<div class="gw-columns gw-finish-bottom"><section class="gw-tile"><div class="gw-section-head"><div><h3>Signalverlauf</h3><p>ADC_S im Zeitverlauf · letzte 60 Sekunden</p></div></div><div id="gwFinishChartHost" class="gw-finish-chart"></div></section><section class="gw-tile gw-finish-checklist"><h3>Abgleich und Freigabe</h3><div id="gwFinishCompletion" class="gw-alert">NVM-Status prüfen.</div><p id="gwFinishConfig">Gewünschte Ausgangseinstellungen werden hier als Sollwerte dargestellt.</p><p id="gwFinishWarning" class="gw-finish-warning">Vor der Freigabe den Ausgang mit einem Messgerät prüfen. Die Anzeige ersetzt keinen Hardwaretest.</p><div class="gw-panel-actions" id="gwPostBoot"></div><details class="gw-finish-more"><summary>Weitere Optionen</summary><button class="gw-secondary-link" id="gwBackClassic" type="button">Zur Expertenansicht wechseln</button></details></section></div></div>'+
    '<section id="gwSwapPage" class="gw-tile" hidden><ol><li>Stecke den fertig abgeglichenen Sensor ab.</li><li>Schliesse den nächsten Sensor am Programmieradapter an.</li><li>Klicke auf «Neuen Sensor verbinden».</li></ol><p>Der Assistent übernimmt den Messplan und die Ausgangsvorgaben. Er schreibt die Frontend-Einstellungen ins RAM des neuen Sensors. Für ihn nimmst du danach neue Messwerte auf.</p><div class="gw-panel-actions"><button id="gwSwapConnect" class="primary" type="button">Neuen Sensor verbinden</button><button id="gwSwapChoose" type="button" hidden>USB-Port auswählen</button><button id="gwSwapCancel" type="button">Serie abbrechen</button></div></section>'+
    '<section id="gwConnectionPage" class="gw-page gw-connection-page" hidden><div class="gw-panel-actions gw-connection-backbar"><button id="gwConnectionBackTop" type="button">← Zurück zum Assistenten</button></div><div class="gw-columns">'+
     '<section class="gw-tile"><h3>USB-Adapter und Chip-Protokoll</h3><p>Bei einem anderen Sensor kannst du 1-Wire, I²C oder SPI auswählen, ohne in die klassische Ansicht zu wechseln. Der bisherige USB-Port wird sicher geschlossen und mit dem neuen Protokoll neu initialisiert.</p>'+
@@ -528,27 +528,41 @@ const ELMOS_GUIDED=(()=>{
   const node=(tag,cls,text)=>{const e=document.createElement(tag);if(cls)e.className=cls;if(text!==undefined)e.textContent=text;return e};
   const format=n=>Number.isFinite(n)?n.toLocaleString('de-CH',{maximumFractionDigits:5,minimumFractionDigits:0}):'—';
   const signed=n=>Number.isFinite(n)?(n>0?'+':'')+format(n):'—';
-  if(!data.points.length){host.append(node('p','gw-verify-empty','Gültige Anzahl Prüfpunkte und Toleranz eingeben.'));return;}
-  for(const item of data.points){
-   const geometry=ELMOS_GUIDED_PLAN.verificationPlot(data.tolerance,item.error);
-   if(!geometry)continue;
-   const kind=['passed','failed','repeat','measuring'].includes(item.status)?item.status:'pending';
-   const card=node('div','gw-verify-result is-'+kind),head=node('div','gw-verify-result-head');
-   const label=kind==='passed'?'Bestanden':kind==='failed'?'Nicht bestanden':kind==='repeat'?'Erneut prüfen':kind==='measuring'?'Messung läuft':'Offen';
-   head.append(node('strong','','Punkt '+(item.slot+1)+' · '+format(item.pressure)+' '+data.unit),node('span','gw-verify-badge',label));
-   card.append(head);
-   const plot=node('div','gw-verify-plot');
-   // SVG interpolation is numeric only. Labels and errors use textContent.
-   plot.innerHTML='<svg viewBox="0 0 400 80" role="img" aria-label="Abweichung und Toleranzfenster"><rect x="24" y="18" width="352" height="30" rx="6" class="gw-verify-track"/><rect x="'+geometry.left+'" y="18" width="'+(geometry.right-geometry.left)+'" height="30" rx="3" class="gw-verify-band"/><path d="M'+geometry.left+' 12V54 M'+geometry.right+' 12V54" class="gw-verify-limit"/><path d="M'+geometry.zero+' 10V57" class="gw-verify-zero"/>'+(geometry.point===null?'':'<path d="M'+geometry.point+' 9V58" class="gw-verify-pointer"/><circle cx="'+geometry.point+'" cy="33" r="7" class="gw-verify-marker"/>')+'</svg>';
-   const labels=node('div','gw-verify-axis');labels.append(node('span','','−'+format(geometry.extent)+' '+data.unit),node('span','','0 · Soll'),node('span','','+'+format(geometry.extent)+' '+data.unit));
-   plot.append(labels);
-   const legend=node('div','gw-verify-band-legend');legend.append(node('span','gw-verify-band-swatch'),node('span','','Toleranzfenster: −'+format(data.tolerance)+' bis +'+format(data.tolerance)+' '+data.unit));plot.append(legend);card.append(plot);
-   const stats=node('div','gw-verify-stats');stats.append(node('span','','Abweichung'),node('strong','gw-verify-delta',signed(item.error)+' '+(item.error===null?'':data.unit)));card.append(stats);
-   if(Number.isFinite(item.actual)&&Number.isFinite(item.expected))card.append(node('p','gw-verify-detail','DSP_S: '+format(item.actual)+' · Soll: '+format(item.expected)+' Digits'));
-   if(kind==='failed'&&item.reason)card.append(node('p','gw-verify-reason',item.reason));
-   if(kind==='repeat')card.append(node('p','gw-verify-detail','Dieser frühere Messwert ist nicht mehr freigegeben. Erneut messen.'));
-   host.append(card);
+  const q=ELMOS_GUIDED_PLAN.verificationSeriesPlot(data.tolerance,data.points);
+  if(!q){host.append(node('p','gw-verify-empty','Gültige Anzahl Prüfpunkte und Toleranz eingeben.'));return;}
+  const frame=node('div','gw-verify-series');
+  const ns='http://www.w3.org/2000/svg';
+  const svgNode=(tag,attrs,content)=>{const e=document.createElementNS(ns,tag);for(const [k,v] of Object.entries(attrs))e.setAttribute(k,String(v));if(content!==undefined)e.textContent=content;return e;};
+  const svg=svgNode('svg',{viewBox:'0 0 '+q.width+' '+q.height,role:'img','aria-label':'Prüfpunkte von links nach rechts, Abweichung und Toleranz in '+data.unit});
+  svg.style.minWidth=data.points.length>5?q.width+'px':'0';
+  const line=(x1,y1,x2,y2,cls)=>svgNode('line',{x1,y1,x2,y2,class:cls});
+  const label=(x,y,value,anchor='middle',cls='gw-verify-label')=>svgNode('text',{x,y,'text-anchor':anchor,class:cls},value);
+  svg.append(svgNode('rect',{x:q.left,y:q.top,width:q.right-q.left,height:q.bottom-q.top,rx:5,class:'gw-verify-track'}));
+  svg.append(svgNode('rect',{x:q.left,y:q.upper,width:q.right-q.left,height:q.lower-q.upper,class:'gw-verify-band'}));
+  for(const y of [q.upper,q.lower])svg.append(line(q.left,y,q.right,y,'gw-verify-limit'));
+  svg.append(line(q.left,q.zero,q.right,q.zero,'gw-verify-zero'));
+  svg.append(label(q.left-7,q.upper+4,'+'+format(data.tolerance),'end'),label(q.left-7,q.zero+4,'0','end'),label(q.left-7,q.lower+4,'−'+format(data.tolerance),'end'));
+  svg.append(label(q.left,10,data.unit,'start'));
+  for(const [i,item] of data.points.entries()){
+   const m=q.marks[i],kind=['passed','failed','repeat','measuring'].includes(item.status)?item.status:'pending';
+   const status=kind==='passed'?'Bestanden':kind==='failed'?'Nicht bestanden':kind==='repeat'?'Erneut prüfen':kind==='measuring'?'Messung läuft':'Offen';
+   const group=svgNode('g',{class:'gw-verify-point is-'+kind});
+   const description='Punkt '+(item.slot+1)+' · Referenz '+format(item.pressure)+' '+data.unit+' · '+status+(m.y===null?'':' · Abweichung '+signed(item.error)+' '+data.unit)+(item.reason?' · '+item.reason:'');
+   group.append(svgNode('title',{},description));
+   group.append(line(m.x,q.top,m.x,q.bottom,'gw-verify-grid'));
+   if(m.y!==null){
+    group.append(svgNode('circle',{cx:m.x,cy:m.y,r:6.5,class:'gw-verify-marker'}));
+    // Only show a direct numeric label when it has room; details remain accessible in the tooltip and protocol.
+    if(data.points.length<=5)group.append(label(m.x,m.y<q.top+22?m.y+20:m.y-12,signed(item.error),'middle','gw-verify-value'));
+   }else{
+    group.append(label(m.x,q.bottom-9,kind==='failed'?'!':kind==='measuring'?'…':'—','middle','gw-verify-value'));
+   }
+   group.append(label(m.x,q.bottom+17,'P'+(item.slot+1)),label(m.x,q.bottom+33,kind==='passed'?'✓':kind==='failed'?'✕':kind==='repeat'?'↻':'—','middle','gw-verify-value'));
+   svg.append(group);
   }
+  frame.append(svg);host.append(frame);
+  const passed=data.points.filter(x=>x.status==='passed').length;
+  host.append(node('p','gw-verify-summary',passed+' von '+data.points.length+' Prüfpunkten bestanden · Toleranz ±'+format(data.tolerance)+' '+data.unit));
  }
  function captureNumber(value){
   return Number.isFinite(value)?Number(value).toLocaleString('de-CH',{maximumFractionDigits:1}):'—';
@@ -761,13 +775,15 @@ const ELMOS_GUIDED=(()=>{
   setText('gwFinishRangeMax',scaled?measurementNumber(max,2)+' '+t.unit:'—');
   const v=t.voltageTargets;
   setText('gwFinishConfig',v?
-   'Ausgangs-Sollwerte: S0 '+measurementNumber(v.s0,3)+' V · S1 '+measurementNumber(v.s1,3)+' V · VDD '+measurementNumber(v.vdd,2)+' V. Diese Spannungen wurden nicht am Pin gemessen.':
-   'Ausgangs-Sollwerte nicht verfügbar.');
+   'Sollwerte: S0 '+measurementNumber(v.s0,3)+' V · S1 '+measurementNumber(v.s1,3)+' V · VDD '+measurementNumber(v.vdd,2)+' V':
+   '');
+  $('gwFinishConfig').hidden=!v;
   const completion=$('gwFinishCompletion');
-  completion.className='gw-alert '+(s.nvmDone?'success':'warn');
-  completion.textContent=s.postBootVerified?'NVM und Kaltstartprüfung erfolgreich. Elektrische Ausgangsmessung steht noch aus.':s.nvmDone?'NVM-Schreibvorgang bestätigt. Kaltstart und Ausgangsmessung stehen noch aus.':
-   'NVM-Schreibbestätigung fehlt. Keine Hardwarefreigabe.';
-  setText('gwFinishWarning',s.postBootVerified?'Vor der Freigabe den elektrischen Ausgang mit einem Messgerät prüfen. Die Anzeige ersetzt keinen Hardwaretest.':'Vor der Freigabe den Sensor stromlos machen und das NVM erneut prüfen. Anschliessend den Ausgang elektrisch messen.');
+  const presentation=ELMOS_GUIDED_PLAN.finishPresentation(s);
+  completion.className='gw-alert '+(presentation.verified?'success':'warn');
+  completion.textContent=presentation.status;
+  $('gwPostBoot').hidden=!presentation.showRestart;
+  setText('gwFinishWarning',presentation.warning);
  }
 
  function quickConnectVisible(s){return !s.demo&&!s.usbConnected&&!s.chip;}

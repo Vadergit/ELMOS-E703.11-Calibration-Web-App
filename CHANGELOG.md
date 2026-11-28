@@ -1,3 +1,9 @@
+## v0.7.213 – DSP-Prüfgraph und Abschlussseite
+
+- Ein gemeinsamer Graph: Prüfpunkte von links nach rechts, vertikale Abweichung, horizontales Toleranzband, farbige Messpunkte und kompakte Zusammenfassung. Bestehendes Prüfprotokoll bleibt erhalten.
+- Abschlussseite: redundante Neustart-/NVM-Kontrollen nur ausblenden, wenn der aktuelle Sensor einen bestätigten Kaltstartnachweis besitzt. Bei ausstehender/fehlgeschlagener Prüfung bleiben sie verfügbar. Elektrische Ausgangsmessung weiterhin ausdrücklich erforderlich.
+- Nur geführte Darstellung; keine Änderungen an Kommunikation, Kalibrierlogik oder NVM-Prüfung.
+
 ## v0.7.212 – Grafische DSP-Verifikation und Ausgangsnavigation
 
 - Toleranzdiagramm pro Prüfpunkt mit tatsächlicher signierter Abweichung, Sollwert, Toleranzgrenzen und grün/rot markiertem Messpunkt. Fehlgeschlagene Messungen bleiben sichtbar; bei ungültigen früheren Prüfpunkten wird erneutes Prüfen angezeigt. Anzeige getrennt von DSP- und NVM-Freigabe.
