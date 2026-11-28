@@ -57,7 +57,7 @@ const ELMOS_GUIDED=(()=>{
  }
  function UI(){
   const sides=steps.map((v,i)=>'<button type="button" class="gw-sideitem" data-gw-side="'+i+'"><span class="gw-no">'+(i+1)+'</span><span>'+v[0]+'</span></button>').join('');
-  return '<div class="gw-shell"><aside class="gw-sidebar"><div class="gw-backlogo"><span>◆</span> E703.11 · Geführter Abgleich</div><nav class="gw-sideitems">'+sides+'</nav><div class="gw-sidebar-footer">Die Originalsoftware bleibt jederzeit über «Klassisch» erreichbar.<div style="margin-top:9px">Laborversion · keine Hardwarefreigabe für NVM</div></div></aside><main class="gw-main"><div class="gw-topline"><span id="gwKicker" class="gw-kicker">Schritt 1</span><div class="gw-connection-top-actions"><span id="gwChipStatus" class="gw-chipstatus"></span><button type="button" id="gwConnectionToggle" class="gw-connection-link">Verbindung &amp; Diagnose</button></div></div><div class="gw-progressbar"><span id="gwProgress"></span></div><div class="gw-heading-row"><div><h2 class="gw-title" id="gwTitle"></h2><p class="gw-desc" id="gwDesc"></p></div><button class="gw-preset gw-preset-launch" id="gwPresetLaunch" type="button" aria-haspopup="dialog" aria-controls="gwPresetDialog" hidden><strong>Preset laden</strong></button></div>'+
+  return '<div class="gw-shell"><aside class="gw-sidebar"><div class="gw-backlogo"><span>◆</span> E703.11 · Geführter Abgleich</div><nav class="gw-sideitems">'+sides+'</nav><div class="gw-sidebar-footer">Die Originalsoftware bleibt jederzeit über «Klassisch» erreichbar.<div style="margin-top:9px">DEV · Experimentell · NVM nur nach DSP-Prüfung</div></div></aside><main class="gw-main"><div class="gw-topline"><span id="gwKicker" class="gw-kicker">Schritt 1</span><div class="gw-connection-top-actions"><span id="gwChipStatus" class="gw-chipstatus"></span><button type="button" id="gwConnectionToggle" class="gw-connection-link">Verbindung &amp; Diagnose</button></div></div><div class="gw-progressbar"><span id="gwProgress"></span></div><div class="gw-heading-row"><div><h2 class="gw-title" id="gwTitle"></h2><p class="gw-desc" id="gwDesc"></p></div><button class="gw-preset gw-preset-launch" id="gwPresetLaunch" type="button" aria-haspopup="dialog" aria-controls="gwPresetDialog" hidden><strong>Preset laden</strong></button></div>'+
    '<div id="gwPage0" class="gw-page"><div class="gw-columns gw-six">'+
     '<button class="gw-choice" data-gw-task="calibration"><span class="gw-choice-icon">◉</span><strong>Sensor neu abgleichen</strong><small>Von der Messung über die DSP-Prüfung bis zur sicheren NVM-Programmierung.</small></button>'+
     '<button class="gw-choice" data-gw-task="alarms"><span class="gw-choice-icon">⚑</span><strong>Alarme und Fehler ändern</strong><small>Bestehenden Sensor auslesen, Fehlerreaktionen einzeln anpassen und separat speichern.</small></button>'+
@@ -185,7 +185,7 @@ const ELMOS_GUIDED=(()=>{
   for(const id of ['calCalculate','calApplyRam'])moveId(id,'gwFitActions');
   for(const id of ['calFitMsg','calTempFallback','calDspProposal','calRamPrereq','calRamStageMsg'])moveId(id,'gwFitStatuses');
   move($('calCoeffList').closest('details'),'gwFitDetails');
-  for(const id of ['calVerifyCount','calVerifyTolerance'])moveLabel(id,'gwVerifyFields');
+  for(const id of ['calVerifyCount','calVerifyTolerance','devTemperatureTolerance'])if($(id))moveLabel(id,'gwVerifyFields');
   moveId('calVerifyRows','gwVerifyActions');
   for(const id of ['calVerifyCoverage','calVerifyProgress','calRamMsg'])moveId(id,'gwVerifyStatuses');
   moveId('calVerifyList','gwVerifyDetails');
