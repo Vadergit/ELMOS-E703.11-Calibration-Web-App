@@ -50,7 +50,12 @@ jobs:
         run: |
           npm install --no-save playwright
           npx playwright install --with-deps chromium
+      - name: Guided thermal visibility and formula dialog
+        run: |
+          python3 -m http.server 8765 --bind 127.0.0.1 > /tmp/elmos-http.log 2>&1 &
+          node tests/guided-thermal-browser.cjs
       - name: Browser demo and profile smoke test
+        if: always()
         run: |
           python3 -m http.server 8765 --bind 127.0.0.1 > /tmp/elmos-http.log 2>&1 &
           node tests/redesign-browser-smoke.cjs

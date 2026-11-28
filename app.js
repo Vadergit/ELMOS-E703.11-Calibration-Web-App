@@ -6984,6 +6984,7 @@ if(typeof document!=='undefined') (function UI(){
   clearPtcDev:()=>{if(selectedTemperatureSource()==='internal')return;if(demoEnabled&&demoPort.ptcConfigured()){demoPort.clearPtcProfile();erasePoints();st.trend=[];}else if(!demoEnabled){st.ptcHardware=null;st.calibrationPreflight=null;invalidateCalculation('Temperaturprofil geändert. AFE erneut ins RAM übernehmen.');}},
   ptcDevHardwareReady:()=>!!hardwareTemperature(),
   changeTemperatureSource,
+  temperatureSourceBusy:()=>temperatureSwitchBusy,
   ensureInternalTemperatureProfile,
 
   afeStats:since=>guidedAfeStats(since),
