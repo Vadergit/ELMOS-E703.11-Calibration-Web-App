@@ -415,3 +415,26 @@ test('live Celsius remains available when the recognised DSP profile has no usab
  assert.equal(h.referenceFromDisplayProfile(profile,'0020018B39FB',afe2,123),null);
  assert.equal(h.referenceFromDisplayProfile({...profile,reference:{...profile.reference,tb:75}},uid,afe2,123),null);
 });
+
+
+test('pressure-only reference uses independent chip temperature ADC_TC with bridge mode, never PTC digits',()=>{
+ const app=require('node:fs').readFileSync(require('node:path').join(__dirname,'../app.js'),'utf8');
+ const start=app.indexOf(' function temperatureStorageKey('),end=app.indexOf(' const GAINS1=',start);
+ const h=new Function('const demoEnabled=false;'+app.slice(start,end)+';return {chipTemperatureChannel,internalReference,validInternalReference,estimateInternalTemperature}')();
+ const uid='0020018B39FA',afe2=0x114a,cfgEn=0x100a;
+ const point={temperatureUid:uid,temperatureSource:'bridge',temperatureDisplaySource:'internal',temperatureCfgEn:cfgEn,temperatureAfe2:afe2,adc_t:4471,adc_tc:2700,temperature:25};
+ const ref=h.internalReference([point],uid,afe2,cfgEn);
+ assert.ok(ref);assert.equal(ref.channel,'ADC_TC');assert.equal(ref.adc,2700);
+ assert.equal(h.estimateInternalTemperature(2700,ref,false).value,25);
+ assert.ok(h.estimateInternalTemperature(2400,ref,false).value>25);
+ assert.equal(h.internalReference([{...point,adc_tc:null}],uid,afe2,cfgEn),null);
+ assert.equal(h.internalReference([point],uid,afe2,4),null);
+ assert.equal(h.validInternalReference(ref,uid,afe2,4),false);
+ assert.equal(h.validInternalReference(ref,uid,0x1154,cfgEn),false);
+ assert.equal(h.chipTemperatureChannel(0x1154,4),'ADC_T');
+ assert.equal(h.chipTemperatureChannel(afe2|0x800,cfgEn),null);
+ assert.equal(h.chipTemperatureChannel(afe2|0x400,cfgEn),null);
+ assert.equal(h.chipTemperatureChannel(afe2,undefined),null);
+ assert.equal(h.chipTemperatureChannel(0x1157,4),null);
+ assert.match(app,/x.temperatureDisplaySource=pressureOnlyCalibration\(\)\?'internal'/);
+});
