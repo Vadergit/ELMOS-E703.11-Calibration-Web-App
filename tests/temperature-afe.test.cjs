@@ -86,3 +86,14 @@ for(const resistanceOhm of [2100,3300,4100,5000]){
 assert.equal(t.assessProbe({samples:Array(7).fill(32767),svdd:2.4,afe0:0x70,afe2:0x114a}).valid,false);
 assert.equal(t.assessProbe({samples:[0,0,0,0,0,0,1000],svdd:2.4,afe0:0x70,afe2:0x114a}).valid,false);
 console.log('Automatic RPGA probing: saturation, stability and resistance reconstruction passed');
+
+// Complete factory TPGA profile and absolute temperature bit, DS pages 53,63,64.
+const repaired=t.merge({afe0:0x0d82,afe2:0x1e00,cfgEn:0x02d6,code:7,svddCode:2});
+assert.equal(repaired.afe2,0x114a);assert.equal(repaired.cfgEn,0x12da);
+for(const bits of [0x0100,0x0200,0x0400,0x0800])assert.throws(()=>t.estimate({adc:1000,svdd:2.4,afe0:0xd70,afe2:0x114a^bits}));
+const bounds=t.resistanceBounds({adc:0,svddCode:0,afe0:0xd70,afe2:0x114a});
+assert.ok(bounds.minOhm<bounds.nominalOhm&&bounds.maxOhm>bounds.nominalOhm);
+const withoutPressure=ptc.range({bridgePressureVariation:0}),withPressure=ptc.range();
+assert.ok(withPressure.minOhm<withoutPressure.minOhm&&withPressure.maxOhm>withoutPressure.maxOhm);
+assert.ok(withPressure.pressureTemperatureErrorC>0);
+console.log('Factory TPGA masks, resistance envelope and pressure dependence passed');
