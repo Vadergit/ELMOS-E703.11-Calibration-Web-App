@@ -22,7 +22,19 @@ async function installFolder(context){
  const page=await browser.newPage({viewport:{width:1440,height:900},deviceScaleFactor:1});
  await installFolder(page.context());
  const records=[],errors=[],checks=[];
- page.on('pageerror',e=>errors.push(e.message));page.on('dialog',d=>d.dismiss());
+ let intentionalPreviewNavigation=false;
+ page.on('pageerror',e=>errors.push(e.message));
+ // Only accept the unsaved-demo warning when this layout-only gallery
+ // explicitly resets to a fresh page. All other dialogs remain dismissed.
+ page.on('dialog',async d=>{
+  if(d.type()==='beforeunload'&&intentionalPreviewNavigation)await d.accept();
+  else await d.dismiss();
+ });
+ const navigatePreview=async url=>{
+  intentionalPreviewNavigation=true;
+  try{await page.goto(url);}
+  finally{intentionalPreviewNavigation=false;}
+ };
  // Preview-only hook in served JS; no source or hardware protections changed.
  await page.route('**/guided.js?*',async route=>{
   const res=await route.fetch();
@@ -55,7 +67,7 @@ async function installFolder(context){
   }
  };
  const go=n=>page.evaluate(n=>window.__screenPreview.go(n),n);
- const reset=async()=>{await page.goto('http://127.0.0.1:8765/?demo=1');await page.waitForFunction(()=>window.ELMOS_GUIDED_API?.state()?.chip&&window.ELMOS_GUIDED?.isOpen?.(),{},{timeout:20000});};
+ const reset=async()=>{await navigatePreview('http://127.0.0.1:8765/?demo=1');await page.waitForFunction(()=>window.ELMOS_GUIDED_API?.state()?.chip&&window.ELMOS_GUIDED?.isOpen?.(),{},{timeout:20000});};
  try{
   await reset();
   await shot('01-Aufgabenauswahl','Demo sensor connected',async()=>{});
@@ -125,7 +137,7 @@ async function installFolder(context){
    // Common pages and modes do not depend on the calibration preset.
    const prefix='common-'+view.width+'-'+view.theme;
    await shot(prefix+'-offline','Actual disconnected start, no serial hardware',async()=>{
-    await page.goto('http://127.0.0.1:8765/');
+    await navigatePreview('http://127.0.0.1:8765/');
     await page.waitForFunction(()=>window.ELMOS_GUIDED?.isOpen?.());
     await page.evaluate(theme=>{const e=document.getElementById('settingsTheme');e.value=theme;e.dispatchEvent(new Event('change',{bubbles:true}));},view.theme);
     if(!await page.locator('#gwQuickConnectButton').isVisible())throw Error('Offline connect button missing');
