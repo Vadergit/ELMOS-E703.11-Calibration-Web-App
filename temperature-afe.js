@@ -91,6 +91,39 @@ function buildTemperatureAFE(){
   rpga(code);assert([0,1,2].includes(svddCode),'Ungültiger SVDD-Code.');
   return {afe0:(afe0&~0x00f3)|(code<<4)|svddCode,afe2:(afe2&~0x0fff)|0x014a,cfgEn:(cfgEn&~0x100c)|0x1008};
  }
+ // DS rev.04 pp.53–64: only known incompatibilities are errors;
+ // electrical recommendations and startup routing uncertainty are warnings.
+ function validateProfile({source,afe0,afe2,cfgEn,pads0,pads1,pads2,spiI2c,biasMode,vdd}){
+  const errors=[],warnings=[],check=(ok,msg)=>{if(!ok)errors.push(msg)};
+  const word=x=>Number.isInteger(x)&&x>=0&&x<=65535;
+  if(![afe0,afe2,cfgEn,pads0,pads1,pads2,spiI2c].every(word))return {errors:['Vollständige 16-Bit-Konfigurationswörter erforderlich.'],warnings};
+  check(['bridge','external'].includes(source),'Unbekannte DEV-Temperaturquelle.');
+  check((afe0&0xfe0c)===0x0c00,'CFG_AFE0: Pflicht-/reservierte Bits entsprechen nicht dem Datenblatt.');
+  check((afe0&3)!==3,'CFG_AFE0.br_supply=3 ist reserviert.');
+  check((afe2&0xf000)===0x1000,'CFG_AFE2[15:12] muss 0b0001 sein.');
+  check((cfgEn&0x8010)===0x0010,'CFG_EN: Bit 15 muss 0, Bit 4 muss 1 sein.');
+  check((cfgEn&3)===0||(cfgEn&3)===2,'CFG_EN.s_cor_en ist reserviert.');
+  check((afe2&0x03c0)===0x0140,'ADC_TC benötigt die vorgeschriebenen Standardgains.');
+  check((cfgEn&0x100c)===(source==='bridge'?0x1008:0x1004),'Temperaturkorrektur/absolute Temperatur passt nicht zur Quelle.');
+  if(source==='bridge')check((afe2&0x0fff)===0x014a,'PTC benötigt werkstrimm-kompatible Gains, keine Invertierung oder EOC-Bias.');
+  if(source==='external'){
+   check((afe2&3)===3,'EOC-Temperaturquelle fehlt.');
+   check((afe2&0x0400)===0,'DEV-EOC-Modell setzt nicht invertierten ADC_T voraus.');
+   if(biasMode!==undefined)check([0,1].includes(biasMode)&&!!(afe2&0x0800)===!!biasMode,'EOC-Diodenstrom passt nicht zur gewählten Beschaltung.');
+   const bus=spiI2c&3,sda=(pads2>>9)&3,route=(pads2>>7)&3,start=(pads0>>14)&3;
+   check(!(sda===2&&(bus===1||bus===2)),'EOC ist gleichzeitig I²C-SDA.');
+   // The datasheet explicitly excludes sel_eoc=00 with t_adc_src=11,
+   // even if no status source is selected.
+   check(route!==0,'CFG_PADS2.sel_eoc=00 ist mit EOC als Temperatureingang unzulässig. EoC auf einen freien Pin routen.');
+   check(!(route===1&&(bus===1||bus===3)),'EoC-Ausgang NCS/SA0 kollidiert mit I²C/SPI.');
+   check(!(route===2&&(bus===3||((bus===1||bus===2)&&sda===1))),'EoC-Ausgang MOSI kollidiert mit I²C/SPI.');
+   check(!(route===3&&((cfgEn>>9)&7)!==0),'EoC-Ausgang AODO kollidiert mit konfiguriertem AODO-Ausgang.');
+   if(start===0)warnings.push('EOC dient beim Start auch der I²C/SPI-Auswahl. Beschaltung beim Neustart prüfen.');
+   if((pads1&8)===0)warnings.push('EOC-Bus-Holder ist aktiv. Einfluss auf externe Temperaturspannung prüfen.');
+  }
+  if((afe0&3)===0&&Number.isFinite(vdd)&&vdd<3)errors.push('SVDD 2.4 V erfordert VDD ≥ 3.0 V.');
+  return {errors,warnings};
+ }
  function correctedBridgeTemperature(adcT,adcTC,g01,g2off){
  if(![adcT,adcTC].every(v=>Number.isFinite(v)&&v>=-32768&&v<=32767))throw RangeError("ADC_T und ADC_TC als gültige signed 16-Bit-Rohwerte erforderlich.");
  if(![g01,g2off].every(v=>Number.isInteger(v)&&v>=0&&v<=65535))throw RangeError("Originale G01/G2OFF-Wörter erforderlich.");
@@ -113,7 +146,7 @@ function fitBridgeOffline(points,opts={},factory,fit){
  const result=fit(adjusted,opts);
  return {...result,temperatureSource:"bridge",temperatureCorrection:"dll-reference-float-model",correctedTemperatureDigits:adjusted.map(x=>x.adc_t),rawTemperatureDigits:adjusted.map(x=>x.rawAdcT),factoryWords:{g01:factory.g01,g2off:factory.g2off},offlineOnly:true};
 }
- return Object.freeze({SUPPLIES,SUPPLY_LIMITS,rpga,equivalent,linearRange,signal,estimate,resistanceBounds,probeOrder,assessProbe,plan,merge,correctedBridgeTemperature,fitBridgeOffline});
+ return Object.freeze({SUPPLIES,SUPPLY_LIMITS,rpga,equivalent,linearRange,signal,estimate,validateProfile,resistanceBounds,probeOrder,assessProbe,plan,merge,correctedBridgeTemperature,fitBridgeOffline});
 }
 const ELMOS_TEMPERATURE_AFE=buildTemperatureAFE();
 if(typeof module!=="undefined"&&module.exports)module.exports=ELMOS_TEMPERATURE_AFE;
@@ -134,7 +167,12 @@ const ELMOS_EXTERNAL_AFE=(()=>{
   return {min,max,best,candidates,samples};
  }
  function envelope(p,v,g){const values=[];for(const vref of [.6,.7])for(const u of [v-p.eocTolerance/1000,v+p.eocTolerance/1000])for(const a of [.96,1.04])for(const b of [.96,1.04])values.push(Math.round((u-vref)*g.g1*a*g.g2*b*32768));return {lo:Math.min(...values),hi:Math.max(...values),nom:signal(v,g.i,g.j)};}
- function merge(afe2,p,g){return (afe2&~0x0fff)|0x0140|(p.eocBias?0x0800:0)|(g.j<<4)|(g.i<<2)|3;}
- return {plan,voltage,signal,envelope,merge};
+ function merge(afe2,p,g){if(!Number.isInteger(afe2)||afe2<0||afe2>65535||![0,1].includes(p.eocBias)||!Number.isInteger(g?.i)||!Number.isInteger(g?.j)||g.i<0||g.i>3||g.j<0||g.j>3)throw Error('Ungültige EOC-Verstärkung oder Beschaltung.');return (afe2&~0x0fff)|0x0140|(p.eocBias?0x0800:0)|(g.j<<4)|(g.i<<2)|3;}
+ function assessSamples(samples){
+  if(!Array.isArray(samples)||samples.length<5||samples.some(v=>!Number.isInteger(v)||v< -32768||v>32767))throw Error('Gültige ADC_T-Messreihe erforderlich.');
+  const sorted=samples.slice().sort((a,b)=>a-b),adc=sorted[Math.floor(sorted.length/2)],spread=sorted.at(-1)-sorted[0];
+  return {adc,spread,samples:samples.slice(),saturated:samples.some(v=>v===-32768||v===32767),outsideRecommended:samples.some(v=>Math.abs(v)>23593),unstable:spread>350};
+ }
+ return {plan,voltage,signal,envelope,merge,assessSamples};
 })();
 if(typeof window!=='undefined')window.ELMOS_EXTERNAL_AFE=ELMOS_EXTERNAL_AFE;
