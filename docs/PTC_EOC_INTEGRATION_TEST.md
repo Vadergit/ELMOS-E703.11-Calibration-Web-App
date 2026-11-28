@@ -1,0 +1,6 @@
+# PTC / EOC – Integrationsbranch (Test, nicht produktiv)
+Basis: edc869f38d12cf4e4ed57882fb4da13fb27d5351, Dev-Referenz: b1b20719c574403836d03a4cca0d9abd51a8e641 (ptc-manufacturer-06).
+Die Standardmodule bleiben bytegenau unverändert. index.html erhält ausschliesslich einen zusätzlichen Router. Bei einer ausdrücklichen Beta-Wahl wird dieselbe Kalibrieroberfläche in temperature-beta.html geladen; Beta-spezifische Module liegen unter temperature-beta/. Keine automatische Aktivierung. Eigener Local-/Session-/IndexedDB-Namensraum. Der USB-Port muss vor einem Wechsel getrennt sein. Bei der Rückkehr realen Sensor neu starten; die Beta kann das Sensor-RAM verändert haben.
+Start lokal: Repository/Branch auschecken, im Wurzelordner `python3 -m http.server 8000`, Chrome/Edge http://localhost:8000/ öffnen. Für direkten Beta-Start: http://localhost:8000/temperature-beta.html?source=bridge oder ?source=external; &demo=1 simuliert.
+Test: `node temperature-beta/manufacturer-audit.cjs` (gespeicherte DLL-Referenz; kein neuer DLL-Lauf).
+Abnahme: Standard 2P/3P/TK0/TKE, Demo, SSP3 und ESP32; Beta PTC und EOC jeweils Demo und reale One-Wire-Hardware; NVM-Original sichern, RAM/EEPROM-Readback, Kaltstart und Nachmessung. Keine Freigabe/kein Merge vor Benutzerabnahme. Browser-End-to-End und Hardware nicht durch die statischen/numerischen Tests ersetzt.
