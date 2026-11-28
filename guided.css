@@ -526,3 +526,10 @@ html[data-theme="dark"] #guidedWorkspace .gw-quick-connect{background:#382e1d;co
 #guidedWorkspace .gw-nvm-more{border-top:1px solid var(--line);padding-top:10px} #guidedWorkspace .gw-nvm-more summary{font-weight:600;cursor:pointer} #guidedWorkspace .gw-nvm-warning{font-size:12px;color:var(--ink);margin:0}
 #guidedWorkspace #gwNvmAlerts .callout{margin:5px 0} #guidedWorkspace #gwNvmRecovery:empty{display:none}
 @media(max-width:650px){#guidedWorkspace .gw-series-grid{grid-template-columns:1fr}}
+
+/* v0.7.218: optional USER-ID remains visible before the NVM actions. */
+#guidedWorkspace #gwNvmIdentification #nvmUserIdField{display:flex;flex-wrap:wrap;align-items:end;gap:6px 16px;margin:0;padding:0}
+#guidedWorkspace #gwNvmIdentification #nvmUserIdField[hidden],#guidedWorkspace #gwNvmIdentification[hidden]{display:none!important}
+#guidedWorkspace #gwNvmIdentification #nvmUserIdField label{display:grid;gap:4px;min-width:0;width:220px;max-width:100%}
+#guidedWorkspace #gwNvmIdentification #nvmUserId{width:100%;box-sizing:border-box}
+#guidedWorkspace #gwNvmIdentification #nvmUserIdHint{margin:0 0 7px;max-width:100%;font-size:12px}

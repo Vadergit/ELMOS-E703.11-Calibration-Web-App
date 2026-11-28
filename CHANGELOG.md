@@ -1,3 +1,8 @@
+## v0.7.218 – USER-ID direkt auf der NVM-Seite
+
+- Optionales USER-ID-Feld im geführten Kalibrierablauf direkt vor der NVM-Prüfung sichtbar; leer lassen erhält die vorhandene ID. Änderungen an der Eingabe verwerfen weiterhin den alten Änderungsplan und erfordern die erneute Prüfung.
+- Kompakte NVM-Darstellung, aufklappbare Diagnose und bestehende Schreib-/Kaltstartprüfungen bleiben erhalten. Bei Ausgangs- oder Alarmänderung ohne Kalibrierung bleibt die USER-ID unverändert.
+
 ## v0.7.217 – Serienoptionen und kompakte NVM-Prüfung
 
 - Beim Sensorwechsel einzeln auswählen, welche Vorgaben übernommen werden. Auswahl im Browser gespeichert, keine automatische Wiederaufnahme eines Hardwarevorgangs. Offset und DSP-Ziel standardmässig zurücksetzen; alternativ bisherige Werte übernehmen. Ohne Messplan-Häkchen Planung erneut öffnen.
