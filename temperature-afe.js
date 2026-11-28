@@ -117,7 +117,7 @@ function buildTemperatureAFE(){
    if(route===0){if(pads0&0x0fff)errors.push('Aktive EoC-Statusausgabe kollidiert mit externem Temperatureingang.');else warnings.push('EoC-Ausgang ist auf EOC geroutet, aber Statusmaske ist 0. Datenblatt empfiehlt anderen freien Pin; keine aktive Statusausgabe nachgewiesen.');}
    check(!(route===1&&(pads0&0x0fff)&&(bus===1||bus===3)),'EoC-Ausgang NCS/SA0 kollidiert mit I²C/SPI.');
    check(!(route===2&&(pads0&0x0fff)&&(bus===3||((bus===1||bus===2)&&sda===1))),'EoC-Ausgang MOSI kollidiert mit I²C/SPI.');
-   check(!(route===3&&(pads0&0x0fff)&&((cfgEn>>9)&7)!==0),'EoC-Ausgang AODO kollidiert mit konfiguriertem AODO-Ausgang.');
+   check(!(route===3&&((cfgEn>>9)&7)!==0),'EoC-Ausgang AODO kollidiert mit konfiguriertem AODO-Ausgang.');
    if(start===0)warnings.push('EOC dient beim Start auch der I²C/SPI-Auswahl. Beschaltung beim Neustart prüfen.');
    if((pads1&8)===0)warnings.push('EOC-Bus-Holder ist aktiv. Einfluss auf externe Temperaturspannung prüfen.');
   }
