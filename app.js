@@ -4967,7 +4967,7 @@ if(typeof document!=='undefined') (function UI(){
   try{value=requestedNvmUserId()}catch(_){invalid=true}
   input.setAttribute('aria-invalid',String(invalid));
   $('nvmUserIdError').hidden=!invalid;
-  $('nvmUserIdLabel').textContent=hex?'Sensor-ID – Hex (optional)':'Sensor-ID – Dezimal (optional)';
+  $('nvmUserIdLabel').textContent=hex?'Sensor-ID – Hex':'Sensor-ID – Dezimal';
   $('nvmUserIdFormat').textContent=hex?'Zulässig: 0000–FFFF':'Zulässig: 0–65535';
   $('nvmUserIdPreviewLabel').textContent=hex?'Dezimalwert:':'Hex-Wert:';
   $('nvmUserIdPreview').textContent=invalid||value===undefined?'—':hex?formatNvmUserId(value,'decimal'):'0x'+formatNvmUserId(value,'hex');

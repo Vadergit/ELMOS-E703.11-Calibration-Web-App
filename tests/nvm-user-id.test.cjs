@@ -51,5 +51,5 @@ test('invalid typing and paste are rejected without changing the last accepted I
  input.value='0x00af';assert.equal(a.acceptNvmUserIdInput(),true);assert.equal(a.requestedNvmUserId(),175);
  input.value='00AF';assert.equal(a.acceptNvmUserIdInput(),false);
  input.value='';assert.equal(a.acceptNvmUserIdInput(),true);assert.equal(a.requestedNvmUserId(),undefined);
- a.resetNvmUserId();assert.equal(e.nvmUserIdLabel.textContent,'Sensor-ID – Dezimal (optional)');
+ a.resetNvmUserId();assert.equal(e.nvmUserIdLabel.textContent,'Sensor-ID – Dezimal');
 });

@@ -1,3 +1,8 @@
+## v0.7.223 – Vereinfachte Sensor-ID-Beschriftung
+
+- Feldtitel «Sensor-ID – Dezimal» bzw. «Sensor-ID – Hex» ohne Zusatz «optional». Der Hinweis unter dem Feld erklärt weiterhin, dass eine leere Eingabe die bisherige Sensor-ID beibehält.
+- Formatumschaltung, Eingabegrenzen und NVM-Schreibprüfungen unverändert.
+
 ## v0.7.222 – Eindeutige Sensor-ID-Eingabe mit Eingabeschutz
 
 - Aktives Format direkt im Feldtitel, separater Bereich für die Formatumschaltung, Wertebereich und umgerechneter Wert unter dem Feld; responsive Darstellung.
