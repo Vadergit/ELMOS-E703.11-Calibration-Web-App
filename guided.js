@@ -381,7 +381,7 @@ const ELMOS_GUIDED=(()=>{
  }
  function applyPlan(){
   let p=makePlan();
-  if(window.ELMOS_PTC_DEV_UI?.active?.()){const first=[...p.temperatures].sort((a,b)=>Math.abs(a-25)-Math.abs(b-25))[0];p={...p,points:p.points.slice().sort((a,b)=>(a.temperature===first?0:1)-(b.temperature===first?0:1)||a.temperature-b.temperature||a.pressure-b.pressure).map((x,index)=>({...x,index}))};}
+  if(window.ELMOS_PTC_DEV_UI?.active?.()){const first=[...p.temperatures].sort((a,b)=>Math.abs(a-25)-Math.abs(b-25))[0];p={...p,points:p.points.slice().sort((a,b)=>(a.temperature===first?0:1)-(b.temperature===first?0:1)||a.temperature-b.temperature||a.pressure-b.pressure).map((x,index)=>({...x,extraSlot:x.slot.startsWith('extra')?(x.extraSlot??x.index):x.extraSlot,index}))};}
   const nextSignature=JSON.stringify(p);
   if(signature===nextSignature)return p;
   if(signature!==null&&(state().points||[]).length){
