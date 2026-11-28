@@ -348,3 +348,36 @@ test('Bridge polarity has a two-column shared AFE control and reflects only conf
  state.writing=false;state.afe=0x0800;render(state,get);assert.equal(get('bridgePolarityNormal')['aria-pressed'],'true');
  state.chip=false;render(state,get);assert.equal(get('bridgePolarityNormal')['aria-pressed'],'false');assert.equal(get('bridgePolarityInverted').disabled,true);
 });
+
+
+test('live temperature: internal nominal curve, per-UID single-point reference and factory preference',()=>{
+ const app=require('node:fs').readFileSync(require('node:path').join(__dirname,'../app.js'),'utf8');
+ const start=app.indexOf(' function temperatureStorageKey('),end=app.indexOf(' const GAINS1=',start);
+ assert.ok(start>=0&&end>start);
+ const h=new Function('const demoEnabled=false;'+app.slice(start,end)+';return {nominalInternalCelsius,internalReference,validInternalReference,estimateInternalTemperature,temperatureStorageKey}')();
+ const uid='0020018B39FA',other='0020018B39FB',afe2=0x1154;
+ const p={temperatureUid:uid,temperatureSource:'internal',temperatureAfe2:afe2,temperature:25,adc_t:4483};
+ const ref=h.internalReference([p],uid,afe2);
+ assert.ok(ref);
+ assert.equal(h.estimateInternalTemperature(4483,ref,false).value,25);
+ assert.equal(h.estimateInternalTemperature(4483,ref,false).mode,'reference');
+ assert.ok(h.estimateInternalTemperature(4000,ref,false).value>25);
+ assert.ok(h.estimateInternalTemperature(5000,ref,false).value<25);
+ assert.equal(h.estimateInternalTemperature(4483,null,false).mode,'nominal');
+ const factory={0x6C:0,0x6E:0x1000,0x94:0x0F4D,0x96:0xBC8E,0x98:0xFC54,0x9A:0};
+ assert.ok(Math.abs(h.nominalInternalCelsius(4483)-C.factoryInternalTemperatureCelsius(4483,factory))<1e-8);
+ const closeRef={...ref,temperature:h.nominalInternalCelsius(4483)+1};
+ assert.equal(h.estimateInternalTemperature(4483,closeRef,true).mode,'factory');
+ assert.equal(h.estimateInternalTemperature(4483,ref,true).mode,'reference');
+ assert.equal(h.estimateInternalTemperature(-32768,ref,false).value,null);
+ assert.equal(h.estimateInternalTemperature(32767,ref,false).value,null);
+ assert.equal(h.estimateInternalTemperature(null,ref,false).value,null);
+ assert.equal(h.internalReference([p],other,afe2),null);
+ assert.equal(h.internalReference([p],uid,afe2|2),null);
+ assert.equal(h.internalReference([p,{...p,temperature:75}],uid,afe2),null);
+ assert.equal(h.validInternalReference(ref,other,afe2),false);
+ assert.equal(h.validInternalReference(ref,uid,afe2+4),false);
+ assert.notEqual(h.temperatureStorageKey('profile',uid),h.temperatureStorageKey('profile',other));
+ assert.match(app,/writeTemperatureRecord\('profile',id,temperatureRecord\)/);
+ assert.match(app,/writeTemperatureRecord\('reference',id,reference\)/);
+});
