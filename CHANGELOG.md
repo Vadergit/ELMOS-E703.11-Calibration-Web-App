@@ -1,3 +1,10 @@
+## v0.7.220 – Automatische Koeffizientenberechnung im Serienabgleich
+
+- Messpunktabschluss und Archivierung vor dem automatischen Fit abwarten; bekannte Lesevorgänge begrenzt abwarten. Keine fremden Sperren aufheben.
+- Konkrete Meldungen zu Verbindung, Polynommodell, DSP-Ziel und Messpunktgültigkeit statt einer Sammelmeldung. Ungültige Messpunkte vor dem Koeffizientenschritt korrigieren.
+- DSP-Warnungen und Vorschlagskontext bei jedem neu vorbereiteten Abgleich zurücksetzen. Grenzwertdialoge und RAM-/NVM-Prüfungen bleiben erhalten.
+- Hardwareprüfung ausstehend.
+
 ## v0.7.219 – Sensorwechsel in zwei Spalten
 
 - Links die Schritt-für-Schritt-Anleitung und Verbindungsaktionen, rechts die vollständige kompakte Liste der Übernahmeoptionen. Auf schmalen Bildschirmen untereinander.

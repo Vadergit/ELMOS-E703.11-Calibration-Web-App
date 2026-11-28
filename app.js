@@ -4300,6 +4300,8 @@ if(typeof document!=='undefined') (function UI(){
  async function sample(){if(!st.chip)throw Error('Keine bestätigte Chip-Leseverbindung');return P.sign16(await readReg(0x2A))}
  
  async function capture(which){
+  if(st.calCapturePending){show('calMsg','Messpunkt wird noch abgeschlossen.','warn');return;}
+  st.calCapturePending=true;
   try{
    if(st.calTask||st.writing||st.nvmWorking)throw Error('Ein Mess- oder Wartungsvorgang läuft');
    const pmin=Number($('pmin').value),pmax=Number($('pmax').value);
@@ -4316,6 +4318,7 @@ if(typeof document!=='undefined') (function UI(){
    await window.ELMOS_ARCHIVE?.event('calibration_point',{point:record,AFE:{...st.staged},supply:archiveVoltages()});
    refreshPoints()
   }catch(e){try{await window.ELMOS_ARCHIVE?.event('error',{stage:'calibration_point',which,message:e.message,rawSamples:e.rawSamples||null,spread:e.spread??null})}catch(_){}show('calMsg','Messung fehlgeschlagen: '+e.message,'error')}
+  finally{st.calCapturePending=false;renderFlowState()}
  }
  
  function refreshPoints(){
@@ -4383,6 +4386,8 @@ if(typeof document!=='undefined') (function UI(){
   renderCalPoints()
  }
  async function captureCalPoint(slot){
+  if(st.calCapturePending){ca('calPointsMsg','Messpunkt wird noch abgeschlossen.','warn');return;}
+  st.calCapturePending=true;
   try{
    const count=calibrationPointCount();
    if(!Number.isFinite(count)||!Number.isInteger(slot)||slot<1||slot>count-2)throw Error('Messpunkt für die gewählte Anzahl nicht aktiv');
@@ -4400,10 +4405,15 @@ if(typeof document!=='undefined') (function UI(){
    ca('calPointsMsg','Messpunkt '+(slot+1)+' mit '+samples.sampleCount+' Samples aufgenommen.','success');
    refreshPoints()
   }catch(e){try{await window.ELMOS_ARCHIVE?.event('error',{stage:'calibration_extra_point',slot,message:e.message,rawSamples:e.rawSamples||null,spread:e.spread??null})}catch(_){}ca('calPointsMsg','Messpunkt '+(slot+1)+': '+e.message,'error')}
+  finally{st.calCapturePending=false;renderFlowState()}
  }
  
  const shownDspRiskWarnings=new Set();
  let dspRiskProposalContext=null;
+ function resetDspRiskForNewCalibration(){
+  shownDspRiskWarnings.clear();dspRiskProposalContext=null;
+  if($('dspRiskDialog')?.open)$('dspRiskDialog').close();
+ }
  function dspRiskContext(){
   return {port:st.port,session:st.sessionIndex,uid:st.uid?.hex,points:JSON.stringify(st.calpoints),references:JSON.stringify(calibrationReferenceSnapshot()),limit:Number($('calDspLimit').value)};
  }
@@ -6003,6 +6013,7 @@ if(typeof document!=='undefined') (function UI(){
    }
    if(has('dsp')){
     $('calSOrder').value=String(values.dsp.sOrder);$('calTOrder').value=String(values.dsp.tOrder);$('calFitMode').value=values.dsp.fitMode||'full';alignTk0Ui();
+    if(Number($('calDspLimit').value)!==values.dsp.dspLimit){shownDspRiskWarnings.clear();dspRiskProposalContext=null;}
     $('calDspLimit').value=String(values.dsp.dspLimit);$('calDspLimit').dataset.userEdited='1';
    }
    if(has('measurement')||has('reference')||has('dsp')){
@@ -6843,6 +6854,7 @@ if(typeof document!=='undefined') (function UI(){
    if(demoEnabled){
     demoPort.clearPtcProfile();demoPort.reboot();
     st.ptcHardware=null;st.temperatureBaseline=null;st.calibrationPreflight=null;st.nvmDone=false;st.trend=[];st.history=[];erasePoints();
+    resetDspRiskForNewCalibration();
     await readADC();logging('Neuer Demo-Abgleich: Sensor-RAM simuliert neu gestartet.');
     return;
    }
@@ -6879,6 +6891,7 @@ if(typeof document!=='undefined') (function UI(){
    Object.assign(st.regs,profile);st.boot=await bootSnapshot();st.afe0=profile[0x1A];
    st.ptcHardware=null;st.temperatureBaseline=null;st.calibrationPreflight=null;st.trend=[];st.history=[];
    if(draft)lsSet(checkpointKey(priorUid),'');
+   resetDspRiskForNewCalibration();
    window.ELMOS_PTC_DEV_UI?.sourceChanged?.();
    logging('Neuer Abgleich: '+path+' · UID '+priorUid+' · 64 NVM-Wörter CRC8/CRC16 und RAM-Profil frisch gelesen. Kein NVM-Schreiben.');
    show('connMsg','Neuer Abgleich bereit: Sensor neu gestartet, NVM und RAM geprüft.','success');
@@ -7023,10 +7036,29 @@ if(typeof document!=='undefined') (function UI(){
  // register commands, no reconnect, no automatic NVM write.
  async function runGuidedFixedFit(expected,stillOnPage,explicitRetry=false){
   const port=st.port,session=st.sessionIndex,uid=st.uid?.hex||null;
-  const current=()=>stillOnPage()&&!!st.chip&&!!port&&st.port===port&&st.sessionIndex===session&&(st.uid?.hex||null)===uid&&!st.closing&&!st.calTask&&!st.writing&&!st.nvmWorking&&!st.reinitRunning&&!st.powerCycleRunning&&!st.magicRunning&&!st.startupRunning&&!st.diagRunning&&!st.afeWriteActive&&!st.ramMeasurementStarting;
+  const sameSensor=()=>stillOnPage()&&!!st.chip&&!!port&&st.port===port&&st.sessionIndex===session&&(st.uid?.hex||null)===uid&&!st.closing;
+  const busy=()=>!!(st.calTask||st.writing||st.nvmWorking||st.nvmAttempting||st.nvmRechecking||st.reinitRunning||st.powerCycleRunning||st.magicRunning||st.startupRunning||st.diagRunning||st.afeWriteActive||st.ramMeasurementStarting||st.calCapturePending);
+  const current=()=>sameSensor()&&!busy();
   const settings=()=>Number($('calSOrder').value)===expected.orderS&&Number($('calTOrder').value)===expected.orderT&&$('calFitMode').value===expected.fitMode&&Number($('calDspLimit').value)===expected.outputLimit&&st.calpoints.length===expected.total&&calEndpointsReady();
   const result=(state,reason)=>({state,reason});
-  if((!explicitRetry&&!ELMOS_GUIDED_PLAN.fixedFitModel(expected))||!current()||!settings())return result('stopped','Abgleichplan oder Verbindung nicht bestätigt.');
+  const stopped=reason=>result('stopped',reason);
+  if(!explicitRetry&&!ELMOS_GUIDED_PLAN.fixedFitModel(expected))return stopped('Gewähltes Abgleichmodell benötigt die manuelle Koeffizientenprüfung.');
+  if(!sameSensor())return stopped('Sensorverbindung oder Abgleichseite hat sich geändert.');
+  // A capture publishes its point before the asynchronous archive event has finished.
+  // Only wait for capture completion or identified read-only jobs, never force-release a lock.
+  const deadline=Date.now()+30000;
+  while(busy()){
+   const waitable=!st.nvmWorking&&!st.nvmAttempting&&!st.nvmRechecking&&!st.afeWriteActive&&!st.reinitRunning&&!st.powerCycleRunning&&!st.magicRunning&&!st.startupRunning&&!st.ramMeasurementStarting&&!st.diagRunning&&(st.calCapturePending||['display-profile','backup'].includes(st.ramWriteScope));
+   if(!waitable||Date.now()>=deadline)return stopped('Laufender Sensorvorgang: '+(st.ramWriteScope||'Messung/Kommunikation')+'. Bitte regulär abschliessen und erneut versuchen.');
+   await sleep(100);
+   if(!sameSensor())return stopped('Sensorverbindung oder Abgleichseite hat sich während der Wartezeit geändert.');
+  }
+  if(Number($('calSOrder').value)!==expected.orderS||Number($('calTOrder').value)!==expected.orderT||$('calFitMode').value!==expected.fitMode)
+   return stopped('Polynom- oder Temperaturmodell stimmt nicht mit dem angewendeten Abgleichplan überein.');
+  if(Number($('calDspLimit').value)!==expected.outputLimit)return stopped('DSP-Zielbereich stimmt nicht mit dem angewendeten Abgleichplan überein.');
+  if(st.calpoints.length!==expected.total)return stopped('Messpunktzahl stimmt nicht: '+st.calpoints.length+' von '+expected.total+'.');
+  if(!calEndpointsReady())return stopped(calibrationReadinessReason());
+  if(!current()||!settings())return stopped('Sensorvorgang oder Messplan hat sich geändert.');
   if(st.calStaged&&coefficientSettingsCurrent())return result('stopped','Koeffizienten bereits im RAM. Bitte bisherigen Status prüfen.');
   const references=JSON.stringify(calibrationReferenceSnapshot()),points=JSON.stringify(st.calpoints);
   calcCoefficients();
@@ -7051,6 +7083,7 @@ if(typeof document!=='undefined') (function UI(){
    points:st.calpoints.map(x=>({kind:x.kind,slot:x.slot,at:x.at,pressure:x.pressure,temperature:x.temperature,
     adc_s:x.adc_s,adc_t:x.adc_t,adc_tc:x.adc_tc,spread:x.spread,sampleCount:x.sampleCount,temperatureSource:x.temperatureSource})),
    calStaged:!!st.calStaged,calVerified:verificationComplete(),nvmDone:!!st.nvmDone,
+   capturePending:!!st.calCapturePending,calibrationReady:calEndpointsReady(),calibrationReadinessMessage:calEndpointsReady()?'':calibrationReadinessReason(),
    postBootVerified:!!(st.nvmDone&&st.chip&&st.postBootProof&&st.postBootProof.port===st.port&&st.postBootProof.session===st.sessionIndex&&st.postBootProof.uid===st.uid?.hex),
    nvmBackupVerified:!!st.nvmBackupVerified,nvmPlanPrepared:!!st.calImage,nvmBusy:!!(st.nvmWorking||st.nvmAttempting||st.nvmRechecking),outputReady:expert.outputReady(),
    calibrationOutputConfirmed:verificationComplete()&&$('expertOutputMsg').classList.contains('success')&&($('expertOutputMode').value==='keep'||!!st.expertOutputPlan&&String(st.expertOutputPlan.mode)===$('expertOutputMode').value),

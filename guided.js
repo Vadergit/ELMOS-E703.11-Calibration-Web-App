@@ -1018,7 +1018,7 @@ const ELMOS_GUIDED=(()=>{
    const text=stage===5?s.calStaged?'Koeffizienten im RAM bestätigt':'Noch keine bestätigte RAM-Übernahme':stage===6?s.calVerified?'DSP-Prüfung abgeschlossen':'DSP-Prüfung ausstehend':stage===7?(outputNavigationReady(s)?'Ausgangskonfiguration geprüft und vorgemerkt':s.outputScalingRequired?'Ausgangsskalierung für den aktuellen DSP-Bereich bestätigen':'Ausgangskonfiguration prüfen und vormerken'):s.nvmDone?'NVM-Schreiben bestätigt':'NVM-Schreiben noch nicht bestätigt';
    setText('gwFooterHint',text);
   }
-  const ready=stage===4?!!plan&&plan.points.every(p=>pointRecord(p)):stage===5?!!s.calStaged:stage===6?!!s.calVerified:stage===7&&task==='calibration'?outputNavigationReady(s):stage===9?!!s.nvmDone:true;
+  const ready=stage===4?!!plan&&!s.capturePending&&plan.points.every(p=>pointRecord(p)):stage===5?!!s.calStaged:stage===6?!!s.calVerified:stage===7&&task==='calibration'?outputNavigationReady(s):stage===9?!!s.nvmDone:true;
   $('gwNext').disabled=fixedFitBusy||!s.chip||(stage===10?nextSensorBusy||!s.nvmDone:!ready);
   if(stage===3)updateAfeTelemetry();
   if(stage===10)updateFinishTelemetry();
@@ -1260,6 +1260,8 @@ const ELMOS_GUIDED=(()=>{
   }
   if(stage===4){
    if(!plan||!plan.points.every(p=>pointRecord(p))){msg('Bitte zuerst alle '+(plan?.total||0)+' Messpunkte erfolgreich aufnehmen.','warn');return}
+   if(s.capturePending){msg('Letzter Messpunkt wird noch gespeichert.','warn');return;}
+   if(s.calibrationReady===false){msg(s.calibrationReadinessMessage||'Messpunkte prüfen.','warn');return;}
    goto(5);if(fixedFitModel())await runFixedFit();return;
   }
   if(stage===5){if(!s.calStaged){msg('Bitte die Koeffizienten zuerst berechnen und ins RAM übertragen.','warn');return}goto(6);return}
