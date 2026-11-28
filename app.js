@@ -3796,7 +3796,7 @@ if(typeof document!=='undefined') (function UI(){
   clearTimeout(postConnectProfileTimer);
   const port=st.port,session=st.sessionIndex,uid=st.uid?.hex;
   if(!port||!st.chip||!uid)return;
-  if(st.closing||postConnectProfileBusy||st.calTask||st.writing||st.nvmWorking||
+  if(newCalibrationBusy||st.closing||postConnectProfileBusy||st.calTask||st.writing||st.nvmWorking||
      st.powerCycleRunning||st.ramMeasurementStarting||st.reinitRunning||
      st.startupRunning||st.magicRunning||st.diagRunning||window.ELMOS_TEST_LOGGER?.isBusy()){
    logging('Optionale NVM-Anzeigeprüfung übersprungen: Verbindungs- oder Tätigkeitswechsel.');
@@ -6008,7 +6008,7 @@ if(typeof document!=='undefined') (function UI(){
    if(has('measurement')||has('reference')||has('dsp')){
     fillIntermediateReferences();refreshUnitLabels();updateDSPOutputLimit();renderDSPLive();
    }
-   if(has('output'))expert.applyOutputProfile(values.output);
+   if(has('output'))expert.applyOutputProfile(values.output,{deferAnalogScaling:affectsCalibration});
    if(has('alarm'))ELMOS_ALARM_EDITOR.applyProfile(values.alarm);
    if(!target){st.profilePendingAFE=null;profileSummary()}
    // Template values are browser-side reference targets, not verified NVM.
@@ -6802,12 +6802,44 @@ if(typeof document!=='undefined') (function UI(){
   return path==='manual'&&manualConfirmed===true;
  }
  let newCalibrationBusy=false;
- async function prepareNewCalibration(){
-  if(newCalibrationBusy||!st.chip||!st.port||st.closing||st.calTask||st.writing||st.nvmWorking||st.reinitRunning||st.powerCycleRunning||st.afeWriteActive||st.magicRunning||st.startupRunning||st.diagRunning||st.ramMeasurementStarting||window.ELMOS_TEST_LOGGER?.isBusy())throw Error('Zuerst laufenden Sensorvorgang abschliessen.');
+ // Wait for the actual task owner; never reset foreign busy flags.
+ function newCalibrationBlocker(){
+  if(st.nvmWorking||st.nvmAttempting||st.nvmRechecking)return {label:'NVM-Programmierung oder -Prüfung',wait:false};
+  if(window.ELMOS_TEST_LOGGER?.isBusy())return {label:'Test / Logging',wait:false};
+  if(st.closing)return {label:'USB-Verbindung wird geschlossen',wait:false};
+  if(st.afeWriteActive||(st.writing&&st.ramWriteScope!=='backup'))return {label:'RAM-Schreibvorgang',wait:false};
+  if(usbConnectBusy||postConnectProfileBusy||st.ramWriteScope==='display-profile')return {label:'Verbindungsaufbau / NVM-Anzeigeprüfung',wait:true};
+  if(st.ramWriteScope==='backup')return {label:'NVM-Lesung',wait:true};
+  if(st.reinitRunning||st.powerCycleRunning||st.magicRunning||st.startupRunning||st.ramMeasurementStarting||autoReconnectBusy)return {label:'Sensorinitialisierung',wait:true};
+  if(st.diagRunning||st.bridgeReadBusy)return {label:'Registerdiagnose',wait:true};
+  if(st.calTask||st.writing)return {label:'Messung oder Sensorvorgang'+(st.ramWriteScope?' ('+st.ramWriteScope+')':''),wait:false};
+  return null;
+ }
+ async function waitForNewCalibrationIdle({blocker,connected,cancelled=()=>false,onWait=()=>{},pause=sleep,now=Date.now,timeout=45000}){
+  const deadline=now()+timeout;
+  for(;;){
+   if(cancelled())throw Error('Start des neuen Abgleichs abgebrochen. Kein Sensorneustart ausgelöst.');
+   if(!connected())throw Error('Sensorverbindung hat sich geändert. Bitte erneut verbinden.');
+   const pending=blocker();
+   if(!pending)return;
+   if(!pending.wait)throw Error(pending.label+' läuft. Vorgang regulär abschliessen und erneut versuchen.');
+   if(now()>=deadline)throw Error(pending.label+' noch nicht beendet. Bitte erneut versuchen oder Verbindung & Diagnose öffnen.');
+   onWait(pending.label);
+   await pause(200);
+  }
+ }
+ async function prepareNewCalibration({onWait,isCancelled,seriesRetryArchiveId=null}={}){
+  if(newCalibrationBusy)throw Error('Vorbereitung eines neuen Abgleichs läuft bereits.');
+  if(!st.chip||!st.port||st.closing)throw Error('Zuerst Sensor verbinden.');
   newCalibrationBusy=true;
-  const priorPause=st.manualLivePause;
+  let priorPause=null;
   const priorUid=st.uid?.hex,port=st.port,session=st.sessionIndex;
   try{
+   await waitForNewCalibrationIdle({blocker:newCalibrationBlocker,connected:()=>st.port===port&&st.sessionIndex===session&&st.chip&&st.uid?.hex===priorUid&&!st.closing,cancelled:isCancelled,onWait});
+   if(isCancelled?.())throw Error('Start des neuen Abgleichs abgebrochen. Kein Sensorneustart ausgelöst.');
+   if(newCalibrationBlocker())throw Error('Ein weiterer Sensorvorgang wurde gestartet. Bitte erneut versuchen.');
+   onWait?.(null);
+   priorPause=st.manualLivePause;
    if(demoEnabled){
     demoPort.clearPtcProfile();demoPort.reboot();
     st.ptcHardware=null;st.temperatureBaseline=null;st.calibrationPreflight=null;st.nvmDone=false;st.trend=[];st.history=[];erasePoints();
@@ -6818,7 +6850,8 @@ if(typeof document!=='undefined') (function UI(){
    const archive=window.ELMOS_ARCHIVE;
    if(archive?.active){
     if(archive.current?.type!=='calibration'||archive.current?.chipUID!==priorUid)throw Error('Offenes Prüfprotokoll zuerst abschliessen.');
-    if(!st.nvmDone&&!window.confirm('Bisherigen Abgleich abschliessen und einen neuen beginnen? Nicht gespeicherte RAM-Änderungen werden beim Neustart verworfen.'))throw Error('Neuer Abgleich abgebrochen.');
+    const emptySeriesRetry=seriesRetryArchiveId&&archive.current.id===seriesRetryArchiveId&&!st.calpoints.length&&!st.calStaged&&!st.nvmDone;
+    if(!st.nvmDone&&!emptySeriesRetry&&!window.confirm('Bisherigen Abgleich abschliessen und einen neuen beginnen? Nicht gespeicherte RAM-Änderungen werden beim Neustart verworfen.'))throw Error('Neuer Abgleich abgebrochen.');
    }
    const draft=storedCalibrationCheckpoint(priorUid);
    if(draft&&!window.confirm('Für diesen Sensor existieren gesicherte Messpunkte. Neuen Abgleich beginnen und bisherigen Messpunktentwurf nach erfolgreichem Neustart verwerfen?'))throw Error('Messpunktentwurf bleibt erhalten.');
@@ -6849,7 +6882,7 @@ if(typeof document!=='undefined') (function UI(){
    window.ELMOS_PTC_DEV_UI?.sourceChanged?.();
    logging('Neuer Abgleich: '+path+' · UID '+priorUid+' · 64 NVM-Wörter CRC8/CRC16 und RAM-Profil frisch gelesen. Kein NVM-Schreiben.');
    show('connMsg','Neuer Abgleich bereit: Sensor neu gestartet, NVM und RAM geprüft.','success');
-  }finally{newCalibrationBusy=false;st.manualLivePause=priorPause;if(!priorPause&&st.chip&&!st.closing)startLive();renderStatus();}
+  }finally{newCalibrationBusy=false;if(priorPause!==null){st.manualLivePause=priorPause;if(!priorPause&&st.chip&&!st.closing)startLive();}renderStatus();}
  }
 
  async function prepareNextSensor(matrix){

@@ -608,7 +608,7 @@ const ELMOS_EXPERT=(()=>{
    else {if(st.restorePlan&&st.calImage===st.restorePlan)st.calImage=null;st.restorePlan=null;}
    renderFlowState();
   });
-  function applyOutputProfile(cfg){
+  function applyOutputProfile(cfg,{deferAnalogScaling=false}={}){
    if(!cfg||typeof cfg!=='object')throw Error('Ausgangsprofil fehlt');
    const mode=String(cfg.mode);
    if(!['keep','1','2','3','4','5','onewire'].includes(mode))throw Error('Nicht erlaubter Ausgangsmodus im Profil');
@@ -625,7 +625,7 @@ const ELMOS_EXPERT=(()=>{
    $('expertScaleOffset').value=String(cfg.offset);
    modeChoiceEdited=true;
    manualScaling=!isAnalog(mode);
-   if(isAnalog(mode))calculateAnalogScaling();
+   if(isAnalog(mode)&&!deferAnalogScaling)calculateAnalogScaling();
    renderOutputMode();invalidateOutputPlan();
   }
   function renderOutputMode(){

@@ -19,6 +19,7 @@ const ELMOS_GUIDED=(()=>{
   ['Fertig','Abschlussprüfung','NVM und Neustartstatus kontrollieren. Den elektrischen Ausgang vor der Freigabe messen.']
  ];
  let stage=0,task='calibration',root=null,original=[],mode=false,plan=null,signature=null,taskOpening=false;
+ let startWaitCancelled=false,startRecoveryMode=null;
  let selectedPoint=0,visited=new Set([0]),poll=null,pendingCapture=null,afeStatsStart=0,afeGainSignature='';
  let latestCapture=null,lastCaptureRenderKey=null,nextSensorBusy=false,nextSensorPending=null,seriesPointFields=null;
  let connectionOpen=false,connectionBusy=false,chipResetPending=false;
@@ -36,7 +37,8 @@ const ELMOS_GUIDED=(()=>{
   // a calibration step or hardware write after a browser reload.
   try{localStorage.setItem(VIEW_PREFERENCE_KEY,view)}catch(_){}
  };
- const msg=(text,kind='')=>{const x=$('gwMessage');if(!x)return;x.hidden=!text;x.className='gw-alert'+(kind?' '+kind:'');x.textContent=text||''};
+ const msg=(text,kind='')=>{const x=$('gwMessage');if(!x)return;x.hidden=!text;x.className='gw-alert'+(kind?' '+kind:'');x.textContent=text||'';if(!text)showStartRecovery(null)};
+ function showStartRecovery(mode){startRecoveryMode=mode;const box=$('gwStartRecovery');if(!box)return;box.hidden=!mode;$('gwStartRetry').hidden=mode!=='error';$('gwStartDiagnose').hidden=mode!=='error';$('gwStartCancel').textContent=mode==='wait'?'Warten abbrechen':'Abbrechen';$('gwStartCancel').disabled=false;}
  const setText=(id,text)=>{if($(id))$(id).textContent=String(text)};
  const labelNode=id=>{const el=$(id),node=el?.closest('label');if(!node)throw Error('Originales Eingabefeld nicht gefunden: '+id);return node};
  function move(node,target){
@@ -153,7 +155,7 @@ const ELMOS_GUIDED=(()=>{
     '</div></section>'+
    '<div id="gwLogPage" class="gw-page gw-logger-page" hidden></div>'+
    '<dialog id="gwPresetDialog" aria-labelledby="gwPresetTitle"><div class="gw-preset-dialog-heading"><h3 id="gwPresetTitle">Sensor-Presets</h3><button id="gwPresetClose" type="button">Schliessen</button></div><div class="gw-fields gw-3" id="gwConfigFields"></div><div id="gwConfigSource"></div><div id="gwConfigGroups"></div><div class="gw-panel-actions" id="gwConfigActions"></div><div id="gwConfigEffect"></div><div id="gwConfigStatus"></div></dialog>'+
-   '<div id="gwMessage" class="gw-alert" hidden></div><footer class="gw-footer"><small id="gwFooterHint">E703.11 · Kalibrierassistent</small><div class="gw-actions"><button id="gwTasks" type="button" hidden>Zur Aufgabenübersicht</button><button id="gwPrevious" type="button">Zurück</button><button id="gwNext" class="primary" type="button">Weiter</button><button id="gwOutputSkipAlarm" class="primary" type="button" hidden disabled>Ohne Alarm- und Fehleränderung weiter zum NVM</button></div></footer></main></div>';
+   '<div id="gwMessage" class="gw-alert" hidden></div><div id="gwStartRecovery" class="gw-panel-actions" hidden><button id="gwStartRetry" class="primary" type="button">Erneut versuchen</button><button id="gwStartCancel" type="button">Abbrechen</button><button id="gwStartDiagnose" type="button">Verbindung &amp; Diagnose</button></div><footer class="gw-footer"><small id="gwFooterHint">E703.11 · Kalibrierassistent</small><div class="gw-actions"><button id="gwTasks" type="button" hidden>Zur Aufgabenübersicht</button><button id="gwPrevious" type="button">Zurück</button><button id="gwNext" class="primary" type="button">Weiter</button><button id="gwOutputSkipAlarm" class="primary" type="button" hidden disabled>Ohne Alarm- und Fehleränderung weiter zum NVM</button></div></footer></main></div>';
  }
  function build(){
   root=$('guidedWorkspace');
@@ -211,13 +213,13 @@ const ELMOS_GUIDED=(()=>{
   moveId('nvmWriteStatus','gwNvmWrite');
   moveId('nvmDiffDetails','gwNvmDetails');
   moveId('nvmRestartControls','gwPostBoot');
-  document.querySelectorAll('[data-gw-task]').forEach(button=>button.addEventListener('click',async()=>{
-   if(taskOpening)return;
-   taskOpening=true;
-   task=button.dataset.gwTask;
-   render();
-   try{await next()}finally{taskOpening=false}
-  }));
+  document.querySelectorAll('[data-gw-task]').forEach(button=>button.addEventListener('click',()=>openTask(button.dataset.gwTask)));
+  $('gwStartRetry').addEventListener('click',()=>openTask('calibration'));
+  $('gwStartCancel').addEventListener('click',()=>{
+   if(startRecoveryMode==='wait'){startWaitCancelled=true;$('gwStartCancel').disabled=true;return;}
+   showStartRecovery(null);msg('');
+  });
+  $('gwStartDiagnose').addEventListener('click',()=>{showStartRecovery(null);openConnectionPanel()});
   $('gwPresetLaunch').addEventListener('click',()=>$('gwPresetDialog').showModal());
   $('gwPresetClose').addEventListener('click',()=>$('gwPresetDialog').close());
   document.querySelectorAll('[data-gw-preset]').forEach(button=>button.addEventListener('click',()=>preset(button.dataset.gwPreset)));
@@ -1132,7 +1134,13 @@ const ELMOS_GUIDED=(()=>{
   }
   goto(8);return true;
  }
- async function next(seriesSettings=null){
+ async function openTask(selected){
+  if(taskOpening)return;
+  taskOpening=true;startWaitCancelled=false;showStartRecovery(null);
+  task=selected;render();
+  try{await next()}finally{taskOpening=false;updateUI()}
+ }
+ async function next(seriesSettings=null,seriesRetryArchiveId=null){
   if(fixedFitBusy)return;
   if(stage===0&&(task==='archive'||task==='verification')){
    if(window.ELMOS_TEST_LOGGER?.isBusy()){
@@ -1154,8 +1162,8 @@ const ELMOS_GUIDED=(()=>{
    if(task==='testlog'){goto(11);return}
    if(task==='calibration'){
     msg('Sensor wird neu gestartet. Original-NVM und RAM werden frisch ausgelesen …','warn');
-    try{await window.ELMOS_GUIDED_API.prepareNewCalibration();}
-    catch(e){msg('Neuer Abgleich konnte nicht vorbereitet werden: '+e.message,'error');return;}
+    try{await window.ELMOS_GUIDED_API.prepareNewCalibration({seriesRetryArchiveId,isCancelled:()=>!seriesSettings&&startWaitCancelled,onWait:label=>{if(label){msg(label+' läuft. Der Abgleich startet danach automatisch.','warn');if(!seriesSettings)showStartRecovery('wait')}else{showStartRecovery(null);msg('Sensor wird neu gestartet. Original-NVM und RAM werden frisch ausgelesen …','warn')}}});}
+    catch(e){showStartRecovery(null);if(startWaitCancelled&&!seriesSettings){msg('Start abgebrochen.','warn');return;}msg('Neuer Abgleich konnte nicht vorbereitet werden: '+e.message,'error');if(!seriesSettings)showStartRecovery('error');return;}
    }
    if(task==='calibration'&&!seriesSettings){
     try{await window.ELMOS_GUIDED_API?.offerSeriesPreset?.()}
@@ -1264,14 +1272,16 @@ const ELMOS_GUIDED=(()=>{
    if(record&&record.chipUID!==uid)
     throw Error('Für einen anderen Sensor ist bereits ein Protokoll offen. Bitte zuerst die Serie abbrechen und das Protokoll abschliessen.');
    task='calibration';stage=0;visited=new Set([0]);
-   await next(pending.settings);
+   await next(pending.settings,pending.retryArchiveId||null);
    if(stage!==1)return;
    nextSensorPending=null;
    seriesPointFields=pending.fields;
    render();
    msg('Einstellungen übernommen. Frontend im Sensor-RAM bestätigt.','success');
   }catch(e){
-   pending.offerPortPicker=!state().usbReady;
+   const record=window.ELMOS_ARCHIVE?.current;
+    if(record?.type==='calibration'&&record.chipUID===state().uid&&!state().points?.length&&!state().calStaged)pending.retryArchiveId=record.id;
+    pending.offerPortPicker=!state().usbReady;
    msg(e.message,'error');
   }
   finally{
