@@ -39,7 +39,12 @@ async function ready(p,id,expected=true){
  if(expected)await el.click({trial:true,timeout:8000});
 }
 async function click(p,id){await ready(p,id);await check(p,id).click();}
-async function stage(p,n){await visible(p,'gwPage'+n);}
+async function stage(p,n){
+ await visible(p,'gwPage'+n);
+ assert.equal(await p.evaluate(()=>window.ELMOS_GUIDED.isOpen()),true,'Unexpected departure from guided mode');
+ const pages=await p.locator('#guidedWorkspace [id^="gwPage"]').filter({visible:true}).evaluateAll(es=>es.map(e=>e.id));
+ assert.deepEqual(pages,['gwPage'+n],'Exactly one guided step must be visible');
+}
 async function state(p,expr,timeout=30000){
  await p.waitForFunction(expr,{}, {timeout});
 }
@@ -71,6 +76,8 @@ async function snapshot(p,dir,name,record){
  });
  record.stages.push({name,inventory});
  await p.screenshot({path:path.join(dir,name+'.png'),fullPage:true,animations:'disabled',timeout:12000});
+ const widthAudit=await p.evaluate(()=>({actual:document.documentElement.scrollWidth,viewport:innerWidth}));
+ assert.ok(widthAudit.actual<=widthAudit.viewport+2,'Page horizontal overflow: '+JSON.stringify(widthAudit));
 }
 async function settings(p){
  // Use the actual settings controls, not direct changes to application state.
@@ -131,6 +138,13 @@ async function runFlow(p,v,dir,record){
  assert.equal(await p.locator('.ptc-offline-diagnostic').isVisible(),false,'Duplicate temperature calculator visible');
  await ready(p,'gwAfeReset');
  if(external){
+  const help=p.locator('#gwPtcControls [data-ptc-help="method"]');
+  await help.click();await visible(p,'ptcHelpDialog');
+  const dialog=check(p,'ptcHelpDialog');
+  assert.match(await dialog.innerText(),/Rechenbeispiel/);
+  await snapshot(p,dir,'03-formula-help',record);
+  await dialog.locator('.nvmrecon-formula-close').click();
+  await visible(p,'ptcHelpDialog',false);await stage(p,3);
   await click(p,'gwPtcConfigure');
   await state(p,()=>document.querySelector('#gwPtcMessage').textContent.includes('RAM bestätigt'));
   await click(p,'gwPtcLow');await p.waitForTimeout(1000);
