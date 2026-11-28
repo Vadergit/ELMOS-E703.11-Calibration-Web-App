@@ -18,7 +18,7 @@ const {chromium}=require('playwright'),fs=require('node:fs'),path=require('node:
  });
  const shot=async(name,note,fn)=>{
   try{await fn();await page.waitForTimeout(250);await page.screenshot({path:'screenshots/'+name+'.png',fullPage:true,animations:'disabled',timeout:8000});records.push({name,note});}
-  catch(e){records.push({name,error:String(e)});}
+  catch(e){records.push({name,error:String(e)});try{await page.screenshot({path:'screenshots/'+name+'-FAILED.png',fullPage:true,animations:'disabled',timeout:5000});}catch(_){}}
  };
  const go=n=>page.evaluate(n=>window.__screenPreview.go(n),n);
  const reset=async()=>{await page.goto('http://127.0.0.1:8765/?demo=1');await page.waitForFunction(()=>window.ELMOS_GUIDED_API?.state()?.chip&&window.ELMOS_GUIDED?.isOpen?.(),{},{timeout:20000});};
@@ -85,6 +85,64 @@ const {chromium}=require('playwright'),fs=require('node:fs'),path=require('node:
    {preset:'custom',source:'internal',thermal:false,zeroOrder:true}];
   for(const view of [{width:1440,height:900,theme:'light'},{width:1024,height:768,theme:'light'},{width:768,height:1024,theme:'light'},{width:390,height:844,theme:'light'},{width:1440,height:900,theme:'dark'},{width:390,height:844,theme:'dark'}]){
    await page.setViewportSize({width:view.width,height:view.height});
+
+   // Common pages and modes do not depend on the calibration preset.
+   const prefix='common-'+view.width+'-'+view.theme;
+   await shot(prefix+'-offline','Actual disconnected start, no serial hardware',async()=>{
+    await page.goto('http://127.0.0.1:8765/');
+    await page.waitForFunction(()=>window.ELMOS_GUIDED?.isOpen?.());
+    await page.evaluate(theme=>{const e=document.getElementById('settingsTheme');e.value=theme;e.dispatchEvent(new Event('change',{bubbles:true}));},view.theme);
+    if(!await page.locator('#gwQuickConnectButton').isVisible())throw Error('Offline connect button missing');
+    if(await page.locator('#gwPrevious').isVisible()||await page.locator('#gwNext').isVisible())throw Error('Inert start navigation visible');
+   });
+   for(const board of ['ssp3','esp32','promicro'])for(const iface of ['plc','i2c']){
+    await shot(prefix+'-connect-'+board+'-'+iface,'Actual board/interface selection; no USB picker invoked',async()=>{
+     await page.locator('#gwQuickBoard').selectOption(board);await page.locator('#gwQuickInterface').selectOption(iface);
+     await page.locator('#gwQuickConnectButton').waitFor({state:'visible'});
+    });
+   }
+   await shot(prefix+'-diagnostics','Actual offline diagnostics',async()=>{
+    await page.locator('#gwConnectionToggle').click();await page.locator('#gwConnectionPage').waitFor({state:'visible'});
+    if(!await page.locator('#gwConnectionLog').isVisible())throw Error('USB log export missing');
+   });
+   for(const expert of [false,true])for(const adapter of ['ssp3','bridge']){
+    await shot(prefix+'-diagnostics-'+adapter+'-'+(expert?'expert':'normal'),'Adapter-specific diagnostic controls',async()=>{
+     await page.evaluate(expert=>{const e=document.getElementById('expertMode');e.checked=expert;e.dispatchEvent(new Event('change',{bubbles:true}));},expert);
+     await page.locator('#gwConnectionAdapter').selectOption(adapter);await page.waitForTimeout(800);
+     const spi=await page.locator('#gwConnectionInterface option[value="spi"]').isDisabled();
+     if(spi!==(adapter==='bridge'||!expert))throw Error('SPI availability mismatch');
+     if(await page.locator('#gwConnectionAdvanced').isVisible()!==expert)throw Error('Expert diagnostics visibility mismatch');
+    });
+   }
+   await reset();
+   await shot(prefix+'-demo-home','Actual demo home',async()=>{await go(0);});
+   for(const stage of [6,7,8,9,10,11]){
+    await shot(prefix+'-step-'+stage,'Layout preview only; no fabricated success flags',async()=>{await go(stage);});
+   }
+   for(const expert of [false,true])for(const output of ['keep','1','2','3','4','5','onewire']){
+    await shot(prefix+'-output-'+output+'-'+(expert?'expert':'normal'),'Output layout preview; no apply or NVM action',async()=>{
+     await go(7);await page.evaluate(({expert,output})=>{
+      const e=document.getElementById('expertMode');e.checked=expert;e.dispatchEvent(new Event('change',{bubbles:true}));
+      const mode=document.getElementById('expertOutputMode');mode.value=output;mode.dispatchEvent(new Event('change',{bubbles:true}));
+     },{expert,output});
+     if(await page.locator('#gwOutputVoltage').isVisible()!==['keep','1','2','3'].includes(output))throw Error('Analog scaling visibility mismatch');
+     if(await page.locator('#gwAdvancedOutput').isVisible()!==expert)throw Error('Expert output visibility mismatch');
+    });
+   }
+   for(const enabled of [false,true]){
+    await shot(prefix+'-alarms-'+(enabled?'edit':'skip'),'Optional alarm controls',async()=>{
+     await go(8);await page.locator('#gwUseAlarms').setChecked(enabled);
+     if(await page.locator('#gwAlarmConfigArea').isVisible()!==enabled)throw Error('Alarm control visibility mismatch');
+    });
+   }
+   await reset();
+   await shot(prefix+'-settings','Actual settings dialog',async()=>{await page.locator('#settingsOpen').click();});
+   await reset();
+   await shot(prefix+'-verification','Actual verification view',()=>page.evaluate(()=>window.ELMOS_ARCHIVE.open('verification')));
+   await reset();
+   await shot(prefix+'-archive','Actual archive view',()=>page.evaluate(()=>window.ELMOS_ARCHIVE.open('archive')));
+   await reset();
+   await shot(prefix+'-calculator','Actual sensor bridge calculator',()=>page.evaluate(()=>window.ELMOS_GUIDED.openNvmCalculator()));
    for(const v of matrix){
     const key='matrix-'+view.width+'-'+view.theme+'-'+v.preset+'-'+v.source+(v.zeroOrder?'-T0':'');
     const external=v.thermal&&v.source!=='internal';
