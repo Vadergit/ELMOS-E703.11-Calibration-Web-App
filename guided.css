@@ -465,3 +465,9 @@ html[data-theme="dark"] #guidedWorkspace .gw-quick-connect{background:#382e1d;co
  #guidedWorkspace .gw-sideitem{flex:0 0 auto;min-width:100px;max-width:180px;width:auto}
  #guidedWorkspace .gw-point-nav{min-width:0;max-width:100%}
 }
+
+/* Normal calibration: the original NVM is already secured at entry; keep a recovery action if it is not verified. Analog staging recalculates S0/S1 itself. Standalone output and classic view retain their controls. */
+#gwPage7.gw-output-no-reread #outputNvmRead,
+#gwPage7.gw-output-auto-analog #expertOutputPreset,
+#gwPage7.gw-output-calibration #gwOutputSkipAlarm { display:none !important; }
+#gwPage7.gw-output-calibration #gwOutputSkipAlarm:only-child { display:none !important; }
