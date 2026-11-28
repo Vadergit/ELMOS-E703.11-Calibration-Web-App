@@ -148,7 +148,8 @@ const ELMOS_CAL = (() => {
      Math.floor(index/(orderT+1))*4+index%(orderT+1));
    if(ps.length<keys.length)throw Error(`Mindestens ${keys.length} unabhängige Messpunkte nötig.`);
   const smin=Math.min(...ps.map(p=>p.s)),smax=Math.max(...ps.map(p=>p.s));
-  if(smax-smin<4000)throw Error('ADC-Signalhub zu klein für eine numerisch stabile Kalibrierung. AFE anpassen.');
+  const devTemperature=ps.every(p=>['bridge','external'].includes(p.temperatureSource));
+  if(smax===smin||(!devTemperature&&smax-smin<4000))throw Error('ADC-Signalhub zu klein für eine numerisch stabile Kalibrierung. AFE anpassen.');
   // AN0203 and 25DS0170E.04 §6.3: ADC_S and DSP_S are Q0.15; S_F / S_O are Q3.12.
   // Use ±0.99 where representable. For smaller spans let the coefficient
   // range and fit error checks determine whether the requested target fits.
@@ -185,7 +186,7 @@ const ELMOS_CAL = (() => {
    const fittedT=solveFit(trows,ty);tRegs=Array(4).fill(0);fittedT.forEach((v,i)=>tRegs[i]=q(v,15,'T'+i));
    tErrors=ps.map((p,i)=>32768*(tRegs.reduce((s,v,k)=>s+fromQ(v,15)*normT(p.t)**k,0)-ty[i]));
   }
-  return {method:'browser-independent-polynomial-fit',points:ps.length,recordedPoints:allPoints.length,ignoredTemperaturePoints:allPoints.length-ps.length,normalization:{sScale,tScale},pressureOnly:orderT===0,referenceTemperature:orderT===0?ps[0]?.temp:null,orderS,orderT,fitMode,outputLimit,registers:{so,sf,coeffs:regs,to,tf,tcoeffs:tRegs},stats:{maxDigits:max,rmsDigits:rms,maxTemperatureDigits:tErrors.length?Math.max(...tErrors.map(Math.abs)):null,rangeDigits:smax-smin,maxNormalized:Math.max(...ps.map(p=>Math.abs(normS(p.s)))),maxOutput},errors,coefficients:decoded,note:'Q3.12/Q0.15 nach Datenblatt; numerischer JavaScript-Fit, nicht identisch mit der Elmos-Kalibrier-DLL. '+(orderT===0?'Ohne TK-Kompensation: nur Druckmessungen einer Referenztemperatur werden verwendet; bestehende Temperaturregister bleiben unverändert. ':'')+'Vor Programmierung RAM/DSP-Verifikation notwendig.'};
+  return {method:'browser-independent-polynomial-fit',points:ps.length,recordedPoints:allPoints.length,ignoredTemperaturePoints:allPoints.length-ps.length,normalization:{sScale,tScale},pressureOnly:orderT===0,referenceTemperature:orderT===0?ps[0]?.temp:null,orderS,orderT,fitMode,outputLimit,registers:{so,sf,coeffs:regs,to,tf,tcoeffs:tRegs},stats:{lowSignalHubWarning:smax-smin<4000,maxDigits:max,rmsDigits:rms,maxTemperatureDigits:tErrors.length?Math.max(...tErrors.map(Math.abs)):null,rangeDigits:smax-smin,maxNormalized:Math.max(...ps.map(p=>Math.abs(normS(p.s)))),maxOutput},errors,coefficients:decoded,note:'Q3.12/Q0.15 nach Datenblatt; numerischer JavaScript-Fit, nicht identisch mit der Elmos-Kalibrier-DLL. '+(orderT===0?'Ohne TK-Kompensation: nur Druckmessungen einer Referenztemperatur werden verwendet; bestehende Temperaturregister bleiben unverändert. ':'')+'Vor Programmierung RAM/DSP-Verifikation notwendig.'};
  }
  /** Propose a conservative, verified DSP target without changing the caller's settings or writing the chip.
   * A lower DSP target can fix a saturated DSP S-coefficient, but not an AFE or temperature-path fault.
