@@ -5132,7 +5132,8 @@ if(typeof document!=='undefined') (function UI(){
   button.disabled=true;
   nvmWriteFeedback('Speicherauftrag erhalten. Voraussetzungen werden geprüft …');
   ca('nvmMsg','NVM-Speicherauftrag gestartet: Erst Archiv, Chip-UID und Schreibfreigabe prüfen. Noch keine NVM-Wörter geschrieben.','warn');
-  try{return await withProgress('NVM-Schreibvorgang wird vorbereitet',progress=>nvmProgramOperation(progress),true);}
+  let result;
+  try{result=await withProgress('NVM-Schreibvorgang wird vorbereitet',progress=>nvmProgramOperation(progress),true);}
   catch(error){
    nvmWriteFeedback('Vorgang abgebrochen: '+error.message,'error');
    ca('nvmMsg','NVM-Speichervorgang fehlgeschlagen: '+error.message,'error');
@@ -5140,6 +5141,11 @@ if(typeof document!=='undefined') (function UI(){
    st.nvmAttempting=false;
    renderFlowState();
   }
+  // Navigate only after a verified write and completion of all maintenance/UI cleanup.
+  if(result?.verified&&st.nvmDone){
+   try{window.ELMOS_GUIDED?.onNvmProgrammed?.(result)}catch(e){logging('Abschlussprüfung konnte nicht automatisch geöffnet werden: '+e.message)}
+  }
+  return result;
  }
  async function nvmProgramOperation(progress){
   if(st.nvmWorking||st.writing)return;
@@ -5408,6 +5414,7 @@ if(typeof document!=='undefined') (function UI(){
     (!restoring&&!outputOnly&&!alarmOnly?
      completeExportSaved?' Komplette Abgleichdatei im Archivordner gespeichert.':' WARNUNG: Komplette Abgleichdatei nicht bestätigt, Archiv prüfen.':'')+
     ' Sensor neu starten und Ausgang messen.',completeExportSaved||restoring||outputOnly||alarmOnly?'success':'warn');
+   return {verified:true,archiveWarning:!restoring&&!outputOnly&&!alarmOnly&&!completeExportSaved};
   }catch(e){
    try{await window.ELMOS_ARCHIVE?.event('error',{stage:'nvm_program',programmingStarted:chipProgrammingStarted,message:e.message})}catch(_){}
    const suffix=chipProgrammingStarted?
