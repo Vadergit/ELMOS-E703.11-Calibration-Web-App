@@ -69,14 +69,14 @@
   const info={svdd:s,nom:s/r.nominalOhm*1000,min:bounds[0]/r.maxOhm*1000,max:bounds[1]/r.minOhm*1000};
   if(configured){const g=A.rpga(configured.code);info.allowedMin=g.minCurrent;info.allowedMax=g.maxCurrent;info.code=configured.code;
     if(Number.isInteger(latest?.adcT)&&Number.isInteger(latest?.afe0)&&Number.isInteger(latest?.afe2)&&((latest.afe0>>4)&15)===configured.code){
-      try{const x=A.estimate({adc:latest.adcT,svdd:s,afe0:latest.afe0,afe2:latest.afe2});if(x.valid){info.live=x.current;info.liveR=x.resistanceOhm;}}catch(_){}
+      try{const x=A.estimate({adc:latest.adcT,svdd:s,afe0:latest.afe0,afe2:latest.afe2});if(latest.adcT===-32768||latest.adcT===32767)info.liveWarning='ADC_T gesättigt – keine gültige R-Schätzung';else if(x.valid){info.live=x.current;info.liveR=x.resistanceOhm;}else info.liveWarning='ADC_T ausserhalb RPGA-/MUX-Bereich';}catch(_){}
     }
   }return info;
  }
  const ma=x=>Number.isFinite(x)?(x*1000).toLocaleString('de-CH',{maximumFractionDigits:1})+' µA':'—';
  function renderCurrent(){
   const el=$('gwPtcCurrent'),alarm=$('ptcAlarmCurrent');let i=null;try{i=currentInfo()}catch(_){}
-  const desc=i?'SVDD nominal '+i.svdd.toFixed(1)+' V · Gesamtstrom bei 25 °C '+ma(i.nom)+' · Auslegungsbereich '+ma(i.min)+' bis '+ma(i.max)+(i.code!==undefined?' · RPGA '+i.code+': spezifiziert '+ma(i.allowedMin)+' bis '+ma(i.allowedMax):'')+(i.live!==undefined?' · aus ADC_T geschätzt '+ma(i.live)+' / '+fmt(i.liveR)+' Ω':''):'';
+  const desc=i?'SVDD nominal '+i.svdd.toFixed(1)+' V · Gesamtstrom bei 25 °C '+ma(i.nom)+' · Auslegungsbereich '+ma(i.min)+' bis '+ma(i.max)+(i.code!==undefined?' · RPGA '+i.code+': spezifiziert '+ma(i.allowedMin)+' bis '+ma(i.allowedMax):'')+(i.live!==undefined?' · aus ADC_T geschätzt '+ma(i.live)+' / '+fmt(i.liveR)+' Ω':'')+(i.liveWarning?' · '+i.liveWarning:''):'';
   if(el){el.hidden=!i;el.textContent=desc;}
   if(alarm)alarm.textContent=(desc?desc+'. ':'')+'Brückenstrombereich ist eine AFE-Auslegungsgrösse, keine frei einstellbare Chip-Stromalarmschwelle. BS/BC/ACD sind separate Hardwarediagnosen.';
  }
@@ -92,7 +92,7 @@
    }else if(source==='bridge'){
     add('Widerstand und Temperatur','Der PTC liegt parallel zur Messbrücke. Die temperaturabhängigen Widerstände bilden den Gesamtwiderstand. Elektrischer Brücken-TKR und PTC-TKR sind nicht TK0/TKE der Druckkennlinie.','R_PTC(T) = R25 · [1 + α·(T−25)/10⁶]\nR_ges = R_B · R_PTC / (R_B + R_PTC)\nI_B = SVDD / R_ges');
     add('Strommessung und RPGA','Der Chip bildet aus dem Gesamtstrom eine Spannung über einen virtuellen 9-kΩ-Strommesswiderstand. br_gain bestimmt den I/U-Faktor. Die Auswahl berücksichtigt den spezifizierten Strombereich sowie TPGA1 ×2 / TPGA2 ×1 (MUX nominal 0,425–1,000 V).','I/U = 9000 / (RPGA1 · RPGA2) [Ω]\nU_MUX = I_B · I/U\nADC_T ≈ (U_MUX − 0,65 V) · 2 · 32768');
-    add('Einzelmessung und Werkstrimm','Im Demo-Modus wird der Messwert simuliert. Bei echter Hardware sucht die Software automatisch eine gültige RPGA-Stufe und berechnet den Gesamtwiderstand aus stabilen ADC_T-Rohwerten. Eine externe Messung bleibt optional. Eine Abschätzung aus ADC_T, bekanntem br_gain und SVDD möglich; Genauigkeit hängt von realer SVDD und Werkstrimm ab. G01/G2OFF und ADC_TC korrigieren die Drift des virtuellen Messwiderstands. Der Demo-Fit nutzt Null-Trimmwerte; der Hardware-Fit verwendet die originalen G01/G2OFF-Wörter aus dem CRC-geprüften NVM.','I_B ≈ (0,65 + ADC_T/65536) / (I/U)\nR_ges ≈ SVDD / I_B');
+    add('Einzelmessung und Werkstrimm','Im Demo-Modus wird der Messwert simuliert. Bei echter Hardware sucht die Software automatisch eine gültige RPGA-Stufe und berechnet den Gesamtwiderstand aus stabilen ADC_T-Rohwerten. Eine externe Messung bleibt optional. Die Genauigkeit hängt von realer SVDD, Referenz und Verstärkung ab. G01/G2OFF und ADC_TC korrigieren die Drift des virtuellen Messwiderstands. Der Demo-Fit nutzt Null-Trimmwerte; der Hardware-Fit verwendet die originalen G01/G2OFF-Wörter aus dem CRC-geprüften NVM.','I_B ≈ (0,65 + ADC_T/65536) / (I/U)\nR_ges ≈ SVDD / I_B');
     try{const r=P.range(model()),i=currentInfo();add('Aktuelles Beispiel','PTC nominal '+fmt(r.ptcMinOhm)+'–'+fmt(r.ptcMaxOhm)+' Ω; R gesamt bei 25 °C '+fmt(r.nominalOhm)+' Ω. Bei SVDD '+i.svdd.toFixed(1)+' V fliessen nominal '+ma(i.nom)+'. Toleranzbereich '+ma(i.min)+'–'+ma(i.max)+'.');}catch(_){}
    }else{
     add('Spannungsmessung','EOC erfasst eine temperaturabhängige Spannung, z. B. von einem NTC/PTC-Spannungsteiler oder einer Diode. Die Diode kann über die interne Stromquelle (nominal 10 µA) gespeist werden. EOC darf nicht gleichzeitig STATUS-Ausgang oder I²C-SDA sein.','U_EOC(T) = U25 + Steigung · (T−25)\nADC_T ≈ (U_EOC − 0,65 V) · TPGA1 · TPGA2 · 32768');
@@ -103,6 +103,9 @@
    return {title:key==='source'?'Temperaturmessquelle · '+heading:heading+' · Berechnung',sections};
   }
   const fields={
+   measuredOhm:['Externe Referenzmessung','Optional: Gesamtwiderstand bei bekannter Temperatur am stromlosen Sensor messen. Leer lassen für automatische ADC_T-Rückrechnung.'],
+   measuredTemp:['Referenztemperatur','Tatsächliche Temperatur des Sensors während der automatischen Widerstandsermittlung. Nicht die Solltemperatur der Klimakammer verwenden, solange der Sensor noch nicht stabil ist.'],
+   measurementUncertainty:['Unsicherheit der Widerstandsschätzung','±15 % ist eine einstellbare technische Annahme für nominale SVDD, Referenz, Verstärkung und Messung; keine garantierte Messgenauigkeit. Bei extern kalibrierter Messung entsprechend anpassen.'],
    bridgeOhm:['Messbrückenwiderstand','Widerstand zwischen SVDD und SVSS der Brücke ohne PTC bei 25 °C. Nicht mit dem Drucksignal in mV/V verwechseln.'],
    parallelOhm:['PTC-Widerstand','Parallelwiderstand bei 25 °C. 7 kΩ ist ein Auslegungswert, keine bestätigte Fertigungsspezifikation.','R(T) = R25 · [1 + TKR·(T−25)/10⁶]'],
    ptcTcr:['PTC-TKR','Relative elektrische Widerstandsänderung in ppm/K. 2’000 ppm/K = +0,2 % pro Kelvin, bei 7 kΩ nominal 14 Ω/K.'],
