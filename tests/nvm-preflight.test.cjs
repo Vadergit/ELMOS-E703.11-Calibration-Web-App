@@ -68,7 +68,7 @@ function simulatePreflight({cookie=false,cold=false,first=false,temperature=fals
  const words=first?firstCalibrationImage():w();
  if(temperature){words[16]|=4;words[36]=42;words[63]=C.crc16(words);}
  if(cookie){words[17]=0;words[19]&=~(1<<7);words[63]=C.crc16(words);}
- const active=ram(words),fields={pmin:'0',pmax:'6',calUnit:'bar',calUnitOther:'',calPointCount:'3',calTempSource:'internal',calTOrder:'0',calSOrder:'1',calFitMode:'pressure',calLoTemp:'25',calHiTemp:'25',calExtra1Pressure:'0',calExtra1Temp:'75',expertOutputMode:'1'};
+ const active=ram(words),fields={pmin:'0',pmax:'6',calUnit:'bar',calUnitOther:'',calPointCount:'3',calTempSource:'internal',calTOrder:'0',calSOrder:'1',calFitMode:'full',calLoTemp:'25',calHiTemp:'25',calExtra1Pressure:'0',calExtra1Temp:'75',expertOutputMode:'1'};
  const st={iface:'plc',adapterKind:'ssp3',port:{},chip:true,uid:{hex:'002000123456'},sessionIndex:1,nvmBackup:words,regs:{6:words[17]},calpoints:[]};
  if(esp32){
   st.adapterKind='bridge';st.psscRamRecovery=true;st.bridgeUserNvm=true;
@@ -79,7 +79,8 @@ function simulatePreflight({cookie=false,cold=false,first=false,temperature=fals
  const statuses=[];
  const $=id=>({value:fields[id]??'',checked:true});
  const section=(a,b)=>preflightApp.slice(preflightApp.indexOf(a),preflightApp.indexOf(b,preflightApp.indexOf(a)));
- const code=section('function capturedReferenceMatches(','function calEndpointsReady(')+
+ const code=section('function selectedTemperatureSource(','function hardwareTemperature(')+
+  section('function capturedReferenceMatches(','function calEndpointsReady(')+
   section('function retainedCalibrationReferencesMatch(','const checkpointKey=')+
   section('function activePreflight(','function confirmedOperatingProfile(')+
   section('async function calibrationPreflight(','async function restoreCalibrationCheckpoint(')+'\nreturn calibrationPreflight;';

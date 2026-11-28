@@ -4,8 +4,8 @@
 function createTemperatureDispatch(standard,extended){
  const betaPoints=points=>Array.isArray(points)&&points.length>0&&['bridge','external'].includes(points[0].temperatureSource)&&points.every(p=>p.temperatureSource===points[0].temperatureSource);
  return Object.freeze({...standard,
-  fit:(points,opts)=> (betaPoints(points)?extended:standard).fit(points,opts),
-  suggestDspLimit:(points,opts)=>(betaPoints(points)?extended:standard).suggestDspLimit(points,opts),
+  fit:(points,opts)=> (Number(opts?.orderT??0)>0&&betaPoints(points)?extended:standard).fit(points,opts),
+  suggestDspLimit:(points,opts)=>(Number(opts?.orderT??0)>0&&betaPoints(points)?extended:standard).suggestDspLimit(points,opts),
   planCalibrationProfile:(original,ram,opts={})=>{
    if(opts.devTemperature)return extended.planCalibrationProfile(original,ram,opts);
    const {devTemperature,...normal}=opts;return standard.planCalibrationProfile(original,ram,normal);

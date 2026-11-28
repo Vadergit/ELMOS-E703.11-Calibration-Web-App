@@ -351,12 +351,16 @@ const ELMOS_GUIDED=(()=>{
   });
  }
  // Read-only UI state: never change temperature source, plan, adapter or registers.
+ function temperatureCompensationEnabled(){
+  const count=Number($('gwTemperatureCount')?.value);return !Number.isFinite(count)||count<1?true:count>1&&($('gwComplexity')?.value!=='advanced'||Number($('gwTOrder')?.value)>0);
+ }
  function syncTemperaturePresentation(){
   if(!root||!$('gwTemperatureCount'))return;
-  const enabled=plan?plan.tempComp:true;
+  const enabled=temperatureCompensationEnabled();
   root.dataset.temperatureCompensation=enabled?'on':'off';
   setText('gwSetupThermalHeading',enabled?'Temperatur und DSP':'DSP-Zielbereich');
-  setText('gwSetupThermalNote',enabled?'Temperaturstufen und digitaler Zielbereich':'Referenztemperatur · ohne Temperaturkorrektur');
+  setText('gwSetupThermalNote',enabled?'Temperaturstufen und digitaler Zielbereich':'Nur Druck · vorhandenes Temperaturprofil bleibt erhalten');
+  window.ELMOS_PTC_DEV_UI?.refresh?.();
  }
  function renderPlan(){
   const pCount=Number($('gwPressureCount').value),tCount=Number($('gwTemperatureCount').value);
@@ -1307,7 +1311,7 @@ const ELMOS_GUIDED=(()=>{
      $('calUnit').value!==plan.unit)return null;
   return {pCount:plan.pCount,tCount:plan.tCount,fitMode:plan.fitMode};
  }
- return {init,open,close,openNvmCalculator,closeNvmCalculator,temperatureSourceChanged,onNvmProgrammed,wantsAutomaticPostBoot,preferredView:()=>rememberedView()==='classic'?'classic':'guided',goToStart:()=>{if(mode&&!nextSensorPending)goto(0)},goToCoefficients:()=>{if(mode&&task==='calibration'&&!nextSensorPending)goto(5)},resetForHome,hasUnfinishedTask,hasPendingOperation,onConnected,onSensorReset,makePlan,planForPreset:()=>mode&&stage>=1&&stage<=2?makePlan():plan,isOpen:()=>mode,appliedPlanForConfig};
+ return {init,open,close,openNvmCalculator,closeNvmCalculator,temperatureCompensationEnabled,temperatureSourceChanged,onNvmProgrammed,wantsAutomaticPostBoot,preferredView:()=>rememberedView()==='classic'?'classic':'guided',goToStart:()=>{if(mode&&!nextSensorPending)goto(0)},goToCoefficients:()=>{if(mode&&task==='calibration'&&!nextSensorPending)goto(5)},resetForHome,hasUnfinishedTask,hasPendingOperation,onConnected,onSensorReset,makePlan,planForPreset:()=>mode&&stage>=1&&stage<=2?makePlan():plan,isOpen:()=>mode,appliedPlanForConfig};
 })();
 if(typeof window!=='undefined')window.ELMOS_GUIDED=ELMOS_GUIDED;
 if(typeof document!=='undefined'){

@@ -1,3 +1,9 @@
+## v0.7.208 – Schnellabgleich ohne erzwungenes internes Temperaturprofil
+
+- Reiner Druckabgleich mit unverändertem gültigem internem, Brücken- oder EOC-Temperaturprofil. RAM/NVM-Übereinstimmung, UID/CRC, DSP-Prüfung und NVM-Schutz bleiben Pflicht. Keine automatische Umstellung der Temperaturquelle; bestehende Temperaturkoeffizienten bleiben erhalten. Druck-TK-Koeffizienten werden beim reinen Druckfit wie bisher ersetzt (Bestätigung bei vorhandener TK).
+- Messpunktaufnahme, Fit-Auswahl, RAM-Übernahme und NVM-Diff verwenden konsistente Druck-only-Prüfung. Temperatur-AFE im geführten Schnellabgleich ausgeblendet. Bestehende Temperaturabgleichpfade und USB-/Adapterprotokolle bleiben unverändert.
+- Hardwareprüfung und vollständige CI ausstehend.
+
 ## v0.7.207 – Geführte Oberfläche (UI-only)
 
 - Selektive Darstellung aus ui-ux-redesign auf Main v0.7.203: kompakte Hilfen, Messpunkt-Hubübersicht, responsives Layout und kontextbezogene Anzeige.

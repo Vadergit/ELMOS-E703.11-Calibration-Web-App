@@ -1104,7 +1104,7 @@ if(typeof document!=='undefined') (function UI(){
   const gains=JSON.stringify(st.staged);
   if(st.calpoints.some(x=>JSON.stringify(x.gains)!==gains))
    return 'Messpunkte wurden mit unterschiedlichen AFE-Gains aufgenommen. PGA1/PGA2/Offset/Brückenpolarität prüfen und betroffene Punkte erneut aufnehmen.';
-  if(st.calpoints.some(x=>x.temperatureSource!==selectedTemperatureSource()))
+  if(st.calpoints.some(x=>x.temperatureSource!==pointTemperatureSource()))
    return 'Messpunkte wurden mit unterschiedlicher Temperaturmessquelle aufgenommen. Quelle kontrollieren und Messpunkte neu erfassen.';
   if(st.calpoints.some(x=>!capturedReferenceMatches(x)))
    return 'Ein aufgenommener Messpunkt hat andere Druck-/Temperaturreferenzen als die aktuelle Eingabe. Nur den betroffenen Punkt erneut aufnehmen.';
@@ -1128,13 +1128,20 @@ if(typeof document!=='undefined') (function UI(){
   if(!Number.isFinite(count)||!lo||!hi||!Number.isFinite(lo.v)||!Number.isFinite(hi.v)||Math.abs(lo.v-hi.v)<10)return false;
   const gains=JSON.stringify(st.staged);
   if(JSON.stringify(lo.gains)!==gains||JSON.stringify(hi.gains)!==gains)return false;
-  if(st.calpoints.length!==count||st.calpoints.some(x=>JSON.stringify(x.gains)!==gains||!Number.isFinite(x.adc_s)||x.temperatureSource!==selectedTemperatureSource()||!capturedReferenceMatches(x)))return false;
+  if(st.calpoints.length!==count||st.calpoints.some(x=>JSON.stringify(x.gains)!==gains||!Number.isFinite(x.adc_s)||x.temperatureSource!==pointTemperatureSource()||!capturedReferenceMatches(x)))return false;
   const pmin=Number($('pmin').value),pmax=Number($('pmax').value);
   if(!(pmax>pmin)||lo.pressure!==pmin||hi.pressure!==pmax)return false;
   if(st.calpoints.filter(x=>x.kind==='lo').length!==1||st.calpoints.filter(x=>x.kind==='hi').length!==1)return false;
   return Array.from({length:count-2},(_,i)=>i+1).every(slot=>st.calpoints.filter(x=>x.kind==='extra'&&x.slot===slot).length===1)
  }
  function selectedTemperatureSource(){return $('calTempSource').value}
+ function pressureOnlyCalibration(){return Number($('calTOrder').value)===0&&$('calFitMode').value==='full';}
+ function pointTemperatureSource(){
+  if(!pressureOnlyCalibration())return selectedTemperatureSource();
+  if(demoEnabled)return 'internal';
+  const word=st.regs[0x1E];
+  return Number.isInteger(word)?CAL.temperatureSourceFromAfe2(word):null;
+ }
  function hardwareTemperature(source=selectedTemperatureSource()){
   const d=st.ptcHardware;return ptcDev&&!demoEnabled&&st.chip&&st.port&&d?.port===st.port&&d.session===st.sessionIndex&&d.uid===st.uid?.hex&&d.source===source?d.words:null;
  }
@@ -1282,7 +1289,7 @@ if(typeof document!=='undefined') (function UI(){
   return target;
  }
  async function ensureInternalTemperatureProfile(){
-  if(!ptcDev||demoEnabled||selectedTemperatureSource()!=='internal')return;
+  if(pressureOnlyCalibration()||!ptcDev||demoEnabled||selectedTemperatureSource()!=='internal')return;
   if(!st.chip||!st.port||st.calTask||st.writing||st.nvmWorking||st.closing)throw Error('Temperaturquelle: zuerst freien, verbundenen Sensor sicherstellen.');
   const actual=await readReg(0x1E);
   st.regs[0x1E]=actual;
@@ -1333,6 +1340,14 @@ if(typeof document!=='undefined') (function UI(){
  }
  async function checkCalibrationTemperatureSource(){
   const selected=selectedTemperatureSource();
+  if(pressureOnlyCalibration()){
+   if(demoEnabled)return {temperatureSource:'internal',afe2:null};
+   if(!hasCurrentNvmBackup())throw Error('Druckabgleich: Original-NVM mit UID und CRC nicht bestätigt.');
+   const afe2=await readReg(0x1E),cfgEn=await readReg(4),afe0=await readReg(0x1A);
+   const source=CAL.validatePressureOnlyTemperatureProfile(st.nvmBackup,{[0x1e]:afe2,4:cfgEn,[0x1a]:afe0},{allowInternalRamModeChange:activePreflight()?.plan.temperatureRamChange===true});
+   st.regs[0x1E]=afe2;
+   return {temperatureSource:source,afe2};
+  }
   if(ptcDev&&demoEnabled&&['bridge','external'].includes(selected)){
    if(!demoPort.ptcConfigured(selected))throw Error('Zuerst Temperatur-AFE im geführten AFE-Schritt einstellen.');
    const afe2=await readReg(0x1E);if(CAL.temperatureSourceFromAfe2(afe2)!==selected||(selected==='bridge'&&(afe2&0x0fff)!==0x014a))throw Error('Simuliertes Temperatur-AFE nicht bestätigt');
@@ -1474,9 +1489,12 @@ if(typeof document!=='undefined') (function UI(){
    const ram=await readCalibrationProfile(),reference=calibrationReferenceSnapshot();
    if(st.port!==port||st.sessionIndex!==session||st.uid?.hex!==uid||!hasCurrentNvmBackup()||!CAL.sameNvmImage(words,st.nvmBackup))throw Error('Sensor oder Original-NVM während Vorabprüfung geändert.');
    const allowBridgeSupplyChange=!recovery||st.adapterKind==='bridge'&&bridgeCombinedRecoveryReady();
-   const source=selectedTemperatureSource(),temperature=source==='internal'?null:hardwareTemperature(source);
+   const pressureOnly=pressureOnlyCalibration(),source=selectedTemperatureSource(),temperature=pressureOnly||source==='internal'?null:hardwareTemperature(source);
+   if(pressureOnly){CAL.validatePressureOnlyTemperatureProfile(words,ram,{allowInternalRamModeChange:allowOperatingChanges});st.regs[0x1E]=ram[0x1e];}
+   else{
     if(source==='internal'&&(ram[0x1e]&3)!==0)throw Error('Interne Temperaturquelle ausgewählt, RAM verwendet '+temperatureSourceLabels[CAL.temperatureSourceFromAfe2(ram[0x1e])]+'. Im AFE-Schritt zurücksetzen oder Messpunkt erneut starten.');
-   if(source!=='internal'&&!temperature)throw Error('DEV: Temperatur-AFE vor erster Messung einstellen.');
+    if(source!=='internal'&&!temperature)throw Error('DEV: Temperatur-AFE vor erster Messung einstellen.');
+   }
    const plan=CAL.planCalibrationProfile(words,ram,{orderT:Number($('calTOrder').value),recovery,allowOperatingChanges,allowBridgeSupplyChange,allowSingleMeasurement:st.iface==='i2c'&&st.adapterKind==='bridge',filterCatalog:filterProfiles.map(f=>f[1]),devTemperature:temperature});
    const previous=activePreflight();
    const same=previous&&CAL.sameMeasurementProfile(previous.ram,ram)&&
@@ -1514,7 +1532,7 @@ if(typeof document!=='undefined') (function UI(){
    const uid=st.uid?.hex,draft=storedCalibrationCheckpoint(uid);
    if(!draft)throw Error('Kein Entwurf für den verbundenen Chip.');
    const proof=await calibrationPreflight({restoringDraft:true});
-   if(!proof||!CAL.checkpointMatches(draft,{uid,words:proof.words,ram:proof.ram,gains:st.staged,reference:proof.reference})||!draft.points.every(p=>capturedReferenceMatches(p)&&p.temperatureSource===selectedTemperatureSource()&&JSON.stringify(p.gains)===JSON.stringify(st.staged)))throw Error('Wiederherstellung gesperrt: NVM, RAM-Messprofil, AFE oder Referenzplan stimmen nicht überein. Entwurf bleibt erhalten.');
+   if(!proof||!CAL.checkpointMatches(draft,{uid,words:proof.words,ram:proof.ram,gains:st.staged,reference:proof.reference})||!draft.points.every(p=>capturedReferenceMatches(p)&&p.temperatureSource===pointTemperatureSource()&&JSON.stringify(p.gains)===JSON.stringify(st.staged)))throw Error('Wiederherstellung gesperrt: NVM, RAM-Messprofil, AFE oder Referenzplan stimmen nicht überein. Entwurf bleibt erhalten.');
    if(!window.confirm('Messpunkte desselben Chips wiederherstellen? Druck-/Temperaturreferenzen und AFE müssen unverändert sein. DSP und NVM-Freigabe werden neu geprüft.'))return;
    await window.ELMOS_ARCHIVE?.ensureCalibration();
    st.points={lo:null,hi:null};
@@ -1559,13 +1577,13 @@ if(typeof document!=='undefined') (function UI(){
     try{
      if(st.iface==='i2c'&&st.adapterKind==='bridge')await triggerSingleMeasurement({capture:true});
      value.s=P.sign16(await readReg(0x2A));
-     if(ptcDev&&!demoEnabled&&sourceInfo.temperatureSource!=='internal'){
+     if(!pressureOnlyCalibration()&&ptcDev&&!demoEnabled&&sourceInfo.temperatureSource!=='internal'){
       const fresh=await readFreshDevTemperature(0x28,0x0004);value.t=fresh.value;value.tc=P.sign16(await readReg(0x26));
      }else{value.t=P.sign16(await readReg(0x28));value.tc=P.sign16(await readReg(0x26));}
     }catch(e){values.push(value);e.rawSamples=values.slice();throw e}
     values.push(value);
-    if(ptcDev&&!demoEnabled&&sourceInfo.temperatureSource!=='internal'&&[value.s,value.t,...(sourceInfo.temperatureSource==='bridge'?[value.tc]:[])].some(v=>v===-32768||v===32767))throw Error('ADC-Sättigung bei DEV-Messpunkt. AFE bzw. Temperaturbereich prüfen.');
-    if(ptcDev&&!demoEnabled&&sourceInfo.temperatureSource==='bridge'){
+    if(!pressureOnlyCalibration()&&ptcDev&&!demoEnabled&&sourceInfo.temperatureSource!=='internal'&&[value.s,value.t,...(sourceInfo.temperatureSource==='bridge'?[value.tc]:[])].some(v=>v===-32768||v===32767))throw Error('ADC-Sättigung bei DEV-Messpunkt. AFE bzw. Temperaturbereich prüfen.');
+    if(!pressureOnlyCalibration()&&ptcDev&&!demoEnabled&&sourceInfo.temperatureSource==='bridge'){
      const d=hardwareTemperature('bridge'),actual=ELMOS_TEMPERATURE_AFE.estimate({adc:value.t,svdd:ELMOS_TEMPERATURE_AFE.SUPPLIES[d.afe0&3],afe0:d.afe0,afe2:d.afe2});
      if(!actual.valid)throw Error('ADC_T: gemessener Brückenstrom ausserhalb des spezifizierten RPGA-/MUX-Bereichs. Temperatur-AFE anpassen.');
     }
@@ -4402,10 +4420,10 @@ if(typeof document!=='undefined') (function UI(){
    if(!calEndpointsReady())throw Error(calibrationReadinessReason());
    const pmin=Number($('pmin').value),pmax=Number($('pmax').value);
    if(st.calpoints.some(p=>JSON.stringify(p.gains)!==JSON.stringify(st.staged)))throw Error('Gain wurde nach der Aufnahme geändert. Messpunkte erneut erfassen');
-   const selectedSource=selectedTemperatureSource();
-   const ptcFit=selectedSource==='bridge'&&devTemperatureReady('bridge');
-   const extFit=selectedSource==='external'&&devTemperatureReady('external');
-   if((selectedSource!=='internal'&&!ptcFit&&!extFit)||st.calpoints.some(p=>p.temperatureSource!==selectedSource))throw Error('Temperaturquelle der Messungen stimmt nicht überein.');
+   const pressureOnly=pressureOnlyCalibration(),selectedSource=pointTemperatureSource();
+   const ptcFit=!pressureOnly&&selectedSource==='bridge'&&devTemperatureReady('bridge');
+   const extFit=!pressureOnly&&selectedSource==='external'&&devTemperatureReady('external');
+   if((!pressureOnly&&selectedSource!=='internal'&&!ptcFit&&!extFit)||!['internal','bridge','external'].includes(selectedSource)||st.calpoints.some(p=>p.temperatureSource!==selectedSource))throw Error('Temperaturquelle der Messungen stimmt nicht überein.');
    const orderS=Number($('calSOrder').value),orderT=Number($('calTOrder').value),outputLimit=Number($('calDspLimit').value);
    if(!Number.isInteger(outputLimit)||outputLimit<1000||outputLimit>32000)throw Error('DSP-Endwert muss zwischen 1’000 und 32’000 Digits liegen');
    const fitMode=$('calFitMode').value;
@@ -4522,7 +4540,7 @@ if(typeof document!=='undefined') (function UI(){
    throw Error('Alarm-RAM-Test benötigt SSP3 oder eine DIY-Bridge mit BRIDGE_GENERIC_RAM_V1 über 1-Wire.');
   if(st.calTask||st.writing||st.nvmWorking||st.reinitRunning||st.powerCycleRunning)
    throw Error('Alarm-RAM-Test: Ein anderer Chipvorgang läuft.');
-  if(ptcDev&&selectedTemperatureSource()==='external'&&devTemperatureReady('external')&&((plan.after[20]>>7)&3)===0&&(plan.after[18]&0x0fff))throw Error('EOC ist im RAM als Temperatur-Eingang belegt. Keine STATUS-Ausgabe auf diesem Pin zulässig.');
+  if((CAL.temperatureSourceFromAfe2(plan.after[29])==='external'||(ptcDev&&selectedTemperatureSource()==='external'&&devTemperatureReady('external')))&&((plan.after[20]>>7)&3)===0&&(plan.after[18]&0x0fff))throw Error('EOC ist im RAM als Temperatur-Eingang belegt. Keine STATUS-Ausgabe auf diesem Pin zulässig.');
   ELMOS_ALARM_CONFIG.validateDiff(st.nvmBackup,plan.after,CAL.crc16);
   const recomputed=ELMOS_ALARM_CONFIG.prepare(st.nvmBackup,plan.settings,CAL.crc16);
   if(recomputed.after.some((w,i)=>w!==plan.after[i]))
@@ -4837,7 +4855,7 @@ if(typeof document!=='undefined') (function UI(){
  async function prepareNvm(){
   return withProgress('NVM-Änderungsliste wird vorbereitet',()=>prepareNvmOperation());
  }
- function devPtcFit(){const source=selectedTemperatureSource();return ptcDev&&['bridge','external'].includes(source)&&st.calfit?.temperatureSource===source&&devTemperatureReady(source);}
+ function devPtcFit(){const source=selectedTemperatureSource();return !pressureOnlyCalibration()&&ptcDev&&['bridge','external'].includes(source)&&st.calfit?.temperatureSource===source&&devTemperatureReady(source);}
  function normalizeDevTemperature(before,after){
    const expected=devTemperatureWords(),source=selectedTemperatureSource();
    if(!expected||after[29]!==expected.afe2||((after[27]^expected.afe0)&0xf0)!==0||(after[16]&0x100c)!==(0x1000|(source==='external'?4:8))||((after[29]^before[29])&~0x0fff)!==0||(source==='external'&&((after[27]^before[27])&0xf0)!==0))throw Error('DEV: unerwartetes Temperaturprofil im NVM-Plan.');
@@ -4976,6 +4994,7 @@ if(typeof document!=='undefined') (function UI(){
     throw Error('Für diesen NVM-Plan fehlt der bestätigte Kaltstart. '+psscRecoveryEvidence());
    const recoveryBlock=psscNvmBlock(image.before,image.after,false,false,false,recoveryCombined);
    if(recoveryBlock)throw Error(recoveryBlock);
+   if(st.calfit.orderT===0)CAL.assertPressureOnlyTemperatureUnchanged(image.before,image.after);
    if(image.changes.some(c=>(c.index<28&&![16,22,CAL.SVDD_INDEX,...(operatingProfile?CAL.PROFILE_WORDS:[]),...(includeAlarms?[18]:[]),...(timedOneWire?[17,18]:[])].includes(c.index))||(c.index===29&&!devPtcFit())))throw Error('Unzulässiges NVM-Register im Änderungsplan');
    if(!image.changes.length)throw Error('Keine NVM-Änderungen nötig');
    if(st.coldStartAfeRestored||(!demoEnabled&&!!activePreflight())){
@@ -5216,6 +5235,7 @@ if(typeof document!=='undefined') (function UI(){
    if(!restoring&&!outputOnly&&!alarmOnly&&modified[30]!==(requestedNvmUserId()??initial[30]))
     throw Error('USER-ID wurde geändert. Änderungsliste erneut vorbereiten.');
    const allowDevTemperature=allowSvdd&&devPtcFit();
+   if(!restoring&&!outputOnly&&!alarmOnly&&st.calfit?.orderT===0)CAL.assertPressureOnlyTemperatureUnchanged(initial,modified);
    const allowedNormal=new Set([16,22,CAL.SVDD_INDEX,...(allowDevTemperature?[29]:[]),...(operatingProfile?CAL.PROFILE_WORDS:[]),28,30,31,32,33,34,...Array.from({length:16},(_,i)=>35+i),51,52,53,54,57,58,59,60,63,...(timedOneWire?[17,18]:[]),...(alarmIntegrated?[18,55,56,61,62]:[])]);
    const forbidden=st.calImage.changes.find(c=>restoring?(c.index<28||c.index>63):alarmOnly?![16,18,55,56,61,62,63].includes(c.index):outputOnly?![16,22,57,58,59,60,63,...(timedOneWire?[17,18]:[])].includes(c.index):!allowedNormal.has(c.index));
    if(forbidden)throw Error('Unzulässige NVM-Änderung: Wort '+forbidden.index+' (Adresse 0x'+h(forbidden.index*2)+')');

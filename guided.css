@@ -435,7 +435,7 @@ html[data-theme="dark"] #guidedWorkspace .gw-quick-connect{background:#382e1d;co
 #guidedWorkspace .ptc-offline-diagnostic{display:none!important}
 /* Preserve the temperature-source selector and any required external AFE controls.
    Only hide the fit-order field when the selected plan and source are pressure-only. */
-html[data-temperature-source="internal"] #guidedWorkspace[data-temperature-compensation="off"] #gwFitFields label:has(#calTOrder){display:none!important}
+#guidedWorkspace[data-temperature-compensation="off"] :is(#gwDspFields label:has(#calTempSource),#gwPtcSetup,#gwPtcControls,#gwPtcPlot,#gwFitFields label:has(#calTOrder),#betaTemperatureToleranceLabel){display:none!important}
 #guidedWorkspace[data-temperature-compensation="off"] #gwFitFields{grid-template-columns:repeat(2,minmax(0,1fr))}
 @media(max-width:630px){#guidedWorkspace[data-temperature-compensation="off"] #gwFitFields{grid-template-columns:1fr}}
 

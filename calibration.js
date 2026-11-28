@@ -282,13 +282,27 @@ const ELMOS_CAL = (() => {
  function afeRepairAllowed(before,after,profile){
   return profile?.afeMandatoryRepair===true&&uncalibratedAfeBlank(before)&&!!(after[28]&0x0800)&&((before[28]^after[28])&0xe000)===0;
  }
+ // Pressure-only fitting does not select or reconfigure a temperature source.
+ // A valid existing source may be used unchanged; mismatched or reserved profiles stay blocked.
+ function validatePressureOnlyTemperatureProfile(original,ram,{allowInternalRamModeChange=false}={}){
+  if(!Array.isArray(original)||original.length!==64||!word16(original[29])||!word16(original[16])||!word16(original[27])||!word16(ram?.[0x1e])||!word16(ram?.[4])||!word16(ram?.[0x1a]))throw Error('Druckabgleich: Temperaturprofil nicht vollständig gelesen.');
+  const source=temperatureSourceFromAfe2(ram[0x1e]);
+  if(source==='reserved'||(original[16]&12)===12)throw Error('Druckabgleich: reserviertes Temperaturprofil. Sensor-Konfiguration prüfen.');
+  const modeMask=source==='internal'&&allowInternalRamModeChange&&[0,4].includes(ram[4]&12)&&[0,4].includes(original[16]&12)?0x1000:0x100c;
+  if(ram[0x1e]!==original[29]||((ram[4]^original[16])&modeMask)!==0||((ram[0x1a]^original[27])&0xf0)!==0)throw Error('Druckabgleich: RAM-Temperaturprofil weicht vom Original-NVM ab. Sensor neu starten; keine automatische Temperaturumstellung.');
+  return source;
+ }
+ function assertPressureOnlyTemperatureUnchanged(before,after){
+  if([29,31,32,51,52,53,54].some(i=>before[i]!==after[i])||((before[16]^after[16])&0x100c)!==0||((before[27]^after[27])&0xf0)!==0)throw Error('Druckabgleich: Temperaturregister dürfen nicht verändert werden.');
+ }
  function planCalibrationProfile(original,ram,{orderT=0,recovery=false,allowOperatingChanges=false,allowSingleMeasurement=false,allowBridgeSupplyChange=!recovery,filterCatalog=[]}={}){
   if(!sameNvmImage(original,original))throw Error('NVM-Vorabprüfung benötigt 64 gültige Wörter');
   for(const [addr] of PROFILE_REGS)if(!word16(ram[addr]))throw Error('Messregister 0x'+addr.toString(16)+' fehlt');
   if(![0,1,2,3].includes(orderT))throw Error('Ungültige Temperaturordnung');
   if(![0,2].includes(original[16]&3)||![0,2].includes(ram[4]&3))throw Error('CFG_EN.s_cor_en reserviert');
   if(!allowOperatingChanges&&((original[16]&3)!==2||(ram[4]&3)!==2))throw Error('Druckkorrektur deaktiviert; Programmer unterstützt die Aktivierung nicht');
-  if((ram[0x1e]&3)!==0)throw Error('Nur interne Temperaturquelle ist für den Abgleich validiert');
+  if(orderT===0)validatePressureOnlyTemperatureProfile(original,ram,{allowInternalRamModeChange:allowOperatingChanges});
+  else if((ram[0x1e]&3)!==0)throw Error('Nur interne Temperaturquelle ist für den Abgleich validiert');
   const temperatureEnable=orderT>0&&(original[16]&12)===0;
   const temperatureTarget=temperatureEnable?4:(original[16]&12);
   if(orderT>0&&temperatureTarget!==4)throw Error('Temperaturkorrektur für interne Quelle nicht validiert');
@@ -618,6 +632,7 @@ const ELMOS_CAL = (() => {
   }
   cfg[33]=r.so;cfg[34]=r.sf;for(let i=0;i<16;i++)cfg[35+i]=r.coeffs[i];
   if(r.tcoeffs){cfg[31]=r.to;cfg[32]=r.tf;for(let i=0;i<4;i++)cfg[51+i]=r.tcoeffs[i]}
+  if(solution.orderT===0)assertPressureOnlyTemperatureUnchanged(original,cfg);
   if(opts.userId!==undefined){
    if(!Number.isInteger(opts.userId)||opts.userId<0||opts.userId>0xFFFF)throw Error('USER-ID muss ein 16-Bit-Wert sein');
    cfg[30]=opts.userId;
@@ -650,6 +665,6 @@ const ELMOS_CAL = (() => {
   Number.isInteger(required)&&required>=1&&required<=10&&Array.isArray(records)&&
   Array.from({length:required},(_,slot)=>records.some(point=>
    point?.slot===slot&&Number.isFinite(point.errorBar))).every(Boolean);
- return {planOneWireReconnectTest,PROFILE_REGS,PROFILE_WORDS,uncalibratedPressureBlank,uncalibratedAfeBlank,planCalibrationProfile,sameMeasurementProfile,sameNvmImage,checkpointMatches,hasPressureTemperatureCompensation,SVDD_INDEX,SVDD_MASK,fit,suggestDspLimit,solveFit,crc16,crc8,configFrom,clippingThresholds,prepareOutputConfig,validateRecoveryCalibrationDiff,protectStartupCommunication,aodoPinBlocked,AODO_PLC_CONFLICT,i2cBootRegisterMatches,timedPlcRamMatches,oneWireBootRegisterMatches,oneWireStartupStatus,oneWireOnlyStatus,analogScaling,analogOutputStatus,elmosDspTarget,elmosTemperatureTarget,fromQ,q,signed,independentVerificationPoint,verificationPointsSufficient,temperatureSourceFromAfe2,dspTemperatureCelsius,isFactoryTemperatureProfile,factoryInternalTemperatureCelsius,factoryTemperatureAddresses,programmedTemperatureAddresses,programmedTemperatureProfileMatches};
+ return {validatePressureOnlyTemperatureProfile,assertPressureOnlyTemperatureUnchanged,planOneWireReconnectTest,PROFILE_REGS,PROFILE_WORDS,uncalibratedPressureBlank,uncalibratedAfeBlank,planCalibrationProfile,sameMeasurementProfile,sameNvmImage,checkpointMatches,hasPressureTemperatureCompensation,SVDD_INDEX,SVDD_MASK,fit,suggestDspLimit,solveFit,crc16,crc8,configFrom,clippingThresholds,prepareOutputConfig,validateRecoveryCalibrationDiff,protectStartupCommunication,aodoPinBlocked,AODO_PLC_CONFLICT,i2cBootRegisterMatches,timedPlcRamMatches,oneWireBootRegisterMatches,oneWireStartupStatus,oneWireOnlyStatus,analogScaling,analogOutputStatus,elmosDspTarget,elmosTemperatureTarget,fromQ,q,signed,independentVerificationPoint,verificationPointsSufficient,temperatureSourceFromAfe2,dspTemperatureCelsius,isFactoryTemperatureProfile,factoryInternalTemperatureCelsius,factoryTemperatureAddresses,programmedTemperatureAddresses,programmedTemperatureProfileMatches};
 })();
 if(typeof module!=='undefined'&&module.exports)module.exports=ELMOS_CAL;
