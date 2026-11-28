@@ -263,3 +263,33 @@ header.top #liveDiagnostic{min-width:0;overflow-wrap:anywhere}
 header.top .live-overview.has-user-id .live-kpi-primary{border-radius:0}
 header.top .live-kpi-user-id{border-radius:0 9px 9px 0}
 header.top .live-kpi-user-id .live-kpi-reading{font-size:16px}
+
+/* v0.7.226: all telemetry cards share label, value and unit tracks.
+   A multi-line status must never shift the number in only one card. */
+header.top .live-kpi{display:grid;grid-template-rows:minmax(2.3em,auto) auto 1fr;align-content:start;align-items:start;justify-content:stretch;row-gap:2px;padding:6px 7px;min-height:0}
+header.top .live-kpi[hidden]{display:none!important}
+header.top .live-kpi-label{font-size:10px;line-height:1.15;align-self:start}
+header.top .live-kpi-reading,header.top .live-kpi-primary .live-kpi-reading,header.top .live-kpi-user-id .live-kpi-reading{font-size:17px;line-height:1.18;align-self:start;white-space:nowrap;overflow-wrap:normal;letter-spacing:-.3px;font-variant-numeric:tabular-nums}
+header.top .live-kpi-unit{font-size:10px;line-height:1.15;align-self:start}
+header.top .live-pressure-meta{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:start;column-gap:3px;row-gap:0}
+header.top .live-pressure-meta #livePressureUnit{min-width:0;overflow-wrap:anywhere}
+header.top .live-pressure-meta .live-pressure-info{width:13px;height:13px;font-size:9px;margin:0;align-self:start}
+@supports(grid-template-rows:subgrid){
+ header.top .live-overview{grid-auto-rows:auto;row-gap:0}
+ header.top .live-kpi{grid-row:span 3;grid-template-rows:subgrid;row-gap:2px}
+}
+@media(min-width:621px) and (max-width:1600px){
+ header.top .live-overview.has-user-id .live-kpi-reading{font-size:16px}
+}
+@media(max-width:620px){
+ header.top .live-kpi{padding:5px 6px}
+ header.top .live-kpi-reading,header.top .live-kpi-primary .live-kpi-reading,header.top .live-kpi-user-id .live-kpi-reading{font-size:15px}
+ header.top .live-kpi{border-radius:0}
+ header.top .live-kpi:nth-child(n+4){border-top:1px solid var(--line)}
+ header.top .live-kpi:nth-child(3n+1){border-left:0}
+}
+@media(max-width:370px){
+ header.top .live-kpi:nth-child(n+3){border-top:1px solid var(--line)}
+ header.top .live-kpi:nth-child(3n+1){border-left:1px solid var(--line)}
+ header.top .live-kpi:nth-child(2n+1){border-left:0}
+}

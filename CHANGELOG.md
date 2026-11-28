@@ -1,3 +1,8 @@
+## v0.7.226 – Einheitlich ausgerichtete Live-Leiste
+
+- Gemeinsame Zeilen für Titel, Messwerte und Einheiten in allen Live-Kacheln. Mehrzeilige Hinweise verschieben keine einzelnen Zahlen mehr; einheitliche Zahlengrösse, Hilfe-Icon neben statt unter der Einheit.
+- Responsive Darstellung mit fünf bzw. sechs Kacheln; keine leere Spalte ohne Sensor-ID. Keine Änderung an Messung, Sensorzugriff oder NVM.
+
 ## v0.7.225 – Sensor-ID in der Live-Leiste
 
 - Zusätzliches Live-Kästchen mit dezimaler Sensor-ID und Hex-Wert, nur bei bestätigter ID ungleich 0. Wert 0 gilt als nicht vergeben (Anwendungskonvention; USER hat laut Datenblatt keinen separaten Leerstatus).
