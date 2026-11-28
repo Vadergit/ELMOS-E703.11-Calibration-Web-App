@@ -6,6 +6,98 @@ const ELMOS_ARCHIVE=(()=>{
  const S={dir:null,record:null,records:[],filename:null,writeQueue:Promise.resolve(),selection:[],step:0,
   measuring:false,finishing:false,finishedReview:null,showDetails:null,lastError:'',folderName:'',draft:null,view:'archive',detailsToken:0,resultsCache:new Map(),debugLines:[],debugDropped:0,lastStreamMetaFlush:0,pressureEntryBefore:'percent',pressureUnitBefore:'bar',autoRangeUid:null,pendingPhotos:[],photoPanels:null,pathLabel:''};
  let folderSelectionRevision=0;
+ const PROFILE_FILE='user-settings.json',PROFILE_KEY='elmos-personal-profile-v1';
+ const PROFILE_FIELDS=[
+  ['operator','settingsProfileOperator','arVerificationOperator',120],
+  ['location','settingsProfileLocation','arVerificationLocation',160],
+  ['project','settingsProfileProject','arVerificationProject',150],
+  ['instrumentCertificate','settingsProfileCertificate','arVerificationCertificate',200]
+ ];
+ // Whitelist only optional report metadata. Never restore calibration settings,
+ // sensor identifiers, measurements, thresholds or hardware write permissions.
+ function normalizePersonalProfile(raw){
+  if(!raw||raw.schema!==1||raw.kind!=='elmos-personal-profile'||!raw.defaults||typeof raw.defaults!=='object')
+   throw Error('Unbekanntes persönliches Profil.');
+  const defaults={};
+  for(const [key,,,limit] of PROFILE_FIELDS){
+   const value=raw.defaults[key];
+   if(value!=null&&typeof value!=='string')throw Error('Ungültiges Profilfeld: '+key);
+   defaults[key]=(value||'').trim().slice(0,limit);
+  }
+  return {schema:1,kind:'elmos-personal-profile',defaults};
+ }
+ let profile=null,profileRevision=0,profileBusy=false,profileDirty=false;
+ const lastAppliedProfile=new Map();
+ function profileStatus(message){text('settingsProfileStatus',message)}
+ function applyProfile(value,{settings=true}={}){
+  profile=value;
+  for(const [key,settingId,reportId] of PROFILE_FIELDS){
+   const input=$(settingId),report=$(reportId),next=value?.defaults[key]||'';
+   if(settings&&input)input.value=next;
+   if(!report)continue;
+   // Never replace a manually edited report field, including a deliberately cleared field.
+   if(!lastAppliedProfile.has(reportId))lastAppliedProfile.set(reportId,report.value||'');
+   if(report.value===lastAppliedProfile.get(reportId)){
+    report.value=next;lastAppliedProfile.set(reportId,next);
+   }
+  }
+ }
+ function cacheProfile(value){try{localStorage.setItem(PROFILE_KEY,JSON.stringify(value));return true}catch(_){return false}}
+ function restoreBrowserProfile(){
+  try{const value=localStorage.getItem(PROFILE_KEY);if(value){applyProfile(normalizePersonalProfile(JSON.parse(value)));profileStatus('Profil aus Browser geladen.');}}catch(_){profileStatus('Browserprofil nicht lesbar.');}
+ }
+ async function loadFolderProfile(dir=S.dir){
+  if(!dir||profileDirty||profileBusy)return false;
+  const revision=++profileRevision;
+  try{
+   if(await dir.queryPermission({mode:'read'})!=='granted')return false;
+   const handle=await dir.getFileHandle(PROFILE_FILE);
+   const value=normalizePersonalProfile(JSON.parse(await (await handle.getFile()).text()));
+   if(S.dir!==dir||revision!==profileRevision||profileDirty)return false;
+   applyProfile(value);cacheProfile(value);profileStatus('Profil aus Archivordner geladen.');return true;
+  }catch(e){
+   if(S.dir!==dir||revision!==profileRevision)return false;
+   if(e.name==='NotFoundError')profileStatus('Keine Profildatei im Ordner. Browserprofil bleibt verfügbar.');
+   else profileStatus('Profildatei nicht geladen: '+e.message);
+   return false;
+  }
+ }
+ async function savePersonalProfile(){
+  if(profileBusy)return;
+  profileBusy=true;++profileRevision;
+  const button=$('settingsProfileSave');if(button)button.disabled=true;
+  const value=normalizePersonalProfile({schema:1,kind:'elmos-personal-profile',defaults:Object.fromEntries(PROFILE_FIELDS.map(([key,id])=>[key,$(id)?.value||'']))});
+  const dir=S.dir;
+  try{
+   applyProfile(value);profileDirty=false;
+   const cached=cacheProfile(value);
+   profileStatus(cached?'Im Browser gespeichert.':'Browser-Speicherung nicht verfügbar.');
+   if(!dir||await dir.queryPermission({mode:'readwrite'})!=='granted'){
+    profileStatus((cached?'Im Browser gespeichert. ':'Nicht gespeichert. ')+'Archivordner nicht freigegeben; Datei später über Speichern aktualisieren.');return;
+   }
+   if(S.dir!==dir)throw Error('Archivordner wurde gewechselt.');
+   const handle=await dir.getFileHandle(PROFILE_FILE,{create:true}),writer=await handle.createWritable();
+   try{await writer.write(JSON.stringify(value,null,2));await writer.close()}
+   catch(e){try{await writer.abort()}catch(_){}throw e}
+   profileStatus(cached?'Im Browser und als user-settings.json gespeichert.':'Als user-settings.json gespeichert.');
+  }catch(e){profileStatus('Datei nicht gespeichert: '+e.message+' · Browserprofil prüfen.')}
+  finally{profileBusy=false;if(button)button.disabled=false}
+ }
+ function initPersonalProfile(){
+  restoreBrowserProfile();
+  $('settingsProfileSave')?.addEventListener('click',savePersonalProfile);
+  $('settingsProfileLoad')?.addEventListener('click',async()=>{
+   if(profileBusy)return;
+   if(profileDirty&&!window.confirm('Ungespeicherte Profiländerungen verwerfen?'))return;
+   profileDirty=false;
+   if(!S.dir){profileStatus('Zuerst einen Archivordner auswählen.');return;}
+   if(!await loadFolderProfile())profileStatus('Keine gültige Profildatei geladen. Ordnerzugriff und Datei prüfen.');
+  });
+  for(const [,id,reportId] of PROFILE_FIELDS){
+   $(id)?.addEventListener('input',()=>{profileDirty=true;++profileRevision});
+   $(reportId)?.addEventListener('input',()=>lastAppliedProfile.set(reportId,Symbol('manual')));
+  }
+ }
  const iso=()=>new Date().toISOString();
  const text=(id,value)=>{if($(id))$(id).textContent=String(value)};
  const note=(value,bad=false)=>{S.lastError=bad?String(value):'';text('archiveStatus',value);if($('archiveStatus'))$('archiveStatus').style.color=bad?'var(--red)':'var(--muted)'};
@@ -147,6 +239,7 @@ const ELMOS_ARCHIVE=(()=>{
   note(ui('Archivordner ausgewählt. Andere Dateien bleiben unverändert.','Archive folder selected. Other files remain unchanged.'));
   text('settingsMsg',ui('Speicherort: ','Storage folder: ')+dir.name);
   await refresh();
+  await loadFolderProfile(dir);
   void refreshFolderSettings();
   return dir;
  }
@@ -160,6 +253,7 @@ const ELMOS_ARCHIVE=(()=>{
   if(state!=='granted')throw Error(ui('Schreibzugriff für den Archivordner nicht erteilt.','Write access to the archive folder was not granted.'));
   text('settingsMsg',ui('Schreibzugriff erteilt: ','Write access granted: ')+dir.name);
   await refresh();
+  await loadFolderProfile(dir);
   return true;
  }
  async function ensureFolder(){
@@ -1698,6 +1792,7 @@ const ELMOS_ARCHIVE=(()=>{
   if(!$('archiveWorkspace'))return;
   $('archiveWorkspace').innerHTML=UI();
   addPressureUI();
+  initPersonalProfile();
   if(window.ELMOS_ARCHIVE_PHOTOS?.mount){
    const mount=window.ELMOS_ARCHIVE_PHOTOS.mount;
    const setup=el('div');$('arVerificationDocumentation').append(setup);
@@ -1790,6 +1885,8 @@ const ELMOS_ARCHIVE=(()=>{
    await loadFolderPathLabel(dir,initialRevision);
    if(initialRevision!==folderSelectionRevision)return;
    await refreshFolderSettings();
+   if(initialRevision!==folderSelectionRevision)return;
+   await loadFolderProfile(dir);
    if(initialRevision!==folderSelectionRevision)return;
    if(await permitted(false))await refresh();
    else note(ui('Archivordner vorgemerkt. Schreibzugriff in den Einstellungen erneut freigeben.','Archive folder remembered. Please re-authorize write access in Settings.'));
