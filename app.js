@@ -4673,7 +4673,8 @@ if(typeof document!=='undefined') (function UI(){
    if(r.tcoeffs)changes.push([0x6C,r.to],[0x6E,r.tf],...r.tcoeffs.map((v,i)=>[0x94+2*i,v]));
    for(const [addr,value] of changes){await maintWrite(addr,value);const actual=await readReg(addr);if(actual!==value)throw Error(`DSP-RAM Rücklesefehler 0x${h(addr)}: 0x${h(actual,2)} statt 0x${h(value,2)}`)}
    const opProfile=demoEnabled?null:confirmedOperatingProfile();
-    if(!demoEnabled&&st.adapterKind==='ssp3'&&st.iface==='plc'&&((before[4]&3)!==2||(opProfile?.temperatureRamChange&&(before[4]&12)!==opProfile.temperatureTarget))){
+    // The simulator must exercise the same pressure-activation/readback gate as SSP3 hardware.
+    if(st.adapterKind==='ssp3'&&st.iface==='plc'&&((before[4]&3)!==2||(opProfile?.temperatureRamChange&&(before[4]&12)!==opProfile.temperatureTarget))){
      if(![0,2].includes(before[4]&3))throw Error('CFG_EN.s_cor_en reserviert. Sensorprofil prüfen.');
      if(opProfile?.temperatureRamChange&&(![0,4].includes(before[4]&12)||![0,4].includes(opProfile.temperatureTarget)))throw Error('CFG_EN.t_cor_en nicht freigegeben');
      let expected=(before[4]&~3)|2;
