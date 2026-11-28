@@ -93,6 +93,31 @@ const ELMOS_GUIDED_PLAN=(()=>{
   }
   return null;
  }
- return {create,presets,captureDelta,sortReferences};
+ // Calculate end-to-end raw ADC spans from measured references only.
+ function captureSpans(entries){
+  const valid=entries.map((e,index)=>({index,record:e.record}))
+   .filter(e=>e.record&&Number.isFinite(e.record.pressure)&&Number.isFinite(e.record.temperature));
+  const out=[];
+  for(const kind of ['pressure','temperature']){
+   const fixed=kind==='pressure'?'temperature':'pressure',vary=kind==='pressure'?'pressure':'temperature';
+   const channel=kind==='pressure'?'adc_s':'adc_t',tolerance=kind==='pressure'?0.5:1e-6;
+   const groups=[];
+   for(const e of valid){
+    if(!Number.isFinite(e.record[channel]))continue;
+    let group=groups.find(g=>g.every(x=>Math.abs(x.record[fixed]-e.record[fixed])<=tolerance));
+    if(!group){group=[];groups.push(group)}
+    group.push(e);
+   }
+   for(const group of groups){
+    group.sort((a,b)=>a.record[vary]-b.record[vary]||a.index-b.index);
+    const lo=group[0],hi=group[group.length-1];
+    if(hi.record[vary]-lo.record[vary]<=(kind==='pressure'?1e-6:0.5))continue;
+    const delta=hi.record[channel]-lo.record[channel];
+    out.push({kind,channel,fixed:lo.record[fixed],from:lo.record[vary],to:hi.record[vary],fromIndex:lo.index,toIndex:hi.index,delta,span:Math.abs(delta)});
+   }
+  }
+  return out;
+ }
+ return {create,presets,captureDelta,captureSpans,sortReferences};
 })();
 if(typeof module!=='undefined'&&module.exports)module.exports=ELMOS_GUIDED_PLAN;

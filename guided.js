@@ -516,7 +516,7 @@ const ELMOS_GUIDED=(()=>{
   const points=plan.points.map((point,index)=>({point,index,record:pointRecord(point)}));
   const key=JSON.stringify({
    plan:signature,selectedPoint,
-   captured:points.map(({record})=>record?[record.at,record.adc_s,record.adc_t,record.spread,record.sampleCount]:null),
+   captured:points.map(({record})=>record?[record.at,record.pressure,record.temperature,record.adc_s,record.adc_t,record.spread,record.sampleCount]:null),
    latest:latestCapture
   });
   // The live refresh loop runs frequently; do not rebuild cards on every poll.
@@ -583,18 +583,22 @@ const ELMOS_GUIDED=(()=>{
    record?'Wähle einen noch offenen Punkt, um die Messreihe fortzusetzen.':
    'Stelle '+currentPoint.pressure+' '+plan.unit+' und '+currentPoint.temperature+
     ' °C ein, warte auf stabile Bedingungen und klicke dann auf «aufnehmen».';
-  if(allDone){
-   // A pressure span is meaningful only when pressure differs while the
-   // recorded temperature is the same. Temperature drift is a separate delta.
-   const delta=points.map((_,index)=>ELMOS_GUIDED_PLAN.captureDelta(points,index)).find(d=>d?.kind==='pressure');
-   if(delta){
-    const difference=document.createElement('span');
-    difference.className='gw-point-hub';
-    difference.textContent='Druckhub: '+captureNumber(Math.abs(delta.digits))+' Digits ADC_S (Punkt '+(delta.fromIndex+1)+' → '+(delta.toIndex+1)+')';
-    heading.append(difference);
-   }
-  }
   current.append(heading,text);
+  const spans=ELMOS_GUIDED_PLAN.captureSpans(points);
+  if(spans.length){
+   const summary=document.createElement('div');summary.className='gw-capture-spans';
+   for(const span of spans){
+    const line=document.createElement('div'),name=document.createElement('span'),value=document.createElement('strong'),detail=document.createElement('small');
+    const fixed=span.kind==='pressure'?captureNumber(span.fixed)+' °C':captureNumber(span.fixed)+' '+plan.unit;
+    const unit=span.kind==='pressure'?plan.unit:'°C';
+    name.textContent=(span.kind==='pressure'?'Druckhub · ADC_S':'Temperaturhub · ADC_T');
+    value.textContent=captureNumber(span.span)+' Digits';
+    detail.textContent=captureNumber(span.from)+' → '+captureNumber(span.to)+' '+unit+' · bei '+fixed;
+    line.title='Messpunkt '+(span.fromIndex+1)+' → '+(span.toIndex+1)+' · Δ '+(span.delta>=0?'+':'−')+captureNumber(Math.abs(span.delta))+' Digits';
+    line.append(name,value,detail);summary.append(line);
+   }
+   current.append(summary);
+  }
   setText('gwFooterHint',captured.length+' / '+plan.total+' Messpunkte erfolgreich aufgenommen');
   lastCaptureRenderKey=key;
  }

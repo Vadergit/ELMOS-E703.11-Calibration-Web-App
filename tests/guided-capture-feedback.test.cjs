@@ -16,6 +16,7 @@ function element(id=''){
   appendChild(a){this.children.push(a)},
   setAttribute(k,v){this.attributes[k]=v},
   addEventListener(k,fn){this.events[k]=fn},
+  querySelector(){return null},
   classList:{current:new Set(),toggle(k,yes){if(yes)this.current.add(k);else this.current.delete(k)}}
  };
  return item;
@@ -36,16 +37,16 @@ function setup(){
  const pointRow=point=>rows[point.index];
  const setText=(id,value)=>{$(id).textContent=value};
  const messages=[];
- const start=guided.indexOf(' function renderCapture(){');
+ const start=guided.indexOf(' function captureNumber(');
  const end=guided.indexOf(' function statusText(){',start);
  assert.ok(start>0&&end>start);
- const source='let stage=4,mode=true,selectedPoint=0,latestCapture=null,'+
+ const source='const originalCaptureLabels=new Map();let stage=4,mode=true,selectedPoint=0,latestCapture=null,'+
   'lastCaptureRenderKey=null,pendingCapture=null,signature="test-plan";'+
   guided.slice(start,end)+
   ';return {renderCapture,observeCapture,getSelected:()=>selectedPoint};';
- const fn=new Function('$','document','window','plan','state','pointRecord','pointRow','setText','msg',source);
+ const fn=new Function('$','document','window','plan','state','pointRecord','pointRow','setText','msg','ELMOS_GUIDED_PLAN',source);
  const logic=fn($,document,window,plan,state,pointRecord,pointRow,setText,
-  (message,kind)=>messages.push({message,kind}));
+  (message,kind)=>messages.push({message,kind}),require('../guided-plan.js'));
  return {logic,$,rows,messages,records,
   store:r=>records.push(r),
   tick:()=>interval?.(),

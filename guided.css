@@ -415,3 +415,9 @@ html[data-theme="dark"] #guidedWorkspace .gw-quick-connect{background:#382e1d;co
 #ptcHelpDialog .ptc-help-comparison{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,310px),1fr));gap:12px;margin:8px 0}
 #ptcHelpDialog .ptc-help-comparison>div{min-width:0}
 #ptcHelpDialog .ptc-help-comparison pre{font:inherit;font-variant-numeric:tabular-nums;line-height:1.5;margin:5px 0;overflow-wrap:anywhere}
+
+/* Compact raw spans: no separate coloured status cards. */
+#guidedWorkspace .gw-capture-spans{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,190px),1fr));gap:6px 16px;margin-top:8px;padding-top:8px;border-top:1px solid var(--line);font-variant-numeric:tabular-nums}
+#guidedWorkspace .gw-capture-spans>div{display:grid;gap:2px;min-width:0;font-size:12px}
+#guidedWorkspace .gw-capture-spans strong{font-size:20px;line-height:1.15;color:inherit;white-space:nowrap}
+#guidedWorkspace .gw-capture-spans small{font-size:11px;opacity:.85}
