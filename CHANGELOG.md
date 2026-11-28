@@ -1,3 +1,9 @@
+## v0.7.217 – Serienoptionen und kompakte NVM-Prüfung
+
+- Beim Sensorwechsel einzeln auswählen, welche Vorgaben übernommen werden. Auswahl im Browser gespeichert, keine automatische Wiederaufnahme eines Hardwarevorgangs. Offset und DSP-Ziel standardmässig zurücksetzen; alternativ bisherige Werte übernehmen. Ohne Messplan-Häkchen Planung erneut öffnen.
+- NVM-Seite zeigt die jeweils sinnvolle Hauptaktion, Status und relevante Fehler; Backup, UID, vollständige Meldungen und Diagnose bleiben aufklappbar. Bestehende Schreibfreigabe, Bestätigungen, CRC und Neustartprüfungen unverändert.
+- Hardware- und vollständige Browserprüfung ausstehend.
+
 ## v0.7.216 – Serienabgleich direkt zum Frontend
 
 - Nach bestätigtem Sensorwechsel Messplan, Druck-/Temperatur-Sollwerte und Ausgangsvorgaben übernehmen und bei unveränderter Messmatrix direkt zu Schritt 4 «Frontend einstellen» wechseln. Zurücknavigation zu Planung und Vorbereitung bleibt möglich.

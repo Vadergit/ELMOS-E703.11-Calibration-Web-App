@@ -6894,12 +6894,6 @@ if(typeof document!=='undefined') (function UI(){
    if(!uid)throw Error('Chipkennung fehlt.');
    if(!Number.isInteger(st.afe))throw Error('Frontend-Einstellungen konnten nicht bestätigt werden.');
    const settings=configFromUi(ELMOS_CONFIG.GROUPS,matrix);
-   // A series template contains targets, never sensor-specific offset or a reduced DSP limit.
-   settings.afe.offset=0;
-   const defaultLimit=Number($('calDspLimit').defaultValue);
-   if(!Number.isInteger(defaultLimit)||defaultLimit<1000||defaultLimit>32000)throw Error('Standard-DSP-Zielbereich ungültig.');
-   settings.dsp.dspLimit=defaultLimit;
-   if(settings.alarm?.mode==='edit')settings.alarm.settings.limit=defaultLimit;
    const profile=ELMOS_CONFIG.validate(settings,CAL);
    const session=st.sessionIndex,wasLive=st.live&&!st.manualLivePause;
    stopLive();
@@ -6920,16 +6914,37 @@ if(typeof document!=='undefined') (function UI(){
   },true);
  }
 
+ const seriesTransferDefaults=Object.freeze({plan:true,pga1:true,pga2:true,offset:false,bridgeSupply:true,bridgeInvert:true,filter:true,dsp:false,output:true,alarm:true});
+ function seriesTransferSelection(input){
+  return Object.fromEntries(Object.entries(seriesTransferDefaults).map(([key,value])=>[key,typeof input?.[key]==='boolean'?input[key]:value]));
+ }
+ function seriesTransferProfile(previous,selection,current,defaultLimit,defaultOutput){
+  const p=structuredClone(previous),s=seriesTransferSelection(selection);
+  if(!Number.isInteger(defaultLimit)||defaultLimit<1000||defaultLimit>32000)throw Error('Standard-DSP-Zielbereich ungültig.');
+  for(const key of ['pga1','pga2','bridgeInvert'])if(!s[key])p.afe[key]=current[key];
+  if(!s.offset)p.afe.offset=0;
+  if(!s.bridgeSupply)delete p.afe.bridgeSupply;
+  if(!s.dsp)p.dsp.dspLimit=defaultLimit;
+  if(!s.output)p.output=structuredClone(defaultOutput);
+  if(!s.alarm)p.alarm={mode:'skip'};
+  if(p.alarm?.mode==='edit')p.alarm.settings.limit=p.dsp.dspLimit;
+  return p;
+ }
  // Use only the existing documented filter-write path and its readback checks.
  async function applyNextSensorSettings(settings){
-  const {profile,filterWords,temperatureSource}=settings;
+  const {profile:previous,filterWords,temperatureSource}=settings;
+  const selection=seriesTransferSelection(settings.selection);
   const port=st.port,session=st.sessionIndex,uid=st.uid?.hex;
   const current=()=>!!uid&&st.port===port&&st.sessionIndex===session&&st.chip&&st.uid?.hex===uid&&!st.closing;
   if(!current()||!hasCurrentNvmBackup())throw Error('Original-NVM des neuen Sensors nicht bestätigt.');
   if(temperatureSource!==selectedTemperatureSource())throw Error('Temperaturmessquelle wurde während des Sensorwechsels geändert. Serie abbrechen oder ursprüngliche Quelle wieder wählen.');
+  const defaultLimit=Number($('calDspLimit').defaultValue);
+  const defaultOutput={mode:'keep',scaleEnabled:false,vdd:Number($('psscVdd').defaultValue),s0:Number($('psscS0').defaultValue),s1:Number($('psscS1').defaultValue),gain:1,offset:0,pwmPeriod:Number($('expertPwmPeriod').defaultValue),clipping:{mode:'keep'}};
+  const profile=ELMOS_CONFIG.validate(seriesTransferProfile(previous,selection,st.staged,defaultLimit,defaultOutput),CAL);
   await applySeriesConfig(profile,configIncluded(profile));
   if(!current())throw Error('Sensorverbindung hat sich geändert.');
-  $('calDspLimit').dataset.userEdited='';
+  $('calDspLimit').dataset.userEdited=selection.dsp?'1':'';
+  if(!selection.filter)return {filterConfirmed:false,filterKept:true};
   const same=words=>Array.isArray(words)&&words.length===filterWords.length&&filterWords.every((word,i)=>word===words[i]);
   if(same(st.filterWords))return {filterConfirmed:true};
   const index=filterProfiles.findIndex(([,words])=>same(words));
@@ -7037,7 +7052,7 @@ if(typeof document!=='undefined') (function UI(){
     adc_s:x.adc_s,adc_t:x.adc_t,adc_tc:x.adc_tc,spread:x.spread,sampleCount:x.sampleCount,temperatureSource:x.temperatureSource})),
    calStaged:!!st.calStaged,calVerified:verificationComplete(),nvmDone:!!st.nvmDone,
    postBootVerified:!!(st.nvmDone&&st.chip&&st.postBootProof&&st.postBootProof.port===st.port&&st.postBootProof.session===st.sessionIndex&&st.postBootProof.uid===st.uid?.hex),
-   nvmBackupVerified:!!st.nvmBackupVerified,outputReady:expert.outputReady(),
+   nvmBackupVerified:!!st.nvmBackupVerified,nvmPlanPrepared:!!st.calImage,nvmBusy:!!(st.nvmWorking||st.nvmAttempting||st.nvmRechecking),outputReady:expert.outputReady(),
    calibrationOutputConfirmed:verificationComplete()&&$('expertOutputMsg').classList.contains('success')&&($('expertOutputMode').value==='keep'||!!st.expertOutputPlan&&String(st.expertOutputPlan.mode)===$('expertOutputMode').value),
    outputScalingRequired:outputScalingPreflight().required
   }),

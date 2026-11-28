@@ -512,3 +512,17 @@ html[data-theme="dark"] #guidedWorkspace .gw-quick-connect{background:#382e1d;co
 #guidedWorkspace #gwVerifyDetails #calVerifyProgress{margin:8px 0}
 #guidedWorkspace #gwVerifyDetails #calRamMsg:not(.error){background:transparent;border:0;box-shadow:none;padding:0;color:var(--ink);font-size:12px}
 #guidedWorkspace #gwVerifyStatuses #calRamMsg.error{margin-top:10px}
+
+/* v0.7.217: compact NVM presentation and persisted series choices. */
+#guidedWorkspace .gw-series-options{min-width:0;border:1px solid var(--line);border-radius:10px;padding:10px 14px;margin:12px 0;background:var(--paper)}
+#guidedWorkspace .gw-series-options legend{font-weight:700;padding:0 6px;color:var(--ink)}
+#guidedWorkspace .gw-series-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:0 20px}
+#guidedWorkspace .gw-series-option{display:flex;align-items:flex-start;gap:9px;padding:7px 0;border-bottom:1px solid var(--line);min-width:0;color:var(--ink)}
+#guidedWorkspace .gw-series-option input{flex:0 0 auto;width:17px;height:17px;margin:2px 0 0;accent-color:#2867a6}
+#guidedWorkspace .gw-series-option span{display:grid;gap:2px;min-width:0} #guidedWorkspace .gw-series-option small{font-size:12px;color:var(--muted);line-height:1.3}
+#guidedWorkspace .gw-nvm-compact{max-width:100%;display:grid;gap:8px} #guidedWorkspace .gw-nvm-compact .gw-panel-actions{margin:0} #guidedWorkspace .gw-nvm-compact .gw-panel-actions:empty{display:none}
+#guidedWorkspace .gw-nvm-summary{font-weight:600;font-size:14px;padding:10px 12px;background:var(--paper);border:1px solid var(--line);border-radius:8px} #guidedWorkspace .gw-nvm-summary.is-ready{border-color:#8bc6a7;color:var(--green,#17774a)}
+#guidedWorkspace #gwPage9.gw-nvm-ready #gwNvmPrepare{display:none} #guidedWorkspace #gwPage9:not(.gw-nvm-ready):not(.gw-nvm-busy) #nvmProgram{display:none}
+#guidedWorkspace .gw-nvm-more{border-top:1px solid var(--line);padding-top:10px} #guidedWorkspace .gw-nvm-more summary{font-weight:600;cursor:pointer} #guidedWorkspace .gw-nvm-warning{font-size:12px;color:var(--ink);margin:0}
+#guidedWorkspace #gwNvmAlerts .callout{margin:5px 0} #guidedWorkspace #gwNvmRecovery:empty{display:none}
+@media(max-width:650px){#guidedWorkspace .gw-series-grid{grid-template-columns:1fr}}
