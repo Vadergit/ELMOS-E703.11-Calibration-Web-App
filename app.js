@@ -397,7 +397,7 @@ if(typeof document!=='undefined') (function UI(){
  $('plcOptions').hidden=st.adapterKind!=='bridge';
  $('plcBaud').closest('label').hidden=st.iface!=='plc'||!showExpert;
  $('plcGpio4Mode').closest('label').hidden=st.iface!=='plc'||!showExpert;
- $('plcPowerCycle').disabled=connected||st.closing;
+ $('plcPowerCycle').checked=true;$('plcPowerCycle').disabled=true;
  if($('chipDiagDetails'))$('chipDiagDetails').hidden=!$('expertMode').checked;
  if($('usbAdvancedDetails'))$('usbAdvancedDetails').hidden=!$('expertMode').checked;
  if($('wiringStartDetails'))$('wiringStartDetails').hidden=!$('expertMode').checked;
@@ -3830,7 +3830,7 @@ if(typeof document!=='undefined') (function UI(){
   st.startupTrials=[];st.chipDiag=null;st.lastPlcReply=null;st.readerAlive=false;
   st.plcAddress=0x6C;st.plcAddressVerified=false;st.plcAddressSource='';st.plcAddressProbes=[];
   st.reinitRunning=false;st.firmware='';st.bridgeBoard=null;st.bridgeOutputNvm=false;st.readOnlySensor=null;st.powerHelp=null;st.powerCycleResult=null;st.magicResult=null;st.liveReadAttempts=0;st.liveReadSuccesses=0;st.liveLastError=null;st.liveLastAttemptAt=null;st.measurementPeriod=null;st.measurementStatus=null;st.measurementError=null;st.measurementStarts=0;st.measurementFreshCount=0;st.measurementLastChangedAt=null;st.plcHostFormat=$('plcHostFormat').value;st.chip=false;st.afe=null;st.afe0=null;st.boot=null;st.regs={};st.dsp=null;st.dspError=null;st.calStaged=false;st.calVerified=false;st.nvmDone=false;st.adc=null;st.manualLivePause=false;st.afeWriteActive=false;st.ramWriteScope=null;st.uid=null;st.uidShownForInput=null;st.restorePlan=null;st.expertOutputPlan=null;st.outputOnlyPlan=null;st.iface=$('iface').value;st.adapterKind=$('adapterType').value;
-  st.sensorPowerEnabled=st.adapterKind==='bridge'&&!demoEnabled&&$('plcPowerCycle').checked;
+  st.sensorPowerEnabled=st.adapterKind==='bridge'&&!demoEnabled;
   $('nvmRestartStatus').hidden=true;
   $('nvmRebootConfirm').checked=false;
   if(demoEnabled){st.iface='plc';st.adapterKind='ssp3'}
@@ -6223,15 +6223,10 @@ if(typeof document!=='undefined') (function UI(){
  if(!['ssp3','bridge'].includes($('adapterType').value))$('adapterType').value='ssp3';
  st.adapterKind=$('adapterType').value;
  if(st.adapterKind==='bridge'&&st.iface==='spi')st.iface=$('iface').value='plc';
- // Existing users could have an invisible, persisted disabled option from
- // the expert-only UI. Reset it once upon this release, then respect the
- // explicit choice made in the now-visible standard connection form.
- const powerMigrationKey='elmos-bridge-plcPowerCycle-default-v0.7.161';
- if(!demoEnabled&&lsGet(powerMigrationKey)!=='1'){
-  lsSet('elmos-bridge-plcPowerCycle','1');
-  lsSet(powerMigrationKey,'1');
- }
- for(const id of ['plcPowerCycle','plcGpio4Mode']){
+ // Both supported DIY boards have an integrated load switch. Ignore stale opt-out preferences.
+ $('plcPowerCycle').checked=true;$('plcPowerCycle').disabled=true;
+ lsSet('elmos-bridge-plcPowerCycle','1');
+ for(const id of ['plcGpio4Mode']){
   const option=$(id),key='elmos-bridge-'+id;
   option.checked=(lsGet(key)??'1')==='1';
   option.addEventListener('change',()=>lsSet(key,option.checked?'1':'0'));
@@ -6763,7 +6758,7 @@ if(typeof document!=='undefined') (function UI(){
    if(st.adapterKind==='ssp3'&&st.iface==='plc'&&!$('plcPowerConfirm').checked){
     if(window.confirm('Wird der Sensor ausschliesslich über die schaltbare SSP3-VSUPPLY versorgt? Dann kann der Sensor automatisch neu gestartet werden.'))$('plcPowerConfirm').checked=true;
    }
-   const path=newCalibrationPowerPath({adapter:st.adapterKind,iface:st.iface,powerEnabled:st.sensorPowerEnabled&&$('plcPowerCycle').checked,ssp3Confirmed:$('plcPowerConfirm').checked});
+   const path=newCalibrationPowerPath({adapter:st.adapterKind,iface:st.iface,powerEnabled:st.sensorPowerEnabled,ssp3Confirmed:$('plcPowerConfirm').checked});
    st.manualLivePause=true;stopLive();if(st.liveReadPromise)await st.liveReadPromise.catch(()=>{});
    let manualConfirmed=false;
    if(path==='manual'){
