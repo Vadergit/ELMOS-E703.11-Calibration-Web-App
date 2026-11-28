@@ -151,6 +151,14 @@ const ELMOS_GUIDED_PLAN=(()=>{
   return (plan.tCount===1&&plan.orderT===0&&plan.total===2)||
    (plan.tCount===2&&plan.orderT===1&&plan.tempComp===true&&plan.total===4);
  }
- return {create,presets,captureDelta,captureSpans,summarizeSpans,sortReferences,fixedFitModel};
+ // Pure geometry for a signed deviation plot; scale expands to include
+ // a failed point rather than clipping it to the tolerance boundary.
+ function verificationPlot(tolerance,error){
+  if(!Number.isFinite(tolerance)||tolerance<=0)return null;
+  const extent=Math.max(tolerance*1.5,Number.isFinite(error)?Math.abs(error)*1.15:0);
+  const x=v=>24+352*(v/extent+1)/2;
+  return {extent,left:x(-tolerance),right:x(tolerance),zero:x(0),point:Number.isFinite(error)?x(error):null};
+ }
+ return {create,presets,captureDelta,captureSpans,summarizeSpans,sortReferences,fixedFitModel,verificationPlot};
 })();
 if(typeof module!=='undefined'&&module.exports)module.exports=ELMOS_GUIDED_PLAN;

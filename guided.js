@@ -102,7 +102,7 @@ const ELMOS_GUIDED=(()=>{
     '<div class="gw-monitor-actions"><div id="gwAfeLiveActions"></div><button type="button" id="gwAfeReset" class="gw-secondary-btn">Min/Max zurücksetzen</button></div><div id="gwAfeQuality" class="gw-afe-quality" role="status">Min/Max werden ab dem Start dieses AFE-Schritts erfasst.</div><div id="gwAfeMessage"></div><div id="gwPtcPlot"></div></section></div></div>'+
    '<div id="gwPage4" class="gw-page" hidden><div class="gw-points-layout"><div class="gw-point-nav" id="gwPointNav"></div><div class="gw-tile gw-control"><div id="gwPointConfirmation" class="gw-point-confirmation" hidden role="status" aria-live="polite"></div><div id="gwCurrentSetpoint" class="gw-summary gw-next-point"></div><div id="gwPointHost"></div><div id="gwSampleStatus"></div><div id="gwPointMessages"></div></div></div><details class="gw-inline-help"><summary>Hinweise zur Referenzmessung</summary><p>Druck und Temperatur sind Referenz-Sollwerte und werden nicht automatisch erzeugt. Am Prüfstand einstellen und erst bei stabilen Bedingungen aufnehmen.</p></details></div>'+
    '<div id="gwPage5" class="gw-page" hidden><div class="gw-columns"><div class="gw-tile gw-control"><h3>Polynom und DSP-Ziel</h3><div class="gw-fields gw-3" id="gwFitFields"></div><div class="gw-panel-actions" id="gwFitActions"></div><div id="gwFitStatuses"></div><div id="gwFitDetails"></div></div><details class="gw-fit-help"><summary>Ablauf und Sicherheit</summary><p>Koeffizienten berechnen, Zahlenbereich und Fehler prüfen, dann separat ins RAM übertragen und rücklesen. Anschliessend unabhängige DSP-Prüfung. Keine NVM-Programmierung.</p></details></div></div>'+
-   '<div id="gwPage6" class="gw-page" hidden><div class="gw-columns"><div class="gw-tile gw-control"><h3>Unabhängige Prüfpunkte</h3><div class="gw-fields gw-3" id="gwVerifyFields"></div><div class="gw-panel-actions" id="gwVerifyActions"></div><div id="gwVerifyStatuses"></div><details><summary>Prüfprotokoll</summary><div id="gwVerifyDetails"></div></details></div><details class="gw-fit-help"><summary>Was prüfe ich hier?</summary><p>Prüfe die gewünschte Anzahl Punkte neu, auch an den Druckendpunkten. Bereits ein bestandener Prüfpunkt genügt für diesen Nachprüfschritt – auch bei TK0/TKE. Weitere Druck- und Temperaturpunkte sind freiwillig und erhöhen die Aussagekraft.</p><div class="gw-alert warn">Die Live-Anzeige allein zählt nicht als Prüfung. Verwende «Prüfwert aus DSP_S lesen» und kontrolliere die tatsächliche Abweichung.</div></details></div></div>'+
+   '<div id="gwPage6" class="gw-page" hidden><div class="gw-columns"><div class="gw-tile gw-control"><h3>Unabhängige Prüfpunkte</h3><div class="gw-fields gw-3" id="gwVerifyFields"></div><div class="gw-panel-actions" id="gwVerifyActions"></div><div id="gwVerifyStatuses"></div><details><summary>Prüfprotokoll</summary><div id="gwVerifyDetails"></div></details></div><div class="gw-verify-side"><section class="gw-tile gw-verify-chart"><div class="gw-section-head"><div><h3>Prüfergebnis und Toleranz</h3><p>Abweichung vom Referenzdruck · jeder Prüfpunkt einzeln</p></div></div><div id="gwVerifyPlot" aria-live="polite"></div></section><details class="gw-fit-help"><summary>Was prüfe ich hier?</summary><p>Prüfe die gewünschte Anzahl Punkte neu, auch an den Druckendpunkten. Bereits ein bestandener Prüfpunkt genügt für diesen Nachprüfschritt – auch bei TK0/TKE. Weitere Druck- und Temperaturpunkte sind freiwillig und erhöhen die Aussagekraft.</p><div class="gw-alert warn">Die Live-Anzeige allein zählt nicht als Prüfung. Verwende «Prüfwert aus DSP_S lesen» und kontrolliere die tatsächliche Abweichung.</div></details></div></div></div>'+
    `<div id="gwPage7" class="gw-page" hidden>
     <div class="gw-columns gw-output-layout">
      <section class="gw-tile gw-control">
@@ -119,7 +119,7 @@ const ELMOS_GUIDED=(()=>{
        <div class="gw-panel-actions" id="gwScalingActions"></div>
       </div>
       <div class="gw-advanced" id="gwAdvancedOutput" hidden><details><summary>Expertenparameter · AODO Gain/Offset</summary><div class="gw-fields" id="gwExpertOutputFields"></div></details></div>
-      <div id="gwOutputClipping"></div><div class="gw-panel-actions" id="gwOutputActions"></div><div class="gw-panel-actions" id="gwOutputSkipActions"><button id="gwOutputSkipAlarm" type="button">Ohne Alarm- und Fehleränderung weiter zum NVM</button></div>
+      <div id="gwOutputClipping"></div><div class="gw-panel-actions" id="gwOutputActions"></div>
      </section>
      <section class="gw-tile is-soft gw-output-review">
       <div class="gw-section-head"><div><h3>Vorschau und Status</h3><p>Ausgelesene Werte, Skalierung und Startschutz</p></div></div>
@@ -153,7 +153,7 @@ const ELMOS_GUIDED=(()=>{
     '</div></section>'+
    '<div id="gwLogPage" class="gw-page gw-logger-page" hidden></div>'+
    '<dialog id="gwPresetDialog" aria-labelledby="gwPresetTitle"><div class="gw-preset-dialog-heading"><h3 id="gwPresetTitle">Sensor-Presets</h3><button id="gwPresetClose" type="button">Schliessen</button></div><div class="gw-fields gw-3" id="gwConfigFields"></div><div id="gwConfigSource"></div><div id="gwConfigGroups"></div><div class="gw-panel-actions" id="gwConfigActions"></div><div id="gwConfigEffect"></div><div id="gwConfigStatus"></div></dialog>'+
-   '<div id="gwMessage" class="gw-alert" hidden></div><footer class="gw-footer"><small id="gwFooterHint">E703.11 · Kalibrierassistent</small><div class="gw-actions"><button id="gwTasks" type="button" hidden>Zur Aufgabenübersicht</button><button id="gwPrevious" type="button">Zurück</button><button id="gwNext" class="primary" type="button">Weiter</button></div></footer></main></div>';
+   '<div id="gwMessage" class="gw-alert" hidden></div><footer class="gw-footer"><small id="gwFooterHint">E703.11 · Kalibrierassistent</small><div class="gw-actions"><button id="gwTasks" type="button" hidden>Zur Aufgabenübersicht</button><button id="gwPrevious" type="button">Zurück</button><button id="gwNext" class="primary" type="button">Weiter</button><button id="gwOutputSkipAlarm" class="primary" type="button" hidden disabled>Ohne Alarm- und Fehleränderung weiter zum NVM</button></div></footer></main></div>';
  }
  function build(){
   root=$('guidedWorkspace');
@@ -512,9 +512,43 @@ const ELMOS_GUIDED=(()=>{
   page.classList.toggle('gw-output-no-reread',calibration&&s.nvmBackupVerified);
   const simpleAnalog=calibration&&!$('expertMode').checked&&['1','2','3'].includes($('expertOutputMode').value);
   page.classList.toggle('gw-output-auto-analog',simpleAnalog);
-  $('gwOutputSkipActions').hidden=!calibration;
-  $('gwOutputSkipAlarm').disabled=!s.chip||!s.calVerified||s.connectionBusy;
+  $('gwOutputSkipAlarm').hidden=stage!==7||!calibration||connectionOpen||!!nextSensorPending;
+  $('gwOutputSkipAlarm').disabled=!outputNavigationReady(s);
   if(stage===7)$('gwNext').textContent=calibration?'Weiter zu Alarmen & Fehlern':'Weiter';
+ }
+ function outputNavigationReady(s){
+  return !!(s.chip&&s.calVerified&&!s.connectionBusy&&!s.outputScalingRequired&&s.calibrationOutputConfirmed&&!fixedFitBusy);
+ }
+ function renderVerificationPlot(){
+  const host=$('gwVerifyPlot'),data=window.ELMOS_GUIDED_API?.verificationResults?.();
+  if(!host||!data)return;
+  const key=JSON.stringify(data);
+  if(host.dataset.renderKey===key)return;
+  host.dataset.renderKey=key;host.replaceChildren();
+  const node=(tag,cls,text)=>{const e=document.createElement(tag);if(cls)e.className=cls;if(text!==undefined)e.textContent=text;return e};
+  const format=n=>Number.isFinite(n)?n.toLocaleString('de-CH',{maximumFractionDigits:5,minimumFractionDigits:0}):'—';
+  const signed=n=>Number.isFinite(n)?(n>0?'+':'')+format(n):'—';
+  if(!data.points.length){host.append(node('p','gw-verify-empty','Gültige Anzahl Prüfpunkte und Toleranz eingeben.'));return;}
+  for(const item of data.points){
+   const geometry=ELMOS_GUIDED_PLAN.verificationPlot(data.tolerance,item.error);
+   if(!geometry)continue;
+   const kind=['passed','failed','repeat','measuring'].includes(item.status)?item.status:'pending';
+   const card=node('div','gw-verify-result is-'+kind),head=node('div','gw-verify-result-head');
+   const label=kind==='passed'?'Bestanden':kind==='failed'?'Nicht bestanden':kind==='repeat'?'Erneut prüfen':kind==='measuring'?'Messung läuft':'Offen';
+   head.append(node('strong','','Punkt '+(item.slot+1)+' · '+format(item.pressure)+' '+data.unit),node('span','gw-verify-badge',label));
+   card.append(head);
+   const plot=node('div','gw-verify-plot');
+   // SVG interpolation is numeric only. Labels and errors use textContent.
+   plot.innerHTML='<svg viewBox="0 0 400 80" role="img" aria-label="Abweichung und Toleranzfenster"><rect x="24" y="18" width="352" height="30" rx="6" class="gw-verify-track"/><rect x="'+geometry.left+'" y="18" width="'+(geometry.right-geometry.left)+'" height="30" rx="3" class="gw-verify-band"/><path d="M'+geometry.left+' 12V54 M'+geometry.right+' 12V54" class="gw-verify-limit"/><path d="M'+geometry.zero+' 10V57" class="gw-verify-zero"/>'+(geometry.point===null?'':'<path d="M'+geometry.point+' 9V58" class="gw-verify-pointer"/><circle cx="'+geometry.point+'" cy="33" r="7" class="gw-verify-marker"/>')+'</svg>';
+   const labels=node('div','gw-verify-axis');labels.append(node('span','','−'+format(geometry.extent)+' '+data.unit),node('span','','0 · Soll'),node('span','','+'+format(geometry.extent)+' '+data.unit));
+   plot.append(labels);
+   const legend=node('div','gw-verify-band-legend');legend.append(node('span','gw-verify-band-swatch'),node('span','','Toleranzfenster: −'+format(data.tolerance)+' bis +'+format(data.tolerance)+' '+data.unit));plot.append(legend);card.append(plot);
+   const stats=node('div','gw-verify-stats');stats.append(node('span','','Abweichung'),node('strong','gw-verify-delta',signed(item.error)+' '+(item.error===null?'':data.unit)));card.append(stats);
+   if(Number.isFinite(item.actual)&&Number.isFinite(item.expected))card.append(node('p','gw-verify-detail','DSP_S: '+format(item.actual)+' · Soll: '+format(item.expected)+' Digits'));
+   if(kind==='failed'&&item.reason)card.append(node('p','gw-verify-reason',item.reason));
+   if(kind==='repeat')card.append(node('p','gw-verify-detail','Dieser frühere Messwert ist nicht mehr freigegeben. Erneut messen.'));
+   host.append(card);
+  }
  }
  function captureNumber(value){
   return Number.isFinite(value)?Number(value).toLocaleString('de-CH',{maximumFractionDigits:1}):'—';
@@ -878,7 +912,9 @@ const ELMOS_GUIDED=(()=>{
   $('gwConnectionToggle').disabled=fixedFitBusy;
   if(fixedFitBusy)for(const side of root.querySelectorAll('[data-gw-side]'))side.disabled=true;
   else for(const side of root.querySelectorAll('[data-gw-side]'))side.disabled=!!nextSensorPending||connectionOpen;
+  $('gwOutputSkipAlarm').hidden=true;
   if(stage===7)updateOutputPresentation(s);
+  if(stage===6)renderVerificationPlot();
   if(connectionOpen){renderConnectionStatus();return}
   if(nextSensorPending){void refreshSwapPort();return}
   $('gwChipStatus').textContent=statusText();
@@ -887,10 +923,10 @@ const ELMOS_GUIDED=(()=>{
   if(stage===4&&plan){renderCapture();if(completed===plan.total)$('gwNext').disabled=false}
   if(stage===5||stage===6||stage===7||stage===9){
    // Reflect the same guarded source-of-truth as the classic buttons.
-   const text=stage===5?s.calStaged?'Koeffizienten im RAM bestätigt':'Noch keine bestätigte RAM-Übernahme':stage===6?s.calVerified?'DSP-Prüfung abgeschlossen':'DSP-Prüfung ausstehend':stage===7?s.outputScalingRequired?'Ausgangsskalierung für den aktuellen DSP-Bereich bestätigen':'Ausgangskonfiguration bereit zur Prüfung':s.nvmDone?'NVM-Schreiben bestätigt':'NVM-Schreiben noch nicht bestätigt';
+   const text=stage===5?s.calStaged?'Koeffizienten im RAM bestätigt':'Noch keine bestätigte RAM-Übernahme':stage===6?s.calVerified?'DSP-Prüfung abgeschlossen':'DSP-Prüfung ausstehend':stage===7?(outputNavigationReady(s)?'Ausgangskonfiguration geprüft und vorgemerkt':s.outputScalingRequired?'Ausgangsskalierung für den aktuellen DSP-Bereich bestätigen':'Ausgangskonfiguration prüfen und vormerken'):s.nvmDone?'NVM-Schreiben bestätigt':'NVM-Schreiben noch nicht bestätigt';
    setText('gwFooterHint',text);
   }
-  const ready=stage===4?!!plan&&plan.points.every(p=>pointRecord(p)):stage===5?!!s.calStaged:stage===6?!!s.calVerified:stage===9?!!s.nvmDone:true;
+  const ready=stage===4?!!plan&&plan.points.every(p=>pointRecord(p)):stage===5?!!s.calStaged:stage===6?!!s.calVerified:stage===7&&task==='calibration'?outputNavigationReady(s):stage===9?!!s.nvmDone:true;
   $('gwNext').disabled=fixedFitBusy||!s.chip||(stage===10?nextSensorBusy||!s.nvmDone:!ready);
   if(stage===3)updateAfeTelemetry();
   if(stage===10)updateFinishTelemetry();
@@ -932,6 +968,7 @@ const ELMOS_GUIDED=(()=>{
   $('gwPrevious').hidden=stage===0;
   $('gwPrevious').disabled=stage===0;
   $('gwTasks').hidden=stage!==10;
+  $('gwOutputSkipAlarm').hidden=true;
   $('gwNext').hidden=loggerPage||stage===0||(stage===10&&state().demo); // A card click now enters the chosen task immediately.
   $('gwNext').textContent=stage===8?'Weiter zum NVM':stage===9?'Abschluss prüfen':stage===10?'Nächsten Sensor abgleichen':'Weiter';
   if(connectionOpen){renderConnectionStatus();return;}

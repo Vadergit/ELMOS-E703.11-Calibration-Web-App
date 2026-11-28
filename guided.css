@@ -472,12 +472,43 @@ html[data-theme="dark"] #guidedWorkspace .gw-quick-connect{background:#382e1d;co
 /* Normal calibration: the original NVM is already secured at entry; keep a recovery action if it is not verified. Analog staging recalculates S0/S1 itself. Standalone output and classic view retain their controls. */
 #gwPage7.gw-output-no-reread #outputNvmRead,
 #gwPage7.gw-output-auto-analog #expertOutputPreset { display:none !important; }
-#gwPage7 #gwOutputSkipActions[hidden]{display:none!important}
-#gwPage7 #gwOutputSkipActions{justify-content:flex-end;margin-top:10px}
-#gwPage7 #gwOutputSkipAlarm{white-space:normal;text-align:center}
 
 
 /* Unique guided fit: retain manual recovery actions, never conceal warnings. */
 #guidedWorkspace.gw-fixed-fit #gwFitFields{display:none!important}
 #guidedWorkspace.gw-fixed-fit-busy #gwFitActions{visibility:hidden;pointer-events:none}
 #guidedWorkspace.gw-fixed-fit-busy .gw-sideitems{pointer-events:none}
+
+/* Verification presentation, isolated from all calibration and write gates. */
+#guidedWorkspace .gw-verify-side{display:grid;align-content:start;gap:12px;min-width:0}
+#guidedWorkspace .gw-verify-result{border:1px solid var(--line,#d5e1ec);background:var(--card,#fff);border-radius:10px;padding:12px;margin-top:10px;min-width:0}
+#guidedWorkspace .gw-verify-result-head,#guidedWorkspace .gw-verify-stats,#guidedWorkspace .gw-verify-axis{display:flex;justify-content:space-between;align-items:center;gap:8px}
+#guidedWorkspace .gw-verify-result-head{flex-wrap:wrap}
+#guidedWorkspace .gw-verify-badge{border-radius:20px;padding:4px 9px;font-size:12px;font-weight:700;background:#e6ebf0;color:#40566c}
+#guidedWorkspace .gw-verify-result.is-passed{--verify-accent:#16835d}
+#guidedWorkspace .gw-verify-result.is-failed{--verify-accent:#c43845}
+#guidedWorkspace .gw-verify-result.is-repeat{--verify-accent:#b47716}
+#guidedWorkspace .gw-verify-result.is-passed .gw-verify-badge{background:#e0f4e9;color:#126445}
+#guidedWorkspace .gw-verify-result.is-failed .gw-verify-badge{background:#fce3e6;color:#a51f32}
+#guidedWorkspace .gw-verify-result.is-repeat .gw-verify-badge{background:#fff0d6;color:#8b580d}
+#guidedWorkspace .gw-verify-plot svg{width:100%;height:auto;display:block;max-height:100px;margin-top:8px}
+#guidedWorkspace .gw-verify-track{fill:#b5c2cf;opacity:.28}
+#guidedWorkspace .gw-verify-band{fill:#72c49b;opacity:.36}
+#guidedWorkspace .gw-verify-limit{stroke:#39996d;stroke-width:1.5;stroke-dasharray:3 2}
+#guidedWorkspace .gw-verify-zero{stroke:currentColor;stroke-width:1.4;opacity:.65}
+#guidedWorkspace .gw-verify-marker{fill:var(--verify-accent,#75899c);stroke:white;stroke-width:2}
+#guidedWorkspace .gw-verify-pointer{stroke:var(--verify-accent,#75899c);stroke-width:1.5}
+#guidedWorkspace .gw-verify-axis{font-size:11px;opacity:.8;margin-top:-8px}
+#guidedWorkspace .gw-verify-stats{margin-top:14px;border-top:1px solid var(--line,#d5e1ec);padding-top:10px}
+#guidedWorkspace .gw-verify-delta{color:var(--verify-accent,currentColor);font-size:21px;font-variant-numeric:tabular-nums}
+#guidedWorkspace .gw-verify-detail,#guidedWorkspace .gw-verify-reason,#guidedWorkspace .gw-verify-empty{font-size:12px;line-height:1.45;margin:8px 0 0}
+#guidedWorkspace .gw-verify-reason{color:var(--verify-accent,currentColor);overflow-wrap:anywhere}
+#guidedWorkspace .gw-footer .gw-actions{justify-content:flex-end;align-items:center;flex-wrap:wrap}
+#guidedWorkspace .gw-footer #gwOutputSkipAlarm[hidden]{display:none!important}
+#guidedWorkspace .gw-footer #gwOutputSkipAlarm{white-space:normal;text-align:center}
+#guidedWorkspace .gw-footer #gwOutputSkipAlarm:disabled,#guidedWorkspace .gw-footer #gwNext:disabled{background:var(--card,#edf2f7);color:var(--muted,#697d90);border-color:var(--line,#c9d6e3);opacity:.75}
+@media(max-width:700px){#guidedWorkspace .gw-footer .gw-actions{justify-content:flex-start}#guidedWorkspace .gw-footer #gwOutputSkipAlarm{flex-basis:100%}}
+
+#guidedWorkspace .gw-verify-axis{padding-inline:6%}
+#guidedWorkspace .gw-verify-band-legend{display:flex;align-items:center;justify-content:center;gap:7px;font-size:12px;margin-top:9px}
+#guidedWorkspace .gw-verify-band-swatch{background:rgba(114,196,155,.36);border:1px solid #39996d;border-radius:3px;width:18px;height:11px;flex:none}

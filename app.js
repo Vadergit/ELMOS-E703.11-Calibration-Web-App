@@ -1689,6 +1689,27 @@ if(typeof document!=='undefined') (function UI(){
   return !!st.calVerified&&coefficientSettingsCurrent()&&!!st.calStaged&&calEndpointsReady()&&CAL.verificationPointsSufficient(st.calValidation,count)&&(!devSource||(devPtcFit()&&Number.isFinite(tempTolerance)&&tempTolerance>0&&st.calValidation.every(v=>Number.isFinite(v.temperatureErrorC)&&Math.abs(v.temperatureErrorC)<=tempTolerance)))
  }
  function verificationRows(){return Array.from($('calVerifyRows').children)}
+ // Presentation-only records, never used by verificationComplete or NVM gates.
+ const verificationAttempts=new WeakMap();
+ function verificationAttemptMap(){
+  if(!st.calfit)return null;
+  if(!verificationAttempts.has(st.calfit))verificationAttempts.set(st.calfit,new Map());
+  return verificationAttempts.get(st.calfit);
+ }
+ function guidedVerificationResults(){
+  const required=verificationRequiredCount(),tolerance=Number($('calVerifyTolerance').value);
+  const rows=verificationRows();
+  if(!Number.isFinite(required)||!Number.isFinite(tolerance)||tolerance<=0)return {unit:pressureUnit(),tolerance:null,points:[]};
+  const attempts=st.chip&&st.calStaged&&coefficientSettingsCurrent()?verificationAttempts.get(st.calfit):null;
+  return {unit:pressureUnit(),tolerance,points:rows.slice(0,required).map((row,slot)=>{
+   const [pressure,temperature]=row.querySelectorAll('input'),p=pressure.valueAsNumber,t=temperature.valueAsNumber;
+   const result=attempts?.get(slot);
+   const valid=result&&result.session===st.sessionIndex&&result.uid===st.uid?.hex&&result.pressure===p&&result.temperature===t&&result.tolerance===tolerance?result:null;
+   const accepted=st.calValidation.find(x=>x.slot===slot&&x.pressure===p&&x.temperature===t);
+   const status=valid?(valid.status==='passed'&&!accepted?'repeat':valid.status):'pending';
+   return {slot,pressure:Number.isFinite(p)?p:null,temperature:Number.isFinite(t)?t:null,status,error:valid?.error??null,actual:valid?.actual??null,expected:valid?.expected??null,reason:valid?.reason??''};
+  })};
+ }
  function renderVerificationRows(required){
   verificationRows().forEach((row,slot)=>{
    row.hidden=slot>=required||!Number.isFinite(required);
@@ -4731,6 +4752,7 @@ if(typeof document!=='undefined') (function UI(){
      changes.push([0x04,expected]);
     }
     if(!sameBoot(before,await bootSnapshot()))throw Error('Bootregister nach Kalibrier-RAM-Schreiben verändert');
+   verificationAttempts.delete(st.calfit);
    st.calStaged=true;st.calVerified=false;st.calValidation=[];st.calImage=null;st.dsp=null;renderDSPLive();
    await window.ELMOS_ARCHIVE?.event('calibration_ram_written',{registerChanges:changes,verified:true,supply:archiveVoltages()});
    // Diagnostic only: an actual DSP saturation may be visible immediately
@@ -4770,7 +4792,7 @@ if(typeof document!=='undefined') (function UI(){
   return withProgress('DSP-Prüfwert wird gelesen',()=>verifyCalRamOperation(slot));
  }
  async function verifyCalRamOperation(slot){
-  let isChecking=false;
+  let isChecking=false,visualAttempt=null,visualMap=null;
   try{
    if(!st.calStaged||!coefficientSettingsCurrent()||!st.chip||st.calTask||st.writing)throw Error('Koeffizienten zuerst im RAM übernehmen / anderer Vorgang läuft');
    const required=verificationRequiredCount();
@@ -4785,6 +4807,9 @@ if(typeof document!=='undefined') (function UI(){
    if(!CAL.independentVerificationPoint(st.calValidation.filter(point=>point.slot!==slot),{pressure:p,temperature:temp},pmax-pmin))
     throw Error('Prüfpunkt zu nahe an einer bestätigten Referenz: mindestens 10 % Messspanne Druckabstand oder 10 °C Temperaturabstand erforderlich');
    st.calTask=true;isChecking=true;
+   visualMap=verificationAttemptMap();
+   visualAttempt={session:st.sessionIndex,uid:st.uid?.hex,pressure:p,temperature:temp,tolerance:tol,status:'measuring',error:null,actual:null,expected:null,reason:''};
+   visualMap?.set(slot,visualAttempt);
    renderVerificationRows(required);
    if(st.liveReadPromise)await st.liveReadPromise.catch(()=>{});
    const outputLimit=st.calfit.outputLimit??32000;
@@ -4808,6 +4833,7 @@ if(typeof document!=='undefined') (function UI(){
    const got=P.sign16(await readReg(0x30)),target=2*outputLimit*(p-pmin)/(pmax-pmin)-outputLimit;
    const stat=await readReg(0x32),delta=got-target,errorBar=delta/(2*outputLimit)*(pmax-pmin);
    if(!demoEnabled&&!(stat&0x0008))throw Error('DSP_S und Update-Status gehören nicht zu einer bestätigten neuen Konversion.');
+   Object.assign(visualAttempt,{error:errorBar,actual:got,expected:target});
    updateDSP(got,'usb');
    if(stat&0x0400){
     const candidate=Math.max(1000,Math.floor((outputLimit-1500)/500)*500);
@@ -4852,6 +4878,7 @@ if(typeof document!=='undefined') (function UI(){
    st.calValidation=st.calValidation.filter(point=>point.slot!==slot);
    st.calValidation.push({slot,pressure:p,actual:got,expected:target,errorBar,temperature:temp,measuredTemp,...(devPtcFit()?{temperatureErrorC}:{})});
    st.calValidation.sort((a,b)=>a.slot-b.slot);
+   visualAttempt.status='passed';
    // Single-point verification is a valid scope selected by the user, even
    // when TK0/TKE is calibrated. Do NOT require a second temperature.
    // Additional pressure/temperature points are independent optional checks.
@@ -4865,7 +4892,7 @@ if(typeof document!=='undefined') (function UI(){
     'Alle '+required+' gewählten Prüfpunkte bestanden. NVM-Schritt freigegeben.'+scopeNote:
     (remaining>0?'Noch '+remaining+' gewählte Prüfpunkte erforderlich.':'Prüfergebnisse kontrollieren.');
    ca('calRamMsg',`DSP_S ${got} · Soll ${target.toFixed(1)} Digits · Fehler ${errorBar.toFixed(5)} ${pressureUnit()} · ${st.calValidation.length}/${required} Prüfpunkte. ${info}`,st.calVerified?'success':'warn');
-  }catch(e){st.calVerified=false;st.calImage=null;if(ptcDev&&isChecking&&devPtcFit())st.calValidation=st.calValidation.filter(p=>p.slot!==slot);try{await window.ELMOS_ARCHIVE?.event('error',{stage:'dsp_verification',slot,message:e.message})}catch(_){}ca('calRamMsg','DSP-Verifikation: '+e.message,'error')}
+  }catch(e){if(visualAttempt){visualAttempt.status='failed';visualAttempt.reason=e.message;}st.calVerified=false;st.calImage=null;if(ptcDev&&isChecking&&devPtcFit())st.calValidation=st.calValidation.filter(p=>p.slot!==slot);try{await window.ELMOS_ARCHIVE?.event('error',{stage:'dsp_verification',slot,message:e.message})}catch(_){}ca('calRamMsg','DSP-Verifikation: '+e.message,'error')}
   finally{if(isChecking)st.calTask=false;renderFlowState()}
  }
  function requestedNvmUserId(){
@@ -6209,6 +6236,7 @@ if(typeof document!=='undefined') (function UI(){
  verificationRows().forEach((row,slot)=>{
   row.querySelector('button').addEventListener('click',()=>verifyCalRam(slot));
   row.querySelectorAll('input').forEach(input=>input.addEventListener('input',()=>{
+   verificationAttemptMap()?.delete(slot);
    if(!st.calValidation.some(point=>point.slot===slot))return;
    st.calValidation=st.calValidation.filter(point=>point.slot!==slot);
    st.calVerified=false;st.calImage=null;
@@ -6217,6 +6245,7 @@ if(typeof document!=='undefined') (function UI(){
   }));
  });
  for(const id of ['calVerifyCount','calVerifyTolerance',...(ptcDev&&$('devTemperatureTolerance')?['devTemperatureTolerance']:[])])$(id).addEventListener('input',()=>{
+  verificationAttemptMap()?.clear();
   st.calValidation=[];st.calVerified=false;st.calImage=null;
   $('calVerifyList').textContent='Noch kein Prüfpunkt aufgenommen.';
   ca('calRamMsg','Prüfeinstellungen geändert. Punkte erneut prüfen.','warn');
@@ -6931,6 +6960,7 @@ if(typeof document!=='undefined') (function UI(){
  }
  window.ELMOS_GUIDED_API=Object.freeze({
   runGuidedFixedFit,
+  verificationResults:guidedVerificationResults,
   state:()=>({
    chip:!!st.chip,diagnosticUid:st.readOnlySensor||null,usbReady:!!(st.port&&st.readerAlive),usbConnected:!!st.port,demo:demoEnabled,mode:st.mode,adapter:st.adapterKind,bridgeBoard:st.bridgeBoard||null,iface:st.iface,uid:st.uid?.hex||null,
    connectionBusy:!!(usbConnectBusy||st.closing||st.reinitRunning||st.powerCycleRunning||st.magicRunning||st.startupRunning||st.diagRunning||st.writing||st.nvmWorking||st.calTask||st.afeWriteActive||st.ramMeasurementStarting),

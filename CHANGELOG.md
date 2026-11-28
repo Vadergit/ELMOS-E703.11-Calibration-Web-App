@@ -1,3 +1,9 @@
+## v0.7.212 – Grafische DSP-Verifikation und Ausgangsnavigation
+
+- Toleranzdiagramm pro Prüfpunkt mit tatsächlicher signierter Abweichung, Sollwert, Toleranzgrenzen und grün/rot markiertem Messpunkt. Fehlgeschlagene Messungen bleiben sichtbar; bei ungültigen früheren Prüfpunkten wird erneutes Prüfen angezeigt. Anzeige getrennt von DSP- und NVM-Freigabe.
+- Alarm-Übersprung rechts in der Fussnavigation. Beide Weiter-Aktionen erst nach erfolgreicher Ausgangsvormerkung und DSP-Prüfung aktiv. Keine Änderung an Kommunikation, Fit oder NVM-Prüfungen.
+- Hardware- und vollständige CI-Prüfung ausstehend.
+
 ## v0.7.211 – DSP-Vorschlag direkt übernehmen
 
 - Geführter Abgleich: bestätigten kleineren DSP-Endwert übernehmen, vorhandene Messpunkte erhalten, Koeffizienten erneut berechnen, bei erfolgreicher Prüfung ins RAM schreiben und direkt zur unabhängigen DSP-Verifikation wechseln. Auch bei manuell gewählter Polynomordnung bleibt die aktuelle Wahl erhalten.
