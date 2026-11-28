@@ -1571,7 +1571,9 @@ if(typeof document!=='undefined') (function UI(){
  }
  function verificationComplete(){
   const count=verificationRequiredCount();
-  return !!st.calVerified&&coefficientSettingsCurrent()&&!!st.calStaged&&calEndpointsReady()&&CAL.verificationPointsSufficient(st.calValidation,count)
+  const devSource=ptcDev&&['bridge','external'].includes(st.calfit?.temperatureSource);
+  const tempTolerance=Number($('devTemperatureTolerance')?.value??2);
+  return !!st.calVerified&&coefficientSettingsCurrent()&&!!st.calStaged&&calEndpointsReady()&&CAL.verificationPointsSufficient(st.calValidation,count)&&(!devSource||(devPtcFit()&&Number.isFinite(tempTolerance)&&tempTolerance>0&&st.calValidation.every(v=>Number.isFinite(v.temperatureErrorC)&&Math.abs(v.temperatureErrorC)<=tempTolerance)))
  }
  function verificationRows(){return Array.from($('calVerifyRows').children)}
  function renderVerificationRows(required){
@@ -4686,7 +4688,7 @@ if(typeof document!=='undefined') (function UI(){
     await window.ELMOS_ARCHIVE?.event('dev_temperature_verification',{slot,referenceC:temp,dspT:measuredTemp,actualC,errorC:temperatureErrorC,toleranceC:tempTol,pass:temperatureErrorC!==null&&Math.abs(temperatureErrorC)<=tempTol});
     if(temperatureErrorC===null||Math.abs(temperatureErrorC)>tempTol){st.calValidation=[];throw Error('DEV DSP_T: '+(actualC===null?'kein gültiger Temperaturwert':actualC.toFixed(2)+' °C statt '+temp+' °C')+' · Temperaturtoleranz ±'+tempTol+' °C. Referenz, AFE und Temperaturkoeffizienten prüfen.');}
    }
-   if(required!==verificationRequiredCount()||tol!==Number($('calVerifyTolerance').value))
+   if(required!==verificationRequiredCount()||tol!==Number($('calVerifyTolerance').value)||(devPtcFit()&&(!Number.isFinite(temperatureErrorC)||Math.abs(temperatureErrorC)>Number($('devTemperatureTolerance')?.value??2))))
     throw Error('Prüfeinstellungen wurden während der Messung geändert');
    st.calValidation=st.calValidation.filter(point=>point.slot!==slot);
    st.calValidation.push({slot,pressure:p,actual:got,expected:target,errorBar,temperature:temp,measuredTemp,temperatureErrorC});
@@ -4704,7 +4706,7 @@ if(typeof document!=='undefined') (function UI(){
     'Alle '+required+' gewählten Prüfpunkte bestanden. NVM-Schritt freigegeben.'+scopeNote:
     (remaining>0?'Noch '+remaining+' gewählte Prüfpunkte erforderlich.':'Prüfergebnisse kontrollieren.');
    ca('calRamMsg',`DSP_S ${got} · Soll ${target.toFixed(1)} Digits · Fehler ${errorBar.toFixed(5)} ${pressureUnit()} · ${st.calValidation.length}/${required} Prüfpunkte. ${info}`,st.calVerified?'success':'warn');
-  }catch(e){st.calVerified=false;st.calImage=null;try{await window.ELMOS_ARCHIVE?.event('error',{stage:'dsp_verification',slot,message:e.message})}catch(_){}ca('calRamMsg','DSP-Verifikation: '+e.message,'error')}
+  }catch(e){st.calVerified=false;st.calImage=null;if(ptcDev&&isChecking&&devPtcFit())st.calValidation=st.calValidation.filter(p=>p.slot!==slot);try{await window.ELMOS_ARCHIVE?.event('error',{stage:'dsp_verification',slot,message:e.message})}catch(_){}ca('calRamMsg','DSP-Verifikation: '+e.message,'error')}
   finally{if(isChecking)st.calTask=false;renderFlowState()}
  }
  function requestedNvmUserId(){
@@ -5207,8 +5209,9 @@ if(typeof document!=='undefined') (function UI(){
     }
     if(allowDevTemperature){
     const actualAfe2=await readReg(0x1E),actualAfe0=await readReg(0x1A),actualEn=await readReg(0x04);
-    if(actualAfe2!==modified[29]||((actualAfe0^modified[27])&0x00f3)!==0||((actualEn^modified[16])&12)!==0)
+    if(actualAfe2!==modified[29]||((actualAfe0^modified[27])&0x00f3)!==0||((actualEn^modified[16])&0x100c)!==0)
      throw Error('DEV Temperaturprofil im RAM stimmt nicht mit dem NVM-Plan überein. AFE und DSP erneut prüfen.');
+    if(selectedTemperatureSource()==='bridge'&&(await readReg(0x66)!==initial[11]||await readReg(0x68)!==initial[12]))throw Error('DEV: Werkstrimm im RAM wurde verändert. NVM-Schreiben gesperrt.');
    }
    // Only USER region access is authorized; NEVER unlock factory calibration area.
    nvmWriteFeedback('Chip bestätigt, NVM-Schreibfreigabe wird angefordert …');
