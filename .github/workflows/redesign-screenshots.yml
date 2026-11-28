@@ -1,0 +1,28 @@
+name: UI redesign screenshot gallery
+on:
+  push:
+    branches: [ui-ux-redesign]
+    paths: ['tests/redesign-screenshots.cjs', '.github/workflows/redesign-screenshots.yml']
+  workflow_dispatch:
+jobs:
+  screenshots:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: |
+          npm install --no-save playwright
+          npx playwright install --with-deps chromium
+      - name: Capture rendered pages
+        run: |
+          python3 -m http.server 8765 --bind 127.0.0.1 >/tmp/elmos-http.log 2>&1 &
+          node tests/redesign-screenshots.cjs
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: ELMOS-v0.7.204-UIUX-Screenshots
+          path: screenshots/
+          if-no-files-found: error
