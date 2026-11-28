@@ -23,7 +23,7 @@ const ELMOS_CALIBRATION_GRAPH=(()=>{
  const payload=e=>e?.data&&typeof e.data==='object'?e.data:e;
  function summary(record){
   const events=Array.isArray(record?.events)?record.events:[];
-  const captures=events.filter(e=>e?.kind==='calibration_point').map(payload)
+  const captures=events.filter(e=>e?.kind==='calibration_point'&&!events.some(d=>d?.kind==='calibration_point_deleted'&&d.data?.point?.at!=null&&d.data.point.at===e.data?.point?.at&&d.data.point.kind===e.data?.point?.kind&&d.data.point.slot===e.data?.point?.slot)).map(payload)
    .map(e=>e?.point).filter(p=>p&&finite(p.pressure));
   const calibratedUnits=[...new Set(captures.map(p=>p.unit).filter(Boolean))];
   const unit=calibratedUnits.length===1?calibratedUnits[0]:'';

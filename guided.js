@@ -637,7 +637,7 @@ const ELMOS_GUIDED=(()=>{
   const key=JSON.stringify({
    plan:signature,selectedPoint,
    captured:points.map(({record})=>record?[record.at,record.pressure,record.temperature,record.adc_s,record.adc_t,record.spread,record.sampleCount]:null),
-   latest:latestCapture
+   latest:latestCapture,ready:state().calibrationReady
   });
   // The live refresh loop runs frequently; do not rebuild cards on every poll.
   const nav=$('gwPointNav');
@@ -691,16 +691,18 @@ const ELMOS_GUIDED=(()=>{
   if(!success.hidden)success.textContent='✓ Messpunkt '+(latestCapture.index+1)+' aufgenommen';
   const {point:currentPoint,record}=points[selectedPoint];
   const current=$('gwCurrentSetpoint');current.replaceChildren();
-  current.classList.toggle('gw-next-complete',allDone);
+  const invalid=allDone&&state().calibrationReady===false;
+  current.classList.toggle('gw-next-complete',allDone&&!invalid);
+  current.classList.toggle('gw-next-invalid',invalid);
   const heading=document.createElement('strong');
   heading.className='gw-next-heading';
-  heading.textContent=allDone?'✓ Alle Messpunkte aufgenommen':
+  heading.textContent=invalid?'Messpunkte korrigieren':allDone?'✓ Alle Messpunkte aufgenommen':
    record?'Messpunkt '+(selectedPoint+1)+' ist bereits aufgenommen':
    'Als Nächstes: Messpunkt '+(selectedPoint+1)+' messen';
   const text=document.createElement('span');
   text.className='gw-next-detail';
-  text.textContent=allDone?'Alle '+plan.total+' Referenzen wurden gespeichert. Weiter zur Koeffizientenberechnung.':
-   record?'Wähle einen noch offenen Punkt, um die Messreihe fortzusetzen.':
+  text.textContent=invalid?'Wähle den fehlerhaften Messpunkt, lösche ihn und nimm ihn neu auf.':allDone?'Alle '+plan.total+' Referenzen wurden gespeichert. Weiter zur Koeffizientenberechnung.':
+   record?'Bei Bedarf diesen Messpunkt löschen und neu aufnehmen oder einen anderen Punkt wählen.':
    'Stelle '+currentPoint.pressure+' '+plan.unit+(plan.tCount>1?' und '+currentPoint.temperature+' °C':'')+' ein. Bei stabilen Bedingungen aufnehmen.';
   current.append(heading,text);
   const spans=ELMOS_GUIDED_PLAN.captureSpans(points);
@@ -733,7 +735,7 @@ const ELMOS_GUIDED=(()=>{
    }
    current.append(summary);
   }
-  setText('gwFooterHint',captured.length+' / '+plan.total+' Messpunkte erfolgreich aufgenommen');
+  setText('gwFooterHint',invalid?'Messpunkte prüfen · Berechnung noch nicht freigegeben':captured.length+' / '+plan.total+' Messpunkte aufgenommen');
   lastCaptureRenderKey=key;
  }
  function observeCapture(){
@@ -1013,13 +1015,13 @@ const ELMOS_GUIDED=(()=>{
   $('gwChipStatus').textContent=statusText();
   $('gwChipStatus').classList.toggle('is-offline',!s.chip);
   const completed=s.points?.length||0;
-  if(stage===4&&plan){renderCapture();if(completed===plan.total)$('gwNext').disabled=false}
+  if(stage===4&&plan)renderCapture();
   if(stage===5||stage===6||stage===7||stage===9){
    // Reflect the same guarded source-of-truth as the classic buttons.
    const text=stage===5?s.calStaged?'Koeffizienten im RAM bestätigt':'Noch keine bestätigte RAM-Übernahme':stage===6?s.calVerified?'DSP-Prüfung abgeschlossen':'DSP-Prüfung ausstehend':stage===7?(outputNavigationReady(s)?'Ausgangskonfiguration geprüft und vorgemerkt':s.outputScalingRequired?'Ausgangsskalierung für den aktuellen DSP-Bereich bestätigen':'Ausgangskonfiguration prüfen und vormerken'):s.nvmDone?'NVM-Schreiben bestätigt':'NVM-Schreiben noch nicht bestätigt';
    setText('gwFooterHint',text);
   }
-  const ready=stage===4?!!plan&&!s.capturePending&&plan.points.every(p=>pointRecord(p)):stage===5?!!s.calStaged:stage===6?!!s.calVerified:stage===7&&task==='calibration'?outputNavigationReady(s):stage===9?!!s.nvmDone:true;
+  const ready=stage===4?!!plan&&!s.capturePending&&s.calibrationReady!==false&&plan.points.every(p=>pointRecord(p)):stage===5?!!s.calStaged:stage===6?!!s.calVerified:stage===7&&task==='calibration'?outputNavigationReady(s):stage===9?!!s.nvmDone:true;
   $('gwNext').disabled=fixedFitBusy||!s.chip||(stage===10?nextSensorBusy||!s.nvmDone:!ready);
   if(stage===3)updateAfeTelemetry();
   if(stage===10)updateFinishTelemetry();

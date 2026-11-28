@@ -1375,6 +1375,36 @@ if(typeof document!=='undefined') (function UI(){
   if(!Number.isInteger(n)||n<1||n>100)throw Error('Anzahl Samples muss eine ganze Zahl zwischen 1 und 100 sein');
   return n
  }
+ function calibrationPointEditBusy(){
+  return !!(st.calCapturePending||st.calTask||st.writing||st.nvmWorking||st.nvmAttempting||st.nvmRechecking||st.closing||st.reinitRunning||st.powerCycleRunning||st.magicRunning||st.startupRunning||st.diagRunning||st.afeWriteActive||st.ramMeasurementStarting||st.nvmDone);
+ }
+ function removeCalibrationPoint(kind,slot,at){
+  if(calibrationPointEditBusy())return false;
+  const record=st.calpoints.find(p=>p.kind===kind&&(kind!=='extra'||p.slot===slot)&&p.at===at);
+  if(!record)return false;
+  st.calpoints=st.calpoints.filter(p=>p!==record);
+  if(kind==='lo'||kind==='hi')st.points[kind]=null;
+  st.verify=null;st.nvmDone=false;st.postBootProof=null;
+  invalidateCalculation('Messpunkt gelöscht. DSP-Koeffizienten und Prüfung müssen erneuert werden.');
+  // Remove any older recoverable draft before saving the reduced point set.
+  let draftError=null;
+  try{
+   if(!demoEnabled&&st.uid?.hex){
+    lsSet(checkpointKey(st.uid.hex),'');
+    if(st.calpoints.length)saveCalibrationCheckpoint();
+   }
+  }catch(error){draftError=error;}
+  refreshPoints();
+  show('calMsg',draftError?'Messpunkt gelöscht. Browser-Entwurf konnte nicht aktualisiert werden: '+draftError.message:'Messpunkt gelöscht. Bitte neu aufnehmen. Alle übrigen Messpunkte bleiben erhalten.','warn');
+  // Keep discarded samples in the raw audit log, not in the active calibration.
+  if(window.ELMOS_ARCHIVE?.active){
+   st.calCapturePending=true;renderFlowState();
+   Promise.resolve().then(()=>window.ELMOS_ARCHIVE.event('calibration_point_deleted',{point:record}))
+    .catch(error=>show('calMsg','Messpunkt gelöscht, Archivvermerk fehlgeschlagen: '+error.message,'warn'))
+    .finally(()=>{st.calCapturePending=false;renderFlowState();});
+  }
+  return true;
+ }
  function renderCapturedPoint(statusId,resultId,record){
   const status=$(statusId),box=$(resultId);
   status.classList.toggle('is-captured',!!record);
@@ -1407,7 +1437,15 @@ if(typeof document!=='undefined') (function UI(){
   note.textContent='Referenz: '+record.pressure+' '+(record.unit||pressureUnit())+
    ' · Temperatur: '+record.temperature+' °C'+(record.temperatureSource?' · Quelle: '+(temperatureSourceLabels[record.temperatureSource]||record.temperatureSource):'')+
    (measuredCount===1?' · Achtung: Nur ein Sample – keine Stabilitätskontrolle möglich.':' · Median aller aufgenommenen Samples');
-  box.appendChild(note)
+  box.appendChild(note);
+  const actions=document.createElement('div');actions.className='cal-point-edit-actions';
+  const remove=document.createElement('button');remove.type='button';remove.className='cal-point-delete';
+  remove.textContent='Messpunkt löschen';remove.disabled=calibrationPointEditBusy();
+  remove.addEventListener('click',()=>{
+   if(calibrationPointEditBusy())return;
+   if(window.confirm('Diesen Messpunkt löschen und neu aufnehmen? Alle anderen Messpunkte bleiben erhalten.'))removeCalibrationPoint(record.kind,record.slot,record.at);
+  });
+  actions.appendChild(remove);box.appendChild(actions);
  }
 
  // A reference for a not-yet-captured or explicitly invalidated point may be
@@ -2225,6 +2263,7 @@ if(typeof document!=='undefined') (function UI(){
    (st.psscRamRecovery||(st.regs[0x06]===0x6C04&&st.nvmBackup?.[17]!==0x6C04));
   $('nvmProgram').disabled=!approvalGranted||!!st.nvmAttempting||st.nvmRechecking||st.nvmWorking||st.writing||st.calTask;
   recordDebugGate({reason:nvmReason,disabled:$('nvmProgram').disabled,verified:!!verified,timedChecked:!!timedOneWire?.checked,timedDisabled:!!timedOneWire?.disabled,restoring,outputOnly,alarmOnly});
+  for(const button of document.querySelectorAll('.cal-point-delete'))button.disabled=calibrationPointEditBusy();
   const bootCheckBusy=st.closing||st.nvmWorking||st.writing||st.calTask;
   $('nvmRestart').hidden=!st.nvmDone||!(st.sensorPowerEnabled||demoEnabled);
   $('nvmRestart').disabled=bootCheckBusy||!st.chip||!st.port;

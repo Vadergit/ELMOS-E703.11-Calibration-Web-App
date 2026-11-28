@@ -30,10 +30,11 @@ const ELMOS_CALIBRATION_COMPLETE=(()=>{
   const fit=eventData(last(record,'coefficient_fit'));
   const baseline=eventData(last(record,'nvm_before')).calibrationReport||null;
   const fitSolution=fit.solution||baseline?.coefficientFit||null;
-  const originalCaptures=events(record,'calibration_point').map(e=>({...clone(eventData(e).point||{}),recordedAt:e.at}));
+  const deleted=events(record,'calibration_point_deleted').map(e=>eventData(e).point||{});
+  const originalCaptures=events(record,'calibration_point').filter(e=>{const p=eventData(e).point||{};return !deleted.some(d=>d.at!=null&&d.at===p.at&&d.kind===p.kind&&d.slot===p.slot)}).map(e=>({...clone(eventData(e).point||{}),recordedAt:e.at}));
   // A direct NVM write may have started the archive after the original
   // measurements. Preserve the current session's full report as fallback.
-  const captures=originalCaptures.length?originalCaptures:clone(baseline?.calibrationPoints||[]);
+  const captures=deleted.length&&Array.isArray(baseline?.calibrationPoints)?clone(baseline.calibrationPoints):originalCaptures.length?originalCaptures:clone(baseline?.calibrationPoints||[]);
   const verifications=events(record,'verification_attempt').map(e=>({...clone(eventData(e)),recordedAt:e.at}));
   const ramWritten=events(record,'calibration_ram_written').map(e=>({...clone(eventData(e)),recordedAt:e.at}));
   const postBoot=last(record,'post_boot_verified');

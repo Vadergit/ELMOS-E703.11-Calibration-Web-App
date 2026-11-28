@@ -554,3 +554,9 @@ html[data-theme="dark"] #guidedWorkspace .gw-quick-connect{background:#382e1d;co
 #guidedWorkspace .gw-swap-settings .gw-series-option:last-child{border-bottom:0}
 #guidedWorkspace .gw-swap-settings .gw-series-option small{font-weight:400;line-height:1.25}
 @media(max-width:850px){#guidedWorkspace #gwSwapPage:not([hidden]){grid-template-columns:minmax(0,1fr)} }
+
+/* v0.7.224: correction of an individual reference measurement. */
+.cal-point-edit-actions{display:flex;justify-content:flex-end;margin-top:12px;padding-top:10px;border-top:1px solid var(--line)}
+.cal-point-edit-actions .cal-point-delete{background:var(--paper);color:var(--red);border:1px solid var(--line);padding:7px 12px;font-size:12px;font-weight:650}
+.cal-point-edit-actions .cal-point-delete:hover:not(:disabled){border-color:var(--red);background:var(--paper)}
+#guidedWorkspace .gw-next-invalid{background:var(--paper);border-color:var(--yellow);color:var(--ink)}

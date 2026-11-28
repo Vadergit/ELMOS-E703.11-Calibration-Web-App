@@ -41,7 +41,7 @@ const ELMOS_CALIBRATION_REPORT=(()=>{
   if(!record||record.type!=='calibration')
    throw Error(tr('Ein Kalibrierarchiv ist erforderlich.','A calibration archive is required.'));
   const events=Array.isArray(record.events)?record.events:[];
-  const pointEvents=events.filter(e=>e?.kind==='calibration_point');
+  const pointEvents=events.filter(e=>e?.kind==='calibration_point'&&!events.some(d=>d?.kind==='calibration_point_deleted'&&d.data?.point?.at!=null&&d.data.point.at===e.data?.point?.at&&d.data.point.kind===e.data?.point?.kind&&d.data.point.slot===e.data?.point?.slot));
   const captures=pointEvents.map(e=>({at:e.at,point:eventData(e).point||{}}));
   const verifyEvents=events.filter(e=>e?.kind==='verification_attempt');
   const verifications=verifyEvents.map(e=>({at:e.at,data:eventData(e)}));

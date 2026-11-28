@@ -1,3 +1,9 @@
+## v0.7.224 – Einzelne Messpunkte korrigieren
+
+- Aufgenommenen Referenzmesspunkt auswählen und einzeln löschen. Der ursprüngliche Aufnahmebutton erscheint wieder; alle anderen Druck- und Temperaturmesspunkte bleiben erhalten.
+- Korrektur verwirft abgeleitete Koeffizienten, DSP-Prüfung und NVM-Plan; während laufender Chipvorgänge oder nach NVM-Abschluss nicht zulässig. Lokaler Entwurf wird aktualisiert.
+- Fehlerhafte vollständige Messreihen werden nicht grün als bereit dargestellt; Weiter bleibt bis zur gültigen Messreihe gesperrt. Archiv behält Löschvermerk und Rohhistorie, verworfene Punkte werden aus den zusammengefassten Messwerten entfernt. Hardwareprüfung ausstehend.
+
 ## v0.7.223 – Vereinfachte Sensor-ID-Beschriftung
 
 - Feldtitel «Sensor-ID – Dezimal» bzw. «Sensor-ID – Hex» ohne Zusatz «optional». Der Hinweis unter dem Feld erklärt weiterhin, dass eine leere Eingabe die bisherige Sensor-ID beibehält.

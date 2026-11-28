@@ -231,7 +231,8 @@ const ELMOS_READABLE_CSV=(()=>{
   return csv;
  }
  function calibration(record){
-  const points=(record.events||[]).filter(e=>e.kind==='calibration_point');
+  const events=record.events||[];
+  const points=events.filter(e=>e?.kind==='calibration_point'&&!events.some(d=>d?.kind==='calibration_point_deleted'&&d.data?.point?.at!=null&&d.data.point.at===e.data?.point?.at&&d.data.point.kind===e.data?.point?.kind&&d.data.point.slot===e.data?.point?.slot));
   const unit=points.find(p=>p.data?.point?.unit)?.data.point.unit||'';
   const rows=points.map((e,i)=>{
    const p=e.data?.point||{};
