@@ -4,7 +4,8 @@
  const A=ELMOS_TEMPERATURE_AFE,E=ELMOS_EXTERNAL_AFE,P=PTC_PROFILE,$=id=>document.getElementById(id),fmt=v=>Number.isFinite(v)?Math.round(v).toLocaleString('de-CH'):'—';
  let configured=null,latest=null,observed=null,settings={bridgeOhm:10000,parallelOhm:7000,ptcTcr:2000,minTemp:-40,maxTemp:125,bridgeTolerance:10,parallelTolerance:20,ptcTcrTolerance:20,tk0:25,tke:300,eocMv:650,eocSlope:-1.8,eocTolerance:10,eocBias:0};
  const external=()=>$('calTempSource')?.value==='external';
- const active=()=>['bridge','external'].includes($('calTempSource')?.value);
+ const demo=new URLSearchParams(location.search).get('demo')==='1';
+ const active=()=>demo&&['bridge','external'].includes($('calTempSource')?.value);
  const help=key=>'<button type="button" class="ptc-help" data-ptc-help="'+key+'" aria-label="Erklärung">?</button>';
  const field=(key,label)=>'<label><span>'+label+' '+help(key)+'</span><input type="number" step="any" data-ptc-key="'+key+'" value="'+settings[key]+'"></label>';
  function model(){const code=window.ELMOS_GUIDED_API?.telemetry?.()?.svddCode;return {...settings,source:external()?'external':'bridge',svddCode:[0,1,2].includes(code)?code:2};}
