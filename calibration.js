@@ -282,16 +282,19 @@ const ELMOS_CAL = (() => {
  function afeRepairAllowed(before,after,profile){
   return profile?.afeMandatoryRepair===true&&uncalibratedAfeBlank(before)&&!!(after[28]&0x0800)&&((before[28]^after[28])&0xe000)===0;
  }
- function planCalibrationProfile(original,ram,{orderT=0,recovery=false,allowOperatingChanges=false,allowSingleMeasurement=false,allowBridgeSupplyChange=!recovery,filterCatalog=[]}={}){
+ function planCalibrationProfile(original,ram,{orderT=0,recovery=false,allowOperatingChanges=false,allowSingleMeasurement=false,allowBridgeSupplyChange=!recovery,filterCatalog=[],devTemperature=null}={}){
   if(!sameNvmImage(original,original))throw Error('NVM-Vorabprüfung benötigt 64 gültige Wörter');
   for(const [addr] of PROFILE_REGS)if(!word16(ram[addr]))throw Error('Messregister 0x'+addr.toString(16)+' fehlt');
   if(![0,1,2,3].includes(orderT))throw Error('Ungültige Temperaturordnung');
   if(![0,2].includes(original[16]&3)||![0,2].includes(ram[4]&3))throw Error('CFG_EN.s_cor_en reserviert');
   if(!allowOperatingChanges&&((original[16]&3)!==2||(ram[4]&3)!==2))throw Error('Druckkorrektur deaktiviert; Programmer unterstützt die Aktivierung nicht');
-  if((ram[0x1e]&3)!==0)throw Error('Nur interne Temperaturquelle ist für den Abgleich validiert');
-  const temperatureEnable=orderT>0&&(original[16]&12)===0;
-  const temperatureTarget=temperatureEnable?4:(original[16]&12);
-  if(orderT>0&&temperatureTarget!==4)throw Error('Temperaturkorrektur für interne Quelle nicht validiert');
+  if(devTemperature){
+   const d=devTemperature,mask=d.source==='bridge'?0x08ff:0x0fff,target=d.source==='bridge'?8:4;
+   if(!['bridge','external'].includes(d.source)||orderT<1||!word16(d.afe0)||!word16(d.afe2)||!word16(d.cfgEn)||ram[0x1e]!==d.afe2||((ram[0x1a]^d.afe0)&0xf0)!==0||(ram[4]&12)!==target||(d.cfgEn&12)!==target||temperatureSourceFromAfe2(d.afe2)!==d.source||((original[29]^d.afe2)&~mask)!==0||(d.source==='bridge'&&(d.afe2&255)!==0x4a)||(d.source==='external'&&((original[27]^d.afe0)&0xf0)!==0))throw Error('DEV Temperaturprofil nicht bestätigt');
+  }else if((ram[0x1e]&3)!==0)throw Error('Nur interne Temperaturquelle ist für den Abgleich validiert');
+  const temperatureEnable=!devTemperature&&orderT>0&&(original[16]&12)===0;
+  const temperatureTarget=devTemperature?(devTemperature.cfgEn&12):temperatureEnable?4:(original[16]&12);
+  if(!devTemperature&&orderT>0&&temperatureTarget!==4)throw Error('Temperaturkorrektur für interne Quelle nicht validiert');
   if(temperatureEnable&&!allowOperatingChanges)throw Error('Temperaturaktivierung mit diesem Programmer nicht unterstützt');
   const ramTemp=ram[4]&12;
   const temperatureRamChange=ramTemp!==temperatureTarget;
@@ -305,7 +308,8 @@ const ELMOS_CAL = (() => {
    if(PROFILE_WORDS.includes(index))continue;
    let mask=0xffff;
    if(index===16)mask=0xff30;
-   if(index===SVDD_INDEX)mask=allowBridgeSupplyChange?0xffff&~SVDD_MASK:0xffff;
+   if(index===SVDD_INDEX)mask=(allowBridgeSupplyChange?0xffff&~SVDD_MASK:0xffff)&~(devTemperature?.source==='bridge'?0xf0:0);
+   if(index===29&&devTemperature)mask=0xffff&~(devTemperature.source==='bridge'?0x08ff:0x0fff);
    if(index===28)mask=afeMandatoryRepair?0xe000:0xe800;
    if(((original[index]^ram[addr])&mask)!==0){
     const hex=value=>'0x'+value.toString(16).toUpperCase().padStart(4,'0');
@@ -333,7 +337,7 @@ const ELMOS_CAL = (() => {
    changed.push({index:16,from:original[16],to:target});
   }
   if(afeMandatoryRepair)changed.push({index:28,from:original[28],to:ram[0x1c]});
-  return {values,temperatureEnable,temperatureTarget,temperatureRamChange,afeMandatoryRepair,changed,replaceTemperature:orderT===0&&hasPressureTemperatureCompensation(original)};
+  return {values,temperatureEnable,temperatureTarget,temperatureRamChange,afeMandatoryRepair,changed,devTemperature:devTemperature?{...devTemperature}:null,replaceTemperature:orderT===0&&hasPressureTemperatureCompensation(original)};
  }
  function operatingWordAllowed(i,after,profile){
   const k=PROFILE_WORDS.indexOf(i);
