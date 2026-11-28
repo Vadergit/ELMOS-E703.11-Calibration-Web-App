@@ -1039,8 +1039,8 @@ if(typeof document!=='undefined') (function UI(){
   $('livePressureUnit').textContent=percent?.source==='ram-aodo'?'% · AODO-Näherung':
    percent?'% · Effektivwert':
    (checkingDSPScale?'Digits · Profilprüfung':'Digits · kein Abgleichprofil');
-  const info=$('livePressureInfo');
-  if(info){
+  const pressureCard=$('livePressureCard'),tooltip=$('livePressureTooltip');
+  if(pressureCard&&tooltip){
    const d=displayReferenceDiagnostic;
    const diagnostic=d?.port===st.port&&d?.session===st.sessionIndex&&d?.uid===st.uid?.hex&&!st.calStaged?d:null;
    const aodo=diagnostic?.comparison||ref.standard;
@@ -1059,10 +1059,13 @@ if(typeof document!=='undefined') (function UI(){
     ...(percent?.source==='standard'?['Verwendet: rekonstruierter DSP-Endwert (Annahme, nicht unabhängig verifiziert).']:[])
    ];
    // A persistent DOM tooltip avoids native title popups restarting at each live sample.
-   const tooltip=$('livePressureTooltip'),details=lines.join('\n');
-   if(tooltip&&tooltip.textContent!==details)tooltip.textContent=details;
-   // Keep the trigger visible during transient DSP read failures.
-   if(info.hidden===connected)info.hidden=!connected;
+   const details=lines.join('\n');
+   if(tooltip.textContent!==details)tooltip.textContent=details;
+   // The entire card is the tooltip trigger. No button or extra layout track.
+   pressureCard.classList.toggle('has-pressure-details',connected);
+   tooltip.hidden=!connected;
+   if(connected){if(!pressureCard.hasAttribute('tabindex'))pressureCard.setAttribute('tabindex','0');}
+   else pressureCard.removeAttribute('tabindex');
   }
   renderStandardReferenceUi();
   const highADC=!!activeADC&&(st.adc.s<=-32768||st.adc.s>=32767);

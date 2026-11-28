@@ -1,3 +1,8 @@
+## v0.7.227 – Sensorwert-Details per Hover
+
+- Fragezeichen in der Sensorwert-Kachel vollständig entfernt. Berechnungsdetails werden beim Überfahren der ganzen Kachel bzw. beim Tastaturfokus als frei positionierter Tooltip angezeigt; keine zusätzliche Layoutzeile, kein Einfluss auf die Messwertausrichtung.
+- Alle bisherigen Berechnungsdetails und die bestehende Messwertberechnung bleiben erhalten. Keine Änderung an Sensorzugriff oder NVM.
+
 ## v0.7.226 – Einheitlich ausgerichtete Live-Leiste
 
 - Gemeinsame Zeilen für Titel, Messwerte und Einheiten in allen Live-Kacheln. Mehrzeilige Hinweise verschieben keine einzelnen Zahlen mehr; einheitliche Zahlengrösse, Hilfe-Icon neben statt unter der Einheit.

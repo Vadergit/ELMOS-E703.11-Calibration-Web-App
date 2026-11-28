@@ -247,8 +247,6 @@ header.top .live-overview{grid-template-columns:repeat(5,minmax(0,1fr));min-widt
 header.top .live-kpi{min-width:0;min-height:58px;padding:5px 7px}
 header.top .live-kpi-reading,header.top .live-kpi-primary .live-kpi-reading{font-size:17px;line-height:1.18;min-width:0;max-width:100%;white-space:normal;overflow-wrap:anywhere;word-break:normal;letter-spacing:-.3px;font-variant-numeric:tabular-nums}
 header.top .live-kpi-label,header.top .live-kpi-unit{min-width:0;overflow-wrap:anywhere;white-space:normal}
-header.top .live-pressure-meta{flex-wrap:wrap;gap:3px}
-header.top .live-pressure-meta #livePressureUnit{min-width:0;overflow-wrap:anywhere}
 header.top .live-connection{min-width:0;width:100%}
 header.top .connection-actions{display:flex;flex-wrap:wrap;justify-content:flex-end;max-width:100%;min-width:0;gap:5px}
 header.top .connection-actions>button,header.top .connection-actions>.chip{flex:0 0 auto;max-width:100%}
@@ -271,9 +269,6 @@ header.top .live-kpi[hidden]{display:none!important}
 header.top .live-kpi-label{font-size:10px;line-height:1.15;align-self:start}
 header.top .live-kpi-reading,header.top .live-kpi-primary .live-kpi-reading,header.top .live-kpi-user-id .live-kpi-reading{font-size:17px;line-height:1.18;align-self:start;white-space:nowrap;overflow-wrap:normal;letter-spacing:-.3px;font-variant-numeric:tabular-nums}
 header.top .live-kpi-unit{font-size:10px;line-height:1.15;align-self:start}
-header.top .live-pressure-meta{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:start;column-gap:3px;row-gap:0}
-header.top .live-pressure-meta #livePressureUnit{min-width:0;overflow-wrap:anywhere}
-header.top .live-pressure-meta .live-pressure-info{width:13px;height:13px;font-size:9px;margin:0;align-self:start}
 @supports(grid-template-rows:subgrid){
  header.top .live-overview{grid-auto-rows:auto;row-gap:0}
  header.top .live-kpi{grid-row:span 3;grid-template-rows:subgrid;row-gap:2px}
@@ -293,3 +288,7 @@ header.top .live-pressure-meta .live-pressure-info{width:13px;height:13px;font-s
  header.top .live-kpi:nth-child(3n+1){border-left:1px solid var(--line)}
  header.top .live-kpi:nth-child(2n+1){border-left:0}
 }
+
+/* v0.7.227: tooltip outside the grid flow. */
+header.top #livePressureCard:focus-visible{outline:2px solid var(--focus);outline-offset:-2px}
+header.top #livePressureTooltip{position:absolute;pointer-events:none}
