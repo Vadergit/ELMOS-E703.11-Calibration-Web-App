@@ -53,7 +53,7 @@ function buildPtcProfile(A){
   for(const v of [adc,adcTC,adcS])check(Number.isInteger(v)&&v>=-32768&&v<=32767,'Alle drei ADC-Rohwerte müssen signed 16-Bit-Ganzzahlen sein.');
   const result=A.estimate({adc,svdd,afe0,afe2});
   const saturated=[adc,adcTC,adcS].some(v=>v===-32768||v===32767);
-  return {...result,valid:result.valid&&!saturated,pressureHeadroom:25000-Math.abs(adcS),saturated};
+  return {...result,valid:result.valid&&!saturated,pressureHeadroom:Math.min(32767-adcS,adcS+32768),saturated};
  }
  return Object.freeze({defaults,range,plan,checkPoint});
 }

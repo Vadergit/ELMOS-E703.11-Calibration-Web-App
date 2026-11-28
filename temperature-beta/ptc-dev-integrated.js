@@ -54,7 +54,7 @@
  function update(t,stats){latest=t;if(active()&&configured){if(!demo&&(!t.online||!window.ELMOS_GUIDED_API?.ptcDevHardwareReady?.())){configured=null;observed=null;message('Sensor oder Temperaturprofil geändert. AFE erneut einstellen.');refresh();return;}if(!external()&&[0,1,2].includes(t.svddCode)&&configured.p.svddCode!==t.svddCode){configured=null;observed=null;message('SVDD geändert. Temperatur-AFE neu auslegen.');refresh();return;}observed=stats?.count?stats:null;renderPlot();}renderCurrent();}
  function renderPlot(){
   renderCurrent();
-  const warning=$('gwPtcPressureWarning'),bandNow=pressureBand();if(warning){const exceeds=!!bandNow&&(bandNow.min< -25000||bandNow.max>25000);warning.hidden=!exceeds;warning.textContent=exceeds?'Prognose ADC_S '+fmt(bandNow.min)+' … '+fmt(bandNow.max)+' Digits: ausserhalb des Richtwerts ±25’000. Gain/Offset und analoge Aussteuerung prüfen. Weiter ist möglich. Prognose allein ist kein Nachweis einer Sättigung.':'';}
+  const warning=$('gwPtcPressureWarning'),bandNow=pressureBand();if(warning){const exceeds=!!bandNow&&(bandNow.min< -32768||bandNow.max>32767);warning.hidden=!exceeds;warning.textContent=exceeds?'Prognose ADC_S '+fmt(bandNow.min)+' … '+fmt(bandNow.max)+' Digits: ausserhalb des digitalen Darstellungsbereichs. Gain/Offset und analogen Linearbereich prüfen. Prognose allein ist kein Nachweis einer Sättigung.':'';}
   const el=$('gwPtcSvg'),label=$('gwPtcStats');if(!el||!active())return;
   if(!configured){el.textContent='Noch keine Temperatur-AFE-Auswahl.';label.textContent='';return;}
   const {plan,code,p}=configured;
@@ -102,7 +102,7 @@
     add('AFE-Auswahl','Alle 16 TPGA-Kombinationen werden gegen Eingang 0,2–1,2 V, TPGA1-Ausgang −0,45 bis +0,75 V und ADC-Eingang ±0,7 V geprüft. Referenz- und Gain-Toleranz werden berücksichtigt. Ein NTC-Spannungsteiler ist im Allgemeinen nichtlinear; das lineare Modell ist eine Näherung.');
     try{const r=E.plan(model());add('Aktuelles Beispiel','EOC-Spannungsbereich inkl. Toleranz '+fmt(r.min*1000)+'–'+fmt(r.max*1000)+' mV. '+(r.best?'Vorschlag: TPGA1 ×'+r.best.g1+' / TPGA2 ×'+r.best.g2+'.':'Keine passende Verstärkung.'));}catch(_){}
    }
-   add('Gelber Bereich','Modellprognose über Betriebstemperatur. Blau: aufgenommene ADC-Rohwerte (je nach Betriebsart simuliert oder real). ADC_S-Drift (TK0/TKE) ist von der Temperaturquelle getrennt. ±25’000 Digits sind ein Richtwert, keine harte Sperre. Prognosen ersetzen keine Temperaturmessung.');
+   add('Gelber Bereich','Modellprognose über Betriebstemperatur. Blau: aufgenommene ADC-Rohwerte (je nach Betriebsart simuliert oder real). ADC_S-Drift (TK0/TKE) ist von der Temperaturquelle getrennt. Die digitale Darstellungsgrenze ist keine garantierte analoge Linearitätsgrenze. Die nötige Reserve ist sensorabhängig. Prognosen ersetzen keine Temperaturmessung.');
    return {title:key==='source'?'Temperaturmessquelle · '+heading:heading+' · Berechnung',sections};
   }
   const fields={

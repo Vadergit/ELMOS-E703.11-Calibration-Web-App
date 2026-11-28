@@ -48,7 +48,7 @@ const ELMOS_GUIDED_PLAN=(()=>{
     throw Error('Zu wenig Messpunkte für die gewählte Polynomordnung');
   const n=Number(spec.samples??12);
   if(!Number.isInteger(n)||n<1||n>100)throw Error('Pro Messpunkt 1 bis 100 Samples zulässig');
-  const outputLimit=Number(spec.outputLimit??25000);
+  const outputLimit=Number(spec.outputLimit??32000);
   if(!Number.isInteger(outputLimit)||outputLimit<1000||outputLimit>32000)throw Error('DSP-Zielbereich zwischen ±1’000 und ±32’000 Digits wählen');
   const unit=String(spec.unit??'%');
   if(!['bar','mbar','kPa','psi','%','custom'].includes(unit))throw Error('Ungültige Druckeinheit');

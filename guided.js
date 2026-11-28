@@ -25,7 +25,7 @@ const ELMOS_GUIDED=(()=>{
  const originalCaptureLabels=new Map();
  const subscriptions=[];
  const subscribe=(el,type,handler)=>{el.addEventListener(type,handler);subscriptions.push({el,type,handler})};
- const defaults={pCount:2,tCount:1,temps:[25],pmin:0,pmax:100,unit:'%',samples:12,outputLimit:25000,orderS:1,orderT:0};
+ const defaults={pCount:2,tCount:1,temps:[25],pmin:0,pmax:100,unit:'%',samples:12,outputLimit:32000,orderS:1,orderT:0};
  const state=()=>window.ELMOS_GUIDED_API?.state?.()||{chip:false,points:[],mode:'offline'};
  const VIEW_PREFERENCE_KEY='elmos-ui-last-view-v1';
  const rememberedView=()=>{
@@ -96,8 +96,8 @@ const ELMOS_GUIDED=(()=>{
     </div>`+
     '<div id="gwSetupPreview" class="gw-summary gw-setup-summary"></div></div>'+
    '<div id="gwPage3" class="gw-page gw-afe-page" hidden><div class="gw-columns gw-afe-layout">'+
-    '<section class="gw-tile gw-control gw-afe-controls"><div class="gw-section-head"><span class="gw-section-no">01</span><div><h3>Verstärkung und Offset</h3><p>Änderungen werden direkt ins Chip-RAM übernommen</p></div></div><div id="gwAFEPanel"></div><div id="gwGain"></div><div id="gwAFEMsg"></div><div id="gwConfigAFE"></div><div id="gwPtcControls"></div><div class="gw-afe-guide"><strong>AFE richtig einstellen</strong><ol><li>Minimalen und maximalen Referenzdruck anlegen.</li><li>PGA1, Offset und PGA2 anpassen. Ziel: grosser Hub ohne Übersteuerung.</li><li>±25’000 Digits als Richtwert nutzen. Bei grösserem Hub die Aussteuerungsreserve prüfen.</li></ol><small>Änderst du die AFE nach einer Messung, müssen bereits erfasste Messpunkte neu aufgenommen werden.</small></div></section>'+
-    '<section class="gw-tile gw-afe-monitor"><div class="gw-monitor-head"><div><h3>ADC_S · Live-Verlauf</h3><p>Rohsignal der Druckmesskette · letzte 60 Sekunden</p></div><span id="gwAfeLiveBadge" class="gw-live-badge">Warte auf Werte</span></div><div class="gw-afe-current"><strong id="gwAfeAdcValue" aria-live="off">—</strong><span>Digits</span></div><div class="gw-afe-chart" id="gwAfeChartHost"></div><div class="gw-chart-legend"><span class="gw-legend-limit">Richtwert ±25’000</span><span class="gw-legend-zero">Nulllinie</span><span class="gw-legend-line">ADC_S live</span></div>'+
+    '<section class="gw-tile gw-control gw-afe-controls"><div class="gw-section-head"><span class="gw-section-no">01</span><div><h3>Verstärkung und Offset</h3><p>Änderungen werden direkt ins Chip-RAM übernommen</p></div></div><div id="gwAFEPanel"></div><div id="gwGain"></div><div id="gwAFEMsg"></div><div id="gwConfigAFE"></div><div id="gwPtcControls"></div><div class="gw-afe-guide"><strong>AFE richtig einstellen</strong><ol><li>Minimalen und maximalen Referenzdruck anlegen.</li><li>PGA1, Offset und PGA2 anpassen. Ziel: grosser Hub ohne Übersteuerung.</li><li>Digitalen Darstellungsbereich und analogen Linearbereich beachten. Die erforderliche Reserve hängt vom Sensor und seiner Temperaturdrift ab.</li></ol><small>Änderst du die AFE nach einer Messung, müssen bereits erfasste Messpunkte neu aufgenommen werden.</small></div></section>'+
+    '<section class="gw-tile gw-afe-monitor"><div class="gw-monitor-head"><div><h3>ADC_S · Live-Verlauf</h3><p>Rohsignal der Druckmesskette · letzte 60 Sekunden</p></div><span id="gwAfeLiveBadge" class="gw-live-badge">Warte auf Werte</span></div><div class="gw-afe-current"><strong id="gwAfeAdcValue" aria-live="off">—</strong><span>Digits</span></div><div class="gw-afe-chart" id="gwAfeChartHost"></div><div class="gw-chart-legend"><span class="gw-legend-limit">16-Bit-Darstellungsgrenzen</span><span class="gw-legend-zero">Nulllinie</span><span class="gw-legend-line">ADC_S live</span></div>'+
     '<div class="gw-afe-kpis"><div><span>Minimum</span><strong id="gwAfeMin">—</strong></div><div><span>Maximum</span><strong id="gwAfeMax">—</strong></div><div><span>Hub (Max − Min)</span><strong id="gwAfeHub">—</strong></div></div>'+
     '<div class="gw-monitor-actions"><div id="gwAfeLiveActions"></div><button type="button" id="gwAfeReset" class="gw-secondary-btn">Min/Max zurücksetzen</button></div><div id="gwAfeQuality" class="gw-afe-quality" role="status">Min/Max werden ab dem Start dieses AFE-Schritts erfasst.</div><div id="gwAfeMessage"></div><div id="gwPtcPlot"></div></section></div></div>'+
    '<div id="gwPage4" class="gw-page" hidden><div class="gw-points-layout"><div class="gw-point-nav" id="gwPointNav"></div><div class="gw-tile gw-control"><div id="gwPointConfirmation" class="gw-point-confirmation" hidden role="status" aria-live="polite"></div><div id="gwCurrentSetpoint" class="gw-summary gw-next-point"></div><div id="gwPointHost"></div><div id="gwSampleStatus"></div><div id="gwPointMessages"></div></div></div><div class="gw-alert">Der angezeigte Druck und die Temperatur sind <b>Referenz-Sollwerte</b>. Sie werden nicht automatisch erzeugt. Wähle den tatsächlichen Sollwert am Druckkalibrator und stelle die Temperaturkammer stabil ein, bevor du auf «aufnehmen» klickst.</div></div>'+
@@ -639,10 +639,10 @@ const ELMOS_GUIDED=(()=>{
   const quality=$('gwAfeQuality');
   quality.className='gw-afe-quality';
   if(!stats.count){
-   quality.textContent=window.ELMOS_PTC_DEV_UI?.active?.()?'Noch keine Messungen. Min-/Max-Druck anlegen; die Grafik markiert den Richtwert ±25’000 Digits.':'Noch keine Messungen. Min-/Max-Druck anlegen; die Grafik markiert ±25’000 Digits.';
-  }else if(stats.limitExceeded||Math.abs(t.adcS??0)>25000){
+   quality.textContent='Noch keine Messungen. Min-/Max-Druck anlegen; die Grafik zeigt den digitalen Bereich −32’768 bis +32’767 Digits.';
+  }else if(stats.limitExceeded||t.adcS<=-32768||t.adcS>=32767){
    quality.classList.add('is-warning');
-   quality.textContent=window.ELMOS_PTC_DEV_UI?.active?.()?'Richtwert ±25’000 Digits überschritten. Aussteuerung prüfen; Weiter ist möglich.':'Grenze ±25’000 Digits überschritten. PGA/Offset anpassen und den Messbereich erneut abfahren.';
+   quality.textContent='Digitale Darstellungsgrenze erreicht. Mögliche Sättigung: PGA, Offset und analogen Linearbereich prüfen.';
   }else if(stats.count>=2&&stats.hub<4000){
    quality.classList.add('is-warning');
    quality.textContent='Signalhub zu klein: '+measurementNumber(stats.hub)+' von mindestens 4’000 Digits. Minimalen und maximalen Druck anlegen. Bleibt der Hub zu klein, PGA-Verstärkung erhöhen und erneut prüfen.';
@@ -650,7 +650,7 @@ const ELMOS_GUIDED=(()=>{
    quality.textContent='Warte auf weitere Messwerte für die Hubprüfung.';
   }else{
    quality.classList.add('is-good');
-   quality.textContent='Im beobachteten Zeitraum innerhalb ±25’000 Digits. Hub '+measurementNumber(stats.hub)+' Digits bei '+stats.count+' Messwerten. Gesamten Druckbereich prüfen.';
+   quality.textContent='Im beobachteten Zeitraum keine digitale Sättigungsgrenze erreicht. Hub '+measurementNumber(stats.hub)+' Digits bei '+stats.count+' Messwerten. Gesamten Druckbereich prüfen.';
   }
  }
  function updateFinishTelemetry(){

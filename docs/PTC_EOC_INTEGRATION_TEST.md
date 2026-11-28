@@ -5,3 +5,5 @@ Start: Branch herunterladen, im Ordner python3 -m http.server 8000, Chrome/Edge 
 Tests: node tests/temperature-source-dispatch.test.cjs und node temperature-beta/manufacturer-audit.cjs.
 
 Zusätzlicher Demo-Regressionsvergleich: `node tests/temperature-source-demo.test.cjs`. 189 Standard-Demo-Registerabfragen sowie PTC/EOC-Quellenwechsel und Rückkehr zum ursprünglichen Demo-RAM (237 Prüfungen insgesamt). 2 vollständige Standard-NVM-Abbilder werden verglichen. Die Regressionen sind kein Hardwaretest.
+
+Integration 03: Kein fest hinterlegter ADC-Richtwert von ±25’000. Digitale Sättigungshinweise nur an −32’768 / +32’767, keine Aussage zur analogen Linearität. Prognosewarnungen nur bei Überschreiten der digitalen Grenzen. DSP-Vorgabe ±32’000 (bisheriger Standard), individuell veränderbar. Historisches Rechenbeispiel in DSP-Dokumentation ausdrücklich nicht freigegeben. 25 kBd bleibt unverändert.
