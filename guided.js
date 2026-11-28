@@ -282,6 +282,7 @@ const ELMOS_GUIDED=(()=>{
    window.ELMOS_GUIDED_API?.skipAlarms?.();goto(9);
   });
   document.querySelectorAll('[data-gw-side]').forEach(button=>button.addEventListener('click',()=>{const index=Number(button.dataset.gwSide);if(visited.has(index)){stage=index;render()}}));
+  for(const id of ['calTOrder','calFitMode'])subscribe($(id),'change',syncFitModelVisibility);
   subscribe(document,'elmos-config-applied',syncImportedConfig);
   subscribe($('expertMode'),'change',renderOutputOptions);
   subscribe($('expertOutputMode'),'change',renderOutputOptions);
@@ -391,6 +392,13 @@ const ELMOS_GUIDED=(()=>{
   const fields=matrix.points.flatMap(pointSettingIds).map(id=>[id,$(id).value]);
   return {signature:JSON.stringify(matrix),fields};
  }
+ function applyFitPlan(p){
+  // Release the old TK0 constraint before applying the new polynomial orders.
+  fieldValue('calFitMode','full');
+  fieldValue('calSOrder',p.orderS);
+  fieldValue('calTOrder',p.orderT);
+  fieldValue('calFitMode',p.fitMode);
+ }
  function applyPlan(){
   let p=makePlan();
   if(window.ELMOS_PTC_DEV_UI?.active?.()){const first=[...p.temperatures].sort((a,b)=>Math.abs(a-25)-Math.abs(b-25))[0];p={...p,points:p.points.slice().sort((a,b)=>(a.temperature===first?0:1)-(b.temperature===first?0:1)||a.temperature-b.temperature||a.pressure-b.pressure).map((x,index)=>({...x,extraSlot:x.slot.startsWith('extra')?(x.extraSlot??x.index):x.extraSlot,index}))};}
@@ -406,9 +414,7 @@ const ELMOS_GUIDED=(()=>{
   fieldValue('pmin',p.pmin);fieldValue('pmax',p.pmax);
   fieldValue('calUnit',p.unit);
   fieldValue('calSampleCount',p.samples);
-  fieldValue('calSOrder',p.orderS);
-  fieldValue('calTOrder',p.orderT);
-   fieldValue('calFitMode',p.fitMode);
+  applyFitPlan(p);
   fieldValue('calDspLimit',p.outputLimit);
   for(const point of p.points){
    const name=point.label+' · '+point.pressure+' '+p.unit;
@@ -811,10 +817,20 @@ const ELMOS_GUIDED=(()=>{
    msg('Diagnose fehlgeschlagen: '+String(error.message||error),'error');
   }finally{connectionBusy=false;renderConnectionStatus()}
  }
+ function syncFitModelVisibility(){
+  const field=$('calFitMode'),host=$('gwFitFields');
+  if(!field||!host)return;
+  const label=field.closest('label');
+  if(!label)return;
+  const enabled=Number($('calTOrder').value)>0;
+  label.hidden=!enabled;
+  host.classList.toggle('gw-fit-without-temperature',!enabled);
+ }
  function updateUI(){
   if(!mode)return;
   const s=state();
   renderQuickConnect(s);
+  if(stage===5)syncFitModelVisibility();
   if(connectionOpen){renderConnectionStatus();return}
   if(nextSensorPending){void refreshSwapPort();return}
   $('gwChipStatus').textContent=statusText();
@@ -1153,6 +1169,7 @@ const ELMOS_GUIDED=(()=>{
   if(pendingCapture){window.clearInterval(pendingCapture);pendingCapture=null}
   for(const {el,type,handler} of subscriptions)el.removeEventListener(type,handler);
   subscriptions.length=0;
+  const fitLabel=$('calFitMode')?.closest('label');if(fitLabel)fitLabel.hidden=false;
   restore();root.hidden=true;root.replaceChildren();
   document.documentElement.classList.remove('guided-active','guided-task-open');
   syncTopMode();

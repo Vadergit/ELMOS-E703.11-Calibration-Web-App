@@ -404,3 +404,7 @@ html.guided-active #calPreflightPanel #calPreflightStatus:not(.error):not(.warn)
 #guidedWorkspace .gw-quick-actions button{min-height:34px;font-size:12px;padding:6px 11px;white-space:normal}
 html[data-theme="dark"] #guidedWorkspace .gw-quick-connect{background:#382e1d;color:#f4d9a1;border-color:#846c3b}
 @media(max-width:650px){#guidedWorkspace .gw-quick-actions{width:100%}#guidedWorkspace .gw-quick-actions label{flex:1 1 120px}#guidedWorkspace .gw-quick-actions button{flex:1 1 100%}}
+
+/* A pressure-only fit has no selectable thermal model. */
+#guidedWorkspace #gwFitFields.gw-fit-without-temperature{grid-template-columns:repeat(2,minmax(0,1fr))}
+@media(max-width:520px){#guidedWorkspace #gwFitFields.gw-fit-without-temperature{grid-template-columns:1fr}}
