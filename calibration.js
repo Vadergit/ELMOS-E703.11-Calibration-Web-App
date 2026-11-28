@@ -108,7 +108,17 @@ const ELMOS_CAL = (() => {
    throw Error('AN0203: Temperaturreferenz ausserhalb -40..125 °C');
   return 387.88*degreesC-16485;
  };
- function fit(points, opts={}){
+ function fit(points,opts={}){
+  // Prefer established normalization. Retry only representability errors
+  // with documented Q3.12 scales, never clip a coefficient.
+  let first;
+  for(const [sScale,tScale] of [[1.98,1.70],[1.98,1.98],[1.998,1.98],[1.998,1.998],[1.98,1.998]]){
+   try{return fitCore(points,opts,sScale,tScale);}
+   catch(e){if(!first)first=e;if(e.code!=='COEFFICIENT_OUT_OF_RANGE')throw first;}
+  }
+  throw first;
+ }
+ function fitCore(points, opts={},sScale=1.98,tScale=1.70){
   const orderS=Number(opts.orderS??1),orderT=Number(opts.orderT??0);
    // Three-point TK0 uses no pressure-temperature interaction (S*T).
    // The complete linear 2x2 model also compensates TKE.
@@ -143,21 +153,22 @@ const ELMOS_CAL = (() => {
   // Use ±0.99 where representable. For smaller spans let the coefficient
   // range and fit error checks determine whether the requested target fits.
   const maxQ3Gain=32767/4096;
-  const sf=q(Math.min(1.98*32768/(smax-smin),maxQ3Gain),12,'S_F');
+  const sf=q(Math.min(sScale*32768/(smax-smin),maxQ3Gain),12,'S_F');
   const so=q(-fromQ(sf,12)*((smax+smin)/2)/32768,12,'S_O');
   const normS=raw=>fromQ(sf,12)*raw/32768+fromQ(so,12);
-  if(ps.some(p=>Math.abs(normS(p.s))>0.999))throw Error('S-Normalisierung nach Quantisierung übersteuert.');
+  if(ps.some(p=>normS(p.s)<-1||normS(p.s)>32767/32768))throw Error('S-Normalisierung nach Quantisierung übersteuert.');
   let tf=null,to=null;
   if(orderT>0){
    const lo=Math.min(...ps.map(p=>p.t)),hi=Math.max(...ps.map(p=>p.t));
    if(!(hi>lo))throw Error('ADC_T ist bei den Temperaturreferenzen nicht unterscheidbar. Temperaturkompensation nicht zuverlässig berechenbar.');
    // Avoid an arbitrary 500-digit gate: constrain the actual Q3.12 gain and
    // let the coefficient quantization and numerical rank checks determine validity.
-   tf=q(Math.min(1.70*32768/(hi-lo),32767/4096),12,'T_F');
+   tf=q(Math.min(tScale*32768/(hi-lo),32767/4096),12,'T_F');
    to=q(-fromQ(tf,12)*(hi+lo)/(2*32768),12,'T_O');
   }
   // When no temperature order is requested the existing chip T_O/T_F, T0..T3 are preserved.
   const normT=raw=>orderT>0?fromQ(tf,12)*raw/32768+fromQ(to,12):0;
+  if(orderT>0&&ps.some(p=>normT(p.t)<-1||normT(p.t)>32767/32768))throw Error('T-Normalisierung nach Quantisierung übersteuert.');
   
   const rows=ps.map(p=>keys.map(k=>normS(p.s)**Math.floor(k/4)*normT(p.t)**(k%4)));
   const y=ps.map(p=>elmosDspTarget(p.p,pmin,pmax,outputLimit)/32768);
@@ -174,7 +185,7 @@ const ELMOS_CAL = (() => {
    const fittedT=solveFit(trows,ty);tRegs=Array(4).fill(0);fittedT.forEach((v,i)=>tRegs[i]=q(v,15,'T'+i));
    tErrors=ps.map((p,i)=>32768*(tRegs.reduce((s,v,k)=>s+fromQ(v,15)*normT(p.t)**k,0)-ty[i]));
   }
-  return {method:'browser-independent-polynomial-fit',points:ps.length,recordedPoints:allPoints.length,ignoredTemperaturePoints:allPoints.length-ps.length,pressureOnly:orderT===0,referenceTemperature:orderT===0?ps[0]?.temp:null,orderS,orderT,fitMode,outputLimit,registers:{so,sf,coeffs:regs,to,tf,tcoeffs:tRegs},stats:{maxDigits:max,rmsDigits:rms,maxTemperatureDigits:tErrors.length?Math.max(...tErrors.map(Math.abs)):null,rangeDigits:smax-smin,maxNormalized:Math.max(...ps.map(p=>Math.abs(normS(p.s)))),maxOutput},errors,coefficients:decoded,note:'Q3.12/Q0.15 nach Datenblatt; numerischer JavaScript-Fit, nicht identisch mit der Elmos-Kalibrier-DLL. '+(orderT===0?'Ohne TK-Kompensation: nur Druckmessungen einer Referenztemperatur werden verwendet; bestehende Temperaturregister bleiben unverändert. ':'')+'Vor Programmierung RAM/DSP-Verifikation notwendig.'};
+  return {method:'browser-independent-polynomial-fit',points:ps.length,recordedPoints:allPoints.length,ignoredTemperaturePoints:allPoints.length-ps.length,normalization:{sScale,tScale},pressureOnly:orderT===0,referenceTemperature:orderT===0?ps[0]?.temp:null,orderS,orderT,fitMode,outputLimit,registers:{so,sf,coeffs:regs,to,tf,tcoeffs:tRegs},stats:{maxDigits:max,rmsDigits:rms,maxTemperatureDigits:tErrors.length?Math.max(...tErrors.map(Math.abs)):null,rangeDigits:smax-smin,maxNormalized:Math.max(...ps.map(p=>Math.abs(normS(p.s)))),maxOutput},errors,coefficients:decoded,note:'Q3.12/Q0.15 nach Datenblatt; numerischer JavaScript-Fit, nicht identisch mit der Elmos-Kalibrier-DLL. '+(orderT===0?'Ohne TK-Kompensation: nur Druckmessungen einer Referenztemperatur werden verwendet; bestehende Temperaturregister bleiben unverändert. ':'')+'Vor Programmierung RAM/DSP-Verifikation notwendig.'};
  }
  /** Propose a conservative, verified DSP target without changing the caller's settings or writing the chip.
   * A lower DSP target can fix a saturated DSP S-coefficient, but not an AFE or temperature-path fault.
