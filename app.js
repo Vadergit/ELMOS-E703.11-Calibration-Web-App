@@ -3685,6 +3685,12 @@ if(typeof document!=='undefined') (function UI(){
   st.trend=[];erasePoints();renderStatus();
   show('connMsg','E703.11 wird am bestehenden USB-Anschluss neu initialisiert …','warn');
   try{
+   // Match the initial connect order: identify the DIY bridge before any
+   // interface commands, and retain its capability/board identity.
+   if(st.adapterKind==='bridge'){
+    const ready=await bridgeHello();
+    if(!ready)throw Error('USB-Bridge nicht bereit');
+   }
    await firmware();
    await selectChipInterface();
    if(st.port!==port||st.closing)throw Error('USB-Verbindung unterbrochen');
@@ -3700,8 +3706,6 @@ if(typeof document!=='undefined') (function UI(){
     }
    }else{
     if(st.adapterKind==='bridge'){
-     const ready=await bridgeHello();
-     if(!ready)throw Error('USB-Bridge nicht bereit');
      await connectBridgeChip();
     }else await detect();
    }
@@ -6782,7 +6786,9 @@ if(typeof document!=='undefined') (function UI(){
    let path=newCalibrationPowerPath({adapter:st.adapterKind,iface:st.iface,powerEnabled:st.sensorPowerEnabled,ssp3Confirmed:$('plcPowerConfirm').checked});
    st.manualLivePause=true;stopLive();if(st.liveReadPromise)await st.liveReadPromise.catch(()=>{});
    const sameSession=()=>st.port===port&&st.sessionIndex===session&&st.chip&&st.uid?.hex===priorUid&&!st.closing;
-   const cleanCandidate=st.adapterKind==='ssp3'&&st.iface==='plc'&&!archive?.active&&!draft&&
+   const cleanAdapter=(st.adapterKind==='ssp3'&&st.iface==='plc')||
+    (st.adapterKind==='bridge'&&bridgeColdStartVerified()&&nvmTransportSupported());
+   const cleanCandidate=cleanAdapter&&!archive?.active&&!draft&&
     !st.calpoints.length&&!st.calStaged&&!st.calfit&&!st.calibrationPreflight&&!st.nvmDone;
    if(cleanCandidate){
     try{
@@ -6791,22 +6797,26 @@ if(typeof document!=='undefined') (function UI(){
       throw Error('NVM/UID nicht bestätigt');
      const words=st.nvmBackup,profile=await readCalibrationProfile(),dsp={};
      for(const addr of CAL_REGS)dsp[addr]=await readReg(addr);
-     const start=CAL.oneWireStartupStatus(words);
-     const recovery=psscRecoveryProven();
+     const start=st.iface==='i2c'?{ok:!i2cNvmStartupBlock(words),requiresCookie:false}:CAL.oneWireStartupStatus(words);
+     const recovery=psscRecoveryProven()||bridgeColdStartVerified();
      const baseline=newCalibrationBaselineMatches(words,profile,dsp,{recovery});
      if(start.ok&&(!start.requiresCookie||recovery)&&baseline&&sameSession()&&await readCalibrationUid()===priorUid){
       Object.assign(st.regs,profile);st.boot=await bootSnapshot();st.afe0=profile[0x1A];
       st.ptcHardware=null;st.temperatureBaseline=null;st.calibrationPreflight=null;
       st.trend=[];st.history=[];erasePoints();newCalibrationFailedRestart=null;
       window.ELMOS_PTC_DEV_UI?.sourceChanged?.();
-      logging('Neuer Abgleich: bestehende SSP3-Sitzung durch UID, CRC8/CRC16 und RAM/NVM-Baseline bestätigt. Kein zusätzlicher Power-Cycle.');
+      logging('Neuer Abgleich: bestehende '+(st.bridgeBoard||st.adapterKind)+'-Sitzung durch UID, CRC8/CRC16 und RAM/NVM-Baseline bestätigt. Kein zusätzlicher Power-Cycle.');
       show('connMsg','Neuer Abgleich bereit: bestehende Sensorsitzung, NVM und RAM geprüft.','success');return;
      }
      logging('Neuer Abgleich: RAM/NVM-Baseline nicht identisch oder Startnachweis fehlt; Neustart erforderlich.');
     }catch(e){logging('Neuer Abgleich: Baseline-Prüfung fehlgeschlagen: '+e.message);}
     if(!sameSession())throw Error('Sensorverbindung während der Vorprüfung verloren. Bitte neu initialisieren.');
    }
-   if(newCalibrationFailedRestart?.port===port&&newCalibrationFailedRestart.uid===priorUid&&path==='ssp3-power'){
+   if(newCalibrationFailedRestart?.port===port&&newCalibrationFailedRestart.uid===priorUid&&path!=='manual'){
+    if(path==='bridge-power'){
+     // A manual acknowledgement is NOT the bridge firmware's cold-start proof.
+     throw Error('Automatischer Board-Neustart zuvor fehlgeschlagen. Aktuelle RAM/NVM-Basis nicht bestätigt. USB-Diagnose exportieren und Board neu verbinden; keine NVM-Freigabe.');
+    }
     path='manual';
     logging('Automatischer SSP3-Neustart bereits fehlgeschlagen; kein erneuter automatischer Neustart in Schleife.');
    }
@@ -6818,7 +6828,7 @@ if(typeof document!=='undefined') (function UI(){
    if(archive?.active)await finishSensorArchive(priorUid);
    await reinitializeSensor({newCalibrationStart:path});
    if(!sameSession()||!newCalibrationRestartProven(path,{port,session,uid:priorUid,trials:st.startupTrials,powerResult:st.powerCycleResult,bridgeProof:st.bridgeColdStart,manualConfirmed})){
-    if(path==='ssp3-power')newCalibrationFailedRestart={port,uid:priorUid};
+    if(path==='ssp3-power'||path==='bridge-power')newCalibrationFailedRestart={port,uid:priorUid};
     throw Error('Sensorneustart oder gleiche UID nicht bestätigt. Sensor neu initialisieren; beim nächsten Abgleich wird eine geprüfte Sitzung verwendet oder ein manueller Neustart angeboten. Keine NVM-Änderung.');
    }
    newCalibrationFailedRestart=null;
