@@ -4953,8 +4953,10 @@ if(typeof document!=='undefined') (function UI(){
    if(!restoring&&!outputOnly&&!alarmOnly&&st.calfit.stats.maxDigits>100)throw Error('Fitfehler zu gross (>100 Digits)');
    if(!restoring&&!outputOnly&&!alarmOnly&&modified[30]!==(requestedNvmUserId()??initial[30]))
     throw Error('USER-ID wurde geändert. Änderungsliste erneut vorbereiten.');
-   const allowedNormal=new Set([16,22,CAL.SVDD_INDEX,...(operatingProfile?CAL.PROFILE_WORDS:[]),28,30,31,32,33,34,...Array.from({length:16},(_,i)=>35+i),51,52,53,54,57,58,59,60,63,...(timedOneWire?[17,18]:[]),...(alarmIntegrated?[18,55,56,61,62]:[])]);
-   if(st.calImage.changes.some(c=>restoring?(c.index<28||c.index>63):alarmOnly?![16,18,55,56,61,62,63].includes(c.index):outputOnly?![16,22,57,58,59,60,63,...(timedOneWire?[17,18]:[])].includes(c.index):!allowedNormal.has(c.index)))throw Error('Unzulässige NVM-Änderung');
+   const allowDevTemperature=allowSvdd&&devPtcFit();
+   const allowedNormal=new Set([16,22,CAL.SVDD_INDEX,...(allowDevTemperature?[29]:[]),...(operatingProfile?CAL.PROFILE_WORDS:[]),28,30,31,32,33,34,...Array.from({length:16},(_,i)=>35+i),51,52,53,54,57,58,59,60,63,...(timedOneWire?[17,18]:[]),...(alarmIntegrated?[18,55,56,61,62]:[])]);
+   const forbidden=st.calImage.changes.find(c=>restoring?(c.index<28||c.index>63):alarmOnly?![16,18,55,56,61,62,63].includes(c.index):outputOnly?![16,22,57,58,59,60,63,...(timedOneWire?[17,18]:[])].includes(c.index):!allowedNormal.has(c.index));
+   if(forbidden)throw Error('Unzulässige NVM-Änderung: Wort '+forbidden.index+' (Adresse 0x'+h(forbidden.index*2)+')');
    if(alarmIntegrated){
     if(!(st.adapterKind==='ssp3'||st.bridgeUserNvm)||!ELMOS_ALARM_EDITOR.pendingForCalibration()||!$('nvmAutoBackup').checked)
      throw Error('Gemeinsamer Alarm-NVM-Plan nicht mehr bestätigt. Alarm-RAM erneut prüfen und Original sichern.');
@@ -4976,7 +4978,7 @@ if(typeof document!=='undefined') (function UI(){
     if(!st.expertOutputPlan)throw Error('AODO-NVM-Änderung ohne geprüften Expertenvorschlag');
     const expected=CAL.prepareOutputConfig(initial,st.expertOutputPlan,outputOnly?st.outputOnlyPlan.limit:st.calfit.outputLimit,{interfaceMode:st.iface});
     for(const i of [16,22,57,58,59,60,...(timedOneWire?[17,18]:[])]){
-     const ignoreMask=i===16?((alarmIntegrated?((1<<5)|(1<<8)):0)|(allowPressureCorrection?3:0)|(operatingProfile?.temperatureEnable?12:0)):0;
+     const ignoreMask=i===16?((alarmIntegrated?((1<<5)|(1<<8)):0)|(allowPressureCorrection?3:0)|((operatingProfile?.temperatureEnable||allowDevTemperature)?12:0)):0;
       const mismatch=((modified[i]^expected[i])&~ignoreMask)!==0;
      if(mismatch)throw Error('Ausgangsregister entspricht nicht dem geprüften Vorschlag');
     }
@@ -5070,7 +5072,12 @@ if(typeof document!=='undefined') (function UI(){
       }
      }
     }
-    // Only USER region access is authorized; NEVER unlock factory calibration area.
+    if(allowDevTemperature){
+    const actualAfe2=await readReg(0x1E),actualAfe0=await readReg(0x1A),actualEn=await readReg(0x04);
+    if(actualAfe2!==modified[29]||((actualAfe0^modified[27])&0x00f3)!==0||((actualEn^modified[16])&12)!==0)
+     throw Error('DEV Temperaturprofil im RAM stimmt nicht mit dem NVM-Plan überein. AFE und DSP erneut prüfen.');
+   }
+   // Only USER region access is authorized; NEVER unlock factory calibration area.
    nvmWriteFeedback('Chip bestätigt, NVM-Schreibfreigabe wird angefordert …');
    if(st.adapterKind==='bridge'&&st.bridgeCalibrationNvm){
     const armCommand=i2cNvmSupported()?'I2C ARM HOST':st.bridgeUserNvm?'NVM ARM HOST':
