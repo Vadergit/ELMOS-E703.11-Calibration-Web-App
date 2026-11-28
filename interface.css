@@ -236,3 +236,24 @@ html.guided-active body { background: var(--bg); }
  .top .live-kpi-primary .live-kpi-reading{font-size:17px}
 }
 @media(max-width:370px){.top .live-overview{grid-template-columns:repeat(2,minmax(0,1fr))}}
+
+/* Integration 05: reserve readable space for telemetry; controls wrap instead of squeezing the readings. */
+header.top{grid-template-columns:minmax(205px,270px) minmax(500px,1fr) minmax(0,1.15fr);column-gap:12px;row-gap:6px;align-items:center}
+header.top .brand{min-width:0}
+header.top .brand>div:last-child{min-width:0}
+header.top .brand .eyebrow{white-space:normal;overflow-wrap:anywhere}
+header.top .brand .logo{flex:none}
+header.top .live-overview{grid-template-columns:repeat(5,minmax(0,1fr));min-width:0;align-items:stretch}
+header.top .live-kpi{min-width:0;min-height:58px;padding:5px 7px}
+header.top .live-kpi-reading,header.top .live-kpi-primary .live-kpi-reading{font-size:17px;line-height:1.18;min-width:0;max-width:100%;white-space:normal;overflow-wrap:anywhere;word-break:normal;letter-spacing:-.3px;font-variant-numeric:tabular-nums}
+header.top .live-kpi-label,header.top .live-kpi-unit{min-width:0;overflow-wrap:anywhere;white-space:normal}
+header.top .live-pressure-meta{flex-wrap:wrap;gap:3px}
+header.top .live-pressure-meta #livePressureUnit{min-width:0;overflow-wrap:anywhere}
+header.top .live-connection{min-width:0;width:100%}
+header.top .connection-actions{display:flex;flex-wrap:wrap;justify-content:flex-end;max-width:100%;min-width:0;gap:5px}
+header.top .connection-actions>button,header.top .connection-actions>.chip{flex:0 0 auto;max-width:100%}
+header.top .live-meta{flex:0 1 100%;min-width:0;max-width:100%;flex-wrap:wrap;white-space:normal;justify-content:flex-end}
+header.top #liveDiagnostic{min-width:0;overflow-wrap:anywhere}
+@media(max-width:1320px){header.top{grid-template-columns:minmax(205px,1fr) minmax(0,2fr)}header.top .brand{grid-row:1;grid-column:1}header.top .live-connection{grid-row:1;grid-column:2}header.top .live-overview{grid-row:2;grid-column:1/-1}}
+@media(max-width:620px){header.top{grid-template-columns:minmax(0,1fr)}header.top .brand{grid-row:1;grid-column:1}header.top .live-overview{grid-row:2;grid-column:1;grid-template-columns:repeat(3,minmax(0,1fr))}header.top .live-connection{grid-row:3;grid-column:1;align-items:flex-start}header.top .connection-actions,header.top .live-meta{justify-content:flex-start}header.top .live-kpi{min-height:45px}header.top .live-kpi-reading,header.top .live-kpi-primary .live-kpi-reading{font-size:15px}}
+@media(max-width:370px){header.top .live-overview{grid-template-columns:repeat(2,minmax(0,1fr))}}

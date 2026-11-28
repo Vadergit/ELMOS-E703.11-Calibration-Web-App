@@ -159,7 +159,10 @@ html.guided-active #guidedWorkspace [hidden]{display:none!important}
 #guidedWorkspace .gw-afe-chart #chart,#guidedWorkspace .gw-finish-chart #chart{display:block;width:100%;height:100%;margin:0;border:0;box-shadow:none;max-width:none;border-radius:0;background:transparent}
 #guidedWorkspace .gw-chart-legend{display:flex;flex-wrap:wrap;gap:12px;margin:9px 0 15px;color:#6b8297;font-size:10px}
 #guidedWorkspace .gw-chart-legend span::before{content:'';display:inline-block;width:15px;height:3px;vertical-align:middle;margin-right:5px;border-radius:2px}
-#guidedWorkspace .gw-legend-limit::before{background:#d5aa72}
+#guidedWorkspace .gw-legend-limit::before{background:#b8c5d2}
+#guidedWorkspace .gw-legend-dsp::before,.afe-dsp-swatch{display:inline-block;height:0;border-top:2px dashed #8261b4;width:15px;margin-right:5px;vertical-align:middle;background:transparent}
+#guidedWorkspace .gw-legend-dsp{color:var(--ink)}
+.afe-dsp-reference{font-size:12px;margin-top:5px}
 #guidedWorkspace .gw-legend-zero::before{background:#b8cbdc}
 #guidedWorkspace .gw-legend-line::before{background:#2867a6}
 #guidedWorkspace .gw-afe-kpis{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin-top:5px}
@@ -377,3 +380,31 @@ html[data-theme="dark"] #guidedWorkspace .gw-connection-diagnostic{background:#1
  width:16px;height:16px;flex:0 0 auto;accent-color:var(--accent,#0877b9);
 }
 #guidedWorkspace .gw-connection-page #gwConnectionPowerHint[hidden]{display:none}
+
+/* Guided mode: automatic preflight stays active, routine maintenance UI does not. */
+.preflight-guided-title{display:none}
+html.guided-active #calPreflightPanel:not(.guided-draft-recovery){display:none!important}
+html.guided-active #calPreflightPanel .preflight-classic-title,html.guided-active #calRunPreflight{display:none!important}
+html.guided-active #calPreflightPanel .preflight-guided-title{display:block}
+html.guided-active #calPreflightPanel #calPreflightStatus:not(.error):not(.warn){display:none}
+
+/* Read-only guided calculator overlay: guided workspace remains mounted. */
+#guidedNvmWorkspace[hidden],html.guided-nvm-active #guidedWorkspace,html.archive-active #guidedNvmWorkspace{display:none!important}
+#guidedNvmWorkspace{margin:15px auto 0;max-width:1220px;min-width:0;padding:clamp(14px,2vw,28px)}
+#guidedNvmWorkspace .guided-tool-toolbar{display:flex;align-items:center;justify-content:flex-start;margin-bottom:16px}
+#guidedNvmWorkspace .guided-tool-toolbar button{background:var(--paper);color:var(--blue);border:1px solid var(--line);font-weight:750}
+#guidedNvmWorkspace #nvmReconstruction{min-width:0}
+
+/* Quick adapter connection on guided task selection. */
+#guidedWorkspace .gw-quick-connect{margin:0 0 14px;gap:10px 16px;padding:12px 14px;align-items:center}
+#guidedWorkspace .gw-quick-copy{flex:1 1 220px;min-width:0}
+#guidedWorkspace .gw-quick-actions{display:flex;align-items:flex-end;gap:8px;flex-wrap:wrap;min-width:0}
+#guidedWorkspace .gw-quick-actions label{display:flex;flex-direction:column;gap:4px;font-size:11px;font-weight:700;min-width:0;margin:0}
+#guidedWorkspace .gw-quick-actions select{min-height:34px;max-width:100%;padding:5px 8px;font-size:12px}
+#guidedWorkspace .gw-quick-actions button{min-height:34px;font-size:12px;padding:6px 11px;white-space:normal}
+html[data-theme="dark"] #guidedWorkspace .gw-quick-connect{background:#382e1d;color:#f4d9a1;border-color:#846c3b}
+@media(max-width:650px){#guidedWorkspace .gw-quick-actions{width:100%}#guidedWorkspace .gw-quick-actions label{flex:1 1 120px}#guidedWorkspace .gw-quick-actions button{flex:1 1 100%}}
+
+/* A pressure-only fit has no selectable thermal model. */
+#guidedWorkspace #gwFitFields.gw-fit-without-temperature{grid-template-columns:repeat(2,minmax(0,1fr))}
+@media(max-width:520px){#guidedWorkspace #gwFitFields.gw-fit-without-temperature{grid-template-columns:1fr}}

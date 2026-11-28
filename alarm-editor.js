@@ -51,9 +51,12 @@ const ELMOS_ALARM_EDITOR=(()=>{
    status('Alarme aus Config übernommen. Noch keine Register geschrieben. Bitte mit Sensor/EEPROM prüfen und im RAM bestätigen.','warn');
    renderFlowState();
   }
+  function checkLiveTemperature(r,words,selected){
+   if(window.ELMOS_PTC_DEV===true&&$('calTempSource')?.value==='external'&&(st.regs[0x1E]&3)===3&&((words?.[20]>>7)&3)===0&&selected.selectedStatusBits?.length){r.errors.push('Aktiver RAM-Temperaturpfad verwendet EOC als Eingang. STATUS-Ausgabe auf EOC ist nicht möglich.');r.ok=false;}return r;
+  }
   function updateRules(){
    const valid=proven(),busy=st.writing||st.calTask||st.nvmWorking;
-   const check=valid?A.checkDependencies(st.nvmBackup,selection()):
+   const check=valid?checkLiveTemperature(A.checkDependencies(st.nvmBackup,selection()),st.nvmBackup,selection()):
     {ok:false,errors:['Unterstützten Programmieradapter verbinden und EEPROM des aktuellen Chips auslesen.'],warnings:[],facts:[]};
    const list=$('alarmRuleList');
    list.replaceChildren();
@@ -158,7 +161,7 @@ const ELMOS_ALARM_EDITOR=(()=>{
     if(st.calImage&&!st.alarmOnlyPlan)
      throw Error('Anderer NVM-Plan vorhanden. Erst abschliessen.');
     if(!$('alarmDspConfirm').checked)throw Error('DSP-Endbereich ausdrücklich bestätigen.');
-    const rules=A.checkDependencies(st.nvmBackup,selection());
+    const rules=checkLiveTemperature(A.checkDependencies(st.nvmBackup,selection()),st.nvmBackup,selection());
     if(!rules.ok)throw Error(rules.errors.join(' '));
     const img=A.prepare(st.nvmBackup,selection(),CAL.crc16);
     CAL.protectStartupCommunication(img.before,img.after,{allowAlarmMask:true,interfaceMode:st.iface});
