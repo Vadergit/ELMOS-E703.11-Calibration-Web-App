@@ -390,7 +390,7 @@ const ELMOS_GUIDED=(()=>{
   const enabled=temperatureCompensationEnabled();
   root.dataset.temperatureCompensation=enabled?'on':'off';
   setText('gwSetupThermalHeading',enabled?'Temperatur und DSP':'DSP-Zielbereich');
-  setText('gwSetupThermalNote',enabled?'Temperaturstufen und digitaler Zielbereich':'Nur Druck · vorhandenes Temperaturprofil bleibt erhalten');
+  setText('gwSetupThermalNote',enabled?'Temperaturstufen und digitaler Zielbereich':'Nur Druck · Chiptemperatur separat als Referenz');
   window.ELMOS_PTC_DEV_UI?.refresh?.();
  }
  function renderPlan(){
