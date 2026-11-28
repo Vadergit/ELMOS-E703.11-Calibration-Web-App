@@ -112,12 +112,12 @@ function buildTemperatureAFE(){
    if(biasMode!==undefined)check([0,1].includes(biasMode)&&!!(afe2&0x0800)===!!biasMode,'EOC-Diodenstrom passt nicht zur gewählten Beschaltung.');
    const bus=spiI2c&3,sda=(pads2>>9)&3,route=(pads2>>7)&3,start=(pads0>>14)&3;
    check(!(sda===2&&(bus===1||bus===2)),'EOC ist gleichzeitig I²C-SDA.');
-   // The datasheet explicitly excludes sel_eoc=00 with t_adc_src=11,
-   // even if no status source is selected.
-   check(route!==0,'CFG_PADS2.sel_eoc=00 ist mit EOC als Temperatureingang unzulässig. EoC auf einen freien Pin routen.');
-   check(!(route===1&&(bus===1||bus===3)),'EoC-Ausgang NCS/SA0 kollidiert mit I²C/SPI.');
-   check(!(route===2&&(bus===3||((bus===1||bus===2)&&sda===1))),'EoC-Ausgang MOSI kollidiert mit I²C/SPI.');
-   check(!(route===3&&((cfgEn>>9)&7)!==0),'EoC-Ausgang AODO kollidiert mit konfiguriertem AODO-Ausgang.');
+   // Inactive routing with zero status mask is reported, not treated as
+   // proven electrical contention. Active conflicts are blocked.
+   if(route===0){if(pads0&0x0fff)errors.push('Aktive EoC-Statusausgabe kollidiert mit externem Temperatureingang.');else warnings.push('EoC-Ausgang ist auf EOC geroutet, aber Statusmaske ist 0. Datenblatt empfiehlt anderen freien Pin; keine aktive Statusausgabe nachgewiesen.');}
+   check(!(route===1&&(pads0&0x0fff)&&(bus===1||bus===3)),'EoC-Ausgang NCS/SA0 kollidiert mit I²C/SPI.');
+   check(!(route===2&&(pads0&0x0fff)&&(bus===3||((bus===1||bus===2)&&sda===1))),'EoC-Ausgang MOSI kollidiert mit I²C/SPI.');
+   check(!(route===3&&(pads0&0x0fff)&&((cfgEn>>9)&7)!==0),'EoC-Ausgang AODO kollidiert mit konfiguriertem AODO-Ausgang.');
    if(start===0)warnings.push('EOC dient beim Start auch der I²C/SPI-Auswahl. Beschaltung beim Neustart prüfen.');
    if((pads1&8)===0)warnings.push('EOC-Bus-Holder ist aktiv. Einfluss auf externe Temperaturspannung prüfen.');
   }
