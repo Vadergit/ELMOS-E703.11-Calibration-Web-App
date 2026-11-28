@@ -4351,7 +4351,7 @@ if(typeof document!=='undefined') (function UI(){
    const scope=noTk?' OHNE TK-Kompensation: Nur '+solution.points+' von '+solution.recordedPoints+' Messpunkten bei '+solution.referenceTemperature+' °C wurden für den Druckfit verwendet. Der Temperatureinfluss ist NICHT kompensiert oder als null nachgewiesen; bisherige T-Register bleiben unverändert.':'';
    const tightHeadroom=solution.outputLimit>=31000;
    const headroomWarning=tightHeadroom?' Achtung: Der DSP-Zielbereich liegt nahe der 16-Bit-Grenze. Auch bei gutem numerischem Fit kann der reale Chip DSP-Sättigung melden. Bei STATUS_SYNC.dsp_sat den DSP-Endwert verkleinern, neu rechnen und RAM/DSP erneut prüfen.':'';
-   show('calFitMsg','Berechnung erfolgreich ('+solution.points+' verwendete von '+st.calpoints.length+' erfassten Punkten). '+note+scope+headroomWarning+' Jetzt RAM-Schreibfreigabe aktivieren, Original-NVM prüfen und dann die berechneten Koeffizienten ins RAM übertragen. Die JavaScript-Berechnung ist noch nicht als identisch mit der Hersteller-DLL bestätigt.',noTk||solution.stats.maxDigits>100||tightHeadroom?'warn':'success');
+   show('calFitMsg','Berechnung erfolgreich ('+solution.points+' verwendete von '+st.calpoints.length+' erfassten Punkten). '+note+scope+headroomWarning+(solution.stats.lowSignalHubWarning?' Hinweis: ADC_S-Hub unter 4000 Digits, Genauigkeit real prüfen.':'')+' Jetzt RAM-Schreibfreigabe aktivieren, Original-NVM prüfen und dann die berechneten Koeffizienten ins RAM übertragen. Die JavaScript-Berechnung ist noch nicht als identisch mit der Hersteller-DLL bestätigt.',noTk||solution.stats.maxDigits>100||tightHeadroom||solution.stats.lowSignalHubWarning?'warn':'success');
    if(tightHeadroom){
     showDspRiskPopup({
      key:'high-dsp-limit:'+solution.outputLimit,
@@ -5111,7 +5111,10 @@ if(typeof document!=='undefined') (function UI(){
     if(!out.checked||!out.ok)throw Error('NVM-Schreibsperre: '+out.reason+
       '. Neue Ausgangsskalierung prüfen, kein Sensorprogrammieren.');
    }
-   if(!restoring&&!outputOnly&&!alarmOnly&&st.calfit.stats.maxDigits>100)throw Error('Fitfehler zu gross (>100 Digits)');
+   if(!restoring&&!outputOnly&&!alarmOnly&&st.calfit.stats.maxDigits>100){
+    if(!devPtcFit())throw Error('Fitfehler zu gross (>100 Digits)');
+    logging('DEV: Fitfehler >100 Digits als Hinweis; unabhängige DSP-Druck- und Temperaturprüfung bleibt verbindlich.');
+   }
    if(!restoring&&!outputOnly&&!alarmOnly&&modified[30]!==(requestedNvmUserId()??initial[30]))
     throw Error('USER-ID wurde geändert. Änderungsliste erneut vorbereiten.');
    const allowDevTemperature=allowSvdd&&devPtcFit();
